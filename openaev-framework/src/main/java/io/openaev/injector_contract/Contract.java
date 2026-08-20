@@ -5,6 +5,7 @@ import io.openaev.database.model.Domain;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.helper.SupportedLanguage;
 import io.openaev.injector_contract.fields.ContractElement;
+import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
 import io.openaev.injector_contract.variables.VariableHelper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -82,7 +83,7 @@ public class Contract {
   @JsonProperty("contract_attack_patterns_external_ids")
   private List<String> attackPatternsExternalIds = new ArrayList<>();
 
-  /** Whether this contract can be used for atomic testing. */
+  /** Whether this contract can be used to create an atomic testing inject. */
   @Setter
   @JsonProperty("is_atomic_testing")
   private boolean isAtomicTesting = true;
@@ -101,6 +102,19 @@ public class Contract {
   @Setter
   @JsonProperty("domains")
   private Set<Domain> domains;
+
+  /**
+   * Output/finding types this contract's execution produces. For a native, payload-less injector
+   * (e.g. phishing credential capture) this array is the ONLY machine-readable declaration of what
+   * findings the action can generate: {@link
+   * io.openaev.database.model.InjectorContract#getProviding()} reads it from the serialized content
+   * when the contract has no payload, so the Threat Arsenal "Outputs" section and findings-based
+   * chaining can surface it. Payload-backed contracts derive their outputs from the payload's
+   * output parsers instead and leave this empty.
+   */
+  @Setter
+  @JsonProperty("outputs")
+  private List<InjectorContractContentOutputElement> outputs = new ArrayList<>();
 
   private Contract(
       @NotNull final ContractConfig config,
@@ -229,6 +243,19 @@ public class Contract {
   public void addAttackPattern(String externalId) {
     if (externalId != null && !externalId.isBlank()) {
       attackPatternsExternalIds.add(externalId);
+    }
+  }
+
+  /**
+   * Declares an output/finding type this contract's execution produces. Only needed for native,
+   * payload-less injectors that generate findings through their own side effects rather than a
+   * payload's output parsers (e.g. phishing credential capture); see {@link #outputs}.
+   *
+   * @param output the output element to declare (ignored when null)
+   */
+  public void addOutput(InjectorContractContentOutputElement output) {
+    if (output != null) {
+      outputs.add(output);
     }
   }
 }

@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -363,10 +364,18 @@ public class WidgetService {
    */
   public ListConfiguration convertSecurityCoverageWidgetToListConfiguration(
       Widget widget, Map<String, List<String>> attackPatternFilterValues) {
-    // The matrix scores success against failure, so it drills both of its series. Naming
-    // them beats re-stating their statuses here: the union is then whatever the widget
-    // declares, and cannot fall out of step with it (#7079).
-    return this.convertWidgetToListConfiguration(widget, List.of(0, 1), attackPatternFilterValues);
+    // The matrix drills EVERY series the widget declares: both success and failure for
+    // stored two-series widgets (#7079), the single scope series for the synthetic
+    // overview drill-downs (#7137). Enumerating the declared series beats hardcoding
+    // their indexes here: the union is then whatever the widget declares, and cannot
+    // fall out of step with it.
+    List<WidgetConfigurationWithSeries.Series> series =
+        widget.getWidgetConfiguration() instanceof WidgetConfigurationWithSeries config
+                && config.getSeries() != null
+            ? config.getSeries()
+            : List.of();
+    List<Integer> seriesIndexes = IntStream.range(0, series.size()).boxed().toList();
+    return this.convertWidgetToListConfiguration(widget, seriesIndexes, attackPatternFilterValues);
   }
 
   /**

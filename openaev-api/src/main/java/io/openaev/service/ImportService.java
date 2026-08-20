@@ -10,7 +10,9 @@ import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.importer.ImportException;
+import io.openaev.importer.ImportResult;
 import io.openaev.importer.Importer;
+import io.openaev.importer.MissingImportedAction;
 import io.openaev.importer.V1_DataImporter;
 import io.openaev.utils.constants.Constants;
 import jakarta.annotation.Resource;
@@ -48,7 +50,7 @@ public class ImportService {
     dataImporters.put(1, v1_dataImporter);
   }
 
-  private void handleDataImport(
+  private ImportResult handleDataImport(
       InputStream inputStream,
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
@@ -61,7 +63,7 @@ public class ImportService {
       int importVersion = importNode.get("export_version").asInt();
       Importer importer = dataImporters.get(importVersion);
       if (importer != null) {
-        importer.importData(
+        return importer.importData(
             importNode, docReferences, exercise, scenario, asset, assetGroup, suffix);
       } else {
         throw new ImportException("Export with version " + importVersion + " is not supported");
@@ -72,9 +74,9 @@ public class ImportService {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public void handleFileImport(MultipartFile file, Exercise exercise, Scenario scenario)
+  public ImportResult handleFileImport(MultipartFile file, Exercise exercise, Scenario scenario)
       throws Exception {
-    handleInputStreamImport(
+    return handleInputStreamImport(
         file.getInputStream(),
         exercise,
         scenario,
@@ -84,7 +86,7 @@ public class ImportService {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public void handleInputStreamFileImport(
+  public ImportResult handleInputStreamFileImport(
       InputStream is,
       Exercise exercise,
       Scenario scenario,
@@ -92,10 +94,10 @@ public class ImportService {
       AssetGroup assetGroup,
       String suffix)
       throws Exception {
-    handleInputStreamImport(is, exercise, scenario, asset, assetGroup, suffix);
+    return handleInputStreamImport(is, exercise, scenario, asset, assetGroup, suffix);
   }
 
-  private void handleInputStreamImport(
+  private ImportResult handleInputStreamImport(
       InputStream is,
       Exercise exercise,
       Scenario scenario,
@@ -245,10 +247,17 @@ public class ImportService {
         }
       }
 
-      // Process all loaded data
+      // Process all loaded data. A single ZIP can carry the main Exercise/Scenario file plus one or
+      // more payload.json (direct-import or nested in a PayloadArchive): aggregate the missing
+      // actions reported by every importData call into one consolidated result.
+      List<MissingImportedAction> aggregatedMissingActions = new ArrayList<>();
       for (InputStream dataStream : dataImports) {
-        handleDataImport(dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix);
+        ImportResult result =
+            handleDataImport(
+                dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix);
+        aggregatedMissingActions.addAll(result.missingActions());
       }
+      return new ImportResult(aggregatedMissingActions);
     } finally {
       tempFile.delete();
     }

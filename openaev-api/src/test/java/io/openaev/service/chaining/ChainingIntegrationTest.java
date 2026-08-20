@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -21,6 +22,7 @@ import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.form.CreateExerciseInput;
 import io.openaev.rest.inject.form.InjectInput;
@@ -79,6 +81,7 @@ class ChainingIntegrationTest extends IntegrationTest {
   @MockitoBean private DocumentService documentService;
   @MockitoBean private InjectService injectService;
   @MockitoBean private io.openaev.executors.Executor executor;
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
   @MockitoSpyBean private UserService userService;
@@ -89,6 +92,9 @@ class ChainingIntegrationTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
+    when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+    when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Injector injectorSaved = injectorRepository.save(injector);
 

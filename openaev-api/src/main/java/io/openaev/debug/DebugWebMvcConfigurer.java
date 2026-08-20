@@ -8,14 +8,18 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class DebugWebMvcConfigurer implements WebMvcConfigurer {
 
   private final DebugTenantMdcInterceptor tenantMdcInterceptor;
+  private final DebugUserMdcInterceptor userMdcInterceptor;
 
-  public DebugWebMvcConfigurer(DebugTenantMdcInterceptor tenantMdcInterceptor) {
+  public DebugWebMvcConfigurer(
+      DebugTenantMdcInterceptor tenantMdcInterceptor, DebugUserMdcInterceptor userMdcInterceptor) {
     this.tenantMdcInterceptor = tenantMdcInterceptor;
+    this.userMdcInterceptor = userMdcInterceptor;
   }
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {
-    // After the platform tenant interceptor.
+    // Lowest precedence: after the platform tenant interceptor and after authentication.
     registry.addInterceptor(tenantMdcInterceptor).order(Ordered.LOWEST_PRECEDENCE);
+    registry.addInterceptor(userMdcInterceptor).order(Ordered.LOWEST_PRECEDENCE);
   }
 }

@@ -1,0 +1,93 @@
+name: Sanity Check
+description: >
+  Verify every release-critical artifact was produced, using the artifacts API
+  (name + size) rather than downloading them. Image internals are already
+  validated where they are built — docker-build checks the JAR, Java runtime and
+  layer count, docker-merge checks the platform list.
+
+inputs:
+  github-token:
+    description: Token used to query the workflow artifacts API.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Sanity check — artifact inventory
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        set -euo pipefail
+
+        PASS=0
+        FAIL=0
+        WARN=0
+
+        ARTIFACTS=$(gh api --paginate \
+          "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100" \
+          --jq '.artifacts[] | "\(.name)\t\(.size_in_bytes)"')
+
+        human() {
+          awk -v s="$1" 'BEGIN {
+            if (s >= 1073741824) printf "%.2f GB", s / 1073741824;
+            else if (s >= 1048576) printf "%.1f MB", s / 1048576;
+            else printf "%.1f KB", s / 1024;
+          }'
+        }
+
+        check_artifact() {
+          local name="$1" min_bytes="$2" label="$3"
+          local size
+          size=$(printf '%s\n' "$ARTIFACTS" | awk -F'\t' -v n="$name" '$1 == n { print $2; exit }')
+          if [ -z "$size" ]; then
+            echo "❌ MISSING: $label (artifact '$name' was never uploaded)"
+            FAIL=$((FAIL + 1))
+            return
+          fi
+          if [ "$size" -lt "$min_bytes" ]; then
+            echo "⚠️  TOO SMALL: $label — $(human "$size") (expected ≥ $(numfmt --to=iec "$min_bytes"))"
+            WARN=$((WARN + 1))
+          else
+            echo "✅ $label — $(human "$size")"
+            PASS=$((PASS + 1))
+          fi
+        }
+
+        echo "══════════════════════════════════════════════════════════"
+        echo "  🩺  Artifact & Image Sanity Check"
+        echo "══════════════════════════════════════════════════════════"
+        echo ""
+
+        echo "── Frontend ──"
+        check_artifact "frontend-build" 1048576 "Frontend build bundle"
+        echo ""
+
+        echo "── Backend JARs ──"
+        check_artifact "openaev-api-jar" 52428800 "Backend JAR (glibc)"
+        check_artifact "openaev-api-jar-musl" 52428800 "Backend JAR (musl)"
+        echo ""
+
+        echo "── Release Assets ──"
+        check_artifact "release-assets" 1048576 "Release assets (agents/implants/catalog)"
+        echo ""
+
+        echo "── Docker Images ──"
+        check_artifact "openaev-image" 157286400 "Standard Docker image (multi-arch OCI archive)"
+        check_artifact "openaev-ubi9-image" 157286400 "UBI9 Docker image (multi-arch OCI archive)"
+        echo ""
+
+        echo "══════════════════════════════════════════════════════════"
+        echo "  Summary: ✅ $PASS passed  ⚠️ $WARN warnings  ❌ $FAIL failures"
+        echo "══════════════════════════════════════════════════════════"
+
+        if [ "$FAIL" -gt 0 ]; then
+          echo ""
+          echo "❌ Sanity check FAILED — $FAIL critical artifact(s) missing"
+          exit 1
+        fi
+
+        if [ "$WARN" -gt 0 ]; then
+          echo ""
+          echo "⚠️ Sanity check passed with $WARN warning(s) — some artifacts are smaller than expected"
+        fi

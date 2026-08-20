@@ -184,6 +184,12 @@ public final class ChainingTypeRegistry {
           case DOMAIN -> List.of(PrimitiveType.Domain);
           case ASSET_ID -> List.of(PrimitiveType.AssetId);
           case ASSET_GROUP_ID -> List.of(PrimitiveType.AssetGroupId);
+          // Team / person scope is an audience axis, not an asset-target primitive: it contributes
+          // no primitive targets to the engine's asset/IP resolution (which stays asset-centric).
+          case TEAM_ID, PLAYER_ID -> List.of();
+          // Security platform rules are informative snapshot rows, never chaining condition
+          // primitives, so they map to no primitive type. See ADR-006.
+          case SECURITY_PLATFORM_ID -> List.of();
         });
   }
 

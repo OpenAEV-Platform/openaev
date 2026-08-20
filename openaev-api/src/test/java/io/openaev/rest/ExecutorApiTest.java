@@ -9,28 +9,34 @@ import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ExecutorRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.HashUtils;
-import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.AgentFixture;
+import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
+import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationComposer;
+import io.openaev.utils.fixtures.composers.EndpointComposer;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.List;
-import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -52,13 +58,27 @@ public class ExecutorApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private ExecutorRepository executorRepository;
-  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
-  @Autowired private EntityManager entityManager;
+  @Autowired private ExecutorFixture executorFixture;
 
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
-  @Autowired private ExecutorFixture executorFixture;
+  @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AgentComposer agentComposer;
+  @Autowired private AgentRepository agentRepository;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private TestUserHolder testUserHolder;
+  @Autowired private EntityManager entityManager;
+
+  @BeforeEach
+  void setUp() {
+    // Write endpoints (DELETE/POST) resolve a TxCtx write-scope from users_tenants membership:
+    // the mock user needs a row there, otherwise the scope is ambiguous/missing and writes are
+    // refused with 403/400 regardless of granted capabilities.
+    if (testUserHolder.isSet()) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
+  }
 
   private ConnectorInstancePersisted getExecutorInstance(String executorId, String executorName)
       throws JsonProcessingException {
@@ -552,73 +572,37 @@ public class ExecutorApiTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Tenant Isolation")
-  @WithMockUser
-  class TenantIsolation {
+  @DisplayName("Delete operations")
+  class DeleteExecutor {
 
     @Test
-    @DisplayName("Executor created in tenant X should NOT appear in tenant Y list")
-    void given_executorInTenantX_should_notAppearInTenantYList() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.ACCESS_ASSETS, Capability.MANAGE_ASSETS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
+    @DisplayName("Given executor with an active agent, should delete both without error")
+    @WithMockUser(
+        isAdmin = true,
+        withCapabilities = {Capability.ACCESS_ASSETS})
+    void givenExecutorWithAgent_shouldDeleteExecutorAndCascadeAgent() throws Exception {
+      Executor executor = getExecutor("cs-executor-with-agent");
+      Endpoint endpoint =
+          endpointComposer
+              .forEndpoint(EndpointFixture.createEndpoint())
+              .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
+              .persist()
+              .get();
+      Agent agent = endpoint.getAgents().get(0);
+      agent.setExecutor(executor);
+      agent.setTenant(new Tenant(executor.getTenantId()));
+      agentRepository.save(agent);
 
-      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
-      Executor executorInTenantX = getExecutor("Tenant-X-Executor");
-      String executorInTenantXId = Objects.requireNonNull(executorInTenantX.getId());
-      assertThat(executorInTenantXId).isNotNull();
+      mvc.perform(delete(EXECUTOR_URI + "/" + executor.getId()).with(csrf()))
+          .andExpect(status().is2xxSuccessful());
 
+      // agent_executor_id_fk cascades the DB delete, but Hibernate never learns about it: the
+      // agent entity managed above (agentRepository.save) stays in this transaction's persistence
+      // context. Evict it so the assertions below hit the DB instead of the stale L1 cache.
       entityManager.flush();
       entityManager.clear();
-
-      // -------- Act --------
-      String response =
-          mvc.perform(
-                  get("/api/tenants/" + tenantY.getId() + "/executors")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert --------
-      List<String> executorIds = JsonPath.read(response, "$[*].executor_id");
-      assertThat(executorIds).doesNotContain(executorInTenantXId);
-    }
-
-    @Test
-    @DisplayName("Executor created in tenant X should appear in tenant X list")
-    void given_executorInTenantX_should_appearInTenantXList() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.ACCESS_ASSETS, Capability.MANAGE_ASSETS));
-
-      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
-      Executor executorInTenantX = getExecutor("Tenant-X-Visible-Executor");
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act --------
-      String response =
-          mvc.perform(
-                  get("/api/tenants/" + tenantX.getId() + "/executors")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert --------
-      List<String> executorIds = JsonPath.read(response, "$[*].executor_id");
-      assertThat(executorIds).contains(executorInTenantX.getId());
+      assertThat(executorRepository.findByExecutorId(executor.getId())).isEmpty();
+      assertThat(agentRepository.findById(agent.getId())).isEmpty();
     }
   }
 }

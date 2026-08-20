@@ -1,6 +1,9 @@
 package io.openaev.executors.mde.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
@@ -37,6 +40,7 @@ public class MdeExecutorService implements Runnable {
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
+  private final TenantScopedTransaction tenantTx;
   private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotNull final String osPlatform) {
@@ -71,17 +75,38 @@ public class MdeExecutorService implements Runnable {
       MdeExecutorConfig config,
       EndpointService endpointService,
       AgentService agentService,
-      AssetGroupService assetGroupService) {
+      AssetGroupService assetGroupService,
+      TenantScopedTransaction tenantTx) {
     this.executor = executor;
     this.client = client;
     this.config = config;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
+    this.tenantTx = tenantTx;
   }
 
   @Override
   public void run() {
+    try {
+      tenantTx.execute(
+          TxCtx.forTenant(executor.getTenantId()),
+          () -> {
+            // Bridge for v1 tables (Tag, Asset, Agent, AssetGroup) still relying on
+            // TenantContext via HibernateFilterTransactionAspect: this Runnable executes on the
+            // shared scheduler thread pool outside any HTTP request, so TenantContext is never
+            // set here otherwise and falls back to the default tenant, silently scoping the v1
+            // Hibernate filter to the wrong tenant.
+            TenantContext.setCurrentTenant(executor.getTenantId());
+            doRun();
+            return null;
+          });
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  private void doRun() {
     try {
       log.info(
           "Running MDE executor endpoints gathering... executorId={}, deviceGroup={}",
@@ -150,7 +175,8 @@ public class MdeExecutorService implements Runnable {
                 agentService.getAgentsByExecutorIdAndTenantId(
                     executor.getId(), executor.getTenantId()),
                 executor.getTenantId());
-        assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
+        assetGroup.setAssets(
+            agents.stream().map(Agent::getAsset).collect(Collectors.toCollection(ArrayList::new)));
         assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
       }
     } catch (Exception e) {

@@ -6,9 +6,13 @@ import { type User, type UserInput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import UserCreate from './UserCreate';
 
-interface CreateUserProps { onCreate?: (user: User) => void }
+interface CreateUserProps {
+  onCreate?: (user: User) => void;
+  disabled?: boolean;
+  disabledMessage?: string;
+}
 
-const CreateUser: FunctionComponent<CreateUserProps> = ({ onCreate }) => {
+const CreateUser: FunctionComponent<CreateUserProps> = ({ onCreate, disabled, disabledMessage }) => {
   const dispatch = useAppDispatch();
 
   const handleSubmit = useCallback(
@@ -28,6 +32,8 @@ const CreateUser: FunctionComponent<CreateUserProps> = ({ onCreate }) => {
     <UserCreate
       onSubmit={handleSubmit}
       type="TENANT"
+      disabled={disabled}
+      disabledMessage={disabledMessage}
     />
   );
 };

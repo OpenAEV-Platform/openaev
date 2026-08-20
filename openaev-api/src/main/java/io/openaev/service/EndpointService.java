@@ -34,6 +34,7 @@ import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -523,7 +524,7 @@ public class EndpointService implements AuditLoggedService {
   @Transactional
   public Endpoint register(final EndpointRegisterInput input, @NotNull final String tenantId)
       throws IOException {
-    AgentRegisterInput agentInput = toAgentEndpoint(input, tenantId);
+    AgentRegisterInput agentInput = toAgentEndpoint(input);
     Agent agent;
     // Check if agents exist (because we can find X openaev agent on an endpoint)
     List<Agent> existingAgents =
@@ -577,7 +578,13 @@ public class EndpointService implements AuditLoggedService {
           assetAgentJob.setCommand(
               generateUpgradeCommand(
                   endpoint.getPlatform().name(),
-                  input.getInstallationMode(),
+                  // Normalise/validate against the known installation modes before it reaches the
+                  // resource-path resolution in loadAgentScriptTemplate (avoids
+                  // java/path-injection): the raw value here comes straight from the register
+                  // request body.
+                  input.getInstallationMode() == null
+                      ? null
+                      : AgentUtils.getSupportedInstallationMode(input.getInstallationMode()),
                   input.getInstallationDirectory(),
                   input.getServiceName(),
                   agent.getTenant().getId()));
@@ -842,11 +849,9 @@ public class EndpointService implements AuditLoggedService {
     agent.setTenant(new Tenant(input.getExecutor().getTenantId()));
   }
 
-  private AgentRegisterInput toAgentEndpoint(
-      EndpointRegisterInput input, @NotNull String tenantId) {
+  private AgentRegisterInput toAgentEndpoint(EndpointRegisterInput input) {
     AgentRegisterInput agentInput = new AgentRegisterInput();
-    agentInput.setExecutor(
-        executorRepository.findByIdAndTenantId(OPENAEV_EXECUTOR_ID, tenantId).orElse(null));
+    agentInput.setExecutor(executorRepository.findByExecutorId(OPENAEV_EXECUTOR_ID).orElse(null));
     agentInput.setLastSeen(Instant.now());
     agentInput.setExternalReference(input.getExternalReference());
     agentInput.setIps(input.getIps());

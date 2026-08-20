@@ -1,58 +1,52 @@
 # Overview
 
-!!! tip "Under construction"
+The Home screen provides an overview of the platform's live activity and a snapshot of your global security posture. It aggregates data from Simulations to surface key metrics, Findings, and coverage gaps in a single view.
 
-    We are doing our best to complete this page. If you want to participate, don't hesitate to join the [Filigran Community on Slack](https://community.filigran.io) or submit your pull request on the [Github doc repository](https://github.com/OpenAEV-Platform/openaev).
+## Adversarial exposure overview
 
-The Home screen provides visitors of the OpenAEV platform with an overview of the platform's live activity and a
-snapshot of your global security posture. Below is a breakdown of the various widgets available on this page.
+The top section displays the **Exposure Command Center**: a central radar showing your overall risk score, surrounded by four key indicators:
 
-## Metric cards
+- **Vulnerability**: number of detected CVEs and the percentage addressed
+- **Prevention**: how many attack steps were blocked
+- **Detection**: how many attack steps were detected
+- **Breached**: attack steps that bypassed both prevention and detection
 
-This section displays the count of different components within the platform, shown in two metrics:
+Below the command center, donut charts break down your **prevention**, **detection**, and **vulnerability** scores, and the **Performance by Security Domain** section shows how each domain (endpoint, network, email, etc.) performs.
 
-- The first big metric inside a card represents the number of objects created over the last 180 days.
-- The second small metric inside a card reflects the number of objects created in the last 30 days.
+![Adversarial exposure overview](assets/evaluate-exposure-overview.png)
 
-![metric cards](assets/metric-cards.png)
+## MITRE ATT&CK detection coverage
 
-!!! note
+The MITRE ATT&CK matrix shows which tactics and techniques have been covered by your Simulations and how well they were handled. The matrix supports both **Kill Chain** and **Techniques** views, and displays coverage and success rates per technique.
 
-    From here, the data is based on simulations created and launched within the last 180 days.
+Below the matrix, metric cards provide counts for the key platform objects: Scenarios, Simulations, Findings by type, Injects, and Assets.
 
-## Performance overview
+![MITRE ATT&CK coverage and metric cards](assets/evaluate-coverage-metrics.png)
 
-This section highlights the results of your simulation inject expectations, categorized in three types: prevention,
-detection, and human response.
+## Findings and statistics
 
-![performance overview](assets/performance-overview.png)
+This section surfaces your latest Findings in a searchable table, alongside aggregate statistics:
 
-## Simulations
+- **Total Findings** and **Ports** discovered across all Simulations
+- **Missed by Security Platform**: which security tools failed to detect or prevent attacks
+- **CVEs Found** and **Vulnerable Endpoints** counts
 
-This bar chart represents simulations grouped by week, based on their start date.
+![Findings and statistics](assets/evaluate-findings-stats.png)
 
-![simulations](assets/simulations.png)
+## Trends and recent activity
 
-## Top simulation categories
+The bottom section provides temporal views of your testing activity:
 
-This polar chart aggregates all simulations by category, giving you a visual breakdown of the top categories.
+- **Missed Injects by week**: tracks undetected or unblocked Injects over time
+- **Most detected and prevented types**: which attack types your stack handles best
+- **Most undetected types**: where your gaps are
+- **Simulations by week**: your testing cadence over time
+- **Latest Simulations**: the most recent Simulation runs with their results
 
-![top simulation categories](assets/top-simulation-categories.png)
+![Trends and recent activity](assets/evaluate-charts-simulations.png)
 
-## Top attack patterns
+## What's next?
 
-This horizontal bar chart displays the top attack patterns identified in your simulations, based on the number of
-injects associated with each attack pattern.
-
-![top attack patterns](assets/top-attack-patterns.png)
-
-## Last simulations
-
-Here, we display the six most recent simulations, sorted in descending order by their start date.
-
-![last simulations](assets/last-simulations.png)
-
-## MITRE ATT&CK Coverage
-
-This section presents the MITRE ATT&CK matrix, based on the results of your simulation inject expectations. It provides
-an overview of which tactics and techniques have been covered in your simulations.
+- [Scenarios and Simulations](../foundations/scenarios-and-simulations.md) -- Understand the Scenario and Simulation workflow
+- [Custom Dashboards](dashboards/custom-dashboards.md) -- Build custom views of your data
+- [Findings](findings/findings.md) -- Explore discovered vulnerabilities and exposures

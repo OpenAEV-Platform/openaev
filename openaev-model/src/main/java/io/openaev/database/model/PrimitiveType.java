@@ -40,6 +40,9 @@ public enum PrimitiveType {
   @JsonProperty("domain")
   Domain("domain"),
 
+  @JsonProperty("email")
+  Email("email"),
+
   @JsonProperty("file_name")
   FileName("file_name"),
 

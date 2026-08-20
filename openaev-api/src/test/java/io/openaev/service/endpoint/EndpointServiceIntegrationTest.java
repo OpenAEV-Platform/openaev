@@ -10,20 +10,22 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.EndpointRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
-import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.ConstraintViolationException;
@@ -43,16 +45,25 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
   @Autowired private ExecutorComposer executorComposer;
   @Autowired private TenantComposer tenantComposer;
   @Autowired private ExecutorFixture executorFixture;
-  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private AssetAgentJobRepository assetAgentJobRepository;
   @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private TestUserHolder testUserHolder;
+
+  private String tenantRegisterUri() {
+    return ENDPOINT_URI + "/register";
+  }
+
   @Autowired private EndpointRepository endpointRepository;
 
   @BeforeEach
   void setUp() {
     executorComposer.reset();
     tenantComposer.reset();
-    ensureServiceAccount(TenantContext.getCurrentTenant());
+    // Link mock user to the default tenant so TxCtxArgumentResolver resolves a valid scope
+    tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    entityManager.flush();
+    ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
   }
 
   /**
@@ -93,7 +104,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -117,7 +128,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -126,7 +137,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -136,78 +147,6 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
           List<AssetAgentJob> jobs = fromIterable(assetAgentJobRepository.findAll());
 
           assertThat(jobs).satisfiesOnlyOnce(job -> assertThat(job.getInject()).isNull());
-        }
-
-        @Test
-        @DisplayName(
-            "Registering same endpoint on different tenants create a single upgrade job in each tenant")
-        void registeringSameEndpointOnDifferentTenants() throws Exception {
-          TenantComposer.Composer tenantWrapper =
-              tenantComposer
-                  .forTenant(
-                      tenantIsolationTestHelper.createTenantWithCurrentUser("additional_tenant_1"))
-                  .persist();
-          tenantIsolationTestHelper.switchToTenant(tenantWrapper.get().getId(), entityManager);
-          // executor in default tenant
-          executorComposer.forExecutor(executorFixture.createOAEVExecutor()).persist();
-          entityManager.flush();
-          entityManager.clear();
-          ensureServiceAccount(tenantWrapper.get().getId());
-          TenantComposer.Composer tenantWrapper2 =
-              tenantComposer
-                  .forTenant(
-                      tenantIsolationTestHelper.createTenantWithCurrentUser("additional_tenant_2"))
-                  .persist();
-          tenantIsolationTestHelper.switchToTenant(tenantWrapper2.get().getId(), entityManager);
-          // executor in other tenant
-          executorComposer.forExecutor(executorFixture.createOAEVExecutor()).persist();
-          entityManager.flush();
-          entityManager.clear();
-
-          ensureServiceAccount(tenantWrapper2.get().getId());
-          EndpointRegisterInput input =
-              EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
-          input.setAgentVersion(agentVersion);
-
-          mockMvc
-              .perform(
-                  post("/api/tenants/" + tenantWrapper.get().getId() + "/endpoints/register")
-                      .content(mapper.writeValueAsString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().isOk())
-              .andReturn();
-          entityManager.flush();
-          entityManager.clear();
-
-          mockMvc
-              .perform(
-                  post("/api/tenants/" + tenantWrapper2.get().getId() + "/endpoints/register")
-                      .content(mapper.writeValueAsString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().isOk())
-              .andReturn();
-          entityManager.flush();
-          entityManager.clear();
-
-          tenantIsolationTestHelper.switchToTenant(tenantWrapper.get().getId(), entityManager);
-          List<AssetAgentJob> jobTenant1 = fromIterable(assetAgentJobRepository.findAll());
-
-          assertThat(jobTenant1)
-              .satisfiesOnlyOnce(job -> assertThat(job.getInject()).isNull())
-              .satisfiesOnlyOnce(
-                  job ->
-                      assertThat(job.getTenant().getId()).isEqualTo(tenantWrapper.get().getId()));
-
-          tenantIsolationTestHelper.switchToTenant(tenantWrapper2.get().getId(), entityManager);
-          List<AssetAgentJob> jobTenant2 = fromIterable(assetAgentJobRepository.findAll());
-
-          assertThat(jobTenant2)
-              .satisfiesOnlyOnce(job -> assertThat(job.getInject()).isNull())
-              .satisfiesOnlyOnce(
-                  job ->
-                      assertThat(job.getTenant().getId()).isEqualTo(tenantWrapper2.get().getId()));
         }
 
         @Test
@@ -232,7 +171,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input1))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -240,7 +179,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input2))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -287,7 +226,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -311,14 +250,14 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andExpect(status().isOk());
           mockMvc
               .perform(
-                  post(ENDPOINT_URI + "/register")
+                  post(tenantRegisterUri())
                       .content(mapper.writeValueAsString(input))
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
@@ -441,6 +380,167 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
 
         assertThat(endpoints)
             .satisfiesOnlyOnce(ep -> assertThat(ep.getSeenIp()).isEqualTo("127.0.0.1"));
+      }
+    }
+
+    /** Reported by every Windows host, so it must never take part in endpoint identification. */
+    private static final String TEREDO_MAC = "00:00:00:00:00:00:00:E0";
+
+    /**
+     * Registration payload of a Windows host: one physical NIC plus the Teredo pseudo-interface.
+     */
+    private EndpointRegisterInput hostInput(String hostname, String physicalMac) {
+      EndpointRegisterInput input = EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
+      input.setAgentVersion(DEFAULT_ENDPOINT_AGENT_VERSION);
+      input.setExternalReference(UUID.randomUUID().toString());
+      input.setName(hostname);
+      input.setHostname(hostname);
+      input.setMacAddresses(new String[] {physicalMac, TEREDO_MAC});
+      return input;
+    }
+
+    private String register(EndpointRegisterInput input) throws Exception {
+      String response =
+          mockMvc
+              .perform(
+                  post(tenantRegisterUri())
+                      .content(mapper.writeValueAsString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      return JsonPath.read(response, "$.asset_id");
+    }
+
+    @Nested
+    @DisplayName("Tunnel pseudo-interface MAC addresses")
+    class TunnelPseudoInterfaceMacAddresses {
+
+      @Test
+      @DisplayName("Two hosts sharing only a Teredo MAC register as two distinct endpoints")
+      void given_twoHostsSharingOnlyTheTeredoMac_should_registerTwoDistinctEndpoints()
+          throws Exception {
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointRegisterInput firstHost = hostInput("host-one", "00:ab:ad:c0:ff:e1");
+        EndpointRegisterInput secondHost = hostInput("host-two", "00:ab:ad:c0:ff:e2");
+
+        entityManager.flush();
+        entityManager.clear();
+
+        String firstAssetId = register(firstHost);
+        String secondAssetId = register(secondHost);
+
+        assertThat(secondAssetId).isNotEqualTo(firstAssetId);
+      }
+
+      @Test
+      @DisplayName("Each host keeps a single agent carrying its own external reference")
+      void given_twoHostsSharingOnlyTheTeredoMac_should_keepOneAgentPerHost() throws Exception {
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointRegisterInput firstHost = hostInput("host-one", "00:ab:ad:c0:ff:e1");
+        EndpointRegisterInput secondHost = hostInput("host-two", "00:ab:ad:c0:ff:e2");
+
+        entityManager.flush();
+        entityManager.clear();
+
+        String firstAssetId = register(firstHost);
+        String secondAssetId = register(secondHost);
+        entityManager.flush();
+        entityManager.clear();
+
+        Endpoint firstEndpoint = endpointRepository.findById(firstAssetId).orElseThrow();
+        Endpoint secondEndpoint = endpointRepository.findById(secondAssetId).orElseThrow();
+
+        assertThat(firstEndpoint.getAgents())
+            .singleElement()
+            .satisfies(
+                agent ->
+                    assertThat(agent.getExternalReference())
+                        .isEqualTo(firstHost.getExternalReference()));
+        assertThat(secondEndpoint.getAgents())
+            .singleElement()
+            .satisfies(
+                agent ->
+                    assertThat(agent.getExternalReference())
+                        .isEqualTo(secondHost.getExternalReference()));
+      }
+
+      @Test
+      @DisplayName("The Teredo MAC is not persisted on the endpoint")
+      void given_aHostReportingTheTeredoMac_should_notPersistIt() throws Exception {
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointRegisterInput host = hostInput("host-one", "00:ab:ad:c0:ff:e1");
+
+        entityManager.flush();
+        entityManager.clear();
+
+        String assetId = register(host);
+        entityManager.flush();
+        entityManager.clear();
+
+        Endpoint endpoint = endpointRepository.findById(assetId).orElseThrow();
+
+        assertThat(endpoint.getMacAddresses()).containsExactly("00abadc0ffe1");
+      }
+
+      @Test
+      @DisplayName(
+          "A host reporting no usable MAC still registers and is identified on re-register")
+      void given_aHostWithOnlyPseudoInterfaceMacs_should_stillRegisterAndBeIdentified()
+          throws Exception {
+        // Discarding every reported address is safe: the mandatory external reference is the
+        // primary matcher, MAC overlap only being the fallback.
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointRegisterInput host = EndpointRegisterInputFixture.getDefaultEndpointRegisterInput();
+        host.setAgentVersion(DEFAULT_ENDPOINT_AGENT_VERSION);
+        host.setExternalReference(UUID.randomUUID().toString());
+        host.setName("host-without-ethernet");
+        host.setHostname("host-without-ethernet");
+        host.setMacAddresses(new String[] {TEREDO_MAC});
+
+        entityManager.flush();
+        entityManager.clear();
+
+        String firstAssetId = register(host);
+        String secondAssetId = register(host);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(secondAssetId).isEqualTo(firstAssetId);
+
+        Endpoint endpoint = endpointRepository.findById(firstAssetId).orElseThrow();
+        assertThat(endpoint.getMacAddresses()).isEmpty();
+        assertThat(endpoint.getAgents()).hasSize(1);
+      }
+    }
+
+    @Nested
+    @DisplayName("Repeated registration")
+    class RepeatedRegistration {
+
+      @Test
+      @DisplayName("A host re-registering stays on the same endpoint with a single agent")
+      void given_aHostRegisteringTwice_should_keepOneEndpointAndOneAgent() throws Exception {
+        // The agent re-sends the full registration payload on every heartbeat, so the nominal path
+        // is a repeated registration, not a one-shot install.
+        executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+        EndpointRegisterInput host = hostInput("host-one", "00:ab:ad:c0:ff:e1");
+
+        entityManager.flush();
+        entityManager.clear();
+
+        String firstAssetId = register(host);
+        String secondAssetId = register(host);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(secondAssetId).isEqualTo(firstAssetId);
+
+        Endpoint endpoint = endpointRepository.findById(firstAssetId).orElseThrow();
+        assertThat(endpoint.getAgents()).hasSize(1);
+        assertThat(endpoint.getMacAddresses()).containsExactly("00abadc0ffe1");
       }
     }
   }

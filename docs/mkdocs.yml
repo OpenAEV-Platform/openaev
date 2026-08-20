@@ -116,6 +116,7 @@ nav:
   - Deployment & Setup:
     - Platform:
       - Overview: deployment/platform/overview.md
+      - Run modes: deployment/platform/run-modes.md
       - Installation: deployment/installation.md
       - Configuration: deployment/configuration.md
       - Certificate validation: deployment/certificate-validation.md
@@ -147,61 +148,64 @@ nav:
         - CSRF token enforcement for frontend API calls: deployment/breaking-changes/2.3.4-csrf-token-enforcement.md
         - URL access token enforcement for email links: deployment/breaking-changes/2.260622.0-url-access-token-enforcement.md
         - Injector contract expectation format: deployment/breaking-changes/MigrationVersion-injector-contract-expectation-format.md
+        - Tenant users, groups and roles capabilities: deployment/breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md
   - User Guide:
     - Getting started: usage/getting-started.md
     - Foundations:
-      - Scenario and Simulations: usage/scenarios-and-simulations.md
-      - Injects and Expectations: usage/injects-and-expectations.md
+      - Scenario and Simulations: usage/foundations/scenarios-and-simulations.md
+      - Injects and Expectations: usage/foundations/injects-and-expectations.md
     - Evaluate your Security posture:
       - Overview: usage/evaluate/overview.md
-      - Simulation: usage/simulation.md
-      - Atomic testing: usage/atomic.md
+      - Simulation: usage/evaluate/simulation/simulation.md
+      - Atomic testing: usage/evaluate/atomic-testing/atomic-testing.md
       - Injects:
-        - Overview: usage/inject-overview.md
-        - Inject types: usage/inject-types.md
-        - Inject tests: usage/inject-tests.md
-        - Inject status: usage/inject-status.md
-        - Chaining and transfer: usage/inject-chaining.md
-        - Search and Filter: usage/inject-result-list.md
-        - Inject result: usage/inject-result.md
-      - Targets: usage/targets.md
-      - Expectations:
-        - Overview: usage/expectations/overview.md
-        - Validation: usage/expectations/validation.md
-        - Management: usage/expectations/management.md
-      - Findings: usage/findings.md
+        - Overview: usage/evaluate/injects/inject-overview.md
+        - Inject tests: usage/evaluate/injects/inject-tests.md
+        - Inject status: usage/evaluate/injects/inject-status.md
+        - Inject result: usage/evaluate/injects/inject-result.md
+      - Expectations: usage/evaluate/expectations/expectations.md
+      - Findings: usage/evaluate/findings/findings.md
       - Dashboards:
-        - Custom Dashboards: usage/dashboards/custom-dashboards/custom-dashboards.md
-        - Widgets: usage/dashboards/widgets/widgets.md
-      - Security Control Validation:
-        - Overview: usage/security-control-validation.md
-      - Security Coverage enrichment (XTM Suite): usage/xtm-suite-connector.md
+        - Custom Dashboards: usage/evaluate/dashboards/custom-dashboards.md
+        - Widgets: usage/evaluate/dashboards/widgets.md
+      - Reporting: usage/evaluate/reporting/reporting.md
+      - Security Coverage enrichment (XTM Suite): usage/evaluate/xtm-suite-connector.md
+    - Attack Chaining:
+      - Overview: usage/attack-chaining/overview.md
+      - Scope Definition: usage/attack-chaining/scope-definition.md
+      - Action Selection: usage/attack-chaining/action-selection.md
+      - Logic Creation: usage/attack-chaining/logic-creation.md
+      - Attack Path Map: usage/attack-chaining/attack-path-map.md
+    - Autonomous Attack Chaining (AI Penetration Testing):
+      - Overview: usage/autonomous-attack-chaining/overview.md
+      - Scenario Creation: usage/autonomous-attack-chaining/scenario-creation.md
+      - Configuration: usage/autonomous-attack-chaining/configuration.md
     - Build your own Threat Scenario:
-      - Scenario: usage/scenario.md
-      - Scenario Generation from OpenCTI Security Coverage: usage/scenario/security-coverage.md
-      - Default Asset Rules: usage/default-asset-rules.md
-      - Importing injects into a Scenario: usage/scenario-import.md
-      - Assets: usage/assets.md
-      - People: usage/people.md
-      - Expectation: usage/expectations.md
+      - Scenario: usage/build/scenario/scenario.md
+      - Scenario Generation from OpenCTI Security Coverage: usage/build/scenario/security-coverage.md
+      - Importing injects into a Scenario: usage/build/scenario/scenario-import.md
+      - Assets: usage/build/assets.md
+      - People: usage/build/people.md
       - Components:
-        - Documents: usage/components/documents.md
-        - Custom variables: usage/components/variables.md
-        - Channels: usage/components/channels.md
-        - Media pressure: usage/components/media-pressure.md
-        - Challenges: usage/components/challenges.md
-        - Lessons: usage/components/lessons.md
-      - Threat Arsenal: usage/threat-arsenals/threat-arsenals.md
-    - Share and export:
-      - Notifications: usage/notifications.md
+        - Documents: usage/build/components/documents.md
+        - Custom variables: usage/build/components/variables.md
+        - Channels: usage/build/components/channels.md
+        - Media pressure: usage/build/components/media-pressure.md
+        - Phishing: usage/build/components/phishing.md
+        - Challenges: usage/build/components/challenges.md
+        - Lessons: usage/build/components/lessons.md
+      - Threat Arsenal:
+        - Actions: usage/build/threat-arsenals/threat-arsenals.md
+        - Action properties: usage/build/threat-arsenals/action-properties.md
+        - Output parsers: usage/build/threat-arsenals/output-parsers.md
+        - Domains: usage/build/threat-arsenals/domains.md
+    - Notifications: usage/notifications.md
     - Interact with your environment:
       - Injectors:
-        - Overview: usage/injectors.md
-        - Built-In Injector: usage/injects-builtin.md
-        - Caldera Injector: usage/inject-caldera.md
-      - Collectors:
-        - Overview: usage/collectors.md
-      - Agents: usage/openaev-agent.md
+        - Overview: usage/environment/injectors.md
+        - Built-In Injector: usage/environment/injects-builtin.md
+      - Collectors: usage/environment/collectors.md
+      - Agents: usage/environment/openaev-agent.md
     - Rest API: usage/rest-api.md
   - Administration:
     - Introduction: administration/introduction.md
@@ -214,6 +218,7 @@ nav:
         - Policies: administration/policies.md
         - Users and RBAC: administration/users-and-rbac.md
       - Taxonomies: administration/taxonomies.md
+      - Default Asset Rules: administration/default-asset-rules.md
       - XTM Hub: administration/hub.md # Warning: page is linked in XTM Hub documentation
   - Reference:
       - APIs:

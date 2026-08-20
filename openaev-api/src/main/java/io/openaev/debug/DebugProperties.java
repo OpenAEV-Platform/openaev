@@ -31,10 +31,14 @@ public class DebugProperties {
   /** How often the "debug mode is active" warning repeats. */
   private Duration warningInterval = Duration.ofMinutes(5);
 
-  /** Writable directory for the JFR recordings and the rotated SQL log file. */
+  /**
+   * Writable directory for the JFR recordings and the rotated debug log files (SQL, and the ORM
+   * summary when {@code orm.summary-to-file} is on).
+   */
   private String outputDir = "./logs/debug";
 
   private final Sql sql = new Sql();
+  private final Orm orm = new Orm();
   private final Jfr jfr = new Jfr();
   private final Masking masking = new Masking();
 
@@ -49,6 +53,28 @@ public class DebugProperties {
 
     /** Truncate rendered parameter values longer than this. */
     private int maxParameterLength = 200;
+
+    /** Rotated SQL file: size a single file reaches before it rolls over. */
+    private DataSize maxFileSize = DataSize.ofMegabytes(500);
+
+    /** Rotated SQL file: number of days of history to keep. */
+    private int maxHistory = 7;
+
+    /**
+     * Rotated SQL file: total size kept across all files before the oldest are deleted. Raise this
+     * on high-traffic instances where the log fills fast, to keep more history.
+     */
+    private DataSize totalSizeCap = DataSize.ofGigabytes(2);
+  }
+
+  /** Per-request ORM/N+1 summary (one log event per request on {@code io.openaev.debug.orm}). */
+  @Data
+  public static class Orm {
+    /**
+     * Write the ORM summary to a rotated file instead of the console. Useful on instances whose
+     * console is shipped to centralised logging, to keep the per-request summaries out of it.
+     */
+    private boolean summaryToFile = false;
   }
 
   /** Java Flight Recorder capture via the JDK {@code jdk.jfr} engine. */

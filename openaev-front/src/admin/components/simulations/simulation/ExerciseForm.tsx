@@ -256,7 +256,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         )}
       />
 
-      {edit && (
+      {edit && !isChaining && (
         <>
           <Typography
             variant="h2"

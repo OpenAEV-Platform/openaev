@@ -61,6 +61,110 @@ class ExecutorHelperTest {
   }
 
   @Test
+  @DisplayName("Should replace payload location placeholder for Linux platform")
+  void shouldReplacePayloadLocationForLinux() {
+    // prepare
+    String command = "cat #{payload_location}/linpeas.sh";
+
+    // act
+    String result =
+        ExecutorHelper.replaceArgs(
+            PLATFORM_TYPE.Linux,
+            command,
+            INJECT_ID,
+            AGENT_ID,
+            TENANT_ID,
+            TOKEN,
+            BASE_URL,
+            MAX_SIZE,
+            UNSECURED_CERTIFICATE,
+            WITH_PROXY);
+
+    // assert
+    assertThat(result)
+        .isEqualTo("cat " + ExecutorHelper.UNIX_PAYLOAD_LOCATION_PATH + "/linpeas.sh");
+  }
+
+  @Test
+  @DisplayName("Should replace payload location placeholder for Windows platform")
+  void shouldReplacePayloadLocationForWindows() {
+    // prepare
+    String command = "Get-Content #{payload_location}\\linpeas.ps1";
+
+    // act
+    String result =
+        ExecutorHelper.replaceArgs(
+            PLATFORM_TYPE.Windows,
+            command,
+            INJECT_ID,
+            AGENT_ID,
+            TENANT_ID,
+            TOKEN,
+            BASE_URL,
+            MAX_SIZE,
+            UNSECURED_CERTIFICATE,
+            WITH_PROXY);
+
+    // assert
+    assertThat(result)
+        .isEqualTo("Get-Content " + ExecutorHelper.WINDOWS_PAYLOAD_LOCATION_PATH + "\\linpeas.ps1");
+  }
+
+  @Test
+  @DisplayName("Should replace location and payload location placeholders independently")
+  void shouldReplaceLocationAndPayloadLocationIndependently() {
+    // prepare
+    String command = "cd \"#{location}\" && cat #{payload_location}/linpeas.sh";
+
+    // act
+    String result =
+        ExecutorHelper.replaceArgs(
+            PLATFORM_TYPE.Linux,
+            command,
+            INJECT_ID,
+            AGENT_ID,
+            TENANT_ID,
+            TOKEN,
+            BASE_URL,
+            MAX_SIZE,
+            UNSECURED_CERTIFICATE,
+            WITH_PROXY);
+
+    // assert
+    assertThat(result)
+        .isEqualTo(
+            "cd "
+                + ExecutorHelper.UNIX_LOCATION_PATH
+                + " && cat "
+                + ExecutorHelper.UNIX_PAYLOAD_LOCATION_PATH
+                + "/linpeas.sh");
+  }
+
+  @Test
+  @DisplayName("Should replace an unquoted location placeholder")
+  void given_unquotedLocation_should_replacePlaceholder() {
+    // prepare
+    String command = "cd #{location}";
+
+    // act
+    String result =
+        ExecutorHelper.replaceArgs(
+            PLATFORM_TYPE.Linux,
+            command,
+            INJECT_ID,
+            AGENT_ID,
+            TENANT_ID,
+            TOKEN,
+            BASE_URL,
+            MAX_SIZE,
+            UNSECURED_CERTIFICATE,
+            WITH_PROXY);
+
+    // assert
+    assertThat(result).isEqualTo("cd " + ExecutorHelper.UNIX_LOCATION_PATH);
+  }
+
+  @Test
   @DisplayName("Should replace token placeholder for Linux platform")
   void given_linuxCommandWithPlaceholders_should_replaceTokenTenantAndBaseUrl() {
     // Arrange
@@ -123,6 +227,35 @@ class ExecutorHelperTest {
   }
 
   @Test
+  @DisplayName("Should replace token and payload location placeholders for MacOS platform")
+  void shouldReplaceTokenForMacOS() {
+    // prepare
+    String command = "curl -H \"Authorization: #{token}\" #{payload_location}";
+
+    // Act
+    String result =
+        ExecutorHelper.replaceArgs(
+            PLATFORM_TYPE.MacOS,
+            command,
+            INJECT_ID,
+            AGENT_ID,
+            TENANT_ID,
+            TOKEN,
+            BASE_URL,
+            MAX_SIZE,
+            UNSECURED_CERTIFICATE,
+            WITH_PROXY);
+
+    // assert
+    assertThat(result)
+        .isEqualTo(
+            "curl -H \"Authorization: "
+                + TOKEN
+                + "\" "
+                + ExecutorHelper.UNIX_PAYLOAD_LOCATION_PATH);
+  }
+
+  @Test
   @DisplayName("Should leave command unchanged when no placeholder is present")
   void given_commandWithoutPlaceholders_should_leaveCommandUnchanged() {
     // Arrange
@@ -144,6 +277,27 @@ class ExecutorHelperTest {
 
     // Assert
     assertThat(result).isEqualTo(command);
+  }
+
+  @Test
+  @DisplayName("Should throw when platform is unsupported")
+  void shouldThrowWhenPlatformIsUnsupported() {
+    // act & assert
+    assertThatThrownBy(
+            () ->
+                ExecutorHelper.replaceArgs(
+                    PLATFORM_TYPE.Unknown,
+                    "echo hello",
+                    INJECT_ID,
+                    AGENT_ID,
+                    TENANT_ID,
+                    TOKEN,
+                    BASE_URL,
+                    MAX_SIZE,
+                    UNSECURED_CERTIFICATE,
+                    WITH_PROXY))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Unsupported platform type: Unknown");
   }
 
   @Test
@@ -182,6 +336,48 @@ class ExecutorHelperTest {
                     TENANT_ID,
                     TOKEN,
                     null,
+                    MAX_SIZE,
+                    UNSECURED_CERTIFICATE,
+                    WITH_PROXY))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () ->
+                ExecutorHelper.replaceArgs(
+                    PLATFORM_TYPE.Linux,
+                    "echo hello",
+                    null,
+                    AGENT_ID,
+                    TENANT_ID,
+                    TOKEN,
+                    BASE_URL,
+                    MAX_SIZE,
+                    UNSECURED_CERTIFICATE,
+                    WITH_PROXY))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () ->
+                ExecutorHelper.replaceArgs(
+                    PLATFORM_TYPE.Linux,
+                    "echo hello",
+                    INJECT_ID,
+                    null,
+                    TENANT_ID,
+                    TOKEN,
+                    BASE_URL,
+                    MAX_SIZE,
+                    UNSECURED_CERTIFICATE,
+                    WITH_PROXY))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () ->
+                ExecutorHelper.replaceArgs(
+                    PLATFORM_TYPE.Linux,
+                    "echo hello",
+                    INJECT_ID,
+                    AGENT_ID,
+                    null,
+                    TOKEN,
+                    BASE_URL,
                     MAX_SIZE,
                     UNSECURED_CERTIFICATE,
                     WITH_PROXY))

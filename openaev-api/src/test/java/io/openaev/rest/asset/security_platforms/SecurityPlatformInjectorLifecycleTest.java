@@ -91,6 +91,26 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "findBySecurityPlatformExternalReferenceByTenantId supports duplicates and returns all matches")
+  void findBySecurityPlatformExternalReferenceSupportsNonUniqueTypes() {
+    String duplicateType = "duplicate-type-" + UUID.randomUUID();
+    injectorRepository.save(
+        InjectorFixture.createInjector(UUID.randomUUID().toString(), "dup-1", duplicateType));
+    injectorRepository.save(
+        InjectorFixture.createInjector(UUID.randomUUID().toString(), "dup-2", duplicateType));
+    entityManager.flush();
+    entityManager.clear();
+
+    assertEquals(
+        2,
+        injectorRepository
+            .findBySecurityPlatformExternalReferenceByTenantId(
+                duplicateType, TenantContext.getCurrentTenant())
+            .size());
+  }
+
+  @Test
   @DisplayName("the registration upsert links the injector and locks the platform in the UI")
   void upsertKeyedOnTheInjectorTypeLinksTheInjector() throws Exception {
     String platformId = upsertPlatform(INJECTOR_TYPE);
@@ -126,7 +146,10 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
 
     Injector linked =
         injectorRepository
-            .findByTypeAndTenantId(INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .findBySecurityPlatformExternalReferenceByTenantId(
+                INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .stream()
+            .findFirst()
             .orElseThrow();
     injectorRepository.delete(linked);
     entityManager.flush();
@@ -183,7 +206,10 @@ class SecurityPlatformInjectorLifecycleTest extends IntegrationTest {
     // The caller's injector links to the caller-tenant platform, not the foreign one.
     Injector reloaded =
         injectorRepository
-            .findByTypeAndTenantId(INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .findBySecurityPlatformExternalReferenceByTenantId(
+                INJECTOR_TYPE, TenantContext.getCurrentTenant())
+            .stream()
+            .findFirst()
             .orElseThrow();
     assertEquals(platformId, reloaded.getSecurityPlatform().getId());
   }

@@ -3,11 +3,18 @@ package io.openaev.service.attackpath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.AssetCriticality;
+import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Step;
+import io.openaev.database.model.StepActionClass;
+import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
+import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.service.attackpath.dto.AttackPathAttackPatternDTO;
@@ -16,9 +23,19 @@ import io.openaev.service.attackpath.dto.AttackPathEdges;
 import io.openaev.service.attackpath.dto.AttackPathEndpointRelationsDTO;
 import io.openaev.service.attackpath.dto.AttackPathExpandDTO;
 import io.openaev.service.attackpath.dto.AttackPathNodeDTO;
+import io.openaev.utils.fixtures.EndpointFixture;
+import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.InjectStatusFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
+import io.openaev.utils.fixtures.composers.ExerciseComposer;
+import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.InjectStatusComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.composers.StepComposer;
+import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import java.time.Instant;
@@ -46,8 +63,14 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   @Autowired private AttackPathGraphService service;
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private AttackPathFindingRepository findingRepository;
+  @Autowired private AssetRepository assetRepository;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private AttackPatternComposer attackPatternComposer;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private InjectStatusComposer injectStatusComposer;
+  @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private StepComposer stepComposer;
+  @Autowired private ExerciseComposer simulationComposer;
 
   private Tenant tenant;
   private String exec1Id;
@@ -167,6 +190,64 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "An execution feed node carries its inject and its execution status, resolved from the step")
+  void fills_execution_status_from_the_step() {
+    // A run's inject id lives in the durable step's data (the frozen row only keys the step), and
+    // its
+    // "did it run" status on the inject itself - exactly what the Result drawer's detail read
+    // resolves.
+    Inject inject =
+        injectComposer
+            .forInject(InjectFixture.getDefaultInject())
+            .withInjectStatus(
+                injectStatusComposer.forInjectStatus(InjectStatusFixture.createSuccessStatus()))
+            .persist()
+            .get();
+    Step step =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data("{\"inject_id\": \"" + inject.getId() + "\"}")
+            .build();
+    workflowComposer
+        .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+        .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withStep(stepComposer.forStep(step))
+        .persist();
+    String execId =
+        injectorExecution(
+            "NMAP", "status-01", "CORP-STATUS-01", "Not Prevented", "Not Detected", "Nmap", at(9));
+    AttackPathExecution row = executionRepository.findById(execId).orElseThrow();
+    row.setStepId(step.getId());
+    executionRepository.save(row);
+    entityManager.flush();
+    entityManager.clear();
+
+    AttackPathDTO dto = service.buildGraph(SIM);
+
+    String feedNodeId = AttackPathIds.executionNode(execId, "status-01", null);
+    AttackPathNodeDTO feedNode =
+        dto.attackPathExecutions().stream()
+            .filter(n -> feedNodeId.equals(n.getId()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(feedNode.getInjectId()).isEqualTo(inject.getId());
+    assertThat(feedNode.getExecutionStatus())
+        .as("shipped with the graph, so a list of executions renders it without a round-trip")
+        .isEqualTo("EXECUTED");
+    // A row with no step resolves to nothing rather than guessing.
+    String noStepNodeId = AttackPathIds.executionNode(exec1Id, "dc-01", null);
+    AttackPathNodeDTO noStepNode =
+        dto.attackPathExecutions().stream()
+            .filter(n -> noStepNodeId.equals(n.getId()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(noStepNode.getInjectId()).isNull();
+    assertThat(noStepNode.getExecutionStatus()).isNull();
+  }
+
+  @Test
   @DisplayName("An empty simulation rebuilds to an empty graph without error")
   void empty_simulation_is_safe() {
     AttackPathDTO dto = service.buildGraph("SIM-WITH-NO-DATA");
@@ -233,6 +314,45 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     assertThat(sourceNode.getIp()).isEqualTo("10.0.9.2");
     assertThat(sourceNode.getPlatform()).isEqualTo("Windows");
     assertThat(sourceNode.getLabel()).isEqualTo("GATEWAY-02");
+  }
+
+  @Test
+  @DisplayName("An endpoint node is enriched with its asset's criticality, name and seen IP")
+  void endpoint_node_carries_asset_criticality_name_and_seen_ip() {
+    // A real backing asset: the enrichment pass resolves criticality, name and seen IP live from
+    // it (one batched read), so the map node shows a single relevant IP instead of the frozen list.
+    Endpoint asset = EndpointFixture.createEndpoint("DC Primary");
+    asset.setCriticality(AssetCriticality.VERY_HIGH);
+    asset.setSeenIp("203.0.113.7");
+    String assetId = assetRepository.save(asset).getId();
+    injectorExecution(
+        "NMAP", assetId, "CORP-DC-01", "Prevented", "Not Detected", "Nmap Scan", at(50));
+    entityManager.flush();
+
+    AttackPathNodeDTO node = nodeById(service.buildGraph(SIM), AttackPathIds.endpointNode(assetId));
+    assertThat(node.getSeenIp())
+        .as("the node carries the asset's seen (primary) IP, resolved live")
+        .isEqualTo("203.0.113.7");
+    assertThat(node.getCriticality()).isEqualTo("VERY_HIGH");
+    assertThat(node.getLabel())
+        .as("the asset's friendly name wins over the raw id fallback")
+        .isEqualTo("DC Primary");
+  }
+
+  @Test
+  @DisplayName("An asset with a blank seen IP leaves seenIp null (front falls back to the ip list)")
+  void endpoint_node_with_blank_seen_ip_stays_null() {
+    Endpoint asset = EndpointFixture.createEndpoint("Blank seen IP");
+    asset.setSeenIp("");
+    String assetId = assetRepository.save(asset).getId();
+    injectorExecution(
+        "NMAP", assetId, "CORP-APP-02", "Prevented", "Not Detected", "Nmap Scan", at(51));
+    entityManager.flush();
+
+    AttackPathNodeDTO node = nodeById(service.buildGraph(SIM), AttackPathIds.endpointNode(assetId));
+    assertThat(node.getSeenIp())
+        .as("a blank seen IP is omitted from the DTO so the front falls back to the frozen list")
+        .isNull();
   }
 
   @Test
@@ -624,6 +744,45 @@ class AttackPathGraphServiceTest extends IntegrationTest {
         .persist();
   }
 
+  @Test
+  @DisplayName("A real finding node is flagged is_finding=true")
+  void realFinding_node_isFinding_true() {
+    AttackPathDTO dto = service.buildGraph(SIM);
+    AttackPathNodeDTO node =
+        nodeById(dto, AttackPathIds.findingNode("credentials", "admin:secret"));
+    assertThat(node.getIsFinding()).isTrue();
+  }
+
+  @Test
+  @DisplayName(
+      "An output-only value (is_finding=false) is rendered as a node flagged is_finding=false")
+  void outputOnly_node_isFinding_false() {
+    // A chaining output not persisted as a Finding (ADR-004): still on the map, flagged
+    // output-only.
+    finding("service_banner", "OpenSSH 9.0", "dc-01", exec1Id, false);
+    entityManager.flush();
+
+    AttackPathDTO dto = service.buildGraph(SIM);
+    AttackPathNodeDTO node =
+        nodeById(dto, AttackPathIds.findingNode("service_banner", "OpenSSH 9.0"));
+    assertThat(node.getType()).isEqualTo("FINDING");
+    assertThat(node.getIsFinding()).isFalse();
+  }
+
+  @Test
+  @DisplayName("A (type,value) produced both as a finding and as an output keeps is_finding=true")
+  void mixed_finding_and_output_node_isFinding_true() {
+    // The same (type, value) is produced once as a real finding and once as an output-only value:
+    // the deduped node keeps is_finding=true (a real finding wins, ADR-004).
+    finding("port", "22", "dc-01", exec1Id, true);
+    finding("port", "22", "app-01", exec2Id, false);
+    entityManager.flush();
+
+    AttackPathDTO dto = service.buildGraph(SIM);
+    AttackPathNodeDTO node = nodeById(dto, AttackPathIds.findingNode("port", "22"));
+    assertThat(node.getIsFinding()).isTrue();
+  }
+
   /** An injector run carrying the frozen contract external id and injector type. */
   private String seedInjectorRun(
       String injector,
@@ -719,6 +878,11 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   }
 
   private void finding(String type, String value, String endpointKey, String executionId) {
+    finding(type, value, endpointKey, executionId, true);
+  }
+
+  private void finding(
+      String type, String value, String endpointKey, String executionId, boolean isFinding) {
     AttackPathFinding f = new AttackPathFinding();
     f.setTenant(tenant);
     f.setSimulationId(SIM);
@@ -726,6 +890,7 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     f.setValue(value);
     f.setEndpointId(endpointKey);
     f.setEndpointKey(endpointKey);
+    f.setFinding(isFinding);
     String findingId = findingRepository.save(f).getId();
 
     AttackPathExecutionFinding link = new AttackPathExecutionFinding();

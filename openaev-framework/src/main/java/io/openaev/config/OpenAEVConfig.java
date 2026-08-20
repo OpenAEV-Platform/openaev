@@ -47,6 +47,8 @@ public class OpenAEVConfig {
   @Value("${openbas.application-license:${openaev.application-license:}}")
   private String applicationLicense;
 
+  @JsonIgnore private RunMode runMode = RunMode.NORMAL;
+
   @JsonProperty("application_base_url")
   @Value("${openbas.base-url:${openaev.base-url:#{null}}}")
   private String baseUrl;

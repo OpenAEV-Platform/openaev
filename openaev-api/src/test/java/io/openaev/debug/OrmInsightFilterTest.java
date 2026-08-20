@@ -54,7 +54,14 @@ class OrmInsightFilterTest {
     MaskingSqlLoggingListener listener =
         new MaskingSqlLoggingListener(masker, new DebugRuntimeState(), properties.getSql());
     proxy = ProxyDataSourceBuilder.create(h2).name("orm").listener(listener).build();
-    filter = new OrmInsightFilter(masker, new DebugRuntimeState());
+    DebugUserSource userSource =
+        new DebugUserSource() {
+          @Override
+          public String currentUser() {
+            return "u-42";
+          }
+        };
+    filter = new OrmInsightFilter(masker, new DebugRuntimeState(), userSource);
 
     ormLogger = (Logger) LoggerFactory.getLogger("io.openaev.debug.orm");
     ormLogger.setLevel(Level.INFO);
@@ -179,6 +186,43 @@ class OrmInsightFilterTest {
         });
 
     assertThat(summary()).contains("N+1 SUSPECTED").doesNotContain("victim@example.com");
+  }
+
+  @Test
+  @DisplayName("the summary names the caller (user=...) on both the INFO and WARN paths")
+  void summaryCarriesCaller() throws Exception {
+    runThroughFilter("GET", "/api/tags", () -> exec("select 1", null)); // clean -> INFO
+    assertThat(summaryLevel()).isEqualTo(Level.INFO);
+    assertThat(summary()).contains("user=u-42");
+
+    appender.list.clear();
+    runThroughFilter(
+        "POST",
+        "/api/injectors",
+        () -> {
+          for (int i = 0; i < 12; i++) {
+            exec("select user_id from users where user_email = ?", "u" + i);
+          }
+        }); // N+1 -> WARN
+    assertThat(summaryLevel()).isEqualTo(Level.WARN);
+    assertThat(summary()).contains("user=u-42");
+  }
+
+  @Test
+  @DisplayName("the INFO summary is fully rendered (no unresolved {} placeholders)")
+  void infoSummaryIsPreFormatted() throws Exception {
+    runThroughFilter("GET", "/api/tags", () -> exec("select 1", null));
+
+    // The message itself carries the resolved values, so a JSON encoder that keeps the raw pattern
+    // still shows real numbers instead of "ORM {}: {} queries ...".
+    ILoggingEvent event =
+        new ArrayList<>(appender.list)
+            .stream()
+                .filter(e -> e.getFormattedMessage().startsWith("ORM "))
+                .findFirst()
+                .orElseThrow();
+    assertThat(event.getMessage()).doesNotContain("{}").contains("GET /api/tags", "1 queries");
+    assertThat(event.getArgumentArray()).isNullOrEmpty();
   }
 
   @Test

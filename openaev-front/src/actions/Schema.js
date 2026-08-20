@@ -255,6 +255,13 @@ export const executor = new schema.Entity(
 );
 export const arrayOfExecutors = new schema.Array(executor);
 
+export const secretsProvider = new schema.Entity(
+  'secretsproviders',
+  {},
+  { idAttribute: 'secrets_provider_id' },
+);
+export const arrayOfSecretsProviders = new schema.Array(secretsProvider);
+
 export const mitigation = new schema.Entity(
   'mitigations',
   {},
@@ -437,10 +444,21 @@ export const storeHelper = state => ({
   getExistingExecutors: () => entities('executors', state).filter(c => c.get('existing_executor') === true),
   getExecutorsIncludingPending: () => entities('executors', state),
   getExecutorsMap: () => maps('executors', state),
+  // secrets providers
+  getSecretsProvider: id => entity(id, 'secretsproviders', state),
+  getSecretsProvidersIncludingPending: () => entities('secretsproviders', state),
+  getSecretsProvidersMap: () => maps('secretsproviders', state),
   // channels
   getChannels: () => entities('channels', state),
   getChannel: id => entity(id, 'channels', state),
   getChannelsMap: () => maps('channels', state),
+  // phishing
+  getPhishingLandingPages: () => entities('phishinglandingpages', state),
+  getPhishingLandingPage: id => entity(id, 'phishinglandingpages', state),
+  getPhishingLandingPagesMap: () => maps('phishinglandingpages', state),
+  getPhishingEmailTemplates: () => entities('phishingemailtemplates', state),
+  getPhishingEmailTemplate: id => entity(id, 'phishingemailtemplates', state),
+  getPhishingEmailTemplatesMap: () => maps('phishingemailtemplates', state),
   // payloads
   getPayloads: () => entities('payloads', state),
   getPayload: id => entity(id, 'payloads', state),

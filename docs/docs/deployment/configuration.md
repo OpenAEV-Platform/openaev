@@ -22,7 +22,7 @@ Here are the configuration keys, for both containers (environment variables) and
 
 ## Platform
 
-### API & Frontend
+### API & frontend
 
 #### Basic parameters
 
@@ -43,6 +43,7 @@ Here are the configuration keys, for both containers (environment variables) and
 | openaev.admin.encryption_salt               | OPENAEV_ADMIN_ENCRYPTION_SALT               | ChangeMe              | Encryption salt used for encrypting sensitive data in database. Must be at least 8 bytes long. Encryption key and salt are used to generate a 256bit encryption key for encrypting purpose |
 | openaev.healthcheck.key                     | OPENAEV_HEALTHCHECK_KEY                     | ChangeMe              | The key to use in the health check endpoint (/api/health)                                                                                                                                  |
 | inject.execution.threshold.minutes          | INJECT_EXECUTION_THRESHOLD_MINUTES          | 10                    | Inject execution threshold in minutes. If this time is exceeded, the inject will be moved to the MAYBE_PREVENTED status.                                                                   |
+| openaev.run-mode                            | OPENAEV_RUN-MODE                            | normal                | Startup run mode (`normal` or `safe`). In `safe`, Quartz background processing is disabled. See [Run modes](platform/run-modes.md).                                                       |
 | openaev.starterpack.enabled                 | OPENAEV_STARTERPACK_ENABLED                 | true                  | StarterPack feature, providing default endpoint, asset group, scenarios and dashboards                                                                                                     |
 | openaev.url.access.token.expiry-margin-days | OPENAEV_URL_ACCESS_TOKEN_EXPIRY-MARGIN-DAYS | 7                     | Number of days added after an exercise end date before URL access tokens expire                                                                                                            |
 | openaev.url.access.token.retention-days     | OPENAEV_URL_ACCESS_TOKEN_RETENTION-DAYS     | 30                    | Number of days to retain expired or revoked URL access tokens before the purge job deletes them                                                                                            |
@@ -74,7 +75,7 @@ Here are the configuration keys, for both containers (environment variables) and
 | logging.logback.rollingpolicy.max-file-size | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-FILE-SIZE | 10MB               | Rolling max file size                         |
 | logging.logback.rollingpolicy.max-history   | LOGGING_LOGBACK_ROLLINGPOLICY_MAX-HISTORY   | 7                  | Rolling max days                              |
 
-#### Audit Logging
+#### Audit logging
 
 Audit logging will allow you to have a trace of the actions performed using API calls.
 
@@ -199,7 +200,7 @@ reindex.
 #### Agents (executors)
 
 To be able to use the power of the OpenAEV platform on endpoints, you need at least one **neutral executor** that will
-be in charge of executing implants as detached processes. Implants will then execute threat arsenal actions.
+be in charge of executing implants as detached processes. Implants will then execute Threat Arsenal Actions.
 
 | Parameter                                    | Environment variable                         | Default value | Description                                                                              |
 |:------------------------------------------------|:------------------------------------------------|:------------------|:-------------------------------------------------------------------------------------------|
@@ -219,7 +220,7 @@ To know more about other available executors, please refer to the [executors doc
 
 #### Mail services
 
-For the associated mailbox, for the moment the platform only relies on IMAP / SMTP protocols, we are actively developing
+For the associated mailbox, for the moment the platform only relies on IMAP (Internet Message Access Protocol) / SMTP (Simple Mail Transfer Protocol) protocols, we are actively developing
 integrations with APIs such as O365 and Google Apps.
 
 ##### General
@@ -302,7 +303,7 @@ available (mandatory) regardless of which mail transport (SMTP/IMAP) is configur
 
     If you are using two-factor authentication on your Gmail account, an app-specific password is required. You can find a guide [here](https://support.google.com/accounts/answer/185833).
 
-#### AI Service
+#### AI service
 
 !!! note "AI deployment and cloud services"
 

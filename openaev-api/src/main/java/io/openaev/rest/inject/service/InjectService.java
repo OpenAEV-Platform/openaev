@@ -2,6 +2,8 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
 import static io.openaev.database.model.ExecutionStatus.*;
+import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS;
+import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
 import static io.openaev.database.specification.InjectSpecification.*;
@@ -928,6 +930,18 @@ public class InjectService {
       return;
     }
 
+    // Assets and asset groups are only relevant for injects whose contract declares the matching
+    // targeting field in its content: skip these operations for other injects (e.g. email, SMS,
+    // manual) so that irrelevant data is never persisted (#2165). The contract content is the
+    // discriminator - not needs_executor - because agentless technical contracts (Nmap, Nuclei,
+    // HTTP query...) do not need an executor agent yet legitimately target assets. Teams stay
+    // unrestricted as human response expectations can be added to technical injects.
+    InjectorContract contract = injectToUpdate.getInjectorContract().orElse(null);
+    boolean supportsAssets =
+        injectorContractContentUtils.hasField(contract, CONTRACT_ELEMENT_CONTENT_KEY_ASSETS);
+    boolean supportsAssetGroups =
+        injectorContractContentUtils.hasField(contract, CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS);
+
     for (var operation : operations) {
       switch (operation.getField()) {
         case TEAMS ->
@@ -936,18 +950,38 @@ public class InjectService {
                 operation.getValues(),
                 teamsFromDB,
                 operation.getOperation());
-        case ASSETS ->
+        case ASSETS -> {
+          if (supportsAssets) {
             updateInjectEntities(
                 injectToUpdate.getAssets(),
                 operation.getValues(),
                 assetsFromDB,
                 operation.getOperation());
-        case ASSET_GROUPS ->
+          } else {
+            log.debug(
+                "Skipping ASSETS bulk update operation for inject {}: {}",
+                injectToUpdate.getId(),
+                contract == null
+                    ? "it has no injector contract"
+                    : "its contract has no assets field");
+          }
+        }
+        case ASSET_GROUPS -> {
+          if (supportsAssetGroups) {
             updateInjectEntities(
                 injectToUpdate.getAssetGroups(),
                 operation.getValues(),
                 assetGroupsFromDB,
                 operation.getOperation());
+          } else {
+            log.debug(
+                "Skipping ASSET_GROUPS bulk update operation for inject {}: {}",
+                injectToUpdate.getId(),
+                contract == null
+                    ? "it has no injector contract"
+                    : "its contract has no asset_groups field");
+          }
+        }
         default ->
             throw new BadRequestException("Invalid field to update: " + operation.getField());
       }

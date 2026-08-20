@@ -40,7 +40,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,7 +62,6 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH")
 @DisplayName("attack path: the delta read is equivalent to a full reload")
 class AttackPathDeltaApiTest extends IntegrationTest {
 
@@ -269,7 +267,7 @@ class AttackPathDeltaApiTest extends IntegrationTest {
   @Test
   @DisplayName("given a simulation with no attack-path data, a fresh client gets an empty delta")
   void given_a_simulation_with_no_data_should_return_an_empty_delta_at_version_zero() {
-    AttackPathDeltaDTO delta = deltaService.buildDelta("SIM-NEVER-RUN", 0, List.of(tenant.getId()));
+    AttackPathDeltaDTO delta = deltaService.buildDelta("SIM-NEVER-RUN", 0, Set.of(tenant.getId()));
 
     assertThat(delta.resyncRequired()).isFalse();
     assertThat(delta.newVersion()).isZero();
@@ -534,11 +532,11 @@ class AttackPathDeltaApiTest extends IntegrationTest {
   }
 
   private long currentVersion() {
-    return versionService.current(SIM, List.of(tenant.getId())).orElseThrow();
+    return versionService.current(SIM, Set.of(tenant.getId())).orElseThrow();
   }
 
   private AttackPathDeltaDTO deltaSince(long since) {
     entityManager.flush();
-    return deltaService.buildDelta(SIM, since, List.of(tenant.getId()));
+    return deltaService.buildDelta(SIM, since, Set.of(tenant.getId()));
   }
 }

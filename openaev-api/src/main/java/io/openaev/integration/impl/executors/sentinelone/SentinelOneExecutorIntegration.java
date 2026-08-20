@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
@@ -17,9 +18,10 @@ import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.service.SentinelOneExecutorContextService;
 import io.openaev.executors.sentinelone.service.SentinelOneExecutorService;
+import io.openaev.executors.sentinelone.service.SentinelOneGarbageCollectorService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
@@ -32,6 +34,7 @@ import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.scheduling.support.CronTrigger;
 
 @Slf4j
 public class SentinelOneExecutorIntegration extends Integration {
@@ -47,6 +50,7 @@ public class SentinelOneExecutorIntegration extends Integration {
   private SentinelOneExecutorContextService sentinelOneExecutorContextService;
 
   private SentinelOneExecutorService sentinelOneExecutorService;
+  private SentinelOneGarbageCollectorService sentinelOneGarbageCollectorService;
 
   private SentinelOneExecutorConfig config;
   private SentinelOneExecutorClient client;
@@ -61,6 +65,7 @@ public class SentinelOneExecutorIntegration extends Integration {
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
   private final OpenAEVConfig openAEVConfig;
+  private final TenantScopedTransaction tenantTx;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
@@ -77,7 +82,8 @@ public class SentinelOneExecutorIntegration extends Integration {
       ThreadPoolTaskScheduler taskScheduler,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
       HttpClientFactory httpClientFactory,
-      OpenAEVConfig openAEVConfig) {
+      OpenAEVConfig openAEVConfig,
+      TenantScopedTransaction tenantTx) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -90,6 +96,7 @@ public class SentinelOneExecutorIntegration extends Integration {
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
     this.openAEVConfig = openAEVConfig;
+    this.tenantTx = tenantTx;
 
     // Refresh the context to get the config
     try {
@@ -118,6 +125,7 @@ public class SentinelOneExecutorIntegration extends Integration {
 
     Executor executor =
         executorService.register(
+            getTenantId(),
             executorId,
             SENTINELONE_EXECUTOR_TYPE,
             executorName,
@@ -142,11 +150,39 @@ public class SentinelOneExecutorIntegration extends Integration {
             openAEVConfig);
     sentinelOneExecutorService =
         new SentinelOneExecutorService(
-            executor, client, endpointService, agentService, assetGroupService);
+            executor, client, endpointService, agentService, assetGroupService, tenantTx);
+
+    sentinelOneGarbageCollectorService =
+        new SentinelOneGarbageCollectorService(
+            config, sentinelOneExecutorContextService, agentService, executor, tenantTx);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(
             sentinelOneExecutorService, Duration.ofSeconds(this.config.getApiRegisterInterval())));
+    // schedule() returns null if the scheduler is already shut down
+    ofNullable(
+            taskScheduler.schedule(
+                sentinelOneGarbageCollectorService, resolveCleanImplantTrigger(executorName)))
+        .ifPresent(timers::add);
+  }
+
+  /** Cron rather than fixed rate: a cleanup task competing with injects makes them time out. */
+  private CronTrigger resolveCleanImplantTrigger(String executorName) {
+    String cron = this.config.getCleanImplantCron();
+    if (cron != null && !cron.isBlank()) {
+      try {
+        return new CronTrigger(cron);
+      } catch (IllegalArgumentException e) {
+        log.warn(
+            "Invalid EXECUTOR_SENTINELONE_CLEAN_IMPLANT_CRON '{}' for executor {}, falling back to"
+                + " default '{}'",
+            cron,
+            executorName,
+            SentinelOneExecutorConfig.DEFAULT_CLEAN_IMPLANT_CRON,
+            e);
+      }
+    }
+    return new CronTrigger(SentinelOneExecutorConfig.DEFAULT_CLEAN_IMPLANT_CRON);
   }
 
   @Override

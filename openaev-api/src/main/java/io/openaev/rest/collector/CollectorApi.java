@@ -9,6 +9,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.ConnectorCompositeId;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
@@ -19,6 +20,7 @@ import io.openaev.rest.collector.form.CollectorUpdateInput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.FileService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -30,10 +32,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.io.IOUtils;
-import org.springframework.http.CacheControl;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -138,17 +138,8 @@ public class CollectorApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get collector image by type")
   @Transactional
-  public ResponseEntity<byte[]> getCollectorImage(@PathVariable String collectorType)
-      throws IOException {
-    Optional<InputStream> fileStream = fileService.getCollectorImage(collectorType);
-    if (fileStream.isPresent()) {
-      try (InputStream is = fileStream.get()) {
-        return ResponseEntity.ok()
-            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-            .body(IOUtils.toByteArray(is));
-      }
-    }
-    return ResponseEntity.notFound().build();
+  public ResponseEntity<InputStreamResource> getCollectorImage(@PathVariable String collectorType) {
+    return this.fileService.getConnectorImage(ConnectorType.COLLECTOR, collectorType);
   }
 
   @GetMapping(
@@ -161,7 +152,7 @@ public class CollectorApi extends RestBehavior {
   @Operation(summary = "Get collector image by collector id")
   @Transactional
   // Composite PK: require a tenant selector to avoid NonUniqueResultException on the ID lookup.
-  public ResponseEntity<byte[]> getCollectorImageById(
+  public ResponseEntity<InputStreamResource> getCollectorImageById(
       @RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) throws IOException {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Optional<Collector> collector =
@@ -169,15 +160,7 @@ public class CollectorApi extends RestBehavior {
     if (collector.isEmpty()) {
       return ResponseEntity.notFound().build();
     }
-    Optional<InputStream> fileStream = fileService.getCollectorImage(collector.get().getType());
-    if (fileStream.isPresent()) {
-      try (InputStream is = fileStream.get()) {
-        return ResponseEntity.ok()
-            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-            .body(IOUtils.toByteArray(is));
-      }
-    }
-    return ResponseEntity.notFound().build();
+    return this.fileService.getConnectorImage(ConnectorType.COLLECTOR, collector.get().getType());
   }
 
   @PutMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
@@ -210,13 +193,16 @@ public class CollectorApi extends RestBehavior {
   @Operation(
       summary = "Delete a collector",
       description =
-          "Removes a registered collector. Intended for stopped collectors that no longer ping;"
-              + " an active collector re-registers on its next heartbeat.")
+          "Removes a registered collector. A started collector is rejected (stop it first): a"
+              + " managed one needs a stop requested on its instance, an unmanaged one must have"
+              + " stopped pinging - an active collector re-registers on its next heartbeat"
+              + " anyway.")
   @Transactional(rollbackFor = Exception.class)
-  public void deleteCollector(@RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) {
+  public void deleteCollector(@RequireTenantSelector TxCtx ctx, @PathVariable String collectorId)
+      throws ConnectorStatusException {
     // Enforce a single-tenant write scope (400 on ambiguous selector) before issuing the delete.
-    writeScopeResolver.tenantForWrite(ctx, null);
-    collectorRepository.deleteByCollectorId(collectorId);
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    collectorService.deleteCollector(collectorId, tenantId);
   }
 
   @PostMapping(

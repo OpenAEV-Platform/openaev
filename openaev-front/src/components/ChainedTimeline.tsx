@@ -380,7 +380,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
   };
 
   /** Persist the new trigger time when a card drag ends. */
-  const nodeDragStop = (_event: ReactMouseEvent, node: NodeInject) => {
+  const nodeDragStop = (_event: MouseEvent | TouchEvent, node: NodeInject) => {
     const injectFromMap = injectsMap[node.id];
     if (injectFromMap !== undefined) {
       const inject = {
@@ -434,7 +434,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
    * and the earliest child (cannot fire after it). The card's time chip
    * updates live through the mutated depends_duration.
    */
-  const nodeDrag = (_event: ReactMouseEvent, node: NodeInject) => {
+  const nodeDrag = (_event: MouseEvent | TouchEvent, node: NodeInject) => {
     setDraggingOngoing(true);
     const { position, data } = node;
     const dependsOn = nodes.find(currentNode => (data.inject?.inject_depends_on !== null
@@ -632,7 +632,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
             onClick={onPlaygroundClick}
             onMouseEnter={showGhost}
             onMouseLeave={hideGhost}
-            onReconnect={() => {}}
+            onReconnect={() => { }}
             // @ts-expect-error the xyflow signature is not well defined here
             onReconnectEnd={onReconnectEnd}
             edgesReconnectable={permissions.canManage}

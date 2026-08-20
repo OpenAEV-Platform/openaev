@@ -21,7 +21,6 @@ import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.time.Instant;
@@ -120,6 +119,28 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   }
 
   /**
+   * Deletes a collector. A started collector can never be deleted (OpenCTI parity): a managed one
+   * must have a stop requested or effective on its owning instance, an unmanaged one must have
+   * stopped pinging (see {@link #throwIfConnectorRunning}). When the collector was deployed through
+   * the Integration Manager, the owning instance is torn down with it - deleting the row alone
+   * would leave the container running and the entity would reappear on its next registration
+   * heartbeat.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteCollector(String collectorId, String tenantId) throws ConnectorStatusException {
+    Collector collector = collector(collectorId, tenantId);
+    if (collector.isExternal()) {
+      throwIfConnectorRunning(collector, collector.getUpdatedAt());
+    }
+    if (!deleteOwningConnectorInstance(collectorId)) {
+      // Tenant-exact delete on the composite PK (collector_id, tenant_id): the entity was
+      // resolved with the explicit tenantId above, so the delete must not rely on the tenant
+      // rewriting of the id-only DELETE.
+      collectorRepository.delete(collector);
+    }
+  }
+
+  /**
    * Retrieve all collectors
    *
    * @return List of collectors
@@ -145,14 +166,21 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   /**
    * Retrieves IDs of resources associated with a collector, using the full composite key.
    *
+   * <p>Tenant safety: {@code connector_instances}/{@code connector_instance_configurations} are now
+   * on v2 isolation (activated #6408). This lookup still carries {@code tenantId} explicitly, not
+   * as a leftover v1 workaround, but because it is a native query (bypasses the Hibernate
+   * {@code @Filter} either way) called with one specific collector's tenant - {@code tenantId} is
+   * also reused below for the composite-PK {@code registered} check, which the automatic inspector
+   * scoping cannot substitute for.
+   *
    * @param collectorId collector identifier
    * @param tenantId tenant for the composite PK lookup
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
   public ConnectorIds getCollectorRelationsId(String collectorId, String tenantId) {
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
-        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-            ConnectorType.COLLECTOR.getIdKeyName(), collectorId);
+        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+            ConnectorType.COLLECTOR.getIdKeyName(), collectorId, tenantId);
     if (relatedIds != null) {
       boolean registered =
           collectorRepository.findById(ConnectorCompositeId.of(collectorId, tenantId)).isPresent();
@@ -299,20 +327,5 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
               collector.setLastExecution(Instant.now());
               collectorRepository.save(collector);
             });
-  }
-
-  /**
-   * Deletes a collector and, when it was deployed through the Integration Manager, the connector
-   * instance that owns it - otherwise the deployment keeps running against a collector that no
-   * longer exists and recreates it on its next registration heartbeat (see {@link
-   * io.openaev.service.connectors.AbstractConnectorService#deleteOwningConnectorInstance}).
-   *
-   * @param collectorId collector identifier
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void deleteCollector(@NotBlank final String collectorId) throws ConnectorStatusException {
-    if (!deleteOwningConnectorInstance(collectorId)) {
-      collectorRepository.deleteByCollectorId(collectorId);
-    }
   }
 }

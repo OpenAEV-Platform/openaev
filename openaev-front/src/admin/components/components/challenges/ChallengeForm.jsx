@@ -125,8 +125,20 @@ const ChallengeForm = (props) => {
     });
     return errors;
   };
-  const required = value => (value ? undefined : t('This field is required.'));
   const requiredArray = value => (value && value.length > 0 ? undefined : t('This field is required.'));
+  const flagValueValidator = index => (value, allValues) => {
+    if (!value) {
+      return t('This field is required.');
+    }
+    if (allValues?.challenge_flags?.[index]?.flag_type === 'REGEXP') {
+      try {
+        RegExp(value);
+      } catch {
+        return t('Invalid regular expression');
+      }
+    }
+    return undefined;
+  };
   const { documentsMap } = useHelper(helper => ({ documentsMap: helper.getDocumentsMap() }));
 
   useDataLoader(() => {
@@ -375,7 +387,7 @@ const ChallengeForm = (props) => {
                       </OldSelectField>
                       <OldTextField
                         name={`${name}.flag_value`}
-                        validate={required}
+                        validate={flagValueValidator(index)}
                         fullWidth={true}
                         label={t('Value')}
                         style={{ marginRight: 20 }}

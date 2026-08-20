@@ -8,8 +8,11 @@ import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.*;
@@ -37,14 +40,11 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -65,6 +65,7 @@ public class InjectorApi extends RestBehavior {
   private final InjectStatusService injectStatusService;
   private final InjectorService injectorService;
   private final FileService fileService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -89,6 +90,7 @@ public class InjectorApi extends RestBehavior {
               mediaType = "application/json",
               array = @ArraySchema(schema = @Schema(implementation = InjectorOutput.class))))
   public Iterable<InjectorOutput> injectors(
+      TxCtx ctx,
       @Parameter(
               name = "includeNext",
               description = "Include injectors pending deployment",
@@ -107,11 +109,12 @@ public class InjectorApi extends RestBehavior {
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
-  public Collection<JsonNode> injectorInjectTypes(@PathVariable String injectorId) {
+  // Single-id lookup on a composite-PK table (built-in injector ids repeat across tenants):
+  // force a single-tenant scope so findByInjectorId stays deterministic.
+  public Collection<JsonNode> injectorInjectTypes(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String injectorId) {
     Injector injector =
-        injectorRepository
-            .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        injectorRepository.findByInjectorId(injectorId).orElseThrow(ElementNotFoundException::new);
     return fromIterable(injectorContractRepository.findByInjectorsContaining(injector)).stream()
         .map(
             contract -> {
@@ -131,11 +134,12 @@ public class InjectorApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR)
   public Injector updateInjector(
-      @PathVariable String injectorId, @Valid @RequestBody InjectorUpdateInput input) {
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String injectorId,
+      @Valid @RequestBody InjectorUpdateInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
     Injector injector =
-        injectorRepository
-            .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        injectorRepository.findByInjectorId(injectorId).orElseThrow(ElementNotFoundException::new);
     return injectorService.updateExistingExternalInjector(
         injector,
         injector.getType(),
@@ -157,7 +161,10 @@ public class InjectorApi extends RestBehavior {
       resourceId = "#injectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR)
-  public InjectorOutput injector(@PathVariable String injectorId) {
+  // Single-id lookup on a composite-PK table (built-in injector ids repeat across tenants):
+  // force a single-tenant scope so findByInjectorId stays deterministic.
+  public InjectorOutput injector(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String injectorId) {
     return injectorService.injectorOutput(injectorId);
   }
 
@@ -171,8 +178,14 @@ public class InjectorApi extends RestBehavior {
       resourceType = ResourceType.INJECTOR)
   @Operation(summary = "Retrieve injector related ids")
   @Transactional
-  public ConnectorIds getInjectorRelatedIds(@PathVariable String injectorId) {
-    return injectorService.getInjectorRelationsId(injectorId);
+  // connector_instances/connector_instance_configurations are now on v2 isolation (activated
+  // #6408). The lookup below still needs a single-tenant selector: it is a native query
+  // (bypasses the Hibernate @Filter either way) and this injector's tenant is resolved explicitly,
+  // see AbstractConnectorService#getConnectorRelationsId.
+  public ConnectorIds getInjectorRelatedIds(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String injectorId) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return injectorService.getInjectorRelationsId(injectorId, tenantId);
   }
 
   // -- IMAGE --
@@ -186,17 +199,8 @@ public class InjectorApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get injector image by type")
   @Transactional
-  public ResponseEntity<byte[]> getInjectorImage(@PathVariable String injectorType)
-      throws IOException {
-    Optional<InputStream> fileStream = fileService.getInjectorImage(injectorType);
-    if (fileStream.isPresent()) {
-      try (InputStream is = fileStream.get()) {
-        return ResponseEntity.ok()
-            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-            .body(IOUtils.toByteArray(is));
-      }
-    }
-    return ResponseEntity.notFound().build();
+  public ResponseEntity<InputStreamResource> getInjectorImage(@PathVariable String injectorType) {
+    return this.fileService.getConnectorImage(ConnectorType.INJECTOR, injectorType);
   }
 
   @DeleteMapping({INJECT0R_URI + "/{injectorId}", TENANT_INJECTOR_URI + "/{injectorId}"})
@@ -211,7 +215,9 @@ public class InjectorApi extends RestBehavior {
               + " an active injector re-registers on its next heartbeat. The implant injector is"
               + " the platform's own execution path and cannot be removed.")
   @Transactional(rollbackFor = Exception.class)
-  public void deleteInjector(@PathVariable String injectorId) throws ConnectorStatusException {
+  public void deleteInjector(@RequireTenantSelector TxCtx ctx, @PathVariable String injectorId)
+      throws ConnectorStatusException {
+    writeScopeResolver.tenantForWrite(ctx, null);
     injectorService.deleteInjector(injectorId);
   }
 
@@ -222,9 +228,11 @@ public class InjectorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR)
   @Transactional(rollbackFor = Exception.class)
   public InjectorRegistration registerInjector(
+      @RequireTenantSelector TxCtx ctx,
       @Valid @RequestPart("input") InjectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
-    return injectorService.registerExternalInjector(input, file);
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return injectorService.registerExternalInjector(input, file, tenantId);
   }
 
   // Public API
@@ -288,7 +296,10 @@ public class InjectorApi extends RestBehavior {
   @GetMapping({INJECT0R_URI + "/options", TENANT_INJECTOR_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
+  // Options only expose (id, name) pairs: a multi-tenant scope would return duplicated built-in
+  // ids across tenants, so force a single-tenant scope for deterministic results.
   public List<FilterUtilsJpa.Option> optionsByName(
+      @RequireTenantSelector TxCtx ctx,
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId) {
     return fromIterable(
@@ -302,9 +313,12 @@ public class InjectorApi extends RestBehavior {
   @PostMapping({INJECT0R_URI + "/options", TENANT_INJECTOR_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR)
+  // Same as optionsByName: id-based lookups on a composite-PK table need a single-tenant scope.
   public List<FilterUtilsJpa.Option> optionsById(
-      @RequestBody final List<String> ids, @RequestParam(required = false) final String sourceId) {
-    return injectorService.findAllByIds(ids, TenantContext.getCurrentTenant()).stream()
+      @RequireTenantSelector TxCtx ctx,
+      @RequestBody final List<String> ids,
+      @RequestParam(required = false) final String sourceId) {
+    return injectorService.findAllByIds(ids).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
   }

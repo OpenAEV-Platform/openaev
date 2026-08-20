@@ -24,7 +24,7 @@ import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -43,6 +43,7 @@ import java.util.*;
 import org.junit.jupiter.api.*;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
@@ -85,19 +86,18 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private UserService userService;
   @Mock private TenantSettingsService tenantSettingsService;
   @Mock private CustomDashboardService customDashboardService;
-  @Mock private InjectorContractService injectorContractService;
   @InjectMocks private ScenarioService scenarioService;
   @Autowired private ScenarioService scenarioServiceBean;
   @Autowired private ScenarioMapper scenarioMapper;
 
   @Mock private WorkflowService workflowService;
   @Mock private WorkflowExportInitializer workflowExportInitializer;
-  @Autowired private PreviewFeatureService previewFeatureService;
 
   @Mock private LicenseCacheManager licenseCacheManager;
   @Autowired private ExerciseMapper exerciseMapper;
   @Mock private ActionMetricCollector actionMetricCollector;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
+  @Mock private ObjectProvider<AutonomousRunService> autonomousRunServiceProvider;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -128,7 +128,6 @@ class ScenarioServiceTest extends IntegrationTest {
             userService,
             tenantSettingsService,
             customDashboardService,
-            injectorContractService,
             injectRepository,
             lessonsCategoryRepository,
             tagRepository,
@@ -136,7 +135,8 @@ class ScenarioServiceTest extends IntegrationTest {
             scenarioMapper,
             workflowService,
             workflowExportInitializer,
-            bulkDeleteExecutor);
+            bulkDeleteExecutor,
+            autonomousRunServiceProvider);
   }
 
   @AfterAll

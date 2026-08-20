@@ -3,9 +3,11 @@ package io.openaev.scheduler.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.context.TenantContext;
@@ -29,6 +31,7 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.hibernate.Session;
@@ -87,9 +90,12 @@ class InjectsExecutionJobTenantScopeTest {
   /** The scope the v2 primitive was opened with. */
   private final AtomicReference<TxCtx> primitiveScope = new AtomicReference<>();
 
+  private final AtomicReference<String> tenantDuringFailStatus = new AtomicReference<>();
+
   @BeforeEach
   void setUp() throws Exception {
     ReflectionTestUtils.setField(job, "injectExecutionThreshold", 15);
+    ReflectionTestUtils.setField(job, "auditLogger", Optional.empty());
     when(entityManager.unwrap(Session.class)).thenReturn(mock(Session.class));
 
     // Every sweep around the execution is a no-op here: this test is about the execution scope.
@@ -98,6 +104,7 @@ class InjectsExecutionJobTenantScopeTest {
     doReturn(List.of()).when(exerciseRepository).saveAll(any());
     when(previewFeatureService.isFeatureEnabled(any())).thenReturn(false);
     when(injectService.getExecutedAndNotFinished()).thenReturn(List.of());
+    when(injectService.resolveAllAssetsToExecute(any(Inject.class))).thenReturn(List.of());
     when(injectHelper.getAllPendingInjectsWithThresholdMinutes(anyInt())).thenReturn(List.of());
     when(healthCheckUtils.runContentChecks(any(Inject.class))).thenReturn(List.of());
 
@@ -116,12 +123,19 @@ class InjectsExecutionJobTenantScopeTest {
         .when(tenantTx)
         .execute(any(TxCtx.class), any(Runnable.class));
 
-    when(executor.execute(any()))
+    when(executor.execute(any(ExecutableInject.class), any()))
         .thenAnswer(
             invocation -> {
               tenantDuringExecution.set(TenantContext.getCurrentTenant());
               return null;
             });
+    doAnswer(
+            invocation -> {
+              tenantDuringFailStatus.set(TenantContext.getCurrentTenant());
+              return null;
+            })
+        .when(injectStatusService)
+        .failInjectStatus(anyString(), anyString());
   }
 
   @AfterEach
@@ -192,5 +206,17 @@ class InjectsExecutionJobTenantScopeTest {
     assertThat(TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null)
         .as("a scope-less thread must leave the sweep scope-less")
         .isNull();
+  }
+
+  @Test
+  @DisplayName("failed inject status update runs under the inject tenant scope")
+  void failedStatusUpdateRunsUnderInjectTenant() throws Exception {
+    when(executor.execute(any(ExecutableInject.class), any()))
+        .thenThrow(new RuntimeException("boom"));
+
+    job.execute(null);
+
+    verify(injectStatusService).failInjectStatus(anyString(), anyString());
+    assertThat(tenantDuringFailStatus.get()).isEqualTo(INJECT_TENANT);
   }
 }

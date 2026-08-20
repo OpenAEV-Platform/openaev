@@ -1,8 +1,9 @@
 import { FactCheckOutlined, MailOutlined, NoteAltOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, useContext } from 'react';
 
 import RightMenu, { type RightMenuEntry } from '../../../../components/common/menu/RightMenu';
 import { type Exercise } from '../../../../utils/api-types';
+import { AutonomousContext } from '../../autonomous/AutonomousContext';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
 
@@ -10,6 +11,12 @@ interface Props { exerciseId: Exercise['exercise_id'] }
 // validations, logs). The simulation Index pads the content area by the menu
 // width whenever the location is under /execution.
 const ExecutionMenu: FunctionComponent<Props> = ({ exerciseId }) => {
+  // Autonomous (AI-driven) runs reserve the right column for the reasoning
+  // panel, so the legacy execution right menu is suppressed to avoid overlap.
+  const { isAutonomous } = useContext(AutonomousContext);
+  if (isAutonomous) {
+    return null;
+  }
   const base = `/admin/simulations/${exerciseId}/execution`;
   const entries: RightMenuEntry[] = [
     {

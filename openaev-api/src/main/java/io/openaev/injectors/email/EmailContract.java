@@ -20,6 +20,7 @@ import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.injector_contract.*;
 import io.openaev.injector_contract.fields.ContractElement;
 import io.openaev.injector_contract.fields.ContractExpectations;
+import io.openaev.injector_contract.variables.VariableHelper;
 import io.openaev.rest.domain.enums.PresetDomain;
 import java.io.InputStream;
 import java.util.List;
@@ -65,7 +66,8 @@ public class EmailContract extends Contractor {
     // Standard contract
     List<ContractElement> standardInstance =
         contractBuilder()
-            .mandatory(teamField(Multiple))
+            .optional(teamField(Multiple))
+            .optional(textField("recipients", "Recipients"))
             .mandatory(textField("subject", "Subject"))
             .mandatory(richTextareaField("body", "Body"))
             .optional(checkboxField("encrypted", "Encrypted", false))
@@ -85,7 +87,8 @@ public class EmailContract extends Contractor {
     // Global contract
     List<ContractElement> globalInstance =
         contractBuilder()
-            .mandatory(teamField(Multiple))
+            .optional(teamField(Multiple))
+            .optional(textField("recipients", "Recipients"))
             .mandatory(textField("subject", "Subject"))
             .mandatory(richTextareaField("body", "Body"))
             .optional(attachmentField(Multiple))
@@ -101,6 +104,12 @@ public class EmailContract extends Contractor {
             false,
             Set.of(PresetDomain.getEmailInfiltration(), PresetDomain.getTabletop()));
     globalEmail.addVariable(documentUriVariable);
+    // A single mail is sent to all recipients at once, so per-user variables cannot be resolved
+    // and must not be advertised in the available variables cheat sheet. The filtering is done
+    // here (openaev-framework is deprecated and must not grow new API like removeVariable).
+    globalEmail
+        .getVariables()
+        .removeIf(contractVariable -> VariableHelper.USER.equals(contractVariable.getKey()));
     return List.of(standardEmail, globalEmail);
   }
 

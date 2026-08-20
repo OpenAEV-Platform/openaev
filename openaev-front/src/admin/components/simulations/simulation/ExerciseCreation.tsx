@@ -9,16 +9,13 @@ import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type CreateExerciseInput, type Exercise, type PlatformSettings } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import EngineTypeSelection, { type EngineType } from '../../common/EngineTypeSelection';
-import ExerciseForm from './ExerciseForm';
 import ExerciseFormChaining from './ExerciseFormChaining';
 
 const ExerciseCreation = () => {
   // Standard hooks
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const [open, setOpen] = useState(false);
-  const [engineType, setEngineType] = useState<EngineType>(isChainingFeatureEnabled ? null : 'time-based');
+  const [engineType, setEngineType] = useState<EngineType>(null);
   const { t } = useFormatter();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -61,18 +58,6 @@ const ExerciseCreation = () => {
   };
 
   const renderDrawerContent = (): ReactElement => {
-    // if feature flag is disabled we just display the old form
-    if (!isChainingFeatureEnabled) {
-      return (
-        <ExerciseForm
-          onSubmit={onSubmit}
-          handleClose={() => setOpen(false)}
-          initialValues={initialValues}
-          edit={false}
-        />
-      );
-    }
-
     return (
       <>
         <EngineTypeSelection

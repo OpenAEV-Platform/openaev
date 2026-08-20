@@ -1,12 +1,16 @@
 package io.openaev.database.model;
 
 import static java.time.Instant.now;
+import static java.util.stream.Collectors.toSet;
+import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.AuditDiffTracked;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.Auditable;
+import io.openaev.database.audit.AuditableListener;
 import io.openaev.database.audit.ModelBaseListener;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.annotation.Nullable;
@@ -14,6 +18,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -24,9 +29,9 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "roles")
-@EntityListeners({ModelBaseListener.class})
+@EntityListeners({ModelBaseListener.class, AuditableListener.class})
 @AuditDiffTracked
-public class Role implements DualScopeBase {
+public class Role implements DualScopeBase, Auditable {
 
   @Id
   @ControlledUuidGeneration
@@ -46,11 +51,21 @@ public class Role implements DualScopeBase {
   @JsonProperty("role_description")
   private String description;
 
+  @Setter(NONE)
   @ElementCollection(targetClass = Capability.class, fetch = FetchType.EAGER)
   @JoinTable(name = "roles_capabilities", joinColumns = @JoinColumn(name = "role_id"))
   @Enumerated(EnumType.STRING)
   @Column(name = "capability")
   private Set<Capability> capabilities = new HashSet<>();
+
+  /**
+   * Implied parents are resolved on the way in, so a role never holds a capability without the ones
+   * it depends on. Keeping it here rather than at each construction site means no caller can forget
+   * it — {@link #capabilitiesOf} and the escalation guard both read the set as final.
+   */
+  public void setCapabilities(final Set<Capability> capabilities) {
+    this.capabilities = Capability.resolveWithParents(capabilities);
+  }
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
@@ -85,5 +100,11 @@ public class Role implements DualScopeBase {
   @Override
   public int hashCode() {
     return Objects.hash(id);
+  }
+
+  // -- UTILS --
+
+  public static Set<Capability> capabilitiesOf(final Collection<Role> roles) {
+    return roles.stream().flatMap(role -> role.getCapabilities().stream()).collect(toSet());
   }
 }

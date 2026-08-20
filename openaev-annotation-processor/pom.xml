@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>3.260731.0</version>
+        <version>3.260818.1</version>
     </parent>
 
     <artifactId>openaev-annotation-processor</artifactId>

@@ -8,7 +8,7 @@ import type { ArticlesHelper } from '../../../../../actions/channels/article-hel
 import { fetchExerciseDocuments } from '../../../../../actions/documents/documents-actions';
 import { fetchExerciseInjectExpectations, fetchExerciseTeams } from '../../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../../actions/exercises/exercise-helper';
-import { fetchExerciseInjects, updateInjectForExercise } from '../../../../../actions/Inject';
+import { reconcileExerciseInjects, updateInjectForExercise } from '../../../../../actions/Inject';
 import { type InjectStore } from '../../../../../actions/injects/Inject';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import { fetchVariablesForExercise } from '../../../../../actions/variables/variable-actions';
@@ -41,6 +41,15 @@ import { useNowTick } from './executionTime';
 // Transient statuses of injects that have been dispatched but not concluded.
 const IN_FLIGHT_STATUSES = new Set(['QUEUING', 'EXECUTING', 'PENDING']);
 
+interface ExecutionOverviewProps {
+  // When embedded outside the simulation route (e.g. the scenario Execution tab), the exercise id is
+  // supplied explicitly instead of read from the URL. Falls back to the route param otherwise.
+  exerciseId?: Exercise['exercise_id'];
+  // The permanent right-hand execution menu (mails / logs / validations) only makes sense inside the
+  // simulation route; embedded contexts drop it and show just the live overview.
+  showMenu?: boolean;
+}
+
 // The Execution tab landing screen: a live operations view of the simulation
 // execution. Top to bottom: the live hero (status beacon, elapsed clock, next
 // inject countdown, headline stats, progress track), the scoping toolbar, the
@@ -48,10 +57,11 @@ const IN_FLIGHT_STATUSES = new Set(['QUEUING', 'EXECUTING', 'PENDING']);
 // and the live execution board where injects flow from "up next" to
 // "completed" in real time. Exposure validation posture intentionally lives
 // on the Overview tab only.
-const ExecutionOverview = () => {
+const ExecutionOverview = ({ exerciseId: exerciseIdProp, showMenu = true }: ExecutionOverviewProps = {}) => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
+  const params = useParams() as { exerciseId?: Exercise['exercise_id'] };
+  const exerciseId = (exerciseIdProp ?? params.exerciseId) as Exercise['exercise_id'];
   const { t } = useFormatter();
   const [selectedInjectId, setSelectedInjectId] = useState<string | null>(null);
 
@@ -75,7 +85,10 @@ const ExecutionOverview = () => {
 
   // Fetching Data
   useDataLoader(() => {
-    dispatch(fetchExerciseInjects(exerciseId));
+    // Reconcile (not just fetch): injects can be deleted server-side out of band - deleting a
+    // phishing landing page cascade-deletes the injects built on its contract - and the merge-only
+    // store would otherwise keep the ghosts on this screen as "completed" until a full reload.
+    dispatch(reconcileExerciseInjects(exerciseId));
     dispatch(fetchExerciseTeams(exerciseId));
     dispatch(fetchVariablesForExercise(exerciseId));
     dispatch(fetchExerciseDocuments(exerciseId));
@@ -147,7 +160,7 @@ const ExecutionOverview = () => {
 
   return (
     <div>
-      <ExecutionMenu exerciseId={exerciseId} />
+      {showMenu && <ExecutionMenu exerciseId={exerciseId} />}
       <Box sx={{
         display: 'flex',
         flexDirection: 'column',

@@ -1,4 +1,4 @@
-import { BugReportOutlined, CrisisAlertOutlined, GppGoodOutlined, VisibilityOutlined } from '@mui/icons-material';
+import { BugReportOutlined, CrisisAlertOutlined, GppGoodOutlined, SupportAgentOutlined, VisibilityOutlined } from '@mui/icons-material';
 import { Box, ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, memo, type ReactElement, useContext, useMemo } from 'react';
@@ -74,6 +74,9 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetId, widgetConfi
     if (type.includes('PREVENTION')) return <GppGoodOutlined sx={{ fontSize: 14 }} />;
     if (type.includes('DETECTION')) return <VisibilityOutlined sx={{ fontSize: 14 }} />;
     if (type.includes('VULNERABILITY')) return <BugReportOutlined sx={{ fontSize: 14 }} />;
+    if (['MANUAL', 'ARTICLE', 'CHALLENGE'].some(humanType => type.includes(humanType))) {
+      return <SupportAgentOutlined sx={{ fontSize: 14 }} />;
+    }
     return <CrisisAlertOutlined sx={{ fontSize: 14 }} />;
   }, [widgetConfig]);
 

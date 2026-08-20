@@ -1,0 +1,257 @@
+package io.openaev.utils.command;
+
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Binds inject argument values to shell variables instead of substituting them verbatim into a
+ * command template.
+ *
+ * <p>This is the command-line equivalent of a SQL prepared statement: the value is declared once,
+ * in a fully quoted/escaped declaration (the "prologue"), and the template only ever sees a
+ * variable reference. Shell metacharacters carried by an argument value therefore cannot alter the
+ * structure of the command that finally runs on the endpoint.
+ *
+ * <p>Rendered shape, for {@code echo #{target}} with {@code target = "a; whoami"}:
+ *
+ * <ul>
+ *   <li>sh/bash/zsh — {@code OAEV_ARG_TARGET='a; whoami'\necho "$OAEV_ARG_TARGET"}
+ *   <li>powershell — {@code $OAEV_ARG_TARGET = 'a; whoami'\necho ${OAEV_ARG_TARGET}}
+ *   <li>cmd — {@code set "OAEV_ARG_TARGET=a; whoami" & echo "!OAEV_ARG_TARGET!"}
+ * </ul>
+ *
+ * <p><b>Template authoring rule</b>: do not wrap a placeholder in quotes yourself ({@code
+ * "#{arg}"}). The binder owns the quoting; directly adjacent quotes around a placeholder are
+ * detected and removed, but a placeholder embedded in a wider single-quoted literal cannot be
+ * resolved (it stays literal — safe, but not substituted).
+ *
+ * <p>Not thread-safe: create one instance per rendered command.
+ */
+@Slf4j
+public class CommandArgumentBinder {
+
+  /**
+   * Prefix of every generated variable, namespaced to avoid clashing with the payload's own vars.
+   */
+  private static final String VARIABLE_PREFIX = "OAEV_ARG_";
+
+  private static final Pattern NON_IDENTIFIER_CHARS = Pattern.compile("[^A-Za-z0-9_]");
+  private static final Pattern NUL_AND_CONTROL_CHARS =
+      Pattern.compile("[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]");
+
+  private final ExecutorShell shell;
+
+  /**
+   * {@code true} when {@link ExecutorShell#NONE} was <em>suffered</em> (unknown executor) rather
+   * than <em>chosen</em> ({@link #literal()}). Falling back to verbatim substitution on a command
+   * line would reintroduce command injection, so rendering is refused instead.
+   */
+  private final boolean rejectPlaceholders;
+
+  /** Executor this binder was built for, kept for diagnostics only. */
+  private final String executor;
+
+  /** argument key -> generated variable name, in declaration order. */
+  private final Map<String, String> variablesByKey = new LinkedHashMap<>();
+
+  /** generated variable name -> already escaped declaration value. */
+  private final Map<String, String> valuesByVariable = new LinkedHashMap<>();
+
+  private CommandArgumentBinder(ExecutorShell shell, boolean rejectPlaceholders, String executor) {
+    this.shell = shell;
+    this.rejectPlaceholders = rejectPlaceholders;
+    this.executor = executor;
+  }
+
+  /**
+   * Binder for a command that will actually be executed on an endpoint.
+   *
+   * <p>If no binding strategy exists for the executor, the binder is built in <em>fail-closed</em>
+   * mode: a template referencing arguments is rejected at {@link #render(String)} rather than
+   * silently substituted.
+   */
+  public static CommandArgumentBinder forExecutor(String executor) {
+    ExecutorShell resolved = ExecutorShell.from(executor);
+    return new CommandArgumentBinder(resolved, !resolved.supportsBinding(), executor);
+  }
+
+  /**
+   * Binder for a value that never reaches a shell (read-only display, DNS hostname): placeholders
+   * are substituted verbatim, only control characters are stripped.
+   */
+  public static CommandArgumentBinder literal() {
+    return new CommandArgumentBinder(ExecutorShell.NONE, false, null);
+  }
+
+  /**
+   * Registers an argument value. Binding the same key twice keeps the first value (a key can appear
+   * several times in a template but resolves to a single value).
+   *
+   * @param argumentKey the raw key as written in {@code #{key}}
+   * @param value the resolved value, possibly attacker-controlled
+   */
+  public void bind(String argumentKey, String value) {
+    if (variablesByKey.containsKey(argumentKey)) {
+      return;
+    }
+    String sanitized = sanitize(value == null ? "" : value);
+    if (!shell.supportsBinding()) {
+      // Literal mode: keep the value, no variable is declared.
+      variablesByKey.put(argumentKey, null);
+      valuesByVariable.put(argumentKey, sanitized);
+      return;
+    }
+    String variable = allocateVariableName(argumentKey);
+    variablesByKey.put(argumentKey, variable);
+    valuesByVariable.put(variable, sanitized);
+  }
+
+  /**
+   * Replaces every bound placeholder by its variable reference and prepends the declarations.
+   *
+   * @param template the command template authored on the payload
+   * @return the command ready to be obfuscated and encoded
+   */
+  public String render(String template) {
+    if (template == null) {
+      return null;
+    }
+    // Fail closed: an unmapped executor must never fall back to verbatim substitution, which is
+    // exactly the command injection this class exists to prevent. Templates without any argument
+    // are still rendered, so payloads using an exotic executor keep working.
+    if (rejectPlaceholders && !variablesByKey.isEmpty()) {
+      log.error(
+          "Refusing to render a command with argument placeholders for executor '{}': no binding "
+              + "strategy available. Add the executor to ExecutorShell to enable safe binding.",
+          executor);
+      throw new CommandBindingException(
+          "Unsupported executor '%s' for argument binding: refusing to render a command with placeholders."
+              .formatted(executor));
+    }
+    String rendered = template;
+    for (Map.Entry<String, String> entry : variablesByKey.entrySet()) {
+      String argumentKey = entry.getKey();
+      String variable = entry.getValue();
+      String replacement =
+          shell.supportsBinding() ? reference(variable) : valuesByVariable.get(argumentKey);
+      rendered = replacePlaceholder(rendered, argumentKey, replacement);
+    }
+    if (!shell.supportsBinding() || valuesByVariable.isEmpty()) {
+      return rendered;
+    }
+    return buildPrologue() + rendered;
+  }
+
+  // -- PLACEHOLDER SUBSTITUTION --
+
+  /**
+   * Replaces {@code #{key}} — and, in binding mode only, a pair of quotes directly wrapping it,
+   * since the binder owns the quoting — by the given replacement.
+   *
+   * <p>In literal mode the template is left structurally untouched: it backs the read-only display
+   * path, where {@code echo "#{host}"} must render as {@code echo "localhost"}.
+   */
+  private String replacePlaceholder(String command, String argumentKey, String replacement) {
+    if (!shell.supportsBinding()) {
+      return command.replace("#{" + argumentKey + "}", replacement);
+    }
+    Pattern placeholder = Pattern.compile("(['\"])?#\\{" + Pattern.quote(argumentKey) + "}\\1?");
+    Matcher matcher = placeholder.matcher(command);
+    StringBuilder result = new StringBuilder();
+    while (matcher.find()) {
+      String openingQuote = matcher.group(1);
+      // Only drop the quotes when they actually form a pair around the placeholder.
+      boolean quotedPair = openingQuote != null && matcher.group().endsWith(openingQuote);
+      String value = quotedPair || openingQuote == null ? replacement : openingQuote + replacement;
+      matcher.appendReplacement(result, Matcher.quoteReplacement(value));
+    }
+    matcher.appendTail(result);
+    return result.toString();
+  }
+
+  // -- DECLARATIONS --
+
+  private String buildPrologue() {
+    StringBuilder prologue = new StringBuilder();
+    valuesByVariable.forEach(
+        (variable, value) -> prologue.append(declaration(variable, value)).append(separator()));
+    return prologue.toString();
+  }
+
+  private String declaration(String variable, String value) {
+    return switch (shell) {
+      case SH -> variable + "=" + quoteSh(value);
+      case POWERSHELL -> "$" + variable + " = " + quotePowerShell(value);
+      case CMD -> "set \"" + variable + "=" + escapeCmd(value) + "\"";
+      case NONE -> "";
+    };
+  }
+
+  private String reference(String variable) {
+    return switch (shell) {
+      // Double quotes prevent word splitting and globbing; adjacent-string concatenation makes it
+      // work even when the placeholder sits inside a wider double-quoted literal.
+      case SH -> "\"$" + variable + "\"";
+      // PowerShell never word-splits a variable, so a bare reference is both safe and composable.
+      case POWERSHELL -> "${" + variable + "}";
+      // Delayed expansion: the content of !VAR! is not re-parsed for metacharacters.
+      case CMD -> "\"!" + variable + "!\"";
+      case NONE -> "";
+    };
+  }
+
+  /** Statement separator: cmd is collapsed to a single line downstream, others stay multiline. */
+  private String separator() {
+    return shell == ExecutorShell.CMD ? " & " : "\n";
+  }
+
+  // -- ESCAPING --
+
+  /** Single quotes make the value fully literal in POSIX shells; {@code '} is the only escape. */
+  private static String quoteSh(String value) {
+    return "'" + value.replace("'", "'\\''") + "'";
+  }
+
+  /** Single-quoted PowerShell strings do not interpolate; {@code '} is doubled to escape it. */
+  private static String quotePowerShell(String value) {
+    return "'" + value.replace("'", "''") + "'";
+  }
+
+  /**
+   * Escapes a value for {@code set "VAR=value"}. Inside the quoted form {@code & | < > ^ ( )} are
+   * already literal; only percent expansion and delayed expansion need neutralising. Newlines are
+   * not representable on a cmd line and are downgraded to spaces.
+   */
+  private static String escapeCmd(String value) {
+    return value
+        .replace("\r\n", " ")
+        .replace('\r', ' ')
+        .replace('\n', ' ')
+        .replace("%", "%%")
+        .replace("!", "^^!");
+  }
+
+  /** Drops NUL and other control characters, which no legitimate argument value needs. */
+  private static String sanitize(String value) {
+    return NUL_AND_CONTROL_CHARS.matcher(value).replaceAll("");
+  }
+
+  // -- VARIABLE NAMING --
+
+  private String allocateVariableName(String argumentKey) {
+    String base =
+        VARIABLE_PREFIX
+            + NON_IDENTIFIER_CHARS.matcher(argumentKey).replaceAll("_").toUpperCase(Locale.ROOT);
+    String candidate = base;
+    int suffix = 1;
+    // Two distinct keys can sanitize to the same identifier (e.g. "my-arg" and "my.arg").
+    while (valuesByVariable.containsKey(candidate)) {
+      candidate = base + "_" + suffix++;
+    }
+    return candidate;
+  }
+}

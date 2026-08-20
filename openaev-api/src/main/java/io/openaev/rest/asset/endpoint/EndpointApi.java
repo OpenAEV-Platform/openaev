@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetAgentJob;
@@ -64,6 +65,7 @@ public class EndpointApi extends RestBehavior {
   private final InjectStatusService injectStatusService;
   private final EndpointRepository endpointRepository;
   private final AssetAgentJobRepository assetAgentJobRepository;
+  private final io.openaev.config.TenantWriteScopeResolver writeScopeResolver;
 
   private final EndpointMapper endpointMapper;
   private final AssetGroupMapper assetGroupMapper;
@@ -83,31 +85,40 @@ public class EndpointApi extends RestBehavior {
   @PostMapping({ENDPOINT_URI + "/agentless", TENANT_ENDPOINT_URI + "/agentless"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
-  public Endpoint createEndpoint(@Valid @RequestBody final EndpointInput input) {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (the created endpoint's agents eager-load their executor).
+  public Endpoint createEndpoint(TxCtx ctx, @Valid @RequestBody final EndpointInput input) {
     return this.endpointService.createEndpoint(input, TenantContext.getCurrentTenant());
   }
 
   @PostMapping({ENDPOINT_URI + "/agentless/upsert", TENANT_ENDPOINT_URI + "/agentless/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
-  public Endpoint upsertAgentLessEndpoint(@Valid @RequestBody final EndpointInput input) {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (the upserted endpoint's agents eager-load their executor).
+  public Endpoint upsertAgentLessEndpoint(
+      TxCtx ctx, @Valid @RequestBody final EndpointInput input) {
     return this.endpointService.upsertEndpoint(input, TenantContext.getCurrentTenant());
   }
 
   @PostMapping({ENDPOINT_URI + "/register", TENANT_ENDPOINT_URI + "/register"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.AGENT)
   @Transactional(rollbackFor = Exception.class)
-  public Endpoint upsertEndpoint(@Valid @RequestBody final EndpointRegisterInput input)
+  public Endpoint upsertEndpoint(TxCtx ctx, @Valid @RequestBody final EndpointRegisterInput input)
       throws IOException {
     input.setSeenIp(HttpReqRespUtils.getClientIpAddressIfServletRequestExist());
-    return this.endpointService.register(input, TenantContext.getCurrentTenant());
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return this.endpointService.register(input, tenantId);
   }
 
   @LogExecutionTime
   @PostMapping({ENDPOINT_URI + "/jobs", TENANT_ENDPOINT_URI + "/jobs"})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
-  public List<AssetAgentJob> getEndpointJobs(@RequestBody final EndpointRegisterInput input) {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (job resolution loads the endpoint's agents, which eager-load their executor).
+  public List<AssetAgentJob> getEndpointJobs(
+      TxCtx ctx, @RequestBody final EndpointRegisterInput input) {
     return this.endpointService.getEndpointJobs(input);
   }
 
@@ -120,7 +131,7 @@ public class EndpointApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public List<AssetAgentJob> getEndpointJobs(
-      @PathVariable @NotBlank final String endpointExternalReference) {
+      TxCtx ctx, @PathVariable @NotBlank final String endpointExternalReference) {
     return this.assetAgentJobRepository.findAll(
         AssetAgentJobSpecification.forEndpoint(endpointExternalReference));
   }
@@ -131,7 +142,8 @@ public class EndpointApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
-  public void cleanupAssetAgentJob(@PathVariable @NotBlank final String assetAgentJobId) {
+  public void cleanupAssetAgentJob(
+      TxCtx ctx, @PathVariable @NotBlank final String assetAgentJobId) {
     this.assetAgentJobRepository
         .findById(assetAgentJobId)
         .ifPresent(
@@ -148,7 +160,8 @@ public class EndpointApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.JOB)
   @Transactional(rollbackFor = Exception.class)
-  public void cleanupAssetAgentJobDepreacted(@PathVariable @NotBlank final String assetAgentJobId) {
+  public void cleanupAssetAgentJobDepreacted(
+      TxCtx ctx, @PathVariable @NotBlank final String assetAgentJobId) {
     this.assetAgentJobRepository.deleteById(assetAgentJobId);
   }
 
@@ -156,7 +169,9 @@ public class EndpointApi extends RestBehavior {
   @Transactional
   @GetMapping({ENDPOINT_URI, TENANT_ENDPOINT_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
-  public List<Endpoint> endpoints() {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
+  public List<Endpoint> endpoints(TxCtx ctx) {
     return this.endpointService.endpoints(
         EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints());
   }
@@ -168,7 +183,10 @@ public class EndpointApi extends RestBehavior {
       resourceId = "#endpointId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
-  public EndpointOverviewOutput endpoint(@PathVariable @NotBlank final String endpointId) {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (the endpoint's agents eager-load their executor).
+  public EndpointOverviewOutput endpoint(
+      TxCtx ctx, @PathVariable @NotBlank final String endpointId) {
     Endpoint endpoint =
         this.endpointService.getEndpoint(endpointId, TenantContext.getCurrentTenant());
     return withAssetGroups(endpointMapper.toEndpointOverviewOutput(endpoint), endpoint);
@@ -178,8 +196,10 @@ public class EndpointApi extends RestBehavior {
   @PostMapping({ENDPOINT_URI + "/search", TENANT_ENDPOINT_URI + "/search"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
   public Page<EndpointOutput> endpoints(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     Page<Endpoint> endpointPage = endpointService.searchEndpoints(searchPaginationInput);
     // Convert the Page of Endpoint to a Page of EndpointOutput
     List<EndpointOutput> endpointOutputs =
@@ -198,8 +218,11 @@ public class EndpointApi extends RestBehavior {
   @PostMapping({ASSET_URI + "/search", TENANT_ASSET_URI + "/search"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (endpoint-type assets' agents eager-load their executor - without this, the
+  // executors LEFT JOIN's can_access_tenant() always denies, so every agent shows "Unknown").
   public Page<EndpointOutput> assets(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     Page<Asset> assetPage = assetService.searchAssets(searchPaginationInput);
     List<EndpointOutput> assetOutputs =
         assetPage.getContent().stream().map(endpointMapper::toAssetOutput).toList();
@@ -210,8 +233,10 @@ public class EndpointApi extends RestBehavior {
   @PostMapping({ENDPOINT_URI + "/targets", TENANT_ENDPOINT_URI + "/targets"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
   public Page<EndpointTargetOutput> targetEndpoints(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
 
     Page<Endpoint> endpointPage = endpointService.searchManagedEndpoints(searchPaginationInput);
     List<EndpointTargetOutput> endpointTargetOutputs =
@@ -224,7 +249,10 @@ public class EndpointApi extends RestBehavior {
   @PostMapping({ENDPOINT_URI + "/find", TENANT_ENDPOINT_URI + "/find"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   @Transactional(readOnly = true)
-  public List<Endpoint> findEndpoints(@RequestBody @Valid @NotNull final List<String> endpointIds) {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
+  public List<Endpoint> findEndpoints(
+      TxCtx ctx, @RequestBody @Valid @NotNull final List<String> endpointIds) {
     return this.endpointService.endpoints(endpointIds);
   }
 
@@ -234,7 +262,10 @@ public class EndpointApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (the endpoint's agents eager-load their executor).
   public EndpointOverviewOutput updateEndpoint(
+      TxCtx ctx,
       @PathVariable @NotBlank final String endpointId,
       @Valid @RequestBody final EndpointInput input) {
     Endpoint endpoint =
@@ -248,7 +279,9 @@ public class EndpointApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteEndpoint(@PathVariable @NotBlank final String endpointId) {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (deletion loads the endpoint's agents, which eager-load their executor).
+  public void deleteEndpoint(TxCtx ctx, @PathVariable @NotBlank final String endpointId) {
     this.endpointService.deleteEndpoint(endpointId);
   }
 
@@ -263,7 +296,9 @@ public class EndpointApi extends RestBehavior {
       resourceId = "#assetId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
-  public EndpointOverviewOutput asset(@PathVariable @NotBlank final String assetId) {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (an endpoint-type asset's agents eager-load their executor).
+  public EndpointOverviewOutput asset(TxCtx ctx, @PathVariable @NotBlank final String assetId) {
     Asset asset = assetService.asset(assetId);
     return withAssetGroups(endpointMapper.toAssetOverviewOutput(asset), asset);
   }
@@ -285,7 +320,11 @@ public class EndpointApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   @Transactional(readOnly = true)
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // injectors/executors tables (inject results resolve their injector and, through agents, their
+  // executor).
   public Page<InjectResultOutput> searchInjectsForAsset(
+      TxCtx ctx,
       @PathVariable @NotBlank final String assetId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return injectSearchService.getPageOfInjectResultsForAsset(assetId, searchPaginationInput);
@@ -301,7 +340,10 @@ public class EndpointApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteAsset(@PathVariable @NotBlank final String assetId) {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (deletion loads an endpoint-type asset's agents, which eager-load their
+  // executor).
+  public void deleteAsset(TxCtx ctx, @PathVariable @NotBlank final String assetId) {
     this.assetService.deleteAsset(assetId);
   }
 

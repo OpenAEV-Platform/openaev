@@ -6,9 +6,17 @@ interface ActionFormButtonsProps {
   disabled: boolean;
   onCancel: () => void;
   submitLabel?: string;
+  readOnly?: boolean;
+  cancelLabel?: string;
 }
 
-const ActionFormButtons = ({ disabled, onCancel, submitLabel }: ActionFormButtonsProps) => {
+const ActionFormButtons = ({
+  disabled,
+  onCancel,
+  submitLabel,
+  readOnly = false,
+  cancelLabel,
+}: ActionFormButtonsProps) => {
   const { t } = useFormatter();
 
   return (
@@ -20,11 +28,13 @@ const ActionFormButtons = ({ disabled, onCancel, submitLabel }: ActionFormButton
     }}
     >
       <Button variant="outlined" color="primary" onClick={onCancel}>
-        {t('Cancel')}
+        {cancelLabel ?? (readOnly ? t('Close') : t('Cancel'))}
       </Button>
-      <Button variant="contained" color="secondary" type="submit" disabled={disabled}>
-        {submitLabel ?? t('Save')}
-      </Button>
+      {!readOnly && (
+        <Button variant="contained" color="primary" type="submit" disabled={disabled}>
+          {submitLabel ?? t('Save')}
+        </Button>
+      )}
     </Box>
   );
 };

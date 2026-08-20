@@ -12,7 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -34,6 +34,9 @@ interface Props {
   disabled?: boolean;
   initialValues: ScenarioInput;
   isChaining?: boolean;
+  /** Full-width companion action rendered at the very end of the form, right above the Cancel /
+   *  Create buttons (e.g. the "Generate with AI" or "Scenario assistant" post-creation toggle). */
+  footerSlot?: ReactNode;
 }
 
 const ScenarioFormChaining: FunctionComponent<Props> = ({
@@ -43,6 +46,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
   initialValues,
   disabled,
   isChaining = false,
+  footerSlot,
 }) => {
   // Standard hooks
   const theme = useTheme();
@@ -332,6 +336,9 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
             </AccordionDetails>
           </Accordion>
         )}
+        {/* Full-width companion action at the end of the form (post-creation toggle), shown once a
+            mode is picked so it clearly follows the whole form rather than a single card. */}
+        {footerSlot}
         <div style={{
           display: 'flex',
           justifyContent: 'flex-end',

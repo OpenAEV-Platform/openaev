@@ -67,6 +67,10 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
     NDR,
     @JsonProperty("ISPM")
     ISPM,
+    // Email security (secure email gateways / anti-phishing) - fulfills the PREVENTION and
+    // DETECTION expectations carried by phishing injector contracts.
+    @JsonProperty("EMAIL_SECURITY")
+    EMAIL_SECURITY,
     // AI defense platforms (LLM firewalls / guardrails / AI gateways)
     @JsonProperty("LLM_FIREWALL")
     LLM_FIREWALL,

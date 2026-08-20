@@ -192,8 +192,7 @@ class TenantScopeAllTenantsIntegrationTest extends IntegrationTest {
   void forEachTenantRunsPerTenantScoped() {
     Map<String, Long> seenCountByTenant = new HashMap<>();
     tenantTx.forEachTenant(
-        ctx -> {
-          String tenantId = ((TxCtx.Restricted) ctx).tenantIds().get(0);
+        tenantId -> {
           seenCountByTenant.put(tenantId, importMapperRepository.count());
         });
     // Each of our three seeded tenants was visited and, scoped to itself, saw exactly its own row.
@@ -219,8 +218,7 @@ class TenantScopeAllTenantsIntegrationTest extends IntegrationTest {
             RuntimeException.class,
             () ->
                 tenantTx.forEachTenant(
-                    ctx -> {
-                      String id = ((TxCtx.Restricted) ctx).tenantIds().get(0);
+                    id -> {
                       // The loop covers every active tenant in the registry; act only on the three
                       // this test seeded, so the sole engineered failure is tenant B.
                       if (!mapperByTenant.containsKey(id)) {

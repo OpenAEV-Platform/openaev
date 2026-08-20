@@ -4,6 +4,155 @@
     "description": "",
     "version": "rolling",
     "contracts": [
+       {
+            "title": "Microsoft Defender for Office 365",
+            "slug": "openaev_microsoft_defender_o365",
+            "description": "Collect and match Microsoft Defender for Office 365 email alerts",
+            "short_description": "Collect and match Microsoft Defender for Office 365 email alerts",
+            "use_cases": [
+                "Security response"
+            ],
+            "verified": true,
+            "last_verified_date": "",
+            "playbook_supported": false,
+            "max_confidence_level": 80,
+            "support_version": "",
+            "subscription_link": "https://www.microsoft.com/en-us/security/business/siem-and-xdr/microsoft-defender-office-365",
+            "source_code": "",
+            "manager_supported": true,
+            "container_version": "rolling",
+            "container_image": "openaev/collector-microsoft-defender-o365",
+            "container_type": "COLLECTOR",
+            "logo": "data:image/png;base64,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",
+            "config_schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "config.schema.json",
+                "type": "object",
+                "properties": {
+                    "OPENAEV_URL": {
+                        "description": "The OpenAEV platform URL.",
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "OPENAEV_TOKEN": {
+                        "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
+                    "COLLECTOR_ID": {
+                        "default": "microsoft-defender-o365--0b13e3f7-5c9e-46f5-acc4-33032e9b4921",
+                        "description": "A unique UUIDv4 identifier for this collector instance.",
+                        "type": "string"
+                    },
+                    "COLLECTOR_NAME": {
+                        "default": "Microsoft Defender for Office 365",
+                        "description": "Name of the collector.",
+                        "type": "string"
+                    },
+                    "COLLECTOR_PLATFORM": {
+                        "default": "EDR",
+                        "description": "Platform type for the collector (e.g., EDR, SIEM, etc.).",
+                        "type": "string"
+                    },
+                    "COLLECTOR_LOG_LEVEL": {
+                        "default": "error",
+                        "description": "Determines the verbosity of the logs.",
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warning",
+                            "error",
+                            "critical"
+                        ],
+                        "type": "string"
+                    },
+                    "COLLECTOR_PERIOD": {
+                        "default": "PT2M",
+                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "COLLECTOR_ICON_FILEPATH": {
+                        "default": "src/img/microsoft-defender-o365-logo.png",
+                        "description": "Path to the icon file of the collector.",
+                        "type": "string"
+                    },
+                    "SOURCE_TENANT_ID": {
+                        "description": "Azure AD (Entra ID) tenant identifier used to authenticate against Microsoft Graph.",
+                        "type": "string"
+                    },
+                    "SOURCE_CLIENT_ID": {
+                        "description": "Azure AD application (client) identifier used to authenticate against Microsoft Graph.",
+                        "type": "string"
+                    },
+                    "SOURCE_USE_CERTIFICATE_AUTH": {
+                        "default": false,
+                        "description": "Whether to authenticate using a client certificate instead of a client secret.",
+                        "type": "boolean"
+                    },
+                    "SOURCE_CLIENT_SECRET": {
+                        "default": null,
+                        "description": "Azure AD application client secret. Required unless use_certificate_auth is enabled.",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "SOURCE_CLIENT_CERT_DATA": {
+                        "default": null,
+                        "description": "Content of the client certificate. Required when use_certificate_auth is enabled.",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "SOURCE_CLIENT_CERT_THUMBPRINT": {
+                        "default": null,
+                        "description": "Thumbprint of the client certificate. Required when use_certificate_auth is enabled.",
+                        "format": "password",
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "SOURCE_BASE_URL": {
+                        "default": "https://graph.microsoft.com/v1.0",
+                        "description": "Base URL for the Microsoft Graph API.",
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "SOURCE_FILTER_SERVICE_SOURCE": {
+                        "default": "microsoftDefenderForOffice365",
+                        "description": "Value used to filter Microsoft Graph security alerts down to those produced by Microsoft Defender for Office 365.",
+                        "type": "string"
+                    },
+                    "SOURCE_RATE_LIMIT_REQUESTS_PER_MINUTE": {
+                        "default": 150,
+                        "description": "Maximum number of Microsoft Graph API requests issued per minute.",
+                        "minimum": 1,
+                        "type": "integer"
+                    },
+                    "SOURCE_MAX_FETCH_RETRIES": {
+                        "default": 5,
+                        "description": "Maximum number of retries when fetching data from Microsoft Graph fails transiently.",
+                        "minimum": 0,
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "OPENAEV_URL",
+                    "OPENAEV_TOKEN",
+                    "SOURCE_TENANT_ID",
+                    "SOURCE_CLIENT_ID"
+                ],
+                "additionalProperties": true
+            }
+        },
         {
             "title": "CrowdStrike",
             "slug": "openaev_crowdstrike",

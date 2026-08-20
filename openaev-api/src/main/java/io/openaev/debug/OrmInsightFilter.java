@@ -29,10 +29,13 @@ public class OrmInsightFilter extends OncePerRequestFilter {
 
   private final SensitiveDataMasker masker;
   private final DebugRuntimeState runtimeState;
+  private final DebugUserSource userSource;
 
-  public OrmInsightFilter(SensitiveDataMasker masker, DebugRuntimeState runtimeState) {
+  public OrmInsightFilter(
+      SensitiveDataMasker masker, DebugRuntimeState runtimeState, DebugUserSource userSource) {
     this.masker = masker;
     this.runtimeState = runtimeState;
+    this.userSource = userSource;
   }
 
   @Override
@@ -59,24 +62,23 @@ public class OrmInsightFilter extends OncePerRequestFilter {
     List<RequestQueryStats.StatementStat> repeated = stats.repeatedStatements(N_PLUS_ONE_THRESHOLD);
     boolean chatty = stats.totalQueries() > CHATTY_THRESHOLD;
 
-    if (repeated.isEmpty() && !chatty) {
-      log.info(
-          "ORM {}: {} queries ({} distinct), {}ms",
-          stats.requestDescription(),
-          stats.totalQueries(),
-          stats.distinctStatements(),
-          stats.totalMillis());
-      return;
-    }
-
-    StringBuilder sb = new StringBuilder();
-    sb.append(
+    // Pre-formatted (not SLF4J placeholders) so a JSON log encoder that keeps the raw message
+    // pattern still shows the resolved values, and so both branches carry user=.
+    String summary =
         String.format(
-            "ORM %s: %d queries (%d distinct), %dms",
+            "ORM %s: %d queries (%d distinct), %dms user=%s",
             stats.requestDescription(),
             stats.totalQueries(),
             stats.distinctStatements(),
-            stats.totalMillis()));
+            stats.totalMillis(),
+            userSource.currentUser());
+
+    if (repeated.isEmpty() && !chatty) {
+      log.info(summary);
+      return;
+    }
+
+    StringBuilder sb = new StringBuilder(summary);
     if (chatty) {
       sb.append(
           String.format(

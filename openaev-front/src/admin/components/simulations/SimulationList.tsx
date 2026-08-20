@@ -1,5 +1,6 @@
-import { PlayCircleOutlineOutlined } from '@mui/icons-material';
-import { Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { AutoAwesome, PlayCircleOutlineOutlined } from '@mui/icons-material';
+import { Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -88,9 +89,10 @@ const SimulationList: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { classes } = useStyles();
+  const theme = useTheme();
   const bodyItemsStyles = useBodyItemsStyles();
   const inlineStyles = getInlineStyles(variant);
-  const { nsdt, vnsdt } = useFormatter();
+  const { t, nsdt, vnsdt } = useFormatter();
 
   const [loadingGlobalScores, setLoadingGlobalScores] = useState(true);
   const [globalScores, setGlobalScores] = useState<Record<string, ExpectationResultsByType[]>>();
@@ -238,8 +240,20 @@ const SimulationList: FunctionComponent<Props> = ({
                       />
                     </ListItemIcon>
                   )}
+                  {/* Leading icon doubles as the durable Normal/Autonomous marker: an autonomous
+                      simulation keeps the AI glyph even after its run row is torn down. */}
                   <ListItemIcon>
-                    <PlayCircleOutlineOutlined color="primary" />
+                    {exercise.exercise_autonomous
+                      ? (
+                          <Tooltip title={t('Autonomous (AI-driven) run')}>
+                            <AutoAwesome sx={{ color: theme.palette.ai?.main ?? theme.palette.primary.main }} />
+                          </Tooltip>
+                        )
+                      : (
+                          <Tooltip title={t('Normal (operator-driven) simulation')}>
+                            <PlayCircleOutlineOutlined color="primary" />
+                          </Tooltip>
+                        )}
                   </ListItemIcon>
                   <ListItemText
                     primary={(

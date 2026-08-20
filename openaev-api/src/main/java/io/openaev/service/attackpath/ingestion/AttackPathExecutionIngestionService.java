@@ -2,6 +2,7 @@ package io.openaev.service.attackpath.ingestion;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -26,8 +27,12 @@ import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -56,6 +61,144 @@ public class AttackPathExecutionIngestionService {
   private final TenantScopedTransaction tenantTx;
   private final AttackPathVersionService versionService;
   private final ObjectMapper objectMapper;
+
+  /**
+   * Argument types that can name an endpoint, so a Command payload carrying exactly one of them
+   * targets that value rather than the endpoint it runs on.
+   */
+  private static final Set<PrimitiveType> TARGET_ARGUMENT_TYPES =
+      Set.of(
+          PrimitiveType.IPv4,
+          PrimitiveType.IPv6,
+          PrimitiveType.TargetedAsset,
+          PrimitiveType.Host,
+          PrimitiveType.Domain,
+          PrimitiveType.IpSubnet);
+
+  /**
+   * Values that name the executing machine itself. A command targeting one of these did not reach a
+   * second endpoint, so it must stay attached to the endpoint it ran on: treating them as
+   * discovered targets both hides the real endpoint and merges every endpoint's local executions
+   * into one shared node, since the target key would be the literal value for all of them.
+   */
+  private static final Set<String> SELF_TARGET_VALUES =
+      Set.of("localhost", "127.0.0.1", "::1", "0.0.0.0", "*");
+
+  /**
+   * The trimmed remote target a raw value names, or {@code null} when it names the executing
+   * machine itself (or nothing at all).
+   *
+   * <p>Every remote-target resolution goes through here, so the value that gets persisted (and
+   * keyed into {@link AttackPathIds#executionNode}) is normalized exactly once: trimmed, so two
+   * authorings of the same target differing only by stray whitespace converge on one node, while
+   * the authored case is kept for display — only the self-target comparison lowercases.
+   */
+  @Nullable
+  private static String remoteTargetOrNull(@Nullable String rawValue) {
+    if (rawValue == null) {
+      return null;
+    }
+    String value = rawValue.trim();
+    if (value.isEmpty() || SELF_TARGET_VALUES.contains(value.toLowerCase())) {
+      return null;
+    }
+    return value;
+  }
+
+  /**
+   * The endpoint a Command payload targets, or {@code null} when it targets the endpoint it runs
+   * on.
+   *
+   * <p>Reads the value <b>this inject actually uses</b> — the inject's own content overrides the
+   * payload's default — because the default is authored once on the payload while the value is
+   * chosen per inject. Using the default made every inject of a payload whose {@code host} argument
+   * defaults to {@code localhost} land on a discovered "localhost" node instead of its endpoint. A
+   * blank (or JSON null) override does not name a target, so it falls back to the default rather
+   * than suppressing it.
+   *
+   * <p>Returns {@code null} when the payload declares several endpoint-ish arguments (ambiguous,
+   * the pre-existing rule) or when the value names the executing machine.
+   */
+  @Nullable
+  private String resolveCommandTargetValue(Inject inject, Command payloadCommand) {
+    List<PayloadArgument> endpointArguments =
+        payloadCommand.getArguments().stream()
+            .filter(arg -> TARGET_ARGUMENT_TYPES.contains(arg.getType()))
+            .toList();
+    if (endpointArguments.size() != 1) {
+      return null;
+    }
+    PayloadArgument argument = endpointArguments.getFirst();
+    // A targeted-asset field is a JSON array of endpoint ids, not a scalar: it must go through
+    // the same resolver execution uses, or reading the array as text (blank) silently falls back
+    // to the payload default.
+    if (argument.getType() == PrimitiveType.TargetedAsset) {
+      return resolveTargetedAssetTargetValue(inject, argument.getKey());
+    }
+    JsonNode override =
+        inject.getContent() == null ? null : inject.getContent().get(argument.getKey());
+    // A JSON null node must not read as the literal string "null" (asText would).
+    String overrideValue = override == null || override.isNull() ? null : override.asText();
+    String value =
+        overrideValue != null && !overrideValue.isBlank()
+            ? overrideValue
+            : argument.getDefaultValue();
+    return remoteTargetOrNull(value);
+  }
+
+  /**
+   * The endpoint value a targeted-asset argument resolves to, or {@code null} when it does not name
+   * exactly one remote destination.
+   *
+   * <p>Execution resolves this argument through {@link
+   * InjectService#retrieveValuesOfTargetedAssetFromInject}: the inject field holds the selected
+   * endpoint ids and a linked contract field selects which property (hostname, seen IP, local IP)
+   * is substituted into the command. Reusing that resolver here makes the graph show the value the
+   * command actually ran with instead of the payload default.
+   *
+   * <p>The row model keys exactly one row per agent — {@link #getExecutionIndex} must be able to
+   * recompute the persisted id from {@code (inject, agent)} alone — so a selection resolving to
+   * several destinations is ambiguous under the same rule as several endpoint-ish arguments, and
+   * falls back to the executing endpoint. Fanning one argument out to one row per destination needs
+   * the Phase-B index to become multi-valued first.
+   *
+   * <p>Resolution failures (contract without the linked targeted-property field, malformed content,
+   * deleted endpoints) also fall back: ingestion must degrade to the always-true "ran on its
+   * endpoint" edge rather than fail the run's write.
+   */
+  @Nullable
+  private String resolveTargetedAssetTargetValue(Inject inject, String argumentKey) {
+    try {
+      InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
+      if (injectorContract == null || inject.getContent() == null) {
+        return null;
+      }
+      JsonNode fieldsNode =
+          injectorContract.getConvertedContent().get(InjectorContract.CONTRACT_CONTENT_FIELDS);
+      if (fieldsNode == null || !fieldsNode.isArray()) {
+        return null;
+      }
+      List<ObjectNode> fields =
+          StreamSupport.stream(fieldsNode.spliterator(), false)
+              .map(ObjectNode.class::cast)
+              .toList();
+      Map<String, Endpoint> destinations =
+          injectService.retrieveValuesOfTargetedAssetFromInject(
+              fields, inject.getContent(), argumentKey);
+      if (destinations.size() != 1) {
+        return null;
+      }
+      return remoteTargetOrNull(destinations.keySet().iterator().next());
+    } catch (Exception e) {
+      log.warn(
+          "Attack path: could not resolve targeted-asset argument '{}' of inject {}; attaching to"
+              + " the endpoint it ran on",
+          argumentKey,
+          inject.getId(),
+          e);
+      return null;
+    }
+  }
 
   /**
    * Clears a simulation's attack-path rows (on simulation reset and delete). As a writer of a
@@ -309,36 +452,41 @@ public class AttackPathExecutionIngestionService {
                 (io.openaev.database.model.Endpoint)
                     org.hibernate.Hibernate.unproxy(agent.getAsset());
             AttackPathExecution attackPathExecution = new AttackPathExecution();
+            String hostname = resolveArgumentDnsResolution(inject, dnsResolution);
             attackPathExecution.setId(
-                AttackPathIds.executionNode(
-                    inject.getId(), dnsResolution.getHostname(), agent.getId()));
+                AttackPathIds.executionNode(inject.getId(), hostname, agent.getId()));
             attackPathExecution.setGlobalInformation(step, inject);
             attackPathExecution.setSourceAgentInformation(agent, endpoint);
-            attackPathExecution.setTargetDiscoveredInformation(dnsResolution.getHostname());
-            attackPathExecution.setTargetHostname(dnsResolution.getHostname());
+            attackPathExecution.setTargetDiscoveredInformation(hostname);
+            attackPathExecution.setTargetHostname(hostname);
+            attackPathExecutions.add(attackPathExecution);
+          }
+        }
+        case NETWORK_TRAFFIC -> { // AGENT -> DISCOVERED (the destination it reached)
+          NetworkTraffic networkTraffic = (NetworkTraffic) inject.getPayload().get();
+          String destination = remoteTargetOrNull(networkTraffic.getIpDst());
+          for (Agent agent : agentsAndAssetsAgentless.agents()) {
+            io.openaev.database.model.Endpoint endpoint =
+                (io.openaev.database.model.Endpoint)
+                    org.hibernate.Hibernate.unproxy(agent.getAsset());
+            AttackPathExecution attackPathExecution = new AttackPathExecution();
+            attackPathExecution.setGlobalInformation(step, inject);
+            attackPathExecution.setSourceAgentInformation(agent, endpoint);
+            if (destination != null) {
+              attackPathExecution.setId(
+                  AttackPathIds.executionNode(inject.getId(), destination, agent.getId()));
+              attackPathExecution.setTargetDiscoveredInformation(destination);
+            } else {
+              attackPathExecution.setId(
+                  AttackPathIds.executionNode(inject.getId(), endpoint.getId(), agent.getId()));
+              attackPathExecution.setTargetAssetInformation(endpoint);
+            }
             attackPathExecutions.add(attackPathExecution);
           }
         }
         case COMMAND -> {
-          Set<PrimitiveType> typeEndpoint =
-              Set.of(
-                  PrimitiveType.IPv4,
-                  PrimitiveType.IPv6,
-                  PrimitiveType.TargetedAsset,
-                  PrimitiveType.Host,
-                  PrimitiveType.Domain,
-                  PrimitiveType.IpSubnet);
           Command payloadCommand = (Command) inject.getPayload().get();
-          String targetArgIdentified = null;
-          List<String> targetArg =
-              payloadCommand.getArguments().stream()
-                  .filter(arg -> typeEndpoint.contains(arg.getType()))
-                  .map(PayloadArgument::getDefaultValue)
-                  .toList();
-          // IF MORE THAN 1 ARGS CAN MATCH AN ENDPOINT type WE DO NOT USED IT
-          if (targetArg.size() == 1) {
-            targetArgIdentified = targetArg.getFirst();
-          }
+          String targetArgIdentified = resolveCommandTargetValue(inject, payloadCommand);
 
           for (Agent agent : agentsAndAssetsAgentless.agents()) { // AGENT ->
             io.openaev.database.model.Endpoint endpoint =
@@ -362,10 +510,48 @@ public class AttackPathExecutionIngestionService {
             }
           }
         }
+        // Safety net, not dead code: this switch is a statement, so a payload type added to the
+        // enum
+        // without a branch here compiles and silently writes no row at all - which is how
+        // NETWORK_TRAFFIC stayed invisible on the graph. Any unknown type falls back to the
+        // endpoint
+        // it ran on, the one edge that is always true of an agent-based execution.
+        default -> {
+          log.warn(
+              "Attack path: payload type '{}' has no target resolution; attaching inject {} to the "
+                  + "endpoint it ran on",
+              payloadType,
+              inject.getId());
+          for (Agent agent : agentsAndAssetsAgentless.agents()) {
+            io.openaev.database.model.Endpoint endpoint =
+                (io.openaev.database.model.Endpoint)
+                    org.hibernate.Hibernate.unproxy(agent.getAsset());
+            AttackPathExecution attackPathExecution = new AttackPathExecution();
+            attackPathExecution.setId(
+                AttackPathIds.executionNode(inject.getId(), endpoint.getId(), agent.getId()));
+            attackPathExecution.setGlobalInformation(step, inject);
+            attackPathExecution.setSourceAgentInformation(agent, endpoint);
+            attackPathExecution.setTargetAssetInformation(endpoint);
+            attackPathExecutions.add(attackPathExecution);
+          }
+        }
       }
 
     } else { // INJECTOR ->
-      String targetSelector = inject.getContent().get("target_selector").asText();
+      // Human-in-the-loop injects (email, SMS, ...) can only target TEAMS, never assets, so they
+      // fell through every asset/manual branch below and wrote nothing - the autonomous phishing
+      // step rendered an empty attack path. Emit the team and each ENABLED recipient (injector ->
+      // team -> persons) so the step lands on the graph and its findings attach to those nodes.
+      if (!inject.getTeams().isEmpty()) {
+        attackPathExecutions.addAll(getTeamTargetExecutions(inject, step));
+      }
+
+      JsonNode selectorNode =
+          inject.getContent() == null ? null : inject.getContent().get("target_selector");
+      String targetSelector = selectorNode == null ? null : selectorNode.asText();
+      if (targetSelector == null) {
+        return attackPathExecutions; // e.g. a team-only inject: nothing more to resolve
+      }
 
       if (targetSelector.equals("manual")) { // DISCOVERY
         String[] targets = inject.getContent().get("targets").asText().split(",");
@@ -396,6 +582,58 @@ public class AttackPathExecutionIngestionService {
       }
     }
     return attackPathExecutions;
+  }
+
+  /**
+   * Attack-path rows for a team-targeted (human-in-the-loop) inject: one TEAM node targeted by the
+   * injector, and one PERSON node per ENABLED recipient hanging off the team (injector -> team ->
+   * persons). Recipients are the players enabled on THIS simulation ({@code exercise_teams_users}),
+   * not merely team members, mirroring what the email/SMS executor actually delivers to - so the
+   * graph shows exactly who was reached and findings (e.g. harvested credentials) attach per
+   * person.
+   */
+  private List<AttackPathExecution> getTeamTargetExecutions(Inject inject, Step step) {
+    List<AttackPathExecution> rows = new ArrayList<>();
+    String simulationId = inject.getExercise() == null ? null : inject.getExercise().getId();
+    String injectorId = inject.getInjector() == null ? "injector" : inject.getInjector().getId();
+    for (Team teamRef : inject.getTeams()) {
+      Team team = (Team) org.hibernate.Hibernate.unproxy(teamRef);
+      AttackPathExecution teamRow = new AttackPathExecution();
+      teamRow.setId(AttackPathIds.executionNode(inject.getId(), team.getId(), injectorId));
+      teamRow.setGlobalInformation(step, inject);
+      teamRow.setSourceInjectorInformation(inject.getInjector());
+      teamRow.setTargetTeamInformation(team.getId(), team.getName());
+      rows.add(teamRow);
+
+      if (simulationId == null) {
+        continue;
+      }
+      List<User> recipients =
+          team.getExerciseTeamUsers().stream()
+              .filter(
+                  etu ->
+                      etu.getExercise() != null && simulationId.equals(etu.getExercise().getId()))
+              .map(ExerciseTeamUser::getUser)
+              .filter(Objects::nonNull)
+              .distinct()
+              .toList();
+      for (User user : recipients) {
+        AttackPathExecution personRow = new AttackPathExecution();
+        personRow.setId(AttackPathIds.executionNode(inject.getId(), user.getId(), team.getId()));
+        personRow.setGlobalInformation(step, inject);
+        personRow.setSourceTeamInformation(team.getId(), team.getName());
+        personRow.setTargetPersonInformation(user.getId(), personLabel(user));
+        rows.add(personRow);
+      }
+    }
+    return rows;
+  }
+
+  private static String personLabel(User user) {
+    if (user.getEmail() != null && !user.getEmail().isBlank()) {
+      return user.getEmail();
+    }
+    return user.getId();
   }
 
   private AttackPathExecution setSourceInjectorTargetAsset(Asset asset, Inject inject, Step step) {
@@ -440,28 +678,23 @@ public class AttackPathExecutionIngestionService {
         }
         case DNS_RESOLUTION -> { // AGENT -> DISCOVERED
           DnsResolution dnsResolution = (DnsResolution) inject.getPayload().get();
-          return AttackPathIds.executionNode(inject.getId(), dnsResolution.getHostname(), target);
+          String hostname = resolveArgumentDnsResolution(inject, dnsResolution);
+          return AttackPathIds.executionNode(inject.getId(), hostname, target);
+        }
+        case NETWORK_TRAFFIC -> { // AGENT -> DISCOVERED (the destination it reached)
+          NetworkTraffic networkTraffic = (NetworkTraffic) inject.getPayload().get();
+          String destination = remoteTargetOrNull(networkTraffic.getIpDst());
+          if (destination != null) {
+            return AttackPathIds.executionNode(inject.getId(), destination, target);
+          }
+          io.openaev.database.model.Endpoint endpoint =
+              (io.openaev.database.model.Endpoint)
+                  org.hibernate.Hibernate.unproxy(agent.getAsset());
+          return AttackPathIds.executionNode(inject.getId(), endpoint.getId(), target);
         }
         case COMMAND -> { // AGENT ->
-          Set<PrimitiveType> typeEndpoint =
-              Set.of(
-                  PrimitiveType.IPv4,
-                  PrimitiveType.IPv6,
-                  PrimitiveType.TargetedAsset,
-                  PrimitiveType.Host,
-                  PrimitiveType.Domain,
-                  PrimitiveType.IpSubnet);
           Command payloadCommand = (Command) inject.getPayload().get();
-          String targetArgIdentified = null;
-          List<String> targetArg =
-              payloadCommand.getArguments().stream()
-                  .filter(arg -> typeEndpoint.contains(arg.getType()))
-                  .map(PayloadArgument::getDefaultValue)
-                  .toList();
-          // IF MORE THAN 1 ARGS CAN MATCH AN ENDPOINT type WE DO NOT USED IT
-          if (targetArg.size() == 1) {
-            targetArgIdentified = targetArg.getFirst();
-          }
+          String targetArgIdentified = resolveCommandTargetValue(inject, payloadCommand);
 
           if (targetArgIdentified != null) { // DISCOVERED
             return AttackPathIds.executionNode(inject.getId(), targetArgIdentified, target);
@@ -472,6 +705,14 @@ public class AttackPathExecutionIngestionService {
                     org.hibernate.Hibernate.unproxy(agent.getAsset());
             return AttackPathIds.executionNode(inject.getId(), endpoint.getId(), target);
           }
+        }
+        // Mirrors the write side's fallback, so an unknown payload type still resolves to the id
+        // that was actually persisted for it.
+        default -> {
+          io.openaev.database.model.Endpoint endpoint =
+              (io.openaev.database.model.Endpoint)
+                  org.hibernate.Hibernate.unproxy(agent.getAsset());
+          return AttackPathIds.executionNode(inject.getId(), endpoint.getId(), target);
         }
       }
 
@@ -816,5 +1057,30 @@ public class AttackPathExecutionIngestionService {
     } catch (IllegalArgumentException e) {
       return false;
     }
+  }
+
+  private String resolveArgumentDnsResolution(Inject inject, DnsResolution resolution) {
+    Pattern pattern = Pattern.compile("#\\{(.*?)}");
+    Matcher matcher = pattern.matcher(resolution.getHostname());
+
+    String arg;
+    String hostname = resolution.getHostname();
+    while (matcher.find()) {
+      arg = matcher.group(1);
+      JsonNode argument = inject.getContent().get(arg);
+
+      if (argument == null) {
+        continue;
+      }
+
+      if (argument.isTextual()) {
+        Pair<String, String> hostnameVar = Pair.of(arg, argument.asText());
+        hostname =
+            hostnameVar == null
+                ? hostname
+                : hostname.replace("#{" + hostnameVar.getLeft() + "}", hostnameVar.getRight());
+      }
+    }
+    return hostname.isEmpty() ? resolution.getHostname() : hostname;
   }
 }

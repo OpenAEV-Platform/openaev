@@ -1,6 +1,6 @@
-import { type Edge, MarkerType, type Node } from '@xyflow/react';
+import { type Edge, MarkerType } from '@xyflow/react';
 
-import { directFetchInjectorContract } from '../../../../actions/InjectorContracts';
+import { directFetchWorkflowInjectorContract } from '../../../../actions/chaining/workflow-actions';
 import type { ConditionOutput, EventOutput, KillChainPhase, StepOutput } from '../../../../utils/api-types';
 import type { ContractElement } from '../../../../utils/api-types-custom';
 import {
@@ -10,9 +10,12 @@ import {
   createEmptyCondition,
   createEmptyGroup,
   type EventCondition,
+  type EventFormData,
   formatConditionKeyLabel,
   generateId,
   type LogicalOperator,
+  OPERATOR_LABELS,
+  UNARY_OPERATORS,
 } from './events/event-types';
 import type { ActionMeta, EventMeta } from './types';
 
@@ -34,32 +37,8 @@ export const resolveConditionKeyTypes = (condition: Record<string, unknown>): st
   if (typeof legacyKeyType === 'string' && legacyKeyType.length > 0) {
     return [legacyKeyType];
   }
-  return ['text'];
+  return [];
 };
-
-// Layout design tokens for tactic groups (px)
-const TACTIC_WIDTH = 280; // Width of each tactic column
-const TACTIC_GAP = 260; // Horizontal gap between tactic columns (wide enough to host an event lane on the left of each column)
-const ACTION_WIDTH = 248; // Width of a single action node
-const ACTION_HEIGHT = 70; // Height of a single action node
-const ACTION_GAP = 12; // Vertical gap between action nodes
-const GROUP_PADDING_TOP = 40; // Top padding inside a tactic group
-const GROUP_PADDING_BOTTOM = 20; // Bottom padding inside a tactic group
-const GROUP_PADDING_X = (TACTIC_WIDTH - ACTION_WIDTH) / 2; // Horizontal padding to center actions
-
-export { ACTION_WIDTH, GROUP_PADDING_X, TACTIC_WIDTH };
-
-/**
- * Compute tactic group height dynamically based on the number of action nodes inside it.
- */
-export const computeGroupHeight = (childCount: number) =>
-  GROUP_PADDING_TOP + childCount * (ACTION_HEIGHT + ACTION_GAP) + GROUP_PADDING_BOTTOM;
-
-/**
- * Compute the Y position of an action node within its parent tactic group.
- */
-export const computeActionY = (index: number) =>
-  GROUP_PADDING_TOP + index * (ACTION_HEIGHT + ACTION_GAP);
 
 // -- Data builders --
 
@@ -102,6 +81,10 @@ export const buildActionMetas = (steps: StepOutput[]): Record<string, ActionMeta
         inject_kill_chain_phase_ids: killChainPhaseIds,
         inject_assets: (data?.inject_assets as string[]) ?? [],
         inject_asset_objects: [],
+        inject_asset_groups: (data?.inject_asset_groups as string[]) ?? [],
+        inject_teams: (data?.inject_teams as string[]) ?? [],
+        inject_all_teams: (data?.inject_all_teams as boolean) ?? false,
+        inject_documents: (data?.inject_documents as ActionMeta['inject_documents']) ?? [],
         step_condition_ids: s.step_condition_ids ?? [],
         step_conditions: (s.step_mapper_conditions ?? []).map((mc) => {
           const resolvedKeyTypes = resolveConditionKeyTypes(mc as unknown as Record<string, unknown>);
@@ -278,19 +261,52 @@ const reconstructConditionGroups = (
   };
 };
 
+/** Human-readable summary of an event's trigger conditions, used by the node label and tooltip. */
+export interface EventConditionSummary {
+  /** Distinct condition fields referenced by the event (e.g. ["credentials", "hostname"]). */
+  fields: string[];
+  /** One human line per leaf condition (e.g. `Hostname contains "dc01"`). */
+  lines: string[];
+  /** Top-level logical operator combining the groups/conditions (AND / OR). */
+  operator: LogicalOperator;
+}
+
+/** Flatten every leaf-condition field referenced by a condition group tree. */
+const collectGroupFields = (group: ConditionGroup): string[] => [
+  ...group.conditions.map(c => c.field),
+  ...group.subGroups.flatMap(collectGroupFields),
+];
+
+/** Render every leaf condition of a group tree as a readable one-liner. */
+const summarizeGroup = (group: ConditionGroup): string[] => {
+  const own = group.conditions
+    .filter(c => c.field)
+    .map((c) => {
+      const field = formatConditionKeyLabel(c.field);
+      const operator = (OPERATOR_LABELS[c.operator] ?? c.operator).toLowerCase();
+      if (UNARY_OPERATORS.includes(c.operator)) {
+        return `${field} ${operator}`;
+      }
+      return c.value ? `${field} ${operator} "${c.value}"` : `${field} ${operator}`;
+    });
+  return [...own, ...group.subGroups.flatMap(summarizeGroup)];
+};
+
+/** Build a readable summary (fields, lines, operator) from an event's condition tree. */
+export const summarizeEventConditions = (formData: EventFormData): EventConditionSummary => ({
+  fields: Array.from(new Set(formData.conditionGroups.flatMap(collectGroupFields).filter(Boolean))),
+  lines: formData.conditionGroups.flatMap(summarizeGroup),
+  operator: formData.groupOperators[0] ?? formData.conditionGroups[0]?.operator ?? 'AND',
+});
+
 /**
- * Parse events API response into EventMeta records and preliminary event nodes.
+ * Parse the events API response into EventMeta records keyed by event id.
  */
-export const buildEventData = (events: EventOutput[]): {
-  eventMetas: Record<string, EventMeta>;
-  eventNodes: Node[];
-} => {
+export const buildEventData = (events: EventOutput[]): { eventMetas: Record<string, EventMeta> } => {
   const eventMetas: Record<string, EventMeta> = {};
 
-  const eventNodes: Node[] = events.map((e, i) => {
-    const allConditions = e.event_conditions ?? [];
-    const { groups, groupOperators } = reconstructConditionGroups(allConditions);
-
+  for (const e of events) {
+    const { groups, groupOperators } = reconstructConditionGroups(e.event_conditions ?? []);
     eventMetas[e.event_id] = {
       eventId: e.event_id,
       formData: {
@@ -300,30 +316,22 @@ export const buildEventData = (events: EventOutput[]): {
         conditionGroups: groups,
       },
     };
+  }
 
-    return {
-      id: e.event_id,
-      type: 'event' as const,
-      position: {
-        x: 50,
-        y: 100 + i * 140,
-      },
-      data: { label: e.event_name },
-    };
-  });
-
-  return {
-    eventMetas,
-    eventNodes,
-  };
+  return { eventMetas };
 };
 
 /**
  * Fetch injector contract fields for each action that has a contract.
  * Mutates the input actionMetas in place for performance.
+ *
+ * Contracts are read through the workflow-scoped endpoint so a user who only holds a read grant
+ * on the parent simulation/scenario — and none of the threat arsenal capabilities — still gets
+ * the fields of the contracts already used by the graph.
  */
 export const enrichActionMetasWithContracts = async (
   actionMetas: Record<string, ActionMeta>,
+  workflowId: string,
 ): Promise<Record<string, ActionMeta>> => {
   const contractIds = Array.from(new Set(
     Object.values(actionMetas)
@@ -335,7 +343,7 @@ export const enrichActionMetasWithContracts = async (
 
   await Promise.all(contractIds.map(async (cid) => {
     try {
-      const res = await directFetchInjectorContract(cid) as { data: { injector_contract_content?: string } };
+      const res = await directFetchWorkflowInjectorContract(workflowId, cid) as { data: { injector_contract_content?: string } };
       if (res.data?.injector_contract_content) {
         const parsed = JSON.parse(res.data.injector_contract_content);
         contractFieldsMap[cid] = (parsed.fields ?? []) as ContractElement[];
@@ -395,228 +403,6 @@ export const buildTacticForStep = ({
   return tacticForStep;
 };
 
-/**
- * Build tactic group nodes and position action nodes inside their respective tactic column.
- */
-export const buildTacticNodes = (
-  tacticForStep: Record<string, string>,
-  actionMetas: Record<string, ActionMeta>,
-  killChainPhasesMap: Record<string, KillChainPhase>,
-): {
-  groupNodes: Node[];
-  actionNodes: Node[];
-} => {
-  // 1. Determine the global order of tactics (columns) based on official MITRE order
-  const tacticOrder: Record<string, number> = {};
-  for (const phase of Object.values(killChainPhasesMap)) {
-    // Keep the lowest order (leftmost) if a tactic appears multiple times
-    if (tacticOrder[phase.phase_name] === undefined || (phase.phase_order ?? 99) < tacticOrder[phase.phase_name]) {
-      tacticOrder[phase.phase_name] = phase.phase_order ?? 99;
-    }
-  }
-
-  // 2. Extract and sort unique tactics present in this specific workflow
-  const uniqueTactics = Array.from(new Set(Object.values(tacticForStep)));
-  uniqueTactics.sort((a, b) => (tacticOrder[a] ?? 99) - (tacticOrder[b] ?? 99));
-
-  const groupNodes: Node[] = [];
-  const actionNodes: Node[] = [];
-
-  // 3. Loop through each tactic to create its column (group) and position its actions
-  for (let tacticIdx = 0; tacticIdx < uniqueTactics.length; tacticIdx++) {
-    const tactic = uniqueTactics[tacticIdx];
-    const groupId = `tactic-${tactic.replace(/\s+/g, '-').toLowerCase()}`;
-
-    // Get all step IDs (actions) belonging to this tactic
-    const stepsInTactic = Object.entries(tacticForStep)
-      .filter(([, t2]) => t2 === tactic)
-      .map(([sid]) => sid);
-
-    // 4. Create the "Group" node
-    groupNodes.push({
-      id: groupId,
-      type: 'tacticGroup',
-      position: {
-        x: tacticIdx * (TACTIC_WIDTH + TACTIC_GAP), // Horizontal offset based on tactic index
-        y: 0,
-      },
-      data: { label: tactic },
-      style: {
-        width: TACTIC_WIDTH,
-        height: computeGroupHeight(stepsInTactic.length), // Dynamic height based on number of actions
-      },
-    });
-
-    // 5. Position each action inside its tactic column
-    for (let actionIdx = 0; actionIdx < stepsInTactic.length; actionIdx++) {
-      const stepId = stepsInTactic[actionIdx];
-      const meta = actionMetas[stepId];
-      actionNodes.push({
-        id: stepId,
-        type: 'action',
-        position: {
-          x: GROUP_PADDING_X,
-          y: computeActionY(actionIdx),
-        },
-        parentId: groupId, // Link action to group for collective movement
-        extent: 'parent' as const, // Prevents dragging action outside its column
-        data: {
-          label: meta.inject_title,
-          injectorType: meta.inject_injector,
-          payloadType: meta.inject_payload_collector_type ?? meta.inject_payload_type,
-          isPayload: !!meta.inject_payload_type,
-        },
-      });
-    }
-  }
-
-  return {
-    groupNodes,
-    actionNodes,
-  };
-};
-
-// Layout design tokens for event column (px)
-const EVENT_NODE_HEIGHT = 100; // Approx. rendered height of an event node (bolt icon + box + "+" button)
-const EVENT_GAP = 40;
-const EVENT_WIDTH = 180; // Width of an event node
-const EVENT_TO_GROUP_GAP = 50; // Horizontal gap between an event and the tactic column it feeds
-
-/** Placement hint for an event: the tactic column it sits left of, and the Y of its target step. */
-export interface EventPlacement {
-  groupX: number;
-  anchorY: number;
-}
-
-/**
- * Resolve, for each event, where it should sit:
- * - `groupX`: X of the tactic group (column) it should be placed to the left of. An event is
- *   linked to a step (via the step's `step_condition_ids`); that step belongs to a tactic column.
- *   When an event feeds several tactics, the leftmost (earliest) one wins.
- * - `anchorY`: the absolute vertical center of the linked step, used to align the event with its
- *   target so the connecting arrow stays horizontal (fewer crossings).
- */
-export const buildEventToGroupX = (
-  actionMetas: Record<string, ActionMeta>,
-  groupNodes: Node[],
-  actionNodes: Node[],
-): Record<string, EventPlacement> => {
-  const groupXById: Record<string, number> = {};
-  const groupYById: Record<string, number> = {};
-  for (const g of groupNodes) {
-    groupXById[g.id] = g.position.x;
-    groupYById[g.id] = g.position.y;
-  }
-
-  const stepToGroupX: Record<string, number> = {};
-  const stepToY: Record<string, number> = {};
-  for (const a of actionNodes) {
-    if (a.parentId && groupXById[a.parentId] !== undefined) {
-      stepToGroupX[a.id] = groupXById[a.parentId];
-      // Absolute vertical center of the step (parent group Y + relative Y + half node height),
-      // so events can be aligned to it regardless of the group's own Y offset.
-      stepToY[a.id] = (groupYById[a.parentId] ?? 0) + a.position.y + ACTION_HEIGHT / 2;
-    }
-  }
-
-  const placement: Record<string, EventPlacement> = {};
-  for (const [stepId, meta] of Object.entries(actionMetas)) {
-    const gx = stepToGroupX[stepId];
-    if (gx === undefined) continue;
-    const y = stepToY[stepId] ?? 0;
-    for (const eventId of meta.step_condition_ids) {
-      const current = placement[eventId];
-      // Prefer the leftmost column; within the same column, keep the topmost step as anchor.
-      if (!current || gx < current.groupX || (gx === current.groupX && y < current.anchorY)) {
-        placement[eventId] = {
-          groupX: gx,
-          anchorY: y,
-        };
-      }
-    }
-  }
-
-  return placement;
-};
-
-/**
- * Position event nodes to the left of the tactic group they feed.
- *
- * <p>Each event is placed at its target step's vertical center so the event→step arrow is
- * horizontal. Events feeding the same column are processed top-to-bottom by anchor; when two would
- * overlap, the lower one is pushed down by the minimum gap ("align, then de-overlap"). Events not
- * linked to any step fall back to the far-left lane (X = 0) and are appended below the anchored ones.
- */
-export const positionEventNodes = (
-  eventNodes: Node[],
-  placement: Record<string, EventPlacement> = {},
-): Node[] => {
-  // Bucket events per lane (column X). Each event remembers the absolute center of the step it
-  // feeds (anchorY); orphan events (no linked step) carry a null anchor and sink to the bottom.
-  const lanes: Record<number, {
-    node: Node;
-    anchorY: number | null;
-  }[]> = {};
-  for (const en of eventNodes) {
-    const p = placement[en.id];
-    const x = (p?.groupX ?? 0) - EVENT_WIDTH - EVENT_TO_GROUP_GAP;
-    (lanes[x] ??= []).push({
-      node: en,
-      anchorY: p?.anchorY ?? null,
-    });
-  }
-
-  const positioned: Node[] = [];
-  for (const [x, items] of Object.entries(lanes)) {
-    // Order by the target step's center, so arrows keep their vertical order; orphans go last.
-    items.sort(
-      (a, b) => (a.anchorY ?? Number.POSITIVE_INFINITY) - (b.anchorY ?? Number.POSITIVE_INFINITY),
-    );
-
-    // Align each event to its step's center, cascading down only to resolve overlaps. `cursor` is
-    // the lowest Y still available; it starts at the top padding, so events never rise above it.
-    let cursor = GROUP_PADDING_TOP;
-    for (const { node, anchorY } of items) {
-      const desiredTop = anchorY === null ? cursor : anchorY - EVENT_NODE_HEIGHT / 2;
-      const y = Math.max(desiredTop, cursor);
-      positioned.push({
-        ...node,
-        position: {
-          x: Number(x),
-          y,
-        },
-        style: { width: EVENT_WIDTH },
-      });
-      cursor = y + EVENT_NODE_HEIGHT + EVENT_GAP;
-    }
-  }
-  return positioned;
-};
-
-/**
- * Reconstruct edges from step_condition_ids linking events to actions.
- */
-export const buildEdges = (
-  actionMetas: Record<string, ActionMeta>,
-  eventMetas: Record<string, EventMeta>,
-): Edge[] => {
-  const edges: Edge[] = [];
-  for (const [stepId, meta] of Object.entries(actionMetas)) {
-    for (const condId of meta.step_condition_ids) {
-      if (eventMetas[condId]) {
-        edges.push({
-          id: `${condId}-${stepId}`,
-          source: condId,
-          target: stepId,
-          type: 'deletable',
-          markerEnd: { type: MarkerType.ArrowClosed },
-        });
-      }
-    }
-  }
-  return edges;
-};
-
 // -- Informational data-flow visualization (selected event) --
 
 /** Recursively collect every leaf-condition field referenced by an event's condition tree. */
@@ -625,44 +411,141 @@ export const collectEventFields = (group: ConditionGroup): string[] => [
   ...group.subGroups.flatMap(collectEventFields),
 ];
 
-/**
- * Build the read-only dotted arrows from every provider action into the currently selected
- * event. One arrow per provider action, carrying the matching output type(s) as label data.
- * These are informational only — they are never persisted and do not represent a real link.
- *
- * @param selectedEventId the currently selected event id (or null → no arrows)
- * @param eventMetas all events keyed by id
- * @param outputProviders inverted map "output type → provider actions"
- * @param arrowColor the stroke/marker color (resolved from the theme by the caller)
- */
-export const buildInformationalEdges = (
-  selectedEventId: string | null,
+/** A node in the selected event's flow line (either an action or an event). */
+interface FlowNode {
+  kind: 'action' | 'event';
+  id: string;
+}
+
+/** Shared lookups reused across the backward chain traversal. */
+interface FlowContext {
+  eventMetas: Record<string, EventMeta>;
+  actionMetas: Record<string, ActionMeta>;
+}
+
+/** Distinct condition fields (output types) referenced by an event's condition tree. */
+const eventFields = (
+  eventId: string,
   eventMetas: Record<string, EventMeta>,
-  outputProviders: Record<string, OutputProviderEntry[]>,
-  arrowColor: string,
-): Edge[] => {
-  if (!selectedEventId) return [];
-  const meta = eventMetas[selectedEventId];
+): string[] => {
+  const meta = eventMetas[eventId];
   if (!meta) return [];
+  return Array.from(
+    new Set(meta.formData.conditionGroups.flatMap(collectEventFields).filter(Boolean)),
+  );
+};
 
-  // All distinct condition fields referenced by the event.
-  const fields = new Set(meta.formData.conditionGroups.flatMap(collectEventFields).filter(Boolean));
+/** Actions triggered by the given event (its execution conditions reference the event id). */
+const consumersOf = (eventId: string, ctx: FlowContext): string[] =>
+  Object.entries(ctx.actionMetas)
+    .filter(([, meta]) => meta.step_condition_ids.includes(eventId))
+    .map(([stepId]) => stepId);
 
-  // Aggregate, per provider action, the set of matching output types it feeds.
-  const typesByAction = new Map<string, Set<string>>();
-  for (const field of fields) {
-    for (const provider of outputProviders[field] ?? []) {
-      const current = typesByAction.get(provider.stepId) ?? new Set<string>();
-      current.add(field);
-      typesByAction.set(provider.stepId, current);
+/** Actions whose output types include at least one type the given event checks (type production). */
+const typeProducersOf = (eventId: string, ctx: FlowContext): string[] => {
+  const fields = new Set(eventFields(eventId, ctx.eventMetas));
+  if (fields.size === 0) return [];
+  return Object.entries(ctx.actionMetas)
+    .filter(([, meta]) => (meta.step_output_types ?? []).some(t => fields.has(t)))
+    .map(([stepId]) => stepId);
+};
+
+/** The event that triggers the given action, if any (first existing execution condition). */
+const triggerEventOf = (actionId: string, ctx: FlowContext): string | null =>
+  (ctx.actionMetas[actionId]?.step_condition_ids ?? []).find(e => !!ctx.eventMetas[e]) ?? null;
+
+/** A resolved backward line plus whether it reached an event-less start action. */
+interface FeedingChain {
+  nodes: FlowNode[];
+  reachedStart: boolean;
+}
+
+/**
+ * Resolve the line of nodes that come before `eventId` (exclusive), walking backward via
+ * type production and trigger edges until an event-less start action.
+ *
+ * Rather than guess an ordering, we take the first producer that completes a
+ * link back to an event-less start: candidate producers are explored depth-first in their
+ * natural order, and the first branch reaching a start wins.
+ *
+ * @param eventId the event whose producer line we resolve
+ * @param ctx shared lookups
+ * @param visitedEvents events already on the current line (cycle guard)
+ * @param visitedActions actions already on the current line (cycle guard)
+ * @returns the forward-ordered nodes preceding `eventId`, plus whether the line reached a start
+ */
+const chainBeforeEvent = (
+  eventId: string,
+  ctx: FlowContext,
+  visitedEvents: Set<string>,
+  visitedActions: Set<string>,
+): FeedingChain => {
+  let firstPartial: FeedingChain | null = null;
+
+  for (const producer of typeProducersOf(eventId, ctx)) {
+    if (visitedActions.has(producer)) continue;
+    const trigger = triggerEventOf(producer, ctx);
+
+    if (!trigger) {
+      // Producer has no trigger event → it is the event-less start: this line is complete.
+      return {
+        nodes: [{
+          kind: 'action',
+          id: producer,
+        }],
+        reachedStart: true,
+      };
     }
+    if (visitedEvents.has(trigger)) continue; // would re-enter the current line
+
+    const sub = chainBeforeEvent(
+      trigger,
+      ctx,
+      new Set(visitedEvents).add(trigger),
+      new Set(visitedActions).add(producer),
+    );
+    const candidate: FeedingChain = {
+      nodes: [
+        ...sub.nodes,
+        {
+          kind: 'event',
+          id: trigger,
+        },
+        {
+          kind: 'action',
+          id: producer,
+        },
+      ],
+      reachedStart: sub.reachedStart,
+    };
+    if (candidate.reachedStart) return candidate; // first complete link wins
+    if (!firstPartial) firstPartial = candidate; // keep the first best-effort line as fallback
   }
 
-  return Array.from(typesByAction.entries()).map(([stepId, types]) => ({
-    id: `info-${stepId}-${selectedEventId}`,
-    source: stepId,
+  return firstPartial ?? {
+    nodes: [],
+    reachedStart: false,
+  };
+};
+
+/** Resolve the backward line feeding the clicked event, starting a fresh cycle-guard. */
+const buildBackwardChain = (clickedEventId: string, ctx: FlowContext): FeedingChain =>
+  chainBeforeEvent(clickedEventId, ctx, new Set<string>([clickedEventId]), new Set<string>());
+
+/** One dotted "produces" arrow from a provider action to the event it feeds. */
+const buildProducesEdge = (
+  actionId: string,
+  eventId: string,
+  arrowColor: string,
+  ctx: FlowContext,
+): Edge => {
+  const producedTypes = new Set(ctx.actionMetas[actionId]?.step_output_types ?? []);
+  const matched = eventFields(eventId, ctx.eventMetas).filter(f => producedTypes.has(f));
+  return {
+    id: `info-${actionId}-${eventId}`,
+    source: actionId,
     sourceHandle: 'action-source-right',
-    target: selectedEventId,
+    target: eventId,
     targetHandle: 'event-target',
     type: 'informational',
     selectable: false,
@@ -671,66 +554,206 @@ export const buildInformationalEdges = (
       type: MarkerType.ArrowClosed,
       color: arrowColor,
     },
-    data: { outputLabel: Array.from(types).map(formatConditionKeyLabel).join(', ') },
-  }));
+    data: { outputLabel: matched.map(formatConditionKeyLabel).join(', ') },
+  };
 };
 
-export interface EventPath {
-  /** Ids of every step (provider or consumer) involved in the selected event's data flow. */
+export interface EventFlow {
+  /** Action ids highlighted along the flow (chain producers + consumers). */
   highlightedStepIds: Set<string>;
-  /** 1-based badge index per step id. */
-  stepPathIndex: Record<string, number>;
-  /** 1-based badge index of the event itself (sits between providers and consumers). */
-  eventPathIndex: number | undefined;
+  /** Event ids highlighted along the flow (chain events + the clicked one). */
+  highlightedEventIds: Set<string>;
+  /** 1-based badge index per node id, covering both events and actions. */
+  pathIndex: Record<string, number>;
+  /** `${source}->${target}` keys of the real trigger edges that belong to the flow. */
+  triggerEdgeKeys: Set<string>;
+  /** Read-only dotted "produces" arrows from each provider action to the event it feeds. */
+  informationalEdges: Edge[];
 }
 
 /**
- * Compute the data-flow path for the selected event: provider steps (which produce outputs
- * feeding the event) first, then the event itself, then consumer steps (which use the event
- * as an execution condition). Each element gets a 1-based index rendered as a numbered badge
- * (e.g. provider = 1, event = 2, consumer step = 3).
+ * Compute the full data-flow line for the selected node by expanding everything that happens
+ * before it. Starting from the clicked node, we walk backward — producer action → its trigger
+ * event → that event's producer → … — until we reach an event-less action (the start), forming a
+ * single line.
  *
- * @param selectedEventId the currently selected event id (or null → empty path)
- * @param informationalEdges the informational edges produced by {@link buildInformationalEdges}
+ * @param selectedId the currently selected node id — an event or an action (or null → empty flow)
+ * @param eventMetas all events keyed by id
  * @param actionMetas all steps keyed by id
+ * @param arrowColor the informational arrow stroke/marker color (resolved from the theme)
  */
-export const buildEventPath = (
-  selectedEventId: string | null,
-  informationalEdges: Edge[],
+export const buildEventFlow = (
+  selectedId: string | null,
+  eventMetas: Record<string, EventMeta>,
   actionMetas: Record<string, ActionMeta>,
-): EventPath => {
-  if (!selectedEventId) {
-    return {
-      highlightedStepIds: new Set<string>(),
-      stepPathIndex: {},
-      eventPathIndex: undefined,
-    };
+  arrowColor: string,
+): EventFlow => {
+  const empty: EventFlow = {
+    highlightedStepIds: new Set<string>(),
+    highlightedEventIds: new Set<string>(),
+    pathIndex: {},
+    triggerEdgeKeys: new Set<string>(),
+    informationalEdges: [],
+  };
+  if (!selectedId) return empty;
+
+  const ctx: FlowContext = {
+    eventMetas,
+    actionMetas,
+  };
+
+  const isEvent = !!eventMetas[selectedId];
+  const isAction = !isEvent && !!actionMetas[selectedId];
+  if (!isEvent && !isAction) return empty;
+
+  // 1-3. Build the spine and, for an event click, the consumer actions it triggers.
+  let spine: FlowNode[];
+  let consumers: string[];
+
+  if (isEvent) {
+    const backward: FlowNode[] = buildBackwardChain(selectedId, ctx).nodes;
+    spine = [
+      ...backward,
+      {
+        kind: 'event',
+        id: selectedId,
+      },
+    ];
+    consumers = consumersOf(selectedId, ctx);
+  } else {
+    // Action click: expand everything before it, ending at the action itself. Reuse the backward
+    // walk from the event that triggers the action; an event-less start action highlights alone.
+    const trigger = triggerEventOf(selectedId, ctx);
+    if (trigger) {
+      const backward: FlowNode[] = chainBeforeEvent(
+        trigger,
+        ctx,
+        new Set<string>([trigger]),
+        new Set<string>([selectedId]),
+      ).nodes;
+      spine = [
+        ...backward,
+        {
+          kind: 'event',
+          id: trigger,
+        },
+        {
+          kind: 'action',
+          id: selectedId,
+        },
+      ];
+    } else {
+      spine = [{
+        kind: 'action',
+        id: selectedId,
+      }];
+    }
+    consumers = [];
   }
 
-  // Provider steps: actions producing an output matching one of the event's condition fields.
-  const providerIds = Array.from(new Set(informationalEdges.map(e => e.source)));
-  // Consumer steps: actions using this event as an execution condition (real link).
-  const consumerIds = Object.entries(actionMetas)
-    .filter(([, meta]) => meta.step_condition_ids.includes(selectedEventId))
-    .map(([stepId]) => stepId);
-
-  const index: Record<string, number> = {};
-  let counter = 0;
-
-  // 1..n — provider steps come first.
-  for (const id of providerIds) {
-    if (!(id in index)) index[id] = ++counter;
+  // 4. Number the spine forward (1 = event-less start); all consumers share the final index.
+  const pathIndex: Record<string, number> = {};
+  let idx = 0;
+  for (const node of spine) {
+    idx += 1;
+    pathIndex[node.id] = idx;
   }
-  // n+1 — the event sits between producers and consumers.
-  const eventPathIndex = ++counter;
-  // n+2.. — consumer steps (skip any already counted as a provider).
-  for (const id of consumerIds) {
-    if (!(id in index)) index[id] = ++counter;
+  const consumerIndex = idx + 1;
+  for (const consumerId of consumers) {
+    if (!(consumerId in pathIndex)) pathIndex[consumerId] = consumerIndex;
+  }
+
+  // 5. Highlighted node sets.
+  const highlightedStepIds = new Set<string>();
+  const highlightedEventIds = new Set<string>();
+  for (const node of spine) {
+    if (node.kind === 'action') highlightedStepIds.add(node.id);
+    else highlightedEventIds.add(node.id);
+  }
+  for (const consumerId of consumers) highlightedStepIds.add(consumerId);
+
+  // 6. Flow edges: walk consecutive spine pairs — action→event is a dotted "produces" arrow,
+  //    event→action is a real "triggers" link — then add the clicked event → consumer links.
+  const triggerEdgeKeys = new Set<string>();
+  const informationalEdges: Edge[] = [];
+  for (let i = 0; i < spine.length - 1; i += 1) {
+    const prev = spine[i];
+    const next = spine[i + 1];
+    if (prev.kind === 'action' && next.kind === 'event') {
+      informationalEdges.push(buildProducesEdge(prev.id, next.id, arrowColor, ctx));
+    } else if (prev.kind === 'event' && next.kind === 'action') {
+      triggerEdgeKeys.add(`${prev.id}->${next.id}`);
+    }
+  }
+  for (const consumerId of consumers) {
+    triggerEdgeKeys.add(`${selectedId}->${consumerId}`);
   }
 
   return {
-    highlightedStepIds: new Set(Object.keys(index)),
-    stepPathIndex: index,
-    eventPathIndex,
+    highlightedStepIds,
+    highlightedEventIds,
+    pathIndex,
+    triggerEdgeKeys,
+    informationalEdges,
+  };
+};
+
+export interface TriggerFanIn {
+  /** Every action that can contribute to the selected node firing (all interchangeable producers). */
+  highlightedStepIds: Set<string>;
+  /** Every event traversed while walking the producers backward. */
+  highlightedEventIds: Set<string>;
+}
+
+/**
+ * The full upstream fan-in of the selected node: unlike {@link buildEventFlow} (which resolves a
+ * single numbered spine), this lights up EVERY action that can satisfy each event on the way back,
+ * not just the first one that completes a chain. So selecting a trigger reveals all interchangeable
+ * producers (e.g. three different scans that all emit the port finding), transitively upstream.
+ *
+ * @param selectedId the currently selected node id — an event or an action (or null → empty)
+ * @param eventMetas all events keyed by id
+ * @param actionMetas all steps keyed by id
+ */
+export const buildTriggerFanIn = (
+  selectedId: string | null,
+  eventMetas: Record<string, EventMeta>,
+  actionMetas: Record<string, ActionMeta>,
+): TriggerFanIn => {
+  const highlightedStepIds = new Set<string>();
+  const highlightedEventIds = new Set<string>();
+  if (!selectedId) return {
+    highlightedStepIds,
+    highlightedEventIds,
+  };
+
+  const ctx: FlowContext = {
+    eventMetas,
+    actionMetas,
+  };
+
+  const visitEvent = (eventId: string) => {
+    if (highlightedEventIds.has(eventId)) return;
+    highlightedEventIds.add(eventId);
+    for (const producer of typeProducersOf(eventId, ctx)) {
+      if (highlightedStepIds.has(producer)) continue;
+      highlightedStepIds.add(producer);
+      const trigger = triggerEventOf(producer, ctx);
+      if (trigger) visitEvent(trigger);
+    }
+  };
+  const visitAction = (actionId: string) => {
+    if (highlightedStepIds.has(actionId)) return;
+    highlightedStepIds.add(actionId);
+    const trigger = triggerEventOf(actionId, ctx);
+    if (trigger) visitEvent(trigger);
+  };
+
+  if (eventMetas[selectedId]) visitEvent(selectedId);
+  else if (actionMetas[selectedId]) visitAction(selectedId);
+
+  return {
+    highlightedStepIds,
+    highlightedEventIds,
   };
 };

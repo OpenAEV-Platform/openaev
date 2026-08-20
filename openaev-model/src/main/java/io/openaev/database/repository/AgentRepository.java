@@ -36,9 +36,23 @@ public interface AgentRepository
 
   List<Agent> findByExecutorId(String executorId);
 
-  List<Agent> findByExecutorIdAndTenantId(String executorId, String tenantId);
+  @Query("SELECT a FROM Agent a WHERE a.executor.id = :executorId AND a.tenant.id = :tenantId")
+  List<Agent> findByExecutorIdAndTenantId(
+      @Param("executorId") String executorId, @Param("tenantId") String tenantId);
+
+  @Modifying(clearAutomatically = true)
+  @Transactional
+  @Query("DELETE FROM Agent a WHERE a.executor.id = :executorId AND a.tenant.id = :tenantId")
+  void deleteAllByExecutorIdAndTenantId(
+      @Param("executorId") String executorId, @Param("tenantId") String tenantId);
 
   List<Agent> findByExternalReferenceAndTenantId(String externalReference, String tenantId);
+
+  // Count agents whose last heartbeat is recent enough to be considered active. Used by the
+  // autonomous capability resolver to tell the orchestrator whether a crafted Command payload has
+  // any live host to execute on (tenant filter applies via the enclosing transactional session).
+  @Query("SELECT COUNT(a) FROM Agent a WHERE a.lastSeen > :since")
+  long countByLastSeenAfter(@Param("since") java.time.Instant since);
 
   @Modifying
   @Query(value = "DELETE FROM agents agent where agent.agent_id = :agentId;", nativeQuery = true)

@@ -100,7 +100,16 @@ public class OpenSearchService implements EngineService {
     String target = ofNullable(parameters.getOrDefault(value, value)).orElse("");
     PropertySchema propertyField = commonSearchService.getIndexingSchema().get(field);
     if (propertyField == null) {
-      throw new AnalyticsEngineException("Unknown field: " + field);
+      // A base field such as base_representative is a searchable analyzed-text string (see
+      // BASE_FIELDS / queryFromSearch) but carries no @Queryable annotation, so it is absent from
+      // the indexing schema. Treat its value as a string instead of failing, so filtering on it
+      // (e.g. the asset expectation list search box) works. Any other unknown field stays a hard
+      // error.
+      if (!BASE_FIELDS.contains(field)) {
+        throw new AnalyticsEngineException("Unknown field: " + field);
+      }
+      builder.stringValue(target);
+      return builder.build();
     }
     if (propertyField.getType().isAssignableFrom(String.class)
         || (propertyField.getType().isAssignableFrom(Set.class)
@@ -185,7 +194,7 @@ public class OpenSearchService implements EngineService {
                 .map(
                     v -> {
                       FieldValue val = toVal(field, v, parameters);
-                      if (propertyField.isKeyword()) {
+                      if (propertyField != null && propertyField.isKeyword()) {
                         // Champ keyword : wildcard
                         return WildcardQuery.of(
                                 w ->
@@ -212,7 +221,7 @@ public class OpenSearchService implements EngineService {
                 .map(
                     v -> {
                       FieldValue val = toVal(field, v, parameters);
-                      if (propertyField.isKeyword()) {
+                      if (propertyField != null && propertyField.isKeyword()) {
                         return WildcardQuery.of(
                                 w -> w.field(elasticField).value("*" + val.stringValue() + "*"))
                             .toQuery();
@@ -1299,6 +1308,16 @@ public class OpenSearchService implements EngineService {
    */
   private String toElasticField(@NotBlank final String field) {
     PropertySchema propertyField = commonSearchService.getIndexingSchema().get(field);
+    if (propertyField == null) {
+      // base_representative & co.: searchable analyzed-text base fields absent from the @Queryable
+      // indexing schema. They have no ".keyword" subfield, so target the raw text field instead of
+      // throwing a NullPointerException that 500s the whole search request. Other unknown fields
+      // stay a hard error.
+      if (!BASE_FIELDS.contains(field)) {
+        throw new AnalyticsEngineException("Unknown field: " + field);
+      }
+      return field;
+    }
     return propertyField.isKeyword() ? (field + ".keyword") : field;
   }
 }

@@ -1,10 +1,9 @@
 # Attack path
 
-!!! warning "Proof of concept, feature-flagged"
+!!! warning "Proof of concept"
 
-    The attack-path execution store is a proof of concept (issue 6647). It is off by default and gated
-    behind the `ATTACK_PATH` preview feature, so its tab and endpoints do not exist unless the flag
-    is on. The design rationale and the options weighed are in
+    The attack-path execution store is a proof of concept (issue 6647). The design rationale and the
+    options weighed are in
     `adr/ADR-003-attack-path-execution-store-on-postgresql.md` at the repository root; this guide is the
     hands-on companion for developers building on the POC.
 
@@ -242,7 +241,7 @@ All endpoints live under `/api/attack-path` (and the tenant-prefixed
 | `GET /simulations/{id}/endpoint/findings?ref=` | one endpoint's finding-type and finding nodes |
 | `GET /simulations/{id}/endpoint/relations?ref=&page=&size=` | one endpoint's executions (feed) and grouped edges. The **executions are paged** (default 50, clamped to 200 — an over-sized request is clamped, never rejected) and the response carries `totalExecutions`; the **edges come back whole**, since they are bounded by the endpoint's in-degree and reference execution ids across page boundaries |
 | `GET /simulations/{id}/findings?category=&page=&size=` | a page of a widget category's findings for the drawer (credentials masked) |
-| `GET /simulations/{id}/executions/{executionId}` | one execution's Result & Terminal detail: command + output (credentials masked), ATT&CK techniques, payload detection remediations, and `securityPlatforms` — the platforms that prevented/detected it, with their per-platform status and linked alerts, resolved live from the inject's expectations. **Enterprise-gated**: without an active license the list comes back empty, which the panel renders as "attribution requires Enterprise Edition", never as an evaluated-negative verdict (see [Enterprise Edition](../administration/enterprise.md)). The verdict labels themselves (`Prevented`, `Not Detected`, `Pending`…) are the platform's expectation statuses, and a pending one turns negative only when the expiration manager says so — see [expectation management](../usage/expectations/management.md). 404 if not in the caller's simulation |
+| `GET /simulations/{id}/executions/{executionId}` | one execution's Result & Terminal detail: command + output (credentials masked), ATT&CK techniques, payload detection remediations, and `securityPlatforms` — the platforms that prevented/detected it, with their per-platform status and linked alerts, resolved live from the inject's expectations. **Enterprise-gated**: without an active license the list comes back empty, which the panel renders as "attribution requires Enterprise Edition", never as an evaluated-negative verdict (see [Enterprise Edition](../administration/enterprise.md)). The verdict labels themselves (`Prevented`, `Not Detected`, `Pending`…) are the platform's expectation statuses, and a pending one turns negative only when the expiration manager says so — see [expectation management](../usage/evaluate/expectations/expectations.md). 404 if not in the caller's simulation |
 | `POST /seed` | admin-only; generates synthetic data (see §8) |
 
 `ref` is an endpoint's `target_key` (asset id or raw value); the front reads it off the asset node's
@@ -312,14 +311,7 @@ flowchart LR
 
 ## 8. Enable, seed, explore
 
-### Enable the feature
-
-Add `ATTACK_PATH` to the enabled preview features (or `*` for all), for example in your dev
-configuration (`application-dev.properties`):
-
-```properties
-openaev.enabled-dev-features=ATTACK_PATH
-```
+### Start the feature
 
 Start the backend and the front (`cd openaev-front && yarn start`, the dev server runs on port 3001 and
 proxies `/api` to the backend on 8080). The tab appears on every simulation page.

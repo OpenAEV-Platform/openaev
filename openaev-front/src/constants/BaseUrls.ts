@@ -38,6 +38,8 @@ export const ROLE_BASE_URL = '/admin/settings/security/roles';
 // Admin-side organization administration (Settings > Security > Organizations).
 export const SECURITY_ORGANIZATION_BASE_URL = '/admin/settings/security/organizations';
 export const ASSET_RULES_BASE_URL = '/admin/settings/customization/asset_rules';
+// Lessons learned templates live under Settings > Customization (right menu).
+export const LESSONS_TEMPLATES_BASE_URL = '/admin/settings/customization/lessons';
 
 // Redirects
 export const REDIRECT_CONNECT_XTM_HUB_URL = '/redirect/connect-xtm-hub';

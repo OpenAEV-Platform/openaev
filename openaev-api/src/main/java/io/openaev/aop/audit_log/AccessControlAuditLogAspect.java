@@ -9,11 +9,14 @@ import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
-import io.openaev.service.LogService;
-import io.openaev.utils.log.LogUtils;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.util.Map;
-import java.util.UUID;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import lombok.RequiredArgsConstructor;
@@ -26,13 +29,17 @@ import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.io.Resource;
 import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -50,7 +57,7 @@ import org.springframework.web.server.ResponseStatusException;
  * {@link AuditLogFailureException} propagates through the transaction interceptor, which rolls back
  * the mutation.
  *
- * <p>Phase 1: delegates to {@link LogService} for console-only output.
+ * <p>Phase 1: delegates to {@link io.openaev.service.LogService} for console-only output.
  */
 @Aspect
 @Component
@@ -64,6 +71,7 @@ public class AccessControlAuditLogAspect {
 
   private final ObjectMapper objectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
+  @PersistenceContext private EntityManager entityManager;
 
   private static final String LOG_ERROR_MSG = "Error during audit logging";
 
@@ -95,18 +103,24 @@ public class AccessControlAuditLogAspect {
       if (isActive) {
         try {
           if (isRbacDeniedException(ex)) {
-            String eventScope = LogUtils.getEventScope(Action.UNAUTHORIZED);
-            String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode errorNode = buildErrorNode(null, ex);
 
-            logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
+            logAccessControlEvent(
+                joinPoint,
+                accessControl,
+                AuditEventScope.from(Action.UNAUTHORIZED),
+                EventStatus.ERROR,
+                errorNode);
           } else if (isActionActive) {
-            String eventScope = LogUtils.getEventScope(action);
-            String eventStatus = LogUtils.getEventStatus(EventStatus.ERROR);
             JsonNode resultNode = getOutputNode(result);
             JsonNode errorNode = buildErrorNode(resultNode, ex);
 
-            logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, errorNode);
+            logAccessControlEvent(
+                joinPoint,
+                accessControl,
+                AuditEventScope.from(action),
+                EventStatus.ERROR,
+                errorNode);
           }
         } catch (AuditLogFailureException e) {
           throw e;
@@ -119,11 +133,14 @@ public class AccessControlAuditLogAspect {
 
     if (isActive && isActionActive && AuditLogContext.isEnabled()) {
       try {
-        String eventScope = LogUtils.getEventScope(action);
-        String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
         JsonNode resultNode = getOutputNode(result);
 
-        logAccessControlEvent(joinPoint, accessControl, eventScope, eventStatus, resultNode);
+        logAccessControlEvent(
+            joinPoint,
+            accessControl,
+            AuditEventScope.from(action),
+            EventStatus.SUCCESS,
+            resultNode);
       } catch (AuditLogFailureException ex) {
         throw ex;
       } catch (Exception ex) {
@@ -137,15 +154,15 @@ public class AccessControlAuditLogAspect {
   private void logAccessControlEvent(
       JoinPoint joinPoint,
       AccessControl accessControl,
-      String eventScope,
-      String eventStatus,
+      AuditEventScope eventScope,
+      EventStatus eventStatus,
       JsonNode outputNode) {
     try {
-      String logUUID = UUID.randomUUID().toString();
       ResourceType resourceType = accessControl.resourceType();
       String resourceId = resolveResourceId(joinPoint, accessControl);
-      JsonNode inputNode = getInputNode(joinPoint, eventScope);
-      JsonNode signatureNode = getMethodSignature(joinPoint, inputNode);
+      int payloadIndex = findRequestPayloadIndex(joinPoint);
+      JsonNode inputNode = getInputNode(joinPoint, payloadIndex, eventScope);
+      JsonNode signatureNode = getMethodSignature(joinPoint, payloadIndex);
 
       // Capture snapshots on the servlet thread before any async handoff.
       Map<String, AuditLogContext.EntitySnapshot> snapshots = captureEntitySnapshots();
@@ -170,8 +187,7 @@ public class AccessControlAuditLogAspect {
               inputNode,
               outputNode,
               signatureNode,
-              snapshots,
-              logUUID);
+              snapshots);
 
       auditFuture.whenComplete(logCompletion);
     } catch (AuditLogFailureException ex) {
@@ -182,11 +198,20 @@ public class AccessControlAuditLogAspect {
   }
 
   /**
-   * Captures all pending entity snapshots from {@link AuditLogContext}. Must be called on the
-   * servlet thread before any async handoff, since {@link AuditLogContext} is request-scoped.
+   * Flushes pending Hibernate changes and captures all entity snapshots from {@link
+   * AuditLogContext}. Must be called on the servlet thread before any async handoff, since {@link
+   * AuditLogContext} is request-scoped.
+   *
+   * <p>The flush triggers {@code @PreUpdate} / {@code @PreRemove} JPA callbacks that store
+   * before/after snapshots in {@link AuditLogContext}. Without it, the callbacks would only fire at
+   * transaction commit time — after {@code consumeAllSnapshots()} has already cleared the context.
+   *
+   * <p>This is safe because the aspect runs inside the transaction boundary; if the flush reveals a
+   * constraint violation, it would have failed at commit anyway.
    */
   private Map<String, AuditLogContext.EntitySnapshot> captureEntitySnapshots() {
     try {
+      entityManager.flush();
       return AuditLogContext.consumeAllSnapshots();
     } catch (Exception e) {
       log.debug("[AUDIT] Failed to capture entity snapshots: {}", e.getMessage());
@@ -215,20 +240,16 @@ public class AccessControlAuditLogAspect {
   }
 
   // Capture the input DTO for create/update/status_change
-  private JsonNode getInputNode(JoinPoint joinPoint, String eventScope) {
-    JsonNode inputNode = null;
-
-    if ("create".equals(eventScope)
-        || "update".equals(eventScope)
-        || "status_change".equals(eventScope)) {
-      Object requestBody = findRequestBody(joinPoint);
-
-      if (requestBody != null) {
-        inputNode = objectMapper.valueToTree(requestBody);
-      }
+  private JsonNode getInputNode(JoinPoint joinPoint, int payloadIndex, AuditEventScope eventScope) {
+    if (payloadIndex < 0
+        || (eventScope != AuditEventScope.CREATE
+            && eventScope != AuditEventScope.UPDATE
+            && eventScope != AuditEventScope.STATUS_CHANGE)) {
+      return null;
     }
 
-    return inputNode;
+    Object requestBody = joinPoint.getArgs()[payloadIndex];
+    return requestBody != null ? objectMapper.valueToTree(requestBody) : null;
   }
 
   private JsonNode getOutputNode(Object output) {
@@ -257,27 +278,54 @@ public class AccessControlAuditLogAspect {
     return errorNode;
   }
 
-  /** Finds the first method argument annotated with {@code @RequestBody}. */
-  private Object findRequestBody(JoinPoint joinPoint) {
+  /**
+   * Finds the index of the argument carrying the request payload.
+   *
+   * <p>Recognizes {@code @RequestBody}, {@code @RequestPart} and {@code @ModelAttribute}. Multipart
+   * endpoints (e.g. {@code InjectorApi.registerInjector}) pass their DTO via {@code @RequestPart};
+   * missing them made the payload fall through to the {@code signature} node, which at the time was
+   * not size-capped by {@code ObjectNormalizationUtils} — a heap-exhaustion risk on large payloads.
+   * {@code LogService} now normalizes the signature node as well, as defense in depth.
+   *
+   * @return the argument index, or {@code -1} if none matches
+   */
+  private int findRequestPayloadIndex(JoinPoint joinPoint) {
     try {
       MethodSignature signature = (MethodSignature) joinPoint.getSignature();
       Annotation[][] paramAnnotations = signature.getMethod().getParameterAnnotations();
       Object[] args = joinPoint.getArgs();
-      for (int i = 0; i < paramAnnotations.length; i++) {
+      for (int i = 0; i < paramAnnotations.length && i < args.length; i++) {
         for (Annotation ann : paramAnnotations[i]) {
-          if (ann instanceof RequestBody) {
-            return args[i];
+          boolean isPayloadAnnotation =
+              ann instanceof RequestBody
+                  || ann instanceof RequestPart
+                  || ann instanceof ModelAttribute;
+          if (isPayloadAnnotation && !isNonSerializableArgument(args[i])) {
+            return i;
           }
         }
       }
     } catch (Exception e) {
-      log.debug("[AUDIT] Failed to find @RequestBody argument: {}", e.getMessage());
+      log.debug("[AUDIT] Failed to find request payload argument: {}", e.getMessage());
     }
-    return null;
+    return -1;
+  }
+
+  /**
+   * Arguments that must never be fed to Jackson: serializing them either materializes the whole
+   * uploaded file in the heap ({@code MultipartFile#getBytes} as base64) or consumes a stream.
+   */
+  private static boolean isNonSerializableArgument(Object value) {
+    Object unwrapped = value instanceof Optional<?> opt ? opt.orElse(null) : value;
+    return unwrapped instanceof MultipartFile
+        || unwrapped instanceof Resource
+        || unwrapped instanceof InputStream
+        || unwrapped instanceof HttpServletRequest
+        || unwrapped instanceof HttpServletResponse;
   }
 
   /** Builds a JsonNode with the method signature and its parameter names mapped to their values. */
-  private JsonNode getMethodSignature(JoinPoint joinPoint, JsonNode inputNode) {
+  private JsonNode getMethodSignature(JoinPoint joinPoint, int payloadIndex) {
     try {
       MethodSignature signature = (MethodSignature) joinPoint.getSignature();
       String[] paramNames = signature.getParameterNames();
@@ -289,19 +337,12 @@ public class AccessControlAuditLogAspect {
       ObjectNode params = objectMapper.createObjectNode();
       if (paramNames != null) {
         for (int i = 0; i < paramNames.length; i++) {
-          Object value = i < args.length ? args[i] : null;
-          // Skip the parameter that was already captured as inputNode
-          if (value != null
-              && inputNode != null
-              && objectMapper.valueToTree(value).equals(inputNode)) {
+          // Never re-serialize the payload into the signature; for mutating scopes it is captured
+          // separately as inputNode (normalized and size-capped downstream).
+          if (i == payloadIndex) {
             params.put(paramNames[i], "@RequestBody");
-            continue;
-          }
-
-          try {
-            params.set(paramNames[i], objectMapper.valueToTree(value));
-          } catch (Exception ex) {
-            params.put(paramNames[i], value != null ? value.toString() : "null");
+          } else {
+            setParameterNode(params, paramNames[i], i < args.length ? args[i] : null);
           }
         }
       }
@@ -311,6 +352,20 @@ public class AccessControlAuditLogAspect {
       log.warn("[AUDIT] Failed to build method signature node: {}", e.getMessage(), e);
     }
     return null;
+  }
+
+  /** Serializes a single method parameter, skipping values Jackson must never walk. */
+  private void setParameterNode(ObjectNode params, String paramName, Object value) {
+    Object unwrapped = value instanceof Optional<?> opt ? opt.orElse(null) : value;
+    if (unwrapped != null && isNonSerializableArgument(unwrapped)) {
+      params.put(paramName, unwrapped.getClass().getSimpleName());
+      return;
+    }
+    try {
+      params.set(paramName, objectMapper.valueToTree(value));
+    } catch (Exception ex) {
+      params.put(paramName, value != null ? value.toString() : "null");
+    }
   }
 
   /** Resolves the resource ID from the annotation's SpEL expression. */

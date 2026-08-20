@@ -7,6 +7,7 @@ import { FilterChipPopoverInput } from './FilterChipPopoverInput';
 import { type FilterHelpers } from './FilterHelpers';
 import { availableOperators, OperatorKeyValues } from './FilterUtils';
 import ScenarioStatusFilter from './specific/ScenarioStatusFilter';
+import ScenarioTypeFilter from './specific/ScenarioTypeFilter';
 
 interface Props {
   filter: Filter;
@@ -38,6 +39,9 @@ const FilterChipPopover: FunctionComponent<Props> = ({
     // Specific field
     if (propertySchema.schema_property_name === 'scenario_recurrence') {
       return (<ScenarioStatusFilter propertySchema={propertySchema} helpers={helpers} filter={filter} />);
+    }
+    if (propertySchema.schema_property_name === 'scenario_type') {
+      return (<ScenarioTypeFilter propertySchema={propertySchema} helpers={helpers} filter={filter} />);
     }
 
     const operators = availableOperators(propertySchema);

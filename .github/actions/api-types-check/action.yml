@@ -14,43 +14,8 @@ description: >
 runs:
   using: composite
   steps:
-    - name: Start all services (non-blocking)
-      shell: bash
-      run: |
-        docker run -d --name pgsql \
-          -p 5432:5432 \
-          -e POSTGRES_USER=openaev \
-          -e POSTGRES_PASSWORD=openaev \
-          -e POSTGRES_DB=openaev \
-          postgres:17-alpine \
-          -c max_connections=1000
-        docker run -d --name elasticsearch \
-          -p 9200:9200 \
-          -e discovery.type=single-node \
-          -e xpack.security.enabled=false \
-          -e "ES_JAVA_OPTS=-Xms2g -Xmx2g" \
-          docker.elastic.co/elasticsearch/elasticsearch:8.18.3
-        docker run -d --name rabbitmq \
-          -p 5672:5672 \
-          -p 15672:15672 \
-          -e RABBITMQ_DEFAULT_USER=guest \
-          -e RABBITMQ_DEFAULT_PASS=guest \
-          rabbitmq:4.1-management
-        docker run -d --name minio \
-          -p 11000:9000 \
-          -e MINIO_ROOT_USER=minioadmin \
-          -e MINIO_ROOT_PASSWORD=minioadmin \
-          minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
-
-        echo "🔍 Verifying containers started..."
-        for name in pgsql elasticsearch rabbitmq minio; do
-          if ! docker inspect --format='{{.State.Running}}' "$name" 2>/dev/null | grep -q true; then
-            echo "❌ Container '$name' failed to start"
-            docker logs "$name" 2>/dev/null || true
-            exit 1
-          fi
-        done
-        echo "✅ All containers started"
+    - name: Start service containers
+      uses: ./.github/actions/start-dev-services
 
     - name: Set up Java 21
       uses: actions/setup-java@v5
@@ -61,7 +26,7 @@ runs:
     - name: Set up Node.js
       uses: actions/setup-node@v7
       with:
-        node-version: "22.23.1"
+        node-version: "22.23.2"
 
     - name: Install corepack
       run: npm install -g corepack
@@ -87,30 +52,11 @@ runs:
       working-directory: openaev-front
 
     - name: Wait for backend JAR artifact
-      shell: bash
-      run: |
-        echo "⏳ Waiting for backend-package artifact (services booting in parallel)..."
-        for i in $(seq 1 180); do
-          # Check if backend-compile has failed — abort immediately
-          COMPILE_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq '[.jobs[] | select(.name | test("Backend Compile")) | .conclusion] | first' 2>/dev/null || echo "")
-          if [ "$COMPILE_CONCLUSION" = "failure" ] || [ "$COMPILE_CONCLUSION" = "cancelled" ]; then
-            echo "❌ Backend Compile job $COMPILE_CONCLUSION — aborting"
-            exit 1
-          fi
-          NAMES=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
-            --jq '[.artifacts[].name]' 2>/dev/null || echo "[]")
-          if echo "$NAMES" | grep -q '"openaev-api-jar"'; then
-            echo "✅ Artifact available (after ~$((i * 5))s)"
-            break
-          fi
-          if [ "$i" -eq 180 ]; then
-            echo "❌ Timed out waiting for artifact (15 min)"
-            exit 1
-          fi
-          echo "  Attempt $i/180 — not ready, retrying in 5s..."
-          sleep 5
-        done
+      uses: ./.github/actions/wait-for-artifacts
+      with:
+        artifact-names: openaev-api-jar
+        producer-job-names: Backend Package (glibc)
+        wait-seconds: "900"
 
     - name: Download backend JAR artifact
       uses: actions/download-artifact@v8

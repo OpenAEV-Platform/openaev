@@ -16,6 +16,8 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.helper.InjectModelHelper;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
+import io.openaev.service.chaining.ConditionService;
+import io.openaev.service.chaining.StepTargetingService;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.function.Function;
@@ -28,7 +30,22 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class HealthCheckUtils {
 
+  /** Scope allowlist entry types consumed by asset/IP-centric (technical) steps. */
+  private static final Set<ScopeRuleValueType> TECHNICAL_SCOPE_TYPES =
+      Set.of(
+          ScopeRuleValueType.ASSET_ID,
+          ScopeRuleValueType.ASSET_GROUP_ID,
+          ScopeRuleValueType.IP,
+          ScopeRuleValueType.IP_SUBNET,
+          ScopeRuleValueType.DOMAIN);
+
+  /** Scope allowlist entry types consumed by audience-centric (tabletop) steps. */
+  private static final Set<ScopeRuleValueType> AUDIENCE_SCOPE_TYPES =
+      Set.of(ScopeRuleValueType.TEAM_ID, ScopeRuleValueType.PLAYER_ID);
+
   private final ExecutorUtils executorUtils;
+  private final StepTargetingService stepTargetingService;
+  private final ConditionService conditionService;
 
   /**
    * Run all mail service checks for one inject
@@ -432,7 +449,7 @@ public class HealthCheckUtils {
                       actualValues.stream().anyMatch(specificValuesNode::contains);
 
                   if (!conditionMet) {
-                    continue; // condition not met → skip
+                    continue; // condition not met -> skip
                   }
                 }
               }
@@ -475,22 +492,147 @@ public class HealthCheckUtils {
   }
 
   /**
-   * Run scope definition check for a workflow template. Returns a warning when the workflow has no
-   * scope rules defined (neither allowlist nor denylist).
+   * Run the scope definition checks for a workflow template, payload-type aware.
    *
-   * @param workflow the workflow template to check
+   * <p>The chaining engine consumes the scope along two axes: asset/IP-centric (technical) steps
+   * fan out over assets, asset groups and raw IPs, while audience-centric (tabletop: email, SMS,
+   * challenge, ...) steps consume teams and individual players. A generic "scope is empty" check
+   * cannot tell an operator <i>which kind</i> of entry is missing, so this method classifies the
+   * workflow's steps with {@link StepTargetingService} and emits:
+   *
+   * <ul>
+   *   <li>{@code EMPTY} (warning) when the allowlist has no usable entry at all - the historical
+   *       check, kept as the first-line message while the scope is entirely empty;
+   *   <li>{@code MISSING_TECHNICAL_TARGETS} (error) when at least one technical step relies on the
+   *       scope (no explicit assets/targets in its drawer, no target-feeding mapper) but the
+   *       allowlist holds no technical entry;
+   *   <li>{@code MISSING_AUDIENCE_TARGETS} (error) when at least one tabletop step relies on the
+   *       scope (no explicit audience in its drawer, no target-feeding mapper) but the allowlist
+   *       holds no team/player entry;
+   *   <li>{@code INEFFECTIVE_TECHNICAL_TARGETS} (warning) when the allowlist holds technical
+   *       entries but the workflow has no technical step: the scope fan-out never consumes them;
+   *   <li>{@code INEFFECTIVE_AUDIENCE_TARGETS} (warning) when the allowlist holds team/player
+   *       entries but no tabletop step actually falls back to them (every audience step either
+   *       carries an explicit drawer audience or is mapper-fed) - the entries would be silently
+   *       ignored at run time. Technical entries differ: the per-asset fan-out consumes them for
+   *       every technical step, explicit drawer targets or not, so only a fully technical-step-less
+   *       workflow makes them ineffective.
+   * </ul>
+   *
+   * <p>Only MAPPER conditions that feed actual execution targets (assets, manual targets, raw
+   * recipients) count as a substitute for the scope; a mapper filling a command argument, an email
+   * subject or a team-typed field (which runtime mapping never resolves into {@code Inject#teams})
+   * leaves the step scope-dependent. Conditions are prefetched for all steps in one query to avoid
+   * an N+1 pattern during launch validation.
+   *
+   * <p>The {@code MISSING_*} errors are suppressed while the scope is entirely empty ({@code EMPTY}
+   * already gates the launch, stacking banners would be noise), and the {@code INEFFECTIVE_*}
+   * warnings only fire once the workflow has at least one step (while the chain is still being
+   * built, every entry is "not consumed yet").
+   *
+   * @param workflow the workflow template to check (scope rules + template steps)
    * @return found healthchecks
    */
   public List<HealthCheck> runScopeDefinitionChecks(@NotNull final Workflow workflow) {
     List<HealthCheck> result = new ArrayList<>();
-    if (workflow.getWorkflowScopeRules() == null || workflow.getWorkflowScopeRules().isEmpty()) {
+
+    List<WorkflowScopeRule> allowlistRules =
+        ofNullable(workflow.getWorkflowScopeRules()).orElse(List.of()).stream()
+            .filter(rule -> ScopeRuleSelectedMode.ALLOWLIST.equals(rule.getSelectedMode()))
+            .filter(rule -> rule.getRuleValue() != null && !rule.getRuleValue().trim().isEmpty())
+            .toList();
+    boolean hasAllowlistTarget = !allowlistRules.isEmpty();
+    boolean hasTechnicalEntries =
+        allowlistRules.stream()
+            .anyMatch(
+                rule ->
+                    rule.getValueType() != null
+                        && TECHNICAL_SCOPE_TYPES.contains(rule.getValueType()));
+    boolean hasAudienceEntries =
+        allowlistRules.stream()
+            .anyMatch(
+                rule ->
+                    rule.getValueType() != null
+                        && AUDIENCE_SCOPE_TYPES.contains(rule.getValueType()));
+
+    List<Step> steps = ofNullable(workflow.getSteps()).orElse(List.of());
+    // A step "relies on the scope" when nothing else can provide its targets: no explicit
+    // configuration in the Configure-action drawer and no MAPPER condition feeding its execution
+    // targets dynamically from upstream outputs. Conditions are prefetched for every step in one
+    // batched query, and each step is classified exactly once in a single pass.
+    Map<String, List<Condition>> conditionsByStep =
+        conditionService.findAllConditionsByStepIds(
+            steps.stream().map(Step::getId).filter(Objects::nonNull).collect(Collectors.toSet()));
+    boolean hasTechnicalStep = false;
+    boolean technicalStepNeedsScope = false;
+    boolean audienceStepNeedsScope = false;
+    for (Step step : steps) {
+      List<Condition> stepConditions =
+          step.getId() == null ? List.of() : conditionsByStep.getOrDefault(step.getId(), List.of());
+      if (stepTargetingService.isAssetCentric(step)) {
+        hasTechnicalStep = true;
+        technicalStepNeedsScope =
+            technicalStepNeedsScope
+                || (!stepTargetingService.hasExplicitTechnicalTargets(step)
+                    && !stepTargetingService.hasTargetFeedingMapperConditions(
+                        step, stepConditions, true));
+      } else {
+        audienceStepNeedsScope =
+            audienceStepNeedsScope
+                || (!stepTargetingService.hasExplicitAudience(step)
+                    && !stepTargetingService.hasTargetFeedingMapperConditions(
+                        step, stepConditions, false));
+      }
+    }
+
+    if (!hasAllowlistTarget) {
       result.add(
           new HealthCheck(
               HealthCheck.Type.SCOPE_DEFINITION,
               HealthCheck.Detail.EMPTY,
               HealthCheck.Status.WARNING,
               now()));
+      return result;
     }
+
+    if (technicalStepNeedsScope && !hasTechnicalEntries) {
+      result.add(
+          new HealthCheck(
+              HealthCheck.Type.SCOPE_DEFINITION,
+              HealthCheck.Detail.MISSING_TECHNICAL_TARGETS,
+              HealthCheck.Status.ERROR,
+              now()));
+    }
+    if (audienceStepNeedsScope && !hasAudienceEntries) {
+      result.add(
+          new HealthCheck(
+              HealthCheck.Type.SCOPE_DEFINITION,
+              HealthCheck.Detail.MISSING_AUDIENCE_TARGETS,
+              HealthCheck.Status.ERROR,
+              now()));
+    }
+
+    if (!steps.isEmpty()) {
+      if (hasTechnicalEntries && !hasTechnicalStep) {
+        result.add(
+            new HealthCheck(
+                HealthCheck.Type.SCOPE_DEFINITION,
+                HealthCheck.Detail.INEFFECTIVE_TECHNICAL_TARGETS,
+                HealthCheck.Status.WARNING,
+                now()));
+      }
+      // Audience entries are only consumed by the scope fallback, which explicit-drawer and
+      // mapper-fed audience steps skip: warn whenever no step actually needs them.
+      if (hasAudienceEntries && !audienceStepNeedsScope) {
+        result.add(
+            new HealthCheck(
+                HealthCheck.Type.SCOPE_DEFINITION,
+                HealthCheck.Detail.INEFFECTIVE_AUDIENCE_TARGETS,
+                HealthCheck.Status.WARNING,
+                now()));
+      }
+    }
+
     return result;
   }
 

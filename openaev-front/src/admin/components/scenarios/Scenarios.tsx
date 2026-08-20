@@ -24,12 +24,12 @@ import useAuth from '../../../utils/hooks/useAuth';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
 import ImportFromHubButton from '../common/ImportFromHubButton';
 import ToolBar from '../common/ToolBar';
 import ImportUploaderScenario from './ImportUploaderScenario';
 import ScenarioPopover from './scenario/ScenarioPopover';
 import ScenarioStatus from './scenario/ScenarioStatus';
+import ScenarioType, { SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED, type ScenarioTypeValue } from './scenario/ScenarioType';
 import ScenarioCreation from './ScenarioCreation';
 
 const useStyles = makeStyles()(() => ({
@@ -38,12 +38,13 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
-  scenario_name: { width: '25%' },
+  scenario_name: { width: '22%' },
   scenario_severity: { width: '8%' },
   scenario_category: { width: '12%' },
-  scenario_recurrence: { width: '12%' },
+  scenario_type: { width: '12%' },
+  scenario_recurrence: { width: '10%' },
   scenario_platforms: { width: '10%' },
-  scenario_tags: { width: '18%' },
+  scenario_tags: { width: '16%' },
   scenario_updated_at: { width: '10%' },
 };
 
@@ -53,9 +54,8 @@ const Scenarios = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const { isXTMHubAccessible } = useAuth();
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-
   const [loading, setLoading] = useState<boolean>(true);
+  const [reloadCount, setReloadCount] = useState<number>(0);
 
   // Headers
   const headers = useMemo(() => [
@@ -90,6 +90,19 @@ const Scenarios = () => {
       ),
     },
     {
+      field: 'scenario_type',
+      label: 'Type',
+      // Derived engine facet (no single sortable column), mirroring the backend ScenarioSpecification:
+      // a scenario carrying a chaining workflow template is Chained, otherwise it is a classic
+      // Time-based scenario. Autonomy is a launch-time MODE now, not a scenario type.
+      isSortable: false,
+      value: (scenario: Scenario) => {
+        const workflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id;
+        const type: ScenarioTypeValue = workflowId ? SCENARIO_TYPE_CHAINED : SCENARIO_TYPE_TIME_BASED;
+        return <ScenarioType type={type} variant="list" />;
+      },
+    },
+    {
       field: 'scenario_recurrence',
       label: 'Status',
       isSortable: false,
@@ -115,7 +128,7 @@ const Scenarios = () => {
       isSortable: true,
       value: (scenario: Scenario) => nsdt(scenario.scenario_updated_at),
     },
-  ], []);
+  ], [t, nsdt]);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
 
@@ -128,6 +141,7 @@ const Scenarios = () => {
     'scenario_recurrence',
     'scenario_severity',
     'scenario_tags',
+    'scenario_type',
     'scenario_updated_at',
   ];
 
@@ -196,6 +210,7 @@ const Scenarios = () => {
       />
       <PaginationComponentV2
         fetch={search}
+        reloadContentCount={reloadCount}
         searchPaginationInput={searchPaginationInput}
         setContent={setScenarios}
         entityPrefix="scenario"
@@ -216,7 +231,7 @@ const Scenarios = () => {
                 exportProps={exportProps}
               />
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-                <ImportUploaderScenario />
+                <ImportUploaderScenario refresh={() => setReloadCount(count => count + 1)} />
               </Can>
             </ToggleButtonGroup>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
@@ -280,6 +295,12 @@ const Scenarios = () => {
           loading
             ? <PaginatedListLoader Icon={RouteOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canManage} />
             : scenarios.map((scenario: Scenario) => {
+                const isScenarioChaining = !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id;
+                // A chained scenario owns its attack-path logic and is never duplicated by hand
+                // (its metadata stays editable); a time-based one may also be duplicated.
+                const scenarioActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = isScenarioChaining
+                  ? ['Update', 'Export', 'Delete']
+                  : ['Duplicate', 'Export', 'Delete'];
                 return (
                   <ListItem
                     key={scenario.scenario_id}
@@ -287,11 +308,7 @@ const Scenarios = () => {
                     secondaryAction={(
                       <ScenarioPopover
                         scenario={scenario}
-                        actions={
-                          isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id
-                            ? ['Export', 'Delete']
-                            : ['Duplicate', 'Export', 'Delete']
-                        }
+                        actions={scenarioActions}
                         onDelete={(result) => {
                           setScenarios(scenarios.filter(e => (e.scenario_id !== result)));
                           setSearchPaginationInput(prev => ({

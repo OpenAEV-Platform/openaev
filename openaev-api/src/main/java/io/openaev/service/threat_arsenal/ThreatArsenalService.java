@@ -7,10 +7,12 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.threat_arsenal.dto.*;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
@@ -175,6 +177,11 @@ public class ThreatArsenalService {
     target.setContent(source.content());
     target.setExecutionArch(source.executionArch());
     target.setExpectations(source.expectations());
+    // Per-expectation security-platform scope (empty/absent = any platform). Keep the input's
+    // non-null default map when the caller omits it so we never null out the payload field.
+    if (source.expectedSecurityPlatforms() != null) {
+      target.setExpectedSecurityPlatforms(source.expectedSecurityPlatforms());
+    }
     target.setExecutableFile(source.executableFile());
     target.setFileDropFile(source.fileDropFile());
     target.setHostname(source.hostname());
@@ -265,13 +272,14 @@ public class ThreatArsenalService {
 
   private ThreatArsenalAction updateActionPayloadBased(
       InjectorContract injectorContract, ThreatArsenalActionUpdateInput actionInput) {
+    // Missing required fields are a client mistake, not a server fault: raise the domain
+    // BadRequestException (400) so the caller gets an actionable message it can auto-correct,
+    // instead of leaning on the catch-all IllegalArgumentException mapper.
     if (actionInput.executionArch() == null) {
-      throw new IllegalArgumentException(
-          "action_execution_arch is required for payload-based actions");
+      throw new BadRequestException("action_execution_arch is required for payload-based actions");
     }
     if (actionInput.expectations() == null) {
-      throw new IllegalArgumentException(
-          "action_expectations is required for payload-based actions");
+      throw new BadRequestException("action_expectations is required for payload-based actions");
     }
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
@@ -306,10 +314,13 @@ public class ThreatArsenalService {
    * Duplicates an existing threat arsenal action.
    *
    * <p>Delegates the duplication to the payload service and maps the result back to a {@link
-   * ThreatArsenalAction}.
+   * ThreatArsenalAction}. Native injector contracts (no payload) cannot be duplicated: they must be
+   * reused by id. Returning 404 here used to look like a missing id and sent agents hunting for a
+   * different contract or inventing a weaker original Command.
    *
    * @param actionId the ID of the action to duplicate
    * @return the newly created threat arsenal action copy
+   * @throws BadRequestException if the injector contract is not payload-based
    */
   @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction duplicate(String actionId) {
@@ -317,8 +328,11 @@ public class ThreatArsenalService {
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     Payload payload = injectorContract.getPayload();
     if (payload == null) {
-      throw new ElementNotFoundException(
-          "Only threat arsenal items based on a payload can be duplicated.");
+      throw new BadRequestException(
+          "This threat arsenal item is a native injector (not payload-based) and cannot be"
+              + " duplicated. Reuse its injector contract id as-is. Only payload-based actions"
+              + " (Command, FileDrop, Executable, DnsResolution, and other payload types) can be"
+              + " duplicated so parsers can be added on the copy.");
     }
 
     PayloadCreationService.PayloadInjectorContractCreationResult result =
@@ -417,7 +431,12 @@ public class ThreatArsenalService {
    * @throws ElementNotFoundException if the injector contract is not payload-based
    */
   @Transactional(rollbackFor = Exception.class)
-  public void delete(String actionId) {
+  public void delete(
+      // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for this transaction (isEligibleForDeletion resolves InjectorContract#getInjectorType(),
+      // which is v2 tenant-scoped through the injectors table; without a scope it silently reads
+      // null and every action looks "orphaned", bypassing the deletion guard).
+      TxCtx ctx, String actionId) {
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     if (!isEligibleForDeletion(injectorContract)) {
       throw new ElementNotFoundException("Only payload-based or orphaned actions can be deleted.");
@@ -440,13 +459,17 @@ public class ThreatArsenalService {
    * BulkDeleteExecutor}, which also tracks the deletion as a massive operation (header progress
    * indicator) and suppresses the per-entity stream events.
    *
+   * @param ctx the tenant scope for the read transaction and each chunk transaction (the eligible
+   *     resolution and every chunk read/write InjectorContract#getInjectorType()/getPayload()
+   *     through the v2 tenant-scoped injectors table)
    * @param input the search + selection input
    * @return the ids that were actually deleted
    */
-  public List<String> bulkDelete(InjectorContractSearchPaginationInput input) {
+  public List<String> bulkDelete(TxCtx ctx, InjectorContractSearchPaginationInput input) {
     List<String> eligibleIds =
-        bulkDeleteExecutor.resolveInTransaction(() -> resolveEligibleIds(input));
+        bulkDeleteExecutor.resolveInTransaction(ctx, () -> resolveEligibleIds(input));
     return bulkDeleteExecutor.deleteInChunks(
+        ctx,
         "threat arsenal items",
         eligibleIds,
         chunk -> chunk.forEach(injectorContractService::deleteInjectorContractById));

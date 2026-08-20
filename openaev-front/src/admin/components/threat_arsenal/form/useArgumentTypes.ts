@@ -9,6 +9,18 @@ type UseArgumentTypesResult = {
   error: Error | null;
 };
 
+let argumentTypesPromise: Promise<string[]> | null = null;
+
+const getArgumentTypes = (): Promise<string[]> => {
+  argumentTypesPromise ??= fetchArgumentTypes()
+    .then(data => [...data].sort((a, b) => a.localeCompare(b)))
+    .catch((error) => {
+      argumentTypesPromise = null;
+      throw error;
+    });
+  return argumentTypesPromise;
+};
+
 const useArgumentTypes = (): UseArgumentTypesResult => {
   const [argumentTypes, setArgumentTypes] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,8 +31,8 @@ const useArgumentTypes = (): UseArgumentTypesResult => {
       try {
         setIsLoading(true);
         setError(null);
-        const data = await fetchArgumentTypes();
-        setArgumentTypes([...data].sort((a, b) => a.localeCompare(b)));
+        const data = await getArgumentTypes();
+        setArgumentTypes(data);
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to fetch argument types'));
       } finally {

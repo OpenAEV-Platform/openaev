@@ -103,11 +103,40 @@ public class TenantScopedTransaction {
   }
 
   /**
+   * Sets the tenant scope on the CURRENT, already-active transaction; opens none. For code that
+   * must join an ambient transaction it does not own and needs to see uncommitted writes made
+   * earlier in that same transaction — the tenant-onboarding case: {@code TenantService.create()}
+   * inserts the new {@code Tenant} row, uncommitted, then dependency managers (including {@code
+   * MigrationProcessor}) must write child rows referencing that same tenant id. {@link #executeNew}
+   * is the WRONG tool here: {@code REQUIRES_NEW} suspends the ambient transaction and opens a new
+   * connection with its own snapshot, which cannot see the uncommitted tenant row — every
+   * FK-constrained insert against it fails immediately.
+   *
+   * <p>Unlike {@link #executeNew}, a failure in the caller's subsequent work marks the WHOLE
+   * ambient transaction rollback-only, same as any other code running in it. This is deliberate: a
+   * failed provisioning step must not leave a half-provisioned, committed tenant behind — the
+   * caller (the create-tenant HTTP transaction) rolls back everything, tenant row included.
+   *
+   * <p>Refuses to run outside an active transaction: there is no ambient scope to join.
+   */
+  public void setScopeOnCurrentTransaction(TxCtx ctx) {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.setScopeOnCurrentTransaction() has nothing to join: no"
+              + " transaction is active. It only makes sense inside an ambient transaction opened"
+              + " by the caller.");
+    }
+    setScope(intentionResolver.resolve(ctx).toGuc());
+  }
+
+  /**
    * The per-tenant loop idiom: runs {@code work} once for every active tenant, each in its OWN
    * top-level transaction scoped to that tenant. This is the FLAT loop, not a nested one: a tenant
    * that fails is rolled back and cannot poison the others (unlike catching an exception inside a
    * single transaction, which dies at commit). Failures are collected and rethrown as one
-   * aggregate, never swallowed. The work receives its tenant's scope, ready for write attribution.
+   * aggregate, never swallowed. The work receives its tenant id directly; reconstruct the scope
+   * with {@code TxCtx.forTenant(id)} if a nested call needs it explicitly (e.g. a joined
+   * {@code @Transactional} method taking a {@code TxCtx} argument).
    *
    * <p>This is the intended idiom for the common SEQUENTIAL per-tenant job. The package-private
    * resolver keeps the {@code allTenants()} resolution machinery internal; a job with a legitimate
@@ -126,7 +155,7 @@ public class TenantScopedTransaction {
    * marked failed even when most tenants succeeded: read the per-tenant {@code log.warn} and the
    * aggregate's suppressed causes to see what actually happened.
    */
-  public void forEachTenant(Consumer<TxCtx> work) {
+  public void forEachTenant(Consumer<String> work) {
     // Checked upfront: a sequence of top-level transactions cannot run inside an active one. The
     // per-tenant execute() would refuse each tenant anyway, but N aggregated refusals would bury
     // the actual reason.
@@ -141,7 +170,7 @@ public class TenantScopedTransaction {
     for (String tenantId : tenantIds) {
       try {
         TxCtx scope = TxCtx.forTenant(tenantId);
-        execute(scope, () -> work.accept(scope));
+        execute(scope, () -> work.accept(tenantId));
       } catch (RuntimeException failure) {
         failures.put(tenantId, failure);
         log.warn("forEachTenant: tenant {} failed, continuing with the others", tenantId, failure);

@@ -8,7 +8,13 @@ public enum TenantSettingKeys {
   // Dashboards
   TENANT_HOME_DASHBOARD("platform_home_dashboard", "", false),
   TENANT_SCENARIO_DASHBOARD("platform_scenario_dashboard", "", false),
-  TENANT_SIMULATION_DASHBOARD("platform_simulation_dashboard", "", false);
+  TENANT_SIMULATION_DASHBOARD("platform_simulation_dashboard", "", false),
+  // Autonomous attack: JSON array of XTM One agent ids the orchestrator consults by default
+  AUTONOMOUS_ADDITIONAL_AGENTS("platform_autonomous_additional_agents", "", false),
+  // Autonomous attack: JSON object mapping an agent id to its default discovery mode
+  // (EXISTING_ONLY / SCOPED / EXPANSIVE) - how much latitude the agent has to create new
+  // assets / findings / persons from recon on the fly.
+  AUTONOMOUS_ADDITIONAL_AGENT_MODES("platform_autonomous_additional_agent_modes", "", false);
 
   private final String key;
   private final String defaultValue;

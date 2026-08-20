@@ -24,12 +24,14 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.rest.asset.form.AssetBulkProcessingInput;
@@ -62,6 +64,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -85,10 +88,16 @@ class EndpointApiTest extends IntegrationTest {
   @MockitoSpyBean private AssetAgentJobRepository assetAgentJobRepository;
   @MockitoSpyBean private InjectStatusService injectStatusService;
   @Autowired private AssetGroupRepository assetGroupRepository;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private io.openaev.utils.mockUser.TestUserHolder testUserHolder;
 
   @BeforeEach
   public void setup() {
     executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+    // Link mock user to the default tenant so TxCtx resolves a valid write scope
+    if (testUserHolder.get() != null) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
   }
 
   @DisplayName("Given valid input, should create an endpoint agentless successfully")
@@ -760,6 +769,32 @@ class EndpointApiTest extends IntegrationTest {
     @WithMockUser
     class EndpointCrudIsolation {
 
+      private final List<String> committedTenantIds = new ArrayList<>();
+
+      @AfterEach
+      void cleanupCommittedTenants() {
+        if (!committedTenantIds.isEmpty()) {
+          tenantHelper.deleteCommittedTenants(committedTenantIds.toArray(new String[0]));
+          committedTenantIds.clear();
+        }
+      }
+
+      /**
+       * Commits everything created so far (tenants + the seeded endpoint, both still living inside
+       * the test's single physical transaction) and opens a fresh one for the cross-tenant Act
+       * call. Two different tenant scopes cannot coexist in one physical transaction -
+       * TenantScopeTransactionAspect's nesting guard refuses to redefine an already-set scope, and
+       * the arrange step (seeding via the tenant-X path) already sets one. Rows committed here are
+       * cleaned up by cleanupCommittedTenants() via cascading tenant delete.
+       */
+      private void commitArrangeAndStartFreshTransaction() {
+        entityManager.flush();
+        entityManager.clear();
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+        TestTransaction.start();
+      }
+
       private Endpoint createTenantEndpoint(String tenantId, String name) throws Exception {
         Endpoint endpointInput = createEndpoint();
         endpointInput.setName(name);
@@ -792,8 +827,9 @@ class EndpointApiTest extends IntegrationTest {
             tenantHelper.createTenantWithCapabilities("Tenant Y", Set.of(Capability.ACCESS_ASSETS));
 
         Endpoint endpointX = createTenantEndpoint(tenantX.getId(), "Isolation Read Endpoint");
-        entityManager.flush();
-        entityManager.clear();
+        committedTenantIds.add(tenantX.getId());
+        committedTenantIds.add(tenantY.getId());
+        commitArrangeAndStartFreshTransaction();
 
         // -------- Act --------
         int responseStatus =
@@ -844,8 +880,9 @@ class EndpointApiTest extends IntegrationTest {
             tenantHelper.createTenantWithCapabilities("Tenant Y", Set.of(Capability.ACCESS_ASSETS));
 
         createTenantEndpoint(tenantX.getId(), "CrossTenantSearchEndpoint");
-        entityManager.flush();
-        entityManager.clear();
+        committedTenantIds.add(tenantX.getId());
+        committedTenantIds.add(tenantY.getId());
+        commitArrangeAndStartFreshTransaction();
 
         SearchPaginationInput searchInput =
             PaginationFixture.simpleTextSearch("CrossTenantSearchEndpoint");
@@ -879,8 +916,9 @@ class EndpointApiTest extends IntegrationTest {
                 "Tenant Y", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
 
         Endpoint endpointX = createTenantEndpoint(tenantX.getId(), "Update Isolation Endpoint");
-        entityManager.flush();
-        entityManager.clear();
+        committedTenantIds.add(tenantX.getId());
+        committedTenantIds.add(tenantY.getId());
+        commitArrangeAndStartFreshTransaction();
 
         EndpointInput updateInput = createWindowsEndpointInput(List.of());
         updateInput.setName("Hijacked Endpoint");

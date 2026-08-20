@@ -23,6 +23,7 @@ import io.openaev.rest.injector.response.InjectorRegistration;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractInput;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
 import io.openaev.service.connectors.PlatformConnectors;
@@ -71,6 +72,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   private final InjectIndexCleanupService injectIndexCleanupService;
 
+  private final ChainingStepCleanupService chainingStepCleanupService;
+
   @Autowired
   public InjectorService(
       InjectorRepository injectorRepository,
@@ -87,7 +90,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       CatalogConnectorMapper catalogConnectorMapper,
       RabbitmqService rabbitmqService,
       EntityManager entityManager,
-      InjectIndexCleanupService injectIndexCleanupService) {
+      InjectIndexCleanupService injectIndexCleanupService,
+      ChainingStepCleanupService chainingStepCleanupService) {
     super(
         ConnectorType.INJECTOR,
         connectorInstanceConfigurationRepository,
@@ -105,6 +109,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     this.rabbitmqService = rabbitmqService;
     this.entityManager = entityManager;
     this.injectIndexCleanupService = injectIndexCleanupService;
+    this.chainingStepCleanupService = chainingStepCleanupService;
   }
 
   @Override
@@ -114,9 +119,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
 
   @Override
   protected Injector getConnectorById(String injectorId) {
-    return injectorRepository
-        .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
-        .orElse(null);
+    return injectorRepository.findByInjectorId(injectorId).orElse(null);
   }
 
   @Override
@@ -148,14 +151,16 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteInjector(@NotBlank final String injectorId) throws ConnectorStatusException {
-    String tenantId = TenantContext.getCurrentTenant();
     Injector injector =
-        injectorRepository
-            .findByIdAndTenantId(injectorId, tenantId)
-            .orElseThrow(ElementNotFoundException::new);
+        injectorRepository.findByInjectorId(injectorId).orElseThrow(ElementNotFoundException::new);
+    String tenantId = injector.getTenantId();
     if (PlatformConnectors.isPlatformInjector(injector.getType())) {
       throw new BadRequestException(
           "The implant injector is required by the platform and cannot be deleted");
+    }
+    // A started injector can never be deleted (OpenCTI parity): stop it first.
+    if (injector.isExternal()) {
+      throwIfConnectorRunning(injector, injector.getUpdatedAt());
     }
     List<String> orphanedContractIds =
         injectorContractRepository.findByInjectorsContaining(injector).stream()
@@ -172,14 +177,19 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     // Tear the deployment down with the injector, and only delete the row ourselves when the
     // injector was not deployed through the Integration Manager.
     if (!deleteOwningConnectorInstance(injectorId)) {
-      injectorRepository.deleteByIdAndTenantId(injectorId, tenantId);
+      injectorRepository.deleteByInjectorId(injectorId);
     }
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+    // Chaining steps reference contracts only through a JSON snapshot in step_data (no FK to
+    // cascade on): sweep the orphaned step templates of this tenant explicitly, mirroring the
+    // inject de-index above.
+    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+        orphanedContractIds, tenantId);
   }
 
   public Injector injector(String id) {
     return injectorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findByInjectorId(id)
         .orElseThrow(() -> new ElementNotFoundException("Injector not found with id: " + id));
   }
 
@@ -188,10 +198,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         .collect(Collectors.toList());
   }
 
-  public List<Injector> findAllByIds(List<String> ids, String tenantId) {
-    List<ConnectorCompositeId> compositeIds =
-        ids.stream().map(id -> new ConnectorCompositeId(id, tenantId)).toList();
-    return injectorRepository.findAllById(compositeIds);
+  public List<Injector> findAllByIds(List<String> ids) {
+    return injectorRepository.findAllByInjectorIdIn(ids);
   }
 
   public InjectorOutput injectorOutput(String id) {
@@ -209,27 +217,28 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
   }
 
   /**
-   * Find injector by its type
-   *
-   * @param injectorType injector type to search for
-   * @return an Optional containing the injector if found, empty otherwise
+   * Checks whether at least one injector of the given type exists for the current tenant. Multiple
+   * injector instances of the same type are supported since V4_77 (Connector Manager).
    */
-  public Optional<Injector> injectorByType(@NotBlank final String injectorType) {
-    return injectorRepository.findByTypeAndTenantId(injectorType, TenantContext.getCurrentTenant());
+  public boolean injectorTypeExists(@NotBlank final String injectorType) {
+    return injectorRepository.existsByTypeAndTenantId(
+        injectorType, TenantContext.getCurrentTenant());
   }
 
   /**
    * Retrieves IDs of resources associated with an injector.
    *
    * @param injectorId injector identifier.
+   * @param tenantId the requesting tenant, resolved by the caller from the request's single-tenant
+   *     scope
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
-  public ConnectorIds getInjectorRelationsId(String injectorId) {
-    return getConnectorRelationsId(injectorId);
+  public ConnectorIds getInjectorRelationsId(String injectorId, String tenantId) {
+    return getConnectorRelationsId(injectorId, tenantId);
   }
 
   public InjectorRegistration registerExternalInjector(
-      InjectorCreateInput input, Optional<MultipartFile> file) {
+      InjectorCreateInput input, Optional<MultipartFile> file, String tenantId) {
     try {
       // Upload icon
       if (file.isPresent() && "image/png".equals(file.get().getContentType())) {
@@ -243,10 +252,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       // nor mis-attributed to a generic default).
       Organization authorOrganization = resolveInjectorAuthor(input.getAuthor(), input.getName());
       // We need to support upsert for registration
-      Injector injector =
-          injectorRepository
-              .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
-              .orElse(null);
+      Injector injector = injectorRepository.findByInjectorId(input.getId()).orElse(null);
       if (injector != null) {
         updateExistingExternalInjector(
             injector,
@@ -271,7 +277,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         newInjector.setExecutorCommands(input.getExecutorCommands());
         newInjector.setExecutorClearCommands(input.getExecutorClearCommands());
         newInjector.setPayloads(input.getPayloads());
-        newInjector.setTenantId(TenantContext.getCurrentTenant());
+        newInjector.setTenantId(tenantId);
         Injector savedInjector = injectorRepository.save(newInjector);
         // Save the contracts
         List<InjectorContract> injectorContracts =
@@ -369,6 +375,10 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injectorContractRepository.deleteAllByIdAndTenantId(
         toDeletes.toArray(new String[0]), injector.getTenantId());
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+    // Contracts retired from the external catalog also leave chaining step templates behind (the
+    // step -> contract link is only a JSON snapshot in step_data): sweep them for this tenant.
+    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+        toDeletes, injector.getTenantId());
     // Unlink deleted contracts via the join entity
     injector.getContracts().stream()
         .filter(c -> toDeletes.contains(c.getId()))
@@ -572,7 +582,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             contractDB, matchingContract.get(), isPayloads, injector);
         existingIds.add(contractDB.getId());
         toUpdate.add(contractDB);
-      } else if (shouldDeleteContract(contractDB, injector)) {
+      } else if (shouldDeleteContract(contractDB, injector, staticContracts)) {
         toDelete.add(contractDB.getId());
       }
     }
@@ -599,6 +609,11 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     injectorContractRepository.deleteAllByIdAndTenantId(
         toDelete.toArray(new String[0]), injector.getTenantId());
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+    // Built-in contracts retired from the static catalog also leave chaining step templates
+    // behind (the step -> contract link is only a JSON snapshot in step_data): sweep them for
+    // this tenant.
+    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+        toDelete, injector.getTenantId());
     toCreate = fromIterable(injectorContractRepository.saveAll(toCreate));
 
     // Link new contracts to the injector via idempotent native INSERT (ON CONFLICT DO NOTHING).
@@ -609,8 +624,28 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
     }
   }
 
-  private boolean shouldDeleteContract(InjectorContract contractDB, Injector injector) {
-    return !contractDB.getCustom() && (!injector.isPayloads() || contractDB.getPayload() == null);
+  /**
+   * Decides whether a DB contract that is missing from the contractor's static catalog should be
+   * removed during builtin re-registration.
+   *
+   * <p>Payload injectors keep contracts still linked to a payload. Injectors that expose no static
+   * contracts (dynamic synthesis only, e.g. phishing landing pages) also keep theirs: the owning
+   * service creates/deletes those contracts. Without this guard, every restart wiped phishing
+   * arsenal actions because {@code PhishingContract.contracts()} is empty.
+   */
+  private boolean shouldDeleteContract(
+      InjectorContract contractDB, Injector injector, List<Contract> staticContracts) {
+    if (Boolean.TRUE.equals(contractDB.getCustom())) {
+      return false;
+    }
+    if (injector.isPayloads()) {
+      return contractDB.getPayload() == null;
+    }
+    // Dynamic-only injectors: leave synthesized contracts alone.
+    if (staticContracts == null || staticContracts.isEmpty()) {
+      return false;
+    }
+    return true;
   }
 
   private Injector createNewBuiltinInjector(

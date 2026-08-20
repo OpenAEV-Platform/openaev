@@ -1,0 +1,60 @@
+package io.openaev.database.model;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+@DisplayName("Secret toString security tests")
+class SecretToStringSecurityTest {
+
+  @Test
+  @DisplayName("given_hashSecret_should_notExposeHashInToString")
+  void given_hashSecret_should_notExposeHashInToString() {
+    // Arrange
+    HashSecret secret = new HashSecret();
+    secret.setHashAlgorithm(HashSecret.HASH_ALGORITHM.SHA);
+    secret.setHash("__SENSITIVE_HASH__");
+
+    // Act
+    String output = secret.toString();
+
+    // Assert
+    assertThat(output).contains("HashSecret");
+    assertThat(output).contains("type=");
+    assertThat(output).doesNotContain("__SENSITIVE_HASH__", "hash=", "secret_hash");
+  }
+
+  @Test
+  @DisplayName("given_usernamePasswordSecret_should_notExposePasswordInToString")
+  void given_usernamePasswordSecret_should_notExposePasswordInToString() {
+    // Arrange
+    UsernamePasswordSecret secret = new UsernamePasswordSecret();
+    secret.setUsername("john.doe");
+    secret.setPassword("__SENSITIVE_PASSWORD__");
+
+    // Act
+    String output = secret.toString();
+
+    // Assert
+    assertThat(output).contains("UsernamePasswordSecret");
+    assertThat(output).contains("type=");
+    assertThat(output).doesNotContain("__SENSITIVE_PASSWORD__", "password=", "secret_password");
+  }
+
+  @Test
+  @DisplayName("given_usernamePasswordSecret_should_notExposeUsernameInToString")
+  void given_usernamePasswordSecret_should_notExposeUsernameInToString() {
+    // Arrange
+    UsernamePasswordSecret secret = new UsernamePasswordSecret();
+    secret.setUsername("__SENSITIVE_USERNAME__");
+
+    // Act
+    String output = secret.toString();
+
+    // Assert
+    assertThat(output)
+        .contains("UsernamePasswordSecret")
+        .doesNotContain("__SENSITIVE_USERNAME__", "username=", "secret_username");
+  }
+}

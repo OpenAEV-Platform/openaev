@@ -6,6 +6,7 @@ import ButtonPopover from '../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
+import { LESSONS_TEMPLATES_BASE_URL } from '../../../../constants/BaseUrls';
 import { type LessonsTemplate, type LessonsTemplateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
@@ -43,7 +44,7 @@ const LessonsTemplatePopover: FunctionComponent<Props> = ({ lessonsTemplate }) =
   const submitDelete = () => {
     dispatch(deleteLessonsTemplate(lessonsTemplate.lessonstemplate_id)).then(
       () => {
-        navigate('/admin/components/lessons');
+        navigate(LESSONS_TEMPLATES_BASE_URL);
       },
     );
   };

@@ -1,4 +1,4 @@
-# Adding translations
+# Translations
 
 ### Introduction
 This guide explains how to add translations when developing with OpenAEV. We have 3 files to support the app’s languages: en.json (the reference file - for english), fr.json (for french) and zh.json (for chinese). We have set up some elements to streamline the translation process.

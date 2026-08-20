@@ -26,6 +26,7 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.SimulationInjectService;
+import io.openaev.service.BulkInjectService;
 import io.openaev.service.InjectSearchService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.mapper.InjectMapper;
@@ -48,6 +49,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -70,6 +72,7 @@ public class SimulationInjectApi extends RestBehavior {
   private final SimulationInjectService simulationInjectService;
   private final InjectMapper injectMapper;
   private final InjectUtils injectUtils;
+  private final BulkInjectService bulkInjectService;
 
   // -- READ --
 
@@ -250,7 +253,10 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public List<Inject> createInjectsForExercise(
-      @PathVariable String exerciseId, @Valid @RequestBody List<InjectInput> inputs) {
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (createAndSaveInjectList resolves the injector through the v2
+      // tenant-scoped injectors table) — sibling createInjectForExercise already carries this.
+      TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody List<InjectInput> inputs) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
@@ -287,6 +293,10 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
   public InjectStatus executeInject(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (resolveInjector and executor.directExecute resolve the injector
+      // through the v2 tenant-scoped injectors table).
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @Valid @RequestPart("input") DirectInjectInput input,
       @RequestPart("file") Optional<MultipartFile> file) {
@@ -394,6 +404,56 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectTeamsInput input) {
     return simulationInjectService.updateInjectTeamsForSimulation(exerciseId, injectId, input);
+  }
+
+  // -- BULK UPDATE --
+
+  @Operation(
+      summary = "Bulk update of injects for a simulation",
+      description = "Updates in bulk the injects of the given simulation.")
+  // SUPPORTS (not REQUIRED) on purpose: the update itself runs in the service's own transaction,
+  // wrapped in a massive-operation scope (header progress indicator + per-entity stream event
+  // suppression) that must cover the commit-time flush.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/injects",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects"
+  })
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION)
+  @LogExecutionTime
+  public List<Inject> bulkUpdateInjectsForSimulation(
+      @PathVariable @NotBlank final String exerciseId,
+      @RequestBody @Valid final InjectBulkUpdateInputs input) {
+    input.setSimulationOrScenarioId(exerciseId);
+    return bulkInjectService.bulkUpdateWithMonitoring(input);
+  }
+
+  // -- BULK DELETE --
+
+  @Operation(
+      summary = "Bulk delete of injects for a simulation",
+      description = "Deletes in bulk the injects of the given simulation.")
+  // SUPPORTS (not REQUIRED) on purpose: the deletion itself runs in the service's own
+  // transaction, wrapped in a massive-operation scope (header progress indicator + per-entity
+  // stream event suppression) that must cover the commit-time flush.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @DeleteMapping({
+    EXERCISE_URI + "/{exerciseId}/injects",
+    TENANT_EXERCISE_URI + "/{exerciseId}/injects"
+  })
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION)
+  @LogExecutionTime
+  public List<Inject> bulkDeleteInjectsForSimulation(
+      @PathVariable @NotBlank final String exerciseId,
+      @RequestBody @Valid final InjectBulkProcessingInput input) {
+    input.setSimulationOrScenarioId(exerciseId);
+    return bulkInjectService.bulkDeleteWithMonitoring(input);
   }
 
   // -- DELETE --

@@ -25,7 +25,15 @@ public class ObjectRedactionUtils {
 
   /** Sensitive-like fields that are explicitly allowed and therefore not redacted. */
   private static final Set<Pattern> ALLOWED_SENSITIVE_FIELDS_REGEX_TO_REDACT =
-      Set.of(Pattern.compile(".*_date"), Pattern.compile(".*_time"), Pattern.compile(".*_at"));
+      Set.of(
+          Pattern.compile(".*_date"),
+          Pattern.compile(".*_time"),
+          Pattern.compile(".*_at"),
+          Pattern.compile("^credential_id$"),
+          Pattern.compile("^credential_name$"),
+          Pattern.compile("^credential_type$"),
+          Pattern.compile("^credential_description$"),
+          Pattern.compile("^credential_auth_method$"));
 
   /** Fields whose values are replaced with Hash before logging. */
   private static final Set<Pattern> SENSITIVE_FIELDS_REGEX_TO_HASH =

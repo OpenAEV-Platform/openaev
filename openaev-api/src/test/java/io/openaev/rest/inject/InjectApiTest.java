@@ -9,6 +9,7 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.rest.inject.service.ExecutableInjectService.formatMultilineCommand;
 import static io.openaev.rest.inject.service.ExecutableInjectService.replaceCmdVariables;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_END_DATE;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_START_DATE;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
@@ -142,6 +143,14 @@ class InjectApiTest extends IntegrationTest {
     emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     managerFactory.getManager(Tenant.DEFAULT_TENANT_UUID).monitorIntegrations();
+    // The manager bootstrap above joins this test's transaction and pins its scope to the default
+    // tenant (ManagerCreator.setScopeOnCurrentTransaction). Inject endpoints carrying a TxCtx then
+    // re-resolve the caller's scope; the mock user from @WithMockUser has no tenant membership
+    // row, so without this grant the resolved scope is empty and conflicts with the already-set
+    // default tenant scope. Skipped for tests that manage their own users.
+    if (testUserHolder.isSet()) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
 
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
@@ -221,11 +230,10 @@ class InjectApiTest extends IntegrationTest {
     // -- PREPARE --
     InjectBulkProcessingInput input = new InjectBulkProcessingInput();
     input.setInjectIDsToProcess(List.of(createdInject.getId()));
-    input.setSimulationOrScenarioId(SCENARIO.getId());
 
     // -- EXECUTE --
     mvc.perform(
-            delete(INJECT_URI)
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(csrf()))
@@ -249,6 +257,116 @@ class InjectApiTest extends IntegrationTest {
             .findAllByInjectAndTeam(createdInject.getId(), TEAM.getId())
             .isEmpty(),
         "There should be no expectations related to the inject in the database");
+  }
+
+  @DisplayName("Non-admin user with assessment capabilities can bulk-delete injects for scenario")
+  @Test
+  @WithMockUser(
+      withCapabilities = {
+        Capability.ACCESS_ASSESSMENT,
+        Capability.MANAGE_ASSESSMENT,
+        Capability.DELETE_ASSESSMENT
+      })
+  void deleteInjectsForScenarioAsNonAdminWithCapabilityTest() throws Exception {
+    // -- PREPARE --
+    Inject injectForScenario =
+        getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+    injectForScenario.setScenario(SCENARIO);
+    Inject createdInject = injectRepository.save(injectForScenario);
+
+    assertTrue(
+        injectRepository.existsByIdWithoutLoading(createdInject.getId()),
+        "The inject should exist in the database");
+
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(List.of(createdInject.getId()));
+
+    // -- EXECUTE --
+    mvc.perform(
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+
+    // -- ASSERT --
+    assertFalse(
+        injectRepository.existsById(createdInject.getId()),
+        "The inject should be deleted from the database");
+    assertTrue(
+        scenarioRepository.existsById(SCENARIO.getId()),
+        "The scenario should still exist in the database");
+  }
+
+  @DisplayName("Non-admin user without capabilities cannot bulk-delete injects for scenario")
+  @Test
+  @WithMockUser
+  void deleteInjectsForScenarioWithoutCapabilityIsForbiddenTest() throws Exception {
+    // -- PREPARE --
+    Inject injectForScenario =
+        getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+    injectForScenario.setScenario(SCENARIO);
+    Inject createdInject = injectRepository.save(injectForScenario);
+
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(List.of(createdInject.getId()));
+
+    // -- EXECUTE --
+    mvc.perform(
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isForbidden());
+
+    // -- ASSERT --
+    assertTrue(
+        injectRepository.existsByIdWithoutLoading(createdInject.getId()),
+        "The inject should still exist in the database");
+  }
+
+  @DisplayName("Bulk-delete with a nonexistent inject id returns not found")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void deleteInjectsForScenarioWithUnknownIdReturnsNotFoundTest() throws Exception {
+    // -- PREPARE --
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(List.of(UUID.randomUUID().toString()));
+
+    // -- EXECUTE + ASSERT --
+    mvc.perform(
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isNotFound());
+  }
+
+  @DisplayName("Bulk-delete with mixed valid and invalid inject ids deletes nothing")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void deleteInjectsForScenarioWithMixedIdsIsAtomicTest() throws Exception {
+    // -- PREPARE --
+    Inject injectForScenario =
+        getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+    injectForScenario.setScenario(SCENARIO);
+    Inject createdInject = injectRepository.save(injectForScenario);
+
+    InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+    input.setInjectIDsToProcess(List.of(createdInject.getId(), UUID.randomUUID().toString()));
+
+    // -- EXECUTE --
+    mvc.perform(
+            delete(SCENARIO_URI + "/" + SCENARIO.getId() + "/injects")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isNotFound());
+
+    // -- ASSERT --
+    assertTrue(
+        injectRepository.existsByIdWithoutLoading(createdInject.getId()),
+        "The valid inject should not be deleted when the request contains an invalid id");
   }
 
   // -- EXERCISES --
@@ -591,11 +709,10 @@ class InjectApiTest extends IntegrationTest {
     // -- PREPARE --
     InjectBulkProcessingInput input = new InjectBulkProcessingInput();
     input.setInjectIDsToProcess(List.of(createdInject1.getId(), createdInject2.getId()));
-    input.setSimulationOrScenarioId(EXERCISE.getId());
 
     // -- EXECUTE --
     mvc.perform(
-            delete(INJECT_URI)
+            delete(EXERCISE_URI + "/" + EXERCISE.getId() + "/injects")
                 .content(asJsonString(input))
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(csrf()))
@@ -633,6 +750,14 @@ class InjectApiTest extends IntegrationTest {
   @DisplayName("Retrieving executable payloads injects")
   @KeepRabbit
   class RetrievingExecutablePayloadInject {
+
+    /**
+     * Commands are Base64-encoded for transport to the implant only: decode to assert on the real
+     * command that would be executed on the endpoint.
+     */
+    private String decodeCommand(String encodedCommand) {
+      return new String(Base64.getDecoder().decode(encodedCommand), StandardCharsets.UTF_8);
+    }
 
     @DisplayName("Get encoded command payload with arguments")
     @Test
@@ -691,10 +816,62 @@ class InjectApiTest extends IntegrationTest {
           Base64.getEncoder().encodeToString(payloadCommand.getCleanupCommand().getBytes());
       assertEquals(expectedCleanupCmdEncoded, JsonPath.read(response, "$.payload_cleanup_command"));
 
-      // Verify command
-      String cmdToExecute = payloadCommand.getContent().replace("#{arg_value}", argValue);
-      String expectedCmdEncoded = Base64.getEncoder().encodeToString(cmdToExecute.getBytes());
-      assertEquals(expectedCmdEncoded, JsonPath.read(response, "$.command_content"));
+      // Verify command: the argument value is no longer substituted verbatim, it is bound to a
+      // shell variable declared before the command (see CommandArgumentBinder).
+      String decodedCommand = decodeCommand(JsonPath.read(response, "$.command_content"));
+      assertEquals(
+          "OAEV_ARG_ARG_VALUE='Hello world'\necho command name \"$OAEV_ARG_ARG_VALUE\"",
+          decodedCommand);
+    }
+
+    @DisplayName("Should neutralize shell metacharacters carried by an inject argument")
+    @Test
+    void given_argumentWithShellMetacharacters_should_neutralizeThem() throws Exception {
+      // -- PREPARE --
+      PayloadPrerequisite prerequisite = new PayloadPrerequisite();
+      prerequisite.setGetCommand("cd ./src");
+      prerequisite.setExecutor("bash");
+      Command payloadCommand =
+          PayloadFixture.createCommand(
+              "bash", "echo command name #{arg_value}", List.of(prerequisite), "echo cleanup cmd");
+
+      Map<String, Object> payloadArguments = new HashMap<>();
+      payloadArguments.put("arg_value", "hello; whoami");
+
+      Inject injectSaved =
+          injectComposer
+              .forInject(InjectFixture.createInjectWithPayloadArg(payloadArguments))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                      .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                      .withPayload(payloadComposer.forPayload(payloadCommand)))
+              .persist()
+              .get();
+
+      doNothing()
+          .when(injectStatusService)
+          .addStartImplantExecutionTraceByInject(any(), any(), any(), any());
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  get(INJECT_URI + "/" + injectSaved.getId() + "/fakeId/executable-payload")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      // The value stays a single-quoted literal in the declaration and never reaches the command
+      // line itself, so `; whoami` can no longer become a separate statement.
+      String decodedCommand = decodeCommand(JsonPath.read(response, "$.command_content"));
+      assertEquals(
+          "OAEV_ARG_ARG_VALUE='hello; whoami'\necho command name \"$OAEV_ARG_ARG_VALUE\"",
+          decodedCommand);
     }
 
     @DisplayName("Should replace by asset IDs given Targeted asset argument")
@@ -779,13 +956,37 @@ class InjectApiTest extends IntegrationTest {
       // -- ASSERT --
       assertNotNull(response);
 
-      // Verify command
-      String cmdToExecute =
-          command
-              .replace("#{asset-separate-by-space}", "233.152.15.205 253.110.186.71")
-              .replace("#{asset-separate-by-comma}", "seen-ip-endpoint2,seen-ip-endpoint1");
-      String expectedCmdEncoded = Base64.getEncoder().encodeToString(cmdToExecute.getBytes());
-      assertEquals(expectedCmdEncoded, JsonPath.read(response, "$.command_content"));
+      // Verify command: each targeted asset argument is bound to its own shell variable, so no
+      // asset value ever reaches the command line itself.
+      String decodedCommand = decodeCommand(JsonPath.read(response, "$.command_content"));
+      String[] lines = decodedCommand.split("\n");
+      assertEquals(
+          3,
+          lines.length,
+          "expected 2 variable declarations + the command, got: " + decodedCommand);
+
+      // Declaration order follows the underlying HashMap iteration order, which is not contractual:
+      // assert on content, not on position.
+      String declarations = lines[0] + "\n" + lines[1];
+      assertTrue(
+          declarations.contains("OAEV_ARG_ASSET_SEPARATE_BY_SPACE='233.152.15.205 253.110.186.71'")
+              || declarations.contains(
+                  "OAEV_ARG_ASSET_SEPARATE_BY_SPACE='253.110.186.71 233.152.15.205'"),
+          "space-separated assets should be single-quoted in their own declaration: "
+              + declarations);
+      assertTrue(
+          declarations.contains(
+                  "OAEV_ARG_ASSET_SEPARATE_BY_COMMA='seen-ip-endpoint1,seen-ip-endpoint2'")
+              || declarations.contains(
+                  "OAEV_ARG_ASSET_SEPARATE_BY_COMMA='seen-ip-endpoint2,seen-ip-endpoint1'"),
+          "comma-separated assets should be single-quoted in their own declaration: "
+              + declarations);
+
+      // The security property: the command only references variables, never inlined asset values.
+      assertEquals(
+          "echo separatebyspace : \"$OAEV_ARG_ASSET_SEPARATE_BY_SPACE\" separatebycoma :"
+              + " \"$OAEV_ARG_ASSET_SEPARATE_BY_COMMA\"",
+          lines[2]);
     }
 
     @DisplayName("Should set start date signature when calling RetrievingExecutablePayload")

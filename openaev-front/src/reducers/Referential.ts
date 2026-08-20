@@ -53,6 +53,7 @@ export const entitiesInitializer = Map({
     injectors: Map({}),
     collectors: Map({}),
     executors: Map({}),
+    secretsproviders: Map({}),
     mitigations: Map({}),
     agents: Map({}),
     domains: Map({}),
@@ -62,6 +63,8 @@ export const entitiesInitializer = Map({
     tenant_capabilities: Map({}),
     tenantXtmHubRegistrations: Map({}),
     notifications: Map({}),
+    phishinglandingpages: Map({}),
+    phishingemailtemplates: Map({}),
   }),
 });
 

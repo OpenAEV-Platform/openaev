@@ -1,4 +1,4 @@
-import { Add, DeleteOutlined } from '@mui/icons-material';
+import { Add, DataObjectOutlined, DeleteOutlined } from '@mui/icons-material';
 import {
   Box,
   Chip,
@@ -7,10 +7,9 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
-import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../components/i18n';
 import {
   type ScopeVariableInput,
@@ -55,24 +54,48 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
   };
 
   return (
-    <Box sx={{
-      display: 'grid',
-      gridTemplateRows: 'min-content 1fr',
-      gap: theme.spacing(1),
-    }}
+    <Paper
+      variant="outlined"
+      sx={{
+        height: '100%',
+        display: 'grid',
+        gridTemplateRows: 'min-content 1fr',
+        gap: 1.5,
+        minHeight: 168,
+        p: theme.spacing(2),
+      }}
     >
       {/* Header */}
-      <Typography
-        sx={{
-          ...SECTION_LABEL_SX,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          m: 0,
-          minHeight: 34,
-        }}
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: theme.spacing(2),
+      }}
       >
-        {t('Variables')}
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing(1),
+          color: 'text.secondary',
+        }}
+        >
+          <DataObjectOutlined fontSize="small" />
+          <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
+            {t('Variables')}
+          </Typography>
+          <Chip
+            label={variables.length}
+            size="small"
+            sx={{
+              height: 20,
+              minWidth: 24,
+              fontWeight: 700,
+              color: 'primary.main',
+              backgroundColor: alpha(theme.palette.primary.main, 0.12),
+            }}
+          />
+        </Box>
         <IconButton
           color="primary"
           size="small"
@@ -81,10 +104,10 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
         >
           <Add fontSize="small" />
         </IconButton>
-      </Typography>
+      </Box>
 
       {/* List */}
-      <Paper variant="outlined" sx={{ p: theme.spacing(2) }}>
+      <Box sx={{ alignContent: 'start' }}>
         {variables.length > 0 ? (
           <div style={{
             display: 'grid',
@@ -171,14 +194,18 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
             {t('No variable defined yet.')}
           </Typography>
         )}
-      </Paper>
+      </Box>
 
       <ScopeVariableCreateDialog
         open={open}
         onClose={() => setOpen(false)}
         onSubmit={handleCreate}
+        existingVariables={variables.map(variable => ({
+          scope_variable_key: variable.scope_variable_key ?? '',
+          scope_variable_type: variable.scope_variable_type ?? 'text',
+        }))}
       />
-    </Box>
+    </Paper>
   );
 };
 

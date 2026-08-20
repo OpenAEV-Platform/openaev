@@ -11,6 +11,8 @@ import io.openaev.database.specification.FindingSpecification;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -150,12 +152,33 @@ public class FindingDistinctSearchService {
                     Map.Entry::getKey,
                     Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
 
+    // Step 3b: Group-wide first/last seen per (type, value). The page row is the most recent
+    // occurrence per group (see FindingSpecification.distinctTypeValueWithFilter), so its own
+    // updateDate already matches the group last seen; its creationDate, however, is that single
+    // occurrence's, not the group's. Compute first seen as the MIN creation date and last seen as
+    // the MAX update date across all occurrences in scope - findingsWithAssets holds exactly that
+    // set - so both cells stay group-correct.
+    Map<TypeValueKey, Instant> firstSeenByKey = new HashMap<>();
+    Map<TypeValueKey, Instant> lastSeenByKey = new HashMap<>();
+    for (Finding occurrence : findingsWithAssets) {
+      TypeValueKey key = new TypeValueKey(occurrence.getType(), occurrence.getValue());
+      if (!typeValueKeys.contains(key)) {
+        continue;
+      }
+      firstSeenByKey.merge(key, occurrence.getCreationDate(), (a, b) -> a.isBefore(b) ? a : b);
+      lastSeenByKey.merge(key, occurrence.getUpdateDate(), (a, b) -> a.isAfter(b) ? a : b);
+    }
+
     // Step 4: Map page findings + grouped assets to AggregatedFindingOutput
     return page.map(
         finding -> {
           TypeValueKey key = new TypeValueKey(finding.getType(), finding.getValue());
           List<Asset> relatedAssets = groupedAssets.getOrDefault(key, List.of());
-          return findingMapper.toAggregatedFindingOutput(finding, relatedAssets);
+          return findingMapper.toAggregatedFindingOutput(
+              finding,
+              relatedAssets,
+              firstSeenByKey.getOrDefault(key, finding.getCreationDate()),
+              lastSeenByKey.getOrDefault(key, finding.getUpdateDate()));
         });
   }
 }

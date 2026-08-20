@@ -94,12 +94,7 @@ public class GrantService {
       Group group,
       @NotBlank String resourceId,
       @NotNull GRANT_RESOURCE_TYPE resourceType) {
-    Grant grant = new Grant();
-    grant.setName(name);
-    grant.setGroup(group);
-    grant.setResourceId(resourceId);
-    grant.setGrantResourceType(resourceType);
-    return grantRepository.save(grant);
+    return grantRepository.save(Grant.of(name, group, resourceId, resourceType));
   }
 
   public List<Grant> duplicateGrants(

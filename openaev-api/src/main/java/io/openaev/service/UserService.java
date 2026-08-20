@@ -14,6 +14,8 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.SessionManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TagRepository;
@@ -98,6 +100,7 @@ public class UserService {
   private MailingService mailingService;
   private final RandomUtils randomUtils;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final TenantScopedTransaction tenantTx;
 
   /** Cache for admin users to improve lookup performance. */
   private Cache adminCache;
@@ -138,10 +141,13 @@ public class UserService {
         new ArrayList<>(
             referenceResolver.resolve(
                 input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
+    // The user's id is generated on save (UUID generator), not before: evict only after
+    // persisting, using the saved user's id, or evictForUser is called with a null key.
+    User createdUser = createUser(user, input.plainPassword(), UUID.randomUUID().toString());
     if (!CollectionUtils.isEmpty(input.tenantIds())) {
-      tenantMembershipCacheManager.evictForUser(user.getId(), input.tenantIds());
+      tenantMembershipCacheManager.evictForUser(createdUser.getId(), input.tenantIds());
     }
-    return createUser(user, input.plainPassword(), UUID.randomUUID().toString());
+    return createdUser;
   }
 
   /** Creates a user for internal/technical purposes (SSO login, connector provisioning). */
@@ -315,6 +321,10 @@ public class UserService {
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
       String username = user.getName() != null ? user.getName() : user.getEmail();
+      // Background @Async path (no ambient transaction, no v2 scope): sendEmail resolves the
+      // tenant-scoped injectors table for the email notifier, and this reset flow is anonymous/
+      // global (login only, no tenant selector), so it always uses the platform default tenant's
+      // email integration, matching MailingService's own 3-arg overload default.
       if ("fr".equals(input.getLang())) {
         String subject = "Code de récupération OpenAEV: " + resetToken;
         String body =
@@ -324,7 +334,9 @@ public class UserService {
                 + "Nous avons reçu une demande de réinitialisation de votre mot de passe OpenAEV.</br>"
                 + "Entrez le code de réinitialisation du mot de passe suivant : "
                 + resetToken;
-        mailingService.sendEmail(subject, body, List.of(user));
+        tenantTx.execute(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> mailingService.sendEmail(subject, body, List.of(user)));
       } else {
         String subject = "OpenAEV account recovery code: " + resetToken;
         String body =
@@ -334,7 +346,9 @@ public class UserService {
                 + "A request has been made to reset your OpenAEV password.</br>"
                 + "Enter the following password recovery code: "
                 + resetToken;
-        mailingService.sendEmail(subject, body, List.of(user));
+        tenantTx.execute(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> mailingService.sendEmail(subject, body, List.of(user)));
       }
       // Store in memory reset token
       synchronized (resetTokenMap) {

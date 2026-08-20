@@ -1,0 +1,14 @@
+io/openaev/api/attack_pattern/**/*Test.java
+io/openaev/config/*Test.java
+io/openaev/config/tls/**/*Test.java
+io/openaev/driver/**/*Test.java
+io/openaev/importer/**/*Test.java
+io/openaev/integration/**/*Test.java
+io/openaev/rest/finding/**/*Test.java
+io/openaev/rest/mitigation/**/*Test.java
+io/openaev/rest/role/**/*Test.java
+io/openaev/rest/stream/**/*Test.java
+io/openaev/rest/user/**/*Test.java
+io/openaev/service/endpoint/**/*Test.java
+io/openaev/service/inject/**/*Test.java
+io/openaev/utils/**/*Test.java

@@ -7,7 +7,7 @@ inputs:
   download-release-assets:
     description: Whether to download the release-assets artifact
     required: false
-    default: 'false'
+    default: "false"
 
 outputs:
   jar-size:
@@ -81,4 +81,5 @@ runs:
       with:
         name: openaev-api-jar
         path: openaev-api/target/openaev-api.jar
-
+        # A JAR is already a zip — re-zipping costs CPU for ~0% gain
+        compression-level: 0

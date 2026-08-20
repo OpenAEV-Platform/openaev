@@ -6,6 +6,7 @@ import { type SyntheticEvent, useMemo, useState } from 'react';
 import { type CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import type { ExecutorHelper } from '../../../../actions/executors/executor-helper';
 import { type InjectorHelper } from '../../../../actions/injectors/injector-helper';
+import { type SecretsProviderHelper } from '../../../../actions/secrets_providers/secrets-provider-helper';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import type {
@@ -13,10 +14,11 @@ import type {
   Collector,
   CollectorOutput,
   ExecutorOutput,
-  InjectorOutput,
+  InjectorOutput, SecretsProviderOutput,
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import { type ConnectorItem, type ConnectorItemType } from '../catalog_connectors/catalog-facets';
 import ConnectorMarketplace from '../catalog_connectors/ConnectorMarketplace';
 import builtinConnectorDescription from '../common/builtinConnectorDescriptions';
@@ -28,6 +30,7 @@ import {
   executorConfig,
   injectorConfig,
   isSupportedByFiligran,
+  secretsProviderConfig,
 } from '../common/ConnectorContext';
 import ConnectorStatus from '../common/ConnectorStatus';
 import MigrateButton from '../common/MigrateButton';
@@ -36,6 +39,8 @@ import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnector
 interface DeployedMeta {
   connector: ConnectorOutput;
   type: ConnectorItemType;
+  /** The resolved catalog entry, when the connector's catalog ref matches one. */
+  catalogConnector?: CatalogConnectorOutput;
 }
 
 interface Props {
@@ -54,16 +59,21 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { t, nsdt, locale } = useFormatter();
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
 
   useDataLoader(() => {
     dispatch(injectorConfig.apiRequest.fetchAll());
     dispatch(collectorConfig.apiRequest.fetchAll());
     dispatch(executorConfig.apiRequest.fetchAll());
+    if (isCredentialAssetEnabled) {
+      dispatch(secretsProviderConfig.apiRequest.fetchAll());
+    }
   });
 
   const { executors } = useHelper((helper: ExecutorHelper) => ({ executors: helper.getExecutorsIncludingPending() }));
   const { injectors } = useHelper((helper: InjectorHelper) => ({ injectors: helper.getInjectorsIncludingPending() }));
   const { collectors } = useHelper((helper: CollectorHelper) => ({ collectors: helper.getCollectorsIncludingPending() }));
+  const { secretsProviders } = useHelper((helper: SecretsProviderHelper) => ({ secretsProviders: helper.getSecretsProvidersIncludingPending() }));
 
   const { items, metaById } = useMemo(() => {
     const catalogById = new Map(catalogConnectors.map(connector => [connector.catalog_connector_id, connector]));
@@ -81,9 +91,13 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
         const catalogMatch = connector.catalog?.catalog_connector_id
           ? catalogById.get(connector.catalog.catalog_connector_id)
           : undefined;
-        // Same clickability rule as the legacy per-type pages: collectors and
-        // executors without a catalog entry have no detail page.
-        const clickable = !(connector.catalog == null && type !== 'INJECTOR');
+        // Every registered connector gets a detail page, even without a catalog
+        // entry: the detail page is the only place offering the delete action, so
+        // gating it on the catalog stranded custom or renamed-slug connectors
+        // (no way to delete or manage them at all). Only pending, instance-only
+        // entries keep the legacy rule.
+        const clickable = connector.isExisting === true
+          || !(connector.catalog == null && type !== 'INJECTOR');
         let logoSrc: string | undefined;
         if (connector.isExisting) {
           logoSrc = config.logoUrl(connector.type);
@@ -115,6 +129,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
         meta.set(connector.id, {
           connector,
           type,
+          catalogConnector: catalogMatch,
         });
       });
     };
@@ -122,6 +137,9 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     append<InjectorOutput>(injectors, injectorConfig, 'INJECTOR');
     append<CollectorOutput & Collector>(collectors, collectorConfig, 'COLLECTOR');
     append<ExecutorOutput>(executors, executorConfig, 'EXECUTOR');
+    if (isCredentialAssetEnabled) {
+      append<SecretsProviderOutput>(secretsProviders, secretsProviderConfig, 'SECRETS_PROVIDER');
+    }
 
     return {
       items: allItems,
@@ -129,7 +147,15 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     };
     // `t` is a new function every render (see useFormatter); `locale` is the
     // stable signal that the built-in descriptions it produces have changed.
-  }, [injectors, collectors, executors, catalogConnectors, locale]);
+  }, [
+    injectors,
+    collectors,
+    executors,
+    secretsProviders,
+    catalogConnectors,
+    locale,
+    isCredentialAssetEnabled,
+  ]);
 
   // Migrate flow: converts a manually-deployed external connector into a
   // managed instance (same behavior as the legacy per-type pages).
@@ -140,10 +166,10 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   const onMigrateBtnClick = (e: SyntheticEvent, deployed: DeployedMeta) => {
     e.preventDefault();
     e.stopPropagation();
-    const catalogConnector = catalogConnectors.find(
-      connector => connector.catalog_connector_id === deployed.connector.catalog?.catalog_connector_id,
-    );
-    setSelectedCatalogConnector(catalogConnector);
+    // The resolved catalog entry gates the button's visibility (canMigrate), so a
+    // rendered button always has one - the guard only narrows the type.
+    if (!deployed.catalogConnector) return;
+    setSelectedCatalogConnector(deployed.catalogConnector);
     setMigrationSource(deployed.connector.id);
     setOpenMigrateDrawer(true);
   };
@@ -155,7 +181,13 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
     const deployed = metaById.get(item.id);
     if (!deployed) return null;
     const { connector } = deployed;
-    const canMigrate = connector.isExternal && connector.connectorInstance == null && isXtmComposerUp;
+    // A resolvable catalog entry is required to migrate: the drawer needs the
+    // catalog id and configuration schema to build the managed instance. Key the
+    // visibility on the entry actually resolved from the catalog list (not just
+    // the connector's embedded catalog ref) so a rendered button can never be a
+    // no-op click.
+    const canMigrate = connector.isExternal && connector.connectorInstance == null
+      && isXtmComposerUp && deployed.catalogConnector != null;
     const { started, lastSeen, healthy, builtIn } = computeConnectorLiveliness(connector);
     const diskColor = healthy ? theme.palette.success.main : theme.palette.error.main;
     let diskTooltip: string;

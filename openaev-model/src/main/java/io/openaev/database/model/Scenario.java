@@ -35,6 +35,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.*;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Entity representing a simulation scenario in OpenAEV.
@@ -190,6 +191,44 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @Column(name = "scenario_expectations_drift_dismissed")
   @JsonProperty("scenario_expectations_drift_dismissed")
   private boolean expectationsDriftDismissed;
+
+  /**
+   * Whether this scenario is driven by an autonomous (AI) attack-path run. Set when the scenario is
+   * auto-provisioned for an autonomous run (or an existing scenario is handed to one). Persisted so
+   * the detail page can render the AI cockpit - and, crucially, so a plain manual scenario can be
+   * recognized as manual WITHOUT probing the autonomous-run lookup endpoint on every load.
+   */
+  @Column(name = "scenario_autonomous")
+  @JsonProperty("scenario_autonomous")
+  private boolean autonomous;
+
+  /**
+   * Saved autonomous-run configuration for this chained scenario: the serialized {@code
+   * AutonomousRunCreateInput} (objective, specialist agents + discovery modes, allow/deny scope,
+   * time budget) the operator configured in the AI builder but has not yet launched. Lets the
+   * parameters be persisted to "build later" WITHOUT parking a CREATED run (which would lock the
+   * scenario into the AI cockpit). The scenario stays a normal, editable chained scenario until the
+   * operator actually plans (Build) or launches it. Served only through the dedicated {@code
+   * /autonomous-runs/scenario-config/{scenarioId}} endpoint, never on the Scenario payload, and
+   * kept as a generic map so the model does not depend on the api DTO.
+   */
+  @JsonIgnore
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "scenario_autonomous_config")
+  private Map<String, Object> autonomousConfig;
+
+  /**
+   * Virtual filter facet exposing the scenario "engine type" (Time-based / Chained / Autonomous) to
+   * the list's filter bar. It is NOT a stored column: the value is derived at query time from
+   * {@link #autonomous} and the presence of a chaining Workflow TEMPLATE (see {@code
+   * ScenarioUtils#handleCustomFilter}, which strips this key and re-expresses it as a
+   * Specification). Declared only so the schema endpoint advertises a filterable {@code
+   * scenario_type} property; it is never read or written.
+   */
+  @Transient
+  @JsonProperty("scenario_type")
+  @Queryable(filterable = true)
+  private String type;
 
   @Column(name = "scenario_type_affinity")
   @JsonProperty("scenario_type_affinity")

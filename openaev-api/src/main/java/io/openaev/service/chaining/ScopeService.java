@@ -2,11 +2,19 @@ package io.openaev.service.chaining;
 
 import static io.openaev.utils.JsonUtils.gson;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.rest.asset.endpoint.form.EndpointOutput;
+import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
+import io.openaev.service.EndpointService;
 import io.openaev.utils.IpAddressUtils;
+import io.openaev.utils.mapper.AssetGroupMapper;
+import io.openaev.utils.mapper.EndpointMapper;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +28,97 @@ public class ScopeService {
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
   private final WorkflowStateService workflowStateService;
+  private final TeamRepository teamRepository;
+  private final UserRepository userRepository;
+  private final EndpointService endpointService;
+  private final EndpointMapper endpointMapper;
+  private final AssetGroupMapper assetGroupMapper;
+
+  /**
+   * Returns the endpoints explicitly listed in the workflow scope rules ({@code ASSET_ID} rules),
+   * whatever the rule mode.
+   *
+   * <p>Denylisted assets are included on purpose: the scope screen has to label both the allow and
+   * the deny column. This is the workflow-scoped counterpart of {@code GET /api/endpoints}, so a
+   * user granted on the parent simulation/scenario can read them without the global asset
+   * capabilities.
+   *
+   * @param workflowId the workflow whose scope rules are read
+   * @return the endpoints referenced by the scope rules
+   */
+  public List<EndpointOutput> getScopeEndpoints(final String workflowId) {
+    Set<String> assetIds = collectScopeRuleValues(workflowId, ScopeRuleValueType.ASSET_ID);
+    return resolveEndpoints(assetIds);
+  }
+
+  /**
+   * Same as {@link #getScopeEndpoints(String)} but restricted to the requested IDs. IDs that are
+   * not part of the workflow scope rules are silently ignored so the endpoint cannot be used to
+   * read arbitrary assets.
+   *
+   * @param workflowId the workflow whose scope rules are read
+   * @param endpointIds the endpoint IDs to resolve
+   * @return the matching endpoints
+   */
+  public List<EndpointOutput> getScopeEndpointsByIds(
+      final String workflowId, final List<String> endpointIds) {
+    Set<String> allowedIds = collectScopeRuleValues(workflowId, ScopeRuleValueType.ASSET_ID);
+    allowedIds.retainAll(new HashSet<>(endpointIds));
+    return resolveEndpoints(allowedIds);
+  }
+
+  /**
+   * Returns the asset groups explicitly listed in the workflow scope rules ({@code ASSET_GROUP_ID}
+   * rules), whatever the rule mode. See {@link #getScopeEndpoints(String)} for the rationale.
+   *
+   * @param workflowId the workflow whose scope rules are read
+   * @return the asset groups referenced by the scope rules
+   */
+  public List<AssetGroupOutput> getScopeAssetGroups(final String workflowId) {
+    Set<String> assetGroupIds =
+        collectScopeRuleValues(workflowId, ScopeRuleValueType.ASSET_GROUP_ID);
+    return resolveAssetGroups(assetGroupIds);
+  }
+
+  /**
+   * Same as {@link #getScopeAssetGroups(String)} but restricted to the requested IDs. IDs that are
+   * not part of the workflow scope rules are silently ignored.
+   *
+   * @param workflowId the workflow whose scope rules are read
+   * @param assetGroupIds the asset group IDs to resolve
+   * @return the matching asset groups
+   */
+  public List<AssetGroupOutput> getScopeAssetGroupsByIds(
+      final String workflowId, final List<String> assetGroupIds) {
+    Set<String> allowedIds = collectScopeRuleValues(workflowId, ScopeRuleValueType.ASSET_GROUP_ID);
+    allowedIds.retainAll(new HashSet<>(assetGroupIds));
+    return resolveAssetGroups(allowedIds);
+  }
+
+  private List<EndpointOutput> resolveEndpoints(final Set<String> endpointIds) {
+    return endpointIds.isEmpty()
+        ? List.of()
+        : endpointService.endpoints(List.copyOf(endpointIds)).stream()
+            .map(endpointMapper::toEndpointOutput)
+            .toList();
+  }
+
+  private List<AssetGroupOutput> resolveAssetGroups(final Set<String> assetGroupIds) {
+    return assetGroupIds.isEmpty()
+        ? List.of()
+        : assetGroupService.assetGroups(List.copyOf(assetGroupIds)).stream()
+            .map(assetGroupMapper::toAssetGroupOutput)
+            .toList();
+  }
+
+  private Set<String> collectScopeRuleValues(
+      final String workflowId, final ScopeRuleValueType valueType) {
+    return workflowScopeRuleRepository.findAllByWorkflowId(workflowId).stream()
+        .filter(rule -> valueType.equals(rule.getValueType()))
+        .map(WorkflowScopeRule::getRuleValue)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toCollection(LinkedHashSet::new));
+  }
 
   /**
    * Returns the assets that are in scope for the given workflow and that are not denied by a value
@@ -58,6 +157,70 @@ public class ScopeService {
     return completeAllowedAssetList.stream()
         .filter(asset -> !deniedAssetIds.contains(asset.getId()))
         .toList();
+  }
+
+  /**
+   * Returns the teams that are in scope for the given workflow: allowlisted TEAM rules minus
+   * denylisted TEAM rules. Mirrors {@link #getValidAssets(String)} for the audience axis.
+   */
+  public List<Team> getValidTeams(String workflowId) {
+    List<String> keptTeamIds =
+        resolveAllowedMinusDeniedIds(
+            workflowScopeRuleRepository.findAllByWorkflowId(workflowId),
+            ScopeRuleValueType.TEAM_ID);
+    return keptTeamIds.isEmpty() ? List.of() : teamRepository.findAllById(keptTeamIds);
+  }
+
+  /**
+   * Returns the individual players that are in scope for the given workflow: allowlisted PLAYER
+   * rules minus denylisted PLAYER rules. Mirrors {@link #getValidTeams(String)} so audience-centric
+   * (tabletop) injects can consume players placed directly in the scope.
+   *
+   * <p>Users are platform-level entities whose tenant membership lives in {@code users_tenants}, so
+   * unlike teams (tenant-filtered entities) the lookup must be explicitly tenant-scoped: a stale or
+   * crafted PLAYER rule must never resolve a user outside the workflow's tenant.
+   */
+  public List<User> getValidPlayers(String workflowId) {
+    List<String> keptPlayerIds =
+        resolveAllowedMinusDeniedIds(
+            workflowScopeRuleRepository.findAllByWorkflowId(workflowId),
+            ScopeRuleValueType.PLAYER_ID);
+    return keptPlayerIds.isEmpty()
+        ? List.of()
+        : userRepository.findAllByIdInAndTenantId(keptPlayerIds, TenantContext.getCurrentTenant());
+  }
+
+  /**
+   * Returns the player IDs denylisted in the workflow scope. A denylisted player must never receive
+   * an audience-centric inject, even as a member of an allowlisted team.
+   */
+  public Set<String> getDeniedPlayerIds(String workflowId) {
+    return collectRuleValues(
+        workflowScopeRuleRepository.findAllByWorkflowId(workflowId),
+        ScopeRuleSelectedMode.DENYLIST,
+        ScopeRuleValueType.PLAYER_ID);
+  }
+
+  /**
+   * Applies the allowlist-minus-denylist rule for ID-valued scope rules of the given type,
+   * preserving allowlist insertion order.
+   */
+  private List<String> resolveAllowedMinusDeniedIds(
+      List<WorkflowScopeRule> allRules, ScopeRuleValueType valueType) {
+    Set<String> allowedIds =
+        allRules.stream()
+            .filter(rule -> ScopeRuleSelectedMode.ALLOWLIST.equals(rule.getSelectedMode()))
+            .filter(rule -> valueType.equals(rule.getValueType()))
+            .map(WorkflowScopeRule::getRuleValue)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+    if (allowedIds.isEmpty()) {
+      return List.of();
+    }
+
+    Set<String> deniedIds = collectRuleValues(allRules, ScopeRuleSelectedMode.DENYLIST, valueType);
+    return allowedIds.stream().filter(id -> !deniedIds.contains(id)).toList();
   }
 
   private Set<Asset> getAssetsAllowedByAssetId(List<WorkflowScopeRule> allowlistRules) {

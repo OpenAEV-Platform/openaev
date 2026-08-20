@@ -6,10 +6,7 @@ import io.openaev.database.raw.RawUser;
 import io.openaev.database.raw.RawUserAuthFlat;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -189,7 +186,7 @@ public interface UserRepository
 
   @Query("SELECT u FROM User u JOIN u.tenants t WHERE u.id IN :ids AND t.id = :tenantId")
   List<User> findAllByIdInAndTenantId(
-      @Param("ids") List<String> ids, @Param("tenantId") String tenantId);
+      @Param("ids") Collection<String> ids, @Param("tenantId") String tenantId);
 
   // -- PAGINATION --
 

@@ -54,10 +54,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @TestPropertySource(
-    properties = {
-      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH",
-      "openaev.tenant.active-tables=attackpath_execution,attackpath_finding"
-    })
+    properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
 class AttackPathBenchmark extends IntegrationTest {
 
   private static final long SEED = 20_260_710L;

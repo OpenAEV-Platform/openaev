@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
@@ -20,6 +21,8 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.rest.user.form.login.LoginUserInput;
+import io.openaev.service.PlatformSettingsService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
@@ -63,6 +66,8 @@ class AuditLoggerTest extends IntegrationTest {
   @Autowired private AuditLogger auditLogger;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
+  @MockitoBean private PreviewFeatureService previewFeatureService;
+  @MockitoBean private PlatformSettingsService platformSettingsService;
 
   @BeforeAll
   void setupAuditFileAppender() throws Exception {
@@ -236,5 +241,65 @@ class AuditLoggerTest extends IntegrationTest {
       throws Exception {
     AuditLogTestHelper.assertAuditLogDoesNotContainNewContent(
         AUDIT_LOG_FILE, sizeBefore, unexpectedSnippet);
+  }
+
+  @Nested
+  @DisplayName("checkLicenseBanner()")
+  class CheckLicenseBanner {
+
+    @BeforeEach
+    void clearPlatformSettingsInvocations() {
+      // checkLicenseBanner() is also triggered at context startup via
+      // @EventListener(ApplicationReadyEvent).
+      // Clearing invocations here ensures verify() counts only the call made in each test body.
+      Mockito.clearInvocations(platformSettingsService);
+    }
+
+    @Test
+    @DisplayName("given_auditFlagDisabled_should_cleanBanner")
+    void given_auditFlagDisabled_should_cleanBanner() {
+      // Arrange
+      Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any())).thenReturn(false);
+
+      // Act
+      auditLogger.isAuditLoggingEnabled();
+
+      // Assert
+      Mockito.verify(platformSettingsService)
+          .cleanMessage(BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
+      Mockito.verify(platformSettingsService, Mockito.never()).errorMessage(Mockito.any());
+    }
+
+    @Test
+    @DisplayName("given_auditFlagEnabled_and_licenseActive_should_cleanBanner")
+    void given_auditFlagEnabled_and_licenseActive_should_cleanBanner() {
+      // Arrange
+      Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any())).thenReturn(true);
+      Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(true);
+
+      // Act
+      auditLogger.isAuditLoggingEnabled();
+
+      // Assert
+      Mockito.verify(platformSettingsService)
+          .cleanMessage(BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
+      Mockito.verify(platformSettingsService, Mockito.never()).errorMessage(Mockito.any());
+    }
+
+    @Test
+    @DisplayName("given_auditFlagEnabled_and_licenseInactive_should_showBanner")
+    void given_auditFlagEnabled_and_licenseInactive_should_showBanner() {
+      // Arrange
+      Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any())).thenReturn(true);
+      Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(false);
+
+      // Act
+      auditLogger.isAuditLoggingEnabled();
+
+      // Assert
+      Mockito.verify(platformSettingsService)
+          .errorMessage(BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
+      Mockito.verify(platformSettingsService, Mockito.never()).cleanMessage(Mockito.any());
+    }
   }
 }

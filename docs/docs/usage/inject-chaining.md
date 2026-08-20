@@ -1,7 +1,13 @@
+
 # Inject chaining and transfer
 
 This page covers two features that help you organize Injects beyond simple one-shot execution: **conditional chaining**
 to model multi-stage attacks, and **export/import** to reuse Injects across Scenarios and instances.
+
+!!! note
+
+    For a full graph of Actions and Events with shared outputs and platform-enforced execution boundaries (scope,
+    timeout, rate limit), see [Attack Chaining](attack-chaining/overview.md), an Enterprise Edition feature.
 
 ## Conditional execution
 
@@ -112,7 +118,6 @@ Your red team built a set of credential-dumping Injects in a lab Scenario:
 
 ## Go further
 
-- Build complete attack chains with [Scenarios](scenario.md).
-- Import Injects from threat intelligence using [Scenario generation from OpenCTI](scenario/security-coverage.md).
-- Understand [Inject statuses](inject-status.md) to interpret execution results.
-
+- Build complete attack chains with [Scenarios](build/scenario/scenario.md).
+- Import Injects from threat intelligence using [Scenario generation from OpenCTI](build/scenario/security-coverage.md).
+- Understand [Inject statuses](evaluate/injects/inject-status.md) to interpret execution results.

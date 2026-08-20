@@ -4,14 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.StepsCreateInput;
-import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
@@ -31,10 +29,10 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.executors.Executor;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.UserService;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
@@ -62,10 +60,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.CacheManager;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * End-to-end wiring contract: driving the real {@code InjectExecutionStep.run(step)} drives the
@@ -73,8 +72,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  * -> {@code recordAttackPathExecution} -> {@code onRun} -> persisted rows). The onRun level itself
  * is covered by {@link
  * io.openaev.service.attackpath.ingestion.AttackPathIngestionTenantAttributionTest}; this adds only
- * the run-level gates that live in {@code InjectExecutionStep}: the {@code ATTACK_PATH} flag check
- * and the non-fatal try/catch.
+ * the run-level non-fatal try/catch behavior that lives in {@code InjectExecutionStep}.
  *
  * <p>Reproduces production: the run executes under the step's resolved tenant (the chaining worker
  * sets it from the step before calling {@code run}, and {@code getInjectFromDataStep} reads the
@@ -106,7 +104,7 @@ class AttackPathRunWiringTest extends IntegrationTest {
   @MockitoSpyBean private InjectService injectService;
   @MockitoSpyBean private AttackPathExecutionIngestionService attackPathIngestion;
 
-  // Mocked: this test only checks that update() drives the copy, gated by the flag; the copy itself
+  // Mocked: this test only checks that update() drives the copy; the copy itself
   // is covered by AttackPathFindingIngestionServiceTest.
   @MockitoBean private AttackPathFindingIngestionService attackPathFindingIngestion;
 
@@ -114,8 +112,6 @@ class AttackPathRunWiringTest extends IntegrationTest {
   @Autowired private StepEventService stepEventService;
   @Autowired private StepRepository stepRepository;
   @Autowired private WorkflowRepository workflowRepository;
-  @Autowired private OpenAEVConfig openAEVConfig;
-  @Autowired private CacheManager cacheManager;
   @Autowired private DataSource dataSource;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private EndpointComposer endpointComposer;
@@ -125,6 +121,7 @@ class AttackPathRunWiringTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private PlatformTransactionManager transactionManager;
 
   private JdbcTemplate jdbc;
   private Tenant tenant;
@@ -156,7 +153,8 @@ class AttackPathRunWiringTest extends IntegrationTest {
 
     // Persist the agent-backed endpoint under the tenant (as the ingestion tenant test does): the
     // fixture must be committed so the run's read-only resolution sees it.
-    agent = AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor());
+    agent =
+        AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor(tenant.getId()));
     endpoint =
         endpointComposer
             .forEndpoint(EndpointFixture.createEndpoint())
@@ -218,16 +216,12 @@ class AttackPathRunWiringTest extends IntegrationTest {
     // migration V4_88), so deleting the tenant removes the committed contract, injector, payload,
     // agent and endpoint in one shot.
     tenantHelper.deleteCommittedTenants(tenant.getId());
-    setAttackPathFeature(false);
     TenantContext.clearCurrentTenant();
   }
 
   @Test
-  @DisplayName(
-      "W1 — flag ON: run() drives the ingestion and the row lands under the inject's tenant")
+  @DisplayName("W1 — run() drives the ingestion and the row lands under the inject's tenant")
   void wiringFiresAndRowLandsUnderTheInjectTenant() throws Exception {
-    setAttackPathFeature(true);
-
     injectExecutionStep.run(readyStep());
 
     String rowId =
@@ -239,21 +233,8 @@ class AttackPathRunWiringTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("W2 — flag OFF: run() executes, the executor is called, onRun never runs, zero rows")
-  void flagOffIsAStrictNoOp() throws Exception {
-    setAttackPathFeature(false);
-
-    injectExecutionStep.run(readyStep());
-
-    verify(attackPathIngestion, never()).onRun(any(), any(), any());
-    verify(executor).directExecute(any());
-    assertThat(rawRowCount()).as("flag OFF must write no attack-path rows").isZero();
-  }
-
-  @Test
   @DisplayName("W3 — a throwing ingestion is swallowed: run() still returns and the executor runs")
   void ingestionFailureIsNonFatal() throws Exception {
-    setAttackPathFeature(true);
     doThrow(new RuntimeException("boom")).when(attackPathIngestion).onRun(any(), any(), any());
 
     assertThat(injectExecutionStep.run(readyStep())).isPresent();
@@ -268,7 +249,6 @@ class AttackPathRunWiringTest extends IntegrationTest {
       "W4 — #6357 consumer: handleReadyStepEvent scopes the run to the EVENT's tenant with no ambient"
           + " scope; the v1 @Filter contract resolves and the row lands")
   void consumerScopesRunToEventTenantWithoutAmbientScope() throws Exception {
-    setAttackPathFeature(true);
     Step committedStep = persistCommittedReadyStep();
     // The real chaining worker carries NO tenant scope: the fix must restore it from the event, not
     // from an ambient ThreadLocal. Clear it so a regression that drops the propagation goes red
@@ -294,7 +274,6 @@ class AttackPathRunWiringTest extends IntegrationTest {
       "W5 — #6357 isolation: an event carrying the WRONG tenant cannot resolve the tenant-B contract,"
           + " so the run writes no row")
   void consumerWithWrongEventTenantResolvesNothing() throws Exception {
-    setAttackPathFeature(true);
     Step committedStep = persistCommittedReadyStep();
     TenantContext.clearCurrentTenant();
 
@@ -336,8 +315,8 @@ class AttackPathRunWiringTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("W7 — update() drives the findings copy when the flag is on, and not when off")
-  void updateDrivesTheFindingsCopyGatedByTheFlag() {
+  @DisplayName("W7 — update() drives the findings copy")
+  void updateDrivesTheFindingsCopy() {
     // update() resolves the inject from the step's inject_id; hand it the fixture, and give the
     // step
     // just the inject_id its data needs. update() does more than drive the copy (status/output
@@ -349,7 +328,6 @@ class AttackPathRunWiringTest extends IntegrationTest {
     stepRun.setId("step-update-wiring");
     stepRun.setData("{\"inject_id\":\"" + fixtureInject.getId() + "\"}");
 
-    setAttackPathFeature(true);
     try {
       injectExecutionStep.update(stepRun);
     } catch (Exception ignored) {
@@ -357,14 +335,12 @@ class AttackPathRunWiringTest extends IntegrationTest {
     }
     verify(attackPathFindingIngestion).copyFindings(any(), any());
 
-    setAttackPathFeature(false);
     try {
       injectExecutionStep.update(stepRun);
     } catch (Exception ignored) {
       // downstream of the copy call; irrelevant here
     }
-    // no further call: the flag-off run is gated out (only the flag-on run copied)
-    verify(attackPathFindingIngestion, times(1)).copyFindings(any(), any());
+    verify(attackPathFindingIngestion, times(2)).copyFindings(any(), any());
   }
 
   // Handed to run() in memory (via the createInject stub) with contract + exercise attached. The
@@ -408,7 +384,7 @@ class AttackPathRunWiringTest extends IntegrationTest {
     InjectInput injectInput = new ObjectMapper().readValue(injectInputJson, InjectInput.class);
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
-    Step stepTemplate = injectExecutionStep.create(stepInput, workflowTemplate).orElseThrow();
+    Step stepTemplate = createTemplateInTransaction(stepInput, workflowTemplate);
     Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
     return injectExecutionStep
         .ready(stepTemplate, "{\"input\":\"do defined\"}", workflowRun)
@@ -435,7 +411,7 @@ class AttackPathRunWiringTest extends IntegrationTest {
     InjectInput injectInput = new ObjectMapper().readValue(injectInputJson, InjectInput.class);
     StepsCreateInput.StepInput stepInput =
         InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
-    Step template = injectExecutionStep.create(stepInput, workflowRun).orElseThrow();
+    Step template = createTemplateInTransaction(stepInput, workflowRun);
     template.setWorkflow(workflowRun);
     template.setLimitExecution(0);
     template = stepRepository.save(template);
@@ -449,12 +425,23 @@ class AttackPathRunWiringTest extends IntegrationTest {
     return stepRepository.save(ready);
   }
 
-  private void setAttackPathFeature(boolean enabled) {
-    openAEVConfig.setEnabledDevFeatures(enabled ? PreviewFeature.ATTACK_PATH.getValue() : null);
-    // isFeatureEnabled is @Cacheable("global"); evict or the toggle is not observed.
-    if (cacheManager.getCache("global") != null) {
-      cacheManager.getCache("global").clear();
-    }
+  // Authoring (InjectExecutionStep.create -> stepData) now verifies the injector contract exists
+  // under a pessimistic share lock (#7418), which requires an active transaction - production
+  // always
+  // calls create() from a @Transactional StepService method. This IT is deliberately NOT
+  // @Transactional (see the class javadoc), so wrap just the authoring call in a transaction, the
+  // same way production does; the returned template is transient and persisted afterwards.
+  private Step createTemplateInTransaction(
+      StepsCreateInput.StepInput stepInput, Workflow workflow) {
+    return new TransactionTemplate(transactionManager)
+        .execute(
+            status -> {
+              try {
+                return injectExecutionStep.create(stepInput, workflow).orElseThrow();
+              } catch (ChainingException e) {
+                throw new IllegalStateException(e);
+              }
+            });
   }
 
   private String rawTenantOf(String rowId) {

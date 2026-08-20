@@ -2,6 +2,7 @@ package io.openaev.rest.scenario;
 
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,7 +10,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.ContractOutputElement;
+import io.openaev.database.model.OutputParser;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Step;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Workflow;
 import io.openaev.export.Mixins;
@@ -19,6 +23,8 @@ import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.io.IOException;
+import java.util.Set;
+import java.util.stream.Collectors;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,6 +47,7 @@ public class ScenarioExportTest extends IntegrationTest {
   @Autowired private TagComposer tagComposer;
   @Autowired private DocumentComposer documentComposer;
   @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private StepComposer stepComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -114,6 +121,60 @@ public class ScenarioExportTest extends IntegrationTest {
   @DisplayName("Scenario tag export")
   class ScenarioTagExport {
 
+    private Scenario buildScenarioWithInjectorAndContractOutputTags(boolean withWorkflowStepLink) {
+      String injectorContractTagName = "injector-contract-tag-" + java.util.UUID.randomUUID();
+      String contractOutputTagName = "contract-output-tag-" + java.util.UUID.randomUUID();
+
+      Tag injectorContractTag =
+          tagComposer.forTag(TagFixture.getTagWithText(injectorContractTagName)).persist().get();
+      Tag contractOutputTag =
+          tagComposer.forTag(TagFixture.getTagWithText(contractOutputTagName)).persist().get();
+
+      ContractOutputElement outputElement = OutputParserFixture.getContractOutputElementTypeIPv6();
+      outputElement.setTags(Set.of(contractOutputTag));
+      OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(outputElement));
+
+      io.openaev.database.model.Payload payload = PayloadFixture.createDefaultCommand();
+      payload.setOutputParsers(Set.of(outputParser));
+
+      InjectorContractComposer.Composer injectorContractComposerRef =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+              .withTag(tagComposer.forTag(injectorContractTag))
+              .withPayload(payloadComposer.forPayload(payload));
+
+      ScenarioComposer.Composer scenarioComposerRef =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .withInject(
+                  injectComposer
+                      .forInject(InjectFixture.getDefaultInject())
+                      .withInjectorContract(injectorContractComposerRef));
+
+      if (withWorkflowStepLink) {
+        Step step = StepFixture.getDefaultStepTemplate();
+        step.setData(
+            "{\"inject_injector_contract\":{\"injector_contract_id\":\"%s\"}}"
+                .formatted(injectorContractComposerRef.get().getId()));
+        Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+        workflowComposer
+            .forWorkflow(workflowTemplate)
+            .withScenario(scenarioComposerRef)
+            .withStep(stepComposer.forStep(step))
+            .persist();
+      } else {
+        scenarioComposerRef.persist();
+      }
+
+      return scenarioComposerRef.get();
+    }
+
+    private Set<String> extractScenarioTagNames(String actualJson) throws IOException {
+      return mapper.readTree(actualJson).get("scenario_tags").findValuesAsText("tag_name").stream()
+          .collect(Collectors.toSet());
+    }
+
     @Test
     @WithMockUser(isAdmin = true)
     @DisplayName("When payloads have tags, scenario export has these tags")
@@ -167,6 +228,67 @@ public class ScenarioExportTest extends IntegrationTest {
           .node("scenario_tags")
           .isArray()
           .isEqualTo(tagsJson);
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "given_nonChainingScenario_when_exporting_should_includeInjectorContractAndContractOutputElementTags")
+    void
+        given_nonChainingScenario_when_exporting_should_includeInjectorContractAndContractOutputElementTags()
+            throws Exception {
+      Scenario scenario = buildScenarioWithInjectorAndContractOutputTags(false);
+      manager.flush();
+      manager.clear();
+
+      byte[] response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + scenario.getId() + "/export")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+
+      Set<String> tagNames =
+          extractScenarioTagNames(getJsonExportFromZip(response, scenario.getName()));
+      assertTrue(
+          tagNames.stream().anyMatch(name -> name.startsWith("injector-contract-tag-")),
+          "scenario_tags must include injector_contract_tags");
+      assertTrue(
+          tagNames.stream().anyMatch(name -> name.startsWith("contract-output-tag-")),
+          "scenario_tags must include contract_output_element_tags");
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "given_chainingScenario_when_exporting_should_includeInjectorContractAndContractOutputElementTags")
+    void
+        given_chainingScenario_when_exporting_should_includeInjectorContractAndContractOutputElementTags()
+            throws Exception {
+      Scenario scenario = buildScenarioWithInjectorAndContractOutputTags(true);
+      manager.flush();
+      manager.clear();
+
+      byte[] response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + scenario.getId() + "/export")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+
+      String actualJson = getJsonExportFromZip(response, scenario.getName());
+      Set<String> tagNames = extractScenarioTagNames(actualJson);
+      assertTrue(
+          tagNames.stream().anyMatch(name -> name.startsWith("injector-contract-tag-")),
+          "scenario_tags must include injector_contract_tags when chaining");
+      assertTrue(
+          tagNames.stream().anyMatch(name -> name.startsWith("contract-output-tag-")),
+          "scenario_tags must include contract_output_element_tags when chaining");
+      assertThatJson(actualJson).node("scenario_injects").isArray().isEqualTo("[]");
     }
   }
 

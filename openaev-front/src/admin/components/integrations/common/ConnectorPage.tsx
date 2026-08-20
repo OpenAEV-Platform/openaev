@@ -17,8 +17,10 @@ import { AbilityContext } from '../../../../utils/permissions/permissionsContext
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import ActionButton from './ActionButton';
+import builtinConnectorDescription from './builtinConnectorDescriptions';
 import { computeConnectorLiveliness } from './connector-liveliness';
 import ConnectorAlerts from './ConnectorAlerts';
+import ConnectorBuiltinInfo from './ConnectorBuiltinInfo';
 import ConnectorCatalogInfo from './ConnectorCatalogInfo';
 import { ConnectorContext, isSupportedByFiligran } from './ConnectorContext';
 import ConnectorDetailHero from './ConnectorDetailHero';
@@ -45,8 +47,10 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   // connector type ('injector' -> 'INJECTOR') and the connector's own external
   // flag, keeping the hero's type / Built-in chip consistent with the catalog card.
   const heroType = catalogConnector?.catalog_connector_type
-    ?? (connectorType.toUpperCase() as 'INJECTOR' | 'COLLECTOR' | 'EXECUTOR');
+    ?? (connectorType.toUpperCase() as 'INJECTOR' | 'COLLECTOR' | 'EXECUTOR' | 'SECRETS_PROVIDER');
   const heroExternal = catalogConnector?.catalog_connector_manager_supported ?? connector?.isExternal;
+  // Per-type fallback description for built-in connectors (no catalog entry).
+  const builtinDescription = connector?.type ? builtinConnectorDescription(connector.type) : undefined;
   const createInstanceDrawer = useDialog();
 
   const onCloseCreateInstanceDrawer = () => {
@@ -107,17 +111,33 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
   };
 
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
-  const showMigrateButton = connector?.isExternal === true && !instance && isXtmComposerUp && canManage;
+  // A catalog entry is required to migrate: the drawer posts the catalog id and
+  // needs its configuration schema, so without one the request can only fail.
+  const showMigrateButton = connector?.isExternal === true && !instance && isXtmComposerUp
+    && canManage && !!catalogConnector;
   const disabledUpdateButtons = !isEnterpriseEdition || (!isXtmComposerUp && catalogConnector?.catalog_connector_manager_supported === true);
   // A connector with no managed instance (registered directly / manually, not
   // deployed through the Integration Manager) has no instance popover, so it
   // could never be removed. Offer a direct delete of the connector entity - the
   // heartbeat is what keeps it alive, so a stopped connector that no longer
-  // pings can now be cleaned up. Only the two connectors the platform runs on
-  // are protected: gating on "runs in-process" instead used to strand legacy
-  // rows whose implementation was dropped from the code (Caldera), leaving them
-  // undeletable forever.
-  const canDeleteConnector = canManage && !instance && !!connector?.id && !isPlatformConnector(connector?.type);
+  // pings can now be cleaned up.
+  //
+  // Built-in in-process connectors (Manual / Email / Channel / Challenge
+  // injectors, the Expiration Manager collectors, the implant executor, the
+  // local secrets provider) are NEVER deletable: they are the platform itself
+  // and only exist in memory (no managed instance to stop), so removing the
+  // entity would break core execution with no way to re-create it from the UI.
+  // `liveliness.builtIn` (non-external + implemented in code) captures exactly
+  // that set while still allowing deletion of legacy rows whose implementation
+  // was dropped (not existing -> not built-in) and of external connectors.
+  // OpenCTI parity: a started external connector can never be deleted - stop it
+  // first. For an unmanaged connector the kebab only ever contains Delete, so
+  // whenever delete is unavailable the kebab disappears entirely; the backend
+  // enforces the same rule.
+  const canDeleteConnector = canManage && !instance && !!connector?.id
+    && !isPlatformConnector(connector?.type)
+    && !liveliness?.builtIn
+    && !(connector?.isExternal === true && liveliness?.started === true);
 
   const handleDeleteConnector = () => {
     if (!connector?.id) return;
@@ -235,7 +255,12 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
       />
       {currentTab === 'overview' && (
         <>
-          {catalogConnector && <ConnectorCatalogInfo catalogConnector={catalogConnector} />}
+          {/* Built-in connectors have no catalog entry, so the catalog info card
+              would leave the Overview empty. Fall back to the connector's own
+              (per-type) description so the tab always shows at least that. */}
+          {catalogConnector
+            ? <ConnectorCatalogInfo catalogConnector={catalogConnector} />
+            : <ConnectorBuiltinInfo description={builtinDescription ? t(builtinDescription) : undefined} />}
           {extraInfoComponent}
         </>
       )}

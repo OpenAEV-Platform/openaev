@@ -1,16 +1,16 @@
+import { type Map as ImmutableMap } from 'immutable';
 import { type Dispatch } from 'redux';
 
+import { DATA_DELETE_BATCH_SUCCESS } from '../constants/ActionTypes';
+import { store } from '../store';
 import {
-  bulkDeleteReferential,
   delReferential,
   getReferential,
   postReferential,
   putReferential,
-  simpleDelCall,
   simplePostCall,
-  simplePutCall,
 } from '../utils/Action';
-import type { Inject, InjectAssistantInput, InjectBulkProcessingInput, InjectBulkUpdateInputs, InjectInput, InjectUpdateActivationInput } from '../utils/api-types';
+import type { Inject, InjectAssistantInput, InjectInput, InjectUpdateActivationInput } from '../utils/api-types';
 import * as schema from './Schema';
 
 type AppDispatch = Dispatch;
@@ -22,31 +22,55 @@ export const fetchInject = (injectId: string) => (dispatch: AppDispatch) => {
   return getReferential(schema.inject, uri)(dispatch);
 };
 
-export const bulkDeleteInjects = (data: InjectBulkProcessingInput) => (dispatch: AppDispatch) => {
-  const uri = '/api/injects';
-  return bulkDeleteReferential(uri, 'injects', data)(dispatch);
-};
-
-export const bulkDeleteInjectsSimple = (data: InjectBulkProcessingInput) => {
-  const uri = '/api/injects';
-  return simpleDelCall(uri, { data });
-};
-
-export const bulkUpdateInject = (data: InjectBulkUpdateInputs) => (dispatch: AppDispatch) => {
-  const uri = '/api/injects';
-  return putReferential(schema.inject, uri, data)(dispatch);
-};
-
-export const bulkUpdateInjectSimple = (data: InjectBulkUpdateInputs) => {
-  const uri = '/api/injects';
-  return simplePutCall(uri, data);
-};
-
 // -- EXERCISES --
 
 export const fetchExerciseInjects = (exerciseId: string) => (dispatch: AppDispatch) => {
   const uri = `/api/exercises/${exerciseId}/injects`;
   return getReferential(schema.arrayOfInjects, uri)(dispatch);
+};
+
+// Reconciles the entity store with the backend after injects were deleted
+// server-side: simulation lifecycle transitions (Stop on a chained simulation
+// drops its injects, Reset always does) but also out-of-band deletions such as
+// removing a phishing landing page, whose injector contract cascade-deletes the
+// injects built on it. The normalized store only ever MERGES fetch payloads - a
+// refetch cannot evict an entity deleted server-side, and the per-entity SSE
+// delete events are not guaranteed to reach this tab (a DB-level cascade emits
+// none at all) - so without an explicit eviction the hero counters and the
+// Execution screens keep showing the deleted injects as "completed" until a
+// full page reload. Best-effort: on fetch failure nothing is evicted (better
+// stale than wrongly empty). The fetcher is injectable so callers that only
+// need the lightweight InjectOutput list (e.g. the simulation hero) can
+// reconcile without pulling the full inject payloads.
+export const reconcileExerciseInjects = (
+  exerciseId: string,
+  fetcher: (exerciseId: string) => (dispatch: AppDispatch) => Promise<{ result?: string[] }> = fetchExerciseInjects,
+) => async (dispatch: AppDispatch) => {
+  let payload;
+  try {
+    payload = await fetcher(exerciseId)(dispatch);
+  } catch {
+    return;
+  }
+  const freshIds = new Set<string>(payload?.result ?? []);
+  const injectsMap = store.getState().referential.getIn(['entities', 'injects']);
+  if (!injectsMap) {
+    return;
+  }
+  const staleDeletes = injectsMap
+    .valueSeq()
+    .filter((inject: ImmutableMap<string, unknown>) => inject.get('inject_exercise') === exerciseId && !freshIds.has(inject.get('inject_id') as string))
+    .map((inject: ImmutableMap<string, unknown>) => ({
+      id: inject.get('inject_id') as string,
+      type: 'injects',
+    }))
+    .toArray();
+  if (staleDeletes.length > 0) {
+    dispatch({
+      type: DATA_DELETE_BATCH_SUCCESS,
+      payload: staleDeletes,
+    });
+  }
 };
 
 // Lightweight variant (InjectOutput) used where only targeting metadata is

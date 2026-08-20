@@ -1,0 +1,335 @@
+import { BoltOutlined, GpsFixedOutlined, MoreVert, OutputOutlined } from '@mui/icons-material';
+import { Box, IconButton, Typography } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { type MouseEvent, type ReactNode, useState } from 'react';
+
+import { useFormatter } from '../../../../../components/i18n';
+import ActionTypeIcon from '../ActionTypeIcon';
+import NodePopover from '../chaining_flow/nodes/NodePopover';
+import LogicNodeTooltip, { type TooltipRow } from '../chaining_flow/NodeTooltip';
+import { formatConditionKeyLabel } from '../events/event-types';
+import GraphCardTooltip from './GraphCardTooltip';
+
+export interface GraphActionCardProps {
+  id: string;
+  title: string;
+  description?: string;
+  injectorType?: string;
+  payloadType?: string;
+  isPayload?: boolean;
+  /**
+   * MITRE tactic this action belongs to. Surfaced in the tooltip only: the canvas already groups the
+   * cards under a per-tactic hull whose header names the tactic, so a chip on the card would repeat it.
+   */
+  tacticLabel?: string;
+  /** Finding/output types this action produces (feeds triggers). */
+  outputTypes?: string[];
+  targetCount?: number;
+  triggerCount?: number;
+  /** Emphasized when it produces/consumes the currently selected trigger. */
+  highlighted?: boolean;
+  /** Faded out when a trigger is selected and this card is off its path. */
+  dimmed?: boolean;
+  /** 1-based badge index in the selected trigger's data-flow path. */
+  pathIndex?: number;
+  readOnly?: boolean;
+  /** Force-closes the rich tooltip when it changes (graph structural relayout). */
+  tooltipDismissKey?: unknown;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
+}
+
+/** 'openbas_implant' -> 'Openbas implant' */
+const prettifyType = (value?: string): string =>
+  (value ?? '').replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+
+const MetaItem = ({ icon, label }: {
+  icon: ReactNode;
+  label: ReactNode;
+}) => (
+  <Box sx={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: 0.25,
+    color: 'text.secondary',
+    fontSize: '0.6875rem',
+    lineHeight: 1,
+  }}
+  >
+    {icon}
+    <span>{label}</span>
+  </Box>
+);
+
+/**
+ * Card visual for an action (step) in the causal graph. Reuses the shared structured tooltip and the
+ * action type icon. Deliberately carries no connect handle and no inline "+": an action never
+ * initiates a link or creates a downstream event (see the comments near the end of the render).
+ */
+const GraphActionCard = ({
+  id,
+  title,
+  description,
+  injectorType,
+  payloadType,
+  isPayload,
+  tacticLabel,
+  outputTypes = [],
+  targetCount = 0,
+  triggerCount = 0,
+  highlighted = false,
+  dimmed = false,
+  pathIndex,
+  readOnly = false,
+  tooltipDismissKey,
+  onEdit,
+  onDelete,
+}: GraphActionCardProps) => {
+  const theme = useTheme();
+  const { t } = useFormatter();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  const handleMenuOpen = (e: MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    setAnchorEl(e.currentTarget);
+  };
+  const handleMenuClose = () => setAnchorEl(null);
+  const handleEdit = () => {
+    handleMenuClose();
+    onEdit?.(id);
+  };
+  const handleDelete = () => {
+    handleMenuClose();
+    onDelete?.(id);
+  };
+
+  const typeLabel = prettifyType(payloadType ?? injectorType) || t('Command');
+  const displayTitle = title?.trim() || t('Untitled action');
+
+  const tooltipRows: TooltipRow[] = [{
+    label: t('Type'),
+    value: typeLabel,
+  }];
+  if (tacticLabel) tooltipRows.push({
+    label: t('Tactic'),
+    value: tacticLabel,
+  });
+  tooltipRows.push({
+    label: t('Targets'),
+    value: targetCount > 0 ? targetCount : t('Not scoped yet'),
+  });
+  if (triggerCount > 0) tooltipRows.push({
+    label: t('Waits on'),
+    value: `${triggerCount} ${t('trigger(s)')}`,
+  });
+
+  const tooltip = (
+    <LogicNodeTooltip
+      eyebrow={typeLabel}
+      title={displayTitle}
+      description={description}
+      rows={tooltipRows}
+      chips={outputTypes.map(formatConditionKeyLabel)}
+    />
+  );
+
+  return (
+    <GraphCardTooltip title={tooltip} dismissKey={tooltipDismissKey}>
+      <Box
+        sx={{
+          'position': 'relative',
+          'width': '100%',
+          'height': '100%',
+          'display': 'flex',
+          'flexDirection': 'column',
+          'gap': 0.5,
+          'padding': 1,
+          'borderRadius': 1,
+          'cursor': readOnly ? 'pointer' : 'grab',
+          'opacity': dimmed ? 0.32 : 1,
+          'border': `1px solid ${highlighted ? theme.palette.primary.main : theme.palette.divider}`,
+          'backgroundColor': theme.palette.background.paper,
+          'boxShadow': highlighted
+            ? `0 0 0 1px ${theme.palette.primary.main}, ${theme.shadows[4]}`
+            : theme.shadows[1],
+          'transition': 'opacity 0.2s ease, border-color 0.15s ease, box-shadow 0.15s ease',
+          '&:hover': {
+            borderColor: theme.palette.primary.main,
+            // Crisp 1px ring on all four sides (matching the selected state) so hovering reads as a
+            // full outline, not a soft one-shadow glow.
+            boxShadow: `0 0 0 1px ${theme.palette.primary.main}, ${theme.shadows[4]}`,
+          },
+        }}
+      >
+        {pathIndex !== undefined && (
+          <Box sx={{
+            position: 'absolute',
+            top: -10,
+            left: -10,
+            width: 20,
+            height: 20,
+            borderRadius: '50%',
+            background: theme.palette.primary.main,
+            color: theme.palette.primary.contrastText,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 12,
+            fontWeight: 700,
+            zIndex: 2,
+          }}
+          >
+            {pathIndex}
+          </Box>
+        )}
+
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+        }}
+        >
+          <Box sx={{
+            'display': 'flex',
+            'alignItems': 'center',
+            'justifyContent': 'center',
+            'width': 26,
+            'height': 26,
+            'flexShrink': 0,
+            'borderRadius': 0.75,
+            'overflow': 'hidden',
+            // A broken collector/injector image would otherwise paint its alt text (e.g.
+            // "openaev_netexec") at full size and spill it across the canvas: clip the box and
+            // zero out any fallback text so only the 20px glyph (or nothing) can ever show.
+            'fontSize': 0,
+            'lineHeight': 0,
+            'color': 'transparent',
+            'backgroundColor': theme.palette.action.hover,
+            // The glyph arrives wrapped in CustomTooltip's inline <span> (which carries its own
+            // inline line-height) and with a fixed 20px inline size; both leave it floating
+            // off-center in the square. Flatten the wrapper into a centering flex layer and force
+            // the glyph to fill the padded square so every logo is centered horizontally and
+            // vertically, whatever its intrinsic shape.
+            'padding': '3px',
+            '& > span': {
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              height: '100%',
+            },
+            '& img, & svg': {
+              display: 'block',
+              width: '100% !important',
+              height: '100% !important',
+              objectFit: 'contain',
+            },
+          }}
+          >
+            <ActionTypeIcon injectorType={injectorType} payloadType={payloadType} isPayload={isPayload} />
+          </Box>
+          <Typography
+            variant="caption"
+            sx={{
+              flexGrow: 1,
+              minWidth: 0,
+              color: 'text.secondary',
+              fontSize: '0.625rem',
+              fontWeight: 700,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              userSelect: 'none',
+            }}
+          >
+            {typeLabel}
+          </Typography>
+          {/* No tactic chip here: the canvas draws a hull around the cards sharing a tactic and puts
+              the tactic name in its header, so repeating it per card was pure duplication. The tactic
+              stays reachable in the tooltip above. */}
+          {!readOnly && (
+            <IconButton
+              size="small"
+              sx={{ padding: 0.25 }}
+              onPointerDown={e => e.stopPropagation()}
+              onClick={handleMenuOpen}
+            >
+              <MoreVert sx={{
+                fontSize: 18,
+                color: theme.palette.primary.main,
+              }}
+              />
+            </IconButton>
+          )}
+        </Box>
+
+        <Typography
+          sx={{
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            lineHeight: 1.25,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            wordBreak: 'break-word',
+          }}
+        >
+          {displayTitle}
+        </Typography>
+
+        {(targetCount > 0 || triggerCount > 0 || outputTypes.length > 0) && (
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 1,
+            marginTop: 'auto',
+          }}
+          >
+            {targetCount > 0 && (
+              <MetaItem
+                icon={<GpsFixedOutlined sx={{ fontSize: 13 }} />}
+                label={`${targetCount} ${t('target(s)')}`}
+              />
+            )}
+            {triggerCount > 0 && (
+              <MetaItem
+                icon={<BoltOutlined sx={{ fontSize: 13 }} />}
+                label={`${triggerCount} ${t('trigger(s)')}`}
+              />
+            )}
+            {outputTypes.length > 0 && (
+              <MetaItem
+                icon={<OutputOutlined sx={{ fontSize: 13 }} />}
+                label={`${outputTypes.length} ${t('output(s)')}`}
+              />
+            )}
+          </Box>
+        )}
+
+        {/* No action-initiated connect handle: an action can never be manually linked to an event.
+            The only action→event relationship is the automatic, informational inferred edge (this
+            action produces output an event listens on); gating is created the other way, by dragging
+            from a trigger/event onto an action (see GraphTriggerCard). */}
+
+        {/* No action-side "+" to add a downstream event: an action never establishes an
+            action→event relationship (that link is only the automatic informational inferred edge).
+            Events are added from an event's own "+" (event→action) or the global add button. */}
+
+        {!readOnly && (
+          <NodePopover
+            anchorEl={anchorEl}
+            onClose={handleMenuClose}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        )}
+      </Box>
+    </GraphCardTooltip>
+  );
+};
+
+export default GraphActionCard;

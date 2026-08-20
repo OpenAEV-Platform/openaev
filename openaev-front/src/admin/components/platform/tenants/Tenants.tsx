@@ -11,6 +11,7 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { type TenantOutput } from '../../../../utils/api-types';
+import useAuth from '../../../../utils/hooks/useAuth';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import SecurityMenu from '../../settings/SecurityMenu';
@@ -29,6 +30,7 @@ import {
 const Tenants = () => {
   // Standard hooks
   const { t } = useFormatter();
+  const { settings } = useAuth();
   const {
     tenants,
     setTenantList,
@@ -44,7 +46,7 @@ const Tenants = () => {
     queryableHelpers,
     searchPaginationInput,
   } = useQueryableWithLocalStorage(LOCAL_STORAGE_KEY_TENANT, buildSearchPagination({ sorts: TENANT_SORTS }));
-  const headers = useMemo(() => getTenantHeaders(t), [t]);
+  const headers = useMemo(() => getTenantHeaders(t, settings.default_tenant_id), [t, settings.default_tenant_id]);
 
   return (
     <div style={{ display: 'flex' }}>

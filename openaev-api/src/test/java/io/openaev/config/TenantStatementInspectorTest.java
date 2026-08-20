@@ -174,6 +174,53 @@ class TenantStatementInspectorTest {
     assertTrue(out.contains("jsonb_array_elements"), out);
   }
 
+  @Test
+  @DisplayName("the expectation indexing query has its collectors joins tenant-filtered")
+  void expectationIndexingQueryCollectorsJoinsAreFilteredWithCollectorsActive() throws Exception {
+    // #6751 activated collectors, which pulled findForIndexing into rewriting: both collectors
+    // joins of the security-platform attribution CTEs are wrapped in a can_access_tenant
+    // sub-query. Pin the real production SQL against an inspector with collectors active (strict:
+    // collectors.tenant_id is part of the composite primary key, so it is NOT NULL). This is why
+    // the engine sync sweep MUST run under an explicit tenant scope: with no scope set,
+    // can_access_tenant is fail-closed and every collector-sourced security platform attribution
+    // silently indexes empty.
+    String sql =
+        io.openaev.database.repository.InjectExpectationRepository.class
+            .getMethod("findForIndexing", java.time.Instant.class, int.class)
+            .getAnnotation(org.springframework.data.jpa.repository.Query.class)
+            .value();
+    TenantStatementInspector collectorsActive =
+        new TenantStatementInspector(new TenantTables(Set.of("collectors"), Set.of()));
+    String out = collectorsActive.inspect(sql).replaceAll("\\s+", " ").trim();
+    // The sp_self join (this expectation's own results)...
+    assertTrue(out.contains("can_access_tenant(c.tenant_id)"), out);
+    // ...and the agent_security_platforms join (agent-level children's results) are both filtered.
+    assertTrue(out.contains("can_access_tenant(child_c.tenant_id)"), out);
+    // The lateral jsonb unnests survive the rewrite instead of being refused.
+    assertTrue(out.contains("jsonb_array_elements"), out);
+  }
+
+  @Test
+  @DisplayName(
+      "the connector instance configuration lookup is accepted with connector_instances active")
+  void connectorInstanceConfigurationLookupPassesWithConnectorInstancesActive() throws Exception {
+    // connector_instances activation (this table's go-live) pulls
+    // findInstanceAndCatalogIdsByKeyValue into rewriting: it JOINs connector_instances, a plain
+    // two-table JOIN with a jsonb_exists predicate - an already-covered shape, but pin the real
+    // production SQL so a future refusal (e.g. #7007-style) surfaces in CI, not production. This
+    // query backs the executors/injectors/collectors "related-ids" endpoints.
+    String sql =
+        io.openaev.database.repository.ConnectorInstanceConfigurationRepository.class
+            .getMethod("findInstanceAndCatalogIdsByKeyValue", String.class, String.class)
+            .getAnnotation(org.springframework.data.jpa.repository.Query.class)
+            .value();
+    TenantStatementInspector connectorInstancesActive =
+        new TenantStatementInspector(new TenantTables(Set.of("connector_instances"), Set.of()));
+    String out = connectorInstancesActive.inspect(sql).replaceAll("\\s+", " ").trim();
+    assertTrue(out.contains("can_access_tenant(instance.tenant_id)"), out);
+    assertTrue(out.contains("jsonb_exists"), out);
+  }
+
   // --- Single table --------------------------------------------------------
 
   @Test

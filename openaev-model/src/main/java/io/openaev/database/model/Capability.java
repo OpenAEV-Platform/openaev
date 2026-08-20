@@ -2,15 +2,12 @@ package io.openaev.database.model;
 
 import static java.util.Map.entry;
 
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public enum Capability {
 
   // Superuser
@@ -152,6 +149,20 @@ public enum Capability {
       pair(ResourceType.THREAT_ARSENAL, Action.DUPLICATE)),
   DELETE_THREAT_ARSENALS(MANAGE_THREAT_ARSENALS, pair(ResourceType.THREAT_ARSENAL, Action.DELETE)),
 
+  // Credentials -
+  ACCESS_CREDENTIALS(
+      null,
+      CapabilityGroup.CREDENTIALS,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.CREDENTIAL, Action.READ),
+      pair(ResourceType.CREDENTIAL, Action.SEARCH)),
+  MANAGE_CREDENTIALS(
+      ACCESS_CREDENTIALS,
+      pair(ResourceType.CREDENTIAL, Action.WRITE),
+      pair(ResourceType.CREDENTIAL, Action.CREATE),
+      pair(ResourceType.CREDENTIAL, Action.DUPLICATE)),
+  DELETE_CREDENTIALS(MANAGE_CREDENTIALS, pair(ResourceType.CREDENTIAL, Action.DELETE)),
+
   // Dashboards
   ACCESS_DASHBOARDS(
       null,
@@ -218,6 +229,28 @@ public enum Capability {
       pair(ResourceType.CHANNEL, Action.WRITE),
       pair(ResourceType.CHANNEL, Action.CREATE)),
   DELETE_CHANNELS(MANAGE_CHANNELS, pair(ResourceType.CHANNEL, Action.DELETE)),
+
+  // Phishing (landing pages + email templates)
+  ACCESS_PHISHING(
+      null,
+      CapabilityGroup.CONTENT,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.PHISHING_LANDING_PAGE, Action.READ),
+      pair(ResourceType.PHISHING_LANDING_PAGE, Action.SEARCH),
+      pair(ResourceType.PHISHING_EMAIL_TEMPLATE, Action.READ),
+      pair(ResourceType.PHISHING_EMAIL_TEMPLATE, Action.SEARCH)),
+  MANAGE_PHISHING(
+      ACCESS_PHISHING,
+      pair(ResourceType.PHISHING_LANDING_PAGE, Action.WRITE),
+      pair(ResourceType.PHISHING_LANDING_PAGE, Action.CREATE),
+      pair(ResourceType.PHISHING_LANDING_PAGE, Action.DUPLICATE),
+      pair(ResourceType.PHISHING_EMAIL_TEMPLATE, Action.WRITE),
+      pair(ResourceType.PHISHING_EMAIL_TEMPLATE, Action.CREATE),
+      pair(ResourceType.PHISHING_EMAIL_TEMPLATE, Action.DUPLICATE)),
+  DELETE_PHISHING(
+      MANAGE_PHISHING,
+      pair(ResourceType.PHISHING_LANDING_PAGE, Action.DELETE),
+      pair(ResourceType.PHISHING_EMAIL_TEMPLATE, Action.DELETE)),
 
   // Challenges
   ACCESS_CHALLENGES(
@@ -291,8 +324,6 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.TENANT_SETTING, Action.READ),
       pair(ResourceType.TENANT_SETTING, Action.SEARCH),
-      pair(ResourceType.TAG, Action.READ),
-      pair(ResourceType.TAG, Action.SEARCH),
       pair(ResourceType.TAG_RULE, Action.READ),
       pair(ResourceType.TAG_RULE, Action.SEARCH),
       pair(ResourceType.ATTACK_PATTERN, Action.READ),
@@ -303,28 +334,34 @@ public enum Capability {
       pair(ResourceType.VULNERABILITY, Action.SEARCH),
       pair(ResourceType.ORGANIZATION, Action.READ),
       pair(ResourceType.ORGANIZATION, Action.SEARCH),
-      pair(ResourceType.GROUP_ROLE, Action.READ),
-      pair(ResourceType.GROUP_ROLE, Action.SEARCH),
-      pair(ResourceType.USER_GROUP, Action.READ),
-      pair(ResourceType.USER_GROUP, Action.SEARCH),
-      pair(ResourceType.USER, Action.READ),
-      pair(ResourceType.USER, Action.SEARCH),
       pair(ResourceType.COLLECTOR, Action.READ),
       pair(ResourceType.COLLECTOR, Action.SEARCH),
       pair(ResourceType.INJECTOR, Action.READ),
       pair(ResourceType.INJECTOR, Action.SEARCH),
+      pair(ResourceType.SECRET_PROVIDER, Action.READ),
+      pair(ResourceType.SECRET_PROVIDER, Action.SEARCH),
       pair(ResourceType.CATALOG, Action.READ),
       pair(ResourceType.CATALOG, Action.SEARCH),
       pair(ResourceType.XTM_HUB_REGISTRATION, Action.READ),
       pair(ResourceType.XTM_HUB_REGISTRATION, Action.SEARCH),
       pair(ResourceType.NOTIFIER, Action.READ),
       pair(ResourceType.NOTIFIER, Action.SEARCH)),
+  // Tags
+  ACCESS_TAGS(
+      null,
+      CapabilityGroup.TAXONOMY,
+      false,
+      false,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.TAG, Action.READ),
+      pair(ResourceType.TAG, Action.SEARCH)),
+  MANAGE_TAGS(
+      ACCESS_TAGS, pair(ResourceType.TAG, Action.WRITE), pair(ResourceType.TAG, Action.CREATE)),
+  DELETE_TAGS(MANAGE_TAGS, pair(ResourceType.TAG, Action.DELETE)),
   MANAGE_TENANT_SETTINGS(
       ACCESS_TENANT_SETTINGS,
       pair(ResourceType.TENANT_SETTING, Action.WRITE),
       pair(ResourceType.TENANT_SETTING, Action.CREATE),
-      pair(ResourceType.TAG, Action.WRITE),
-      pair(ResourceType.TAG, Action.CREATE),
       pair(ResourceType.TAG_RULE, Action.WRITE),
       pair(ResourceType.TAG_RULE, Action.CREATE),
       pair(ResourceType.ATTACK_PATTERN, Action.WRITE),
@@ -335,12 +372,6 @@ public enum Capability {
       pair(ResourceType.VULNERABILITY, Action.CREATE),
       pair(ResourceType.ORGANIZATION, Action.WRITE),
       pair(ResourceType.ORGANIZATION, Action.CREATE),
-      pair(ResourceType.GROUP_ROLE, Action.WRITE),
-      pair(ResourceType.GROUP_ROLE, Action.CREATE),
-      pair(ResourceType.USER_GROUP, Action.WRITE),
-      pair(ResourceType.USER_GROUP, Action.CREATE),
-      pair(ResourceType.USER, Action.WRITE),
-      pair(ResourceType.USER, Action.CREATE),
       pair(ResourceType.MAPPER, Action.WRITE),
       pair(ResourceType.MAPPER, Action.CREATE),
       pair(ResourceType.MAPPER, Action.DUPLICATE),
@@ -348,6 +379,8 @@ public enum Capability {
       pair(ResourceType.COLLECTOR, Action.CREATE),
       pair(ResourceType.INJECTOR, Action.WRITE),
       pair(ResourceType.INJECTOR, Action.CREATE),
+      pair(ResourceType.SECRET_PROVIDER, Action.WRITE),
+      pair(ResourceType.SECRET_PROVIDER, Action.CREATE),
       pair(ResourceType.INJECTOR_CONTRACT, Action.WRITE),
       pair(ResourceType.INJECTOR_CONTRACT, Action.CREATE),
       pair(ResourceType.CATALOG, Action.WRITE),
@@ -360,25 +393,46 @@ public enum Capability {
   DELETE_TENANT_SETTINGS(
       MANAGE_TENANT_SETTINGS,
       pair(ResourceType.TENANT_SETTING, Action.DELETE),
-      pair(ResourceType.TAG, Action.DELETE),
       pair(ResourceType.TAG_RULE, Action.DELETE),
       pair(ResourceType.ATTACK_PATTERN, Action.DELETE),
       pair(ResourceType.KILL_CHAIN_PHASE, Action.DELETE),
       pair(ResourceType.VULNERABILITY, Action.DELETE),
       pair(ResourceType.ORGANIZATION, Action.DELETE),
-      pair(ResourceType.GROUP_ROLE, Action.DELETE),
-      pair(ResourceType.USER_GROUP, Action.DELETE),
-      pair(ResourceType.USER, Action.DELETE),
       pair(ResourceType.MAPPER, Action.DELETE),
       pair(ResourceType.COLLECTOR, Action.DELETE),
       pair(ResourceType.INJECTOR, Action.DELETE),
+      pair(ResourceType.SECRET_PROVIDER, Action.DELETE),
       pair(ResourceType.INJECTOR_CONTRACT, Action.DELETE),
       pair(ResourceType.NOTIFIER, Action.DELETE)),
+
+  ACCESS_TENANT_USERS_GROUPS_AND_ROLES(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.USER_GROUP, Action.READ),
+      pair(ResourceType.USER_GROUP, Action.SEARCH),
+      pair(ResourceType.GROUP_ROLE, Action.READ),
+      pair(ResourceType.GROUP_ROLE, Action.SEARCH),
+      pair(ResourceType.USER, Action.READ),
+      pair(ResourceType.USER, Action.SEARCH)),
+  MANAGE_TENANT_USERS_GROUPS_AND_ROLES(
+      ACCESS_TENANT_USERS_GROUPS_AND_ROLES,
+      pair(ResourceType.USER_GROUP, Action.WRITE),
+      pair(ResourceType.USER_GROUP, Action.CREATE),
+      pair(ResourceType.GROUP_ROLE, Action.WRITE),
+      pair(ResourceType.GROUP_ROLE, Action.CREATE),
+      pair(ResourceType.USER, Action.WRITE),
+      pair(ResourceType.USER, Action.CREATE)),
+  DELETE_TENANT_USERS_GROUPS_AND_ROLES(
+      MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+      pair(ResourceType.USER_GROUP, Action.DELETE),
+      pair(ResourceType.GROUP_ROLE, Action.DELETE),
+      pair(ResourceType.USER, Action.DELETE)),
 
   // Platform Users, Groups & Roles
   ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES(
       null,
-      CapabilityGroup.PLATFORM_USERS_GROUPS_AND_ROLES,
+      CapabilityGroup.SECURITY,
       EnumSet.of(CapabilityScope.PLATFORM),
       pair(ResourceType.PLATFORM_GROUP, Action.READ),
       pair(ResourceType.PLATFORM_GROUP, Action.SEARCH),
@@ -417,7 +471,16 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.JOB, Action.READ),
       pair(ResourceType.JOB, Action.WRITE),
-      pair(ResourceType.AGENT, Action.CREATE));
+      pair(ResourceType.AGENT, Action.CREATE)),
+
+  MANAGE_SESSIONS(
+      null,
+      CapabilityGroup.SECURITY,
+      true,
+      true,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.SESSION, Action.READ),
+      pair(ResourceType.SESSION, Action.WRITE));
 
   private record ResourceTypeActionPair(ResourceType resource, Action action) {}
 
@@ -510,28 +573,53 @@ public enum Capability {
     return result;
   }
 
-  public static void validateForPlatformRole(Set<Capability> capabilities) {
-    validateScope(capabilities, CapabilityScope.PLATFORM);
-  }
+  // -- GET --
 
-  public static void validateForTenantRole(Set<Capability> capabilities) {
-    validateScope(capabilities, CapabilityScope.TENANT);
-  }
-
-  /** Returns all capabilities that include the PLATFORM scope (excluding BYPASS itself). */
+  /**
+   * Returns every capability whose scopes include PLATFORM, {@code BYPASS} excluded - being valid
+   * in both scopes, it belongs to no single one. Hidden and deprecated capabilities are included,
+   * so the result describes the scope, not what a UI should offer.
+   */
   public static Set<Capability> allPlatformScoped() {
     return Arrays.stream(values())
         .filter(c -> c != BYPASS && c.scopes.contains(CapabilityScope.PLATFORM))
         .collect(Collectors.toUnmodifiableSet());
   }
 
-  /** Returns all capabilities that include the TENANT scope (excluding BYPASS itself). */
+  /**
+   * Returns every capability whose scopes include TENANT, {@code BYPASS} excluded - being valid in
+   * both scopes, it belongs to no single one. Hidden and deprecated capabilities are included, so
+   * the result describes the scope, not what a UI should offer.
+   */
   public static Set<Capability> allTenantScoped() {
     return Arrays.stream(values())
         .filter(c -> c != BYPASS && c.scopes.contains(CapabilityScope.TENANT))
         .collect(Collectors.toUnmodifiableSet());
   }
 
+  // -- VALIDATE --
+
+  /**
+   * Throws {@link IllegalArgumentException} naming every capability that is not valid in the
+   * PLATFORM scope, and returns silently when they all are. Nothing is modified or logged.
+   */
+  public static void validateForPlatformRole(Set<Capability> capabilities) {
+    validateScope(capabilities, CapabilityScope.PLATFORM);
+  }
+
+  /**
+   * Throws {@link IllegalArgumentException} naming every capability that is not valid in the TENANT
+   * scope, and returns silently when they all are. Nothing is modified or logged.
+   */
+  public static void validateForTenantRole(Set<Capability> capabilities) {
+    validateScope(capabilities, CapabilityScope.TENANT);
+  }
+
+  /**
+   * Fail-closed scope check: collects every capability missing {@code requiredScope} and throws
+   * them all in a single message, so a caller sees the complete set of offenders rather than the
+   * first one.
+   */
   private static void validateScope(Set<Capability> capabilities, CapabilityScope requiredScope) {
     Set<Capability> invalid =
         capabilities.stream()
@@ -541,5 +629,53 @@ public enum Capability {
       throw new IllegalArgumentException(
           "Capabilities " + invalid + " are not allowed for scope " + requiredScope);
     }
+  }
+
+  // -- FILTER --
+
+  /**
+   * Returns a new set holding only the capabilities that include the PLATFORM scope; the others are
+   * dropped and reported in a single warning. The given set is left untouched and nothing is
+   * thrown, however many capabilities are dropped - an all-out-of-scope input yields an empty set.
+   */
+  public static Set<Capability> filterForPlatformRole(Set<Capability> capabilities) {
+    return filterScope(capabilities, CapabilityScope.PLATFORM);
+  }
+
+  /**
+   * Returns a new set holding only the capabilities that include the TENANT scope; the others are
+   * dropped and reported in a single warning. The given set is left untouched and nothing is
+   * thrown, however many capabilities are dropped - an all-out-of-scope input yields an empty set.
+   */
+  public static Set<Capability> filterForTenantRole(Set<Capability> capabilities) {
+    return filterScope(capabilities, CapabilityScope.TENANT);
+  }
+
+  /**
+   * Fail-open counterpart of {@link #validateScope}: splits the capabilities on {@code
+   * requiredScope}, returns the valid ones in a new mutable set and warns once about those dropped.
+   * Never throws, so the caller must treat the returned set - possibly empty - as the authoritative
+   * one.
+   */
+  private static Set<Capability> filterScope(
+      Set<Capability> capabilities, CapabilityScope requiredScope) {
+    Set<Capability> valid = new HashSet<>();
+    Set<Capability> dropped = new HashSet<>();
+    for (Capability capability : capabilities) {
+      if (capability.scopes.contains(requiredScope)) {
+        valid.add(capability);
+      } else {
+        dropped.add(capability);
+      }
+    }
+    if (!dropped.isEmpty()) {
+      log.warn(
+          "Dropping out-of-scope capabilities {} not allowed for scope {}", dropped, requiredScope);
+    }
+    return valid;
+  }
+
+  public boolean isCredentialCapability() {
+    return this == ACCESS_CREDENTIALS || this == MANAGE_CREDENTIALS || this == DELETE_CREDENTIALS;
   }
 }

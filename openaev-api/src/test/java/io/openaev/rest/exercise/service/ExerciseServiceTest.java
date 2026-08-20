@@ -8,6 +8,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
@@ -84,7 +85,6 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
-  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private WorkflowService workflowService;
   @Mock private GrantService grantService;
   @Mock private ExerciseTeamUserService exerciseTeamUserService;
@@ -94,6 +94,7 @@ class ExerciseServiceTest extends IntegrationTest {
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
   @Mock private AttackPathExecutionIngestionService attackPathExecutionService;
+  @Mock private AutonomousRunRepository autonomousRunRepository;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
   @InjectMocks private ExerciseService mockedExerciseService;
   @Autowired private InjectStatusRepository injectStatusRepository;
@@ -138,13 +139,13 @@ class ExerciseServiceTest extends IntegrationTest {
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,
-            previewFeatureService,
             pauseExerciseService,
             fileService,
             stepService,
             healthCheckUtils,
             eventPublisher,
-            attackPathExecutionService);
+            attackPathExecutionService,
+            autonomousRunRepository);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

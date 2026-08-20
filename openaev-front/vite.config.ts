@@ -68,6 +68,11 @@ export default ({ mode }: { mode: string }) => {
         '/oauth2': backProxy(),
         '/saml2': backProxy(),
         '/actuator': backProxy(),
+        // Cross-platform auth: XTM One fetches this platform's JWKS from
+        // {base-url}/xtm/auth/jwks to verify JWTs minted by XtmOneClient.
+        // When base-url points at this dev server, the fetch must reach the
+        // backend or every /api/xtmone/* proxy call fails with 401.
+        '/xtm': backProxy(),
       },
     },
   });

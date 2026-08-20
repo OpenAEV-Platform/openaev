@@ -17,6 +17,8 @@ public @interface WithMockSentinelOneConfig {
 
   int apiRegisterInterval() default 0;
 
+  String cleanImplantCron() default "";
+
   String accountId() default "";
 
   String siteId() default "";

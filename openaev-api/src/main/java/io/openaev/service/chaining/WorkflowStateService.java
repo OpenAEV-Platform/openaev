@@ -253,7 +253,9 @@ public class WorkflowStateService {
       // leaf condition, because it may contribute to the overall event satisfaction together
       // with other values. The full AND/OR evaluation happens at step execution time.
       List<String> matchingValues =
-          values.stream().filter(val -> matchesAnyRootCondition(val, rootConditions)).toList();
+          values.stream()
+              .filter(val -> matchesAnyRootCondition(val, keyTypeName, rootConditions))
+              .toList();
       if (!matchingValues.isEmpty()) {
         valuesToPropagate.put(keyTypeName, matchingValues);
       }
@@ -302,21 +304,23 @@ public class WorkflowStateService {
         .filter(
             tuple ->
                 tuple.getValues().stream()
-                    .anyMatch(pair -> matchesAnyRootCondition(pair.value(), rootConditions)))
+                    .anyMatch(
+                        pair -> matchesAnyRootCondition(pair.value(), pair.key(), rootConditions)))
         .toList();
   }
 
   /**
-   * Returns {@code true} if the given value satisfies at least one leaf condition within any of the
-   * provided root conditions.
+   * Returns {@code true} if the given value satisfies at least one same-key-type leaf condition
+   * within any of the provided root conditions.
    *
    * <p>This is the shared eligibility check for both primitive-value and correlated-tuple
    * propagation. AND/OR group semantics are intentionally ignored here. Full evaluation happens at
    * step execution time.
    */
-  private boolean matchesAnyRootCondition(String value, List<Condition> rootConditions) {
+  private boolean matchesAnyRootCondition(
+      String value, String keyTypeName, List<Condition> rootConditions) {
     return rootConditions.stream()
-        .anyMatch(root -> conditionUtils.matchesAnyLeafCondition(value, root));
+        .anyMatch(root -> conditionUtils.matchesAnyLeafCondition(value, root, keyTypeName));
   }
 
   /**
@@ -555,6 +559,43 @@ public class WorkflowStateService {
   /** Persists a workflow state entity. */
   public WorkflowState save(WorkflowState state) {
     return workflowStateRepository.save(state);
+  }
+
+  /**
+   * Clears the committed execution hashes of a step template on a given RUN workflow, re-arming the
+   * step so the next {@link StepService#createReadySteps} readies and re-executes it.
+   *
+   * <p>Editing an already-executed step in place (the autonomous {@code
+   * update_openaev_attack_path_step}) swaps only the step's baked inject data; its committed
+   * execution hashes stay behind, so the engine would keep treating the step as already-fired and
+   * never run the corrected version. Dropping those hashes is what makes the "fix a step, then
+   * re-run it" loop actually re-execute. Re-firing then replays the step against everything its
+   * trigger has matched so far (a seed re-fires once; a finding-driven step re-fires across the
+   * findings it already consumed), now with the corrected definition.
+   *
+   * <p>Load-only (never builds a state): a step that never executed against this run has no local
+   * state and nothing committed, so this is a no-op and a cosmetic pre-execution edit costs
+   * nothing.
+   *
+   * @param stepTemplate the step template whose re-fire guard should be reset
+   * @param workflowExecution the RUN workflow the step executes under
+   */
+  public void clearExecutionHashes(Step stepTemplate, Workflow workflowExecution) {
+    WorkflowState localState =
+        workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
+            stepTemplate.getId(), workflowExecution.getId());
+    if (localState == null) {
+      return;
+    }
+    WorkflowStateEntries entries =
+        gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
+    Set<String> hashExecution = entries.getHashExecution();
+    if (hashExecution == null || hashExecution.isEmpty()) {
+      return;
+    }
+    hashExecution.clear();
+    localState.setEntries(gson.toJson(entries));
+    save(localState);
   }
 
   /**

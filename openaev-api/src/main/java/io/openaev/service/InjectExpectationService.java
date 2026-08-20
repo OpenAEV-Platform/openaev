@@ -61,6 +61,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -1269,7 +1270,10 @@ public class InjectExpectationService {
                 targetId,
                 injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId));
         case ASSETS_GROUPS ->
-            injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, targetId);
+            enrichAssetGroupExpectationsWithChildrenSecurityPlatforms(
+                injectId,
+                targetId,
+                injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, targetId));
         default ->
             throw new RuntimeException(
                 "Target type "
@@ -1304,22 +1308,81 @@ public class InjectExpectationService {
       // Agentless asset (AI target, agentless endpoint): the asset expectation is filled directly.
       return assetExpectations;
     }
+    return enrichExpectationsWithChildrenSecurityPlatforms(
+        assetExpectations,
+        agentExpectations,
+        // Prefer an answered result over a pending one for the same source.
+        expectation ->
+            (existing, candidate) -> existing.getResult() != null ? existing : candidate);
+  }
+
+  /**
+   * Makes the asset-group target-results view show the security platforms of its underlying assets.
+   * Asset-group detection/prevention expectations are scored by rolling up their asset children
+   * and, on the collector path, never carry the per-security-platform result rows that the agent /
+   * asset expectations hold (only direct writes - e.g. an assessment injector like Nuclei
+   * concluding the group row itself - do). For display we merge, per expectation type, the union of
+   * the children's (agent and asset levels) security-platform results onto a DETACHED clone of each
+   * group expectation, so the change never persists. Per platform, the displayed result reflects
+   * the platform's overall verdict under the group's validation rule (see {@link
+   * #pickGroupPlatformVerdict}). Groups without children rows are returned unchanged.
+   *
+   * @param injectId the inject ID
+   * @param assetGroupId the asset group ID
+   * @param assetGroupExpectations the group-level expectations for the inject
+   * @return detached group expectations enriched with their children's security-platform results
+   */
+  private List<BaseInjectExpectation> enrichAssetGroupExpectationsWithChildrenSecurityPlatforms(
+      final String injectId,
+      final String assetGroupId,
+      final List<BaseInjectExpectation> assetGroupExpectations) {
+    List<BaseInjectExpectation> childExpectations =
+        injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+            injectId, assetGroupId);
+    if (childExpectations.isEmpty()) {
+      return assetGroupExpectations;
+    }
+    return enrichExpectationsWithChildrenSecurityPlatforms(
+        assetGroupExpectations,
+        childExpectations,
+        expectation ->
+            (existing, candidate) -> pickGroupPlatformVerdict(expectation, existing, candidate));
+  }
+
+  /**
+   * Merges the children's security-platform (collector) results onto a DETACHED clone of each
+   * parent expectation of the same type, de-duplicated by source. The parent's OWN direct results
+   * (e.g. a security platform that answered the parent level directly) are kept in the union: a
+   * result persisted on the row must stay visible, silently dropping it would hide what drove the
+   * score. Display-only: the persistent entities are never modified.
+   *
+   * @param parentExpectations the parent expectations to enrich (asset or asset-group level)
+   * @param childExpectations the children carrying the security-platform results
+   * @param mergePreferenceFor picks, per parent expectation, which of two results of the same
+   *     source the merged view keeps
+   * @return detached parent expectations enriched with their children's security-platform results
+   */
+  private static List<BaseInjectExpectation> enrichExpectationsWithChildrenSecurityPlatforms(
+      final List<BaseInjectExpectation> parentExpectations,
+      final List<BaseInjectExpectation> childExpectations,
+      final Function<BaseInjectExpectation, BinaryOperator<InjectExpectationResult>>
+          mergePreferenceFor) {
     // Union of security-platform / collector results per expectation type, de-duplicated by source.
     Map<BaseInjectExpectation.EXPECTATION_TYPE, List<InjectExpectationResult>> resultsByType =
         new HashMap<>();
-    for (BaseInjectExpectation agentExpectation : agentExpectations) {
+    for (BaseInjectExpectation childExpectation : childExpectations) {
       List<InjectExpectationResult> platformResults =
-          agentExpectation.getResults().stream()
+          childExpectation.getResults().stream()
               .filter(
                   r ->
                       COLLECTOR.equals(r.getSourceType())
                           || SECURITY_PLATFORM.equals(r.getSourceType()))
               .toList();
       resultsByType
-          .computeIfAbsent(agentExpectation.getType(), k -> new ArrayList<>())
+          .computeIfAbsent(childExpectation.getType(), k -> new ArrayList<>())
           .addAll(platformResults);
     }
-    return assetExpectations.stream()
+    return parentExpectations.stream()
         .map(
             expectation -> {
               List<InjectExpectationResult> platformResults =
@@ -1328,10 +1391,10 @@ public class InjectExpectationService {
                 return expectation;
               }
               BaseInjectExpectation clone = expectation.clone();
+              BinaryOperator<InjectExpectationResult> mergePreference =
+                  mergePreferenceFor.apply(expectation);
               Map<String, InjectExpectationResult> bySource = new LinkedHashMap<>();
-              // Agents' results first, then the asset expectation's OWN direct results (e.g. a
-              // security platform that answered the asset level directly): a result persisted on
-              // the row must stay visible, silently dropping it would hide what drove the score.
+              // Children's results first, then the parent expectation's OWN direct results.
               Stream.concat(
                       platformResults.stream(),
                       expectation.getResults().stream()
@@ -1339,18 +1402,10 @@ public class InjectExpectationService {
                               r ->
                                   COLLECTOR.equals(r.getSourceType())
                                       || SECURITY_PLATFORM.equals(r.getSourceType())))
-                  .forEach(
-                      r ->
-                          bySource.merge(
-                              mergeSourceKey(r),
-                              r,
-                              (existing, candidate) ->
-                                  // Prefer an answered result over a pending one for the same
-                                  // source.
-                                  existing.getResult() != null ? existing : candidate));
+                  .forEach(r -> bySource.merge(mergeSourceKey(r), r, mergePreference));
               // A VULNERABILITY row a genuine platform already answered needs no expiration entry
-              // in the merged display either: the union pulls the agents' expiration rows (the
-              // vulnerability default "Not vulnerable") onto the asset view, where they render as
+              // in the merged display either: the union pulls the children's expiration rows (the
+              // vulnerability default "Not vulnerable") onto the parent view, where they render as
               // redundant - or contradictory - entries next to the real scan verdict. Same rule as
               // the write path (InjectExpectationUtils.computeScores): the expiration default is
               // the absence-of-signal fallback, a real answer supersedes it.
@@ -1378,6 +1433,43 @@ public class InjectExpectationService {
               return clone;
             })
         .toList();
+  }
+
+  /**
+   * Per-platform verdict aggregation for the asset-group view: the same security platform typically
+   * answered several assets of the group with different verdicts (e.g. detected on one endpoint,
+   * missed on another). The displayed row must reflect the platform's OVERALL verdict under the
+   * group's validation rule: with the default "all assets must validate" rule one failure fails the
+   * platform overall (keep the worst-scored result), with the "at least one asset" rule one success
+   * validates it (keep the best-scored result). An answered result always beats a pending one.
+   *
+   * @param groupExpectation the group expectation whose validation rule drives the choice
+   * @param existing the result currently kept for this source
+   * @param candidate the competing result of the same source
+   * @return the result the merged view keeps
+   */
+  private static InjectExpectationResult pickGroupPlatformVerdict(
+      final BaseInjectExpectation groupExpectation,
+      final InjectExpectationResult existing,
+      final InjectExpectationResult candidate) {
+    boolean existingAnswered = isAnsweredResult(existing);
+    boolean candidateAnswered = isAnsweredResult(candidate);
+    if (existingAnswered != candidateAnswered) {
+      return existingAnswered ? existing : candidate;
+    }
+    Double existingScore = existing.getScore();
+    Double candidateScore = candidate.getScore();
+    if (existingScore == null || candidateScore == null) {
+      return existing;
+    }
+    if (groupExpectation.isExpectationGroup()) {
+      return candidateScore > existingScore ? candidate : existing;
+    }
+    return candidateScore < existingScore ? candidate : existing;
+  }
+
+  private static boolean isAnsweredResult(final InjectExpectationResult result) {
+    return result.getResult() != null && !result.getResult().isBlank();
   }
 
   private static String mergeSourceKey(InjectExpectationResult result) {
@@ -1596,8 +1688,20 @@ public class InjectExpectationService {
   /**
    * Merges expectation results by expectation type, keeping one expectation per type.
    *
-   * <p>Results from collector sources are not copied to the merged expectation. The score is set to
-   * the maximum score among all results.
+   * <p>Display-only: when several expectations share a type (e.g. the three phishing steps, all
+   * MANUAL), the merge is built on a DETACHED clone of the first expectation. The inputs are
+   * managed entities on an open session, so mutating them here would flush the merged results and
+   * score back to the database on commit - every read of a results page would then re-append the
+   * sibling rows' results into the elected row (unbounded JSONB growth, requests eventually
+   * exceeding the connection-leak threshold and exhausting the pool) and overwrite its persisted
+   * score.
+   *
+   * <p>Collector-source results of the SIBLING expectations are not copied onto the merged clone;
+   * the elected expectation's own results (collector ones included) are kept as-is. The merged
+   * score is the worst (minimum) score among the answered same-type expectations: a target
+   * validates a type only if every expectation of that type validated it, so e.g. one compromised
+   * phishing step keeps the merged human-response verdict red even when the other steps were
+   * resisted.
    *
    * @param expectations the list of expectations to merge
    * @return a list with one expectation per type containing merged results
@@ -1606,37 +1710,40 @@ public class InjectExpectationService {
       List<? extends BaseInjectExpectation> expectations) {
     List<String> notCopiedSourceTypes = List.of(COLLECTOR);
 
-    HashMap<BaseInjectExpectation.EXPECTATION_TYPE, BaseInjectExpectation> electedExpectations =
-        new HashMap<>();
+    Map<BaseInjectExpectation.EXPECTATION_TYPE, List<BaseInjectExpectation>> byType =
+        new LinkedHashMap<>();
     for (BaseInjectExpectation expectation : expectations) {
-      if (!electedExpectations.containsKey(expectation.getType())) {
-        electedExpectations.put(expectation.getType(), expectation);
+      byType.computeIfAbsent(expectation.getType(), k -> new ArrayList<>()).add(expectation);
+    }
+
+    List<BaseInjectExpectation> merged = new ArrayList<>(byType.size());
+    for (List<BaseInjectExpectation> sameType : byType.values()) {
+      BaseInjectExpectation elected = sameType.get(0);
+      if (sameType.size() == 1) {
+        merged.add(elected);
         continue;
       }
-
-      for (InjectExpectationResult expectationResult : expectation.getResults()) {
-        if (!notCopiedSourceTypes.contains(expectationResult.getSourceType())
-            && expectationResult.getResult() != null
-            && expectationResult.getScore() != null) {
-          electedExpectations
-              .get(expectation.getType())
-              .setResults(
-                  Stream.concat(
-                          electedExpectations.get(expectation.getType()).getResults().stream(),
-                          Stream.of(expectationResult))
-                      .toList());
-          electedExpectations
-              .get(expectation.getType())
-              .setScore(
-                  electedExpectations.get(expectation.getType()).getResults().stream()
-                      .map(InjectExpectationResult::getScore)
-                      .filter(Objects::nonNull)
-                      .max(Double::compareTo)
-                      .orElse(null));
+      BaseInjectExpectation clone = elected.clone();
+      List<InjectExpectationResult> combinedResults = new ArrayList<>(elected.getResults());
+      for (BaseInjectExpectation other : sameType.subList(1, sameType.size())) {
+        for (InjectExpectationResult expectationResult : other.getResults()) {
+          if (!notCopiedSourceTypes.contains(expectationResult.getSourceType())
+              && expectationResult.getResult() != null
+              && expectationResult.getScore() != null) {
+            combinedResults.add(expectationResult);
+          }
         }
       }
+      clone.setResults(combinedResults);
+      clone.setScore(
+          sameType.stream()
+              .map(BaseInjectExpectation::getScore)
+              .filter(Objects::nonNull)
+              .min(Double::compareTo)
+              .orElse(null));
+      merged.add(clone);
     }
-    return electedExpectations.values().stream().toList();
+    return merged;
   }
 
   /**

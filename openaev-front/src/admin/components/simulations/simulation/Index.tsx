@@ -2,6 +2,7 @@ import { Alert, AlertTitle } from '@mui/material';
 import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
+import { type AutonomousEvent, type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import { fetchExercise } from '../../../../actions/Exercise';
 import { fetchScenarioFromSimulation } from '../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
@@ -15,7 +16,12 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
-import { isFeatureEnabled } from '../../../../utils/utils';
+import { AutonomousContext } from '../../autonomous/AutonomousContext';
+import AutonomousOverview from '../../autonomous/AutonomousOverview';
+import AutonomousReasoningPanel from '../../autonomous/AutonomousReasoningPanel';
+import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
+import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
+import useAutonomousRunForSimulation from '../../autonomous/useAutonomousRunForSimulation';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import injectContextForExercise from './ExerciseContext';
 import SimulationShell from './SimulationShell';
@@ -43,14 +49,48 @@ const AnimationToExecutionRedirect = () => {
   return <Navigate to={location.pathname.replace('/animation', '/execution')} replace />;
 };
 
-const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ exercise }) => {
+const IndexComponent: FunctionComponent<{
+  exercise: SimulationDetails;
+  autonomousRun: AutonomousRun | null;
+  onAutonomousRunUpdate: (run: AutonomousRun) => void;
+}> = ({ exercise, autonomousRun, onAutonomousRunUpdate }) => {
   const location = useLocation();
   const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
+  const isAutonomous = !!autonomousRun;
+  // The AI cockpit polls the run's decision timeline in the always-open reasoning panel. Lift that
+  // stream here and share it with the overview outcome layer so the overview does NOT start a
+  // SECOND full-from-cursor-0 poll of the same endpoint while the run is active (the simulation-side
+  // double-poll fix, #7472 - mirrors the scenario cockpit).
+  const cockpitActive = isAutonomousRunActive(autonomousRun);
+  const [cockpitTimeline, setCockpitTimeline] = useState<AutonomousEvent[]>([]);
+  // Same identity-change rule as AutonomousReasoningPanel / the scenario cockpit: clear only on a
+  // real run / simulation switch. A transient payload that momentarily lost its simulation id on
+  // the SAME run must not blank the overview layer (it would receive sharedEvents=[] and not poll).
+  const cockpitStreamKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const runId = autonomousRun?.autonomous_run_id;
+    const simulationId = autonomousRun?.autonomous_run_simulation_id;
+    if (!runId) {
+      cockpitStreamKeyRef.current = null;
+      setCockpitTimeline([]);
+      return;
+    }
+    const nextKey = `${runId}::${simulationId ?? ''}`;
+    if (cockpitStreamKeyRef.current === nextKey) {
+      return;
+    }
+    const previousRunId = cockpitStreamKeyRef.current?.split('::')[0];
+    if (cockpitStreamKeyRef.current !== null && previousRunId === runId && !simulationId) {
+      return;
+    }
+    cockpitStreamKeyRef.current = nextKey;
+    setCockpitTimeline([]);
+  }, [autonomousRun?.autonomous_run_id, autonomousRun?.autonomous_run_simulation_id]);
+  // Resizable reasoning-panel width, shared with the content padding so the two stay in lockstep.
+  const [panelWidth, setPanelWidth] = useAutonomousPanelWidth();
   // Attack path only exists for chained simulations (workflow-backed), never
   // for time-based ones: gate the route like the tab in SimulationShell.
-  const isAttackPathEnabled = isFeatureEnabled('ATTACK_PATH')
-    && isFeatureEnabled('INJECT_CHAINING')
-    && !!exercise.exercise_workflow_id;
+  const hasWorkflow = !!exercise.exercise_workflow_id;
   // Stable context identities: these providers wrap the whole simulation subtree and a
   // new value each render forces every consumer (incl. the injects list) to re-render.
   const permissionsContext: PermissionsContextType = useMemo(() => ({
@@ -70,46 +110,82 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
     }),
   }), [exercise?.exercise_id, exercise?.exercise_name]);
 
+  // Autonomous runs reserve the right column for the always-open reasoning panel; otherwise keep
+  // the legacy right rail only on the Execution timeline.
+  let contentPaddingRight = 0;
+  if (isAutonomous) {
+    contentPaddingRight = panelWidth;
+  } else if (location.pathname.includes('/execution')) {
+    contentPaddingRight = 200;
+  }
+
+  const autonomousContext = useMemo(() => ({ isAutonomous }), [isAutonomous]);
+
   return (
-    <PermissionsContext.Provider value={permissionsContext}>
-      <DocumentContext.Provider value={documentContext}>
-        <div style={{ paddingRight: location.pathname.includes('/execution') ? 200 : 0 }}>
-          <SimulationShell exercise={exercise}>
-            <Suspense fallback={<Loader />}>
-              <Routes>
-                <Route path="" element={errorWrapper(Simulation)()} />
-                {/* Definition merged into the Injects authoring tab; redirect old links. */}
-                <Route path="definition" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/injects`} replace={true} />} />
-                <Route path="injects" element={errorWrapper(Injects)()} />
-                <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
-                <Route path="execution" element={<Navigate to="timeline" replace={true} />} />
-                <Route path="execution/timeline" element={errorWrapper(ExecutionOverview)()} />
-                <Route path="execution/mails" element={errorWrapper(Mails)()} />
-                <Route path="execution/mails/:injectId" element={errorWrapper(MailsInject)()} />
-                <Route path="execution/logs" element={errorWrapper(Logs)()} />
-                <Route path="execution/chat" element={errorWrapper(Chat)()} />
-                <Route path="execution/validations" element={errorWrapper(Validations)()} />
-                {/* The Animation area was renamed Execution; keep old deep links working. */}
-                <Route path="animation/*" element={<AnimationToExecutionRedirect />} />
-                <Route path="lessons" element={errorWrapper(Lessons)()} />
-                <Route path="findings" element={errorWrapper(SimulationFindings)()} />
-                {isAttackPathEnabled && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />}
-                {/* Simulation-scoped custom dashboard, surfaced as the Statistics tab. */}
-                <Route path="statistics" element={errorWrapper(SimulationStatistics)()} />
-                {/* Statistics replaced the hero dashboard quick action and the old
+    <AutonomousContext.Provider value={autonomousContext}>
+      <PermissionsContext.Provider value={permissionsContext}>
+        <DocumentContext.Provider value={documentContext}>
+          <div style={{ paddingRight: contentPaddingRight }}>
+            <SimulationShell exercise={exercise} autonomousRun={autonomousRun}>
+              <Suspense fallback={<Loader />}>
+                <Routes>
+                  {/* Overview swaps to the AI cockpit for autonomous runs. */}
+                  <Route path="" element={isAutonomous ? <AutonomousOverview run={autonomousRun} sharedEvents={cockpitActive ? cockpitTimeline : undefined} /> : errorWrapper(Simulation)()} />
+                  {/* Definition merged into the Injects authoring tab; redirect old links. */}
+                  <Route path="definition" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/injects`} replace={true} />} />
+                  <Route path="injects" element={errorWrapper(Injects)()} />
+                  <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
+                  <Route path="execution" element={<Navigate to="timeline" replace={true} />} />
+                  <Route path="execution/timeline" element={errorWrapper(ExecutionOverview)()} />
+                  <Route path="execution/mails" element={errorWrapper(Mails)()} />
+                  <Route path="execution/mails/:injectId" element={errorWrapper(MailsInject)()} />
+                  <Route path="execution/logs" element={errorWrapper(Logs)()} />
+                  <Route path="execution/chat" element={errorWrapper(Chat)()} />
+                  <Route path="execution/validations" element={errorWrapper(Validations)()} />
+                  {/* The Animation area was renamed Execution; keep old deep links working. */}
+                  <Route path="animation/*" element={<AnimationToExecutionRedirect />} />
+                  <Route path="lessons" element={errorWrapper(Lessons)()} />
+                  <Route path="findings" element={errorWrapper(SimulationFindings)()} />
+                  {/* An autonomous run's attack path renders as an action timeline instead of the
+                    finding-centric manual-BAS view. That switch is derived inside SimulationAttackPath
+                    from the selected simulation's durable exercise_autonomous marker, so a finished
+                    autonomous run keeps action-centric rendering even after its live run row is gone. */}
+                  {hasWorkflow && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />}
+                  {/* Simulation-scoped custom dashboard, surfaced as the Statistics tab. */}
+                  <Route path="statistics" element={errorWrapper(SimulationStatistics)()} />
+                  {/* Statistics replaced the hero dashboard quick action and the old
                     Analysis tab; keep redirects for old links. */}
-                <Route path="dashboard" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
-                <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
-                <Route path="scope" element={errorWrapper(SimulationScope)()} />
-                <Route path="logic" element={errorWrapper(SimulationLogic)()} />
-                {/* Not found */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </SimulationShell>
-        </div>
-      </DocumentContext.Provider>
-    </PermissionsContext.Provider>
+                  <Route path="dashboard" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
+                  <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
+                  {/* On an autonomous run the AI provisions and drives the attack path, so scope / logic
+                    are exposed read-only for inspection instead of the manual editors. */}
+                  <Route
+                    path="scope"
+                    element={isAutonomous ? errorWrapper(SimulationScope)({
+                      readOnly: true,
+                      autonomousTimeoutSeconds: autonomousRun?.autonomous_run_timeout_seconds,
+                    }) : errorWrapper(SimulationScope)()}
+                  />
+                  <Route path="logic" element={isAutonomous ? errorWrapper(SimulationLogic)({ isAutonomous: true }) : errorWrapper(SimulationLogic)()} />
+                  {/* Not found */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </SimulationShell>
+          </div>
+          {isAutonomous && (
+            <AutonomousReasoningPanel
+              run={autonomousRun}
+              onRunUpdate={onAutonomousRunUpdate}
+              onTimelineEvents={setCockpitTimeline}
+              width={panelWidth}
+              onWidthChange={setPanelWidth}
+              readOnly
+            />
+          )}
+        </DocumentContext.Provider>
+      </PermissionsContext.Provider>
+    </AutonomousContext.Provider>
   );
 };
 
@@ -122,6 +198,16 @@ const Index = () => {
   // Fetching data
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
+  // Detect whether this simulation is an autonomous (AI-driven) run, so we can render the AI
+  // cockpit (reasoning panel + gated tabs) instead of the manual chaining editor. Forward the
+  // durable exercise_autonomous marker as a POSITIVE hint only: a marked simulation keeps the
+  // Loader up across a transient post-reload 404 (no manual-editor flash) and re-probes fast,
+  // while an unmarked one probes as before - `false` is deliberately NOT forwarded, because
+  // simulations provisioned before the marker existed carry false while still being autonomous.
+  const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun } = useAutonomousRunForSimulation(
+    exerciseId,
+    exercise?.exercise_autonomous === true ? true : undefined,
+  );
   useDataLoader(() => {
     setLoading(true);
     dispatch(fetchExercise(exerciseId)).finally(() => {
@@ -153,7 +239,7 @@ const Index = () => {
   const exerciseInjectContext = injectContextForExercise(exercise);
 
   // avoid to show loader if something trigger useDataLoader
-  if (pristine && loading) {
+  if ((pristine && loading) || !autonomousResolved) {
     return <Loader />;
   }
   if (!loading && !exercise) {
@@ -166,7 +252,11 @@ const Index = () => {
   }
   return (
     <InjectContext.Provider value={exerciseInjectContext}>
-      <IndexComponent exercise={exercise} />
+      <IndexComponent
+        exercise={exercise}
+        autonomousRun={autonomousRun}
+        onAutonomousRunUpdate={setAutonomousRun}
+      />
     </InjectContext.Provider>
   );
 };

@@ -49,7 +49,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  protected void runMigrations() throws Exception {
+  protected void runMigrations(String tenantId) throws Exception {
     // noop
   }
 
@@ -81,6 +81,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   @Override
   public void registerConnectorForTenant(String tenantId) throws Exception {
     executorService.register(
+        tenantId,
         OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID,
         OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_TYPE,
         OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME,

@@ -4,6 +4,7 @@ package io.openaev.database.model;
 public enum CapabilityGroup {
   SUPERUSER,
   ASSESSMENT,
+  CREDENTIALS,
   TARGETS,
   THREAT_ARSENALS,
   DASHBOARDS,
@@ -11,9 +12,10 @@ public enum CapabilityGroup {
   FINDINGS,
   CONTENT,
   PLATFORM_SETTINGS,
+  TAXONOMY,
   TENANTS,
   TENANT_SETTINGS,
-  PLATFORM_USERS_GROUPS_AND_ROLES,
+  SECURITY,
   STIX,
   SERVICE
 }

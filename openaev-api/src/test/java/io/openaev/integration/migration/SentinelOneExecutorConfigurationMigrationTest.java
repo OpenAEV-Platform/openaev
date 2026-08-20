@@ -6,6 +6,7 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.Tenant;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegrationFactory;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -37,6 +38,7 @@ public class SentinelOneExecutorConfigurationMigrationTest {
       url = "sentinelOne_url",
       apiKey = "sentinelOne_api_key",
       apiRegisterInterval = 1234,
+      cleanImplantCron = "0 0 4 * * ?",
       accountId = "so_acct_id",
       apiBatchExecutionActionPagination = 5678,
       windowsScriptId = "so_windows_script_id",
@@ -65,7 +67,7 @@ public class SentinelOneExecutorConfigurationMigrationTest {
                   SentinelOneExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      sentinelOneExecutorConfigurationMigration.migrate();
+      sentinelOneExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -89,7 +91,7 @@ public class SentinelOneExecutorConfigurationMigrationTest {
                   SentinelOneExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      sentinelOneExecutorConfigurationMigration.migrate();
+      sentinelOneExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -136,6 +138,7 @@ public class SentinelOneExecutorConfigurationMigrationTest {
       url = "sentinelOne_url",
       apiKey = "sentinelOne_api_key",
       apiRegisterInterval = 1234,
+      cleanImplantCron = "0 0 4 * * ?",
       accountId = "so_acct_id",
       apiBatchExecutionActionPagination = 5678,
       windowsScriptId = "so_windows_script_id",
@@ -161,7 +164,7 @@ public class SentinelOneExecutorConfigurationMigrationTest {
                   SentinelOneExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      sentinelOneExecutorConfigurationMigration.migrate();
+      sentinelOneExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(

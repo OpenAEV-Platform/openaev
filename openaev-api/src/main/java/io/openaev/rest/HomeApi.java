@@ -7,10 +7,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UncheckedIOException;
+import java.net.URI;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +34,11 @@ public class HomeApi {
   @Value("${server.servlet.context-path}")
   private String contextPath;
 
+  // Where the frontend is served in local development (the Vite dev server). Only used as a
+  // graceful fallback when the built SPA bundle is absent from the classpath (see home()).
+  @Value("${openaev.dev.frontend-url:http://localhost:3001}")
+  private String devFrontendUrl;
+
   // SPA catch-all: serves index.html for all paths except those handled by dedicated controllers.
   // The negative lookahead excludes specific path prefixes from matching.
   // "api" and "swagger-ui" use prefix matching (no $) to also exclude paths like
@@ -50,6 +57,14 @@ public class HomeApi {
   @AccessControl(skipRBAC = true) // No RBAC check for home endpoint
   public ResponseEntity<String> home() {
     ClassPathResource classPathResource = new ClassPathResource("/build/index.html");
+    if (!classPathResource.exists()) {
+      // Local development: the SPA bundle is not on the classpath because the frontend is served by
+      // the Vite dev server (which proxies /api, /login, /csrf, ... back here). The only way this
+      // catch-all is reached is a browser opening the backend URL directly; reading the missing
+      // resource would 500 with a FileNotFoundException stack trace. Bounce to the dev server
+      // instead. In production the bundle exists, so this branch is never taken.
+      return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(devFrontendUrl)).build();
+    }
     String index = readResourceAsString(classPathResource);
     String basePath =
         this.contextPath.endsWith("/")

@@ -1185,4 +1185,249 @@ class InjectExpectationServiceTest {
       assertEquals(List.of(assetExpectation), merged);
     }
   }
+
+  @Nested
+  @DisplayName("findMergedExpectationsByInjectAndTargetAndTargetType same-type display merge")
+  class SameTypeDisplayMergeTests {
+
+    private ManualInjectExpectation manualStep(String id, String name, Double score) {
+      ManualInjectExpectation expectation = new ManualInjectExpectation();
+      expectation.setId(id);
+      expectation.setName(name);
+      expectation.setScore(score);
+      expectation.setExpectedScore(100.0);
+      expectation.setResults(
+          new ArrayList<>(
+              List.of(
+                  InjectExpectationResult.builder()
+                      .sourceId("phishing-injector")
+                      .sourceType("injector")
+                      .sourceName("Phishing")
+                      .result(score != null && score == 0.0 ? "Compromised" : "No interaction")
+                      .score(score)
+                      .build())));
+      return expectation;
+    }
+
+    @Test
+    @DisplayName("Merging same-type expectations never mutates the managed entities")
+    void sameTypeMergeIsDisplayOnly() {
+      // Regression: the three phishing steps are all MANUAL, so the display merge fires. It used
+      // to append the sibling rows' results into the FIRST managed entity and overwrite its score
+      // with the max - Hibernate then flushed that on commit, so every poll of the results page
+      // grew the row's results JSON (until requests exceeded the Hikari leak threshold and
+      // exhausted the pool) and flipped a compromised step back to green in the database.
+      ManualInjectExpectation opened = manualStep("exp-opened", "Email not opened", 0.0);
+      ManualInjectExpectation clicked = manualStep("exp-clicked", "Link not clicked", 100.0);
+      ManualInjectExpectation submitted =
+          manualStep("exp-submitted", "Credentials not submitted", 100.0);
+      when(injectExpectationRepository.findAllByInjectAndTeam("inject-id", "team-id"))
+          .thenReturn(List.of(opened, clicked, submitted));
+
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "team-id", "TEAMS");
+
+      assertEquals(1, merged.size());
+      BaseInjectExpectation electedClone = merged.get(0);
+      assertNotSame(opened, electedClone);
+      assertEquals(3, electedClone.getResults().size());
+      // Worst-step verdict: one compromised step keeps the merged human response red.
+      assertEquals(0.0, electedClone.getScore());
+      // The managed entities are untouched: nothing to flush back to the database.
+      assertEquals(1, opened.getResults().size());
+      assertEquals(0.0, opened.getScore());
+      assertEquals(1, clicked.getResults().size());
+      assertEquals(100.0, clicked.getScore());
+      assertEquals(1, submitted.getResults().size());
+      assertEquals(100.0, submitted.getScore());
+    }
+
+    @Test
+    @DisplayName("A single expectation per type is returned as-is")
+    void singleExpectationPerTypeIsReturnedAsIs() {
+      ManualInjectExpectation single = manualStep("exp-single", "Manual validation", null);
+      when(injectExpectationRepository.findAllByInjectAndTeam("inject-id", "team-id"))
+          .thenReturn(List.of(single));
+
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "team-id", "TEAMS");
+
+      assertEquals(List.of(single), merged);
+    }
+  }
+
+  @Nested
+  @DisplayName("findMergedExpectationsByInjectAndTargetAndTargetType for asset groups")
+  class AssetGroupSecurityPlatformEnrichmentTests {
+
+    private InjectExpectationResult collectorResult(String result, Double score) {
+      return InjectExpectationResult.builder()
+          .sourceId("collector-1")
+          .sourceType("collector")
+          .sourceName("Microsoft Defender")
+          .result(result)
+          .score(score)
+          .build();
+    }
+
+    private List<? extends BaseInjectExpectation> merge() {
+      return injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+          "inject-id", "group-id", "parent-id", "ASSETS_GROUPS");
+    }
+
+    @Test
+    @DisplayName("Asset-group expectations mirror their children's security-platform results")
+    void assetGroupExpectationsAreEnrichedWithChildrenSecurityPlatformResults() {
+      // Regression (second half of #7147): the collector path writes its per-platform results on
+      // the agent rows only, so the group synthesis row displayed NO security platform at all
+      // while every underlying asset showed e.g. "Microsoft Defender - Not Prevented".
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      DetectionInjectExpectation agentExpectation = new DetectionInjectExpectation();
+      agentExpectation.setId("agent-expectation");
+      InjectExpectationResult defenderResult = collectorResult("Not Detected", 0.0);
+      agentExpectation.setResults(new ArrayList<>(List.of(defenderResult)));
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of(agentExpectation));
+
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(defenderResult), merged.get(0).getResults());
+      // The enrichment must stay display-only: the persistent entity is untouched.
+      assertTrue(groupExpectation.getResults().isEmpty());
+    }
+
+    @Test
+    @DisplayName("A platform's group row keeps its worst verdict under the default all-assets rule")
+    void assetGroupPlatformRowKeepsWorstVerdictUnderAllAssetsRule() {
+      // Default validation rule ("all assets must validate"): one missed asset fails the group,
+      // so the platform's overall verdict is its worst result across the group's children.
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      groupExpectation.setExpectationGroup(false);
+      groupExpectation.setExpectedScore(100.0);
+      DetectionInjectExpectation detectedChild = new DetectionInjectExpectation();
+      detectedChild.setId("agent-detected");
+      detectedChild.setResults(new ArrayList<>(List.of(collectorResult("Detected", 100.0))));
+      DetectionInjectExpectation missedChild = new DetectionInjectExpectation();
+      missedChild.setId("agent-missed");
+      InjectExpectationResult missedResult = collectorResult("Not Detected", 0.0);
+      missedChild.setResults(new ArrayList<>(List.of(missedResult)));
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of(detectedChild, missedChild));
+
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(missedResult), merged.get(0).getResults());
+    }
+
+    @Test
+    @DisplayName("A platform's group row keeps its best verdict under the at-least-one rule")
+    void assetGroupPlatformRowKeepsBestVerdictUnderAtLeastOneRule() {
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      groupExpectation.setExpectationGroup(true);
+      groupExpectation.setExpectedScore(100.0);
+      DetectionInjectExpectation detectedChild = new DetectionInjectExpectation();
+      detectedChild.setId("agent-detected");
+      InjectExpectationResult detectedResult = collectorResult("Detected", 100.0);
+      detectedChild.setResults(new ArrayList<>(List.of(detectedResult)));
+      DetectionInjectExpectation missedChild = new DetectionInjectExpectation();
+      missedChild.setId("agent-missed");
+      missedChild.setResults(new ArrayList<>(List.of(collectorResult("Not Detected", 0.0))));
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of(detectedChild, missedChild));
+
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(detectedResult), merged.get(0).getResults());
+    }
+
+    @Test
+    @DisplayName("An answered child result beats a pending one for the same platform")
+    void answeredChildResultBeatsPendingOne() {
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      groupExpectation.setExpectationGroup(false);
+      DetectionInjectExpectation pendingChild = new DetectionInjectExpectation();
+      pendingChild.setId("agent-pending");
+      pendingChild.setResults(new ArrayList<>(List.of(collectorResult(null, null))));
+      DetectionInjectExpectation answeredChild = new DetectionInjectExpectation();
+      answeredChild.setId("agent-answered");
+      InjectExpectationResult answeredResult = collectorResult("Not Detected", 0.0);
+      answeredChild.setResults(new ArrayList<>(List.of(answeredResult)));
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of(pendingChild, answeredChild));
+
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(answeredResult), merged.get(0).getResults());
+    }
+
+    @Test
+    @DisplayName("A direct result persisted on the group row itself stays visible")
+    void directGroupResultStaysVisible() {
+      // Assessment injectors (e.g. Nuclei) write their verdict directly on the group row: the
+      // display union must keep it next to the children's platforms.
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      InjectExpectationResult directResult =
+          InjectExpectationResult.builder()
+              .sourceId("nuclei-security-platform")
+              .sourceType("security-platform")
+              .sourceName("Nuclei")
+              .result("Detected")
+              .score(100.0)
+              .build();
+      groupExpectation.setResults(new ArrayList<>(List.of(directResult)));
+      DetectionInjectExpectation agentExpectation = new DetectionInjectExpectation();
+      agentExpectation.setId("agent-expectation");
+      InjectExpectationResult defenderResult = collectorResult("Not Detected", 0.0);
+      agentExpectation.setResults(new ArrayList<>(List.of(defenderResult)));
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of(agentExpectation));
+
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      assertEquals(1, merged.size());
+      assertEquals(List.of(defenderResult, directResult), merged.get(0).getResults());
+    }
+
+    @Test
+    @DisplayName("Asset groups without children rows are returned unchanged")
+    void assetGroupsWithoutChildrenAreReturnedUnchanged() {
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of());
+
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      assertEquals(List.of(groupExpectation), merged);
+    }
+  }
 }

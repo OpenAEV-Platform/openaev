@@ -40,10 +40,15 @@ const ThreatArsenalSortSelect: FunctionComponent<Props> = ({ sortHelpers }) => {
       display: 'flex',
       alignItems: 'center',
       gap: 0.5,
-      marginLeft: 1.25,
+      marginLeft: 1,
+      // The sort control is small and must stay whole: the wider search /
+      // filter inputs are the ones that compress in a tight toolbar (#7340).
+      flexShrink: 0,
     }}
     >
-      <FormControl size="small" sx={{ minWidth: 140 }}>
+      {/* 110px fits the widest option ("Updated") and the "Sort by" label
+          while keeping the single-row toolbar compact at ~1512px (#7340). */}
+      <FormControl size="small" sx={{ minWidth: 110 }}>
         <InputLabel id="threat-arsenal-sort-by-label">{t('Sort by')}</InputLabel>
         <Select
           labelId="threat-arsenal-sort-by-label"

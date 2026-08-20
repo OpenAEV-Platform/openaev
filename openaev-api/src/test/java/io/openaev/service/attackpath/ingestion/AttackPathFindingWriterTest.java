@@ -21,18 +21,16 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 
 /**
- * The batched snapshot inserts are idempotent. A finding row is deduped on its natural key
- * (simulation, type, field, value, endpoint_key), not only on its id, so replaying a copy with a
- * different id resolution still writes no duplicate; a link is deduped on its composite key. What a
- * replay does change is the row version, and only that: it is what lets a re-discovered finding's
- * new link reach a polling client. Read back through raw JDBC; not {@code @Transactional} (the
- * inserts are asserted after they commit).
+ * The batched snapshot inserts are idempotent. A finding row is deduped on its primary key, which
+ * is a deterministic, injective encoding of its natural key (simulation, type, field, value,
+ * endpoint_key; the value is hashed inside the id only when its raw encoding would overflow the
+ * column), so re-copying the same finding always collides with itself; a link is deduped on its
+ * composite key. What a replay does change is the row version, and only that: it is what lets a
+ * re-discovered finding's new link reach a polling client. Read back through raw JDBC; not
+ * {@code @Transactional} (the inserts are asserted after they commit).
  */
 @TestPropertySource(
-    properties = {
-      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH",
-      "openaev.tenant.active-tables=attackpath_execution,attackpath_finding"
-    })
+    properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path: the batched snapshot inserts are idempotent")
 class AttackPathFindingWriterTest extends IntegrationTest {
@@ -63,19 +61,21 @@ class AttackPathFindingWriterTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("a finding row is deduped on its natural key, not only on its id")
-  void findingInsertIsIdempotentOnTheNaturalKey() {
+  @DisplayName("a finding row is deduped on its id (a deterministic encoding of its natural key)")
+  void findingInsertIsIdempotentOnItsId() {
     String id = AttackPathIds.findingRow(SIM, "cve", "text_field", "CVE-1", "asset-1");
     insertFinding(id, "cve", "text_field", "CVE-1", "asset-1");
     assertThat(findingCount()).isEqualTo(1);
 
-    // Same batch again: the id conflict is skipped.
+    // Same batch again: the PK conflict is skipped.
     insertFinding(id, "cve", "text_field", "CVE-1", "asset-1");
     assertThat(findingCount()).isEqualTo(1);
 
-    // Same natural key, a different id (a perturbed resolution): the natural-key index rejects it,
-    // so no duplicate and the original row is kept.
-    insertFinding("other-id", "cve", "text_field", "CVE-1", "asset-1");
+    // The same natural key always resolves to the same id (a deterministic encoding of it), so a
+    // re-copy collides with itself on the PK — no duplicate, the original row is kept.
+    String sameId = AttackPathIds.findingRow(SIM, "cve", "text_field", "CVE-1", "asset-1");
+    assertThat(sameId).isEqualTo(id);
+    insertFinding(sameId, "cve", "text_field", "CVE-1", "asset-1");
     assertThat(findingCount()).isEqualTo(1);
     assertThat(theOnlyFindingId()).isEqualTo(id);
   }
@@ -108,6 +108,42 @@ class AttackPathFindingWriterTest extends IntegrationTest {
     assertThat(linkCount("exec-1")).isEqualTo(1);
   }
 
+  @Test
+  @DisplayName("on a PK conflict, is_finding is never downgraded: a real finding wins")
+  void isFindingIsNeverDowngradedOnConflict() {
+    String id = AttackPathIds.findingRow(SIM, "port", "text_field", "22", "asset-1");
+    // First seen as an output-only value...
+    insertFinding(id, "port", "text_field", "22", "asset-1", 1L, false);
+    assertThat(isFindingOf(id)).isFalse();
+
+    // ...then re-copied as a real finding: the flag flips to true (true wins).
+    insertFinding(id, "port", "text_field", "22", "asset-1", 2L, true);
+    assertThat(findingCount()).isEqualTo(1);
+    assertThat(isFindingOf(id)).isTrue();
+
+    // A later output-only re-copy must NOT downgrade it back to false.
+    insertFinding(id, "port", "text_field", "22", "asset-1", 3L, false);
+    assertThat(isFindingOf(id)).isTrue();
+  }
+
+  @Test
+  @DisplayName("a very long value inserts without overflowing the id, idempotently")
+  void longValueInsertsAndIsIdempotent() {
+    // ADR-004 lets arbitrarily long parsed outputs reach attackpath_finding. The value is hashed
+    // inside the id, so the varchar(255) PK stays bounded and the value (text, un-indexed) is never
+    // indexed — a 10 KB value must insert and dedup on the PK like any other.
+    String longValue = "x".repeat(10_000);
+    String id = AttackPathIds.findingRow(SIM, "output", "text_field", longValue, "asset-1");
+
+    insertFinding(id, "output", "text_field", longValue, "asset-1");
+    assertThat(findingCount()).isEqualTo(1);
+
+    // Re-copied: same value -> same id, PK conflict skipped, no duplicate.
+    insertFinding(id, "output", "text_field", longValue, "asset-1");
+    assertThat(findingCount()).isEqualTo(1);
+    assertThat(theOnlyFindingId()).isEqualTo(id);
+  }
+
   private void insertFinding(
       String id, String type, String field, String value, String endpointKey) {
     insertFinding(id, type, field, value, endpointKey, 1L);
@@ -115,11 +151,40 @@ class AttackPathFindingWriterTest extends IntegrationTest {
 
   private void insertFinding(
       String id, String type, String field, String value, String endpointKey, long rowVersion) {
+    insertFinding(id, type, field, value, endpointKey, rowVersion, true);
+  }
+
+  private void insertFinding(
+      String id,
+      String type,
+      String field,
+      String value,
+      String endpointKey,
+      long rowVersion,
+      boolean isFinding) {
     findingWriter.insertFindings(
         List.of(
             new FindingRow(
-                id, tenant.getId(), SIM, type, field, value, endpointKey, null, endpointKey)),
+                id,
+                tenant.getId(),
+                SIM,
+                type,
+                field,
+                value,
+                endpointKey,
+                null,
+                endpointKey,
+                isFinding)),
         rowVersion);
+  }
+
+  private boolean isFindingOf(String findingId) {
+    return Boolean.TRUE.equals(
+        jdbc.queryForObject(
+            "SELECT attackpath_finding_is_finding FROM attackpath_finding"
+                + " WHERE attackpath_finding_id = ?",
+            Boolean.class,
+            findingId));
   }
 
   private long rowVersion(String findingId) {
