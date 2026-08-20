@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.AuditLoggedService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.integration.Manager;
@@ -37,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-public class ConnectorInstanceService {
+public class ConnectorInstanceService implements AuditLoggedService {
 
   private final ObjectMapper objectMapper;
   private final ConnectorInstanceMapper connectorInstanceMapper;
@@ -747,9 +748,15 @@ public class ConnectorInstanceService {
     ConnectorInstancePersisted instance =
         this.connectorInstanceByIdIgnoringTenantFilter(connectorInstanceId);
 
+    // Capture significant state before mutation
+    Map<String, Object> before = instance.significantState(objectMapper);
+
     instance.setInRebootLoop(input.isInRebootLoop());
     instance.setStartedAt(input.getStartedAt());
     instance.setRestartCount(input.getRestartCount());
+
+    // Suppress audit logging for heartbeat-only updates (no significant change)
+    suppressAuditIfUnchanged(before, instance.significantState(objectMapper));
 
     return (ConnectorInstancePersisted) this.save(instance);
   }
