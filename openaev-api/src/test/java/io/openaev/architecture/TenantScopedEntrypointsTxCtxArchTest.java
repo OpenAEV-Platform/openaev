@@ -229,6 +229,63 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.threat_arsenal.ThreatArsenalApi#threatArsenal",
           "io.openaev.api.threat_arsenal.ThreatArsenalApi#threatArsenals",
           "io.openaev.api.threat_arsenal.ThreatArsenalApi#threatArsenalsNonTabletop",
+          // threat arsenal delete/bulk-delete: isEligibleForDeletion resolves
+          // InjectorContract#getInjectorType() (delete) and InjectorContractService#getSinglePage
+          // (bulkDelete), both v2 tenant-scoped through the injectors table. Missed by the same
+          // #6410 re-inventory gap as the reads above (Phase 1 re-run, see the skill's hardened
+          // caller-search procedure).
+          "io.openaev.api.threat_arsenal.ThreatArsenalApi#deleteAction",
+          "io.openaev.api.threat_arsenal.ThreatArsenalApi#bulkDeleteActions",
+          // scenario "add threat arsenal to scenario(s)": InjectService#buildInject resolves the
+          // injector via InjectUtils#resolveInjector, v2 tenant-scoped through injectors. Same
+          // #6410 re-inventory gap: InjectUtils#resolveInjector was never re-walked as a shared
+          // symbol once one caller (SimulationInjectApi#createInjectForExercise) was already wired.
+          "io.openaev.rest.scenario.ScenarioApi#createScenarioWithInjectorContracts",
+          "io.openaev.rest.scenario.ScenarioApi#updateScenariosWithInjectorContracts",
+          // scenario/exercise ZIP-JSON import: V1_DataImporter resolves
+          // InjectorContract#getFirstInjector() and InjectorService#injectorTypeExists(...), both
+          // v2 tenant-scoped through injectors. Sibling XLS injectsImport endpoints
+          // (ScenarioImportApi/ExerciseImportApi, already listed above) were wired; these ZIP/JSON
+          // import endpoints were not (#6410 re-inventory gap).
+          "io.openaev.rest.scenario.ScenarioApi#importScenario",
+          "io.openaev.rest.exercise.ExerciseApi#exerciseImport",
+          // bulk inject creation from a threat-arsenal search: createAndSaveInjectList resolves the
+          // injector via InjectUtils#resolveInjector; sibling single-inject creation endpoints
+          // (createInjectForExercise/createInjectForScenario, already listed above) were wired,
+          // these bulk endpoints were not (#6410 re-inventory gap).
+          "io.openaev.rest.inject.SimulationInjectApi#createInjectsForExercise",
+          "io.openaev.rest.inject.ScenarioInjectApi#createInjectsForScenario",
+          "io.openaev.rest.inject.ScenarioInjectApi#generateInjectsForScenario",
+          // direct inject execution (mass-run "launch" action): resolveInjector then
+          // executor.directExecute both resolve the injector through the v2 tenant-scoped
+          // injectors table (#6410 re-inventory gap).
+          "io.openaev.rest.inject.SimulationInjectApi#executeInject",
+          // autonomous-run capability resolution: buildArsenalInventory reads
+          // injectorRepository.findAll() directly, v2 tenant-scoped through injectors. Every other
+          // AutonomousRunApi endpoint already carries TxCtx; this one was the odd one out (#6410
+          // re-inventory gap).
+          "io.openaev.api.autonomous.AutonomousRunApi#resolveCapabilities",
+          // exercise lessons-learned "send" action: MailingService#sendEmail resolves the email
+          // injector contract's linked injector, v2 tenant-scoped through injectors (#6410
+          // re-inventory gap).
+          "io.openaev.rest.lessons.ExerciseLessonsApi#sendExerciseLessons",
+          // phishing landing pages: create/update/logos/duplicate all resolve to
+          // PhishingLandingPageService#upsert -> synchroniseInjectorContract, which reads the
+          // tenant's phishing injector via injectorRepository, v2 tenant-scoped through injectors.
+          // No endpoint in this controller carried TxCtx before this fix (#6410 re-inventory gap).
+          "io.openaev.injectors.phishing.api.PhishingLandingPageApi#createLandingPage",
+          "io.openaev.injectors.phishing.api.PhishingLandingPageApi#updateLandingPage",
+          "io.openaev.injectors.phishing.api.PhishingLandingPageApi#updateLandingPageLogos",
+          "io.openaev.injectors.phishing.api.PhishingLandingPageApi#duplicateLandingPage",
+          // phishing email templates: create/update/duplicate/delete/bulk-delete all resync every
+          // landing page's contract (PhishingEmailTemplateService#resyncLandingPageContracts ->
+          // PhishingLandingPageService#resyncAllContracts -> synchroniseInjectorContract), same
+          // injectors-table read as the landing page endpoints above (#6410 re-inventory gap).
+          "io.openaev.injectors.phishing.api.PhishingEmailTemplateApi#createEmailTemplate",
+          "io.openaev.injectors.phishing.api.PhishingEmailTemplateApi#updateEmailTemplate",
+          "io.openaev.injectors.phishing.api.PhishingEmailTemplateApi#duplicateEmailTemplate",
+          "io.openaev.injectors.phishing.api.PhishingEmailTemplateApi#deleteEmailTemplate",
+          "io.openaev.injectors.phishing.api.PhishingEmailTemplateApi#bulkDeleteEmailTemplates",
           // stix: security-coverage processing creates DNS-resolution/drop-file payloads via
           // PayloadService#getDynamicDnsResolutionPayload / getFileDropPayloadByDocument, which
           // lazily create the payload's injector contract through the same

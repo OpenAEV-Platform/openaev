@@ -185,6 +185,10 @@ public class ScenarioService {
 
   @Transactional
   public Scenario createScenarioWithInjectorContracts(
+      // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for this transaction (the arsenal selection resolves injector contracts and their linked
+      // injector, both v2 tenant-scoped through the injectors table).
+      TxCtx ctx,
       @NotBlank final String tenantId,
       @NotNull final ScenarioInput scenarioInput,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
@@ -198,6 +202,9 @@ public class ScenarioService {
 
   @Transactional
   public List<Scenario> updateScenariosWithInjectorContracts(
+      // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for this transaction (same reason as createScenarioWithInjectorContracts above).
+      TxCtx ctx,
       @NotNull final List<String> scenarioIds,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
