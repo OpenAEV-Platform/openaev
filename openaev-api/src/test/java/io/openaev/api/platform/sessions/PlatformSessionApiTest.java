@@ -95,7 +95,7 @@ public class PlatformSessionApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Given no active session, then invalidate sessions anyway sessions to delete")
+    @DisplayName("Given no active session, then invalidate user sessions anyway")
     void given_noActiveSession_then_canNotFindUserSessionsToDelete() throws Exception {
       User me = testUserHolder.get();
       mockMvc
