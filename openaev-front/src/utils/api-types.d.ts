@@ -3183,6 +3183,10 @@ export interface CredentialFullOutput {
     | "INSTANCE_DEFAULT";
   /** AWS source profile access key id */
   credential_aws_source_profile_access_key_id?: string;
+  /** Azure client id */
+  credential_azure_client_id?: string;
+  /** Azure environment */
+  credential_azure_environment?: string;
   /**
    * Credential creation timestamp
    * @format date-time

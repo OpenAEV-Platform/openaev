@@ -21,6 +21,12 @@ const convertCredentialFullOutputToCredentialInput = (credential: CredentialFull
     aws_source_identity_type: credential.credential_aws_source_identity_type,
     aws_source_profile_access_key_id: credential.credential_aws_source_profile_access_key_id,
     aws_source_profile_secret_access_key: credential.credential_aws_source_profile_access_key_id ? DOTS : '',
+    // AZURE
+    azure_environment: credential.credential_azure_environment,
+    azure_client_id: credential.credential_azure_client_id,
+    azure_client_secret: credential.credential_azure_client_id ? DOTS : '',
+    azure_tenant_id: credential.credential_azure_client_id ? DOTS : '',
+    azure_subscription_id: credential.credential_azure_client_id ? DOTS : '',
   };
 };
 
