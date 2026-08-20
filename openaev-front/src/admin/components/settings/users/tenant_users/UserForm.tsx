@@ -7,7 +7,6 @@ import { z } from 'zod';
 import { type UserType } from '../../../../../actions/users/users-helper';
 import ActionButtons from '../../../../../components/common/ActionButtons';
 import OrganizationFieldController from '../../../../../components/fields/OrganizationFieldController';
-import SwitchFieldController from '../../../../../components/fields/SwitchFieldController';
 import TagFieldController from '../../../../../components/fields/TagFieldController';
 import TenantFieldController from '../../../../../components/fields/TenantFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
@@ -103,7 +102,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
           required
           name="user_email"
           label={t('Email address')}
-          disabled={initialValues.user_email === 'admin@openaev.io'}
+          disabled={editing}
         />
         {!editing && (
           <TextFieldController
@@ -121,7 +120,6 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         <TextFieldController name="user_phone" label={t('Phone number (mobile)')} />
         <TextFieldController name="user_phone2" label={t('Phone number (landline)')} />
         <TextFieldController name="user_pgp_key" label={t('PGP public key')} multiline rows={5} />
-        {type === 'PLATFORM' && <SwitchFieldController name="user_admin" label={t('Administrator')} />}
         <div style={{ alignSelf: 'flex-end' }}>
           <ActionButtons
             onCancel={handleClose}
