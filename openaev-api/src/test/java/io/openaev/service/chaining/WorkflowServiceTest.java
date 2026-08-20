@@ -2747,16 +2747,24 @@ class WorkflowServiceTest {
   class CancelSimulationEndWorkflowRunTests {
 
     @Test
-    @DisplayName("ends the run, deletes its delay queue and states, and removes its asset agent"
-        + " jobs by inject id")
+    @DisplayName(
+        "ends the run, deletes its delay queue and states, and removes its asset agent"
+            + " jobs by inject id")
     void given_singleRunWithActiveSteps_should_endItAndCleanUpDependencies() {
       // Arrange
       Exercise simulation = exerciseWithId("sim-1");
       Workflow run =
-          Workflow.builder().id("wf-run-1").status(WorkflowStatus.RUN).simulation(simulation).build();
+          Workflow.builder()
+              .id("wf-run-1")
+              .status(WorkflowStatus.RUN)
+              .simulation(simulation)
+              .build();
 
       Step activeStepWithInject =
-          Step.builder().id("step-1").status(StepStatus.RUN).data("{\"inject_id\": \"inject-1\"}")
+          Step.builder()
+              .id("step-1")
+              .status(StepStatus.RUN)
+              .data("{\"inject_id\": \"inject-1\"}")
               .build();
       Step activeStepWithoutInject =
           Step.builder().id("step-2").status(StepStatus.READY).data("{}").build();
@@ -2774,8 +2782,7 @@ class WorkflowServiceTest {
       assertEquals(StepStatus.END, activeStepWithInject.getStatus());
       assertEquals(StepStatus.END, activeStepWithoutInject.getStatus());
       verify(assetAgentJobRepository).deleteAllByInjectIds(List.of("inject-1"));
-      verify(stepService)
-          .saveSteps(List.of(activeStepWithInject, activeStepWithoutInject));
+      verify(stepService).saveSteps(List.of(activeStepWithInject, activeStepWithoutInject));
     }
 
     @Test
@@ -2798,13 +2805,21 @@ class WorkflowServiceTest {
               .build();
 
       Step step1 =
-          Step.builder().id("step-1").status(StepStatus.RUN).data("{\"inject_id\": \"inject-1\"}")
+          Step.builder()
+              .id("step-1")
+              .status(StepStatus.RUN)
+              .data("{\"inject_id\": \"inject-1\"}")
               .build();
       Step step2 =
-          Step.builder().id("step-2").status(StepStatus.RUN).data("{\"inject_id\": \"inject-2\"}")
+          Step.builder()
+              .id("step-2")
+              .status(StepStatus.RUN)
+              .data("{\"inject_id\": \"inject-2\"}")
               .build();
-      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1")).thenReturn(new ArrayList<>(List.of(step1)));
-      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-2")).thenReturn(new ArrayList<>(List.of(step2)));
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1"))
+          .thenReturn(new ArrayList<>(List.of(step1)));
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-2"))
+          .thenReturn(new ArrayList<>(List.of(step2)));
 
       // Act
       workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
