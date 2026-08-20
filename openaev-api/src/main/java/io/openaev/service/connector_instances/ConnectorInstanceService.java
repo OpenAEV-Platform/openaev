@@ -748,16 +748,21 @@ public class ConnectorInstanceService implements AuditLoggedService {
     ConnectorInstancePersisted instance =
         this.connectorInstanceByIdIgnoringTenantFilter(connectorInstanceId);
 
-    // Capture significant state before mutation
-    Map<String, Object> before = instance.significantState(objectMapper);
+    // Capture only the fields that should drive audit suppression for healthcheck pings.
+    Map<String, Object> before = new HashMap<>();
+    before.put("inRebootLoop", instance.isInRebootLoop());
+    before.put("restartCount", instance.getRestartCount());
 
     instance.setInRebootLoop(input.isInRebootLoop());
     instance.setStartedAt(input.getStartedAt());
     instance.setRestartCount(input.getRestartCount());
 
-    // Suppress audit logging for heartbeat-only updates (no significant change)
-    suppressAuditIfUnchanged(before, instance.significantState(objectMapper));
+    Map<String, Object> after = new HashMap<>();
+    after.put("inRebootLoop", instance.isInRebootLoop());
+    after.put("restartCount", instance.getRestartCount());
 
+    // Suppress audit logging for heartbeat-only updates (no significant change)
+    suppressAuditIfUnchanged(before, after);
     return (ConnectorInstancePersisted) this.save(instance);
   }
 
