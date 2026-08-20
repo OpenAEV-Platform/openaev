@@ -998,6 +998,7 @@ public class WorkflowService {
   }
 
   private void deleteAllAssetAgentJobs(List<String> injectsIds, String tenantId) {
+    if (CollectionUtils.isEmpty(injectsIds)) return;
     assetAgentJobRepository.deleteAllByInjectIdsAndTenantId(injectsIds, tenantId);
   }
 
