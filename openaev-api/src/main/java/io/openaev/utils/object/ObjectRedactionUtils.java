@@ -25,7 +25,11 @@ public class ObjectRedactionUtils {
           Pattern.compile("^aws_session_token$"),
           Pattern.compile("^aws_secret_access_key$"),
           Pattern.compile("^aws_external_id$"),
-          Pattern.compile("^aws_source_profile_secret_access_key$"));
+          Pattern.compile("^aws_source_profile_secret_access_key$"),
+          // Azure tenant and subscription ids are stored in clear text, so they must be redacted
+          // here; the client secret is already covered by the ".*secret.*" pattern above.
+          Pattern.compile("^azure_tenant_id$"),
+          Pattern.compile("^azure_subscription_id$"));
 
   /** Sensitive-like fields that are explicitly allowed and therefore not redacted. */
   private static final Set<Pattern> ALLOWED_SENSITIVE_FIELDS_REGEX_TO_REDACT =
