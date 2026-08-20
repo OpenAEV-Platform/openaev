@@ -2,18 +2,19 @@ FROM amazoncorretto:21-alpine3.24 AS app
 
 # Fixed world-readable browser path so any runtime UID finds the Chromium bundle (reporting)
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV CHROME_BIN=/usr/bin/chromium
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /opt
 RUN set -eux; \
     apk add --no-cache tini git \
-        nss freetype harfbuzz ca-certificates ttf-freefont udev; \
+        chromium nss freetype harfbuzz ca-certificates ttf-freefont udev; \
     update-ca-certificates
 COPY openaev-build ./
-# Install Chromium for server-side report rendering. On Alpine, Playwright's
-# "--with-deps" is not apt-compatible, so system libraries are installed via apk above.
-# The boot jar uses the ZIP layout, so PropertiesLauncher can run the embedded Playwright CLI.
+# Alpine uses musl libc: Playwright browser download/install can fail in this image.
+# Use distro Chromium instead and keep /ms-playwright readable if created at runtime.
 RUN set -eux; \
-    java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install chromium; \
+    mkdir -p /ms-playwright; \
     chmod -R a+rX /ms-playwright
 
 ENTRYPOINT ["/sbin/tini", "--"]
