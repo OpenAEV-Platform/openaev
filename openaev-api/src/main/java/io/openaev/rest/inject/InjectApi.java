@@ -442,7 +442,7 @@ public class InjectApi extends RestBehavior {
       throws IOException {
     doInjectExecutionCallback(ctx, agentId, injectId, input);
   }
-  
+
   private void doInjectExecutionCallback(
       TxCtx ctx, String agentId, String injectId, InjectExecutionInput input) throws IOException {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LEGACY_INGESTION_EXECUTION_TRACE)
