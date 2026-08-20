@@ -1,5 +1,6 @@
 package io.openaev.utils;
 
+import io.openaev.ocsf.parser.schema.Version;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.regex.Matcher;
@@ -18,5 +19,13 @@ public class StringUtils {
 
   public Path packageToPath(String packageName) {
     return Paths.get(packageName.replaceAll("[.]", "/"));
+  }
+
+  public String toVersionedPackage(Version version, String prefix, String... parts) {
+    return prefix
+        + ".v"
+        + version.getVersionNumber().getValue().replaceAll("[.]", "")
+        + "."
+        + String.join(".", parts);
   }
 }

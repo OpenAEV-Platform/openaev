@@ -1,6 +1,5 @@
 package io.openaev.ocsf.parser;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.fs.ClassFileWriter;
 import io.openaev.migration.ClassContentsGenerator;
 import io.openaev.migration.ClassNameGenerator;
@@ -92,8 +91,7 @@ public class GenerateParser extends AbstractMojo {
     URI absoluteRoot = getFinalBaseDir().getAbsoluteFile().toURI();
     PluginContext ctx =
         new PluginContext(
-            Paths.get(absoluteRoot)
-                .resolve("openaev-maven-plugin/src/main/resources"),
+            Paths.get(absoluteRoot).resolve("openaev-maven-plugin/src/main/resources"),
             Paths.get(absoluteRoot).resolve("openaev-model").resolve(subLocation));
     try {
       SchemaSource schemaSource = Ocsf.schema(OcsfSchemaVersion._1_9_0, ctx);

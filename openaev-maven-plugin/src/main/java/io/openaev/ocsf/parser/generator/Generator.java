@@ -44,9 +44,13 @@ public class Generator {
     for (Source src : schemaSource.getSources()) {
       switch (src.getDimension()) {
         case SINGLE_OBJECT ->
-            tracker.put(src.getName(), objectClassGenerator.metadata(src.getName(), src.get()));
+            tracker.put(
+                src.getName(),
+                objectClassGenerator.metadata(schemaSource.getVersion(), src.getName(), src.get()));
         case SINGLE_CLASS ->
-            tracker.put(src.getName(), classClassGenerator.metadata(src.getName(), src.get()));
+            tracker.put(
+                src.getName(),
+                classClassGenerator.metadata(schemaSource.getVersion(), src.getName(), src.get()));
         case DATATYPES ->
             src.get()
                 .propertyStream()
@@ -54,7 +58,8 @@ public class Generator {
                     prop ->
                         tracker.put(
                             prop.getKey(),
-                            datatypeClassGenerator.metadata(prop.getKey(), prop.getValue())));
+                            datatypeClassGenerator.metadata(
+                                schemaSource.getVersion(), prop.getKey(), prop.getValue())));
       }
     }
 

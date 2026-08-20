@@ -43,7 +43,7 @@ public class GenerateParserTest {
     JsonNode datatypes = schema.getContents(SchemaDimension.DATATYPES.name());
 
     for (Map.Entry<String, JsonNode> prop : datatypes.properties()) {
-      gen.metadata(prop.getKey(), prop.getValue());
+      gen.metadata(schema.getVersion(), prop.getKey(), prop.getValue());
     }
   }
 

@@ -2,17 +2,16 @@ package io.openaev.ocsf.parser.generator.emission;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.ocsf.parser.schema.SchemaDimension;
+import io.openaev.ocsf.parser.schema.Version;
 
 public class ObjectClassGenerator extends ClassGenerator {
-  private static final String objectsPackageName = "io.openaev.ocsf.objects";
-
   @Override
-  public ClassMetadata metadata(String name, JsonNode source) {
+  public ClassMetadata metadata(Version version, String name, JsonNode source) {
     return new ClassMetadata(
         name,
         SchemaDimension.SINGLE_OBJECT,
         compositeOcsfClassName(name),
-        objectsPackageName,
+        stringUtils.toVersionedPackage(version, SCHEMA_PACKAGE_NAME, "objects"),
         source);
   }
 

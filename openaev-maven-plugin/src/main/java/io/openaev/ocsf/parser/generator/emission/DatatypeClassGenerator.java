@@ -8,17 +8,16 @@ import io.openaev.ocsf.parser.generator.emission.meta.cls.ExtendMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.method.ArgumentMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.method.MethodMeta;
 import io.openaev.ocsf.parser.schema.SchemaDimension;
+import io.openaev.ocsf.parser.schema.Version;
 
 public class DatatypeClassGenerator extends ClassGenerator {
-  private static final String datatypesPackageName = "io.openaev.ocsf.datatypes";
-
   @Override
-  public ClassMetadata metadata(String name, JsonNode source) {
+  public ClassMetadata metadata(Version version, String name, JsonNode source) {
     return new ClassMetadata(
         name,
         SchemaDimension.DATATYPES,
         compositeOcsfClassName(name),
-        datatypesPackageName,
+        stringUtils.toVersionedPackage(version, SCHEMA_PACKAGE_NAME, "datatypes"),
         source);
   }
 
@@ -33,8 +32,9 @@ public class DatatypeClassGenerator extends ClassGenerator {
 
     ClassMeta meta =
         new ClassMeta()
+            .withImport(SCHEMA_PACKAGE_NAME + ".BaseType")
             .withName(compositeOcsfClassName(metadata.ocsfIdentifier()))
-            .withPackage(datatypesPackageName)
+            .withPackage(metadata.classPackage())
             .withExtend(new ExtendMeta("BaseType").withGenericTypeArgument(type))
             // ctor
             .withMethod(
@@ -53,7 +53,7 @@ public class DatatypeClassGenerator extends ClassGenerator {
                   """
                       return getValue().matches("%s");
                       """
-                      .formatted(metadata.source().get("regex").asText().replace("\n", "")))
+                      .formatted(metadata.source().get("regex").asText().replace("\\", "\\\\")))
               .withAnnotation(new AnnotationMeta(Override.class)));
     }
 
