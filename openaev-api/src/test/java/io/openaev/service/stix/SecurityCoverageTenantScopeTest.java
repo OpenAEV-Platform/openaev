@@ -1,6 +1,7 @@
 package io.openaev.service.stix;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -173,6 +175,56 @@ class SecurityCoverageTenantScopeTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("Bundle hash uniqueness")
+  class BundleHashUniqueness {
+
+    @Test
+    @DisplayName("given same bundle hash in two tenants should persist both rows")
+    void given_sameBundleHashInTwoTenants_should_persistBothRows() throws Exception {
+      // Arrange
+      tenantA = tenantHelper.createTenantWithCurrentUser("sec-cov-hash-tenant-a").getId();
+      tenantB = tenantHelper.createTenantWithCurrentUser("sec-cov-hash-tenant-b").getId();
+      String sharedHash = UUID.randomUUID().toString().replace("-", "");
+
+      // Act
+      SecurityCoverage first =
+          createCoverageForTenantWithHash(
+              tenantA, "security-coverage--" + UUID.randomUUID(), sharedHash);
+      SecurityCoverage second =
+          createCoverageForTenantWithHash(
+              tenantB, "security-coverage--" + UUID.randomUUID(), sharedHash);
+
+      // Assert
+      assertThat(first.getId()).isNotBlank();
+      assertThat(second.getId()).isNotBlank();
+      Integer totalRows =
+          jdbcTemplate.queryForObject(
+              "SELECT count(*) FROM security_coverages WHERE security_coverage_bundle_hash_md5 = ?",
+              Integer.class,
+              sharedHash);
+      assertThat(totalRows).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("given duplicate bundle hash in same tenant should fail")
+    void given_duplicateBundleHashInSameTenant_should_fail() throws Exception {
+      // Arrange
+      tenantA = tenantHelper.createTenantWithCurrentUser("sec-cov-hash-duplicate-tenant").getId();
+      String sharedHash = UUID.randomUUID().toString().replace("-", "");
+      createCoverageForTenantWithHash(
+          tenantA, "security-coverage--" + UUID.randomUUID(), sharedHash);
+
+      // Act + Assert
+      assertThatThrownBy(
+              () ->
+                  createCoverageForTenantWithHash(
+                      tenantA, "security-coverage--" + UUID.randomUUID(), sharedHash))
+          .isInstanceOf(DataIntegrityViolationException.class)
+          .hasMessageContaining("security_coverage_bundle_hash_md5");
+    }
+  }
+
   private SecurityCoverage createCoverageForTenant(String tenantId, String externalId) {
     return inTenant(
         tenantId,
@@ -181,6 +233,20 @@ class SecurityCoverageTenantScopeTest extends IntegrationTest {
           coverage.setExternalId(externalId);
           coverage.setExternalUrl("https://opencti.local/coverage/" + externalId);
           coverage.setContent("{\"type\": \"security-coverage\", \"id\": \"" + externalId + "\"}");
+          return securityCoverageRepository.save(coverage);
+        });
+  }
+
+  private SecurityCoverage createCoverageForTenantWithHash(
+      String tenantId, String externalId, String bundleHashMd5) {
+    return inTenant(
+        tenantId,
+        () -> {
+          SecurityCoverage coverage = SecurityCoverageFixture.createDefaultSecurityCoverage();
+          coverage.setExternalId(externalId);
+          coverage.setExternalUrl("https://opencti.local/coverage/" + externalId);
+          coverage.setContent("{\"type\": \"security-coverage\", \"id\": \"" + externalId + "\"}");
+          coverage.setBundleHashMd5(bundleHashMd5);
           return securityCoverageRepository.save(coverage);
         });
   }

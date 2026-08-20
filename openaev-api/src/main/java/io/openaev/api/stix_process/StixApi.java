@@ -2,8 +2,8 @@ package io.openaev.api.stix_process;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -15,13 +15,11 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.stix.StixService;
 import io.openaev.service.stix.error.BundleValidationError;
 import io.openaev.stix.parsing.ParsingException;
-import io.openaev.utils.TxCtxScopeUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.io.IOException;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -40,9 +38,9 @@ public class StixApi extends RestBehavior {
 
   public static final String STIX_URI = "/api/stix";
   public static final String TENANT_STIX_URI = TENANT_PREFIX + "/stix";
-  private final ObjectMapper objectMapper;
   private final StixService stixService;
   private final OpenCTIConnectorService openCTIService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @PostMapping(
       value = "/process-bundle",
@@ -63,17 +61,7 @@ public class StixApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
   public ResponseEntity<?> processBundle(@RequestBody @Validated CTIEvent ctiEvent, TxCtx ctx)
       throws ParsingException, ConnectorError, IOException {
-
-    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-
-    if (tenantIds == null || tenantIds.isEmpty()) {
-      throw new ConnectorError("No tenantId found in HTTP context");
-    }
-    if (tenantIds.size() > 1) {
-      throw new ConnectorError("Multiple tenantIds are not supported in this endpoint");
-    }
-
-    String tenantId = tenantIds.iterator().next();
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
 
     try {
       openCTIService.acknowledgeReceivedOfCoverage(

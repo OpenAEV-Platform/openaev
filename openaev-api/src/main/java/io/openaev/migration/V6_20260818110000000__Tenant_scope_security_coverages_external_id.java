@@ -120,6 +120,15 @@ public class V6_20260818110000000__Tenant_scope_security_coverages_external_id
             END IF;
           END $$;
           """);
+
+      // Legacy global uniqueness must be removed to allow same bundle hash across tenants.
+      statement.execute("DROP INDEX IF EXISTS idx_security_coverage_bundle_hash_md5");
+      statement.execute(
+          "ALTER TABLE security_coverages DROP CONSTRAINT IF EXISTS security_coverages_security_coverage_bundle_hash_md5_key");
+
+      // Enforce uniqueness per tenant.
+      statement.execute(
+          "CREATE UNIQUE INDEX IF NOT EXISTS idx_security_coverages_tenant_bundle_hash_md5_unique ON security_coverages(tenant_id, security_coverage_bundle_hash_md5)");
     }
   }
 }

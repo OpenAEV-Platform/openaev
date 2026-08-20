@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.array.ListArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
@@ -20,7 +19,7 @@ import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "security_coverages")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners({ModelBaseListener.class})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -115,7 +114,6 @@ public class SecurityCoverage implements TenantBase {
   @Column(
       name = "security_coverage_bundle_hash_md5",
       nullable = false,
-      unique = true,
       length = 32 // MD5 produces a 32-character hex string
       )
   @JsonIgnore
