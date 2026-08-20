@@ -15,7 +15,7 @@ public class AnnotationMeta implements Emitter {
   }
 
   public <T> AnnotationMeta withAttribute(String key, T obj) {
-    this.attributes.add(new AttributeMeta<T>(key, obj));
+    this.attributes.add(new AttributeMeta<>(key, obj));
     return this;
   }
 
@@ -25,7 +25,7 @@ public class AnnotationMeta implements Emitter {
     if (!attributes.isEmpty()) {
       render.append("(");
       for (AttributeMeta<?> attr : this.attributes) {
-        attr.emit();
+        render.append(attr.emit());
       }
       render.append(")");
     }

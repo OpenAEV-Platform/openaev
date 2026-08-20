@@ -1,0 +1,30 @@
+package io.openaev.ocsf.schema.v190.objects;
+
+public class OcsfObjectTrace {
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "flags")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT flagsField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "end_time")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT endTimeField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "uid")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT uidField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "start_time_dt")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT startTimeDtField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "span")
+  private io.openaev.ocsf.schema.v190.objects.OcsfObjectSpan spanField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "duration")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeLongT durationField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "end_time_dt")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT endTimeDtField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "start_time")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT startTimeField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "service")
+  private io.openaev.ocsf.schema.v190.objects.OcsfObjectService serviceField;
+}

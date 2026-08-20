@@ -1,0 +1,15 @@
+package io.openaev.ocsf.schema.v190.objects;
+
+public class OcsfObjectProgrammaticCredential {
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "type")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT typeField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "uid")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT uidField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "last_used_time")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT lastUsedTimeField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "last_used_time_dt")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT lastUsedTimeDtField;
+}

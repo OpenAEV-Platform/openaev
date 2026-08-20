@@ -2,6 +2,7 @@ package io.openaev.ocsf.parser.generator.emission.meta.cls;
 
 import io.openaev.ocsf.parser.generator.emission.Emitter;
 import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
+import io.openaev.ocsf.parser.generator.emission.meta.field.FieldMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.method.MethodMeta;
 import io.openaev.ocsf.parser.generator.emission.render.Helper;
 import java.util.HashSet;
@@ -12,6 +13,7 @@ public class ClassMeta implements Emitter {
   private final Set<AnnotationMeta> annotations = new HashSet<>();
   private final Set<String> imports = new HashSet<>();
   private final Set<MethodMeta> methods = new HashSet<>();
+  private final Set<FieldMeta> fields = new HashSet<>();
   private ExtendMeta extend;
   private String packageName;
   private String name;
@@ -23,6 +25,11 @@ public class ClassMeta implements Emitter {
 
   public ClassMeta withMethod(MethodMeta meta) {
     methods.add(meta);
+    return this;
+  }
+
+  public ClassMeta withField(FieldMeta meta) {
+    fields.add(meta);
     return this;
   }
 
@@ -62,6 +69,9 @@ public class ClassMeta implements Emitter {
         + this.name
         + (this.extend != null ? " extends " + this.extend.emit() : "")
         + " {"
+        + "\n"
+        + Helper.indent(
+            1, this.fields.stream().map(FieldMeta::emit).collect(Collectors.joining("\n\n")))
         + "\n"
         + Helper.indent(
             1, this.methods.stream().map(MethodMeta::emit).collect(Collectors.joining("\n\n")))

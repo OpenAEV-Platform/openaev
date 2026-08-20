@@ -7,6 +7,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class StringUtils {
+  public String snakeToCamel(String snake) {
+    String pascal = snakeToPascal(snake);
+    return pascal.substring(0, 1).toLowerCase() + pascal.substring(1);
+  }
+
   public String snakeToPascal(String snake) {
     StringBuilder sb = new StringBuilder();
     Matcher firstChar = Pattern.compile("(^\\w|_\\w)").matcher(snake);
@@ -24,7 +29,7 @@ public class StringUtils {
   public String toVersionedPackage(Version version, String prefix, String... parts) {
     return prefix
         + ".v"
-        + version.getVersionNumber().getValue().replaceAll("[.]", "")
+        + version.versionNumber().getValue().replaceAll("[.]", "")
         + "."
         + String.join(".", parts);
   }

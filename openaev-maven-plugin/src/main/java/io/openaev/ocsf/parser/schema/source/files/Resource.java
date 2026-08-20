@@ -26,7 +26,7 @@ public abstract class Resource {
     this.baseSchemaDirectoryPath =
         ctx.getPluginResourcesDirectory()
             .resolve(baseResourcePath)
-            .resolve(version.getVersionNumber().getValue());
+            .resolve(version.versionNumber().getValue());
   }
 
   protected String getResourceSubPath() {

@@ -3,7 +3,7 @@ package io.openaev.ocsf.parser.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.ocsf.parser.client.url.OcsfSchemaEndpoints;
-import io.openaev.ocsf.parser.client.url.OcsfSchemaExtensions;
+import io.openaev.ocsf.parser.client.url.OcsfSchemaExtension;
 import io.openaev.ocsf.parser.client.url.UrlBuilder;
 import io.openaev.ocsf.parser.schema.Version;
 import java.io.IOException;
@@ -39,9 +39,7 @@ public class OcsfApiClient {
             .withEndpoint(endpoint, endpointArgument)
             .withExtensions(
                 Set.of(
-                    OcsfSchemaExtensions.LINUX,
-                    OcsfSchemaExtensions.MACOS,
-                    OcsfSchemaExtensions.WIN))
+                    OcsfSchemaExtension.LINUX, OcsfSchemaExtension.MACOS, OcsfSchemaExtension.WIN))
             .build());
   }
 

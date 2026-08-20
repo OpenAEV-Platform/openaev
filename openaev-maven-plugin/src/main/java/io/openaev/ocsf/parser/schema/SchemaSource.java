@@ -2,6 +2,7 @@ package io.openaev.ocsf.parser.schema;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.ocsf.parser.PluginContext;
+import io.openaev.ocsf.parser.client.url.OcsfSchemaExtension;
 import io.openaev.ocsf.parser.schema.source.ReferentialSource;
 import io.openaev.ocsf.parser.schema.source.Source;
 import io.openaev.ocsf.parser.schema.source.files.ResourceKey;
@@ -42,14 +43,24 @@ public class SchemaSource {
         ((ReferentialSource) this.getSource(SchemaDimension.OBJECTS.name())).getSubsourceKeys()) {
       sources.put(
           key.key(),
-          new Source(version, SchemaDimension.SINGLE_OBJECT, ctx, key.key(), key.extension()));
+          new Source(
+              version,
+              SchemaDimension.SINGLE_OBJECT,
+              ctx,
+              key.key(),
+              OcsfSchemaExtension.fromString(key.extension()).orElse(null)));
     }
 
     for (ResourceKey key :
         ((ReferentialSource) this.getSource(SchemaDimension.CLASSES.name())).getSubsourceKeys()) {
       sources.put(
           key.key(),
-          new Source(version, SchemaDimension.SINGLE_CLASS, ctx, key.key(), key.extension()));
+          new Source(
+              version,
+              SchemaDimension.SINGLE_CLASS,
+              ctx,
+              key.key(),
+              OcsfSchemaExtension.fromString(key.extension()).orElse(null)));
     }
   }
 

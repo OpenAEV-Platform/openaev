@@ -1,14 +1,16 @@
 package io.openaev.ocsf.parser.schema.source.files;
 
 import io.openaev.ocsf.parser.PluginContext;
+import io.openaev.ocsf.parser.client.url.OcsfSchemaExtension;
 import io.openaev.ocsf.parser.schema.Version;
 import java.io.IOException;
 
 public class SingleClassResource extends Resource {
   private final String name;
-  private final String extension;
+  private final OcsfSchemaExtension extension;
 
-  public SingleClassResource(Version version, PluginContext ctx, String name, String extension)
+  public SingleClassResource(
+      Version version, PluginContext ctx, String name, OcsfSchemaExtension extension)
       throws IOException {
     super(version, ctx);
     this.name = name;
@@ -23,8 +25,8 @@ public class SingleClassResource extends Resource {
   @Override
   protected String getResourceSubPath() {
     StringBuilder sb = new StringBuilder("classes");
-    if (extension != null && !extension.isBlank()) {
-      sb.append("/").append(extension);
+    if (extension != null) {
+      sb.append("/").append(extension.getValue());
     }
     return sb.toString();
   }

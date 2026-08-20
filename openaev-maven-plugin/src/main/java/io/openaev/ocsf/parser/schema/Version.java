@@ -1,12 +1,9 @@
 package io.openaev.ocsf.parser.schema;
 
-import lombok.Getter;
+public record Version(OcsfSchemaVersion versionNumber) {
 
-@Getter
-public class Version {
-  private final OcsfSchemaVersion versionNumber;
-
-  public Version(OcsfSchemaVersion versionNumber) {
-    this.versionNumber = versionNumber;
+  @Override
+  public String toString() {
+    return this.versionNumber().getValue();
   }
 }

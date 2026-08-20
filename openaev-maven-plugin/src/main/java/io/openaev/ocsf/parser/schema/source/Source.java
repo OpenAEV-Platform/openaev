@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.ocsf.parser.PluginContext;
 import io.openaev.ocsf.parser.client.OcsfApiClient;
 import io.openaev.ocsf.parser.client.url.OcsfSchemaEndpoints;
+import io.openaev.ocsf.parser.client.url.OcsfSchemaExtension;
 import io.openaev.ocsf.parser.schema.SchemaDimension;
 import io.openaev.ocsf.parser.schema.Version;
 import io.openaev.ocsf.parser.schema.source.files.*;
@@ -14,10 +15,10 @@ import lombok.Getter;
 public class Source {
   private final OcsfApiClient client;
   protected Resource fileResource;
-  private final Version version;
+  @Getter private final Version version;
   @Getter private final SchemaDimension dimension;
   @Getter private final String name;
-  private final String extension;
+  @Getter private final OcsfSchemaExtension extension;
 
   private static final Map<SchemaDimension, OcsfSchemaEndpoints> dimensionToEndpointMap =
       Map.of(
@@ -33,7 +34,11 @@ public class Source {
   }
 
   public Source(
-      Version version, SchemaDimension dimension, PluginContext ctx, String name, String extension)
+      Version version,
+      SchemaDimension dimension,
+      PluginContext ctx,
+      String name,
+      OcsfSchemaExtension extension)
       throws IOException {
     this.version = version;
     this.dimension = dimension;
@@ -45,7 +50,7 @@ public class Source {
   }
 
   protected void initialiseFileResource(
-      SchemaDimension dimension, PluginContext ctx, String name, String extension)
+      SchemaDimension dimension, PluginContext ctx, String name, OcsfSchemaExtension extension)
       throws IOException {
     switch (dimension) {
       case DATATYPES -> this.fileResource = new DatatypesResource(version, ctx);
@@ -66,10 +71,17 @@ public class Source {
     return readLocalResource();
   }
 
+  public String getExtendedName() {
+    if (extension != null) {
+      return getExtension().getValue() + "/" + getName();
+    }
+    return getName();
+  }
+
   private String getFullName() {
     StringBuilder sb = new StringBuilder();
-    if (this.extension != null && !this.extension.isBlank()) {
-      sb.append(this.extension).append("/");
+    if (this.extension != null) {
+      sb.append(this.extension.getValue()).append("/");
     }
     return sb.append(this.name).toString();
   }

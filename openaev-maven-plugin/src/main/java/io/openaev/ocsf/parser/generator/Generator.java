@@ -9,7 +9,9 @@ import io.openaev.ocsf.parser.generator.emission.ClassMetadata;
 import io.openaev.ocsf.parser.generator.emission.DatatypeClassGenerator;
 import io.openaev.ocsf.parser.generator.emission.ObjectClassGenerator;
 import io.openaev.ocsf.parser.schema.SchemaSource;
+import io.openaev.ocsf.parser.schema.source.ReferentialSource;
 import io.openaev.ocsf.parser.schema.source.Source;
+import io.openaev.utils.DictionaryHelper;
 import io.openaev.utils.StringUtils;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -45,12 +47,14 @@ public class Generator {
       switch (src.getDimension()) {
         case SINGLE_OBJECT ->
             tracker.put(
-                src.getName(),
-                objectClassGenerator.metadata(schemaSource.getVersion(), src.getName(), src.get()));
+                src.getExtendedName(),
+                objectClassGenerator.metadata(
+                    schemaSource.getVersion(), src.getName(), src.get(), src.getExtension()));
         case SINGLE_CLASS ->
             tracker.put(
-                src.getName(),
-                classClassGenerator.metadata(schemaSource.getVersion(), src.getName(), src.get()));
+                src.getExtendedName(),
+                classClassGenerator.metadata(
+                    schemaSource.getVersion(), src.getName(), src.get(), src.getExtension()));
         case DATATYPES ->
             src.get()
                 .propertyStream()
@@ -59,9 +63,16 @@ public class Generator {
                         tracker.put(
                             prop.getKey(),
                             datatypeClassGenerator.metadata(
-                                schemaSource.getVersion(), prop.getKey(), prop.getValue())));
+                                schemaSource.getVersion(),
+                                prop.getKey(),
+                                prop.getValue(),
+                                src.getExtension())));
       }
     }
+
+    DictionaryHelper helper =
+        new DictionaryHelper(
+            tracker, (ReferentialSource) schemaSource.getSource(DICTIONARY.name()));
 
     // second round: write source files
     for (ClassMetadata md : tracker.values()) {
@@ -72,13 +83,19 @@ public class Generator {
       switch (md.dimension()) {
         case SINGLE_OBJECT ->
             classFileWriter.overwrite(
-                classDirectoryPath.toString(), md.className(), objectClassGenerator.emit(md));
+                classDirectoryPath.toString(),
+                md.className(),
+                objectClassGenerator.emit(md, helper));
         case SINGLE_CLASS ->
             classFileWriter.overwrite(
-                classDirectoryPath.toString(), md.className(), classClassGenerator.emit(md));
+                classDirectoryPath.toString(),
+                md.className(),
+                classClassGenerator.emit(md, helper));
         case DATATYPES ->
             classFileWriter.overwrite(
-                classDirectoryPath.toString(), md.className(), datatypeClassGenerator.emit(md));
+                classDirectoryPath.toString(),
+                md.className(),
+                datatypeClassGenerator.emit(md, helper));
       }
     }
   }

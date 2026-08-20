@@ -1,6 +1,7 @@
 package io.openaev.ocsf.parser.generator.emission;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.ocsf.parser.client.url.OcsfSchemaExtension;
 import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
 import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.cls.ClassMeta;
@@ -9,20 +10,23 @@ import io.openaev.ocsf.parser.generator.emission.meta.method.ArgumentMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.method.MethodMeta;
 import io.openaev.ocsf.parser.schema.SchemaDimension;
 import io.openaev.ocsf.parser.schema.Version;
+import io.openaev.utils.DictionaryHelper;
 
 public class DatatypeClassGenerator extends ClassGenerator {
   @Override
-  public ClassMetadata metadata(Version version, String name, JsonNode source) {
+  public ClassMetadata metadata(
+      Version version, String name, JsonNode source, OcsfSchemaExtension extension) {
     return new ClassMetadata(
         name,
         SchemaDimension.DATATYPES,
+        extension,
         compositeOcsfClassName(name),
         stringUtils.toVersionedPackage(version, SCHEMA_PACKAGE_NAME, "datatypes"),
         source);
   }
 
   @Override
-  public String emit(ClassMetadata metadata) {
+  public String emit(ClassMetadata metadata, DictionaryHelper helper) {
     String actualType = metadata.ocsfIdentifier();
     if (metadata.source().get("type") != null) {
       actualType = metadata.source().get("type").asText();

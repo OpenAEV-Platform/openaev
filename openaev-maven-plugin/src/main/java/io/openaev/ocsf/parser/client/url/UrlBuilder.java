@@ -11,7 +11,7 @@ public class UrlBuilder {
 
   private OcsfSchemaEndpoints endpoint;
   private String endpointArgument;
-  private final Set<OcsfSchemaExtensions> extensions = new HashSet<>();
+  private final Set<OcsfSchemaExtension> extensions = new HashSet<>();
   private Version version;
 
   private UrlBuilder() {}
@@ -31,7 +31,7 @@ public class UrlBuilder {
     return this;
   }
 
-  public UrlBuilder withExtensions(Set<OcsfSchemaExtensions> extensions) {
+  public UrlBuilder withExtensions(Set<OcsfSchemaExtension> extensions) {
     this.extensions.addAll(extensions);
     return this;
   }
@@ -40,14 +40,14 @@ public class UrlBuilder {
     StringBuilder sb = new StringBuilder("https://");
     sb.append(OCSF_SCHEMA_HOSTNAME);
     if (this.version != null) {
-      sb.append("/").append(this.version.getVersionNumber().getValue());
+      sb.append("/").append(this.version.versionNumber().getValue());
     }
     sb.append(MessageFormat.format(this.endpoint.getValue(), endpointArgument));
     if (!this.extensions.isEmpty()) {
       sb.append("?extensions=");
       sb.append(
           this.extensions.stream()
-              .map(OcsfSchemaExtensions::getValue)
+              .map(OcsfSchemaExtension::getValue)
               .collect(Collectors.joining(",")));
     }
     return sb.toString();
