@@ -141,10 +141,13 @@ public class UserService {
         new ArrayList<>(
             referenceResolver.resolve(
                 input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
+    // The user's id is generated on save (UUID generator), not before: evict only after
+    // persisting, using the saved user's id, or evictForUser is called with a null key.
+    User createdUser = createUser(user, input.plainPassword(), UUID.randomUUID().toString());
     if (!CollectionUtils.isEmpty(input.tenantIds())) {
-      tenantMembershipCacheManager.evictForUser(user.getId(), input.tenantIds());
+      tenantMembershipCacheManager.evictForUser(createdUser.getId(), input.tenantIds());
     }
-    return createUser(user, input.plainPassword(), UUID.randomUUID().toString());
+    return createdUser;
   }
 
   /** Creates a user for internal/technical purposes (SSO login, connector provisioning). */
