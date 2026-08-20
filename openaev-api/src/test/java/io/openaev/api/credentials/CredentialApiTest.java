@@ -1,15 +1,5 @@
 package io.openaev.api.credentials;
 
-import static io.openaev.api.credentials.CredentialApi.TENANT_CREDENTIALS_URI;
-import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
-import static io.openaev.utils.JsonTestUtils.asJsonString;
-import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.credentials.form.CredentialBulkProcessingInput;
@@ -25,9 +15,6 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -37,6 +24,20 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+import static io.openaev.api.credentials.CredentialApi.TENANT_CREDENTIALS_URI;
+import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -78,7 +79,9 @@ class CredentialApiTest extends IntegrationTest {
               CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD.name(),
               CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH.name(),
               CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY.name(),
-              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE.name());
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE.name(),
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL.name(),
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY.name());
     }
   }
 
