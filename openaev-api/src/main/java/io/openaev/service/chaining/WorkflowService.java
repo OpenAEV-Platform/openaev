@@ -979,7 +979,8 @@ public class WorkflowService {
           List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
           steps.forEach(
               step -> {
-                String injectId = StepService.getField(step.getData(), "inject_id");
+                String injectId =
+                    step.getData() != null ? StepService.getField(step.getData(), "inject_id") : null;
                 if (injectId != null) injectsIds.add(injectId);
                 step.setStatus(StepStatus.END);
               });
