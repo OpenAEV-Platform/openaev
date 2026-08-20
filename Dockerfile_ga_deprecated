@@ -4,13 +4,17 @@ FROM amazoncorretto:21-alpine3.24 AS app
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 WORKDIR /opt
-RUN apt update && apt install -y tini git --no-install-recommends && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    apk add --no-cache tini git \
+        nss freetype harfbuzz ca-certificates ttf-freefont udev; \
+    update-ca-certificates
 COPY openaev-build ./
-# Install Chromium and its system libraries for server-side report rendering. The boot jar uses
-# the ZIP layout, so PropertiesLauncher can run the embedded Playwright CLI (Spring Boot 3.x)
-RUN DEBIAN_FRONTEND=noninteractive java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install --with-deps chromium \
-    && rm -rf /var/lib/apt/lists/* \
-    && chmod -R a+rX /ms-playwright
+# Install Chromium for server-side report rendering. On Alpine, Playwright's
+# "--with-deps" is not apt-compatible, so system libraries are installed via apk above.
+# The boot jar uses the ZIP layout, so PropertiesLauncher can run the embedded Playwright CLI.
+RUN set -eux; \
+    java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install chromium; \
+    chmod -R a+rX /ms-playwright
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["java", "-jar", "openaev-api.jar"]
