@@ -13,6 +13,7 @@ import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
@@ -21,6 +22,8 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
@@ -39,7 +42,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -65,8 +67,45 @@ class WorkflowServiceTest {
   @Mock private ScopeMetricCollector scopeMetricCollector;
   @Mock private ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
   @Mock private ResultsMetricCollector resultsMetricCollector;
+  @Mock private ExerciseRepository exerciseRepository;
+  @Mock private InjectService injectService;
+  @Mock private InjectStatusService injectStatusService;
 
-  @InjectMocks private WorkflowService workflowService;
+  private WorkflowService workflowService;
+  private WorkflowEndService workflowEndService;
+
+  @BeforeEach
+  void setUpWorkflowService() {
+    workflowEndService =
+        new WorkflowEndService(
+            stepService,
+            stepDelayQueueService,
+            exerciseRepository,
+            injectService,
+            injectStatusService,
+            resultsMetricCollector,
+            workflowRepository);
+
+    workflowService =
+        new WorkflowService(
+            stepService,
+            conditionService,
+            workflowStateService,
+            stepDelayQueueService,
+            scopeSnapshotService,
+            scopeService,
+            workflowRepository,
+            workflowScopeRuleRepository,
+            scopeVariableRepository,
+            assetRepository,
+            assetGroupRepository,
+            teamRepository,
+            userRepository,
+            workflowEndService,
+            scopeMetricCollector,
+            chainingSafetyPolicyMetricCollector,
+            resultsMetricCollector);
+  }
 
   // ========================================================================
   // getWorkflowById Tests
@@ -1168,6 +1207,7 @@ class WorkflowServiceTest {
               assetGroupRepository,
               teamRepository,
               userRepository,
+              workflowEndService,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -1517,6 +1557,7 @@ class WorkflowServiceTest {
               assetGroupRepository,
               teamRepository,
               userRepository,
+              workflowEndService,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -1705,6 +1746,7 @@ class WorkflowServiceTest {
               assetGroupRepository,
               teamRepository,
               userRepository,
+              workflowEndService,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -1973,6 +2015,7 @@ class WorkflowServiceTest {
               assetGroupRepository,
               teamRepository,
               userRepository,
+              workflowEndService,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);

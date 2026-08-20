@@ -65,5 +65,5 @@ instructions: |
   - When asked about workflow state updates, refer to `WorkflowStateService.syncState()` and `propagateToLocalStates()`.
   - When asked about scope/asset targeting, refer to `ScopeService.getValidAssets()`.
   - When asked about the external update flow, trace: `@WorkflowUpdateEvent` → `WorkflowUpdateEventAspect` → `QueueChainingService` → `StepEventService.handleExternalUpdateEvent()`.
-  - When asked about timeout handling, refer to `WorkflowTimeoutService.forceCompleteWorkflow()`.
+  - When asked about timeout handling, refer to `WorkflowTimeoutService.forceCompleteWorkflowByTimeout()`.
 ---

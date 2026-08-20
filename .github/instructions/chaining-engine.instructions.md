@@ -145,7 +145,7 @@ STEP STATUS LIFECYCLE (from diagram):
 ```
 WorkflowTimeoutJob (Quartz, @DisallowConcurrentExecution)
   └─> Finds expired RUN workflows (timeout from WorkflowConfiguration)
-        └─> WorkflowTimeoutService.forceCompleteWorkflow()
+        └─> WorkflowTimeoutService.forceCompleteWorkflowByTimeout()
               └─> Sets workflow status: END
               └─> Terminates active steps (READY/RUN → END)
               └─> Deletes pending delay queue entries
