@@ -33,6 +33,8 @@ public final class CredentialMapper {
         .awsRoleArn(secretMetadata.awsRoleArn())
         .awsSourceIdentityType(secretMetadata.awsSourceIdentityType())
         .awsSourceProfileAccessKeyId(secretMetadata.awsSourceProfileAccessKeyId())
+        .azureEnvironment(secretMetadata.azureEnvironment())
+        .azureClientId(secretMetadata.azureClientId())
         .build();
   }
 

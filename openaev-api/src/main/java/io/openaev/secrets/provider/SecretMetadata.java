@@ -7,7 +7,10 @@ import io.openaev.database.model.HashSecret;
 /**
  * Safe metadata returned by secret providers for credential display/update helpers.
  *
- * <p>It intentionally excludes any secret value (password/hash), even encrypted.
+ * <p>It intentionally excludes any secret value (password/hash/client secret), even encrypted, and
+ * more generally any field flagged as sensitive: this record is serialized to the API through
+ * {@code CredentialFullOutput}. Sensitive fields do not need to be echoed back, as the form renders
+ * them as write-only placeholders.
  */
 public record SecretMetadata(
     String username,
@@ -16,22 +19,25 @@ public record SecretMetadata(
     String awsAccessKeyId,
     String awsRoleArn,
     AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
-    String awsSourceProfileAccessKeyId) {
+    String awsSourceProfileAccessKeyId,
+    String azureEnvironment,
+    String azureClientId) {
 
   public static SecretMetadata empty() {
-    return new SecretMetadata(null, null, null, null, null, null, null);
+    return new SecretMetadata(null, null, null, null, null, null, null, null, null);
   }
 
   public static SecretMetadata forUsername(String username) {
-    return new SecretMetadata(username, null, null, null, null, null, null);
+    return new SecretMetadata(username, null, null, null, null, null, null, null, null);
   }
 
   public static SecretMetadata forHashAlgorithm(HashSecret.HASH_ALGORITHM hashAlgorithm) {
-    return new SecretMetadata(null, hashAlgorithm, null, null, null, null, null);
+    return new SecretMetadata(null, hashAlgorithm, null, null, null, null, null, null, null);
   }
 
   public static SecretMetadata forAwsAccessKey(AwsRegion awsDefaultRegion, String awsAccessKeyId) {
-    return new SecretMetadata(null, null, awsDefaultRegion, awsAccessKeyId, null, null, null);
+    return new SecretMetadata(
+        null, null, awsDefaultRegion, awsAccessKeyId, null, null, null, null, null);
   }
 
   public static SecretMetadata forAwsAssumeRole(
@@ -46,6 +52,24 @@ public record SecretMetadata(
         null,
         awsRoleArn,
         awsSourceIdentityType,
-        awsSourceProfileAccessKeyId);
+        awsSourceProfileAccessKeyId,
+        null,
+        null);
+  }
+
+  /**
+   * Non-sensitive metadata of an Azure service principal secret.
+   *
+   * <p>The client secret, tenant id and subscription id are deliberately left out: they are flagged
+   * as sensitive and must never travel back to the client.
+   *
+   * @param azureEnvironment Azure cloud name
+   * @param azureClientId client id of the service principal
+   * @return matching metadata
+   */
+  public static SecretMetadata forAzureServicePrincipal(
+      String azureEnvironment, String azureClientId) {
+    return new SecretMetadata(
+        null, null, null, null, null, null, null, azureEnvironment, azureClientId);
   }
 }
