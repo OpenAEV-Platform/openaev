@@ -138,4 +138,20 @@ public record SecretMetadata(
         null,
         azureSubscriptionId);
   }
+
+  /**
+   * Non-sensitive metadata of an Azure managed identity secret.
+   *
+   * <p>The subscription id is deliberately left out: it is flagged as sensitive and must never
+   * travel back to the client. The client id is only set for user-assigned identities.
+   *
+   * @param azureEnvironment Azure cloud name
+   * @param azureClientId client id of the user-assigned managed identity, null when system-assigned
+   * @return matching metadata
+   */
+  public static SecretMetadata forAzureManagedIdentity(
+      String azureEnvironment, String azureClientId) {
+    return new SecretMetadata(
+        null, null, null, null, null, null, null, azureEnvironment, azureClientId);
+  }
 }
