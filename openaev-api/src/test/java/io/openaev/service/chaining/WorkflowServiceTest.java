@@ -2736,6 +2736,7 @@ class WorkflowServiceTest {
       verify(stepService, never()).updateInjectStepTemplateDataAndTrigger(any(), any(), any());
     }
   }
+
   private static Exercise exerciseWithId(String id) {
     Exercise exercise = new Exercise();
     exercise.setId(id);
