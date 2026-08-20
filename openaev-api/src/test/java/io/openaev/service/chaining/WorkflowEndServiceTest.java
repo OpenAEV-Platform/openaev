@@ -32,6 +32,7 @@ class WorkflowEndServiceTest {
   @Mock private ResultsMetricCollector resultsMetricCollector;
   @Mock private WorkflowRepository workflowRepository;
   @Mock private ExerciseRepository exerciseRepository;
+  @Mock private ScopeSnapshotService scopeSnapshotService;
 
   @InjectMocks private WorkflowEndService workflowEndService;
 

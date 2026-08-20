@@ -84,7 +84,8 @@ class WorkflowServiceTest {
             injectService,
             injectStatusService,
             resultsMetricCollector,
-            workflowRepository);
+            workflowRepository,
+            scopeSnapshotService);
 
     workflowService =
         new WorkflowService(
