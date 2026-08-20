@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -28,6 +29,7 @@ import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectStatusComposer;
+import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.annotation.Resource;
 import jakarta.servlet.ServletException;
@@ -45,6 +47,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockito.MockedStatic;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -65,6 +68,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 @TestInstance(PER_CLASS)
 @Transactional
 public class ExerciseApiStatusTest extends IntegrationTest {
+
+  // Business message the backend must return (400) when a chained simulation pause is attempted.
+  private static final String PAUSE_REFUSAL_MESSAGE =
+      "Pausing a chained simulation is not allowed yet, please contact support";
 
   static Exercise SCHEDULED_EXERCISE;
   static Exercise RUNNING_EXERCISE;
@@ -106,6 +113,9 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
+  @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private OpenAEVConfig openAEVConfig;
+  @Autowired private CacheManager cacheManager;
   @Autowired private PlatformTransactionManager transactionManager;
 
   // Runs work in its own transaction: participates in the framework's test transaction when one
@@ -614,5 +624,14 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     assertEquals(
         List.of(ExerciseStatus.RUNNING.name()),
         JsonPath.read(response, "$.exercise_next_possible_status"));
+  }
+
+  // The preview feature lookup is @Cacheable("global"), so the cache must be dropped on every
+  // toggle of the enabled dev features.
+  private void clearGlobalCache() {
+    var cache = cacheManager.getCache("global");
+    if (cache != null) {
+      cache.clear();
+    }
   }
 }

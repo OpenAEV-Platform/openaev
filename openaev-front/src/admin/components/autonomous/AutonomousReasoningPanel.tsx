@@ -1,13 +1,14 @@
 import {
   AutoAwesome,
+  ErrorOutline,
   HelpOutline,
   HourglassEmpty,
   SendOutlined,
+  WarningAmber,
 } from '@mui/icons-material';
 import { Box, Chip, CircularProgress, FormControlLabel, IconButton, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material';
-import type { Theme } from '@mui/material/styles';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useCallback, useEffect, useRef, useState } from 'react';
+import { type FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   addAutonomousDirective,
@@ -23,22 +24,58 @@ import { useFormatter } from '../../../components/i18n';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import useAuth from '../../../utils/hooks/useAuth';
 import { useChatbot, useChatbotContentMargin } from '../ariane/useChatbotHooks';
-import { eventAccent, eventIcon, EventMarkdown, eventTypeLabel, sanitizeEventText, stripMarkdown } from './autonomousEventVisuals';
+import {
+  collapseThinkingSteps,
+  eventAccent,
+  eventIcon,
+  EventMarkdown,
+  eventTypeLabel,
+  isHeartbeatEvent,
+  isLiveActivityEvent,
+  resolveLiveCaption,
+  resolveLiveLabel,
+  sanitizeEventText,
+  type ThinkingPhase,
+} from './autonomousEventVisuals';
+import ThinkingBubble from './AutonomousThinkingBubble';
 import { AUTONOMOUS_PANEL_WIDTH } from './useAutonomousPanelWidth';
 
 // An "active" run is one the orchestrator is currently driving, so the panel keeps polling the
-// timeline, shows the live thinking/hourglass indicator, and enables steering. PLANNING (dry-run
-// plan design in progress) MUST be here alongside RUNNING/WAITING_INPUT: it is an in-progress phase
-// where the AI is authoring the plan, so without it the right panel would sit frozen with no
-// indicator and never refresh until a question flips the run to WAITING_INPUT. PLANNED is settled
-// (planning done), so it is intentionally NOT active.
+// timeline, shows the live thinking/hourglass indicator, and enables steering. PLANNING (the AI is
+// still building the scenario's logic) MUST be here alongside RUNNING/WAITING_INPUT: it is an
+// in-progress phase where the AI is authoring the logic, so without it the right panel would sit
+// frozen with no indicator and never refresh until a question flips the run to WAITING_INPUT.
+// PLANNED is settled (logic done), so it is intentionally NOT active.
 const ACTIVE_STATUSES: AutonomousRunStatus[] = ['PLANNING', 'RUNNING', 'WAITING_INPUT'];
 const POLL_INTERVAL_MS = 3000;
+// A live ("active") caption keeps pulsing as if the orchestrator were computing right now. If the
+// newest timeline event is older than this, it is NOT: the run is parked between cycles, waiting on
+// a directive re-check, or an upstream cycle stalled. Past this age we settle any active caption
+// into a calm idle one so the cockpit never lies with a frozen "Deciding the next move" for minutes
+// (the reported stuck-cockpit symptom). A fresh event re-animates it. Sized above a normal cycle's
+// event cadence so an ordinary long action does not flip it to idle prematurely.
+const STALE_CAPTION_AFTER_MS = 180000;
+
+// The stream auto-follows the newest event only while the operator is within this distance (px) of
+// the bottom - anything further means they deliberately scrolled up to read an older decision.
+const STICK_TO_BOTTOM_THRESHOLD_PX = 80;
 
 // Cap the proposed one-click choices so the callout stays scannable: at most this many radio options
 // are ever shown, and the always-present free-text composer below is the escape hatch for anything
 // the operator would rather type.
 const MAX_QUESTION_CHOICES = 3;
+
+// Event types that prove the orchestrator is actively WORKING (deciding, acting, analyzing,
+// delegating, narrating) - as opposed to STATUS bookkeeping or an operator QUESTION/DIRECTIVE. The
+// thinking-window caption keys off the latest one of these.
+const ACTIVITY_EVENT_TYPES = ['DECISION', 'TOOL_ACTION', 'PROOF', 'GAP', 'HANDOVER', 'AGENT_DELEGATION', 'NARRATION'] as const;
+const isActivityType = (type: string | undefined): boolean => (ACTIVITY_EVENT_TYPES as readonly string[]).includes(type ?? '');
+
+// A heartbeat older than this is treated as stale: the orchestrator only emits heartbeats WHILE a
+// decision cycle is actively running (~45s cadence), so a fresh one is positive proof the run is
+// grinding right now. Sized at ~2.5 cycles so one dropped beat or a slow poll never flips a working
+// run to idle, while a genuinely stopped cycle (park / stall) settles within a few seconds.
+const HEARTBEAT_FRESH_MS = 120000;
 
 interface QuestionChoice {
   id: string;
@@ -94,215 +131,13 @@ const parseQuestionChoices = (data?: string | null): QuestionChoice[] => {
   }
 };
 
-interface ThinkingPhase {
-  key: string;
-  label: string;
-  color: string;
-  // Whether the orchestrator is actively working (mid-cycle) vs. idle/parked (awaiting a
-  // human-timescale event or the operator's answer). Only an ACTIVE phase pulses and streams the
-  // live thought echo; an idle phase settles into a calm, static waiting indicator so a parked run
-  // does not look like it is still computing.
-  active: boolean;
-}
-
-// Tail-of-stream status window. While the orchestrator is actively working (active phase) it shows
-// three pulsing dots plus its most recent reasoning line, faintly shimmering, so the panel feels
-// alive between activity events (mirrors the XTM One scrolling thinking window). When the run is
-// idle - parked on a status awaiting a human-timescale event, or waiting on the operator - it
-// settles into a STATIC hourglass + calm caption with no pulsing and no thought echo, so a parked
-// run stops looking like it is still thinking. The label + colour reflect the CURRENT phase and
-// animate on every phase change.
-// Turn a millisecond gap into a compact "still working" clock: "12s", "1m 20s". Kept short so it
-// sits inline next to the phase caption without wrapping.
-const formatElapsed = (ms: number): string => {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  if (totalSeconds < 60) return `${totalSeconds}s`;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
-};
-
-const ThinkingBubble: FunctionComponent<{
-  phase: ThinkingPhase;
-  theme: Theme;
-  lines: string[];
-  /** Timestamp of the most recent activity, so the window can tick a live "working for Ns" clock.
-   *  This is what turns a silent stretch (e.g. the orchestrator grinding through tool retries with
-   *  no new narration) from a frozen caption into a visibly advancing counter. */
-  activitySince?: string | number | null;
-}> = ({
-  phase,
-  theme,
-  lines,
-  activitySince,
-}) => {
-  const accent = phase.color;
-  const active = phase.active;
-  // Tick a 1s clock ONLY while actively working, so the elapsed counter advances live and the
-  // interval is torn down the moment the run parks/waits.
-  const [now, setNow] = useState<number>(() => Date.now());
-  useEffect(() => {
-    if (!active) return undefined;
-    setNow(Date.now());
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [active, phase.key]);
-  const sinceMs = activitySince != null ? new Date(activitySince).getTime() : Number.NaN;
-  const elapsedLabel = active && Number.isFinite(sinceMs) ? formatElapsed(now - sinceMs) : null;
-  // A parked/waiting phase never streams the live thought echo (there is no live thought - the run
-  // is idle), and its dots do not pulse.
-  const showLatest = active && lines.length > 0;
-  // Keep the window pinned to the bottom as the reasoning grows, so it visibly "defiles" like the
-  // XTM One thinking window: each new thought line is appended at the bottom and older lines scroll
-  // up out of view under the fade mask, instead of a single static block that never moves.
-  const textRef = useRef<HTMLDivElement | null>(null);
-  const streamText = lines.join('\n');
-  useEffect(() => {
-    const node = textRef.current;
-    if (node) {
-      node.scrollTop = node.scrollHeight;
-    }
-  }, [streamText]);
-
-  return (
-    <Box
-      sx={{
-        'marginTop': 0.5,
-        'paddingLeft': 2,
-        'position': 'relative',
-        '@keyframes aevThinkingShimmer': {
-          '0%': { opacity: 0.35 },
-          '50%': { opacity: 0.9 },
-          '100%': { opacity: 0.35 },
-        },
-        '@keyframes aevThinkingDot': {
-          '0%, 80%, 100%': {
-            transform: 'scale(0.6)',
-            opacity: 0.3,
-          },
-          '40%': {
-            transform: 'scale(1)',
-            opacity: 1,
-          },
-        },
-        '@keyframes aevPhaseIn': {
-          '0%': {
-            opacity: 0,
-            transform: 'translateY(4px)',
-          },
-          '100%': {
-            opacity: 1,
-            transform: 'translateY(0)',
-          },
-        },
-      }}
-    >
-      <Stack sx={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 0.75,
-      }}
-      >
-        {active ? (
-          <Stack sx={{
-            flexDirection: 'row',
-            gap: 0.4,
-            alignItems: 'center',
-          }}
-          >
-            {[0, 1, 2].map(i => (
-              <Box
-                key={i}
-                sx={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  backgroundColor: accent,
-                  transition: theme.transitions.create('background-color'),
-                  animation: 'aevThinkingDot 1.4s infinite ease-in-out both',
-                  animationDelay: `${i * 0.16}s`,
-                }}
-              />
-            ))}
-          </Stack>
-        ) : (
-          // Idle/parked: a still hourglass, not pulsing dots, so the run reads as waiting - not working.
-          <HourglassEmpty sx={{
-            fontSize: 16,
-            color: accent,
-          }}
-          />
-        )}
-        {/* Key on the phase so a new phase remounts and replays the fade/slide-in transition. */}
-        <Typography
-          key={phase.key}
-          variant="caption"
-          sx={{
-            color: accent,
-            fontWeight: 600,
-            letterSpacing: '0.02em',
-            transition: theme.transitions.create('color'),
-            animation: 'aevPhaseIn 0.35s ease',
-          }}
-        >
-          {phase.label}
-        </Typography>
-        {elapsedLabel && (
-          <Typography
-            variant="caption"
-            sx={{
-              color: alpha(theme.palette.text.secondary, 0.7),
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {`· ${elapsedLabel}`}
-          </Typography>
-        )}
-      </Stack>
-      {showLatest && (
-        <Box
-          ref={textRef}
-          sx={{
-            'maxHeight': 132,
-            'overflowY': 'auto',
-            'marginTop': 0.75,
-            // Fade the top edge so older lines appear to scroll up out of view; no visible scrollbar.
-            'maskImage': 'linear-gradient(to bottom, transparent 0, black 28px)',
-            'WebkitMaskImage': 'linear-gradient(to bottom, transparent 0, black 28px)',
-            'scrollbarWidth': 'none',
-            '&::-webkit-scrollbar': { display: 'none' },
-          }}
-        >
-          {lines.map((line, index) => {
-            const isLast = index === lines.length - 1;
-            return (
-              <Typography
-                key={`${index}-${line.slice(0, 24)}`}
-                variant="caption"
-                sx={{
-                  display: 'block',
-                  fontStyle: 'italic',
-                  lineHeight: 1.5,
-                  color: alpha(theme.palette.text.secondary, isLast ? 0.95 : 0.5),
-                  whiteSpace: 'pre-wrap',
-                  // Only the newest line shimmers - the "live" thought; older lines settle, dimmed.
-                  animation: isLast ? 'aevThinkingShimmer 2.4s ease-in-out infinite' : undefined,
-                }}
-              >
-                {line}
-              </Typography>
-            );
-          })}
-        </Box>
-      )}
-    </Box>
-  );
-};
-
 interface AutonomousReasoningPanelProps {
   run: AutonomousRun;
   /** Lift status transitions up so the hero + tab set stay in sync without a second poll loop. */
   onRunUpdate?: (run: AutonomousRun) => void;
+  /** Share the incrementally polled timeline with a sibling (the overview outcome layer) so that
+   *  layer does not start a second full-from-cursor-0 poll of the same endpoint. */
+  onTimelineEvents?: (events: AutonomousEvent[]) => void;
   /** Live panel width (px), owned by the parent via {@link useAutonomousPanelWidth} so the content
    *  padding follows the drag. */
   width?: number;
@@ -325,6 +160,7 @@ interface AutonomousReasoningPanelProps {
 const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps> = ({
   run: initialRun,
   onRunUpdate,
+  onTimelineEvents,
   width = AUTONOMOUS_PANEL_WIDTH,
   onWidthChange,
   readOnly = false,
@@ -341,6 +177,9 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
 
   const [run, setRun] = useState<AutonomousRun>(initialRun);
   const [events, setEvents] = useState<AutonomousEvent[]>([]);
+  useEffect(() => {
+    onTimelineEvents?.(events);
+  }, [events, onTimelineEvents]);
   const [directive, setDirective] = useState('');
   // Which proposed one-click choice the operator picked (null = none; they can still type freely in
   // the always-visible composer, which takes precedence over a selected choice).
@@ -348,8 +187,18 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // The question the operator just answered - suppressed immediately (optimistic) so the callout
   // does not linger and hog space while we wait for the status poll to flip the run to RUNNING.
   const [answeredQuestionId, setAnsweredQuestionId] = useState<string | null>(null);
+  // Guards against a double submit: Enter and a click (or two fast Enters) both fire
+  // handleComposerSubmit in the same tick, and each reads the same pre-clear `directive`, so without
+  // this the operator's answer is sent twice. Held until the request settles.
+  const sendingRef = useRef(false);
   const cursorRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Whether the operator is at (or near) the bottom of the stream, sampled in the onScroll handler
+  // - i.e. BEFORE new content grows the list. Measuring inside the pin effect below would run
+  // after render, when a tall new decision has already pushed the bottom away by more than the
+  // threshold, silently breaking the auto-follow exactly when the operator was reading live.
+  // Starts true so a fresh stream pins to the newest event.
+  const stickToBottomRef = useRef(true);
   // Identity of the run/simulation the stream is currently populated for. The reset-and-reload
   // effect below keys off this so it fires ONLY on a genuine run or simulation switch (navigation /
   // restart) - never spuriously on a re-render, which would blank the live stream to empty (and drop
@@ -425,9 +274,14 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // run at mount, so without re-syncing from the parent the panel would keep showing the torn-down
   // (terminal) run - and, because refreshRun only polls while active, never recover until a full
   // page reload. Re-sync whenever the parent's run or its underlying simulation changes.
+  //
+  // The status is a dependency too: lifecycle controls live in the hero, not here, so a hero-driven
+  // pause/resume changes only the parent's run. When the run is not active the panel does not poll,
+  // so a resume would otherwise never reach the panel - it would stay frozen as PAUSED with a live
+  // composer until a full remount. Keying on status makes a hero transition reflect immediately.
   useEffect(() => {
     setRun(initialRunRef.current);
-  }, [initialRun.autonomous_run_id, initialRun.autonomous_run_simulation_id]);
+  }, [initialRun.autonomous_run_id, initialRun.autonomous_run_simulation_id, initialRun.autonomous_run_status]);
 
   // Reset and reload ONLY when the run OR its underlying simulation actually changes: navigating
   // between simulations reuses the panel, and a restart swaps the simulation under the same run id
@@ -450,6 +304,9 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     }
     streamKeyRef.current = nextKey;
     cursorRef.current = 0;
+    // A fresh stream should follow its newest event even if the operator had scrolled up in the
+    // previous run's timeline.
+    stickToBottomRef.current = true;
     setEvents([]);
     pollTimelineRef.current();
   }, [runId, simulationId]);
@@ -468,18 +325,29 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     return () => clearInterval(interval);
   }, [isActive, refreshRun, pollTimeline]);
 
-  // Keep the stream pinned to the latest decision as it grows.
-  useEffect(() => {
-    const node = scrollRef.current;
-    if (node) {
-      node.scrollTop = node.scrollHeight;
-    }
-  }, [events.length]);
+  // The operator-facing decision feed excludes heartbeats (freshness pings, not decisions) AND
+  // live-activity NARRATIONs (the per-iteration "what it is doing right now" lines the worker
+  // streams). Both keep the cockpit alive without being decisions: heartbeats drive the freshness
+  // clock, live-activity lines flow into `thinkingSteps` below (the scrolling thinking window) - so
+  // neither should ever appear as a row in the operator decision feed, or a long silent burst would
+  // fill the timeline with "Working"/activity noise. The freshness/caption logic below still keys
+  // off the raw `events` (including both) so the cockpit stays animated. Memoised: the predicates
+  // JSON-parse the payloads, so they should run once per new batch of events, not on every render.
+  const visibleEvents = useMemo(
+    () => events.filter(e => !isHeartbeatEvent(e) && !isLiveActivityEvent(e)),
+    [events],
+  );
 
   const isWaitingInput = status === 'WAITING_INPUT';
-  const latestQuestion = isWaitingInput
-    ? [...events].reverse().find(e => e.autonomous_event_type === 'QUESTION')
-    : undefined;
+  // Newest-first lookups over the stream. findLast scans backwards without cloning, and the
+  // results are memoised so the scans (and isHeartbeatEvent's JSON.parse) run once per new batch
+  // of events - not on every incidental re-render (typing in the composer, the 3s status poll).
+  const newestQuestion = useMemo(
+    () => events.findLast(e => e.autonomous_event_type === 'QUESTION'),
+    [events],
+  );
+  // Only surface it while the run is actually parked on the operator.
+  const latestQuestion = isWaitingInput ? newestQuestion : undefined;
   // A question is ALREADY answered if the operator's reply (a DIRECTIVE event, "Operator directive
   // queued") was recorded after it in the timeline. Deriving this from the stream - not only from the
   // optimistic local answeredQuestionId - is what keeps an answered question from re-surfacing: local
@@ -495,9 +363,25 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     && !questionAnsweredInTimeline
     ? latestQuestion
     : undefined;
+  // Sanitize the LLM-authored labels at derivation (not render) time and DROP a choice whose label
+  // sanitizes to nothing: falling back to the raw text would leak the exact tool markup
+  // sanitizeEventText strips, and an unlabeled radio is unpickable anyway - the free-text composer
+  // remains as the answer path. The `value` (what is sent back to the orchestrator) stays raw.
   const questionChoices = (pendingQuestion ? parseQuestionChoices(pendingQuestion.autonomous_event_data) : [])
+    .map(choice => ({
+      ...choice,
+      label: sanitizeEventText(choice.label),
+    }))
+    .filter(choice => choice.label.length > 0)
     .slice(0, MAX_QUESTION_CHOICES);
   const hasChoices = questionChoices.length > 0;
+
+  // The pending question renders as a dedicated in-flow callout at the tail of the scrollable stream
+  // (with its one-click choices), so drop its plain timeline row from the feed to avoid showing it
+  // twice. Once answered it is no longer pending and reappears as a normal history row.
+  const streamEvents = pendingQuestion
+    ? visibleEvents.filter(event => event.autonomous_event_id !== pendingQuestion.autonomous_event_id)
+    : visibleEvents;
 
   let composerPlaceholder = t('Steer the AI live (e.g. focus on the finance subnet, avoid host X, try Kerberoasting)');
   if (hasChoices) {
@@ -509,24 +393,62 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     composerPlaceholder = t('Answer the AI (e.g. the web apps in scope are app-prod-01 and app-prod-02)');
   }
 
-  // Reset the choice selection whenever a new question arrives.
+  // Reset the composer + choice selection ONLY when a genuinely NEW question arrives. Keyed on the
+  // last question id seen (not on every pendingQuestion identity change): after a failed send the
+  // SAME question resurfaces (the optimistic dismissal is rolled back), and an unconditional reset
+  // would fire on that undefined -> same-id transition and wipe the restored answer text right
+  // after the catch put it back - stranding the operator exactly like the bug this PR fixes.
+  const lastQuestionIdRef = useRef<string | null>(null);
   useEffect(() => {
-    setSelectedChoice(null);
-    setDirective('');
+    const questionId = pendingQuestion?.autonomous_event_id ?? null;
+    if (questionId !== null && questionId !== lastQuestionIdRef.current) {
+      lastQuestionIdRef.current = questionId;
+      setSelectedChoice(null);
+      setDirective('');
+    }
   }, [pendingQuestion?.autonomous_event_id]);
+
+  // Keep the stream pinned to its tail as it grows - but only while the operator was already at (or
+  // near) the bottom before the new content rendered (see stickToBottomRef), so a new event never
+  // yanks them away from an older decision they scrolled up to read. Keyed on the VISIBLE feed
+  // length (filtered-out heartbeats do not change the rendered stream) AND on the pending-question
+  // identity, so the now in-flow question callout + one-click choices scroll into view the moment
+  // the run parks on the operator - even when the status flip and the QUESTION event land in
+  // different poll cycles.
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (node && stickToBottomRef.current) {
+      node.scrollTop = node.scrollHeight;
+    }
+  }, [visibleEvents.length, pendingQuestion?.autonomous_event_id]);
 
   const sendDirective = useCallback((content: string) => {
     const trimmed = content.trim();
-    if (trimmed.length === 0 || !isActive) {
+    if (trimmed.length === 0 || !isActive || sendingRef.current) {
       return;
     }
+    sendingRef.current = true;
+    const dismissedQuestionId = pendingQuestion?.autonomous_event_id ?? null;
     setDirective('');
     setSelectedChoice(null);
     // Optimistically dismiss the current question so its callout stops occupying space right away.
-    if (pendingQuestion) {
-      setAnsweredQuestionId(pendingQuestion.autonomous_event_id);
+    if (dismissedQuestionId) {
+      setAnsweredQuestionId(dismissedQuestionId);
     }
-    addAutonomousDirective(runId, trimmed).then(() => pollTimeline()).catch(() => {});
+    addAutonomousDirective(runId, trimmed)
+      .then(() => pollTimeline())
+      .catch(() => {
+        // The send failed (network / backend). Roll back the optimistic dismissal so the question
+        // re-surfaces, and restore the operator's text - otherwise the callout is gone for good and
+        // the run is stranded in WAITING_INPUT with no way to answer it. Restore ONLY while the
+        // composer is still empty: the field stays live during the in-flight request, so the
+        // operator may already be typing something new and the rollback must not clobber it.
+        setAnsweredQuestionId(current => (current === dismissedQuestionId ? null : current));
+        setDirective(current => (current.trim().length === 0 ? trimmed : current));
+      })
+      .finally(() => {
+        sendingRef.current = false;
+      });
   }, [isActive, pendingQuestion, runId, pollTimeline]);
 
   // One submit path for the always-visible composer + optional one-click choices: a typed answer
@@ -550,29 +472,88 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   // (not a single frozen line): keep the tail of narration/decision/tool prose in chronological
   // order so each new cycle appends a line at the bottom and older ones scroll up under the fade
   // mask, mirroring the XTM One thinking window. Operators read its train of thought, not a spinner.
-  const thinkingLines = events
-    .filter(e => (['NARRATION', 'DECISION', 'TOOL_ACTION'] as const).includes(
-      e.autonomous_event_type as 'NARRATION' | 'DECISION' | 'TOOL_ACTION',
-    ))
-    .map(e => stripMarkdown(sanitizeEventText(e.autonomous_event_content ?? e.autonomous_event_title)))
-    .filter((line): line is string => Boolean(line))
-    .slice(-8);
+  //
+  // Consecutive identical captions are COLLAPSED into a single step (see collapseThinkingSteps): a
+  // multi-minute same-caption burst (e.g. the arsenal build where every iteration narrates
+  // "Searching arsenal for contracts") would otherwise render as a wall of identical glowing lines
+  // that stops visibly moving - indistinguishable from a frozen cockpit. The collapsed live step
+  // keeps advancing via a per-caption ticking clock + repeat count instead. Memoised: the regex-heavy
+  // stripMarkdown runs over the tail of the stream, so it should recompute once per new batch of
+  // events - not on every keystroke in the composer (which re-renders this component via `directive`).
+  const thinkingSteps = useMemo(() => collapseThinkingSteps(events), [events]);
 
   // Current orchestrator phase for the thinking window. Derived from status + the latest activity
   // event rather than the raw run status, so the caption narrates what the run is doing and animates
   // as it moves (deciding -> acting -> analyzing ...). Crucially, once the operator answers we flip
   // to "Processing your answer" immediately -- the backend status stays WAITING_INPUT until the next
   // 3s poll, so keying off status alone would freeze on "Waiting for your input".
-  const lastActivityType = [...events].reverse().find(
-    e => (['DECISION', 'TOOL_ACTION', 'PROOF', 'GAP', 'HANDOVER', 'AGENT_DELEGATION', 'NARRATION'] as const).includes(
-      e.autonomous_event_type as 'DECISION' | 'TOOL_ACTION' | 'PROOF' | 'GAP' | 'HANDOVER' | 'AGENT_DELEGATION' | 'NARRATION',
-    ),
-  )?.autonomous_event_type;
+  // Deliberately excludes the per-iteration live-activity NARRATIONs: those keep the thinking
+  // window's BODY advancing (see thinkingSteps / collapseThinkingSteps), but the phase CAPTION and its elapsed clock must
+  // stay anchored to the run's real decisions / tool-actions / delegations. Otherwise a lightweight
+  // pulse would override the specific "Consulting <agent>" / "Running the next action" captions with
+  // the generic NARRATION one ("Analyzing the results") and reset the "working for Ns" clock every
+  // few seconds throughout the long pre-decision iteration burst.
+  const lastActivityEvent = useMemo(
+    () => events.findLast(e => isActivityType(e.autonomous_event_type) && !isLiveActivityEvent(e)),
+    [events],
+  );
+  const lastActivityType = lastActivityEvent?.autonomous_event_type;
+
+  // A fresh pulse - a ~45s heartbeat OR a per-iteration live-activity NARRATION - is positive proof
+  // the orchestrator is grinding a cycle RIGHT NOW (both only fire while the agent chat is running).
+  // It is the signal that turns an in-progress delegation from a static "Waiting for X" into a live,
+  // pulsing "Consulting X" - the reported "the right panel never shows it is actually working"
+  // symptom. Either kind counts: a specialist consult streams live-activity lines even across the
+  // stretches where no heartbeat has landed yet, so keying off heartbeats alone would drop back to a
+  // static wait mid-burst. Filtered out of the feed everywhere else, here they are read only for
+  // their timestamp (HEARTBEAT_FRESH_MS is the shared freshness window).
+  const lastPulseAt = useMemo(
+    () => events.findLast(e => isHeartbeatEvent(e) || isLiveActivityEvent(e))?.autonomous_event_created_at,
+    [events],
+  );
+  const pulseFresh = lastPulseAt
+    ? Date.now() - new Date(lastPulseAt).getTime() < HEARTBEAT_FRESH_MS
+    : false;
+  const workingByPulse = isActive && !isWaitingInput && pulseFresh;
+
+  // The live "working for Nm Ns" clock should measure the current move, not the 45s heartbeat
+  // cadence nor the per-iteration live pulse. Anchor it to the newest NON-PULSE event - the newest
+  // event that is neither a live-activity pulse nor a heartbeat. That is a real decision / tool
+  // action / delegation when one exists, and otherwise the run's own bookkeeping (typically the
+  // "engaged" STATUS that opens a cycle).
+  //
+  // This deliberately does NOT prefer the last real ACTIVITY: on a resume the timeline is retained
+  // and a fresh "engaged" STATUS is appended after the pre-pause activity, so anchoring to the last
+  // activity would measure from before the pause (including the whole paused interval). The newest
+  // non-pulse event is always at least as recent as the last real activity, so it advances
+  // continuously through the data-starved opening burst (when only pulses arrive) instead of
+  // resetting on every pulse, yet still snaps to the current engagement after a resume. Only if the
+  // stream is somehow ALL pulses do we fall back to the oldest event (run start), which still
+  // advances rather than resetting.
+  const lastNonPulseEvent = useMemo(
+    () => events.findLast(e => !isLiveActivityEvent(e) && !isHeartbeatEvent(e)),
+    [events],
+  );
+  const activitySince = lastNonPulseEvent?.autonomous_event_created_at
+    ?? (events.length > 0 ? events[0].autonomous_event_created_at : undefined);
+
+  // The caption the orchestrator is narrating RIGHT NOW - the last collapsed step, but ONLY while it
+  // is genuinely current. On a resume the retained timeline gets a fresh "engaged" STATUS appended
+  // after the pre-pause reasoning, leaving the last thinking step as stale history; anchoring the
+  // bold label or a live per-caption timer to it would resurrect a pre-pause caption and let its
+  // clock span the whole paused interval (regressing #7449's resume-safe behavior). resolveLiveCaption
+  // compares the last step's newest sequence against the newest non-pulse event, so a stale step
+  // yields no live caption (the label keeps "Getting to work" and the bubble renders it as dimmed
+  // history) while a fresh live pulse (newer than the boundary) stays live. Drives the bold-label
+  // anchoring below and the bubble's live-step treatment via lastStepLive.
+  const liveCaption = resolveLiveCaption(thinkingSteps, lastNonPulseEvent?.autonomous_event_sequence);
+  const lastStepLive = liveCaption !== null;
 
   // The latest agent-delegation event drives the "delegating to / waiting for <agent>" caption. A
   // 'start' phase with no following 'result' reads as waiting (static), mirroring the parked model.
-  const lastDelegation = [...events].reverse().find(
-    e => e.autonomous_event_type === 'AGENT_DELEGATION',
+  const lastDelegation = useMemo(
+    () => events.findLast(e => e.autonomous_event_type === 'AGENT_DELEGATION'),
+    [events],
   );
   const delegationInfo = (() => {
     if (!lastDelegation) {
@@ -596,15 +577,67 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
       };
     }
   })();
-  // A STATUS event is the orchestrator's end-of-cycle "settled state" marker (e.g. "Phishing lure
-  // in flight - awaiting human interaction"): the run stays RUNNING but is now PARKED, idle until a
-  // human-timescale event or the next cycle. So when the newest event is a STATUS, the orchestrator
-  // is NOT computing - the thinking window must stop pulsing and settle into a calm wait. As soon
-  // as the next cycle emits an activity event, the newest event is no longer a STATUS and the
-  // window animates again.
+  // The raw newest event in the stream. Used ONLY for the staleness backstop below (how long since
+  // ANYTHING arrived, pulses included) - the phase detection deliberately keys off the newest
+  // non-pulse event instead (see next comment). A STATUS event is the orchestrator's end-of-cycle
+  // "settled state" marker (e.g. "Phishing lure in flight - awaiting human interaction"): the run
+  // stays RUNNING but is now PARKED, idle until a human-timescale event or the next cycle, so a
+  // newest non-pulse STATUS reads as a calm wait while an activity event animates the window.
   const newestEvent = events.length > 0 ? events[events.length - 1] : undefined;
-  const parkedOnStatus = newestEvent?.autonomous_event_type === 'STATUS';
-  const thinkingPhase: ThinkingPhase = (() => {
+  // Phase detection keys off the newest NON-PULSE event (`lastNonPulseEvent` above), not the raw
+  // newest one. Live-activity pulses and heartbeats are liveness signals, not state transitions:
+  // while a cycle grinds the stream keeps ticking pulses, so reading the raw newest event would
+  // (a) mistake a live NARRATION pulse for resumed real activity (NARRATION is an activity type)
+  // and (b) never match the STATUS engaged/parked checks - so on a resume (timeline retained, a
+  // fresh "engaged" STATUS appended after the pre-pause activity) the caption would drop back to a
+  // STALE pre-pause phase. Reading the newest non-pulse event keeps the caption on the real current
+  // phase (e.g. "Getting to work" through the opening burst) until a new real activity lands. The
+  // staleness backstop below still keys off the RAW newest event, so pulses keep the cockpit fresh
+  // and it never falsely settles to "No updates for N min" mid-burst.
+  //
+  // A STATUS stamped `{"phase":"engaged"}` (start / restart-then-start / resume) means the
+  // orchestrator has JUST engaged and is actively working - it can churn for minutes (building
+  // arsenal, resolving contracts) before its first DECISION lands. That is the opposite of a park,
+  // so it must NOT read as the calm "Awaiting the next event": the cockpit looked frozen for that
+  // whole window even though a burst of work had already begun the instant the operator clicked.
+  const engagedOnStatus = (() => {
+    if (lastNonPulseEvent?.autonomous_event_type !== 'STATUS' || !lastNonPulseEvent.autonomous_event_data) {
+      return false;
+    }
+    try {
+      return (JSON.parse(lastNonPulseEvent.autonomous_event_data) as { phase?: string }).phase === 'engaged';
+    } catch {
+      return false;
+    }
+  })();
+  // A raw newest pulse (live-activity or heartbeat) is positive proof the orchestrator is grinding a
+  // cycle RIGHT NOW, so the run cannot be parked - even when the newest NON-pulse event is still the
+  // previous cycle's end-of-cycle STATUS. A later cycle can stream heartbeat / live-activity pulses
+  // before its first real event; because those are excluded from lastNonPulseEvent, without this
+  // guard the stale parked STATUS would stay the newest non-pulse event and freeze the cockpit again
+  // during the opening burst (the exact regression this PR fixes elsewhere).
+  const pulsingNow = isLiveActivityEvent(newestEvent) || isHeartbeatEvent(newestEvent);
+  // Parked only when the newest non-pulse event is a genuine end-of-cycle STATUS wait (NOT an
+  // engagement marker) and no fresh pulse proves the run is still grinding. The caption and elapsed
+  // clock still key off the non-pulse event; this flag only decides active-vs-parked.
+  const parkedOnStatus = lastNonPulseEvent?.autonomous_event_type === 'STATUS'
+    && !engagedOnStatus
+    && !pulsingNow;
+  // Has the orchestrator RESUMED since the operator answered? The backend run status stays
+  // WAITING_INPUT until a later 3s poll flips it, so it lies about "still waiting" for a while. The
+  // truthful signal is a fresh activity event: once the newest non-pulse event is a DECISION /
+  // TOOL_ACTION / ... the AI is demonstrably working again, so the caption must narrate THAT instead
+  // of freezing on "Processing your answer" (the exact "it says processing while it is already
+  // executing" bug). Keys off the non-pulse event so a live pulse is never mistaken for resumed work.
+  const newestIsActivity = isActivityType(lastNonPulseEvent?.autonomous_event_type);
+  // How long since the newest event? A stale timeline means the orchestrator is not actively
+  // working, whatever the last event type was - used below to stop an active caption pulsing over a
+  // frozen cockpit.
+  const newestEventAgeMs = newestEvent?.autonomous_event_created_at
+    ? Date.now() - new Date(newestEvent.autonomous_event_created_at).getTime()
+    : 0;
+  const captionStale = newestEventAgeMs > STALE_CAPTION_AFTER_MS;
+  let thinkingPhase: ThinkingPhase = (() => {
     if (isWaitingInput && pendingQuestion) {
       // Genuinely idle on the operator: static wait, not a pulsing "still working" animation.
       return {
@@ -614,12 +647,28 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
         active: false,
       };
     }
-    if (isWaitingInput) {
-      // The operator answered; the backend is still WAITING_INPUT until the next poll flips it, but
-      // the run is genuinely resuming - so animate.
+    if (isWaitingInput && !newestIsActivity) {
+      // The operator answered but the orchestrator has not emitted anything yet; the backend is
+      // still WAITING_INPUT until the next poll flips it. Bridge that gap with a "resuming" caption
+      // ONLY until real activity arrives - once it does, newestIsActivity is true and we fall through
+      // to the switch below so the caption reflects what the AI is actually doing (running an
+      // action, analyzing results, ...) instead of staying stuck on "Processing your answer".
       return {
         key: 'resuming',
         label: t('Processing your answer'),
+        color: accent,
+        active: true,
+      };
+    }
+    if (engagedOnStatus && !newestIsActivity) {
+      // Freshly engaged (start / restart / resume) but the first activity event has not landed yet.
+      // The orchestrator is demonstrably working (a cycle is running); narrate that with a pulsing
+      // caption instead of the static parked one, until the first DECISION / TOOL_ACTION arrives and
+      // the switch below takes over. Fixes the "stuck on Awaiting the next event for minutes after I
+      // clicked Redo plan, but the iterations had already begun" report.
+      return {
+        key: 'engaging',
+        label: run.autonomous_run_plan_mode === true ? t('Building the scenario logic') : t('Getting to work'),
         color: accent,
         active: true,
       };
@@ -673,6 +722,22 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
         const who = delegationInfo?.agentName;
         const delegationColor = theme.palette.ai?.main ?? accent;
         if (delegationInfo?.waiting) {
+          // A specialist consult can run for minutes with no orchestrator-side event. While
+          // heartbeats OR live-activity pulses keep arriving the sub-agent is demonstrably working,
+          // so render a live, pulsing "Consulting X" with the elapsed clock instead of a static
+          // "Waiting for X" that reads as a stalled cockpit. This must honour the live pulse too:
+          // once a parked STATUS un-parks via a fresh pulse (see pulsingNow) the run can be grinding
+          // a consult with only live-activity lines, and keying off heartbeats alone would hide
+          // them behind a static wait. Only once BOTH stop (a genuine stall) does it settle back to
+          // the calm static wait.
+          if (workingByPulse) {
+            return {
+              key: 'delegating-working',
+              label: who ? `${t('Consulting')} ${who}` : t('Consulting a specialist agent'),
+              color: delegationColor,
+              active: true,
+            };
+          }
           return {
             key: 'delegating-wait',
             label: who ? `${t('Waiting for')} ${who}` : t('Waiting for a specialist agent'),
@@ -702,6 +767,88 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           active: true,
         };
     }
+  })();
+  // Anchor the bold label to the CURRENT live caption during a generic working phase, so it tracks
+  // what the orchestrator is narrating right now (e.g. "Searching arsenal for contracts") instead of
+  // freezing on a generic placeholder ("Getting to work" / "Analyzing the results" / "Thinking
+  // through the next move") for the whole live stream. Specific, meaningful phases (Consulting
+  // <agent>, Deciding the next move, Capturing proof, parked/waiting...) keep their own label. This
+  // runs BEFORE the staleness backstop below, which still gets the final say when the stream stalls.
+  thinkingPhase = {
+    ...thinkingPhase,
+    label: resolveLiveLabel(thinkingPhase.key, thinkingPhase.active, thinkingPhase.label, liveCaption),
+  };
+  // How long the cockpit has been silent, in whole ELAPSED minutes, for the truthful stall
+  // caption/notice. Floor (not round): a rounded value can overstate the silence (e.g. 3.6 min ->
+  // 4), and the caption must never claim more elapsed time than has actually passed.
+  const stalledMinutes = Math.max(1, Math.floor(newestEventAgeMs / 60000));
+  // Capture whether the caption was pulsing BEFORE the staleness backstop settles it: a stale-yet-
+  // active caption is the "frozen cockpit" signal (the timeline, heartbeats included, stopped while
+  // the orchestrator was mid-work), as opposed to a park/wait that is already an idle caption.
+  const captionWasActive = thinkingPhase.active;
+  // Staleness backstop: never keep an active caption pulsing over a timeline that has not moved in
+  // minutes. When the operator is being awaited, settle to the calm "Waiting for your input".
+  // Otherwise the run is NOT parked (parks are already idle captions, left untouched above) and NOT
+  // waiting - it has genuinely gone silent mid-work, so tell the truth ("No updates for N min",
+  // static, no spinner) instead of the old calm "Awaiting the next event" that masked a stall.
+  if (captionStale && thinkingPhase.active) {
+    thinkingPhase = isWaitingInput
+      ? {
+          key: 'idle',
+          label: t('Waiting for your input'),
+          color: theme.palette.text.secondary,
+          active: false,
+        }
+      : {
+          key: 'stalled',
+          label: `${t('No updates for')} ${stalledMinutes} min`,
+          color: theme.palette.warning.main,
+          active: false,
+        };
+  }
+  // Terminal-failure + client-side stall detection and the single run-level notice they drive, so
+  // the operator is never left staring at a frozen thought or a bare "No decisions" empty state.
+  const statusIsTerminalFailure = status === 'FAILED' || status === 'CANCELED';
+  // Nominally active but the caption went stale while pulsing: the orchestrator was working, then
+  // the timeline (heartbeats included) stopped for minutes with no park/wait. This is the auth-
+  // storm / crashed-cycle window BEFORE OpenAEV's own idle watchdog (WS8) settles the run.
+  const runStalled = isActive && captionStale && captionWasActive && !isWaitingInput;
+  // The last tool/auth error OpenAEV recorded on the run (cleared on (re)start/resume), surfaced
+  // ONLY when the run is terminal or stalled - never on a healthy, actively-progressing run, where
+  // a lingering earlier transient error would be stale noise.
+  const lastErrorText = sanitizeEventText(run.autonomous_run_last_error);
+  const runNotice: {
+    severity: 'error' | 'warning';
+    title: string;
+    detail?: string;
+  } | null = (() => {
+    if (lastErrorText && (statusIsTerminalFailure || runStalled)) {
+      let title = t('The AI hit an error');
+      if (status === 'CANCELED') {
+        title = t('The run was canceled');
+      } else if (statusIsTerminalFailure) {
+        title = t('The run stopped after an error');
+      }
+      return {
+        severity: 'error',
+        title,
+        detail: lastErrorText,
+      };
+    }
+    if (runStalled) {
+      // Plan-mode builds are exempt from OpenAEV's idle watchdog (WS8), so only a live run can
+      // truthfully promise auto-settlement; a stalled plan build is the operator's to restart.
+      const planMode = run.autonomous_run_plan_mode === true;
+      const settleHint = planMode
+        ? t('You can restart the plan build if it stays stalled.')
+        : t('OpenAEV will settle the run automatically if it stays silent.');
+      return {
+        severity: 'warning',
+        title: planMode ? t('The scenario planner looks stalled') : t('The orchestrator looks stalled'),
+        detail: `${t('No updates for')} ${stalledMinutes} min. ${settleHint}`,
+      };
+    }
+    return null;
   })();
 
   return (
@@ -766,24 +913,35 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
               fontWeight: 600,
             }}
           >
-            {t('Autonomous orchestrator')}
+            {run.autonomous_run_plan_mode === true
+              ? t('Scenario planner')
+              : t('Autonomous orchestrator')}
           </Typography>
           {isActive && (thinkingPhase.active
             ? <CircularProgress size={14} sx={{ color: accent }} />
-            : <HourglassEmpty fontSize="small" sx={{ color: theme.palette.text.secondary }} />)}
+            : (
+                <HourglassEmpty
+                  fontSize="small"
+                  sx={{ color: runStalled ? theme.palette.warning.main : theme.palette.text.secondary }}
+                />
+              ))}
         </Stack>
       </Box>
 
       {/* Reasoning stream. */}
       <Box
         ref={scrollRef}
+        onScroll={(event) => {
+          const node = event.currentTarget;
+          stickToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < STICK_TO_BOTTOM_THRESHOLD_PX;
+        }}
         sx={{
           flex: 1,
           overflowY: 'auto',
           padding: theme.spacing(1, 2),
         }}
       >
-        {events.length === 0 && !isActive
+        {visibleEvents.length === 0 && !isActive && !runNotice
           ? (
               <Stack sx={{
                 alignItems: 'center',
@@ -809,7 +967,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                 paddingBlock: 1,
               }}
               >
-                {events.map((event) => {
+                {streamEvents.map((event) => {
                   const color = eventAccent(event, theme);
                   const eventTitle = sanitizeEventText(event.autonomous_event_title);
                   const eventContent = sanitizeEventText(event.autonomous_event_content);
@@ -885,48 +1043,143 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                     </Box>
                   );
                 })}
-                {isActive && (
+                {isActive && !pendingQuestion && (
                   <ThinkingBubble
                     phase={thinkingPhase}
                     theme={theme}
-                    lines={thinkingLines}
-                    activitySince={newestEvent?.autonomous_event_created_at}
+                    steps={thinkingSteps}
+                    activitySince={activitySince}
+                    lastStepLive={lastStepLive}
                   />
+                )}
+                {/* Run-level notice: a terminal-failure/cancel error, or a client-side stall. It
+                    replaces a frozen thinking bubble (a stalled run stops pulsing above) and a bare
+                    "No decisions" empty state, so the operator sees WHY the run stopped (the tool /
+                    auth error OpenAEV recorded) or that it has gone silent, instead of a spinner. */}
+                {runNotice && (
+                  <Box
+                    sx={{
+                      padding: theme.spacing(1.25, 1.5),
+                      borderRadius: 1.5,
+                      border: `1px solid ${alpha(runNotice.severity === 'error' ? theme.palette.error.main : theme.palette.warning.main, 0.4)}`,
+                      backgroundColor: alpha(runNotice.severity === 'error' ? theme.palette.error.main : theme.palette.warning.main, 0.08),
+                    }}
+                  >
+                    <Stack sx={{
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      gap: 1,
+                    }}
+                    >
+                      {runNotice.severity === 'error'
+                        ? <ErrorOutline fontSize="small" color="error" sx={{ marginTop: '2px' }} />
+                        : <WarningAmber fontSize="small" color="warning" sx={{ marginTop: '2px' }} />}
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="subtitle2" sx={{ margin: 0 }}>
+                          {runNotice.title}
+                        </Typography>
+                        {runNotice.detail && (
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              margin: theme.spacing(0.25, 0, 0),
+                              color: 'text.secondary',
+                              fontSize: '0.8125rem',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            {runNotice.detail}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Stack>
+                  </Box>
+                )}
+                {/* When the run parks on the operator, its question + one-click choices render HERE,
+                    inline at the tail of the scrollable stream (normal conversation flow) - not as a
+                    fixed band above the composer. On a short viewport a long question (e.g. a scope
+                    table) plus its choices would otherwise overflow a fixed region with no way to
+                    scroll to them; in-flow they scroll with the rest of the feed while the compact
+                    free-text composer stays pinned at the bottom as the "type your own answer" box. */}
+                {pendingQuestion && (
+                  <Box
+                    sx={{
+                      padding: theme.spacing(1.25, 1.5),
+                      borderRadius: 1.5,
+                      border: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`,
+                      backgroundColor: alpha(theme.palette.warning.main, 0.08),
+                    }}
+                  >
+                    <Stack sx={{
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      gap: 1,
+                    }}
+                    >
+                      <HelpOutline fontSize="small" color="warning" sx={{ marginTop: '2px' }} />
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="subtitle2" sx={{ margin: 0 }}>
+                          {sanitizeEventText(pendingQuestion.autonomous_event_title) || t('The AI needs your input to continue')}
+                        </Typography>
+                        {sanitizeEventText(pendingQuestion.autonomous_event_content) && (
+                          <Box sx={{ marginTop: 0.25 }}>
+                            <EventMarkdown content={sanitizeEventText(pendingQuestion.autonomous_event_content)} fontSize="0.8125rem" />
+                          </Box>
+                        )}
+                      </Box>
+                    </Stack>
+                    {/* One-click choices, only where the operator can actually answer (steering is
+                        hidden in observe-only mode - they answer from the parent scenario). */}
+                    {hasChoices && !readOnly && (
+                      <RadioGroup
+                        value={selectedChoice ?? ''}
+                        onChange={event => setSelectedChoice(event.target.value)}
+                        sx={{
+                          gap: 0.75,
+                          marginTop: 1,
+                        }}
+                      >
+                        {questionChoices.map((choice) => {
+                          const isSelected = selectedChoice === choice.id;
+                          return (
+                            <FormControlLabel
+                              key={choice.id}
+                              value={choice.id}
+                              control={(
+                                <Radio
+                                  size="small"
+                                  sx={{
+                                    'color': accent,
+                                    '&.Mui-checked': { color: accent },
+                                  }}
+                                />
+                              )}
+                              label={choice.label}
+                              sx={{
+                                'margin': 0,
+                                'alignItems': 'flex-start',
+                                'borderRadius': 1.5,
+                                'border': `1px solid ${isSelected ? accent : theme.palette.divider}`,
+                                'backgroundColor': isSelected ? alpha(accent, 0.08) : theme.palette.background.paper,
+                                'padding': theme.spacing(0.5, 1, 0.5, 0.5),
+                                'transition': theme.transitions.create(['border-color', 'background-color']),
+                                '&:hover': { borderColor: alpha(accent, 0.6) },
+                                '& .MuiFormControlLabel-label': {
+                                  fontSize: '0.8125rem',
+                                  paddingTop: '5px',
+                                },
+                              }}
+                            />
+                          );
+                        })}
+                      </RadioGroup>
+                    )}
+                  </Box>
                 )}
               </Stack>
             )}
       </Box>
-
-      {/* Question callout when the run is parked on the operator. Disappears the moment the
-          operator answers (optimistic), so it never lingers and hogs space below. */}
-      {pendingQuestion && (
-        <Box
-          sx={{
-            padding: theme.spacing(1.25, 2),
-            borderTop: `1px solid ${alpha(theme.palette.warning.main, 0.4)}`,
-            backgroundColor: alpha(theme.palette.warning.main, 0.08),
-          }}
-        >
-          <Stack sx={{
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            gap: 1,
-          }}
-          >
-            <HelpOutline fontSize="small" color="warning" sx={{ marginTop: '2px' }} />
-            <Box>
-              <Typography variant="subtitle2" sx={{ margin: 0 }}>
-                {pendingQuestion.autonomous_event_title ?? t('The AI needs your input to continue')}
-              </Typography>
-              {sanitizeEventText(pendingQuestion.autonomous_event_content) && (
-                <Box sx={{ marginTop: 0.25 }}>
-                  <EventMarkdown content={sanitizeEventText(pendingQuestion.autonomous_event_content)} fontSize="0.8125rem" />
-                </Box>
-              )}
-            </Box>
-          </Stack>
-        </Box>
-      )}
 
       {/* Steering box - chatbot-style, doubles as the answer field when waiting on input. On the
           observe-only (simulation) view it is replaced by a hint pointing to the parent scenario,
@@ -948,55 +1201,13 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
           borderTop: `1px solid ${theme.palette.divider}`,
         }}
         >
-          {hasChoices && (
-            <RadioGroup
-              value={selectedChoice ?? ''}
-              onChange={event => setSelectedChoice(event.target.value)}
-              sx={{ gap: 0.75 }}
-            >
-              {questionChoices.map((choice) => {
-                const isSelected = selectedChoice === choice.id;
-                return (
-                  <FormControlLabel
-                    key={choice.id}
-                    value={choice.id}
-                    control={(
-                      <Radio
-                        size="small"
-                        sx={{
-                          'color': accent,
-                          '&.Mui-checked': { color: accent },
-                        }}
-                      />
-                    )}
-                    label={choice.label}
-                    sx={{
-                      'margin': 0,
-                      'alignItems': 'flex-start',
-                      'borderRadius': 1.5,
-                      'border': `1px solid ${isSelected ? accent : theme.palette.divider}`,
-                      'backgroundColor': isSelected ? alpha(accent, 0.08) : 'transparent',
-                      'padding': theme.spacing(0.5, 1, 0.5, 0.5),
-                      'transition': theme.transitions.create(['border-color', 'background-color']),
-                      '&:hover': { borderColor: alpha(accent, 0.6) },
-                      '& .MuiFormControlLabel-label': {
-                        fontSize: '0.8125rem',
-                        paddingTop: '5px',
-                      },
-                    }}
-                  />
-                );
-              })}
-            </RadioGroup>
-          )}
-
-          {/* Always-present composer: the free-text answer field sits directly next to the send
-              button, so typing is a first-class action (not a hidden "custom answer" mode). A typed
-              answer wins over a selected choice; the button also sends the picked choice when the
-              field is empty. */}
+          {/* Always-present composer: the free-text answer field, pinned at the bottom like a chat
+              steering box. When the run parks on a question its one-click choices live in the
+              scrollable stream above; a typed answer here wins over a selected choice, and the send
+              button also submits the picked choice when the field is empty. */}
           <Box
             sx={{
-              'marginTop': hasChoices ? 1 : 0,
+              'marginTop': 0,
               'display': 'flex',
               'flexDirection': 'column',
               'borderRadius': 1,
@@ -1055,6 +1266,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                 size="small"
                 onClick={handleComposerSubmit}
                 disabled={!canSubmitAnswer}
+                aria-label={t('Send')}
                 sx={{
                   'backgroundColor': accent,
                   'color': theme.palette.ai?.contrastText ?? theme.palette.primary.contrastText,

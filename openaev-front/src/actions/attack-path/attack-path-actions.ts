@@ -1,7 +1,7 @@
 import { simpleCall, simplePostCall } from '../../utils/Action';
 import type { AttackPathDeltaDTO, AttackPathDTO, AttackPathEndpointRelationsDTO, AttackPathExecutionDetailDTO, AttackPathExpandDTO, AttackPathFindingPageDTO, AttackPathSimSummaryRow, ExerciseSimple } from '../../utils/api-types';
 
-// Attack-path execution-store POC (issue 6647), gated by the ATTACK_PATH preview feature.
+// Attack-path execution-store POC (issue 6647).
 // The tenant prefix is added centrally by Action.buildUri, so these use the plain /api paths.
 const ATTACK_PATH_URI = '/api/attack-path';
 

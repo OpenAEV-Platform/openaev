@@ -97,4 +97,38 @@ class InjectStatusRepositoryTest extends IntegrationTest {
         .extracting(ExecutionTrace::getMessage)
         .containsExactly("early", "middle", "late");
   }
+
+  @Test
+  @DisplayName("findStatusNamesByInjectIds returns one pair per inject that has a status")
+  void given_injectsWithAndWithoutStatus_should_returnOnlyTheOnesWithAStatus() {
+    // Arrange: one executed inject, one pending, one with no status row at all.
+    Inject executed =
+        injectComposer
+            .forInject(InjectFixture.getDefaultInject())
+            .withInjectStatus(
+                injectStatusComposer.forInjectStatus(InjectStatusFixture.createSuccessStatus()))
+            .persist()
+            .get();
+    Inject pending =
+        injectComposer
+            .forInject(InjectFixture.getDefaultInject())
+            .withInjectStatus(
+                injectStatusComposer.forInjectStatus(
+                    InjectStatusFixture.createPendingInjectStatus()))
+            .persist()
+            .get();
+    Inject statusless = injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
+    entityManager.flush();
+    entityManager.clear();
+
+    // Act
+    List<Object[]> pairs =
+        injectStatusRepository.findStatusNamesByInjectIds(
+            List.of(executed.getId(), pending.getId(), statusless.getId()));
+
+    // Assert: the statusless inject is absent rather than present with a null status.
+    assertThat(pairs)
+        .extracting(row -> row[0] + "=" + row[1])
+        .containsExactlyInAnyOrder(executed.getId() + "=EXECUTED", pending.getId() + "=PENDING");
+  }
 }

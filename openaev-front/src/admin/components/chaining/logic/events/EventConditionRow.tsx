@@ -38,6 +38,7 @@ interface Props {
   onUpdate: (updated: EventCondition) => void;
   onDelete: () => void;
   canDelete: boolean;
+  readOnly?: boolean;
 }
 
 const EventConditionRow: FunctionComponent<Props> = ({
@@ -46,6 +47,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
   onUpdate,
   onDelete,
   canDelete,
+  readOnly = false,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -139,7 +141,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
         style={{
           display: 'flex',
           alignItems: 'center',
-          cursor: 'grab',
+          cursor: readOnly ? 'default' : 'grab',
         }}
       >
         <DragHandleOutlined sx={{
@@ -156,7 +158,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
           label={t('Field to Check')}
           value={condition.field}
           onChange={handleFieldChange}
-          disabled={isArgumentTypesUnavailable}
+          disabled={readOnly || isArgumentTypesUnavailable}
           renderValue={val => formatConditionKeyLabel(val)}
         >
           {isLoadingArgumentTypes && (
@@ -210,6 +212,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
           label={t('Operator')}
           value={condition.operator}
           onChange={handleOperatorChange}
+          disabled={readOnly}
         >
           {COMPARISON_OPERATORS.map(op => (
             <MenuItem key={op} value={op}>
@@ -226,6 +229,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
           size="small"
           value={condition.value}
           onChange={e => handleValueChange(e.target.value)}
+          disabled={readOnly}
           sx={{ flex: 1 }}
         />
       )}
@@ -251,6 +255,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
                 checked={condition.caseSensitive}
                 onChange={handleCaseSensitiveToggle}
                 color="primary"
+                disabled={readOnly}
               />
               <Typography
                 variant="caption"
@@ -270,6 +275,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
           <IconButton
             size="small"
             onClick={onDelete}
+            disabled={readOnly}
             sx={{
               'color': 'error.main',
               'border': '1px solid',

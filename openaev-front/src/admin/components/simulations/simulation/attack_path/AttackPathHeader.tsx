@@ -1,7 +1,7 @@
-import { AccountTreeOutlined, ArrowBackOutlined, FilterAltOffOutlined, FullscreenExitOutlined, FullscreenOutlined, HelpOutline, LocalFireDepartment, SearchOutlined, TableRowsOutlined } from '@mui/icons-material';
-import { Autocomplete, Box, Button, ButtonBase, Paper, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { AccountTreeOutlined, ArrowBackOutlined, FilterAltOffOutlined, FullscreenExitOutlined, FullscreenOutlined, HelpOutline, LocalFireDepartment, MoreHorizOutlined, SearchOutlined, TableRowsOutlined } from '@mui/icons-material';
+import { Autocomplete, Box, Button, ButtonBase, ListItemButton, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactNode } from 'react';
+import { type FunctionComponent, type MouseEvent, type ReactNode, useState } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
 import type { AttackPathSimSummaryRow } from '../../../../../utils/api-types';
@@ -20,7 +20,19 @@ export interface FindingCard {
   icon: ReactNode;
   count: number;
   hint?: string;
+  /** True for a data-driven finding-type card: only the first few show inline, the rest collapse. */
+  extra?: boolean;
 }
+
+// Curated stats stay inline, data-driven finding-type stats collapse behind a single "+N" one. Every
+// stat shares the band's width equally, so each extra one narrows all the others: an open-ended list
+// of types crowds the band (and, before the wrap fix below, clipped every caption to a single letter
+// — "13 C", "10 A"). The curated set is the fixed vocabulary of the view and always keeps its place,
+// which also makes the band's size bounded regardless of what a run discovers.
+//
+// A lone discovered type is the exception: hiding one type behind a "+1" stat costs the same slot and
+// only adds a click, so it stays inline.
+const shouldCollapseExtras = (extraCount: number) => extraCount > 1;
 
 // One entry of the graph search box: an endpoint, an injector, or a finding category. Selecting one
 // adapts the graph (focus an endpoint path, highlight an injector, or open a finding-type panel).
@@ -35,11 +47,12 @@ export interface SearchOption {
 
 interface HeroStatButtonProps {
   label: string;
-  value: number;
+  /** A raw count, or a pre-formatted string when the stat is an overflow ("+6"). */
+  value: number | string;
   icon: ReactNode;
   accent: string;
   active: boolean;
-  onClick: () => void;
+  onClick: (event: MouseEvent<HTMLElement>) => void;
   labelAdornment?: ReactNode;
   hint?: string;
   hasPopup?: boolean;
@@ -68,13 +81,13 @@ const HeroStatButton: FunctionComponent<HeroStatButtonProps> = ({
         'display': 'flex',
         'alignItems': 'center',
         'justifyContent': 'flex-start',
-        'gap': 1,
-        // Every stat shares the row equally (flex-basis 0, grow 1): the cards are the same width
-        // regardless of their label length or value, so the band never reads as ragged.
-        'flex': '1 1 0',
+        'gap': 0.75,
+        // The container is a single-row grid of equal columns: fill the cell rather than sizing on
+        // content, so every stat gets the same slot and shrinks in step as more stats appear.
+        'width': '100%',
         'minWidth': 0,
         'height': CONTROL_HEIGHT,
-        'padding': theme.spacing(0, 1),
+        'padding': theme.spacing(0, 0.75),
         'borderRadius': 1,
         'border': `1px solid ${active ? accent : 'transparent'}`,
         'backgroundColor': active ? alpha(accent, 0.08) : 'transparent',
@@ -86,14 +99,14 @@ const HeroStatButton: FunctionComponent<HeroStatButtonProps> = ({
         'display': 'flex',
         'alignItems': 'center',
         'justifyContent': 'center',
-        'width': 30,
-        'height': 30,
+        'width': 26,
+        'height': 26,
         'borderRadius': 1,
         'flexShrink': 0,
         'color': accent,
         'background': alpha(accent, 0.1),
         'boxShadow': `inset 0 0 12px ${alpha(accent, 0.13)}`,
-        '& svg': { fontSize: 16 },
+        '& svg': { fontSize: 15 },
       }}
       >
         {icon}
@@ -105,7 +118,7 @@ const HeroStatButton: FunctionComponent<HeroStatButtonProps> = ({
       >
         <Typography sx={{
           fontFamily: '"Geologica", sans-serif',
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: 500,
           lineHeight: 1.05,
           color: 'text.primary',
@@ -217,6 +230,21 @@ const AttackPathHeader: FunctionComponent<Props> = ({
   // Only two rendered states: live (green) and reconnecting (amber) — the pill is not shown at all
   // once the run is finished.
   const beaconColor = freshness === 'reconnecting' ? theme.palette.warning.main : theme.palette.success.main;
+  // Anchor of the collapsed finding-types popover (null = closed).
+  const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
+  const moreOpen = !!moreAnchor;
+
+  // Split the stats: the curated ones stay inline, the discovered finding types collapse behind a
+  // single "+N" stat opening a popover (they arrive sorted by count, so the popover reads worst-first).
+  // Collapsed types stay reachable from the graph search box too.
+  const shown = cards.filter(c => c.count > 0);
+  const inlineCards = shown.filter(c => !c.extra);
+  const extraCards = shown.filter(c => c.extra);
+  const collapse = shouldCollapseExtras(extraCards.length);
+  const visibleExtras = collapse ? [] : extraCards;
+  const collapsedExtras = collapse ? extraCards : [];
+  const collapsedActive = collapsedExtras.some(c => c.key === activeCard);
+
   return (
     <Paper
       variant="outlined"
@@ -270,8 +298,20 @@ const AttackPathHeader: FunctionComponent<Props> = ({
             );
           }}
           renderInput={params => <TextField {...params} label={t('Simulation')} />}
+          // The closed field only ever shows a compact date (08/05/26, 04:06 PM), so it is sized for
+          // that instead of the old 300px that also had to fit the simulation name. The dropdown is
+          // let out of that width: its rows carry the date AND the endpoint/exec counts, which would
+          // otherwise be crushed into the narrower field.
+          slotProps={{
+            paper: {
+              sx: {
+                width: 'max-content',
+                minWidth: '100%',
+              },
+            },
+          }}
           sx={{
-            'width': 300,
+            'width': 200,
             '& .MuiOutlinedInput-root': {
               height: CONTROL_HEIGHT,
               paddingBlock: 0,
@@ -367,18 +407,23 @@ const AttackPathHeader: FunctionComponent<Props> = ({
 
       {/* Clickable summary stats, hairline-separated (HeroStats language). */}
       <Box sx={{
-        'display': 'flex',
+        // ONE non-wrapping row of equal columns (`gridAutoFlow: column` + equal `gridAutoColumns`),
+        // never a 4-per-row grid that spilled a 5th stat onto a second line. The stat set is bounded
+        // at 8 (6 curated + the overflow or a lone type + chokepoints); as it grows each column
+        // shrinks and its caption ellipsizes (every stat carries a tooltip, so a clipped caption
+        // never loses meaning) — the band stays exactly one line whatever a run discovers.
+        'display': 'grid',
+        'gridAutoFlow': 'column',
+        'gridAutoColumns': 'minmax(0, 1fr)',
         'alignItems': 'center',
-        'flexWrap': 'wrap',
         'flex': 1,
         'minWidth': 0,
-        'columnGap': 1,
-        'rowGap': 0.5,
+        'columnGap': 0.75,
         // Hairline separators between stats: a short, vertically centered rule rather than a
-        // full-height border, so wrapped rows never show floor-to-ceiling dividers.
+        // full-height border. Suppressed after the last stat, where it would hang in the gutter.
         '& > *:not(:last-child)': {
           'position': 'relative',
-          'paddingRight': 1,
+          'paddingRight': 0.75,
           '&::after': {
             content: '""',
             position: 'absolute',
@@ -392,7 +437,7 @@ const AttackPathHeader: FunctionComponent<Props> = ({
         },
       }}
       >
-        {cards.filter(c => c.count > 0).map(c => (
+        {[...inlineCards, ...visibleExtras].map(c => (
           <HeroStatButton
             key={c.key}
             label={c.label}
@@ -401,9 +446,25 @@ const AttackPathHeader: FunctionComponent<Props> = ({
             accent={theme.palette.primary.main}
             active={activeCard === c.key}
             onClick={() => onCardClick(c)}
-            hint={c.hint}
+            hint={c.hint ?? c.label}
           />
         ))}
+        {/* The finding types that did not fit: one stat opening a popover, so the band stays legible
+            however many types a simulation produces. */}
+        {collapsedExtras.length > 0 && (
+          <HeroStatButton
+            // Counts TYPES, not findings: the number is what the popover lists, and "+N" reads as
+            // "in addition to the stats shown" — the same wording as the graph's own chip.
+            label={t('Other types')}
+            value={`+${collapsedExtras.length}`}
+            icon={<MoreHorizOutlined fontSize="small" />}
+            accent={theme.palette.primary.main}
+            active={collapsedActive || moreOpen}
+            onClick={e => setMoreAnchor(e.currentTarget)}
+            hasPopup
+            hint={t('Other finding types discovered in this simulation. Click to list them.')}
+          />
+        )}
         {/* Top chokepoints: the most-exposed endpoints. Violet accent (off the verdict scale) and a
             ranked, clickable explainer dialog owned by the container. */}
         {chokepointCount > 0 && (
@@ -415,6 +476,7 @@ const AttackPathHeader: FunctionComponent<Props> = ({
             active={chokepointOpen}
             onClick={onChokepointClick}
             hasPopup
+            hint={t('Top chokepoints')}
             labelAdornment={(
               <Tooltip
                 arrow
@@ -431,6 +493,75 @@ const AttackPathHeader: FunctionComponent<Props> = ({
           />
         )}
       </Box>
+
+      {/* Collapsed finding types: same click behaviour as an inline stat (focus the graph on that
+          type and open its panel), just listed instead of squeezed into the band. */}
+      <Popover
+        open={moreOpen}
+        anchorEl={moreAnchor}
+        onClose={() => setMoreAnchor(null)}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              marginTop: 0.5,
+              minWidth: 240,
+              maxHeight: 320,
+            },
+          },
+        }}
+      >
+        <Typography sx={{
+          padding: theme.spacing(1, 1.5, 0.5),
+          fontSize: 9.5,
+          fontWeight: 600,
+          letterSpacing: '0.07em',
+          textTransform: 'uppercase',
+          color: 'text.secondary',
+        }}
+        >
+          {t('Other types')}
+        </Typography>
+        {collapsedExtras.map(c => (
+          <ListItemButton
+            key={c.key}
+            selected={activeCard === c.key}
+            onClick={() => {
+              onCardClick(c);
+              setMoreAnchor(null);
+            }}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              paddingBlock: 0.5,
+            }}
+          >
+            <Box sx={{
+              'display': 'flex',
+              'color': 'text.secondary',
+              '& svg': { fontSize: 16 },
+            }}
+            >
+              {c.icon}
+            </Box>
+            <Typography variant="body2" noWrap sx={{ flex: 1 }}>{c.label}</Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                fontFamily: '"Geologica", sans-serif',
+                fontVariantNumeric: 'tabular-nums',
+                color: 'text.secondary',
+              }}
+            >
+              {c.count}
+            </Typography>
+          </ListItemButton>
+        ))}
+      </Popover>
 
       <Autocomplete<SearchOption>
         size="small"

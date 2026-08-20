@@ -1,0 +1,213 @@
+# OpenAEV — Core CI + Nightly CI pipeline
+#
+#   d2 --layout elk --pad 60 ci-pipeline-schema.d2 ci-pipeline-schema.svg
+#   d2 --watch ci-pipeline-schema.d2          # live preview while editing
+#
+# Organised by TIME, not by function: the point of this pipeline is that almost
+# nothing waits. 12 of the 16 job definitions launch at t=0 and pull what they
+# need by polling; only 4 use `needs:`.
+#
+# Fan-in/fan-out is drawn lane-to-lane rather than job-to-job on purpose — the
+# Gate really has 14 `needs:`, but 14 arrows converging on one box is unreadable.
+#
+# Every duration printed on a job is its `timeout-minutes`, never a measured
+# runtime. Keep the word "timeout" in the label so nobody reads it as a duration.
+
+direction: down
+
+classes: {
+preflight: {style: {fill: "#FFFDE7"; stroke: "#F9A825"; stroke-width: 2 ; border-radius: 8; font-size: 19}}
+build: {style: {fill: "#E3F2FD"; stroke: "#1565C0"; stroke-width: 2     ; border-radius: 8; font-size: 19}}
+quality: {style: {fill: "#F3E5F5"; stroke: "#6A1B9A"; stroke-width: 2   ; border-radius: 8; font-size: 19}}
+test: {style: {fill: "#E8F5E9"; stroke: "#2E7D32"; stroke-width: 2      ; border-radius: 8; font-size: 19}}
+docker: {style: {fill: "#FFF3E0"; stroke: "#EF6C00"; stroke-width: 2    ; border-radius: 8; font-size: 19}}
+lane: {style: {fill: "#FFFFFF"; stroke: "#B0BEC5"; stroke-width: 2      ; font-size: 21; bold: true}}
+
+# Edge kinds. The legend re-uses these exact classes so its swatches cannot
+# drift from the graph.
+needs: {style: {stroke: "#37474F"; stroke-width: 3  ; font-size: 18}}
+launch: {style: {stroke: "#78909C"; stroke-width: 3 ; stroke-dash: 2; font-size: 20; bold: true}}
+poll: {style: {stroke: "#EF6C00"; stroke-width: 3   ; stroke-dash: 5; font-size: 17; italic: true; bold: true}}
+loop: {style: {stroke: "#4527A0"; stroke-width: 3   ; stroke-dash: 3; font-size: 18}}
+
+swatch: {style: {fill: "#ECEFF1"; stroke: "#546E7A"; stroke-width: 2 ; border-radius: 8; font-size: 18}}
+note: {style: {font-size: 19}}
+}
+
+title: "OpenAEV CI — Core & Nightly\n\nTwo triggers, one shared reusable workflow.\nRead top to bottom: it is a timeline." {
+shape: text
+style: {font-size: 34                                                                                                          ; bold: true}
+}
+
+title -> triggers: {style.opacity: 0}
+
+# ═══ 1. Triggers ═════════════════════════════════════════════════════════════
+triggers: "① WHEN IT LAUNCHES" {
+direction: right
+style: {fill: "#FFF8E1"; stroke: "#FF8F00"; stroke-width: 3 ; font-size: 24; bold: true}
+
+core: "▶️  [Core] CI\n\npush → main, testing-xtm-one\npull_request → main\npush tag  N.N.N" {
+style: {fill: "#FFE0B2"; stroke: "#E65100"; stroke-width: 3                                              ; border-radius: 20; bold: true; font-size: 21}
+}
+nightly: "🌙  [Core] Nightly CI\n\nschedule:  cron 0 3 * * *\n(daily, 03:00 UTC)\nworkflow_dispatch" {
+style: {fill: "#FFE0B2"; stroke: "#E65100"; stroke-width: 3                                              ; border-radius: 20; bold: true; font-size: 21}
+}
+}
+
+pipe: "⚙️  _ci-pipeline.yml\nshared reusable workflow  ·  secrets: inherit\n\nCore ≈ 36 jobs                Nightly ≈ 59 jobs" {
+style: {fill: "#CFD8DC"; stroke: "#37474F"; stroke-width: 4                                                                               ; border-radius: 8; font-size: 24; bold: true}
+}
+
+triggers.core -> pipe: "api-matrix · e2e-matrix\nvulnerability-scan-fail-on-error: false" {class: needs}
+triggers.nightly -> pipe: "larger matrices\nvulnerability-scan-fail-on-error: true" {class: needs}
+
+# ═══ 2. Everything that starts immediately ═══════════════════════════════════
+wave0: "② LAUNCHED IMMEDIATELY AT  t = 0   —   12 job definitions, not one `needs:` between them" {
+direction: right
+style: {fill: "#ECEFF1"; stroke: "#546E7A"; stroke-width: 4                                             ; font-size: 26; bold: true}
+
+preflight: "PRE-FLIGHT" {
+class: lane
+mg: "🔎 Migrations Guard\ntimeout 3 min\nnew migrations must be appended\nafter the last release tag" {class: preflight}
+}
+
+build: "BUILD" {
+class: lane
+bc: "🔨 Backend Compile\ntimeout 10 min\n→ backend-compiled\n→ api-build-output" {class: build}
+fb: "🎨 Frontend Build\ntimeout 15 min · yarn build" {class: build}
+pba: "📦 Prepare Bundled Assets\ntimeout 10 min · JFrog agents + implants\ncatalog-integrators.json patch" {class: build}
+}
+
+quality: "STATIC QUALITY" {
+class: lane
+sc: "🔍 Spotless Check\ntimeout 10 min · Java format" {class: quality}
+fq: "🧪 Frontend Quality & Unit Tests\ntimeout 20 min · ESLint + Vitest" {class: quality}
+}
+
+docker: "DOCKER" {
+class: lane
+db: "🐳 Docker Build  ×4\nstd / ubi9  ×  amd64 / arm64\ntimeout 25 min · fail-fast: false\nbundled assets prepared inline" {class: docker}
+dm: "🐳 Merge Platforms  ×2\ntimeout 45 min · registry or artifact fallback" {class: docker}
+scan: "🔒 Container Vulnerability Scan\ntimeout 25 min · threshold high\nCore ⚠️ advisory\nNightly ❌ blocking" {class: docker}
+}
+
+tests: "TESTS" {
+class: lane
+at: "🧪 API Tests\nCore 8 · Nightly 16 cells\ntimeout 30 min · fail-fast: false" {class: test}
+e2e: "🧪 E2E Tests (Playwright)\nCore 10 · Nightly 25 cells\ntimeout 45 min · fail-fast: false" {class: test}
+atc: "🔎 API Types Check\ntimeout 20 min · generated TS types\nvs live API schema" {class: test}
+}
+}
+
+pipe -> wave0: "starts all 12 at once" {class: launch}
+
+# ═══ 3. The only jobs that actually wait ═════════════════════════════════════
+gated: "③ THE ONLY JOBS THAT WAIT ON  needs:" {
+direction: right
+style: {fill: "#FFF3E0"; stroke: "#EF6C00"; stroke-width: 4 ; font-size: 24; bold: true}
+
+bp: "📦 Backend Package (glibc)\ntimeout 15 min → openaev-api-jar" {class: docker}
+bpm: "📦 Backend Package (musl)\ntimeout 15 min · maven alpine container" {class: docker}
+}
+
+wave0.build -> gated.bp: "needs: Backend Compile\n+ Frontend Build\n+ Prepare Bundled Assets" {class: needs}
+wave0.build -> gated.bpm: "needs: same three" {class: needs}
+
+# ═══ 4. Aggregation ══════════════════════════════════════════════════════════
+cov: "📊 Coverage Merge & Upload\ntimeout 15 min · JaCoCo shards + Vitest + Playwright → Codecov\nbest-effort, and deliberately NOT wired into the Gate" {
+style: {fill: "#FCE4EC"; stroke: "#AD1457"; stroke-width: 3                                                                                                     ; border-radius: 8; font-size: 21}
+}
+
+wave0.tests -> cov: "needs: API Tests, E2E, API Types Check" {class: needs}
+wave0.quality -> cov: "needs: Frontend Quality" {class: needs}
+
+gate: "✅   PIPELINE GATE\nrequired branch-protection status check\n\"pipeline / ✅ Pipeline Gate\"\n\nif: always()  ·  timeout 10 min  ·  needs: 14 jobs  ·  Coverage excluded" {
+style: {fill: "#FFCDD2"; stroke: "#B71C1C"; stroke-width: 5                                                                                                                             ; border-radius: 8; font-size: 28; bold: true}
+}
+
+wave0 -> gate: "12 of the 14" {class: needs}
+gated -> gate: "the other 2" {class: needs}
+
+retry: "🔄 Auto-Retry Failed CI\n\nseparate workflow, on workflow_run: completed\nconclusion == failure  AND  run_attempt == 1\n→ POST rerun-failed-jobs on the same run\n\nLoops back to ② as attempt 2 — exactly once" {
+style: {fill: "#EDE7F6"; stroke: "#4527A0"; stroke-width: 3                                                                                                                                                                        ; stroke-dash: 3; border-radius: 8; font-size: 21}
+}
+
+gate -> retry: "on failure" {class: loop}
+
+# ═══ Polling waits — replace `needs:` wherever the payload matters ═══════════
+wave0.build.bc -> wave0.tests.at: "POLLS backend artifacts\nevery 15s · poll cap 10 min\nterminal producer failure aborts" {class: poll}
+wave0.docker.db -> wave0.tests.e2e: "POLLS marker / artifact\nGHCR touched after marker\npoll cap 15 min" {class: poll}
+wave0.docker.db -> wave0.docker.dm: "POLLS architecture markers / artifacts\npoll cap 15 min" {class: poll}
+wave0.docker.db -> wave0.docker.scan: "POLLS amd64 markers / artifacts\npoll cap 15 min" {class: poll}
+gated.bp -> wave0.tests.atc: "POLLS artifact openaev-api-jar\nevery 15s · poll cap 15 min\nterminal producer failure aborts" {class: poll}
+
+# ═══ Legend ══════════════════════════════════════════════════════════════════
+# Real edges, not text arrows: the swatches use the same classes as the graph,
+# so they show the actual stroke colour and dash pattern and cannot drift.
+# Plain labels rather than `|md` blocks — d2 renders markdown into
+# <foreignObject>, which browsers refuse to draw when the SVG is loaded as an
+# <img> (as it is on GitHub), and the whole legend would vanish.
+legend: "LEGEND — HOW TO READ THE ARROWS" {
+direction: down
+style: {fill: "#FFFFFF"; stroke: "#607D8B"; stroke-width: 3 ; font-size: 24; bold: true}
+
+row1: "" {
+direction: right
+style: {fill: transparent                                                                                                                                                                                                                                                    ; stroke: transparent}
+a: "upstream\njob" {class: swatch}
+b: "needs:  —  a real dependency declared in the YAML\nThe consumer will not start until the whole upstream job has finished,\nartifact gzip / validate / upload included: ~2.5 min it never reads.\nOnly four edges in this entire pipeline are true needs:" {shape: text ; class: note}
+a -> b {class: needs}
+}
+
+row2: "" {
+direction: right
+style: {fill: transparent                                                                                                                                                                                                                                                                                                                                                             ; stroke: transparent}
+a: "upstream\njob" {class: swatch}
+b: "POLLING WAIT  —  no needs: in the YAML at all\nThe consumer starts at t = 0 and boots its services in parallel, then polls\nGitHub artifact metadata and producer conclusions every 15 seconds. A successful push\npublishes an attempt-scoped marker; only then does the consumer touch GHCR.\nTerminal producer failures abort immediately; image artifacts remain the fallback." {shape: text ; class: note}
+a -> b {class: poll}
+}
+
+row3: "" {
+direction: right
+style: {fill: transparent                                                                                                                         ; stroke: transparent}
+a: "workflow" {class: swatch}
+b: "LAUNCH  —  the workflow starting a job. Not a dependency:\nthese 12 jobs have no upstream and begin the instant the run does." {shape: text ; class: note}
+a -> b {class: launch}
+}
+
+row4: "" {
+direction: right
+style: {fill: transparent                                                                                                ; stroke: transparent}
+a: "Pipeline\nGate" {class: swatch}
+b: "RETRY LOOP  —  a separate workflow re-running the failed jobs,\nonce, and only on the first attempt." {shape: text ; class: note}
+a -> b {class: loop}
+}
+
+row5: "" {
+style: {fill: "#FFEBEE"; stroke: "#B71C1C"; stroke-width: 3}
+clock: "⏱   EVERY DURATION ON A JOB IS ITS  timeout-minutes  CEILING\nIt is the point at which GitHub kills the job — NOT how long the job runs.\nA job marked \"timeout 45 min\" normally finishes in a fraction of that.\n\"poll cap\" figures are the same thing for a wait loop: the give-up point." {
+shape: text
+style: {font-size: 21                                                                                                                                                                                                                                                                                          ; bold: true; font-color: "#B71C1C"}
+}
+}
+
+row6: "" {
+style: {fill: transparent                                                                                                                                                                                                  ; stroke: transparent}
+nodocker: "DOCKER BUILD HAS NO ARROW FROM PREPARE BUNDLED ASSETS\nIt re-runs the asset preparation inline with upload-artifact: false\ninstead of waiting, saving ~1.4 min at the head of the critical path." {shape: text ; class: note}
+}
+
+row1 -> row2: {style.opacity: 0}
+row2 -> row3: {style.opacity: 0}
+row3 -> row4: {style.opacity: 0}
+row4 -> row5: {style.opacity: 0}
+row5 -> row6: {style.opacity: 0}
+}
+
+matrix: "CORE vs NIGHTLY — THE ONLY THREE DIFFERENCES\n\nAPI TESTS\nCore: 8 cells — 7 balanced shards + a 'remaining' catch-all, Elasticsearch\nNightly: the same 8 run twice, on Elasticsearch AND OpenSearch\nshard patterns live in .github/shards/api-<n>.txt\n\nE2E TESTS\nCore: 10 cells, standard image only, chrome/amd64 + chromium/arm64\nsharded arsenals / multitenant / remaining, plus 4 infra cells\nNightly: 25 cells, std + ubi9, five browsers, amd64 + arm64\nplus the OpenSearch variants and 7 infra cells\n\nCONTAINER VULNERABILITY SCAN\nCore: reports findings, never blocks the Gate\nNightly: fails the Gate on high/critical findings and scanner errors" {
+style: {fill: "#FFFFFF"; stroke: "#607D8B"; stroke-width: 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ; font-size: 20}
+}
+
+# Invisible anchors: keep the prose blocks inside the layout flow instead of
+# `near:`, which reserves a whole empty band on the canvas.
+retry -> legend: {style.opacity: 0}
+retry -> matrix: {style.opacity: 0}

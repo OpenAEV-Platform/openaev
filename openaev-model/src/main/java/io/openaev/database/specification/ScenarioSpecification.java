@@ -39,22 +39,18 @@ public class ScenarioSpecification {
     return cb.exists(workflowSubquery);
   }
 
-  /** Autonomous (AI-driven) scenarios: the {@code scenario_autonomous} flag is set. */
-  public static Specification<Scenario> isAutonomous() {
-    return (root, query, cb) -> cb.equal(root.get("autonomous"), true);
-  }
-
-  /** Chained scenarios: they own a chaining workflow template and are not autonomous. */
+  /**
+   * Chained scenarios: they own a chaining workflow template. Autonomy is no longer a scenario type
+   * - it is chosen at launch time - so a scenario is chained purely by carrying a chaining workflow
+   * template, regardless of the (legacy) {@code scenario_autonomous} flag.
+   */
   public static Specification<Scenario> isChained() {
-    return (root, query, cb) ->
-        cb.and(hasChainingWorkflow(root, query, cb), cb.equal(root.get("autonomous"), false));
+    return (root, query, cb) -> hasChainingWorkflow(root, query, cb);
   }
 
-  /** Time-based scenarios: neither chained (no workflow template) nor autonomous. */
+  /** Time-based scenarios: they carry no chaining workflow template. */
   public static Specification<Scenario> isTimeBased() {
-    return (root, query, cb) ->
-        cb.and(
-            cb.not(hasChainingWorkflow(root, query, cb)), cb.equal(root.get("autonomous"), false));
+    return (root, query, cb) -> cb.not(hasChainingWorkflow(root, query, cb));
   }
 
   public static Specification<Scenario> recurrenceStartDateBefore(

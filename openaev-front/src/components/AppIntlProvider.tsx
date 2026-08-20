@@ -60,6 +60,14 @@ const AppIntlProvider: FunctionComponent<{ children: ReactElement }> = ({ childr
         if (err.code === 'MISSING_TRANSLATION') {
           return;
         }
+        // A malformed catalog value (invalid ICU syntax, e.g. literal unescaped
+        // braces) must degrade to the raw string - formatjs falls back on its own
+        // once onError returns - instead of crashing the whole render tree.
+        if (err.code === 'FORMAT_ERROR') {
+          // eslint-disable-next-line no-console
+          console.error(err);
+          return;
+        }
         throw err;
       }}
     >

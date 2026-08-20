@@ -1,23 +1,26 @@
-import { PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
-import { Avatar, Box, Button, Paper, Tooltip, Typography } from '@mui/material';
+import { AutoAwesome, LayersClearOutlined, PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
+import { Avatar, Box, Button, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type AgentHelper } from '../../../../actions/agents/agent-helper';
+import { convertAutonomousRunToManual } from '../../../../actions/autonomous/autonomous-actions';
+import { type AutonomousEvent, type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import type { CollectorHelper } from '../../../../actions/collectors/collector-helper';
 import { fetchExerciseExpectationResult, fetchExerciseInjectExpectationResults } from '../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import type { LoggedHelper } from '../../../../actions/helper';
 import { fetchScenarioInjects } from '../../../../actions/Inject';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
-import { searchScenarioExercises, searchScenarioHealthcheks } from '../../../../actions/scenarios/scenario-actions';
+import { fetchScenario, searchScenarioExercises, searchScenarioHealthcheks } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
 import { Field, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import KillChainTimeline from '../../../../components/common/detail/KillChainTimeline';
 import PostureGauges from '../../../../components/common/detail/PostureGauges';
 import SAMPLE_POSTURE from '../../../../components/common/detail/samplePosture';
+import DialogConfirmation from '../../../../components/common/DialogConfirmation';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -42,11 +45,18 @@ import {
   type SearchPaginationInput,
   type SortField,
 } from '../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { isEmptyField, isFeatureEnabled } from '../../../../utils/utils';
+import { isEmptyField } from '../../../../utils/utils';
+import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
+import AutonomousOutcome from '../../autonomous/AutonomousOutcome';
+import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
+import EEChip from '../../common/entreprise_edition/EEChip';
+import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import MitreCoverageMatrix from '../../common/matrix/MitreCoverageMatrix';
 import ExercisePopover from '../../simulations/simulation/ExercisePopover';
 import SimulationList from '../../simulations/SimulationList';
@@ -54,7 +64,22 @@ import { CONTEXTUAL_POSTURE_WIDGET_ID, contextualResultsUrl } from '../../worksp
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import ScenarioDistributionByExercise from './ScenarioDistributionByExercise';
 
-const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>> }) => {
+const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, onAutonomousRunCleared, timelineEvents }: {
+  setOpenInstantiateSimulationAndStart: Dispatch<SetStateAction<boolean>>;
+  // The autonomous run owning this scenario, if any - ACTIVE (the orchestrator is planning / driving)
+  // or SETTLED (planned / done). The AI outcome (mission, decision timeline, capability gaps, proofs)
+  // renders as a layer ON TOP of the full normal overview, never replacing it: building with AI is
+  // the same scenario with a planning layer. While active the overview reuses the cockpit's
+  // incremental timeline (no second poll); while settled it is a durable one-shot read. Null for a
+  // never-run or purely-manual chained scenario.
+  autonomousRun?: AutonomousRun | null;
+  // Forget the run locally so the AI outcome panel disappears immediately after the operator clears
+  // it server-side (the by-scenario lookup now 404s), without waiting for a page reload.
+  onAutonomousRunCleared?: () => void;
+  // Live timeline already polled by the right-hand cockpit. When provided, the outcome layer
+  // consumes it instead of fetching / polling fetchAutonomousTimeline itself.
+  timelineEvents?: AutonomousEvent[];
+}) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const { scenarioId } = useParams() as { scenarioId: ScenarioType['scenario_id'] };
@@ -81,12 +106,18 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   // Spy on modifications to reload healthchecks
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
 
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
-  const isScenarioChaining = isChainingFeatureEnabled && !!scenarioWorkflowId;
+  const isScenarioChaining = !!scenarioWorkflowId;
+  // The Autonomous CTA is an XTM One-driven EE feature (same gate as the header hero and the creation
+  // drawer): hidden unless XTM One is connected, and an EE call-to-action when not Enterprise.
+  const isXtmOneReady = isXtmOneAvailable(settings);
+  const {
+    isValidated: isEnterpriseEdition,
+    openDialog: openEnterpriseEditionDialog,
+    setEEFeatureDetectedInfo,
+  } = useEnterpriseEdition();
 
-  const isScopeMissing = isScenarioChaining
-    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
+  const isScopeMissing = isScenarioChaining && isScopeLaunchBlocked(healthchecks);
 
   const agentsActive = useMemo(() => {
     const injectAssetIds: string[] = injects.flatMap((inject: Inject) => inject.inject_assets);
@@ -217,6 +248,28 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
   const hasNeverRun = !areAnyExercisesInScenario;
   const isSample = hasNeverRun || (lastResultsResolved && !hasPosture && !hasMitreResults);
   const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, scenario.scenario_id);
+  const canManageScenario = ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, scenario.scenario_id)
+    || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  // While a run is still active (planning or driving) the AI outcome polls live and the right-hand
+  // reasoning panel owns the streaming detail; the in-overview run controls (clear outcome, launch
+  // CTAs) are hidden because an active run is steered from the header / panel and the scenario
+  // cannot be relaunched while one owns it. A settled run is a durable, editable-again read.
+  const isRunActive = isAutonomousRunActive(autonomousRun);
+  // "Clear AI outcome": drop the settled run (its decision timeline + capability gaps) server-side
+  // and revert the overview to the normal manual view. The authored attack path (logic map) and the
+  // run simulation are kept - it is the convert-to-manual IN_PLACE flip, which unlocks the scenario
+  // for editing again. Irreversible for the timeline/gaps, so it is confirmed first.
+  const [clearOutcomeOpen, setClearOutcomeOpen] = useState(false);
+  const handleClearOutcome = async () => {
+    if (!autonomousRun) return;
+    await convertAutonomousRunToManual(autonomousRun.autonomous_run_id, 'IN_PLACE');
+    setClearOutcomeOpen(false);
+    MESSAGING$.notifySuccess(t('AI outcome cleared; back to the normal overview'));
+    // Refresh the scenario (its autonomous flag is now cleared) and forget the run locally so the
+    // panel disappears at once without a reload.
+    dispatch(fetchScenario(scenarioId));
+    onAutonomousRunCleared?.();
+  };
   const postureResults = isSample ? SAMPLE_POSTURE : lastResults;
   const showPosture = isSample || hasPosture;
   const showMitre = isSample || hasMitreResults;
@@ -263,6 +316,87 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
       paddingBottom: theme.spacing(5),
     }}
     >
+      {/* Additive AI outcome: while a run is active OR settled, the scenario keeps its full
+          normal overview and layers the mission / decision timeline / capability gaps (and, for
+          a live run, proofs) on top. The right-hand cockpit still owns the streaming reasoning
+          while the run is active; this block is the in-overview layer, not a replacement page. */}
+      {autonomousRun && (
+        <Box sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1,
+        }}
+        >
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1,
+            flexWrap: 'wrap',
+          }}
+          >
+            <Typography
+              variant="h6"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                margin: 0,
+              }}
+            >
+              <AutoAwesome fontSize="small" sx={{ color: theme.palette.ai?.main ?? theme.palette.primary.main }} />
+              {autonomousRun.autonomous_run_plan_mode ? t('AI plan outcome') : t('Autonomous run outcome')}
+            </Typography>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
+            >
+              {!autonomousRun.autonomous_run_plan_mode && autonomousRun.autonomous_run_simulation_id && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  component={Link}
+                  to={`/admin/simulations/${autonomousRun.autonomous_run_simulation_id}`}
+                >
+                  {t('Open run simulation')}
+                </Button>
+              )}
+              {/* Clear the AI outcome and return to the normal overview: drops the run + decision
+                  timeline + capability gaps, keeps the authored logic (and run simulation). Only for
+                  operators who can manage the scenario, and only once the run has settled - an active
+                  run is stopped from the header / reasoning panel, not cleared from here. */}
+              {canManageScenario && !isRunActive && (
+                <Tooltip title={autonomousRun.autonomous_run_plan_mode
+                  ? t('Clear the AI plan outcome and return to the normal overview')
+                  : t('Clear the autonomous run outcome and return to the normal overview')}
+                >
+                  <IconButton
+                    size="small"
+                    onClick={() => setClearOutcomeOpen(true)}
+                    aria-label={t('Clear AI outcome')}
+                  >
+                    <LayersClearOutlined fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+          </Box>
+          <AutonomousOutcome run={autonomousRun} live={isRunActive} sharedEvents={timelineEvents} />
+          <DialogConfirmation
+            open={clearOutcomeOpen}
+            handleClose={() => setClearOutcomeOpen(false)}
+            handleSubmit={handleClearOutcome}
+            submitColor="error"
+            text={autonomousRun.autonomous_run_plan_mode
+              ? t('Clearing removes the decision timeline and capability gaps and returns this scenario to the normal overview. The authored attack path (the logic map) is kept and stays editable. This cannot be undone.')
+              : t('Clearing removes the decision timeline, capability gaps and proof of exploitation and returns this scenario to the normal overview. The authored attack path (the logic map) and the run simulation are kept. This cannot be undone.')}
+            submitLabel={t('Clear')}
+          />
+        </Box>
+      )}
+
       {isSample && (
         <Paper
           variant="outlined"
@@ -294,20 +428,78 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart }: { setOpenInstantiate
               {t('The insights below are a sample preview. Launch a simulation to populate them with your real posture.')}
             </Typography>
           </Box>
-          {canLaunch && (
-            <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : ''}>
-              <span style={{ display: 'inline-flex' }}>
-                <Button
-                  startIcon={<PlayArrowOutlined />}
-                  variant="contained"
-                  color="primary"
-                  disabled={isScopeMissing}
-                  onClick={() => setOpenInstantiateSimulationAndStart(true)}
-                >
-                  {t('Launch simulation now')}
-                </Button>
-              </span>
-            </Tooltip>
+          {/* A chained scenario can be launched two ways - a plain operator-driven simulation
+              (Normal) or an orchestrator-driven live run (Autonomous). The Autonomous button
+              opens the hero's launch config drawer (objective / agents / scope) via the query
+              param. A time-based scenario only ever launches a normal simulation. */}
+          {canLaunch && !isRunActive && isScenarioChaining && (
+            <Box sx={{
+              display: 'flex',
+              gap: 1,
+              flexWrap: 'wrap',
+            }}
+            >
+              <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch a normal, operator-driven simulation from this scenario')}>
+                <Box component="span" sx={{ display: 'inline-flex' }}>
+                  <Button
+                    startIcon={<PlayArrowOutlined />}
+                    variant="contained"
+                    color="primary"
+                    disabled={isScopeMissing}
+                    onClick={() => setOpenInstantiateSimulationAndStart(true)}
+                  >
+                    {t('Normal')}
+                  </Button>
+                </Box>
+              </Tooltip>
+              {/* Autonomous is an XTM One-driven EE feature: hidden when XTM One is unavailable (only
+                  the Normal CTA remains), and an EE call-to-action when the platform is not
+                  Enterprise (EE chip + EE dialog instead of routing to the launch drawer). */}
+              {isXtmOneReady && (
+                <Tooltip title={t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}>
+                  <Box
+                    component="span"
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                    }}
+                  >
+                    <Button
+                      startIcon={<AutoAwesome />}
+                      variant="contained"
+                      onClick={() => {
+                        if (!isEnterpriseEdition) {
+                          setEEFeatureDetectedInfo(t('Autonomous attack path'));
+                          openEnterpriseEditionDialog();
+                          return;
+                        }
+                        navigate(`/admin/scenarios/${scenarioId}?openAiLaunch=true`);
+                      }}
+                      sx={{
+                        'whiteSpace': 'nowrap',
+                        'backgroundColor': theme.palette.ai.main,
+                        'color': theme.palette.ai.contrastText,
+                        '&:hover': { backgroundColor: theme.palette.ai.dark },
+                      }}
+                    >
+                      {t('Autonomous')}
+                    </Button>
+                    {!isEnterpriseEdition && <EEChip />}
+                  </Box>
+                </Tooltip>
+              )}
+            </Box>
+          )}
+          {canLaunch && !isRunActive && !isScenarioChaining && (
+            <Button
+              startIcon={<PlayArrowOutlined />}
+              variant="contained"
+              color="primary"
+              onClick={() => setOpenInstantiateSimulationAndStart(true)}
+            >
+              {t('Launch simulation now')}
+            </Button>
           )}
         </Paper>
       )}

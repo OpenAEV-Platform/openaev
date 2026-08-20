@@ -13,7 +13,6 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
@@ -146,13 +145,13 @@ public class SentinelOneExecutorServiceTest {
     verify(client).executeScript(agentId.capture(), scriptName.capture(), commandEncoded.capture());
     assertEquals("12345", agentId.getValue());
     assertEquals("1234567890", scriptName.getValue());
-    // The self-clean command is now prepended to the inject command before encoding. Decode
-    // (UTF-16LE, SentinelOne Windows -encodedCommand) and assert the clean block precedes the arch
-    // payload. Pins the exact clean-command coverage previously held by the deleted GC test.
+    // The inject command must be shipped as-is: no implant cleanup is inlined, otherwise the
+    // SentinelOne remote script queue saturates and injects time out (regression guard).
     String decodedWindows =
         new String(
             Base64.getDecoder().decode(commandEncoded.getValue()), StandardCharsets.UTF_16LE);
-    assertEquals(ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND + ";x86_64", decodedWindows);
+    assertEquals("x86_64", decodedWindows);
+    assertEquals("eAA4ADYAXwA2ADQA", commandEncoded.getValue());
   }
 
   @Test
@@ -197,9 +196,9 @@ public class SentinelOneExecutorServiceTest {
     verify(client).executeScript(agentId.capture(), scriptName.capture(), commandEncoded.capture());
     assertEquals("12345", agentId.getValue());
     assertEquals("unixScript", scriptName.getValue());
-    // Unix command is UTF-8 encoded and prepended with the self-clean command.
+    // Unix command is UTF-8 encoded and shipped without any inlined cleanup (regression guard).
     String decodedUnix =
         new String(Base64.getDecoder().decode(commandEncoded.getValue()), StandardCharsets.UTF_8);
-    assertEquals(ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND + ";linuxcmd", decodedUnix);
+    assertEquals("linuxcmd", decodedUnix);
   }
 }

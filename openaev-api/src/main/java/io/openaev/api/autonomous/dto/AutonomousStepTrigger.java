@@ -23,6 +23,31 @@ import lombok.Setter;
 @Schema(description = "A finding-driven trigger: react to findings and consume their values")
 public class AutonomousStepTrigger {
 
+  @JsonProperty("event_id")
+  @Schema(
+      description =
+          "OPTIONAL. Id of an EXISTING event (a finding-trigger root already on this run's"
+              + " workflow) to attach this step to, instead of minting a new event. Read it from"
+              + " another step's event_id in the attack-path state, then pass it here so several"
+              + " actions fire off the SAME event (e.g. one \"SMB service exposed\" event feeding"
+              + " many follow-on actions) rather than duplicating it. When set, event_name / match /"
+              + " filters are IGNORED (the event already exists and is not re-described); only"
+              + " mappings still apply, binding this step's inject inputs from that event's finding"
+              + " values. Leave it null to create a new event from the filters, or omit the whole"
+              + " trigger entirely for an event-less seed or standalone action. It is never"
+              + " required: linking to an existing event is a choice, not an obligation.")
+  private String eventId;
+
+  @JsonProperty("event_name")
+  @Schema(
+      description =
+          "Short, human-readable name for the EVENT this trigger represents - the discovery it"
+              + " fires on, phrased as an operator would read it (e.g. \"SMB service exposed\","
+              + " \"Valid credentials found\", \"Open web port discovered\"). It becomes the event"
+              + " node's title in the Logic graph. When omitted, a readable name is derived from"
+              + " the filters so the event is never shown as \"Untitled event\".")
+  private String eventName;
+
   @JsonProperty("match")
   @Schema(
       description =

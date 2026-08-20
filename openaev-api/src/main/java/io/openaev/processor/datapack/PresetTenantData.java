@@ -53,7 +53,8 @@ public class PresetTenantData {
                 .cisaExploitAdd(Instant.parse("2023-10-16T00:00:00Z"))
                 .cisaActionDue(Instant.parse("2023-10-16T00:00:00Z"))
                 .description(
-                    "Cisco IOS XE Web UI remote code execution via unauthenticated command injection.")
+                    "Cisco IOS XE Web UI remote code execution via unauthenticated command"
+                        + " injection.")
                 .cvssV31(new BigDecimal("10.0"))
                 .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                 .cisaRequiredAction("Verify compliance with BOD 23-02 and apply mitigations.")
@@ -76,7 +77,8 @@ public class PresetTenantData {
                 .cvssV31(new BigDecimal("8.2"))
                 .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                 .cisaRequiredAction(
-                    "Apply mitigations per vendor instructions or discontinue product if unavailable.")
+                    "Apply mitigations per vendor instructions or discontinue product if"
+                        + " unavailable.")
                 .cisaVulnerabilityName(
                     "Ivanti Connect Secure and Policy Secure Authentication Bypass Vulnerability")
                 .referenceUrls(
@@ -93,11 +95,13 @@ public class PresetTenantData {
                 .cisaExploitAdd(Instant.parse("2023-12-01T00:00:00Z"))
                 .cisaActionDue(Instant.parse("2023-12-01T00:00:00Z"))
                 .description(
-                    "Improper neutralization of SQL elements in Fortinet FortiClientEMS allows RCE/commands.")
+                    "Improper neutralization of SQL elements in Fortinet FortiClientEMS allows"
+                        + " RCE/commands.")
                 .cvssV31(new BigDecimal("9.8"))
                 .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                 .cisaRequiredAction(
-                    "Apply mitigations per vendor instructions or discontinue product if unavailable.")
+                    "Apply mitigations per vendor instructions or discontinue product if"
+                        + " unavailable.")
                 .cisaVulnerabilityName("Fortinet FortiClient EMS SQL Injection Vulnerability")
                 .referenceUrls(List.of("https://nvd.nist.gov/vuln/detail/CVE-2023-48788"))
                 .build(),
@@ -114,7 +118,8 @@ public class PresetTenantData {
                 .cvssV31(new BigDecimal("8.6"))
                 .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                 .cisaRequiredAction(
-                    "Apply mitigations per vendor instructions or discontinue product if unavailable.")
+                    "Apply mitigations per vendor instructions or discontinue product if"
+                        + " unavailable.")
                 .cisaVulnerabilityName("Cisco ASA and FTD Denial of Service Vulnerability")
                 .referenceUrls(
                     List.of(
@@ -132,9 +137,11 @@ public class PresetTenantData {
                 .cvssV31(new BigDecimal("9.8"))
                 .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                 .cisaRequiredAction(
-                    "Apply mitigations per vendor instructions or discontinue product if unavailable.")
+                    "Apply mitigations per vendor instructions or discontinue product if"
+                        + " unavailable.")
                 .cisaVulnerabilityName(
-                    "Cisco IOS and IOS XE Software Smart Install Remote Code Execution Vulnerability")
+                    "Cisco IOS and IOS XE Software Smart Install Remote Code Execution"
+                        + " Vulnerability")
                 .referenceUrls(List.of("https://nvd.nist.gov/vuln/detail/CVE-2018-0171"))
                 .build(),
             Cwe.builder().externalId("CWE-787").source("Out-of-bounds Write").build()),
@@ -146,7 +153,8 @@ public class PresetTenantData {
                 .cisaExploitAdd(Instant.parse("2023-10-16T00:00:00Z"))
                 .cisaActionDue(Instant.parse("2023-10-16T00:00:00Z"))
                 .description(
-                    "Cisco IOS XE Web UI insufficient input validation leading to root command injection.")
+                    "Cisco IOS XE Web UI insufficient input validation leading to root command"
+                        + " injection.")
                 .cvssV31(new BigDecimal("7.2"))
                 .vulnStatus(Vulnerability.VulnerabilityStatus.ANALYZED)
                 .cisaRequiredAction("Verify compliance with BOD 23-02 and apply mitigations.")
@@ -158,17 +166,29 @@ public class PresetTenantData {
             Cwe.builder().externalId("CWE-78").source("Nist").build()));
   }
 
+  /**
+   * Capability sets of the auto-generated roles for every new tenant. Observer holds every
+   * user-facing "access" capability, Manager every "access"/"manage"/"delete" one (tenant settings
+   * excluded on both — those stay Admin-only).
+   *
+   * <p>When introducing a new capability group, add it here too (and ship a {@code
+   * io.openaev.processor.core.RuntimeMigration} to heal already-created tenants), otherwise
+   * existing Manager/Observer roles silently miss it — see issue #7320 (Phishing / Reporting).
+   */
   public static final Map<String, Set<Capability>> DEFAULT_ROLES =
       Map.of(
           OBSERVER,
           Set.of(
               Capability.ACCESS_ASSESSMENT,
               Capability.ACCESS_ASSETS,
+              Capability.ACCESS_CREDENTIALS,
               Capability.ACCESS_THREAT_ARSENALS,
               Capability.ACCESS_DASHBOARDS,
+              Capability.ACCESS_REPORTINGS,
               Capability.ACCESS_FINDINGS,
               Capability.ACCESS_DOCUMENTS,
               Capability.ACCESS_CHANNELS,
+              Capability.ACCESS_PHISHING,
               Capability.ACCESS_CHALLENGES,
               Capability.ACCESS_LESSONS_LEARNED,
               Capability.ACCESS_SECURITY_PLATFORMS),
@@ -183,12 +203,17 @@ public class PresetTenantData {
               Capability.ACCESS_ASSETS,
               Capability.MANAGE_ASSETS,
               Capability.DELETE_ASSETS,
+              Capability.MANAGE_CREDENTIALS,
+              Capability.DELETE_CREDENTIALS,
               Capability.ACCESS_THREAT_ARSENALS,
               Capability.MANAGE_THREAT_ARSENALS,
               Capability.DELETE_THREAT_ARSENALS,
               Capability.ACCESS_DASHBOARDS,
               Capability.MANAGE_DASHBOARDS,
               Capability.DELETE_DASHBOARDS,
+              Capability.ACCESS_REPORTINGS,
+              Capability.MANAGE_REPORTINGS,
+              Capability.DELETE_REPORTINGS,
               Capability.ACCESS_FINDINGS,
               Capability.MANAGE_FINDINGS,
               Capability.DELETE_FINDINGS,
@@ -198,6 +223,9 @@ public class PresetTenantData {
               Capability.ACCESS_CHANNELS,
               Capability.MANAGE_CHANNELS,
               Capability.DELETE_CHANNELS,
+              Capability.ACCESS_PHISHING,
+              Capability.MANAGE_PHISHING,
+              Capability.DELETE_PHISHING,
               Capability.ACCESS_CHALLENGES,
               Capability.MANAGE_CHALLENGES,
               Capability.DELETE_CHALLENGES,
@@ -206,7 +234,10 @@ public class PresetTenantData {
               Capability.DELETE_LESSONS_LEARNED,
               Capability.ACCESS_SECURITY_PLATFORMS,
               Capability.DELETE_SECURITY_PLATFORMS,
-              Capability.MANAGE_SECURITY_PLATFORMS),
+              Capability.MANAGE_SECURITY_PLATFORMS,
+              Capability.ACCESS_TAGS,
+              Capability.MANAGE_TAGS,
+              Capability.DELETE_TAGS),
           ADMIN,
           Set.of(Capability.BYPASS));
 }

@@ -96,4 +96,35 @@ class ConditionUtilsTest {
     // Assert
     assertTrue(result);
   }
+
+  @Test
+  @DisplayName(
+      "given AND(port==445, host is not null), a Port value must not match through the Host leaf")
+  void given_andOfDifferentKeyTypeLeaves_should_notMatchValueThroughUnrelatedLeaf() {
+    // Arrange — mirrors a step gated by "port == 445 AND host is not null"
+    Condition portEq445 =
+        Condition.builder()
+            .type(ConditionType.EQ)
+            .keyTypes(List.of(PrimitiveType.Port))
+            .value("445")
+            .build();
+    Condition hostIsNotNull =
+        Condition.builder()
+            .type(ConditionType.IS_NOT_NULL)
+            .keyTypes(List.of(PrimitiveType.Host))
+            .build();
+    Condition and =
+        Condition.builder()
+            .type(ConditionType.AND)
+            .conditionChildren(List.of(portEq445, hostIsNotNull))
+            .build();
+
+    // Act + Assert
+    // "5" is a Port value: must fail (only the Host leaf trivially accepts non-null strings).
+    assertFalse(conditionUtils.matchesAnyLeafCondition("5", and, "Port"));
+    // "445" is a Port value that satisfies the Port leaf directly.
+    assertTrue(conditionUtils.matchesAnyLeafCondition("445", and, "Port"));
+    // Any non-null string is a legitimate Host value for the Host leaf.
+    assertTrue(conditionUtils.matchesAnyLeafCondition("10.0.0.1", and, "Host"));
+  }
 }

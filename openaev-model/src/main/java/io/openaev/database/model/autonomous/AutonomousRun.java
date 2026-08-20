@@ -3,7 +3,6 @@ package io.openaev.database.model.autonomous;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.ControlledUuidGeneration;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -25,12 +24,16 @@ import org.hibernate.type.SqlTypes;
  * One AI-driven, autonomous attack-path run. The "brain" lives in XTM One; this row is OpenAEV's
  * durable handle on that run: it binds the objective, the chained simulation used as the execution
  * and visualization substrate, the XTM One session, and the live status the UI animates.
+ *
+ * <p>Tenant-active (multi-tenancy v2): reads and writes are scoped by the statement inspector, and
+ * the tenant is attributed EXPLICITLY at creation ({@code AutonomousRunService} stamps it from the
+ * scenario through the write-scope resolver) - deliberately no {@code TenantBaseListener}, whose
+ * thread-local default would silently land orchestrator-callback writes in the default tenant.
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "autonomous_runs")
-@EntityListeners(TenantBaseListener.class)
 public class AutonomousRun implements TenantBase {
 
   @Id
@@ -68,17 +71,18 @@ public class AutonomousRun implements TenantBase {
   @JsonProperty("autonomous_run_plan_mode")
   @Schema(
       description =
-          "Dry-run flag. When true the orchestrator only designs the attack path (scope + steps +"
-              + " decisions) and nothing is executed; the run is shown in draft orange and can be"
-              + " promoted to a real, executing run.")
+          "Build flag. When true the orchestrator only authors the scenario's logic (scope + steps +"
+              + " decisions) and nothing is executed; the built logic is shown in draft orange and"
+              + " can then be launched (in normal or autonomous mode).")
   private boolean planMode = false;
 
   @Column(name = "autonomous_run_plan_guidance", columnDefinition = "text")
   @JsonProperty("autonomous_run_plan_guidance")
   @Schema(
       description =
-          "Plan summary captured from a dry-run and handed to the promoted real run as guidance, so"
-              + " the live run follows the plan while still adapting to what it finds.")
+          "Plan summary captured while building the logic and handed to a subsequent live autonomous"
+              + " run as guidance, so the live run follows the plan while still adapting to what it"
+              + " finds.")
   private String planGuidance;
 
   @Column(name = "autonomous_run_simulation_id")
@@ -146,6 +150,18 @@ public class AutonomousRun implements TenantBase {
   @Column(name = "autonomous_run_step_mirror")
   private Map<String, String> stepMirror = new HashMap<>();
 
+  // Internal bookkeeping: maps each finding-EVENT root condition id authored on the SIMULATION
+  // workflow to its twin event root id mirrored onto the SCENARIO workflow. The orchestrator only
+  // ever knows simulation event ids (those are what the attack-path state surfaces as event_id), so
+  // when it authors a step that REUSES an existing simulation event, this lets the mirror reattach
+  // the scenario twin to the SAME scenario event - keeping the exported scenario's events shared
+  // instead of duplicated, exactly like the live simulation side. Never exposed to the API or the
+  // orchestrator.
+  @JsonIgnore
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "autonomous_run_event_mirror")
+  private Map<String, String> eventMirror = new HashMap<>();
+
   @Column(name = "autonomous_run_xtm_session_id")
   @JsonProperty("autonomous_run_xtm_session_id")
   @Schema(description = "XTM One orchestrator session id for streaming reconnection")
@@ -172,4 +188,37 @@ public class AutonomousRun implements TenantBase {
   @JsonProperty("autonomous_run_updated_at")
   @Schema(description = "Update date")
   private Instant updatedAt;
+
+  @Column(name = "autonomous_run_timeout_seconds")
+  @JsonProperty("autonomous_run_timeout_seconds")
+  @Schema(
+      description =
+          "Maximum wall-clock lifetime of the run in seconds. OpenAEV owns this deadline: it steers"
+              + " the orchestrator with winddown signals shortly before it, then hard-stops the run"
+              + " (exactly like an operator Stop) when it is reached. Null means no OpenAEV-enforced"
+              + " timeout (e.g. build mode).")
+  private Long timeoutSeconds;
+
+  @Column(name = "autonomous_run_started_at")
+  @JsonProperty("autonomous_run_started_at")
+  @Schema(
+      description = "When the run was last moved to RUNNING; the timeout deadline is based on it")
+  private Instant startedAt;
+
+  @Column(name = "autonomous_run_deadline_at")
+  @JsonProperty("autonomous_run_deadline_at")
+  @Schema(
+      description =
+          "Absolute instant at which OpenAEV hard-stops the run. Computed from startedAt +"
+              + " timeoutSeconds when the run becomes live. Null when no timeout applies.")
+  private Instant deadlineAt;
+
+  // Internal bookkeeping: which winddown steering signal the timeout watchdog has already queued
+  // for
+  // this run, so it emits each nudge at most once. Null -> none, "WINDDOWN_5M" -> 5-minute signal
+  // sent, "WINDDOWN_1M" -> 1-minute signal sent. Reset whenever the run (re)enters RUNNING. Never
+  // exposed to the API or the orchestrator.
+  @JsonIgnore
+  @Column(name = "autonomous_run_winddown_phase")
+  private String winddownPhase;
 }

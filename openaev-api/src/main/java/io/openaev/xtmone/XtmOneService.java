@@ -53,7 +53,17 @@ public class XtmOneService {
               "name",
               "aev.media_article_generator",
               "description",
-              "Generate media articles for adversary emulation"));
+              "Generate media articles for adversary emulation"),
+          Map.of(
+              "name",
+              "aev.phishing_email_html_generator",
+              "description",
+              "Generate phishing email HTML templates for authorized awareness exercises"),
+          Map.of(
+              "name",
+              "aev.phishing_landing_page_html_generator",
+              "description",
+              "Generate phishing landing page HTML/CSS for authorized awareness exercises"));
 
   /**
    * Register this platform with XTM One. Called on every connectivity tick (the /register endpoint

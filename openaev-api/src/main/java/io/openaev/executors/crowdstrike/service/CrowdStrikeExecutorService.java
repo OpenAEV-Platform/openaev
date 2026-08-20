@@ -131,7 +131,10 @@ public class CrowdStrikeExecutorService implements Runnable {
                   agentService.getAgentsByExecutorIdAndTenantId(
                       executor.getId(), executor.getTenantId()),
                   executor.getTenantId());
-          assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
+          assetGroup.setAssets(
+              agents.stream()
+                  .map(Agent::getAsset)
+                  .collect(Collectors.toCollection(ArrayList::new)));
           assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
         }
       }

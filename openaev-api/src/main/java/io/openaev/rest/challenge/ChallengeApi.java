@@ -70,7 +70,9 @@ public class ChallengeApi extends RestBehavior {
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
   public Challenge updateChallenge(
-      @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input) {
+      @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input)
+      throws InputValidationException {
+    challengeService.validateFlags(input.flags());
     Challenge challenge =
         challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
@@ -99,7 +101,9 @@ public class ChallengeApi extends RestBehavior {
   @PostMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
-  public Challenge createChallenge(@Valid @RequestBody ChallengeInput input) {
+  public Challenge createChallenge(@Valid @RequestBody ChallengeInput input)
+      throws InputValidationException {
+    challengeService.validateFlags(input.flags());
     Challenge challenge = new Challenge();
     challenge.setUpdateAttributes(input);
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));

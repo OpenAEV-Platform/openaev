@@ -9,6 +9,7 @@ import Loader from '../../../../../components/Loader';
 import type { AttackPathNodeDTO } from '../../../../../utils/api-types';
 import InjectFormSection from '../../../common/injects/form/InjectFormSection';
 import AttackPathVerdictPill from './AttackPathVerdictPill';
+import { ExecutionRowStatusBadge } from './ExecutionStatusBadge';
 
 interface FindingGroup {
   type: string;
@@ -17,6 +18,21 @@ interface FindingGroup {
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
 const DEFAULT_PAGE_SIZE = 10;
+
+// Executions render as an aligned three-column table (Action | Execution | Result). A network inject
+// carries no agent metadata, so without a fixed grid the rows were ragged and the two status chips
+// landed at a different x on every row; the fixed template plus right-aligned status cells turn them
+// into a proper column with a header that says what each chip means.
+const EXECUTION_GRID_COLUMNS = 'minmax(0, 1fr) 132px 116px';
+
+const executionHeaderCellSx = {
+  fontFamily: '"Geologica", sans-serif',
+  fontWeight: 600,
+  fontSize: 10,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+  color: 'text.secondary',
+} as const;
 
 // A compact "N / page" selector rendered in the Findings section header: values are all loaded, so
 // this only windows the display of a group that would otherwise render an unbounded list of values.
@@ -43,6 +59,7 @@ const PageSizeSelect = ({ value, onChange }: {
 };
 
 interface Props {
+  simulationId: string;
   endpointLabel: string;
   endpointSub?: string;
   findingsLoading: boolean;
@@ -73,6 +90,12 @@ interface Props {
    * team", "No findings from this action", ...). Falls back to a neutral target wording.
    */
   emptyFindingsLabel?: string;
+  /**
+   * Empty-state text for the Executions section. An action panel has no "target" to reach (it RUNS
+   * executions), so it reads "No executions recorded for this action" rather than the endpoint panel's
+   * "reached this endpoint". Falls back to a neutral target wording.
+   */
+  emptyExecutionsLabel?: string;
 }
 
 // Right-side panel for one endpoint selected in the attack-path graph: its findings grouped by type
@@ -80,6 +103,7 @@ interface Props {
 // InjectFormSection sections, FindingIcon on each finding group and a verdict pill per execution.
 // Mirrors FindingDetailPanel / ExecutionResultTerminalPanel so the three side panels are consistent.
 const EndpointDetailPanel = ({
+  simulationId,
   endpointLabel,
   endpointSub,
   findingsLoading,
@@ -95,6 +119,7 @@ const EndpointDetailPanel = ({
   onClose,
   hideFindings = false,
   emptyFindingsLabel,
+  emptyExecutionsLabel,
 }: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -205,6 +230,23 @@ const EndpointDetailPanel = ({
                     >
                       {`${g.type} (${g.values.length})`}
                     </Typography>
+                    {/* The pager belongs to THIS group only (each finding type pages on its own), so it
+                        sits on the group's own header row. Under the last value it landed between two
+                        groups, equidistant from both, and read as paging the whole section. */}
+                    {pageCount > 1 && (
+                      <Pagination
+                        size="small"
+                        count={pageCount}
+                        page={page}
+                        siblingCount={0}
+                        aria-label={t('Findings pagination for {type}', { type: g.type })}
+                        onChange={(_, value) => setGroupPages(prev => ({
+                          ...prev,
+                          [g.type]: value,
+                        }))}
+                        sx={{ ml: 'auto' }}
+                      />
+                    )}
                   </Box>
                   {pageValues.map((v, i) => (
                     <Typography
@@ -217,21 +259,6 @@ const EndpointDetailPanel = ({
                       {v}
                     </Typography>
                   ))}
-                  {pageCount > 1 && (
-                    <Pagination
-                      size="small"
-                      count={pageCount}
-                      page={page}
-                      onChange={(_, value) => setGroupPages(prev => ({
-                        ...prev,
-                        [g.type]: value,
-                      }))}
-                      sx={{
-                        mt: 0.5,
-                        pl: 2.25,
-                      }}
-                    />
-                  )}
                 </Box>
               );
             })}
@@ -239,103 +266,162 @@ const EndpointDetailPanel = ({
         )}
 
         <InjectFormSection title={`${t('Executions')} (${executions.length})`}>
-          <Box sx={{
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-          >
-            {executions.map((e) => {
-              const status = execStatusLabel(e.status);
-              const highlighted = !!e.ref && highlightedExecutionIds.has(e.ref);
-              return (
-                <Box
-                  key={e.id}
-                  ref={(el: HTMLDivElement | null) => {
-                    if (e.id) {
-                      registerRow(e.id, el);
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => e.ref && onSelectExecution(e.ref)}
-                  onKeyDown={(ev) => {
-                    if (e.ref && (ev.key === 'Enter' || ev.key === ' ')) {
-                      ev.preventDefault();
-                      onSelectExecution(e.ref);
-                    }
-                  }}
-                  sx={{
-                    'display': 'flex',
-                    'alignItems': 'center',
-                    'gap': 1,
-                    'py': 0.75,
-                    'px': 0.5,
-                    'borderRadius': 1,
-                    'borderBottom': `1px solid ${theme.palette.divider}`,
-                    'backgroundColor': highlighted ? 'action.selected' : undefined,
-                    // A left accent so the finding's producing execution stands out in the feed.
-                    'borderLeft': highlighted ? `2px solid ${theme.palette.primary.main}` : '2px solid transparent',
-                    'cursor': 'pointer',
-                    'transition': theme.transitions.create(['background-color', 'border-color']),
-                    '&:hover': { backgroundColor: 'action.hover' },
-                    '&:focus-visible': {
-                      outline: `2px solid ${theme.palette.primary.main}`,
-                      outlineOffset: -2,
-                    },
-                  }}
+          {executions.length === 0
+            ? <Alert severity="info">{emptyExecutionsLabel ?? t('No execution reached this target')}</Alert>
+            : (
+                <Box sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
                 >
+                  {/* Column headers, aligned with the row grid below so the two status columns read as a
+                      table and the reader knows what each chip means. */}
                   <Box sx={{
-                    minWidth: 0,
-                    flex: 1,
+                    display: 'grid',
+                    gridTemplateColumns: EXECUTION_GRID_COLUMNS,
+                    alignItems: 'center',
+                    gap: 1,
+                    px: 0.5,
+                    pb: 0.75,
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                   }}
                   >
-                    <Typography variant="body2" noWrap>{e.payloadName || e.label}</Typography>
-                    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-                      {[e.agentName, e.privilege].filter(Boolean).join(' · ')}
+                    <Typography sx={executionHeaderCellSx}>{t('Action')}</Typography>
+                    <Typography sx={{
+                      ...executionHeaderCellSx,
+                      textAlign: 'right',
+                    }}
+                    >
+                      {t('Execution')}
+                    </Typography>
+                    <Typography sx={{
+                      ...executionHeaderCellSx,
+                      textAlign: 'right',
+                    }}
+                    >
+                      {t('Result')}
                     </Typography>
                   </Box>
-                  <AttackPathVerdictPill label={status} status={e.status} />
+                  {executions.map((e) => {
+                    const status = execStatusLabel(e.status);
+                    const highlighted = !!e.ref && highlightedExecutionIds.has(e.ref);
+                    const subtitle = [e.agentName, e.privilege].filter(Boolean).join(' · ');
+                    return (
+                      <Box
+                        key={e.id}
+                        ref={(el: HTMLDivElement | null) => {
+                          if (e.id) {
+                            registerRow(e.id, el);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => e.ref && onSelectExecution(e.ref)}
+                        onKeyDown={(ev) => {
+                          if (e.ref && (ev.key === 'Enter' || ev.key === ' ')) {
+                            ev.preventDefault();
+                            onSelectExecution(e.ref);
+                          }
+                        }}
+                        sx={{
+                          'display': 'grid',
+                          'gridTemplateColumns': EXECUTION_GRID_COLUMNS,
+                          'alignItems': 'center',
+                          'gap': 1,
+                          'minHeight': 44,
+                          'py': 0.5,
+                          'px': 0.5,
+                          'borderBottom': `1px solid ${theme.palette.divider}`,
+                          'backgroundColor': highlighted ? 'action.selected' : undefined,
+                          // A left accent so the finding's producing execution stands out in the feed.
+                          'borderLeft': highlighted ? `2px solid ${theme.palette.primary.main}` : '2px solid transparent',
+                          'cursor': 'pointer',
+                          'transition': theme.transitions.create(['background-color', 'border-color']),
+                          '&:hover': { backgroundColor: 'action.hover' },
+                          '&:focus-visible': {
+                            outline: `2px solid ${theme.palette.primary.main}`,
+                            outlineOffset: -2,
+                          },
+                        }}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" noWrap title={e.payloadName || e.label}>
+                            {e.payloadName || e.label}
+                          </Typography>
+                          {subtitle && (
+                            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                              {subtitle}
+                            </Typography>
+                          )}
+                        </Box>
+                        {/* Whether this execution actually ran at all (issue 244) - the verdict pill in the
+                            last column only answers whether it was caught. Both status cells are right-aligned
+                            in their fixed grid column so agent-based and network-based rows line up. */}
+                        <Box sx={{
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          minWidth: 0,
+                        }}
+                        >
+                          <ExecutionRowStatusBadge
+                            simulationId={simulationId}
+                            executionRef={e.ref}
+                            endpointName={e.hostname}
+                            injectId={e.injectId}
+                            payloadId={e.payloadId}
+                            executionStatus={e.executionStatus}
+                          />
+                        </Box>
+                        <Box sx={{
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          minWidth: 0,
+                        }}
+                        >
+                          <AttackPathVerdictPill label={status} status={e.status} />
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                  {/* The list holds one page, so reaching the rest must be an action rather than a dead
+                      caption: same slot, a text button that fetches the next page (See More precedent).
+                      Where the caller cannot fetch more (the injector panel reads a bounded set in one go),
+                      say what is not shown rather than truncate silently. */}
+                  {(totalExecutions ?? 0) > executions.length && (
+                    onShowMore
+                      ? (
+                          <Button
+                            size="small"
+                            variant="text"
+                            disabled={loadingMore}
+                            onClick={() => onShowMore()}
+                            sx={{
+                              mt: 1,
+                              alignSelf: 'flex-start',
+                              textTransform: 'none',
+                            }}
+                          >
+                            {`${t('Show more')} (${(totalExecutions ?? 0) - executions.length})`}
+                          </Button>
+                        )
+                      : (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{
+                              display: 'block',
+                              pt: 1,
+                            }}
+                          >
+                            {t('Showing the first {count} of {total}', {
+                              count: executions.length,
+                              total: totalExecutions,
+                            })}
+                          </Typography>
+                        )
+                  )}
                 </Box>
-              );
-            })}
-            {/* The list holds one page, so reaching the rest must be an action rather than a dead caption:
-                same slot, a text button that fetches the next page (See More precedent). Where the caller
-                cannot fetch more (the injector panel reads a bounded set in one go), say what is not shown
-                rather than truncate silently. */}
-            {(totalExecutions ?? 0) > executions.length && (
-              onShowMore
-                ? (
-                    <Button
-                      size="small"
-                      variant="text"
-                      disabled={loadingMore}
-                      onClick={() => onShowMore()}
-                      sx={{
-                        mt: 1,
-                        alignSelf: 'flex-start',
-                        textTransform: 'none',
-                      }}
-                    >
-                      {`${t('Show more')} (${(totalExecutions ?? 0) - executions.length})`}
-                    </Button>
-                  )
-                : (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{
-                        display: 'block',
-                        pt: 1,
-                      }}
-                    >
-                      {t('Showing the first {count} of {total}', {
-                        count: executions.length,
-                        total: totalExecutions,
-                      })}
-                    </Typography>
-                  )
-            )}
-          </Box>
+              )}
         </InjectFormSection>
       </Box>
     </Paper>

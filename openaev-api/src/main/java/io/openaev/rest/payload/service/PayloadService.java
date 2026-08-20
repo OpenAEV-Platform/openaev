@@ -41,11 +41,13 @@ import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectIndexCleanupService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.UserService;
+import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -59,6 +61,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -83,13 +86,24 @@ public class PayloadService {
   private final DomainService domainService;
   private final TagService tagService;
   private final InjectIndexCleanupService injectIndexCleanupService;
+  private final ChainingStepCleanupService chainingStepCleanupService;
+  private final InjectorContractService injectorContractService;
 
   private final PayloadMapper payloadMapper;
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
+    // A contract lives in its payload's tenant. findAllByPayloads is scoped only by the ambient
+    // TxCtx, which for a global (non-selector) request authorizes every tenant the caller can see -
+    // built-in payload injectors repeat across tenants, so the raw result can mix several tenants'
+    // rows. Narrow to the payload's own tenant before picking the reference injector and building
+    // the injector links, otherwise the contract (stamped on the payload's tenant) could reference
+    // another tenant's injector or fail on the injectors_injector_contracts FK.
+    String payloadTenantId = payload.getTenant().getId();
     List<Injector> injectors =
-        this.injectorRepository.findAllByPayloadsAndTenantId(true, payload.getTenant().getId());
+        this.injectorRepository.findAllByPayloads(true).stream()
+            .filter(injector -> payloadTenantId.equals(injector.getTenantId()))
+            .toList();
 
     Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
     if (referenceInjector == null) {
@@ -583,6 +597,10 @@ public class PayloadService {
     return saved;
   }
 
+  // Transactional so the payload delete and the chaining step sweep commit or roll back together:
+  // without it the deleteById commits first and a sweep failure would leave the ghost steps this
+  // cleanup exists to prevent. Same pattern as InjectorService.deleteInjector.
+  @Transactional(rollbackFor = Exception.class)
   public void delete(String payloadId) {
     Payload payload =
         payloadRepository
@@ -590,10 +608,22 @@ public class PayloadService {
             .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
     // Payload deletion cascades at the DB level to its injector contract and then to the injects
     // (both FKs are ON DELETE CASCADE): de-index the doomed injects explicitly, no JPA lifecycle
-    // event fires for them.
+    // event fires for them. Chaining steps referencing that contract have no FK to cascade on
+    // (the contract is only a JSON snapshot in step_data), so inventory the doomed contract rows
+    // BEFORE the delete and sweep the orphaned step templates explicitly too. The inventory is
+    // grouped by tenant and each sweep stays scoped to its own tenant: today a payload backs at
+    // most one contract platform-wide (unique_injector_contract_payload), the grouping simply
+    // keeps this path correct if that 1:1 constraint is ever relaxed.
+    String tenantId = payload.getTenant().getId();
+    Map<String, List<String>> cascadeDeletedContractIdsPerTenant =
+        injectorContractService.findContractIdsByPayloadIdPerTenant(payloadId);
     List<String> cascadeDeletedInjectIds =
-        injectIndexCleanupService.injectIdsByPayloadId(payloadId, payload.getTenant().getId());
+        injectIndexCleanupService.injectIdsByPayloadId(payloadId, tenantId);
     payloadRepository.deleteById(payloadId);
     injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+    cascadeDeletedContractIdsPerTenant.forEach(
+        (contractTenantId, contractIds) ->
+            chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+                contractIds, contractTenantId));
   }
 }

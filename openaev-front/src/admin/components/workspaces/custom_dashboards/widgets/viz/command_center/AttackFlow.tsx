@@ -130,7 +130,15 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
   const totalPending = layers.reduce((acc, l) => acc + l.pending, 0);
   const total = Math.max(totalAttacks, 1);
 
-  const n = Math.max(layers.length, 1);
+  // Only draw gates for expectation types that actually have activity. A pillar
+  // with zero validations (no success, failure or pending) carries no signal, so
+  // rendering an empty "0 / 0%" gate just wastes horizontal space - drop it and
+  // let the remaining gates re-space evenly across the beam. (Totals, the score
+  // and the breach node are computed upstream from the full set, so hiding an
+  // all-zero gate here never changes any number.)
+  const visibleLayers = layers.filter(l => l.success + l.failed + l.pending > 0);
+
+  const n = Math.max(visibleLayers.length, 1);
   const gateX = (i: number) => GATES_START + ((GATES_END - GATES_START) * (i + 0.5)) / n;
   // Width of one gate column; labels are truncated to it so adjacent gate
   // labels (e.g. VULNERABILITY next to PREVENTION) can never overlap.
@@ -217,8 +225,8 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
           <animate attributeName="stroke-dashoffset" values="8;0" dur="0.8s" repeatCount="indefinite" />
         </path>
 
-        {/* DEFENSE GATES - one thin vertical gate per expectation type */}
-        {layers.map((layer, i) => {
+        {/* DEFENSE GATES - one thin vertical gate per expectation type WITH activity */}
+        {visibleLayers.map((layer, i) => {
           const x = gateX(i);
           const layerKey = layer.key.toUpperCase();
           const color = KNOWN_TYPES.has(layerKey)

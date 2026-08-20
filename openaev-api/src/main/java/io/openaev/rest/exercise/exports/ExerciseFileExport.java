@@ -133,6 +133,10 @@ public class ExerciseFileExport extends FileExportBase {
                           injectorContract -> {
                             if (injectorContract.getPayload() != null) {
                               allTags.addAll(injectorContract.getTags());
+                              injectorContract.getPayload().getOutputParsers().stream()
+                                  .flatMap(parser -> parser.getContractOutputElements().stream())
+                                  .flatMap(element -> element.getTags().stream())
+                                  .forEach(allTags::add);
                             }
                           });
                 });

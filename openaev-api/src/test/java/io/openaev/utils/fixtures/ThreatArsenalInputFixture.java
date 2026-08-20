@@ -1,7 +1,9 @@
 package io.openaev.utils.fixtures;
 
+import static io.openaev.utils.fixtures.payload_fixture.ContractOutputElementInputFixture.createDefaultContractOutputElementInputCredentials;
 import static io.openaev.utils.fixtures.payload_fixture.ContractOutputElementInputFixture.createDefaultContractOutputElementInputIPV6;
 import static io.openaev.utils.fixtures.payload_fixture.OutputParserInputFixture.createDefaultOutputParseInput;
+import static io.openaev.utils.fixtures.payload_fixture.RegexGroupInputFixture.createDefaultRegexGroupInputCredentials;
 import static io.openaev.utils.fixtures.payload_fixture.RegexGroupInputFixture.createDefaultRegexGroupInputIPV6;
 
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
@@ -29,6 +31,7 @@ public class ThreatArsenalInputFixture {
         new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
         PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
         new EXPECTATION_TYPE[] {},
+        Collections.emptyMap(),
         "This does something, maybe",
         "bash",
         "echo hello",
@@ -56,6 +59,7 @@ public class ThreatArsenalInputFixture {
         new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
         PAYLOAD_EXECUTION_ARCH.x86_64,
         new EXPECTATION_TYPE[] {},
+        Collections.emptyMap(),
         "Executable description",
         null,
         null,
@@ -90,9 +94,45 @@ public class ThreatArsenalInputFixture {
         new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
         PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
         new EXPECTATION_TYPE[] {},
+        Collections.emptyMap(),
         "This does something, maybe",
         "bash",
         "echo hello",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        Collections.emptyList(),
+        Collections.emptyList(),
+        null,
+        Set.of(outputParserInput),
+        domainIds);
+  }
+
+  public static ThreatArsenalActionCreateInput createCommandLineActionWithCredentialsOutputParser(
+      List<String> domainIds) {
+    RegexGroupInput regexGroupInput = createDefaultRegexGroupInputCredentials();
+    ContractOutputElementInput contractOutputElementInput =
+        createDefaultContractOutputElementInputCredentials();
+    contractOutputElementInput.setRegexGroups(Set.of(regexGroupInput));
+    OutputParserInput outputParserInput = createDefaultOutputParseInput();
+    outputParserInput.setContractOutputElements(Set.of(contractOutputElementInput));
+
+    return new ThreatArsenalActionCreateInput(
+        Command.COMMAND_TYPE,
+        "Hashcat crack action",
+        PAYLOAD_SOURCE.MANUAL,
+        PAYLOAD_STATUS.VERIFIED,
+        new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+        PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+        new EXPECTATION_TYPE[] {},
+        Collections.emptyMap(),
+        "Cracks a hash and emits a credentials finding",
+        "bash",
+        "hashcat -m 1000 hash.txt wordlist.txt",
         null,
         null,
         null,
@@ -117,6 +157,7 @@ public class ThreatArsenalInputFixture {
         new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
         PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
         new EXPECTATION_TYPE[] {},
+        Collections.emptyMap(),
         "This does something, maybe",
         "bash",
         "echo hello",
@@ -144,6 +185,7 @@ public class ThreatArsenalInputFixture {
         new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
         PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
         new EXPECTATION_TYPE[] {},
+        Collections.emptyMap(),
         "This does something, maybe",
         "bash",
         "echo hello",
@@ -177,6 +219,7 @@ public class ThreatArsenalInputFixture {
         new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
         PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
         new EXPECTATION_TYPE[] {},
+        Collections.emptyMap(),
         "This does something, maybe",
         "bash",
         "echo hello",

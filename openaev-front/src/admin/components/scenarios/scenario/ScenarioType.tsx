@@ -1,4 +1,4 @@
-import { AccountTreeOutlined, AutoAwesome, ScheduleOutlined } from '@mui/icons-material';
+import { AccountTreeOutlined, ScheduleOutlined } from '@mui/icons-material';
 import { Chip } from '@mui/material';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -7,12 +7,11 @@ import colorStyles from '../../../../components/Color';
 import { useFormatter } from '../../../../components/i18n';
 
 // Ids MUST match the backend ScenarioUtils engine-type values and the frontend ScenarioTypeFilter
-// options (Time-based / Chained / Autonomous).
+// options (Time-based / Chained). Autonomy is a launch-time MODE, not a scenario type.
 export const SCENARIO_TYPE_TIME_BASED = 'Time-based';
 export const SCENARIO_TYPE_CHAINED = 'Chained';
-export const SCENARIO_TYPE_AUTONOMOUS = 'Autonomous';
 
-export type ScenarioTypeValue = typeof SCENARIO_TYPE_TIME_BASED | typeof SCENARIO_TYPE_CHAINED | typeof SCENARIO_TYPE_AUTONOMOUS;
+export type ScenarioTypeValue = typeof SCENARIO_TYPE_TIME_BASED | typeof SCENARIO_TYPE_CHAINED;
 
 const useStyles = makeStyles()(() => ({
   chip: {
@@ -36,7 +35,6 @@ const useStyles = makeStyles()(() => ({
 // One color + icon per engine type, chosen to read at a glance:
 // - Time-based: a clock (classic scheduled scenario)
 // - Chained: a workflow tree (inject-chaining logic map)
-// - Autonomous: the AI sparkle in AI-purple, matching the Autonomous attack entry point
 const TYPE_STYLES: Record<ScenarioTypeValue, {
   color: CSSProperties;
   Icon: typeof ScheduleOutlined;
@@ -48,10 +46,6 @@ const TYPE_STYLES: Record<ScenarioTypeValue, {
   [SCENARIO_TYPE_CHAINED]: {
     color: colorStyles.green,
     Icon: AccountTreeOutlined,
-  },
-  [SCENARIO_TYPE_AUTONOMOUS]: {
-    color: colorStyles.purple,
-    Icon: AutoAwesome,
   },
 };
 

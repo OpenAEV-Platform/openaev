@@ -69,7 +69,7 @@ Then:
 |---|---|
 | `@AccessControl`, `@Filter`, `Capability`, native `@Query`, `Permission` | → **Security Reviewer** |
 | `@OneToMany`, `@ManyToMany`, `FetchType`, `findAll`, new endpoint returning `List<T>` | → **Performance Reviewer** |
-| `extends TenantBase`, `tenant_id`, `TenantContext`, migration with tenant column | → **Multi-Tenancy Reviewer** |
+| `extends TenantBase`, `tenant_id`, `TenantContext`, `TxCtx`, `active-tables`, `TenantScopedTransaction`, `RequireTenantSelector`, `can_access_tenant`, migration with tenant column | → **Multi-Tenancy Reviewer** |
 | Frontend files (`.tsx`, `.ts`, forms, components) | → **Frontend Reviewer** |
 | No tests, or coverage likely below threshold | → **Test Specialist** |
 

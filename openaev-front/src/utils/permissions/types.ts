@@ -13,23 +13,33 @@ export const SUBJECTS = {
   ASSESSMENT: 'ASSESSMENT', // Scenarios, Simulations and Atomic Testings
   TEAMS_AND_PLAYERS: 'TEAMS_AND_PLAYERS',
   ASSETS: 'ASSETS',
+  CREDENTIALS: 'CREDENTIALS',
   THREAT_ARSENALS: 'THREAT_ARSENALS',
   DASHBOARDS: 'DASHBOARDS',
   REPORTINGS: 'REPORTINGS',
   FINDINGS: 'FINDINGS',
   DOCUMENTS: 'DOCUMENTS',
   CHANNELS: 'CHANNELS',
+  PHISHING: 'PHISHING',
   CHALLENGES: 'CHALLENGES',
   LESSONS_LEARNED: 'LESSONS_LEARNED',
   SECURITY_PLATFORMS: 'SECURITY_PLATFORMS',
   PLATFORM_SETTINGS: 'PLATFORM_SETTINGS',
   TENANT_SETTINGS: 'TENANT_SETTINGS',
+  TENANT_USERS_GROUPS_AND_ROLES: 'TENANT_USERS_GROUPS_AND_ROLES',
   RESOURCE: 'RESOURCE',
+  TAGS: 'TAGS',
   TENANTS: 'TENANTS',
   PLATFORM_USERS_GROUPS_AND_ROLES: 'PLATFORM_USERS_GROUPS_AND_ROLES',
 } as const;
 
 export type Subjects = typeof SUBJECTS[keyof typeof SUBJECTS];
+
+/**
+ * Tooltip for an affordance kept visible but disabled for lack of permission. Reading rights hide
+ * a screen; create, update and delete rights only grey out their action.
+ */
+export const PERMISSION_REQUIRED = 'Permission required';
 
 export const INHERITED_CONTEXT = {
   SCENARIO: 'SCENARIO',

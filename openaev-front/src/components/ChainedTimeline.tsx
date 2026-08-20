@@ -632,7 +632,7 @@ const ChainedTimelineFlow: FunctionComponent<Props> = ({
             onClick={onPlaygroundClick}
             onMouseEnter={showGhost}
             onMouseLeave={hideGhost}
-            onReconnect={() => {}}
+            onReconnect={() => { }}
             // @ts-expect-error the xyflow signature is not well defined here
             onReconnectEnd={onReconnectEnd}
             edgesReconnectable={permissions.canManage}

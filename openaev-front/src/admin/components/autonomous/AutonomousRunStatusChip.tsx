@@ -35,7 +35,8 @@ const useStyles = makeStyles()(() => ({
 // purple accent.
 const STATUS_COLOR: Record<AutonomousRunStatus, keyof typeof colorStyles> = {
   CREATED: 'blue',
-  // Dry-run states use OCTI draft orange so a plan reads as "not executed yet" at a glance.
+  // Build states (the AI authoring the scenario's logic) use OCTI draft orange so not-yet-run
+  // logic reads as "not executed yet" at a glance.
   PLANNING: 'orange',
   PLANNED: 'orange',
   RUNNING: 'green',

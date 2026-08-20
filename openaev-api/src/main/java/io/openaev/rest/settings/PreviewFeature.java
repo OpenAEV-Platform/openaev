@@ -21,11 +21,6 @@ public enum PreviewFeature {
   LEGACY_INGESTION_EXECUTION_TRACE("LEGACY_INGESTION_EXECUTION_TRACE"),
   OPENAEV_TRIALS_XTMHUB("OPENAEV_TRIALS_XTMHUB"),
   CREDENTIAL_ASSET("CREDENTIAL_ASSET"),
-  INJECT_CHAINING("INJECT_CHAINING"),
-  ATTACK_PATH("ATTACK_PATH"),
-  // Autonomous, AI-driven attack path (AI penetration testing). Internally requires ATTACK_PATH +
-  // INJECT_CHAINING; once those ship enabled it becomes the single operator-visible gate.
-  AUTONOMOUS_ATTACK_PATH("AUTONOMOUS_ATTACK_PATH"),
   SIGNATURE_OUTPUT_PROCESSOR("SIGNATURE_OUTPUT_PROCESSOR");
 
   private final String value;

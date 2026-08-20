@@ -11,8 +11,13 @@ import { AbilityContext } from '../../../../../../utils/permissions/permissionsC
 type FlowProps = {
   focusRequest?: { nodeId: string };
   fitRequest?: number;
+  anchorRequest?: {
+    nodeId: string;
+    nonce: number;
+  } | null;
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
   onInjectorSelect?: (injectorId: string, label?: string) => void;
+  onFindingClusterClick?: (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow' | 'typeOverflow') => void;
 };
 
 // Capture the props AttackPathCanvas receives (mocked so the canvas is not instantiated), and stub
@@ -46,6 +51,7 @@ vi.mock('../../../../../../components/i18n', () => ({
   useFormatter: () => ({
     t: (s: string) => s,
     fldt: (d: string) => d,
+    cnsdt: (d: string) => d,
   }),
 }));
 
@@ -55,6 +61,11 @@ vi.mock('../../../../../../admin/components/simulations/simulation/attack_path/c
     return <div data-testid="attack-path-flow" />;
   },
 }));
+
+// The scope-drift hook reads the Redux store (workflow configuration + inventory) through
+// useAppDispatch/useHelper; these tests render without a store Provider, and the drift banner is
+// not what they exercise, so the hook is stubbed to "no drift".
+vi.mock('../../../../../../admin/components/chaining/useSnapshotUpdated', () => ({ default: () => [] }));
 
 vi.mock('react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof ReactRouter>();
@@ -232,15 +243,52 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     fireEvent.click(item);
 
     // Clicking the finding refocuses the map on its attack path (fit requested) and loads the
-    // endpoint's feed for detail.
+    // endpoint's feed, whose relations label the focused layout's injector edges.
     await waitFor(() => {
       // First page of the endpoint's feed; the edges come back whole regardless.
       expect(mocks.fetchEndpointRelations).toHaveBeenCalledWith('sim-1', 'host-x', 0, 50);
       expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(0);
     });
 
-    // The feed panel is titled with the endpoint's friendly hostname, not the raw key.
-    expect(await screen.findByText(/CORP-HOST/)).toBeTruthy();
+    // No side panel is forced open: the click is about the focused graph, and a panel would take back
+    // the width the focus just revealed. The graph stays rendered, the detail is one node click away.
+    expect(await screen.findByTestId('attack-path-flow')).toBeTruthy();
+    expect(screen.queryByText(/Executions/)).toBeNull();
+  });
+
+  it('holds the view on an expanded finding cluster instead of re-fitting the whole graph', async () => {
+    setup();
+    await screen.findByTestId('attack-path-flow');
+    // Both initial reads (the collapsed seed, then the causal overlay merged in) bump the fit nonce as
+    // part of the initial framing; settle them before measuring what the click alone does.
+    await waitFor(() => {
+      expect(mocks.fetchAttackPathGraph).toHaveBeenCalled();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const fitBefore = mocks.flowProps.current?.fitRequest ?? 0;
+
+    // Expanding reveals nodes and so grows the world. Without an anchor the canvas reads that growth
+    // as the graph changing shape and re-frames everything, dumping the user back at its entrance.
+    act(() => {
+      mocks.flowProps.current?.onFindingClusterClick?.('cl-type|file|host-x', 'file', undefined, 'host-x', 'header');
+    });
+
+    await waitFor(() => {
+      expect(mocks.flowProps.current?.anchorRequest?.nodeId).toBe('cl-type|file|host-x');
+    });
+    // Anchoring is not fitting: the whole-graph fit must NOT have been requested.
+    expect(mocks.flowProps.current?.fitRequest ?? 0).toBe(fitBefore);
+
+    // Collapsing the same cluster removes nodes, where re-fitting IS the readable behaviour.
+    act(() => {
+      mocks.flowProps.current?.onFindingClusterClick?.('cl-type|file|host-x', 'file', undefined, 'host-x', 'header');
+    });
+    await waitFor(() => {
+      expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(fitBefore);
+    });
   });
 
   it('opens the result & terminal panel for a clicked execution and focuses its endpoint on the map', async () => {
@@ -338,19 +386,31 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     setup();
     await screen.findByTestId('attack-path-flow');
 
+    // Open the endpoint's panel first (plain node click), so the row click below also proves a focus
+    // request CLOSES a panel left open — not merely that it does not open one.
+    await act(async () => {
+      mocks.flowProps.current?.onEndpointClick?.(ENDPOINT_NODE, 'host-x', 'CORP-HOST');
+    });
+    expect(await screen.findByText(/Executions/)).toBeTruthy();
+
     // Toggle to the table view; the graph is replaced by the sortable endpoint table.
     fireEvent.click(screen.getByRole('button', { name: 'Table' }));
 
     // The single exposed endpoint (score 1) is listed with its friendly hostname and total findings,
-    // and the CSV export action is available.
-    expect(await screen.findByText('CORP-HOST')).toBeTruthy();
+    // and the CSV export action is available. The hostname appears twice on purpose here: the table
+    // cell AND the still-open panel's title — the td is the row under test.
+    const rowCell = (await screen.findAllByText('CORP-HOST')).find(el => el.tagName === 'TD');
+    expect(rowCell).toBeTruthy();
     expect(screen.getByRole('button', { name: /Export CSV/ })).toBeTruthy();
 
-    // Clicking the row opens that endpoint's detail panel inline (its Executions section) and stays
-    // in the table view — a row click must not silently swap the whole view back to the graph.
-    fireEvent.click(screen.getByText('CORP-HOST'));
-    expect(await screen.findByText(/Executions/)).toBeTruthy();
-    expect(screen.queryByTestId('attack-path-flow')).toBeNull();
+    // Clicking the row focuses the graph on that endpoint's own causal path (same as a chokepoint card
+    // or a search pick): the table is a way IN to an endpoint, so it lands on the focused graph rather
+    // than leaving the analyst on the list — and without the side panel over it: the previously open
+    // panel closes rather than lingering (stale) over the freshly focused, full-width graph.
+    fireEvent.click(rowCell as HTMLElement);
+    expect(await screen.findByTestId('attack-path-flow')).toBeTruthy();
+    expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(0);
+    expect(screen.queryByText(/Executions/)).toBeNull();
   });
 });
 

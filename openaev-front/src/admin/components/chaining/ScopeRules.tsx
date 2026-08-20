@@ -1,4 +1,13 @@
-import { BlockOutlined, DnsOutlined, EditOutlined, GroupsOutlined, InfoOutlined, PersonOutlined, PublicOutlined, TaskAltOutlined } from '@mui/icons-material';
+import {
+  BlockOutlined,
+  DnsOutlined,
+  EditOutlined,
+  GroupsOutlined,
+  InfoOutlined,
+  PersonOutlined,
+  PublicOutlined,
+  TaskAltOutlined,
+} from '@mui/icons-material';
 import { Box, Button, Chip, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
@@ -30,8 +39,10 @@ const OS_PLATFORM_CATEGORIES = new Set<AssetCategory>(['HOST', 'MOBILE_DEVICE'])
 type ScopeMode = 'ALLOWLIST' | 'DENYLIST';
 
 interface ScopeRulesProps {
+  workflowId: string;
   workflowConfiguration: WorkflowConfigurationOutput | undefined;
   onUpdate: (overrides: Partial<WorkflowConfigurationInput>) => void;
+  readOnly?: boolean;
 }
 
 // Visual grouping of scope entries by kind, so a scope with many entries reads as a scannable set of
@@ -82,9 +93,10 @@ interface ScopeColumnProps {
   rules: WorkflowScopeRuleOutput[];
   resolveLabel: (rule: WorkflowScopeRuleOutput) => string;
   /** Per-entry glyph (asset platform / category, team, person, ...) so a chip reads like it does
-   *  everywhere else in the app rather than a bare label. */
+     *  everywhere else in the app rather than a bare label. */
   resolveIcon: (rule: WorkflowScopeRuleOutput) => ReactElement;
   onAdd: () => void;
+  readOnly?: boolean;
   /** Semantic accent - green for the allow-list, red for the deny-list - for instant scanning. */
   accent: string;
   headerIcon: ReactElement;
@@ -94,7 +106,16 @@ interface ScopeColumnProps {
 
 // Each list (allow / deny) is a self-contained card: a colored top strip for instant semantic
 // scanning, a header with its typed icon + count + Add affordance, and a grouped, chip-based body.
-const ScopeColumn = ({ title, rules, resolveLabel, resolveIcon, onAdd, accent, headerIcon, infoTooltip }: ScopeColumnProps) => {
+const ScopeColumn = ({
+  title,
+  rules,
+  resolveLabel,
+  resolveIcon,
+  onAdd,
+  readOnly = false, accent,
+  headerIcon,
+  infoTooltip,
+}: ScopeColumnProps) => {
   // Standard hooks
   const { t } = useFormatter();
   const theme = useTheme();
@@ -161,7 +182,7 @@ const ScopeColumn = ({ title, rules, resolveLabel, resolveIcon, onAdd, accent, h
           )}
         </Box>
 
-        <Button size="small" startIcon={<EditOutlined />} onClick={onAdd}>
+        <Button size="small" startIcon={<EditOutlined />} onClick={onAdd} disabled={readOnly}>
           {t('Define')}
         </Button>
       </Box>
@@ -212,7 +233,7 @@ const ScopeColumn = ({ title, rules, resolveLabel, resolveIcon, onAdd, accent, h
                           {resolveIcon(rule)}
                         </Box>
                       )}
-                      label={label}
+                      label={rule.workflow_scope_rule_snapshot_start_label ?? label}
                       size="small"
                       variant="outlined"
                       sx={{
@@ -243,7 +264,7 @@ const ScopeColumn = ({ title, rules, resolveLabel, resolveIcon, onAdd, accent, h
           <Typography variant="body2" sx={{ color: 'text.disabled' }}>
             {t('Nothing added yet.')}
           </Typography>
-          <Button size="small" startIcon={<EditOutlined />} onClick={onAdd}>
+          <Button size="small" startIcon={<EditOutlined />} onClick={onAdd} disabled={readOnly}>
             {t('Define')}
           </Button>
         </Box>
@@ -252,7 +273,7 @@ const ScopeColumn = ({ title, rules, resolveLabel, resolveIcon, onAdd, accent, h
   );
 };
 
-const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
+const ScopeRules = ({ workflowId, workflowConfiguration, onUpdate, readOnly = false }: ScopeRulesProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -273,6 +294,7 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
   const [initialCustomRules, setInitialCustomRules] = useState<ScopeCustomRule[]>([]);
 
   const handleOpenDrawer = (mode: ScopeMode) => {
+    if (readOnly) return;
     setDrawerMode(mode);
 
     // Pre-populate with existing rules for the given mode
@@ -393,10 +415,10 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
   );
 
   // Live-first, snapshot-fallback resolution. The live inventory lookup keeps the label in sync with
-  // renames; when the referenced asset / group has been deleted the backend-persisted snapshot
-  // (workflow_scope_rule_value_label) keeps a past simulation's scope readable. Only when neither is
-  // available (a pre-migration rule whose asset was already gone) do we show a generic "Deleted"
-  // message rather than the raw id or a permanent "Loading...".
+  // renames; when the referenced asset / group / team / player has been deleted the backend-persisted
+  // snapshot (workflow_scope_rule_value_label) keeps a past simulation's scope readable. Only when
+  // neither is available (a pre-migration rule whose target was already gone) do we show a generic
+  // "Deleted" message rather than the raw id or a permanent "Loading...".
   const resolveLabel = (rule: WorkflowScopeRuleOutput): string => {
     const value = rule.workflow_scope_rule_value ?? '';
     const snapshotLabel = rule.workflow_scope_rule_value_label ?? undefined;
@@ -413,11 +435,11 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
       }
       case 'TEAM': {
         const team = teamsMap[value];
-        return team?.team_name ?? unresolvedLabel;
+        return team?.team_name ?? snapshotLabel ?? t('Deleted team');
       }
       case 'PLAYER': {
         const user = usersMap[value];
-        if (!user) return unresolvedLabel;
+        if (!user) return snapshotLabel ?? t('Deleted person');
         const name = `${user.user_firstname ?? ''} ${user.user_lastname ?? ''}`.trim();
         return name.length > 0 ? name : (user.user_email ?? unresolvedLabel);
       }
@@ -466,6 +488,7 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
         resolveLabel={resolveLabel}
         resolveIcon={resolveIcon}
         onAdd={() => handleOpenDrawer('ALLOWLIST')}
+        readOnly={readOnly}
         accent={theme.palette.success.main}
         headerIcon={<TaskAltOutlined fontSize="small" />}
       />
@@ -476,6 +499,7 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
         resolveLabel={resolveLabel}
         resolveIcon={resolveIcon}
         onAdd={() => handleOpenDrawer('DENYLIST')}
+        readOnly={readOnly}
         accent={theme.palette.error.main}
         headerIcon={<BlockOutlined fontSize="small" />}
         infoTooltip={t('Entries in the deny list always take priority over those in the allow list.')}
@@ -487,6 +511,7 @@ const ScopeRules = ({ workflowConfiguration, onUpdate }: ScopeRulesProps) => {
         title={drawerTitle}
       >
         <ScopeForm
+          workflowId={workflowId}
           mode={drawerMode}
           selectedEndpointIds={selectedEndpointIds}
           selectedAssetGroupIds={selectedAssetGroupIds}

@@ -253,7 +253,9 @@ public class WorkflowStateService {
       // leaf condition, because it may contribute to the overall event satisfaction together
       // with other values. The full AND/OR evaluation happens at step execution time.
       List<String> matchingValues =
-          values.stream().filter(val -> matchesAnyRootCondition(val, rootConditions)).toList();
+          values.stream()
+              .filter(val -> matchesAnyRootCondition(val, keyTypeName, rootConditions))
+              .toList();
       if (!matchingValues.isEmpty()) {
         valuesToPropagate.put(keyTypeName, matchingValues);
       }
@@ -302,21 +304,23 @@ public class WorkflowStateService {
         .filter(
             tuple ->
                 tuple.getValues().stream()
-                    .anyMatch(pair -> matchesAnyRootCondition(pair.value(), rootConditions)))
+                    .anyMatch(
+                        pair -> matchesAnyRootCondition(pair.value(), pair.key(), rootConditions)))
         .toList();
   }
 
   /**
-   * Returns {@code true} if the given value satisfies at least one leaf condition within any of the
-   * provided root conditions.
+   * Returns {@code true} if the given value satisfies at least one same-key-type leaf condition
+   * within any of the provided root conditions.
    *
    * <p>This is the shared eligibility check for both primitive-value and correlated-tuple
    * propagation. AND/OR group semantics are intentionally ignored here. Full evaluation happens at
    * step execution time.
    */
-  private boolean matchesAnyRootCondition(String value, List<Condition> rootConditions) {
+  private boolean matchesAnyRootCondition(
+      String value, String keyTypeName, List<Condition> rootConditions) {
     return rootConditions.stream()
-        .anyMatch(root -> conditionUtils.matchesAnyLeafCondition(value, root));
+        .anyMatch(root -> conditionUtils.matchesAnyLeafCondition(value, root, keyTypeName));
   }
 
   /**

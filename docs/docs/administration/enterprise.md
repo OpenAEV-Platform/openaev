@@ -4,20 +4,20 @@
 
 ## What is OpenAEV EE?
 
-OpenAEV Enterprise Edition is based on the open core concept. This means that the source code of OBAS EE remains open
+OpenAEV Enterprise Edition (EE) is based on the open core concept. This means that the source code of OpenAEV EE remains open
 source and included in the main GitHub repository of the platform but is published under a specific license. As
 specified in the GitHub license file:
 
-- The OpenAEV Community Edition is licensed under the Apache License, Version 2.0 (the “Apache License”).
-- The OpenAEV Enterprise Edition is licensed under the OpenAEV Enterprise Edition License (the “Enterprise Edition
-  License”).
+- The OpenAEV Community Edition is licensed under the Apache License, Version 2.0 (the "Apache License").
+- The OpenAEV Enterprise Edition is licensed under the OpenAEV Enterprise Edition License (the "Enterprise Edition
+  License").
 
 The source files in this repository have a header indicating which license they are under. If no such header is
 provided, this means that the file belongs to the Community Edition under the Apache License, Version 2.0.
 
-## EE Activation
+## EE activation
 
-Enterprise edition is easy to activate. You need to go the platform settings and click on the "Manage your Enterprise
+Enterprise Edition is easy to activate. You need to go the platform settings and click on the "Manage your Enterprise
 Edition License" button.
 
 ![OpenAEV activation](assets/enterprise-activate.png)
@@ -30,9 +30,9 @@ can [generate a trial license](https://filigran.io/enterprise-editions-trial/).
 As a reminder:
 
 - Filigran is the only company producing and providing OpenAEV Enterprise Edition license keys.
-- Filigran can provide free-to-use OpenAEV Enterprise Edition licenses for development and research purposes (e.g. connector development, integrations with technical partners, etc...) as well as for non-governmental charity organizations.
+- Filigran can provide free-to-use OpenAEV Enterprise Edition licenses for development and research purposes (e.g. connector development, integrations with technical partners, etc.) as well as for non-governmental charity organizations.
 - OpenAEV Enterprise Edition licenses are automatically provided to all Filigran SaaS customers.
-- **For all other usages including On-Premise deployments, OpenAEV Enterprise Edition is reserved to organizations that have signed a Filigran Enterprise agreement.**
+- **For all other usages including on-premise deployments, OpenAEV Enterprise Edition is reserved to organizations that have signed a Filigran Enterprise agreement.**
 
 ## Available features
 
@@ -40,44 +40,51 @@ As a reminder:
 
 Be able to use AI for content generation including emails, media pressure articles etc.
 
-### CrowdStrike Falcon Agent
+### CrowdStrike Falcon agent
 
-The CrowdStrike Falcon Agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
-according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture)
-
-### Tanium Agent
-
-The Tanium Agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
-according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture)
-
-### SentinelOne Agent
-
-The SentinelOne Agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
-according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture)
-
-### Palo Alto Cortex Agent
-
-The Palo Alto Cortex Agent can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
+The CrowdStrike Falcon agent can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
 
-On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the process that will execute the threat arsenal actions.
+### Tanium agent
 
-### Microsoft Defender for Endpoint (MDE) Agent
-
-Microsoft Defender for Endpoint can be leveraged to execute implants as detached processes that will then execute threat arsenal actions
+The Tanium agent can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
 according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
 
-OpenAEV reuses the MDE sensor already deployed on your endpoints and drives it through the Live Response API. On Windows, the implant is launched from a self-deleting SYSTEM scheduled task so it survives the Live Response session teardown. See the [MDE executor deployment guide](../deployment/ecosystem/executors.md#mde-agent) for the required Azure app permissions and Live Response setup.
+### SentinelOne agent
 
-## Remediations in CVES
+The SentinelOne agent can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
+according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
 
-More detail: [CVES](taxonomies.md) and [Findings view](../usage/findings.md)
-.
+### Palo Alto Cortex agent
 
-## Detection Remediation in Threat Arsenal Actions and Injects
+The Palo Alto Cortex agent can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
+according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
 
-More detail: [Detection remediations in threat arsenal actions](../usage/threat-arsenals/threat-arsenals.md)
-and [Atomic testing remediations](../usage/atomic.md).
+On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the process that will execute the Threat Arsenal Actions.
+
+### Microsoft Defender for Endpoint (MDE) agent
+
+Microsoft Defender for Endpoint can be leveraged to execute implants as detached processes that will then execute Threat Arsenal Actions
+according to the [OpenAEV architecture](../deployment/platform/overview.md#architecture).
+
+OpenAEV reuses the MDE sensor already deployed on your endpoints and drives it through the Live Response API. On Windows, the implant is launched from a self-deleting SYSTEM scheduled task so it survives the Live Response session teardown. See the [MDE Executor deployment guide](../deployment/ecosystem/executors.md#mde-agent) for the required Azure app permissions and Live Response setup.
+
+### Inject chaining workflows
+
+Inject chaining orchestrates conditional, automated execution of injects within a scenario or simulation workflow. Creating or importing a chaining scenario or simulation requires an active Enterprise Edition license: without one, the platform rejects the operation with a license restriction error.
+
+!!! note
+
+    Inject chaining requires an active Enterprise Edition license.
+
+## Remediations in CVEs
+
+More detail: [CVEs](taxonomies.md) and [Findings view](../usage/evaluate/findings/findings.md).
+
+## Detection remediation in Threat Arsenal Actions and Injects
+
+More detail: [Detection remediations in Threat Arsenal Actions](../usage/build/threat-arsenals/action-properties.md#detection-remediation-properties)
+and [Atomic testing remediations](../usage/evaluate/atomic-testing/atomic-testing.md).
 
 ## More to come
 

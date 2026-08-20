@@ -2,6 +2,7 @@ package io.openaev.integration.migration;
 
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.Tenant;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -37,7 +38,7 @@ public abstract class ConfigurationMigration {
   // commit (instance saved without the migrated marker) would re-arm the migration and
   // reintroduce restart-time re-seeding.
   @Transactional(rollbackFor = Exception.class)
-  public void migrate() throws Exception {
+  public void migrate(String tenantId) throws Exception {
     Optional<CatalogConnector> connectorOptional =
         catalogConnectorService.findByFactoryClassName(factoryClassName);
 
@@ -76,6 +77,9 @@ public abstract class ConfigurationMigration {
     log.info("Migrating config for {}", configuration);
     ConnectorInstancePersisted instance = new ConnectorInstancePersisted();
     instance.setCatalogConnector(connector);
+    // Explicit write attribution for v2 activation
+    // tenantId here is the Manager's own tenant - always a single, unambiguous owner.
+    instance.setTenant(new Tenant(tenantId));
 
     instance.setCurrentStatus(ConnectorInstancePersisted.CURRENT_STATUS_TYPE.stopped);
     instance.setRequestedStatus(ConnectorInstancePersisted.REQUESTED_STATUS_TYPE.starting);

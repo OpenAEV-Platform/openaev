@@ -1,4 +1,5 @@
 import {
+  AutoAwesome,
   CancelOutlined,
   ComputerOutlined,
   EmojiEventsOutlined,
@@ -15,7 +16,17 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
+import {
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  IconButton,
+  Tooltip,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -25,10 +36,17 @@ import type { WorkflowConfigurationHelper } from '../../../../actions/chaining/w
 import { fetchExerciseChallenges } from '../../../../actions/challenge-action';
 import { fetchExerciseArticles } from '../../../../actions/channels/article-action';
 import { type ArticlesHelper } from '../../../../actions/channels/article-helper';
-import { dismissExerciseExpectationsDrift, fetchExerciseExpectationsDrift, fetchExerciseTeams, realignExerciseExpectations, searchExerciseHealthchecks, updateExerciseStatus } from '../../../../actions/Exercise';
+import {
+  dismissExerciseExpectationsDrift,
+  fetchExerciseExpectationsDrift,
+  fetchExerciseTeams,
+  realignExerciseExpectations,
+  searchExerciseHealthchecks,
+  updateExerciseStatus,
+} from '../../../../actions/Exercise';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
 import { type ChallengeHelper } from '../../../../actions/helper';
-import { fetchExerciseInjectsSimple } from '../../../../actions/Inject';
+import { fetchExerciseInjectsSimple, reconcileExerciseInjects } from '../../../../actions/Inject';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
 import { fetchScenario } from '../../../../actions/scenarios/scenario-actions';
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
@@ -41,31 +59,48 @@ import ItemCategory from '../../../../components/ItemCategory';
 import ItemSeverity from '../../../../components/ItemSeverity';
 import { SCENARIO_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
-import { type Article, type Challenge, type Exercise, type Exercise as ExerciseType, type ExpectationsDriftOutput, type HealthCheck, type Inject, type SimulationDetails, type Team } from '../../../../utils/api-types';
+import {
+  type Article,
+  type Challenge,
+  type Exercise,
+  type Exercise as ExerciseType,
+  type ExpectationsDriftOutput,
+  type HealthCheck,
+  type Inject,
+  type SimulationDetails,
+  type Team,
+} from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { truncate } from '../../../../utils/String';
-import { isFeatureEnabled } from '../../../../utils/utils';
 import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
+import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
-import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
+import {
+  CONTEXTUAL_ENTITY_WIDGET_IDS,
+  contextualResultsUrl,
+} from '../../workspaces/custom_dashboards/results/contextualWidgets';
 import ExerciseDatePopover from './ExerciseDatePopover';
 import ExercisePopover, { type ExerciseActionPopover } from './ExercisePopover';
 import ExerciseStatus from './ExerciseStatus';
+import SecurityPlatformIndicator from './SecurityPlatformIndicator';
 import SimulationConfiguration from './SimulationConfiguration';
 
-const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing }: {
+// Exported for testing: the lifecycle CTAs are pure props-driven UI, so they are covered on their
+// own rather than through the whole (store/router-bound) header.
+export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoading, isScopeMissing, isChaining }: {
   exerciseId: Exercise['exercise_id'];
   exerciseStatus: Exercise['exercise_status'];
   exerciseName: Exercise['exercise_name'];
   onLoading: (loading: boolean) => void;
   isLoading: boolean;
   isScopeMissing: boolean;
+  isChaining: boolean;
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -78,6 +113,14 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
     onLoading(true);
     try {
       await dispatch(updateExerciseStatus(exerciseId, { exercise_status: status.exercise_status ?? undefined }));
+      // Stop (CANCELED) and Reset (SCHEDULED) both delete injects server-side
+      // (a chained simulation drops its run injects, a reset always clears the
+      // outcome). The merge-only entity store never evicts on refetch, so
+      // reconcile it explicitly or the Execution screens keep showing the
+      // deleted injects as completed until a full page reload.
+      if (status.exercise_status === 'CANCELED' || status.exercise_status === 'SCHEDULED') {
+        await dispatch(reconcileExerciseInjects(exerciseId));
+      }
     } finally {
       onLoading(false);
     }
@@ -108,7 +151,11 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
         return (<div />);
       }
       case 'RUNNING': {
-        if (permissions.canLaunch) {
+        // Chaining does not support pausing (the queue-based engine has no pause semantics), so
+        // the CTA simply does not exist for a chained simulation - the backend refuses it too.
+        // Resume ('PAUSED' below) stays available so a simulation already paused in database can
+        // still be resumed. Stop remains offered by dangerousButton().
+        if (permissions.canLaunch && !isChaining) {
           return (
             <Button
               startIcon={<PauseOutlined />}
@@ -197,8 +244,10 @@ const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, isLoadin
         return `${t('Injects will be paused, do you want to continue?')}`;
       case 'SCHEDULED':
         return `${exerciseName} ${t('data will be reset, do you want to restart?')}`;
+      // Stopping keeps everything that ran - only Reset clears it - so this must not borrow the
+      // reset wording, which had users expecting their results to be wiped by a stop.
       case 'CANCELED':
-        return `${exerciseName} ${t('data will be reset, do you want to restart?')}`;
+        return `${exerciseName} ${t('will be stopped, collected results are kept. Do you want to continue?')}`;
       default:
         return 'Do you want to change the status of this simulation?';
     }
@@ -240,7 +289,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   isLoading: boolean;
   // Present when this simulation is an autonomous (AI-driven) run. The simulation view is then
   // observe-only: all manual scope / scheduling / configuration controls AND the run lifecycle
-  // controls are hidden. Full control (pause / resume / stop / restart / steer) lives on the parent
+  // controls are hidden. Full control (pause / resume / stop / steer) lives on the parent
   // scenario, reached via the "Parent scenario" button; here operators only follow the run live.
   autonomousRun?: AutonomousRun | null;
 }) => {
@@ -253,7 +302,13 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   const dispatch = useAppDispatch();
 
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
-  const { exercise, challenges, injects, teams, articles } = useHelper((helper: ExercisesHelper & ChallengeHelper & InjectHelper & TeamsHelper & ArticlesHelper) => {
+  const {
+    exercise,
+    challenges,
+    injects,
+    teams,
+    articles,
+  } = useHelper((helper: ExercisesHelper & ChallengeHelper & InjectHelper & TeamsHelper & ArticlesHelper) => {
     return {
       exercise: helper.getExercise(exerciseId) as SimulationDetails,
       challenges: helper.getExerciseChallenges(exerciseId) as Challenge[],
@@ -282,7 +337,10 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   // stats: which assets and asset groups the simulation actually targets.
   useDataLoader(() => {
     dispatch(fetchExerciseChallenges(exerciseId));
-    dispatch(fetchExerciseInjectsSimple(exerciseId));
+    // Reconcile (not just fetch): injects can be deleted server-side out of band - deleting a
+    // phishing landing page cascade-deletes the injects built on its contract - and the
+    // merge-only store would otherwise keep counting the ghosts in the hero until a full reload.
+    dispatch(reconcileExerciseInjects(exerciseId, fetchExerciseInjectsSimple));
     dispatch(fetchExerciseTeams(exerciseId));
     dispatch(fetchExerciseArticles(exerciseId));
     // Resolve the parent scenario name for the hero pivot button (it is not embedded in the
@@ -293,9 +351,8 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   });
   const hasChallenges = challenges.length > 0;
 
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
   const exerciseWorkflowId = exercise.exercise_workflow_id as string | undefined;
-  const isSimulationChaining = isChainingFeatureEnabled && !!exerciseWorkflowId;
+  const isSimulationChaining = !!exerciseWorkflowId;
 
   const { workflowConfiguration } = useHelper(
     (helper: WorkflowConfigurationHelper) => ({
@@ -310,8 +367,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   const [openConfiguration, setOpenConfiguration] = useState(false);
   const [openDateDialog, setOpenDateDialog] = useState(false);
 
-  const isScopeMissing = isSimulationChaining
-    && healthchecks.some((hc: HealthCheck) => hc.type === ('SCOPE_DEFINITION' as HealthCheck['type']) && hc.detail === 'EMPTY');
+  const isScopeMissing = isSimulationChaining && isScopeLaunchBlocked(healthchecks);
 
   useEffect(() => {
     searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
@@ -328,7 +384,8 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
       .then((result: { data: ExpectationsDriftOutput }) => {
         if (!stale) setExpectationsDrift(result.data);
       })
-      .catch(() => {});
+      .catch(() => {
+      });
     return () => {
       stale = true;
     };
@@ -356,6 +413,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   } else if (isSimulationChaining) {
     actions = ['Update', 'Export', 'Delete'];
   }
+  const canDisplaySimulationActions = permissions.canManage || permissions.canLaunch || permissions.canDelete;
 
   // Headline stats surfaced right in the hero so they are visible on every
   // tab. The hero adapts to how the simulation is actually built: injects are
@@ -400,10 +458,33 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
           title={truncate(exercise.exercise_name, 80) ?? ''}
           chips={(
             <>
+              {/* Durable Normal/Autonomous marker: read from the simulation's own exercise_autonomous
+                  flag, so the badge stays even after the autonomous run row is torn down (observe-only
+                  either way - control lives on the parent scenario). */}
+              {exercise.exercise_autonomous && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  icon={<AutoAwesome sx={{ fontSize: 14 }} />}
+                  label={t('Autonomous')}
+                  sx={{
+                    'borderRadius': 1,
+                    'height': 22,
+                    'fontSize': 11,
+                    'color': theme.palette.ai?.main ?? theme.palette.primary.main,
+                    'borderColor': theme.palette.ai?.main ?? theme.palette.primary.main,
+                    '& .MuiChip-icon': { color: 'inherit' },
+                  }}
+                />
+              )}
               <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
               <ItemSeverity severity={exercise.exercise_severity} label={t(exercise.exercise_severity ?? 'Unknown')} />
               {exercise.exercise_category && (
-                <ItemCategory category={exercise.exercise_category} label={t(exercise.exercise_category)} size="small" />
+                <ItemCategory
+                  category={exercise.exercise_category}
+                  label={t(exercise.exercise_category)}
+                  size="small"
+                />
               )}
               <Chip
                 size="small"
@@ -421,6 +502,13 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
           )}
           action={(
             <>
+              {/* "Collector(s) present" indicator - self-hides when no
+                  connector-managed security platform exists. For a launched chained simulation it
+                  shows the platforms frozen at execution time (ADR-006), not the live tenant set. */}
+              <SecurityPlatformIndicator
+                workflowId={exerciseWorkflowId}
+                launched={exercise.exercise_status !== 'SCHEDULED'}
+              />
               {/* Contextual configuration alert - self-hides when healthy. Autonomous runs are
                   scoped and driven by the AI, so the "configure scope" nudge never applies. */}
               {permissions.canManage && !isAutonomous && (
@@ -440,7 +528,9 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   overflow) so teams/players setup is discoverable, with an
                   explicit tooltip describing what it configures. */}
               {permissions.canManage && !isSimulationChaining && (
-                <Tooltip title={t('Configure the teams, players and audience involved in this simulation')}>
+                <Tooltip
+                  title={t('Configure the teams, players and audience involved in this simulation')}
+                >
                   <Button
                     variant="outlined"
                     color="primary"
@@ -509,12 +599,14 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   onLoading={onLoading}
                   isLoading={isLoading}
                   isScopeMissing={isScopeMissing}
+                  isChaining={isSimulationChaining}
                 />
               )}
               {/* Unified parent-scenario pivot: whenever a simulation was run from a scenario (manual
                   or autonomous), the top-right hero action is an outlined button carrying the scenario
                   name. For autonomous runs the parent scenario is also where the full control surface
-                  (pause / resume / stop / restart / steer) lives. */}
+                  (pause / resume / stop / steer) lives; once stopped, relaunch happens from the
+                  scenario's Normal / Autonomous launch buttons - there is no restart. */}
               {parentScenarioId && (
                 <Tooltip title={parentScenario?.scenario_name ?? t('Parent scenario')}>
                   <span style={{ display: 'inline-flex' }}>
@@ -550,11 +642,13 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 entityName={exercise.exercise_name}
               />
               {/* CRUD actions in one overflow menu. */}
-              <ExercisePopover
-                exercise={exercise}
-                actions={actions}
-                onDelete={() => navigate('/admin/simulations')}
-              />
+              {canDisplaySimulationActions && (
+                <ExercisePopover
+                  exercise={exercise}
+                  actions={actions}
+                  onDelete={() => navigate('/admin/simulations')}
+                />
+              )}
             </>
           )}
           stats={(

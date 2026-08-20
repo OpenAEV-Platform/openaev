@@ -26,6 +26,8 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
+import io.openaev.rest.payload.contract_output_element.ContractOutputElementInput;
+import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
@@ -36,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
@@ -85,6 +88,13 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     domainComposer.reset();
     detectionRemediationComposer.reset();
     securityPlatformComposer.reset();
+    // The write endpoints resolve a single write tenant from the request scope (injectors /
+    // connector_instances v2 activation). The mock user from @WithMockUser has no tenant
+    // membership row, so without this grant the resolved scope is empty and tenantForWrite
+    // refuses the write with a 400. Skipped for tests that manage their own users.
+    if (testUserHolder.isSet()) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
   }
 
   @BeforeAll
@@ -179,6 +189,64 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Creating an action with omitted tag and attack pattern id lists should succeed")
+    void given_nullTagAndAttackPatternIds_should_createPayloadWithInjectorContract()
+        throws Exception {
+      // Regression test: the action -> payload input conversion goes through
+      // BeanUtils.copyProperties, which copies the action DTO's null id collections over the
+      // payload input's empty-list defaults. The nulls used to reach Spring Data's findAllById,
+      // which throws IllegalArgumentException ("Ids must not be null"), surfacing as an HTTP 400
+      // on every creation where action_tags / action_attack_patterns were omitted (the AI
+      // orchestrator hit this on threat arsenal action creation).
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput input =
+          new ThreatArsenalActionCreateInput(
+              Command.COMMAND_TYPE,
+              "Command line payload without associations",
+              Payload.PAYLOAD_SOURCE.MANUAL,
+              Payload.PAYLOAD_STATUS.VERIFIED,
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+              Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+              new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
+              null,
+              "bash",
+              "echo hello",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null, // action_tags omitted from the JSON payload
+              null, // action_attack_patterns omitted from the JSON payload
+              null,
+              null,
+              List.of(domain.getId()));
+
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String payloadId = JsonPath.read(response, "$.action_payload.payload_id");
+      Payload payload = payloadRepository.findById(payloadId).orElse(null);
+      assertNotNull(payload);
+      InjectorContract contract =
+          injectorContractRepository.findInjectorContractByPayload(payload).orElse(null);
+      assertNotNull(contract);
+      assertTrue(contract.getAttackPatterns().isEmpty());
+      assertTrue(contract.getTags().isEmpty());
+    }
+
+    @Test
     @DisplayName("Creating an action with null arch should fail")
     void given_nullArch_should_returnBadRequest() throws Exception {
       Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
@@ -191,6 +259,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
               null,
               new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
               null,
               "bash",
               "echo hello",
@@ -228,6 +297,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
               Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
               new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
               null,
               null,
               null,
@@ -275,7 +345,145 @@ public class ThreatArsenalApiTest extends IntegrationTest {
       Payload payload = payloadRepository.findById(payloadId).orElse(null);
       assertNotNull(payload);
       assertEquals(1, payload.getOutputParsers().size());
-      ;
+    }
+
+    @Test
+    @DisplayName("Creating an action with output_parser_type=credentials should return 400 not 500")
+    void given_outputParserTypeCredentials_should_returnBadRequest() throws Exception {
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput input =
+          ThreatArsenalInputFixture.createCommandLineActionWithOutputParser(
+              List.of(domain.getId()));
+      String json =
+          asJsonString(input)
+              .replace(
+                  "\"output_parser_type\":\"REGEX\"", "\"output_parser_type\":\"credentials\"");
+
+      mvc.perform(
+              post(THREAT_ARSENAL_URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(json)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message", containsString("output_parser_type must be REGEX")));
+    }
+
+    @Test
+    @DisplayName("Creating an action with an unknown output_parser_mode should return 400 not 500")
+    void given_unknownOutputParserMode_should_returnBadRequest() throws Exception {
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput input =
+          ThreatArsenalInputFixture.createCommandLineActionWithOutputParser(
+              List.of(domain.getId()));
+      String json =
+          asJsonString(input)
+              .replace("\"output_parser_mode\":\"STDOUT\"", "\"output_parser_mode\":\"pipe\"");
+
+      mvc.perform(
+              post(THREAT_ARSENAL_URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(json)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest())
+          .andExpect(
+              jsonPath(
+                  "$.message",
+                  containsString("output_parser_mode must be STDOUT, STDERR, or READ_FILE")));
+    }
+
+    @Test
+    @DisplayName(
+        "Creating an action carrying a credentials output parser should succeed and persist the"
+            + " credentials finding element")
+    void given_credentialsOutputParser_should_createPayloadWithCredentialsFinding()
+        throws Exception {
+      // credentials is a valid ContractOutputType on the contract output element; the parser type
+      // stays REGEX. A well-formed request must succeed and yield a finding-flagged credentials
+      // element (the AI orchestrator forks crack actions this way).
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput input =
+          ThreatArsenalInputFixture.createCommandLineActionWithCredentialsOutputParser(
+              List.of(domain.getId()));
+
+      String response =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String payloadId = JsonPath.read(response, "$.action_payload.payload_id");
+      Payload payload = payloadRepository.findById(payloadId).orElse(null);
+      assertNotNull(payload);
+      assertEquals(1, payload.getOutputParsers().size());
+      OutputParser outputParser = payload.getOutputParsers().iterator().next();
+      assertEquals(ParserType.REGEX, outputParser.getType());
+      Set<ContractOutputElement> elements = outputParser.getContractOutputElements();
+      assertEquals(1, elements.size());
+      ContractOutputElement credentialsElement = elements.iterator().next();
+      assertEquals(ContractOutputType.Credentials, credentialsElement.getType());
+      assertTrue(
+          credentialsElement.isFinding(),
+          "the credentials contract output element must be flagged as a finding");
+    }
+
+    @Test
+    @DisplayName(
+        "Creating an action with a malformed output parser (blank contract output element rule)"
+            + " should return 400, not 500")
+    void given_outputParserWithBlankRule_should_returnBadRequest() throws Exception {
+      // Regression: a contract output element with no rule slipped past validation (nested
+      // output-parser inputs were not @Valid-cascaded) and reached StringUtils.isValidRegex(null),
+      // which threw a raw NullPointerException surfaced as a 500.
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+
+      ContractOutputElementInput malformedElement = new ContractOutputElementInput();
+      malformedElement.setFinding(true);
+      malformedElement.setName("creds");
+      malformedElement.setKey("creds");
+      malformedElement.setType(ContractOutputType.Credentials);
+      malformedElement.setRule(null);
+      OutputParserInput malformedParser = new OutputParserInput();
+      malformedParser.setMode(ParserMode.STDOUT);
+      malformedParser.setType(ParserType.REGEX);
+      malformedParser.setContractOutputElements(Set.of(malformedElement));
+
+      ThreatArsenalActionCreateInput input =
+          new ThreatArsenalActionCreateInput(
+              Command.COMMAND_TYPE,
+              "Command line payload with malformed parser",
+              Payload.PAYLOAD_SOURCE.MANUAL,
+              Payload.PAYLOAD_STATUS.VERIFIED,
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+              Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+              new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
+              null,
+              "bash",
+              "echo hello",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              Collections.emptyList(),
+              Collections.emptyList(),
+              null,
+              Set.of(malformedParser),
+              List.of(domain.getId()));
+
+      mvc.perform(
+              post(THREAT_ARSENAL_URI)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().is4xxClientError());
     }
 
     @Test
@@ -292,6 +500,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
               Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
               new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
               "This does something, maybe",
               "bash",
               "echo hello",
@@ -350,6 +559,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
               Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
               new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
               "This does something, maybe",
               "bash",
               "echo hello",
@@ -550,7 +760,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given action_domains not_eq with AND and two values should return no result for search and domain counts")
+        "given action_domains not_eq with AND and two values should return no result for search and"
+            + " domain counts")
     void given_actionDomainsNotEqAndWithTwoValues_should_returnNoResultForSearchAndDomainCounts()
         throws Exception {
       // Arrange
@@ -602,7 +813,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given action_domains not_eq with AND and one value should keep contracts from other domains")
+        "given action_domains not_eq with AND and one value should keep contracts from other"
+            + " domains")
     void given_actionDomainsNotEqAndWithOneValue_should_keepOtherDomains() throws Exception {
       // Arrange
       SearchPaginationInput input =
@@ -783,6 +995,97 @@ public class ThreatArsenalApiTest extends IntegrationTest {
           "Contracts without a payload should not contribute to status facet counts");
     }
 
+    @Test
+    @DisplayName(
+        "given a providing (findings) filter the search must not fail with a SELECT DISTINCT /"
+            + " ORDER BY SQL error")
+    void given_providingFilter_should_returnOkAndNotFailWithDistinctOrderBy() throws Exception {
+      // A providing filter (injector_contract_providing) forces query.distinct(true).
+      // Combined with the default composite-id sort, whose ORDER BY expands to
+      // (injector_contract_id, tenant_id), and a projection that lists only
+      // injector_contract_id, PostgreSQL rejected the query with "for SELECT
+      // DISTINCT, ORDER BY expressions must appear in select list" (HTTP 500).
+      // This is the error the AI orchestrator hit on every findings-scoped arsenal
+      // review during scenario generation.
+      SearchPaginationInput input = buildProvidingFilterSearchInput();
+
+      mvc.perform(
+              post(THREAT_ARSENAL_URI + "/search")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+
+      // The non-tabletop variant shares the same criteria-builder code path.
+      mvc.perform(
+              post(THREAT_ARSENAL_URI + "/search/non-tabletop")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName(
+        "given a providing filter a contract linked to two injectors must appear exactly once")
+    void given_providingFilterAndMultiInjectorContract_should_returnOneRowPerContract()
+        throws Exception {
+      // Regression: the threat arsenal projection used to GROUP BY the unselected injector
+      // join id, so a contract linked to several injectors (the model enforces they share
+      // the same type) produced one identical projected row per link. The redundant SELECT
+      // DISTINCT hid that duplication until it was removed to fix the findings-scoped 500,
+      // letting such contracts appear several times while the count query (countDistinct on
+      // the root) still reported them once.
+      Injector injectorA =
+          InjectorFixture.createInjector(
+              UUID.randomUUID().toString(), "multi-link-injector-a", "multi-link-injector-type");
+      Injector injectorB =
+          InjectorFixture.createInjector(
+              UUID.randomUUID().toString(), "multi-link-injector-b", "multi-link-injector-type");
+
+      Payload commandWithParser = PayloadFixture.createDefaultCommand();
+      commandWithParser.setOutputParsers(Set.of(OutputParserFixture.getDefaultOutputParser()));
+
+      InjectorContractComposer.Composer contractComposer =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withPayload(payloadComposer.forPayload(commandWithParser))
+              .withInjector(injectorA);
+      // withInjector replaces existing links: add the second same-type injector directly.
+      contractComposer.get().addInjector(injectorB);
+      contractComposer.persist();
+      String contractId = contractComposer.get().getId();
+
+      String response = searchWith(buildProvidingFilterSearchInput());
+
+      List<String> returnedIds = JsonPath.read(response, "$.content[*].injector_contract_id");
+      assertEquals(
+          1,
+          returnedIds.stream().filter(contractId::equals).count(),
+          "a contract linked to two injectors must appear exactly once in the page content");
+      int totalElements = JsonPath.read(response, "$.totalElements");
+      assertEquals(
+          returnedIds.size(),
+          totalElements,
+          "page content must agree with the distinct contract count");
+    }
+
+    private SearchPaginationInput buildProvidingFilterSearchInput() {
+      Filters.Filter filter = new Filters.Filter();
+      filter.setKey("injector_contract_providing");
+      filter.setOperator(Filters.FilterOperator.not_empty);
+      filter.setMode(Filters.FilterMode.and);
+      filter.setValues(new ArrayList<>());
+
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.and);
+      filterGroup.setFilters(new ArrayList<>(List.of(filter)));
+
+      SearchPaginationInput input = PaginationFixture.getDefault().build();
+      input.setFilterGroup(filterGroup);
+      return input;
+    }
+
     private String searchWith(SearchPaginationInput input) throws Exception {
       return mvc.perform(
               post(THREAT_ARSENAL_URI + "/search")
@@ -942,7 +1245,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Searching non-tabletop threat arsenal with domain filter should return only matching non-tabletop contracts")
+        "Searching non-tabletop threat arsenal with domain filter should return only matching"
+            + " non-tabletop contracts")
     void given_nonTabletopSearchWithDomainFilter_should_returnFilteredResults() throws Exception {
       // Arrange
       SearchPaginationInput input =
@@ -978,7 +1282,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Searching non-tabletop threat arsenal with tag filter should return only matching non-tabletop contracts")
+        "Searching non-tabletop threat arsenal with tag filter should return only matching"
+            + " non-tabletop contracts")
     void given_nonTabletopSearchWithTagFilter_should_returnFilteredResults() throws Exception {
       // Arrange
       SearchPaginationInput input =
@@ -1140,6 +1445,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               "echo updated",
               Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
               new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
               null,
               null,
               null,
@@ -1182,6 +1488,168 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Updating a payload-based action without execution arch should return a clean 400")
+    void given_missingExecutionArch_should_returnBadRequest() throws Exception {
+      // A payload-based update requires action_execution_arch. A missing value is a caller
+      // mistake, so the API must answer a clean 400 (with an actionable message the agent can
+      // self-correct on), never a 500 / raw IllegalArgumentException.
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput createInput =
+          ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId()));
+
+      String createResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(createInput)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String actionId = JsonPath.read(createResponse, "$.injector_contract_id");
+
+      ThreatArsenalActionUpdateInput updateInput =
+          new ThreatArsenalActionUpdateInput(
+              "Updated name",
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Windows},
+              "Updated description",
+              "powershell",
+              "echo updated",
+              null, // action_execution_arch missing
+              new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              Collections.emptyList(),
+              Collections.emptyList(),
+              null,
+              null,
+              List.of(domain.getId()));
+
+      mvc.perform(
+              put(THREAT_ARSENAL_URI + "/" + actionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(updateInput)))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Updating a payload-based action without expectations should return a clean 400")
+    void given_missingExpectations_should_returnBadRequest() throws Exception {
+      // Same contract as the execution-arch case: a payload-based update requires
+      // action_expectations, and a missing value must map to a clean 400 the agent can correct.
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput createInput =
+          ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId()));
+
+      String createResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(createInput)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String actionId = JsonPath.read(createResponse, "$.injector_contract_id");
+
+      ThreatArsenalActionUpdateInput updateInput =
+          new ThreatArsenalActionUpdateInput(
+              "Updated name",
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Windows},
+              "Updated description",
+              "powershell",
+              "echo updated",
+              Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+              null, // action_expectations missing
+              Collections.emptyMap(),
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              Collections.emptyList(),
+              Collections.emptyList(),
+              null,
+              null,
+              List.of(domain.getId()));
+
+      mvc.perform(
+              put(THREAT_ARSENAL_URI + "/" + actionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(updateInput)))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Updating an action with omitted tag and attack pattern id lists should succeed")
+    void given_nullTagAndAttackPatternIds_should_updatePayloadWithInjectorContract()
+        throws Exception {
+      // Regression test: same null id collection issue as creation - the action -> payload
+      // update conversion copies the action DTO's nullable id lists onto the payload update
+      // input, and the nulls used to reach findAllById ("Ids must not be null", HTTP 400).
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      ThreatArsenalActionCreateInput createInput =
+          ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId()));
+
+      String createResponse =
+          mvc.perform(
+                  post(THREAT_ARSENAL_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(createInput)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String actionId = JsonPath.read(createResponse, "$.injector_contract_id");
+
+      ThreatArsenalActionUpdateInput updateInput =
+          new ThreatArsenalActionUpdateInput(
+              "Updated without associations",
+              new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
+              null,
+              "bash",
+              "echo updated",
+              Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
+              new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null, // action_tags omitted from the JSON payload
+              null, // action_attack_patterns omitted from the JSON payload
+              null,
+              null,
+              List.of(domain.getId()));
+
+      mvc.perform(
+              put(THREAT_ARSENAL_URI + "/" + actionId)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(updateInput)))
+          .andExpect(status().is2xxSuccessful());
+    }
+
+    @Test
     @DisplayName(
         "Updating a non-payload injector contract should only work with tags domains and TTP")
     void given_nonPayloadContract_should_onlyUpdateDomainTagAndTTP() throws Exception {
@@ -1210,6 +1678,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               "echo fail",
               Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
               new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
               null,
               null,
               null,
@@ -1279,6 +1748,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               "echo hello",
               null,
               new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
               null,
               null,
               null,
@@ -1365,8 +1835,9 @@ public class ThreatArsenalApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Duplicating a non-payload injector contract should fail with NOT FOUND")
-    void given_nonPayloadContract_should_returnNotFound() throws Exception {
+    @DisplayName(
+        "Duplicating a non-payload injector contract should fail with BAD REQUEST, not NOT FOUND")
+    void given_nonPayloadContract_should_returnBadRequestExplainingReuse() throws Exception {
       // Arrange
       InjectorContract nonPayloadContract =
           injectorContractComposer
@@ -1376,12 +1847,18 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      // Act & Assert
+      // Act & Assert - 404 used to look like a missing id; agents then invented
+      // weaker original Commands instead of reusing the native injector as-is.
+      // BadRequestException renders as an ErrorMessage payload, so pin the
+      // assertions on its "message" field rather than on the raw body.
       mvc.perform(
               post(THREAT_ARSENAL_URI + "/" + nonPayloadContract.getId() + "/duplicate")
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON))
-          .andExpect(status().isNotFound());
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message", containsString("native injector")))
+          .andExpect(jsonPath("$.message", containsString("cannot be duplicated")))
+          .andExpect(jsonPath("$.message", containsString("injector contract id")));
     }
 
     @Test
@@ -1436,6 +1913,7 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               "echo original-updated",
               Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES,
               new BaseInjectExpectation.EXPECTATION_TYPE[] {},
+              Collections.emptyMap(),
               null,
               null,
               null,
@@ -1558,12 +2036,14 @@ public class ThreatArsenalApiTest extends IntegrationTest {
               content()
                   .string(
                       containsString(
-                          "Only payload-based threat arsenal items can provide security platforms for action remediation.")));
+                          "Only payload-based threat arsenal items can provide security platforms"
+                              + " for action remediation.")));
     }
 
     @Test
     @DisplayName(
-        "Getting security platforms for a payload-based action should return the associated security platforms")
+        "Getting security platforms for a payload-based action should return the associated"
+            + " security platforms")
     void given_payloadContract_should_returnSecurityPlatformsForActionRemediation()
         throws Exception {
       // Arrange

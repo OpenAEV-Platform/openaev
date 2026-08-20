@@ -128,6 +128,17 @@ public class ExecutionTrace implements Base {
         null, ExecutionTraceStatus.EXECUTED, identifiers, message, category, null, null);
   }
 
+  public static ExecutionTrace getNewWarningTrace(String message, ExecutionTraceAction action) {
+    return new ExecutionTrace(
+        null, ExecutionTraceStatus.WARNING, null, message, action, null, null);
+  }
+
+  public static ExecutionTrace getNewWarningTrace(
+      String message, ExecutionTraceAction action, List<String> identifiers) {
+    return new ExecutionTrace(
+        null, ExecutionTraceStatus.WARNING, identifiers, message, action, null, null);
+  }
+
   public static ExecutionTrace getNewInfoTrace(String message, ExecutionTraceAction action) {
     return new ExecutionTrace(null, ExecutionTraceStatus.INFO, null, message, action, null, null);
   }

@@ -1,6 +1,7 @@
 import { Close, InfoOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Chip, IconButton, Paper, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, IconButton, Link, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
+import { useState } from 'react';
 
 import FindingIcon from '../../../../../components/FindingIcon';
 import { useFormatter } from '../../../../../components/i18n';
@@ -8,6 +9,7 @@ import LogicNodeTooltip from '../../../chaining/logic/chaining_flow/NodeTooltip'
 import graphTooltipSlotProps from '../../../chaining/logic/logic-graph/graphTooltipSlotProps';
 import expectationIconByType from '../../../common/ExpectationIconByType';
 import InjectFormSection from '../../../common/injects/form/InjectFormSection';
+import { ExecutionRowStatusBadge } from './ExecutionStatusBadge';
 
 export interface ProducingAction {
   ref: string;
@@ -15,6 +17,12 @@ export interface ProducingAction {
   statusColor: string;
   statusLabel: string;
   subtitle: string;
+  // Straight off the graph row, so the run-status badge renders on first paint (see
+  // ExecutionRowStatusBadge). Absent on a row the graph could not resolve — it then falls back to
+  // fetching, as it always did.
+  injectId?: string;
+  payloadId?: string;
+  executionStatus?: string;
 }
 
 export type ExpectationVerdict = 'success' | 'failed' | 'unknown';
@@ -29,8 +37,11 @@ interface Props {
   // Masked, display-ready finding value (secrets already hidden by the caller).
   value: string;
   type: string;
+  simulationId: string;
   endpointLabel: string;
   endpointSub?: string;
+  // Endpoint hostname, used to resolve this execution's own target when reading its run status.
+  endpointName?: string;
   // Prevention / detection / vulnerability verdicts for this finding (backend-provided).
   expectations?: FindingExpectations;
   actions: ProducingAction[];
@@ -44,15 +55,34 @@ interface Props {
 
 const EXPECTATION_ORDER: (keyof FindingExpectations)[] = ['prevention', 'detection', 'vulnerability'];
 
+// An output-only value can be a whole command output (an Nmap XML report is several KB), which pushed
+// everything else in the panel — the type chip, the endpoint, the producing actions — kilometres below
+// the fold. Clamp the value to a few lines and let it be expanded on demand. Short values (the common
+// case: a port, a share, a hash) stay untouched and get no toggle.
+const VALUE_CLAMP_LINES = 3;
+const VALUE_CLAMP_CHARS = 180;
+
 // Right-side panel describing one finding picked in the attack-path graph: its prevention/detection/
 // vulnerability verdicts, what it is, on which endpoint it was found, and which action(s) produced it.
 // Selecting a producing action opens the Result & Terminal panel next to it, so the finding, its path
 // (highlighted on the map) and the raw execution result can all be inspected at once. All values are
 // rendered as inert text (secrets are masked upstream); nothing here is injected as HTML.
-const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectations, actions, activeRef, isFinding = true, onSelect, onClose }: Props) => {
+const FindingDetailPanel = ({
+  value, type, simulationId, endpointLabel, endpointSub, endpointName,
+  expectations, actions, activeRef, isFinding = true, onSelect, onClose,
+}: Props) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const isOutputOnly = isFinding === false;
+  const [valueExpanded, setValueExpanded] = useState(false);
+  // The panel stays mounted while the user hops from one finding to the next: re-collapse whenever a
+  // DIFFERENT value comes in, so a long value never opens pre-expanded by the previous one's toggle.
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    setValueExpanded(false);
+  }
+  const isValueLong = value.length > VALUE_CLAMP_CHARS;
 
   // Colour a verdict per its expectation type: a successful prevention is green, a successful
   // detection is orange, a failed verdict is red, and an unknown one is muted.
@@ -83,6 +113,43 @@ const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectati
     return t('Result: not evaluated - no matching control result was reported for this finding.');
   };
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  // The value, clamped unless expanded. Rendered in the header row when there is no verdict badge row
+  // to hold it, and just under those badges otherwise — one definition for both.
+  const valueBlock = (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography
+        variant="h5"
+        sx={{
+          wordBreak: 'break-all',
+          margin: 0,
+          ...(isValueLong && !valueExpanded
+            ? {
+                display: '-webkit-box',
+                WebkitBoxOrient: 'vertical',
+                WebkitLineClamp: VALUE_CLAMP_LINES,
+                overflow: 'hidden',
+              }
+            : {}),
+        }}
+        title={value}
+      >
+        {value}
+      </Typography>
+      {isValueLong && (
+        <Link
+          component="button"
+          type="button"
+          variant="caption"
+          underline="hover"
+          onClick={() => setValueExpanded(expanded => !expanded)}
+          sx={{ mt: 0.25 }}
+        >
+          {valueExpanded ? t('Show less') : t('Show more')}
+        </Link>
+      )}
+    </Box>
+  );
 
   return (
     <Paper
@@ -167,36 +234,13 @@ const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectati
                     })}
                   </Box>
                 )
-              : (
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      wordBreak: 'break-all',
-                      margin: 0,
-                    }}
-                    title={value}
-                  >
-                    {value}
-                  </Typography>
-                )}
+              : valueBlock}
           </Box>
           <IconButton size="small" aria-label={t('Close')} onClick={onClose} sx={{ flexShrink: 0 }}>
             <Close fontSize="small" />
           </IconButton>
         </Box>
-        {expectations && (
-          <Typography
-            variant="h5"
-            sx={{
-              wordBreak: 'break-all',
-              margin: 0,
-              mt: 1,
-            }}
-            title={value}
-          >
-            {value}
-          </Typography>
-        )}
+        {expectations && <Box sx={{ mt: 1 }}>{valueBlock}</Box>}
         <Chip
           size="small"
           variant="outlined"
@@ -303,13 +347,35 @@ const FindingDetailPanel = ({ value, type, endpointLabel, endpointSub, expectati
                     {a.subtitle}
                   </Typography>
                 </Box>
+                {/* Whether this action actually RAN (issue 244) — the verdict pill next to it only says
+                    whether it was caught, so a timeout and a clean-but-undetected run read the same.
+                    Same badge and same fixed-width slot as the endpoint panel's execution list, so both
+                    lists line up and agree. It resolves from its own fetches and renders nothing until
+                    then, hence the pill beside it appearing first. */}
+                <Box sx={{
+                  flexShrink: 0,
+                  width: 92,
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                }}
+                >
+                  <ExecutionRowStatusBadge
+                    simulationId={simulationId}
+                    executionRef={a.ref}
+                    endpointName={endpointName}
+                    injectId={a.injectId}
+                    payloadId={a.payloadId}
+                    executionStatus={a.executionStatus}
+                  />
+                </Box>
                 {/* Verdict pill in the shared StatusPill visual language, from the caller-resolved colour. */}
                 <Box
                   component="span"
                   sx={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    paddingInline: 1,
+                    justifyContent: 'center',
+                    width: 104,
                     paddingBlock: 0.25,
                     borderRadius: 1,
                     backgroundColor: alpha(a.statusColor, 0.08),

@@ -8,9 +8,13 @@ import { type LessonsTemplateCategory } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import LessonsTemplateCategoryForm, { type LessonsTemplateCategoryInputForm } from './LessonsTemplateCategoryForm';
 
-interface Props { lessonsTemplateId: string }
+interface Props {
+  lessonsTemplateId: string;
+  /** Optional explicit button label (defaults to the generic "Create"). */
+  label?: string;
+}
 
-const CreateLessonsTemplateCategory: FunctionComponent<Props> = ({ lessonsTemplateId }) => {
+const CreateLessonsTemplateCategory: FunctionComponent<Props> = ({ lessonsTemplateId, label }) => {
   // Standard hooks
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
@@ -33,7 +37,7 @@ const CreateLessonsTemplateCategory: FunctionComponent<Props> = ({ lessonsTempla
   };
   return (
     <>
-      <ButtonCreate onClick={handleOpen} />
+      <ButtonCreate onClick={handleOpen} label={label} />
       <Drawer
         open={open}
         handleClose={handleClose}

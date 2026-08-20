@@ -9,11 +9,12 @@ import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
 import io.openaev.service.DataPackService;
-import io.openaev.service.RoleService;
+import io.openaev.service.TenantRoleService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -23,7 +24,7 @@ public class V20260330_Default_tenant_data extends DataPack {
 
   private final VulnerabilityRepository vulnerabilityRepository;
   private final CweRepository cweRepository;
-  private final RoleService roleService;
+  private final TenantRoleService tenantRoleService;
   private final GroupRepository groupRepository;
   private final UserRepository userRepository;
   @PersistenceContext private EntityManager entityManager;
@@ -32,13 +33,13 @@ public class V20260330_Default_tenant_data extends DataPack {
       DataPackService dataPackService,
       VulnerabilityRepository vulnerabilityRepository,
       CweRepository cweRepository,
-      RoleService roleService,
+      TenantRoleService tenantRoleService,
       GroupRepository groupRepository,
       UserRepository userRepository) {
     super(dataPackService);
     this.cweRepository = cweRepository;
     this.vulnerabilityRepository = vulnerabilityRepository;
-    this.roleService = roleService;
+    this.tenantRoleService = tenantRoleService;
     this.groupRepository = groupRepository;
     this.userRepository = userRepository;
   }
@@ -60,7 +61,13 @@ public class V20260330_Default_tenant_data extends DataPack {
         // tenant created
         PresetTenantData.DEFAULT_ROLES.forEach(
             (roleName, capabilities) -> {
-              Role role = roleService.createRole(roleName, roleName, capabilities);
+              Role role =
+                  tenantRoleService.createRoleInternal(
+                      UUID.randomUUID().toString(),
+                      roleName,
+                      roleName,
+                      capabilities,
+                      TenantContext.getCurrentTenant());
               Group group = new Group();
               group.setName(roleName);
               group.setDescription(roleName);

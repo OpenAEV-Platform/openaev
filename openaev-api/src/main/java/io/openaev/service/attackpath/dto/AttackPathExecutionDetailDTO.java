@@ -27,6 +27,10 @@ public record AttackPathExecutionDetailDTO(
     String preventionStatus,
     String detectionStatus,
     String vulnerabilityStatus,
+    // Whether the inject actually RAN (EXECUTED / ERROR / PENDING…), as opposed to whether it was
+    // caught, which the three statuses above carry. Resolved from the inject this row's step points
+    // at, so the drawer renders it on open instead of fetching the inject's status itself.
+    String executionStatus,
     String executedAt,
     List<AttackPathExecutionFindingItemDTO> findings,
     // the security platforms that acted (prevention/detection), resolved live from the inject's

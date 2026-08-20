@@ -78,10 +78,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * instead, per the activate-tenant-table runbook.
  */
 @TestPropertySource(
-    properties = {
-      "openaev.enabled-dev-features=INJECT_CHAINING,ATTACK_PATH",
-      "openaev.tenant.active-tables=attackpath_execution,attackpath_finding"
-    })
+    properties = {"openaev.tenant.active-tables=attackpath_execution,attackpath_finding"})
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path Phase A: the create attributes rows to the inject's tenant")
 class AttackPathIngestionTenantAttributionTest extends IntegrationTest {

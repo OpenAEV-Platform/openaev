@@ -1688,8 +1688,20 @@ public class InjectExpectationService {
   /**
    * Merges expectation results by expectation type, keeping one expectation per type.
    *
-   * <p>Results from collector sources are not copied to the merged expectation. The score is set to
-   * the maximum score among all results.
+   * <p>Display-only: when several expectations share a type (e.g. the three phishing steps, all
+   * MANUAL), the merge is built on a DETACHED clone of the first expectation. The inputs are
+   * managed entities on an open session, so mutating them here would flush the merged results and
+   * score back to the database on commit - every read of a results page would then re-append the
+   * sibling rows' results into the elected row (unbounded JSONB growth, requests eventually
+   * exceeding the connection-leak threshold and exhausting the pool) and overwrite its persisted
+   * score.
+   *
+   * <p>Collector-source results of the SIBLING expectations are not copied onto the merged clone;
+   * the elected expectation's own results (collector ones included) are kept as-is. The merged
+   * score is the worst (minimum) score among the answered same-type expectations: a target
+   * validates a type only if every expectation of that type validated it, so e.g. one compromised
+   * phishing step keeps the merged human-response verdict red even when the other steps were
+   * resisted.
    *
    * @param expectations the list of expectations to merge
    * @return a list with one expectation per type containing merged results
@@ -1698,37 +1710,40 @@ public class InjectExpectationService {
       List<? extends BaseInjectExpectation> expectations) {
     List<String> notCopiedSourceTypes = List.of(COLLECTOR);
 
-    HashMap<BaseInjectExpectation.EXPECTATION_TYPE, BaseInjectExpectation> electedExpectations =
-        new HashMap<>();
+    Map<BaseInjectExpectation.EXPECTATION_TYPE, List<BaseInjectExpectation>> byType =
+        new LinkedHashMap<>();
     for (BaseInjectExpectation expectation : expectations) {
-      if (!electedExpectations.containsKey(expectation.getType())) {
-        electedExpectations.put(expectation.getType(), expectation);
+      byType.computeIfAbsent(expectation.getType(), k -> new ArrayList<>()).add(expectation);
+    }
+
+    List<BaseInjectExpectation> merged = new ArrayList<>(byType.size());
+    for (List<BaseInjectExpectation> sameType : byType.values()) {
+      BaseInjectExpectation elected = sameType.get(0);
+      if (sameType.size() == 1) {
+        merged.add(elected);
         continue;
       }
-
-      for (InjectExpectationResult expectationResult : expectation.getResults()) {
-        if (!notCopiedSourceTypes.contains(expectationResult.getSourceType())
-            && expectationResult.getResult() != null
-            && expectationResult.getScore() != null) {
-          electedExpectations
-              .get(expectation.getType())
-              .setResults(
-                  Stream.concat(
-                          electedExpectations.get(expectation.getType()).getResults().stream(),
-                          Stream.of(expectationResult))
-                      .toList());
-          electedExpectations
-              .get(expectation.getType())
-              .setScore(
-                  electedExpectations.get(expectation.getType()).getResults().stream()
-                      .map(InjectExpectationResult::getScore)
-                      .filter(Objects::nonNull)
-                      .max(Double::compareTo)
-                      .orElse(null));
+      BaseInjectExpectation clone = elected.clone();
+      List<InjectExpectationResult> combinedResults = new ArrayList<>(elected.getResults());
+      for (BaseInjectExpectation other : sameType.subList(1, sameType.size())) {
+        for (InjectExpectationResult expectationResult : other.getResults()) {
+          if (!notCopiedSourceTypes.contains(expectationResult.getSourceType())
+              && expectationResult.getResult() != null
+              && expectationResult.getScore() != null) {
+            combinedResults.add(expectationResult);
+          }
         }
       }
+      clone.setResults(combinedResults);
+      clone.setScore(
+          sameType.stream()
+              .map(BaseInjectExpectation::getScore)
+              .filter(Objects::nonNull)
+              .min(Double::compareTo)
+              .orElse(null));
+      merged.add(clone);
     }
-    return electedExpectations.values().stream().toList();
+    return merged;
   }
 
   /**

@@ -18,12 +18,14 @@ interface Props {
   group: ConditionGroup;
   onUpdate: (updated: ConditionGroup) => void;
   onDelete?: () => void;
+  readOnly?: boolean;
 }
 
 const ConditionGroupBuilder: FunctionComponent<Props> = ({
   group,
   onUpdate,
   onDelete,
+  readOnly = false,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -88,11 +90,13 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
           <LogicalOperatorSelect
             value={group.operator}
             onChange={handleOperatorChange}
+            readOnly={readOnly}
           />
           {onDelete && (
             <Button
               size="small"
               color="error"
+              disabled={readOnly}
               startIcon={<DeleteOutline fontSize="small" />}
               onClick={onDelete}
               sx={{ ml: 1 }}
@@ -104,6 +108,7 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
         <Button
           size="small"
           color="primary"
+          disabled={readOnly}
           startIcon={<AddOutlined fontSize="small" />}
           onClick={handleAddCondition}
         >
@@ -126,7 +131,7 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
             }}
           >
             {group.conditions.map((condition, index) => (
-              <Draggable key={condition.id} draggableId={condition.id} index={index}>
+              <Draggable key={condition.id} draggableId={condition.id} index={index} isDragDisabled={readOnly}>
                 {(providedDrag, snapshotDrag) => (
                   <Box
                     ref={providedDrag.innerRef}
@@ -142,6 +147,7 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
                       onUpdate={updated => handleUpdateCondition(index, updated)}
                       onDelete={() => handleDeleteCondition(index)}
                       canDelete={group.conditions.length > 1}
+                      readOnly={readOnly}
                     />
                   </Box>
                 )}
@@ -159,6 +165,7 @@ const ConditionGroupBuilder: FunctionComponent<Props> = ({
           group={subGroup}
           onUpdate={updated => handleUpdateSubGroup(index, updated)}
           onDelete={() => handleDeleteSubGroup(index)}
+          readOnly={readOnly}
         />
       ))}
 

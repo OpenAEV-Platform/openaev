@@ -73,7 +73,7 @@ For controllers that don't manage entities (e.g. static endpoints, utility APIs,
 
 - **Skip Steps 1 & 2** (no Fixture/Composer needed)
 - **Reuse constants** from the controller via package-private static imports — never duplicate string literals
-- **Test public endpoints** without `@WithMockUser` when `@RBAC(skipRBAC = true)` is present
+- **Test public endpoints** without `@WithMockUser` when `@AccessControl(skipRBAC = true)` is present
 - **Test HTTP-level concerns**: status code, content-type, response body, custom headers, cache-control
 
 ```java
@@ -104,7 +104,7 @@ class {Feature}ApiTest extends IntegrationTest {
 **Key rules for lightweight tests:**
 - Constants must be `static final` (package-private) in the controller, imported via `static import` in the test
 - Group tests by endpoint using `@Nested` + `@DisplayName`
-- Always test both authenticated and unauthenticated access when `@RBAC(skipRBAC = true)`
+- Always test both authenticated and unauthenticated access when `@AccessControl(skipRBAC = true)`
 - Test HTTP headers (Cache-Control, custom headers) when the controller sets them explicitly
 
 ### Step 5 — (Optional) Create Unit Test

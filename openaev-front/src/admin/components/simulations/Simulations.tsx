@@ -1,4 +1,4 @@
-import { Box, ToggleButtonGroup } from '@mui/material';
+import { Alert, Box, ToggleButtonGroup } from '@mui/material';
 import { useContext, useState } from 'react';
 
 import { bulkDeleteExercises, searchExercises } from '../../../actions/Exercise';
@@ -13,8 +13,6 @@ import { type ExerciseSimple, type SearchPaginationInput } from '../../../utils/
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
-import AutonomousAttackCreation from '../autonomous/AutonomousAttackCreation';
 import useAutonomousRunsIndex from '../autonomous/useAutonomousRunsIndex';
 import ToolBar from '../common/ToolBar';
 import ImportUploaderExercise from './ImportUploaderExercise';
@@ -28,7 +26,7 @@ const Simulations = () => {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [exercises, setExercises] = useState<ExerciseSimple[]>([]);
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  const [reloadCount, setReloadCount] = useState<number>(0);
   // Index of the tenant's autonomous runs so each row's popover can mirror the simulation cockpit:
   // an AI-driven simulation is observe-only, so its overflow exposes only a read-only Export
   // (deletion tears the run down and is a parent-scenario control).
@@ -66,7 +64,7 @@ const Simulations = () => {
   };
 
   const secondaryAction = (exercise: ExerciseSimple) => {
-    const isChaining = isChainingFeatureEnabled && !!(exercise as unknown as Record<string, unknown>).exercise_workflow_id;
+    const isChaining = !!(exercise as unknown as Record<string, unknown>).exercise_workflow_id;
     const isAutonomous = !!autonomousRuns.bySimulation(exercise.exercise_id);
 
     let exerciseActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = ['Duplicate', 'Export', 'Delete'];
@@ -106,6 +104,18 @@ const Simulations = () => {
     numberOfSelectedElements,
   } = entityToggle;
 
+  // In select-all mode only the current page is loaded client-side, so the status of
+  // simulations on other pages is unknown: warn conservatively in that case.
+  const mayDeleteActiveSimulation = (() => {
+    const isActive = (e: ExerciseSimple) => e.exercise_status === 'RUNNING' || e.exercise_status === 'PAUSED';
+    if (selectAll) {
+      return true;
+    }
+    return exercises.some(e => e.exercise_id in selectedElements && isActive(e));
+  })();
+
+  const deleteWarningMessage = t('Deleting a running simulation will stop its execution.');
+
   const bulkDelete = () => {
     bulkDeleteExercises({
       search_pagination_input: selectAll ? searchPaginationInput : undefined,
@@ -131,6 +141,7 @@ const Simulations = () => {
       />
       <PaginationComponentV2
         fetch={search}
+        reloadContentCount={reloadCount}
         searchPaginationInput={searchPaginationInput}
         setContent={setExercises}
         entityPrefix="exercise"
@@ -144,12 +155,9 @@ const Simulations = () => {
                 exportProps={exportProps}
               />
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-                <ImportUploaderExercise />
+                <ImportUploaderExercise refresh={() => setReloadCount(count => count + 1)} />
               </Can>
             </ToggleButtonGroup>
-            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-              <AutonomousAttackCreation />
-            </Can>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
               <ExerciseCreation />
             </Can>
@@ -170,6 +178,15 @@ const Simulations = () => {
             canManage={canManage}
             deleteConfirmationSingular={t('Do you want to delete this simulation?')}
             deleteConfirmationPlural={t('Do you want to delete these {count} simulations?', { count: String(numberOfSelectedElements) })}
+            deleteExtraContent={
+              mayDeleteActiveSimulation
+                ? (
+                    <Alert severity="warning" sx={{ mt: 2 }}>
+                      {deleteWarningMessage}
+                    </Alert>
+                  )
+                : undefined
+            }
           />
         )}
       />

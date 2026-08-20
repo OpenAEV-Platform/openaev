@@ -79,6 +79,7 @@ const ScopeInventoryBox = ({
   return (
     <Box>
       <Typography
+        component="div"
         sx={{
           ...SECTION_LABEL_SX,
           m: 0,

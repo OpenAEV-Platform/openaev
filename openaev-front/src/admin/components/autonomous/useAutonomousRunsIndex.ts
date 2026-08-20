@@ -4,7 +4,6 @@ import { fetchAutonomousRuns } from '../../../actions/autonomous/autonomous-acti
 import { type AutonomousRun } from '../../../actions/autonomous/autonomous-types';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import { isFeatureEnabled } from '../../../utils/utils';
 
 export interface AutonomousRunsIndex {
   /** Look up the autonomous run owning a scenario, or null for a manual (non-AI) scenario. */
@@ -25,9 +24,8 @@ export interface AutonomousRunsIndex {
 const useAutonomousRunsIndex = (): AutonomousRunsIndex => {
   const { settings } = useAuth();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
-  const featureEnabled = isFeatureEnabled('AUTONOMOUS_ATTACK_PATH');
   const xtmOneReady = settings.platform_xtm_one_configured === true;
-  const eligible = featureEnabled && isEnterpriseEdition && xtmOneReady;
+  const eligible = isEnterpriseEdition && xtmOneReady;
 
   const [runs, setRuns] = useState<AutonomousRun[]>([]);
   const [resolved, setResolved] = useState(false);

@@ -6,6 +6,7 @@ import static lombok.AccessLevel.NONE;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
@@ -14,8 +15,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.Data;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -33,6 +34,18 @@ import org.hibernate.annotations.UuidGenerator;
 // secret_references is fully on v2 (inspector + can_access_tenant); no v1 @Filter
 public class SecretReference implements TenantBase {
 
+  public enum SECRET_REFERENCE_TYPE {
+    CREDENTIAL;
+
+    public static final String CREDENTIAL_VALUE = "CREDENTIAL";
+  }
+
+  public enum SECRET_STATUS {
+    ACTIVE,
+    INACTIVE,
+    UNSET;
+  }
+
   @Id
   @Column(name = "secret_reference_id")
   @GeneratedValue(generator = "UUID")
@@ -42,11 +55,13 @@ public class SecretReference implements TenantBase {
 
   @Column(name = "secret_reference_type", insertable = false, updatable = false)
   @JsonProperty("secret_reference_type")
+  @Enumerated(EnumType.STRING)
   @Setter(NONE)
-  private String type;
+  private SECRET_REFERENCE_TYPE type;
 
   @Column(name = "secret_reference_name")
   @JsonProperty("secret_reference_name")
+  @Queryable(filterable = true, searchable = true, sortable = true)
   @NotBlank
   private String name;
 
@@ -63,19 +78,22 @@ public class SecretReference implements TenantBase {
   @JsonProperty("secret_reference_location")
   private String location;
 
-  @Column(name = "secret_reference_status")
   @JsonProperty("secret_reference_status")
-  @NotBlank
-  private String status = "ACTIVE";
+  @Queryable(filterable = true)
+  @Enumerated(EnumType.STRING)
+  @Column(name = "secret_reference_status", nullable = false)
+  private SECRET_STATUS status = SECRET_STATUS.UNSET;
 
   @ManyToOne
   @JoinColumn(name = "secret_reference_created_by")
   @JsonProperty("secret_reference_created_by")
   @JsonSerialize(using = MonoIdSerializer.class)
+  @Queryable(filterable = true, dynamicValues = true, path = "createdBy.id")
   private User createdBy;
 
   @Column(name = "secret_reference_created_at")
   @JsonProperty("secret_reference_created_at")
+  @Queryable(filterable = true, sortable = true)
   @NotNull
   @CreationTimestamp
   @AuditStateIgnore
@@ -89,6 +107,7 @@ public class SecretReference implements TenantBase {
 
   @Column(name = "secret_reference_last_verified_at")
   @JsonProperty("secret_reference_last_verified_at")
+  @Queryable(filterable = true, sortable = true)
   private Instant lastVerifiedAt;
 
   @ManyToMany(fetch = FetchType.LAZY)
@@ -97,8 +116,9 @@ public class SecretReference implements TenantBase {
       joinColumns = @JoinColumn(name = "secret_reference_id"),
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
   @JsonProperty("secret_reference_tags")
+  @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   @Fetch(FetchMode.SUBSELECT)
-  private List<Tag> tags = new ArrayList<>();
+  private Set<Tag> tags = new HashSet<>();
 
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)

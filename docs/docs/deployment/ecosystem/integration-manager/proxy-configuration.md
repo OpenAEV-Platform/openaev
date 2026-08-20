@@ -1,4 +1,4 @@
-# Proxy Support
+# Proxy support
 
 ## Overview
 
@@ -27,7 +27,7 @@ When enabled, the Integration Manager automatically applies the proxy settings t
 - Kubernetes image pulls
 - Portainer API requests
 
-## HTTPS Proxy Certificate Support (optional)
+## HTTPS proxy certificate support (optional)
 
 Some environments use HTTPS proxies with TLS interception (for example, corporate proxies or debugging proxies like Burp).
 In these cases, additional certificate settings may be required.
@@ -42,7 +42,7 @@ export HTTPS_PROXY_REJECT_UNAUTHORIZED="false"
   - HTTPS_PROXY_CA — List of CA certificates (file paths or PEM blocks) used to validate the proxy’s certificate.   
   - HTTPS_PROXY_REJECT_UNAUTHORIZED — If set to "false", certificate validation is disabled for proxy connections (default behavior).
 
-### Important: Certificate Scope Clarification
+### Important: certificate scope clarification
 
 Composer distinguishes two independent certificate configurations:
 
@@ -53,7 +53,7 @@ Composer distinguishes two independent certificate configurations:
 
 These settings must not be mixed.
 
-### Proxy Configuration in config.json
+### Proxy configuration in config.json
 
 Example of equivalent configuration in a JSON file:
 
@@ -68,9 +68,11 @@ Example of equivalent configuration in a JSON file:
 ```
 
 
-## Certificate Separation
+## Certificate separation
 
-⚠️ **Important**: Proxy certificates are separate from OpenAEV server certificates.
+!!! warning
+
+    Proxy certificates are separate from OpenAEV server certificates.
 
 | Purpose                         | Configuration Keys                                          | Used For                                           |
 |---------------------------------|-------------------------------------------------------------|----------------------------------------------------|
@@ -79,11 +81,9 @@ Example of equivalent configuration in a JSON file:
 
 **Do not confuse these two configurations.**
 
----
+### Troubleshooting - Collector, Executor or Injector integration
 
-### Troubleshooting - Collector, executor or injector integration
-
-### Automatic Injection
+### Automatic injection
 
 When proxy is enabled, XTM Composer automatically injects these environment variables into all managed collectors, injectors and executors containers:
 
@@ -104,4 +104,4 @@ Replace `{instance-id}` with your connector instance ID.
 
 
 
-See also: [Private Registry Authentication](registry-authentication.md)
+See also: [Private registry authentication](registry-authentication.md)

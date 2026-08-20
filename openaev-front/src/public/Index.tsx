@@ -14,6 +14,7 @@ const Challenges = lazy(() => import('./components/challenges/ChallengesPlayer')
 const ExerciseViewLessons = lazy(() => import('./components/lessons/ExerciseViewLessons'));
 const ScenarioViewLessons = lazy(() => import('./components/lessons/ScenarioViewLessons'));
 const UrlAccess = lazy(() => import('./components/url_access/UrlAccess'));
+const PhishingPage = lazy(() => import('./components/phishing/PhishingPage'));
 const ErrorHandler = lazy(() => import('./components/error_handler/./ErrorHandler'));
 
 const useStyles = makeStyles()(theme => ({
@@ -46,6 +47,10 @@ const Index = () => {
             <Route path="lessons/simulation/:exerciseId" element={errorWrapper(ExerciseViewLessons)()} />
             <Route path="lessons/scenario/:scenarioId" element={errorWrapper(ScenarioViewLessons)()} />
             <Route path="url/access" element={errorWrapper(UrlAccess)()} />
+            {/* Benign, tenant-less phishing landing route (tenant resolved server-side from token) */}
+            <Route path="auth/:token" element={errorWrapper(PhishingPage)()} />
+            {/* Legacy tenant-scoped route kept alive for links already delivered before the redesign */}
+            <Route path="phishing/:tenantId/:token" element={errorWrapper(PhishingPage)()} />
             <Route path="handle-error" element={errorWrapper(ErrorHandler)()} />
             <Route path="*" element={<Login />} />
           </Routes>

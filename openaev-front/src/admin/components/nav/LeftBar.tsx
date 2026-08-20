@@ -6,13 +6,14 @@ import {
   ExtensionOutlined,
   GroupsOutlined,
   InsertChartOutlined,
+  KeyOutlined,
   LayersOutlined,
   PersonOutlined,
+  PhishingOutlined,
   PlayCircleOutlineOutlined,
   RocketLaunchOutlined,
   RouteOutlined,
   RowingOutlined,
-  SchoolOutlined,
 } from '@mui/icons-material';
 import {
   Binoculars,
@@ -30,6 +31,7 @@ import { type LeftMenuEntries } from '../../../components/common/menu/leftmenu/l
 import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
 import settingsEntries from './config/settings.config';
 import LeftBarHeader from './LeftBarHeader';
@@ -42,6 +44,8 @@ const LeftBar = () => {
   // tenant). Passing no headerElement in the single-tenant case keeps the menu
   // clean and avoids an orphan divider above the first entry (Home).
   const hasTenantSwitcher = (userTenants ?? []).length > 1;
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+
   const entries: LeftMenuEntries[] = [
     {
       userRight: true,
@@ -79,19 +83,19 @@ const LeftBar = () => {
           path: `/admin/scenarios`,
           icon: () => (<RouteOutlined />),
           label: 'Scenarios',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
+          userRight: true,
         },
         {
           path: `/admin/simulations`,
           icon: () => (<PlayCircleOutlineOutlined />),
           label: 'Simulations',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
+          userRight: true,
         },
         {
           path: `/admin/atomic_testings`,
           icon: () => (<Target />),
           label: 'Atomic testings',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
+          userRight: true,
         },
         {
           path: `/admin/threat-arsenal`,
@@ -116,6 +120,14 @@ const LeftBar = () => {
           label: 'Asset groups',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
         },
+        ...isCredentialAssetEnabled
+          ? [{
+              path: `/admin/credentials`,
+              icon: () => (<KeyOutlined />),
+              label: 'Credentials',
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CREDENTIALS),
+            }]
+          : [],
       ],
     },
     {
@@ -163,8 +175,8 @@ const LeftBar = () => {
           href: 'components',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DOCUMENTS)
             || ability.can(ACTIONS.ACCESS, SUBJECTS.CHANNELS)
-            || ability.can(ACTIONS.ACCESS, SUBJECTS.CHALLENGES)
-            || ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED),
+            || ability.can(ACTIONS.ACCESS, SUBJECTS.PHISHING)
+            || ability.can(ACTIONS.ACCESS, SUBJECTS.CHALLENGES),
           subItems: [
             {
               link: '/admin/components/documents',
@@ -179,16 +191,16 @@ const LeftBar = () => {
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CHANNELS),
             },
             {
+              link: '/admin/components/phishing',
+              label: 'Phishing',
+              icon: () => (<PhishingOutlined fontSize="small" />),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PHISHING),
+            },
+            {
               link: '/admin/components/challenges',
               label: 'Challenges',
               icon: () => (<RowingOutlined fontSize="small" />),
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CHALLENGES),
-            },
-            {
-              link: '/admin/components/lessons',
-              label: 'Lessons learned',
-              icon: () => (<SchoolOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED),
             },
           ],
         },

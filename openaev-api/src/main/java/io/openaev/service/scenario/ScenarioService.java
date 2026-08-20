@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
@@ -52,7 +53,6 @@ import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
@@ -63,6 +63,7 @@ import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -145,7 +146,6 @@ public class ScenarioService {
   private final UserService userService;
   private final TenantSettingsService tenantSettingsService;
   private final CustomDashboardService customDashboardService;
-  private final InjectorContractService injectorContractService;
 
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
@@ -174,7 +174,6 @@ public class ScenarioService {
   @Transactional
   public Scenario createScenarioChaining(@NotNull final Scenario scenario)
       throws ChainingException {
-    workflowService.isPreviewFeatureChainingEnable();
 
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
@@ -186,6 +185,10 @@ public class ScenarioService {
 
   @Transactional
   public Scenario createScenarioWithInjectorContracts(
+      // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for this transaction (the arsenal selection resolves injector contracts and their linked
+      // injector, both v2 tenant-scoped through the injectors table).
+      TxCtx ctx,
       @NotBlank final String tenantId,
       @NotNull final ScenarioInput scenarioInput,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
@@ -199,6 +202,9 @@ public class ScenarioService {
 
   @Transactional
   public List<Scenario> updateScenariosWithInjectorContracts(
+      // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for this transaction (same reason as createScenarioWithInjectorContracts above).
+      TxCtx ctx,
       @NotNull final List<String> scenarioIds,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
@@ -533,7 +539,8 @@ public class ScenarioService {
    * @param input the bulk processing input (ids or search input, plus ids to ignore)
    * @return the list of deleted scenario ids
    */
-  public List<String> bulkDeleteScenarios(@NotNull final ScenarioBulkProcessingInput input) {
+  public List<String> bulkDeleteScenarios(
+      TxCtx ctx, @NotNull final ScenarioBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getScenarioIdsToProcess())
             && input.getSearchPaginationInput() == null)
         || (!CollectionUtils.isEmpty(input.getScenarioIdsToProcess())
@@ -544,6 +551,7 @@ public class ScenarioService {
     User currentUser = userService.currentUser();
     List<String> scenarioIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
+            ctx,
             () -> {
               Specification<Scenario> specification;
               if (input.getSearchPaginationInput() != null) {
@@ -581,6 +589,7 @@ public class ScenarioService {
             });
     List<String> deletedIds =
         bulkDeleteExecutor.deleteInChunks(
+            ctx,
             "scenarios",
             scenarioIdsToDelete,
             chunk -> {
@@ -734,6 +743,10 @@ public class ScenarioService {
                   injectorContract -> {
                     if (injectorContract.getPayload() != null) {
                       scenarioTags.addAll(injectorContract.getTags());
+                      injectorContract.getPayload().getOutputParsers().stream()
+                          .flatMap(parser -> parser.getContractOutputElements().stream())
+                          .flatMap(element -> element.getTags().stream())
+                          .forEach(scenarioTags::add);
                     }
                   });
         });
@@ -765,18 +778,22 @@ public class ScenarioService {
             .map(Document::getId)
             .toList());
 
-    // Tags
-    scenarioFileExport.setTags(scenarioTags.stream().distinct().toList());
-    objectMapper.addMixIn(Tag.class, Mixins.Tag.class);
-
     // Add Workflow (chaining) if present — scope definition is optional
     Optional<Workflow> workflowOpt =
         workflowService.findWorkflowTemplateByScenarioIdForExport(scenarioId);
     workflowOpt.ifPresent(
         workflow -> {
           workflowExportInitializer.initialize(workflow, isWithScopeDefinition);
+          if (isChaining) {
+            scenarioTags.addAll(workflowExportInitializer.collectWorkflowTags(workflow));
+          }
           scenarioFileExport.setWorkflow(workflow);
         });
+
+    // Tags
+    scenarioFileExport.setTags(scenarioTags.stream().distinct().toList());
+    objectMapper.addMixIn(Tag.class, Mixins.Tag.class);
+
     objectMapper.addMixIn(
         Workflow.class,
         isWithScopeDefinition
@@ -936,9 +953,13 @@ public class ScenarioService {
             .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
-    team.getUsers().addAll(fromIterable(teamUsers));
+    // Reserved service/connector accounts are system users, never players: silently drop them so
+    // team membership stays consistent with the player lists that hide them.
+    List<User> playersToAdd = ReservedKeyValidator.excludeReservedUsers(teamUsers);
+    team.getUsers().addAll(playersToAdd);
     Team savedTeam = teamRepository.save(team);
-    return this.enablePlayers(scenarioId, savedTeam, playerIds);
+    return this.enablePlayers(
+        scenarioId, savedTeam, playersToAdd.stream().map(User::getId).toList());
   }
 
   public Scenario enableAddScenarioTeamPlayer(

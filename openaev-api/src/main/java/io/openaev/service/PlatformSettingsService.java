@@ -12,6 +12,7 @@ import static java.util.Optional.ofNullable;
 import io.openaev.config.EngineConfig;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.config.RunMode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.Setting;
@@ -172,11 +173,26 @@ public class PlatformSettingsService {
     return this.settingRepository.save(setting);
   }
 
+  private RunMode resolveRunMode() {
+    return ofNullable(openAEVConfig.getRunMode()).orElse(RunMode.NORMAL);
+  }
+
+  private boolean shouldDisplayBanner(
+      BannerMessage.BANNER_KEYS bannerKey, Map<String, Setting> dbSettings, RunMode runMode) {
+    if (bannerKey == BannerMessage.BANNER_KEYS.SAFE_MODE_ENABLED) {
+      // Safe mode banner is driven by run-mode configuration, not by persisted banner settings.
+      return runMode == RunMode.SAFE;
+    }
+    return getValueFromMapOfSettings(dbSettings, PLATFORM_BANNER + "." + bannerKey.key()) != null;
+  }
+
   // -- FIND SETTINGS --
 
   /** Populate the public (non-sensitive) fields on any {@link PublicPlatformSettings} instance. */
   private void populatePublicSettings(
       PublicPlatformSettings settings, Map<String, Setting> dbSettings) {
+    RunMode runMode = resolveRunMode();
+
     // Auth providers
     settings.setPlatformOpenIdProviders(buildOpenIdProviders());
     settings.setPlatformSaml2Providers(buildSaml2Providers());
@@ -228,14 +244,10 @@ public class PlatformSettingsService {
     // Platform banners
     Map<String, List<String>> platformBannerByLevel = new HashMap<>();
     for (BannerMessage.BANNER_KEYS bannerKey : BannerMessage.BANNER_KEYS.values()) {
-      String value = getValueFromMapOfSettings(dbSettings, PLATFORM_BANNER + "." + bannerKey.key());
-      if (value != null) {
-        if (platformBannerByLevel.get(bannerKey.level().name()) == null) {
-          platformBannerByLevel.put(
-              bannerKey.level().name(), new ArrayList<>(Arrays.asList(bannerKey.message())));
-        } else {
-          platformBannerByLevel.get(bannerKey.level().name()).add(bannerKey.message());
-        }
+      if (shouldDisplayBanner(bannerKey, dbSettings, runMode)) {
+        platformBannerByLevel
+            .computeIfAbsent(bannerKey.level().name(), key -> new ArrayList<>())
+            .add(bannerKey.message());
       }
     }
     settings.setPlatformBannerByLevel(platformBannerByLevel);
@@ -245,6 +257,8 @@ public class PlatformSettingsService {
         ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
             .map(Setting::getValue)
             .orElse(PLATFORM_WHITEMARK.defaultValue()));
+    // Run mode is config-driven operational state (normal/safe), not a computed health signal.
+    settings.setPlatformRunMode(runMode);
   }
 
   /** Return only non-sensitive settings suitable for unauthenticated (public) access. */
@@ -434,7 +448,7 @@ public class PlatformSettingsService {
     }
     settingsToSave.add(resolveFromMap(dbSettings, PLATFORM_ENTERPRISE_LICENSE.key(), certPem));
     settingRepository.saveAll(settingsToSave);
-    licenseCacheManager.refreshLicense();
+    licenseCacheManager.refreshAndNotify();
     return findSettings();
   }
 

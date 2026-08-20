@@ -13,7 +13,7 @@ class SecretToStringSecurityTest {
   void given_hashSecret_should_notExposeHashInToString() {
     // Arrange
     HashSecret secret = new HashSecret();
-    secret.setHashAlgorithm("SHA");
+    secret.setHashAlgorithm(HashSecret.HASH_ALGORITHM.SHA);
     secret.setHash("__SENSITIVE_HASH__");
 
     // Act

@@ -30,6 +30,7 @@ import { resolveConditionKeyTypes } from '../logic-flow-helpers';
 import type { ActionDetailData, ActionMeta, EventMeta } from '../types';
 import AddActionList from './AddActionList';
 import ConfigureActionDetail from './ConfigureActionDetail';
+import { mapFieldLinksToStepConditions } from './ConfigureActionDetail.utils';
 import InjectTargetsProvider from './InjectTargetsProvider';
 
 /**
@@ -45,6 +46,7 @@ export type DrawerView = 'closed' | 'choose' | 'action' | 'actionDetail' | 'even
 interface ComponentStepperDrawerProps {
   workflowId: string | undefined;
   context: LogicContext;
+  readOnly?: boolean;
   scenarioId?: string;
   exerciseId?: string;
   validAssets: ScopeAssetOutput[];
@@ -75,8 +77,6 @@ interface ComponentStepperDrawerProps {
   onCompatibleActionFilterChange?: (field?: string) => void;
   /** When set, newly created actions are linked to this event (inline "+" on a trigger). */
   linkToEventId?: string;
-  /** Output types of the action a new trigger is being added after (inline "+" on an action). */
-  prefillEventFields?: string[];
 }
 
 interface ChoiceCardProps {
@@ -141,6 +141,7 @@ const ChoiceCard = ({ icon: Icon, iconColor, circle, title, description, onClick
 const ComponentStepperDrawer = ({
   workflowId,
   context,
+  readOnly = false,
   scenarioId,
   exerciseId,
   validAssets,
@@ -157,7 +158,6 @@ const ComponentStepperDrawer = ({
   compatibleActionFilter,
   onCompatibleActionFilterChange,
   linkToEventId,
-  prefillEventFields,
 }: ComponentStepperDrawerProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -166,6 +166,7 @@ const ComponentStepperDrawer = ({
   const isActionPath = drawerView === 'action' || drawerView === 'actionDetail';
   const isEventPath = drawerView === 'event';
   const isEditing = !!editingStep || !!editingEvent;
+  const isReadOnlyInspection = readOnly && isEditing;
 
   // Derive the pre-populated data when editing a step.
   const { editingStepId, editingInitialData, editingAction } = useMemo(() => {
@@ -273,16 +274,10 @@ const ComponentStepperDrawer = ({
 
   const handleSaveActionDetail = async (data: ActionDetailData) => {
     if (!workflowId) return;
-    const stepConditions: ConditionCreateInput[] = Object.entries(data.inject_field_links).map(([fieldKey, link], i) => {
-      const keyTypes = link.outputTypes && link.outputTypes.length > 0 ? link.outputTypes : ['text'];
-      return {
-        condition_temporary_id: String(i),
-        condition_type: 'MAPPER' as const,
-        condition_key_types: keyTypes as ConditionCreateInput['condition_key_types'],
-        condition_key: fieldKey,
-        condition_mapping_type: (link.localScope ? 'LOCAL' : 'GLOBAL') as ConditionCreateInput['condition_mapping_type'],
-      };
-    });
+    // Carries each linked field's own defined value into condition_value alongside its linked
+    // type(s), so a value typed before linking a type is no longer dropped (the backend keeps it as
+    // an extra candidate — ConditionService#resolveMapperPairs).
+    const stepConditions: ConditionCreateInput[] = mapFieldLinksToStepConditions(data);
 
     const stepPayload = {
       step_workflow_id: workflowId,
@@ -370,11 +365,13 @@ const ComponentStepperDrawer = ({
   };
 
   const title = useMemo(() => {
+    if (isReadOnlyInspection && drawerView === 'event') return t('Event details');
+    if (isReadOnlyInspection && drawerView === 'actionDetail') return t('Action details');
     if (drawerView === 'event') return editingEvent ? t('Update trigger') : t('Add trigger');
     if (drawerView === 'actionDetail') return editingStep ? t('Configure action') : t('Configure action');
     if (drawerView === 'action') return t('Select an action');
     return t('Add component');
-  }, [drawerView, editingEvent, editingStep, t]);
+  }, [drawerView, editingEvent, editingStep, isReadOnlyInspection, t]);
 
   return (
     <Drawer
@@ -434,10 +431,12 @@ const ComponentStepperDrawer = ({
         {drawerView === 'actionDetail' && (
           <InjectTargetsProvider context={context} scenarioId={scenarioId} exerciseId={exerciseId} validTeams={validTeams}>
             <ConfigureActionDetail
+              workflowId={workflowId}
               action={activeAction}
               validAssets={validAssets}
               validTeams={validTeams}
               initialData={editingInitialData}
+              readOnly={isReadOnlyInspection}
               onClose={handleClose}
               onSave={handleSaveActionDetail}
             />
@@ -449,9 +448,9 @@ const ComponentStepperDrawer = ({
             onSubmit={handleSaveEvent}
             onCancel={handleClose}
             initialData={editingEvent?.meta.formData}
+            readOnly={isReadOnlyInspection}
             submitLabel={editingEvent ? t('Update trigger') : t('Add trigger')}
             defaultName={!editingEvent ? `Event ${eventCount + 1}` : undefined}
-            prefillFields={prefillEventFields}
           />
         )}
       </Box>

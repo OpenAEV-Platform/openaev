@@ -17,6 +17,7 @@ import io.openaev.api.expectations.ExpectationsDriftService;
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -25,7 +26,10 @@ import io.openaev.database.raw.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ComcheckSpecification;
 import io.openaev.database.specification.ExerciseLogSpecification;
+import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.importer.ImportResult;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
@@ -41,9 +45,9 @@ import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -118,8 +122,9 @@ public class ExerciseApi extends RestBehavior {
   private final UserService userService;
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
-  private final PreviewFeatureService previewFeatureService;
   private final ExpectationsDriftService expectationsDriftService;
+  private final EnterpriseEditionService enterpriseEditionService;
+  private final LicenseCacheManager licenseCacheManager;
 
   // endregion
 
@@ -433,9 +438,13 @@ public class ExerciseApi extends RestBehavior {
             .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
-    team.getUsers().addAll(fromIterable(teamUsers));
+    // Reserved service/connector accounts are system users, never players: silently drop them so
+    // team membership stays consistent with the player lists that hide them.
+    List<User> playersToAdd = ReservedKeyValidator.excludeReservedUsers(teamUsers);
+    team.getUsers().addAll(playersToAdd);
     teamRepository.save(team);
-    return exerciseService.enablePlayers(exerciseId, team, input.getPlayersIds());
+    return exerciseService.enablePlayers(
+        exerciseId, team, playersToAdd.stream().map(User::getId).toList());
   }
 
   @PutMapping({
@@ -500,10 +509,14 @@ public class ExerciseApi extends RestBehavior {
     }
     Exercise savedExercise = this.exerciseService.createExercise(exercise);
 
-    // If the chaining feature flag is enabled and the engine is "chaining", create and link a
-    // workflow to the simulation
-    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-        && Boolean.TRUE.equals(input.getIsChaining())) {
+    // If the engine is chaining, create and link a workflow to the simulation.
+    if (Boolean.TRUE.equals(input.getIsChaining())) {
+      // Chaining is an Enterprise Edition feature: reject the creation of a chaining simulation
+      // when the enterprise license is inactive
+      if (enterpriseEditionService.isEnterpriseLicenseInactive(
+          licenseCacheManager.getEnterpriseEditionInfo())) {
+        throw new EnterpriseEditionException("Enterprise Edition license required");
+      }
       workflowService.creationWorkflow(savedExercise);
     }
 
@@ -856,7 +869,12 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
   public Exercise changeExerciseStatus(
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateStatusInput input)
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (throwIfExerciseNotLaunchable's Enterprise gate reads each
+      // targeted agent's executor).
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ExerciseUpdateStatusInput input)
       throws ChainingException {
     ExerciseStatus status = input.getStatus();
     return exerciseService.changeExerciseStatus(status, exerciseId);
@@ -991,8 +1009,13 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping({EXERCISE_URI + "/import", TENANT_EXERCISE_URI + "/import"})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public void exerciseImport(@RequestPart("file") MultipartFile file) throws Exception {
-    importService.handleFileImport(file, null, null);
+  public ImportResult exerciseImport(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (the V1_DataImporter resolves InjectorContract#getFirstInjector() and
+      // InjectorService#injectorTypeExists(...), both v2 tenant-scoped through the injectors
+      // table; without a scope, imported injects silently lose their injector).
+      TxCtx ctx, @RequestPart("file") MultipartFile file) throws Exception {
+    return importService.handleFileImport(file, null, null);
   }
 
   @PostMapping({

@@ -138,8 +138,8 @@ const UserDetail = () => {
                     onSubmitDelete={() => dispatch(deleteUser(userId)).then(() => navigate(usersLink))}
                     onSubmitPassword={(data: ChangePasswordInput) => dispatch(updateUserPassword(userId, data))}
                     permissions={{
-                      manage: [ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS],
-                      delete: [ACTIONS.DELETE, SUBJECTS.TENANT_SETTINGS],
+                      manage: [ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES],
+                      delete: [ACTIONS.DELETE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES],
                     }}
                   />
                 )}

@@ -20,7 +20,14 @@ const inject18n = <P extends object>(WrappedComponent: ComponentType<P>) => {
     const intl = useIntl();
     // formatjs throws an invariant error when the id is missing, which crashes the
     // whole render tree: degrade gracefully instead when a dynamic key is absent.
-    const translate = (message: string, values?: Record<string, string>) => (message ? intl.formatMessage({ id: message }, values) : '');
+    // Same defaultMessage rule as useFormatter below: parametrized messages keep
+    // interpolating even when the key is missing from the catalog.
+    const translate = (message: string, values?: Record<string, string>) => (message
+      ? intl.formatMessage({
+          id: message,
+          defaultMessage: values ? message : undefined,
+        }, values)
+      : '');
     const formatNumber = (number: number | '') => {
       if (number === null || number === '') {
         return '-';
@@ -175,7 +182,17 @@ export const useFormatter = () => {
   const intl = useIntl();
   // formatjs throws an invariant error when the id is missing, which crashes the
   // whole render tree: degrade gracefully instead when a dynamic key is absent.
-  const translate: Translate = ((message, values) => (message ? intl.formatMessage({ id: message }, values) : '')) as Translate;
+  // For parametrized messages, the english id doubles as defaultMessage so a key
+  // missing from the catalog still interpolates its {placeholders} instead of
+  // rendering them raw (e.g. "{count} questions"). Only done when values are
+  // provided: dynamic keys (t(someRuntimeString)) are not guaranteed to be valid
+  // ICU and must keep falling back to the raw string without being parsed.
+  const translate: Translate = ((message, values) => (message
+    ? intl.formatMessage({
+        id: message,
+        defaultMessage: values ? message : undefined,
+      }, values)
+    : '')) as Translate;
   const formatNumber = (number: number | '') => {
     if (number === null || number === '') {
       return '-';
@@ -265,6 +282,22 @@ export const useFormatter = () => {
       year: 'numeric',
     });
   };
+  // The tightest date+time that still carries the year (05/08/26 11:25 in fr), for space-constrained
+  // spots such as a picker label sharing its line with a name. Every part is 2-digit so the width is
+  // stable across values, and the year is kept 2-digit rather than dropped: a scenario accumulates
+  // simulations over months, so "05/08" alone would be ambiguous across years.
+  const compactNumericDateTime = (date: Parameters<IntlShape['formatDate']>[0]) => {
+    if (isNone(date)) {
+      return translate('None');
+    }
+    return intl.formatDate(date, {
+      minute: '2-digit',
+      hour: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+    });
+  };
   const time = (date: Parameters<IntlShape['formatDate']>[0]) => {
     return intl.formatTime(date, {
       second: 'numeric',
@@ -341,6 +374,7 @@ export const useFormatter = () => {
     nsd: shortNumericDate,
     nsdt: shortNumericDateTime,
     vnsdt: veryShortNumericDateTime,
+    cnsdt: compactNumericDateTime,
     fndt: fullNumericDateTime,
     ft: time,
     fd: standardDate,

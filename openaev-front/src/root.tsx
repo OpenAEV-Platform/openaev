@@ -21,6 +21,7 @@ import SystemBanners from './public/components/systembanners/SystemBanners';
 import LicenseBanner from './public/components/trialbanners/LicenseBanner';
 import StartTrialBanner from './public/components/trialbanners/StartTrialBanner';
 import { useHelper } from './store';
+import { APP_BASE_PATH } from './utils/Environment';
 import ErrorHandler from './utils/error/ErrorHandler';
 import { useAppDispatch } from './utils/hooks';
 import { UserContext } from './utils/hooks/useAuth';
@@ -39,6 +40,7 @@ const Challenges = lazy(() => import('./public/components/challenges/ChallengesP
 const ExerciseViewLessons = lazy(() => import('./public/components/lessons/ExerciseViewLessons'));
 const ScenarioViewLessons = lazy(() => import('./public/components/lessons/ScenarioViewLessons'));
 const UrlAccess = lazy(() => import('./public/components/url_access/UrlAccess'));
+const PhishingPage = lazy(() => import('./public/components/phishing/PhishingPage'));
 const SimulationChallengesPreview = lazy(() => import('./admin/components/simulations/simulation/challenges/SimulationChallengesPreview'));
 const ScenarioChallengesPreview = lazy(() => import('./admin/components/scenarios/scenario/challenges/ScenarioChallengesPreview'));
 const ReportingRender = lazy(() => import('./admin/components/reporting/render/ReportingRender'));
@@ -115,7 +117,10 @@ const Root = () => {
   // When the user is authenticated but the URL has no tenant prefix
   // (e.g. first visit at "/", or right after login), hard-redirect to
   // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
-  if (!extractTenantFromUrl()) {
+  // The benign phishing landing route is intentionally tenant-less (the tenant
+  // is resolved server-side from the token), so it must never be rewritten.
+  const isTenantLessPublicRoute = window.location.pathname.replace(APP_BASE_PATH, '').startsWith('/auth/');
+  if (!extractTenantFromUrl() && !isTenantLessPublicRoute) {
     // Wait for fetchUserTenants (useTenant) before deciding which tenant to use.
     if (userTenants === undefined) {
       return <Loader />;
@@ -165,6 +170,9 @@ const Root = () => {
                     <Route path="lessons/simulation/:exerciseId" element={errorWrapper(ExerciseViewLessons)()} />
                     <Route path="lessons/scenario/:scenarioId" element={errorWrapper(ScenarioViewLessons)()} />
                     <Route path="url/access" element={errorWrapper(UrlAccess)()} />
+                    {/* Benign, tenant-less phishing landing route (tenant resolved server-side from token) */}
+                    <Route path="auth/:token" element={errorWrapper(PhishingPage)()} />
+                    <Route path="phishing/:tenantId/:token" element={errorWrapper(PhishingPage)()} />
                     {/* Not found */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>

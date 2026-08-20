@@ -1,0 +1,95 @@
+name: Prepare Bundled Assets
+description: >
+  Download agent/implant binaries from JFrog and patch the catalog version.
+  Requires a full git checkout (fetch-depth: 0) in the calling job, because the
+  local artifact version comes from `git describe`.
+  Callers that only need the assets on their own runner should set
+  upload-artifact: false; exactly one job must upload for the artifact to exist.
+
+inputs:
+  upload-artifact:
+    description: Upload the prepared assets as the shared `release-assets` artifact.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Compute versions
+      id: versions
+      shell: bash
+      run: |
+        if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "binary_version=${TAG}"   >> "$GITHUB_OUTPUT"
+          echo "catalog_version=${TAG}"  >> "$GITHUB_OUTPUT"
+        else
+          echo "binary_version=latest"   >> "$GITHUB_OUTPUT"
+          echo "catalog_version=rolling"  >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Download agent & implant binaries
+      shell: bash
+      run: |
+        BINARY_VERSION="${{ steps.versions.outputs.binary_version }}"
+
+        if [[ "${{ steps.versions.outputs.catalog_version }}" == "rolling" || "${{ steps.versions.outputs.catalog_version }}" == "prerelease" ]]; then
+          LOCAL_VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo "$BINARY_VERSION")"
+        else
+          LOCAL_VERSION="$BINARY_VERSION"
+        fi
+
+        chmod +x scripts/download-binaries.sh
+        if ! bash scripts/download-binaries.sh "$BINARY_VERSION" "$LOCAL_VERSION"; then
+          echo "❌ download-binaries.sh failed"
+          exit 1
+        fi
+
+        AGENT_COUNT=$(find openaev-api/src/main/resources/agents/ -type f 2>/dev/null | wc -l)
+        IMPLANT_COUNT=$(find openaev-api/src/main/resources/implants/ -type f 2>/dev/null | wc -l)
+        echo "📦 Downloaded $AGENT_COUNT agent(s) and $IMPLANT_COUNT implant(s)"
+        if [ "$AGENT_COUNT" -eq 0 ] && [ "$IMPLANT_COUNT" -eq 0 ]; then
+          echo "⚠️ Warning: No agent or implant binaries were downloaded"
+        fi
+
+    - name: Patch catalog version
+      shell: bash
+      run: |
+        CATALOG_FILE=openaev-api/src/main/resources/catalog/catalog-integrators.json
+        CATALOG_VERSION="${{ steps.versions.outputs.catalog_version }}"
+
+        if [ ! -f "$CATALOG_FILE" ]; then
+          echo "❌ Catalog file not found: $CATALOG_FILE"
+          ls -la openaev-api/src/main/resources/catalog/ 2>/dev/null || echo "  catalog/ directory does not exist"
+          exit 1
+        fi
+
+        if ! jq --arg ver "$CATALOG_VERSION" \
+          '.contracts[].container_version = $ver | .version = $ver' \
+          "$CATALOG_FILE" > catalog.tmp; then
+          echo "❌ jq failed to patch catalog file (invalid JSON?)"
+          exit 1
+        fi
+
+        if [ ! -s "catalog.tmp" ]; then
+          echo "❌ jq produced empty output"
+          exit 1
+        fi
+
+        if ! jq empty catalog.tmp 2>/dev/null; then
+          echo "❌ Patched catalog file is not valid JSON"
+          exit 1
+        fi
+
+        mv catalog.tmp "$CATALOG_FILE"
+        echo "✅ Catalog version patched to '$CATALOG_VERSION'"
+
+    - name: Upload release assets
+      if: ${{ inputs.upload-artifact == 'true' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: release-assets
+        path: |
+          openaev-api/src/main/resources/agents/
+          openaev-api/src/main/resources/implants/
+          openaev-api/src/main/resources/catalog/

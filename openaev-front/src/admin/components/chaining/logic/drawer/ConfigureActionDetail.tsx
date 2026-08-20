@@ -5,6 +5,7 @@ import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 
+import { directFetchWorkflowInjectorContract } from '../../../../../actions/chaining/workflow-actions';
 import { directFetchInjectorContract } from '../../../../../actions/InjectorContracts';
 import { findTeams } from '../../../../../actions/teams/team-actions';
 import SwitchFieldController from '../../../../../components/fields/SwitchFieldController';
@@ -39,10 +40,12 @@ import FieldOutputLink, { type FieldLink } from './FieldOutputLink';
 interface ConfigureActionDetailProps {
   /** Whether the hosting drawer step is active (feeds the inject-data panel + contract fetch). */
   open?: boolean;
+  workflowId?: string;
   action: ThreatArsenalAction | null;
   validAssets: ScopeAssetOutput[];
   validTeams?: ScopeTeamOutput[];
   initialData?: ActionDetailData;
+  readOnly?: boolean;
   onClose: () => void;
   onSave: (data: ActionDetailData) => void;
 }
@@ -108,10 +111,12 @@ const buildEnhancedField = (
 
 const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   open = true,
+  workflowId,
   action,
   validAssets,
   validTeams = [],
   initialData,
+  readOnly = false,
   onClose,
   onSave,
 }) => {
@@ -170,9 +175,17 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
     setFieldLinks(normalizeFieldLinks(initialData?.inject_field_links));
     setContractFields(initialData?.contract_fields ?? []);
 
-    const contractId = initialData?.inject_injector_contract ?? action.injector_contract_id;
+    const existingContractId = initialData?.inject_injector_contract;
+    const contractId = existingContractId ?? action.injector_contract_id;
     setLoadingContract(true);
-    directFetchInjectorContract(contractId)
+    // A contract already referenced by a workflow step is read through the workflow-scoped
+    // endpoint, so read-granted users never need the global threat-arsenal capabilities. A newly
+    // selected action's contract is not part of the workflow yet (the scoped lookup would 404):
+    // it goes through the global lookup, which is fine because adding actions requires the
+    // manage permission and the arsenal capabilities anyway.
+    (workflowId && existingContractId
+      ? directFetchWorkflowInjectorContract(workflowId, existingContractId)
+      : directFetchInjectorContract(contractId))
       .then((res: { data: { injector_contract_content?: string } }) => {
         if (!res.data?.injector_contract_content) return;
         try {
@@ -192,7 +205,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
       })
       .catch(() => setContractFields([]))
       .finally(() => setLoadingContract(false));
-  }, [action, initialData]);
+  }, [action, initialData, workflowId]);
 
   // Auto-link action input fields with their default primitive type when available.
   // Example: field argumentType "ipv4" -> outputTypes ["ipv4"].
@@ -204,6 +217,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   }, [initialData, contractFields]);
 
   const handleResetDefaults = () => {
+    if (readOnly) return;
     const current = getValues('inject_content');
     setValue('inject_content', {
       ...buildContractDefaults(contractFields),
@@ -245,7 +259,7 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
   const targetsTeams = hasTeamField;
 
   const onSubmit = (formData: FormValues) => {
-    if (!action) return;
+    if (readOnly || !action) return;
     // Final safety: remove frontend-only keys before sending to backend.
     const contentWithExpectations = applyPredefinedExpectations(
       stripFrontendMetadataKeys(formData.inject_content),
@@ -350,14 +364,18 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
 
     return (
       <Box key={ef.key}>
-        {!link && <InjectContentFieldComponent field={ef} />}
+        {/* The defined-value input stays available even once a type is linked: the two are not
+            mutually exclusive — the backend keeps the defined value as one more candidate alongside
+            the linked type's resolved pool (ConditionService#resolveMapperPairs). Only auto-linked
+            fields (e.g. targeted-asset) are system-managed and hide it. */}
+        {!isAutoLinked && <InjectContentFieldComponent field={ef} readOnly={readOnly} />}
         {showLink && (
           <FieldOutputLink
             panelOpen={open}
             fieldKey={rawKey}
             fieldLabel={t(ef.label) || rawKey}
             link={link}
-            readOnly={isAutoLinked}
+            readOnly={readOnly || isAutoLinked}
             onLink={handleLinkField}
             onUnlink={handleUnlinkField}
             onToggleLocalScope={handleToggleLocalScope}
@@ -378,76 +396,91 @@ const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
           gap: 3,
         }}
       >
-        <TextFieldController name="inject_title" label={t('Title')} required />
+        <Box
+          component="fieldset"
+          disabled={readOnly}
+          sx={{
+            border: 0,
+            margin: 0,
+            padding: 0,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 3,
+          }}
+        >
+          <TextFieldController name="inject_title" label={t('Title')} required disabled={readOnly} />
 
-        <ActionScopeChips
-          isPayload={isPayload}
-          assets={targetsAssets ? validAssets : []}
-          teams={targetsTeams ? selectedTeamOptions : []}
-          allTeams={targetsTeams && allTeamsSelected}
-        />
+          <ActionScopeChips
+            isPayload={isPayload}
+            assets={targetsAssets ? validAssets : []}
+            teams={targetsTeams ? selectedTeamOptions : []}
+            allTeams={targetsTeams && allTeamsSelected}
+          />
 
-        {hasTeamField && (
-          <InjectFormSection
-            title={t('Targeted teams')}
-            helper={t('Who receives this inject.')}
-            action={(
-              <SwitchFieldController
-                name="inject_all_teams"
-                label={<strong>{t('All teams')}</strong>}
-                disabled={teamFieldEnhanced?.readOnly}
-                size="small"
+          {hasTeamField && (
+            <InjectFormSection
+              title={t('Targeted teams')}
+              helper={t('Who receives this inject.')}
+              action={(
+                <SwitchFieldController
+                  name="inject_all_teams"
+                  label={<strong>{t('All teams')}</strong>}
+                  disabled={readOnly || teamFieldEnhanced?.readOnly}
+                  size="small"
+                />
+              )}
+            >
+              <InjectTeamsList />
+            </InjectFormSection>
+          )}
+
+          {(contentEnhancedFields.length > 0 || loadingContract) && (
+            <InjectFormSection
+              title={t('Inject data')}
+              helper={t('The content and targets specific to this inject.')}
+              action={(
+                <Button size="small" disabled={readOnly} startIcon={<RestartAlt />} onClick={handleResetDefaults}>
+                  {t('Reset default value')}
+                </Button>
+              )}
+            >
+              {loadingContract && (
+                <Typography variant="body2" color="text.secondary">
+                  {t('Loading contract fields...')}
+                </Typography>
+              )}
+              {contentEnhancedFields.map(renderContentField)}
+            </InjectFormSection>
+          )}
+
+          {hasAttachmentField && (
+            <InjectFormSection title={t('Inject documents')}>
+              <InjectDocumentsList hasAttachments />
+            </InjectFormSection>
+          )}
+
+          {expectationField && (
+            <InjectFormSection title={t('Inject expectations')}>
+              <InjectExpectations
+                expectationDatas={expectations}
+                readOnly={readOnly}
+                handleExpectations={updatedExpectations => setValue('inject_content', {
+                  ...getValues('inject_content'),
+                  [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
+                })}
+                availableExpectations={expectationField.availableExpectations ?? []}
               />
-            )}
-          >
-            <InjectTeamsList />
-          </InjectFormSection>
-        )}
+              {expectations.length === 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  {t('No expectations for this action.')}
+                </Typography>
+              )}
+            </InjectFormSection>
+          )}
+        </Box>
 
-        {(contentEnhancedFields.length > 0 || loadingContract) && (
-          <InjectFormSection
-            title={t('Inject data')}
-            helper={t('The content and targets specific to this inject.')}
-            action={(
-              <Button size="small" startIcon={<RestartAlt />} onClick={handleResetDefaults}>
-                {t('Reset default value')}
-              </Button>
-            )}
-          >
-            {loadingContract && (
-              <Typography variant="body2" color="text.secondary">
-                {t('Loading contract fields...')}
-              </Typography>
-            )}
-            {contentEnhancedFields.map(renderContentField)}
-          </InjectFormSection>
-        )}
-
-        {hasAttachmentField && (
-          <InjectFormSection title={t('Inject documents')}>
-            <InjectDocumentsList hasAttachments />
-          </InjectFormSection>
-        )}
-
-        {expectationField && (
-          <InjectFormSection title={t('Inject expectations')}>
-            <InjectExpectations
-              expectationDatas={expectations}
-              handleExpectations={updatedExpectations => setValue('inject_content', {
-                ...getValues('inject_content'),
-                [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
-              })}
-              availableExpectations={expectationField.availableExpectations ?? []}
-            />
-            {expectations.length === 0 && (
-              <Typography variant="body2" color="text.secondary">
-                {t('No expectations for this action.')}
-              </Typography>
-            )}
-          </InjectFormSection>
-        )}
-
-        <ActionFormButtons disabled={!isValid} onCancel={onClose} />
+        <ActionFormButtons disabled={!isValid} onCancel={onClose} readOnly={readOnly} />
       </Box>
     </FormProvider>
   );

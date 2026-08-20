@@ -5,6 +5,7 @@ import static io.openaev.database.model.Filters.FilterOperator.eq;
 import static io.openaev.database.specification.KillChainPhaseSpecification.byNameOrKillChainName;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.KillChainPhaseFixture.getKillChainPhase;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -231,15 +232,18 @@ public class KillChainPhaseApiTest extends IntegrationTest {
       SearchPaginationInput searchPaginationInput =
           PaginationFixture.getDefault().textSearch("name").build();
 
+      // No sort is requested and SortUtilsJpa applies none, so the row order is
+      // whatever Postgres returns; only membership can be asserted here.
       mvc.perform(
               post("/api/kill_chain_phases/search")
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(searchPaginationInput))
                   .with(csrf()))
           .andExpect(status().is2xxSuccessful())
-          .andExpect(jsonPath("$.content.[0].phase_name").value("name1"))
-          .andExpect(jsonPath("$.content.[1].phase_name").value("name2"))
-          .andExpect(jsonPath("$.content.[2].phase_name").value("name3"));
+          .andExpect(jsonPath("$.numberOfElements").value(3))
+          .andExpect(
+              jsonPath("$.content[*].phase_name")
+                  .value(containsInAnyOrder("name1", "name2", "name3")));
     }
 
     @DisplayName("Sorting by name desc")

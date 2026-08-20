@@ -1,6 +1,10 @@
 package io.openaev.execution;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.InjectStatusRepository;
@@ -38,6 +42,7 @@ public class ExecutionExecutorService {
   private final ConnectorInstanceService connectorInstanceService;
   private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
   private final ActionMetricCollector actionMetricCollector;
+  private final Optional<AuditLogger> auditLogger;
 
   public void launchExecutorContext(Inject inject) {
     InjectStatus injectStatus =
@@ -86,6 +91,7 @@ public class ExecutionExecutorService {
         agentsByExecutor.entrySet()) {
       io.openaev.database.model.Executor executor = entry.getKey();
       Set<Agent> executorAgents = entry.getValue();
+      logInjectExecutingEvent(inject, executor, executorAgents);
       launchBatchExecutorContextForAgent(
           executorAgents, executor, inject, injectStatus, atLeastOneExecution);
     }
@@ -297,5 +303,44 @@ public class ExecutionExecutorService {
                           null))
               .toList());
     }
+  }
+
+  // -- AUDIT LOGGING --
+
+  private void logInjectExecutingEvent(
+      Inject inject, Executor executor, Set<Agent> executorAgents) {
+    if (executorAgents.isEmpty()) {
+      return;
+    }
+    auditLogger.ifPresent(
+        logger ->
+            logger.logEvent(
+                AuditEvent.builder()
+                    .eventType(EventType.EXECUTION)
+                    .eventScope(AuditEventScope.INJECT_QUEUED)
+                    .eventStatus(EventStatus.SUCCESS)
+                    .resourceType(ResourceType.INJECT)
+                    .resourceId(inject.getId())
+                    .message(
+                        "Inject '%s' executing on '%s' agent(s)"
+                            .formatted(inject.getTitle(), executor.getName()))
+                    .contextData(buildInjectQueuedContextData(inject, executor, executorAgents))
+                    .origin(AuditEventOrigin.SYSTEM)
+                    .build()));
+  }
+
+  private Map<String, Object> buildInjectQueuedContextData(
+      Inject inject, Executor executor, Set<Agent> executorAgents) {
+    Map<String, Object> contextData = new LinkedHashMap<>();
+    contextData.put("inject_id", inject.getId());
+    contextData.put("inject_name", inject.getTitle());
+    contextData.put("executor_id", executor.getId());
+    contextData.put("executor_type", executor.getType());
+    contextData.put(
+        "agent_ids", executorAgents.stream().map(Agent::getId).filter(Objects::nonNull).toList());
+    if (inject.getExercise() != null) {
+      contextData.put("simulation_id", inject.getExercise().getId());
+    }
+    return contextData;
   }
 }

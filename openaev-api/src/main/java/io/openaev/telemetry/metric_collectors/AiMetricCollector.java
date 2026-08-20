@@ -49,18 +49,20 @@ public class AiMetricCollector {
    * `ai_agent_call_count` (never both).
    */
   private static final Map<String, String> INTENT_TO_FEATURE =
-      Map.of(
-          "global.fix_spelling", "fix_spelling",
-          "global.make_it_shorter", "make_shorter",
-          "global.make_it_longer", "make_longer",
-          "global.change_tone", "change_tone",
-          "global.summarize", "summarize",
-          "global.explain", "explain",
-          "aev.message_generator", "generate_message",
+      Map.ofEntries(
+          Map.entry("global.fix_spelling", "fix_spelling"),
+          Map.entry("global.make_it_shorter", "make_shorter"),
+          Map.entry("global.make_it_longer", "make_longer"),
+          Map.entry("global.change_tone", "change_tone"),
+          Map.entry("global.summarize", "summarize"),
+          Map.entry("global.explain", "explain"),
+          Map.entry("aev.message_generator", "generate_message"),
           // Telemetry-only sub-intent: subject generation shares the aev.message_generator
           // catalog intent, the frontend disambiguates it for feature counting.
-          "aev.message_generator.subject", "generate_subject",
-          "aev.media_article_generator", "generate_media");
+          Map.entry("aev.message_generator.subject", "generate_subject"),
+          Map.entry("aev.media_article_generator", "generate_media"),
+          Map.entry("aev.phishing_email_html_generator", "generate_phishing_email"),
+          Map.entry("aev.phishing_landing_page_html_generator", "generate_phishing_landing_page"));
 
   private final MetricRegistry metricRegistry;
   private final AiConfig aiConfig;

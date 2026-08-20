@@ -146,6 +146,6 @@ public class SecretsProviderService
 
   @Override
   protected SecretsProvider createNewConnector() {
-    return new SecretsProvider.Placeholder();
+    throw new UnsupportedOperationException("Cannot create abstract secrets provider.");
   }
 }

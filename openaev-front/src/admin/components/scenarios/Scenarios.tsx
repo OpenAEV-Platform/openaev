@@ -24,16 +24,12 @@ import useAuth from '../../../utils/hooks/useAuth';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
-import AutonomousAttackCreation from '../autonomous/AutonomousAttackCreation';
-import { isAutonomousRunActive } from '../autonomous/autonomousStatus';
-import useAutonomousRunsIndex from '../autonomous/useAutonomousRunsIndex';
 import ImportFromHubButton from '../common/ImportFromHubButton';
 import ToolBar from '../common/ToolBar';
 import ImportUploaderScenario from './ImportUploaderScenario';
 import ScenarioPopover from './scenario/ScenarioPopover';
 import ScenarioStatus from './scenario/ScenarioStatus';
-import ScenarioType, { SCENARIO_TYPE_AUTONOMOUS, SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED, type ScenarioTypeValue } from './scenario/ScenarioType';
+import ScenarioType, { SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED, type ScenarioTypeValue } from './scenario/ScenarioType';
 import ScenarioCreation from './ScenarioCreation';
 
 const useStyles = makeStyles()(() => ({
@@ -58,12 +54,8 @@ const Scenarios = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const { isXTMHubAccessible } = useAuth();
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
-  // Index of the tenant's autonomous runs so each row's popover can mirror the scenario cockpit's
-  // delete guard: an AI-driven scenario cannot be deleted while its run is still live.
-  const autonomousRuns = useAutonomousRunsIndex();
-
   const [loading, setLoading] = useState<boolean>(true);
+  const [reloadCount, setReloadCount] = useState<number>(0);
 
   // Headers
   const headers = useMemo(() => [
@@ -101,20 +93,12 @@ const Scenarios = () => {
       field: 'scenario_type',
       label: 'Type',
       // Derived engine facet (no single sortable column), mirroring the backend ScenarioSpecification:
-      // an AI-driven scenario is Autonomous (it also carries a workflow, so this wins first), a
-      // scenario carrying a chaining workflow template is Chained, otherwise it is a classic
-      // Time-based scenario. Autonomous is detected via the runs index, since the list DTO
-      // (RawPaginationScenario) exposes the workflow id but not the autonomous flag.
+      // a scenario carrying a chaining workflow template is Chained, otherwise it is a classic
+      // Time-based scenario. Autonomy is a launch-time MODE now, not a scenario type.
       isSortable: false,
       value: (scenario: Scenario) => {
-        const isAutonomous = !!autonomousRuns.byScenario(scenario.scenario_id);
         const workflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id;
-        let type: ScenarioTypeValue = SCENARIO_TYPE_TIME_BASED;
-        if (isAutonomous) {
-          type = SCENARIO_TYPE_AUTONOMOUS;
-        } else if (workflowId) {
-          type = SCENARIO_TYPE_CHAINED;
-        }
+        const type: ScenarioTypeValue = workflowId ? SCENARIO_TYPE_CHAINED : SCENARIO_TYPE_TIME_BASED;
         return <ScenarioType type={type} variant="list" />;
       },
     },
@@ -144,7 +128,7 @@ const Scenarios = () => {
       isSortable: true,
       value: (scenario: Scenario) => nsdt(scenario.scenario_updated_at),
     },
-  ], [autonomousRuns]);
+  ], [t, nsdt]);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
 
@@ -226,6 +210,7 @@ const Scenarios = () => {
       />
       <PaginationComponentV2
         fetch={search}
+        reloadContentCount={reloadCount}
         searchPaginationInput={searchPaginationInput}
         setContent={setScenarios}
         entityPrefix="scenario"
@@ -246,12 +231,9 @@ const Scenarios = () => {
                 exportProps={exportProps}
               />
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-                <ImportUploaderScenario />
+                <ImportUploaderScenario refresh={() => setReloadCount(count => count + 1)} />
               </Can>
             </ToggleButtonGroup>
-            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-              <AutonomousAttackCreation />
-            </Can>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
               <ScenarioCreation />
             </Can>
@@ -313,19 +295,12 @@ const Scenarios = () => {
           loading
             ? <PaginatedListLoader Icon={RouteOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canManage} />
             : scenarios.map((scenario: Scenario) => {
-                const autonomousRun = autonomousRuns.byScenario(scenario.scenario_id);
-                const isAutonomous = !!autonomousRun;
-                const autonomousActive = isAutonomousRunActive(autonomousRun);
-                const isScenarioChaining = isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id;
-                // Match the scenario cockpit: an AI-driven scenario is never duplicated by hand
-                // (the AI owns its attack-path logic) but its metadata stays editable, and its Delete
-                // is gated on the run being terminal.
-                let scenarioActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = ['Duplicate', 'Export', 'Delete'];
-                if (isAutonomous) {
-                  scenarioActions = ['Update', 'Export', 'Delete'];
-                } else if (isScenarioChaining) {
-                  scenarioActions = ['Export', 'Delete'];
-                }
+                const isScenarioChaining = !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id;
+                // A chained scenario owns its attack-path logic and is never duplicated by hand
+                // (its metadata stays editable); a time-based one may also be duplicated.
+                const scenarioActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = isScenarioChaining
+                  ? ['Update', 'Export', 'Delete']
+                  : ['Duplicate', 'Export', 'Delete'];
                 return (
                   <ListItem
                     key={scenario.scenario_id}
@@ -334,10 +309,6 @@ const Scenarios = () => {
                       <ScenarioPopover
                         scenario={scenario}
                         actions={scenarioActions}
-                        deleteDisabled={autonomousActive}
-                        deleteDisabledMessage={autonomousActive
-                          ? t('Stop the autonomous run before deleting its scenario.')
-                          : undefined}
                         onDelete={(result) => {
                           setScenarios(scenarios.filter(e => (e.scenario_id !== result)));
                           setSearchPaginationInput(prev => ({

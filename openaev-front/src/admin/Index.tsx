@@ -21,6 +21,7 @@ import useAuth from '../utils/hooks/useAuth';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
+import { isFeatureEnabled } from '../utils/utils';
 import ChatbotProvider from './components/ariane/ChatbotProvider';
 import { useChatbotContentMargin, useChatbotContentTransition } from './components/ariane/useChatbotHooks';
 import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/GettingStartedPage';
@@ -68,6 +69,8 @@ const IndexCustomDashboard = lazy(() => import('./components/workspaces/custom_d
 const IndexReporting = lazy(() => import('./components/reporting/Index'));
 const IndexSettings = lazy(() => import('./components/settings/Index'));
 const ThreatArsenal = lazy(() => import('./components/threat_arsenal/ThreatArsenal'));
+const Credentials = lazy(() => import('./components/assets/credentials/Credentials'));
+const CredentialDetail = lazy(() => import('./components/assets/credentials/CredentialDetailPage'));
 
 // Param-preserving redirects for the legacy nested asset URLs
 // (/admin/assets/details/:id, /admin/assets/endpoints/:id,
@@ -111,6 +114,7 @@ const Index = () => {
 
   const chatbotMargin = useChatbotContentMargin();
   const chatbotTransition = useChatbotContentTransition(theme);
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
 
   const { currentUserTenant } = useAuth();
 
@@ -374,6 +378,34 @@ const Index = () => {
                 />
               )}
             />
+            { isCredentialAssetEnabled && (
+              <>
+                <Route
+                  path="credentials"
+                  element={(
+                    <ProtectedRoute
+                      checks={[{
+                        action: ACTIONS.ACCESS,
+                        subject: SUBJECTS.CREDENTIALS,
+                      }]}
+                      Component={errorWrapper(Credentials)()}
+                    />
+                  )}
+                />
+                <Route
+                  path="credentials/:credentialId/*"
+                  element={(
+                    <ProtectedRoute
+                      checks={[{
+                        action: ACTIONS.ACCESS,
+                        subject: SUBJECTS.CREDENTIALS,
+                      }]}
+                      Component={errorWrapper(CredentialDetail)()}
+                    />
+                  )}
+                />
+              </>
+            )}
             <Route
               path="security_platforms"
               element={(

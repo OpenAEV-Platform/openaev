@@ -3,7 +3,6 @@ import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
-import LogicReadOnlyBanner from './LogicReadOnlyBanner';
 import LogicWarningBanner from './LogicWarningBanner';
 import type { EventMeta } from './types';
 
@@ -12,10 +11,9 @@ interface LogicTopBarProps {
   onAddCompatibleAction: (field: string) => void;
   onAddComponent: () => void;
   readOnly?: boolean;
-  readOnlyMessage?: string;
 }
 
-const LogicTopBar = ({ eventMetas, onAddCompatibleAction, onAddComponent, readOnly = false, readOnlyMessage }: LogicTopBarProps) => {
+const LogicTopBar = ({ eventMetas, onAddCompatibleAction, onAddComponent, readOnly = false }: LogicTopBarProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -37,7 +35,6 @@ const LogicTopBar = ({ eventMetas, onAddCompatibleAction, onAddComponent, readOn
         minWidth: 0,
       }}
       >
-        {readOnly && <LogicReadOnlyBanner message={readOnlyMessage} />}
         <LogicWarningBanner
           eventMetas={eventMetas}
           onAddCompatibleAction={onAddCompatibleAction}

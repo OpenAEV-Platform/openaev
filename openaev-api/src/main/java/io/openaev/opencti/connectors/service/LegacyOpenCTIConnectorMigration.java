@@ -5,7 +5,7 @@ import static io.openaev.opencti.connectors.Constants.PROCESS_STIX_ROLE_ID;
 
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
-import io.openaev.service.RoleService;
+import io.openaev.service.TenantRoleService;
 import io.openaev.service.UserService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +33,7 @@ public class LegacyOpenCTIConnectorMigration {
   private static final String LEGACY_EMAIL_PATTERN = "connector-%s@openaev.invalid";
 
   private final UserService userService;
-  private final RoleService roleService;
+  private final TenantRoleService tenantRoleService;
   private final GroupRepository groupRepository;
 
   /** Tracks whether the legacy cleanup has already been performed (or confirmed unnecessary). */
@@ -62,7 +62,7 @@ public class LegacyOpenCTIConnectorMigration {
       if (groupRepository.existsById(PROCESS_STIX_GROUP_ID)) {
         groupRepository.deleteById(PROCESS_STIX_GROUP_ID);
       }
-      roleService.deleteRole(PROCESS_STIX_ROLE_ID);
+      tenantRoleService.delete(PROCESS_STIX_ROLE_ID);
     }
     migrationDone = true;
   }

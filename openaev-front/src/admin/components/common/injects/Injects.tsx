@@ -36,6 +36,7 @@ import { MESSAGING$ } from '../../../../utils/Environment';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import { splitDuration } from '../../../../utils/Time';
 import { download, isNotEmptyField } from '../../../../utils/utils';
+import PayloadDeprecatedChip from '../../payloads/PayloadDeprecatedChip';
 import { InjectContext, InjectTestContext, PermissionsContext, ViewModeContext } from '../Context';
 import ToolBar from '../ToolBar';
 import InjectIcon from './InjectIcon';
@@ -135,7 +136,28 @@ const Injects: FunctionComponent<Props> = ({
       field: 'inject_title',
       label: 'Title',
       isSortable: true,
-      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => <>{inject.inject_title}</>,
+      value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => (
+        <span style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          maxWidth: '100%',
+        }}
+        >
+          {/* minWidth: 0 lets the flex item shrink below its content width so the
+              ellipsis can kick in instead of pushing the chip out of the cell */}
+          <span style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minWidth: 0,
+          }}
+          >
+            {inject.inject_title}
+          </span>
+          <PayloadDeprecatedChip status={inject.inject_injector_contract?.injector_contract_payload?.payload_status} />
+        </span>
+      ),
     },
     {
       field: 'inject_contract_domains',

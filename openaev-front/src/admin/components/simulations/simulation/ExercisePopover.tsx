@@ -1,3 +1,4 @@
+import { Alert } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -250,6 +251,15 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
         handleClose={handleCloseDelete}
         handleSubmit={submitDelete}
         text={`${t('Do you want to delete this simulation:')} ${exercise.exercise_name} ?`}
+        extraContent={
+          (exercise.exercise_status === 'RUNNING' || exercise.exercise_status === 'PAUSED')
+            ? (
+                <Alert severity="warning" sx={{ mt: 2 }}>
+                  {t('Deleting a running simulation will stop its execution.')}
+                </Alert>
+              )
+            : undefined
+        }
       />
     </>
   );

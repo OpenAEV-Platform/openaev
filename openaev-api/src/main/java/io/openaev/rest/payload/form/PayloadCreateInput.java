@@ -77,6 +77,9 @@ public class PayloadCreateInput {
   private java.util.Map<EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
       expectedSecurityPlatforms = new java.util.HashMap<>();
 
+  @JsonProperty("payload_elevation_required")
+  private boolean elevationRequired;
+
   @JsonProperty("payload_description")
   private String description;
 

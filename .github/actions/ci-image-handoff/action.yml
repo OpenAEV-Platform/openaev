@@ -1,0 +1,329 @@
+name: Resolve CI Image Handoff
+description: >
+  Prefer temporary GHCR images for fast cross-job handoff, then fall back to
+  workflow artifacts when the registry is unavailable. The calling job must
+  run actions/checkout before this action.
+
+inputs:
+  artifact-names:
+    description: "Newline-separated workflow artifact names required by the caller"
+    required: true
+  artifact-pattern:
+    description: "Pattern passed to actions/download-artifact when artifacts are selected"
+    required: true
+  artifact-path:
+    description: "Directory where selected workflow artifacts are downloaded"
+    required: true
+  merge-artifacts:
+    description: "Whether matching artifacts are downloaded into one directory"
+    required: false
+    default: "false"
+  registry-mode:
+    description: 'Registry handling: "inspect" checks refs; "pull" also pulls and tags them locally'
+    required: false
+    default: "inspect"
+  local-tags:
+    description: "Newline-separated local tags aligned with artifact-names; required in pull mode"
+    required: false
+    default: ""
+  allow-registry:
+    description: "Set to false when the caller has no packages:write permission"
+    required: false
+    default: "true"
+  build-job-names:
+    description: "Newline-separated job-name substrings used to detect failed producers"
+    required: false
+    default: "Docker Build"
+  wait-seconds:
+    description: "Maximum wait for either source; ready artifacts are selected immediately"
+    required: false
+    default: "900"
+  registry-pull-timeout-seconds:
+    description: "Maximum total time for pulling all requested images from GHCR"
+    required: false
+    default: "60"
+  poll-interval-seconds:
+    description: "Interval between workflow artifact metadata checks"
+    required: false
+    default: "15"
+  producer-check-interval-seconds:
+    description: "Interval between producer job conclusion checks"
+    required: false
+    default: "15"
+
+outputs:
+  source:
+    description: 'Selected handoff source: "registry" or "artifact"'
+    value: ${{ steps.select.outputs.source }}
+  repository:
+    description: "Lowercased temporary GHCR repository"
+    value: ${{ steps.registry.outputs.repository }}
+  tag-prefix:
+    description: "Registry tag prefix unique to this run attempt"
+    value: ${{ steps.registry.outputs.tag-prefix }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve CI registry
+      id: registry
+      uses: ./.github/actions/ci-registry
+      with:
+        allow-registry: ${{ inputs.allow-registry }}
+
+    - name: Select image source
+      id: select
+      shell: bash
+      env:
+        ARTIFACT_NAMES: ${{ inputs.artifact-names }}
+        BUILD_JOB_NAMES: ${{ inputs.build-job-names }}
+        GHCR_TOKEN: ${{ github.token }}
+        GHCR_USERNAME: ${{ github.actor }}
+        LOCAL_TAGS: ${{ inputs.local-tags }}
+        POLL_INTERVAL_SECONDS: ${{ inputs.poll-interval-seconds }}
+        PRODUCER_CHECK_INTERVAL_SECONDS: ${{ inputs.producer-check-interval-seconds }}
+        REGISTRY_MODE: ${{ inputs.registry-mode }}
+        REGISTRY_PULL_TIMEOUT_SECONDS: ${{ inputs.registry-pull-timeout-seconds }}
+        REPOSITORY: ${{ steps.registry.outputs.repository }}
+        RUN_ATTEMPT: ${{ github.run_attempt }}
+        TAG_PREFIX: ${{ steps.registry.outputs.tag-prefix }}
+        USE_REGISTRY: ${{ steps.registry.outputs.available }}
+        WAIT_SECONDS: ${{ inputs.wait-seconds }}
+      run: |
+        set -euo pipefail
+
+        mapfile -t ARTIFACTS < <(printf '%s\n' "$ARTIFACT_NAMES" | sed -e 's/\r$//' -e '/^[[:space:]]*$/d')
+        mapfile -t JOB_NAMES < <(printf '%s\n' "$BUILD_JOB_NAMES" | sed -e 's/\r$//' -e '/^[[:space:]]*$/d')
+        mapfile -t TAGS < <(printf '%s\n' "$LOCAL_TAGS" | sed -e 's/\r$//' -e '/^[[:space:]]*$/d')
+
+        if [ "${#ARTIFACTS[@]}" -eq 0 ]; then
+          echo "artifact-names must contain at least one name" >&2
+          exit 1
+        fi
+        if ! [[ "$WAIT_SECONDS" =~ ^[0-9]+$ ]]; then
+          echo "wait-seconds must be a non-negative integer" >&2
+          exit 1
+        fi
+        for value_name in REGISTRY_PULL_TIMEOUT_SECONDS POLL_INTERVAL_SECONDS PRODUCER_CHECK_INTERVAL_SECONDS; do
+          value="${!value_name}"
+          if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -eq 0 ]; then
+            input_name=$(printf '%s' "${value_name,,}" | tr '_' '-')
+            echo "${input_name} must be a positive integer" >&2
+            exit 1
+          fi
+        done
+        case "$REGISTRY_MODE" in
+          inspect) ;;
+          pull)
+            if [ "${#TAGS[@]}" -ne "${#ARTIFACTS[@]}" ]; then
+              echo "pull mode requires one local tag per artifact" >&2
+              exit 1
+            fi
+            ;;
+          *)
+            echo "Unsupported registry-mode: $REGISTRY_MODE" >&2
+            exit 1
+            ;;
+        esac
+
+        operation_timeout() {
+          local maximum="$1"
+          local remaining=$((DEADLINE - SECONDS))
+          if [ "$remaining" -le 0 ]; then
+            echo 1
+          elif [ "$remaining" -lt "$maximum" ]; then
+            echo "$remaining"
+          else
+            echo "$maximum"
+          fi
+        }
+
+        registry_login() {
+          if [ "$REGISTRY_LOGIN_ATTEMPTED" = "true" ]; then
+            [ "$USE_REGISTRY" = "true" ]
+            return
+          fi
+
+          REGISTRY_LOGIN_ATTEMPTED=true
+          if printf '%s' "$GHCR_TOKEN" \
+               | timeout --kill-after=5s 15s \
+                 docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin \
+                   >/dev/null 2>&1; then
+            return 0
+          fi
+
+          echo "::warning title=CI registry unavailable::GHCR login failed; waiting for workflow artifacts."
+          USE_REGISTRY=false
+          return 1
+        }
+
+        registry_ready() {
+          local artifact image_ref index
+          local refs=()
+
+          registry_login || return 1
+
+          for artifact in "${ARTIFACTS[@]}"; do
+            image_ref="${REPOSITORY}:${TAG_PREFIX}-${artifact}"
+            refs+=("$image_ref")
+          done
+
+          if [ "$REGISTRY_MODE" = "inspect" ]; then
+            for image_ref in "${refs[@]}"; do
+              inspect_timeout=$(operation_timeout 10)
+              timeout --kill-after=5s "${inspect_timeout}s" \
+                docker buildx imagetools inspect "$image_ref" >/dev/null 2>&1 || return 1
+            done
+            return 0
+          fi
+
+          local pull_deadline=$((SECONDS + REGISTRY_PULL_TIMEOUT_SECONDS))
+          local remaining
+          if [ "$pull_deadline" -gt "$DEADLINE" ]; then
+            pull_deadline=$DEADLINE
+          fi
+          for image_ref in "${refs[@]}"; do
+            remaining=$((pull_deadline - SECONDS))
+            if [ "$remaining" -le 0 ] || \
+               ! timeout --kill-after=5s "${remaining}s" \
+                 docker pull "$image_ref" >/dev/null 2>&1; then
+              return 1
+            fi
+          done
+          for index in "${!refs[@]}"; do
+            if ! docker tag "${refs[$index]}" "${TAGS[$index]}"; then
+              echo "::warning title=CI image unavailable::Could not tag the pulled image; using workflow artifacts."
+              USE_REGISTRY=false
+              return 1
+            fi
+          done
+        }
+
+        registry_ready_with_retry() {
+          if registry_ready; then
+            return 0
+          fi
+
+          if [ "$USE_REGISTRY" = "true" ] && \
+             [ "$REGISTRY_RETRY_ATTEMPTED" = "false" ] && \
+             [ "$SECONDS" -lt "$DEADLINE" ]; then
+            REGISTRY_RETRY_ATTEMPTED=true
+            retry_delay=$(operation_timeout 10)
+            sleep "$retry_delay"
+            if registry_ready; then
+              return 0
+            fi
+          fi
+
+          echo "::warning title=CI registry unavailable::Published image was not readable; waiting for workflow artifacts."
+          USE_REGISTRY=false
+          return 1
+        }
+
+        required_names_ready() {
+          local artifact names="$1" prefix="$2"
+          for artifact in "${ARTIFACTS[@]}"; do
+            grep -qxF "${prefix}${artifact}" <<< "$names" || return 1
+          done
+        }
+
+        producer_state() {
+          local conclusion expected job_name matched rows="$1"
+          [ "${#JOB_NAMES[@]}" -gt 0 ] || return 1
+
+          FAILED_PRODUCER=""
+          for expected in "${JOB_NAMES[@]}"; do
+            matched=false
+            while IFS=$'\t' read -r job_name conclusion; do
+              [[ "$job_name" == *"$expected"* ]] || continue
+              case "$conclusion" in
+                success) matched=true ;;
+                "") ;;
+                *)
+                  FAILED_PRODUCER="${job_name} (${conclusion})"
+                  return 0
+                  ;;
+              esac
+            done <<< "$rows"
+            if [ "$matched" = "true" ]; then
+              PRODUCERS_SUCCEEDED=$((PRODUCERS_SUCCEEDED + 1))
+            fi
+          done
+          return 1
+        }
+
+        fall_back_to_artifacts() {
+          echo "source=artifact" >> "$GITHUB_OUTPUT"
+          echo "::warning title=Image source probe unavailable::Could not confirm an image source within ${WAIT_SECONDS}s; trying the workflow artifacts directly."
+          exit 0
+        }
+
+        START_TIME=$SECONDS
+        DEADLINE=$((SECONDS + WAIT_SECONDS))
+        NEXT_PRODUCER_CHECK=$SECONDS
+        REGISTRY_LOGIN_ATTEMPTED=false
+        REGISTRY_RETRY_ATTEMPTED=false
+        if [ "$USE_REGISTRY" = "true" ]; then
+          echo "Waiting for CI images in GHCR or workflow artifacts..."
+        else
+          echo "GHCR unavailable; waiting for workflow artifacts..."
+        fi
+
+        while true; do
+          API_TIMEOUT=$(operation_timeout 15)
+          ARTIFACT_NAMES_AVAILABLE=$(timeout --kill-after=5s "${API_TIMEOUT}s" gh api --paginate \
+            "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100" \
+            --jq '.artifacts[].name' 2>/dev/null || true)
+
+          MARKERS_READY=false
+          if required_names_ready "$ARTIFACT_NAMES_AVAILABLE" "ci-registry-${RUN_ATTEMPT}-"; then
+            MARKERS_READY=true
+          fi
+
+          if [ "$SECONDS" -ge "$NEXT_PRODUCER_CHECK" ]; then
+            API_TIMEOUT=$(operation_timeout 15)
+            JOB_ROWS=$(timeout --kill-after=5s "${API_TIMEOUT}s" gh api --paginate \
+              "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs?per_page=100" \
+              --jq '.jobs[] | [.name, (.conclusion // "")] | @tsv' 2>/dev/null || true)
+            PRODUCERS_SUCCEEDED=0
+            if producer_state "$JOB_ROWS"; then
+              echo "Required producer did not succeed: ${FAILED_PRODUCER}" >&2
+              exit 1
+            fi
+
+            if [ "$PRODUCERS_SUCCEEDED" -eq "${#JOB_NAMES[@]}" ] && \
+               [ "$MARKERS_READY" != "true" ]; then
+              USE_REGISTRY=false
+            fi
+            NEXT_PRODUCER_CHECK=$((SECONDS + PRODUCER_CHECK_INTERVAL_SECONDS))
+          fi
+          [ "$SECONDS" -ge "$DEADLINE" ] && fall_back_to_artifacts
+
+          if [ "$USE_REGISTRY" = "true" ] && \
+             [ "$MARKERS_READY" = "true" ] && \
+             registry_ready_with_retry; then
+            echo "source=registry" >> "$GITHUB_OUTPUT"
+            echo "CI images ready from GHCR after $((SECONDS - START_TIME))s"
+            exit 0
+          fi
+          [ "$SECONDS" -ge "$DEADLINE" ] && fall_back_to_artifacts
+
+          if required_names_ready "$ARTIFACT_NAMES_AVAILABLE" ""; then
+            echo "source=artifact" >> "$GITHUB_OUTPUT"
+            echo "CI image artifacts ready after $((SECONDS - START_TIME))s"
+            exit 0
+          fi
+          [ "$SECONDS" -ge "$DEADLINE" ] && fall_back_to_artifacts
+
+          REMAINING=$((DEADLINE - SECONDS))
+          SLEEP_SECONDS=$((REMAINING < POLL_INTERVAL_SECONDS ? REMAINING : POLL_INTERVAL_SECONDS))
+          sleep "$SLEEP_SECONDS"
+        done
+
+    - name: Download workflow image artifacts
+      if: ${{ steps.select.outputs.source == 'artifact' }}
+      uses: actions/download-artifact@v8
+      with:
+        pattern: ${{ inputs.artifact-pattern }}
+        path: ${{ inputs.artifact-path }}
+        merge-multiple: ${{ inputs.merge-artifacts }}

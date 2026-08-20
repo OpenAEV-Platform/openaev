@@ -21,7 +21,15 @@ import type { WorkflowConfigurationInput, WorkflowConfigurationOutput } from '..
 interface Props {
   workflowConfiguration: WorkflowConfigurationOutput | undefined;
   onUpdate: (overrides: Partial<WorkflowConfigurationInput>) => void;
+  /** Autonomous (AI-driven) run: the OpenAEV-owned session timeout replaces the chaining-engine
+   *  timeout, and the per-step rate limit does not apply (the orchestrator paces itself), so the
+   *  rate-limit control is hidden. */
+  autonomous?: boolean;
+  /** OpenAEV-owned autonomous session timeout in seconds (default 24h). Only used when autonomous. */
+  autonomousTimeoutSeconds?: number | null;
 }
+
+const DEFAULT_AUTONOMOUS_TIMEOUT_SECONDS = 24 * 3600;
 
 // A single labelled row of a limits section: typed icon + title + info hint + an enable switch,
 // with the concrete controls rendered underneath. Keeping both time-out and rate-limit in one card
@@ -83,16 +91,23 @@ const LimitSection = ({ icon, title, tooltip, enabled, onToggle, children }: Lim
   );
 };
 
-const ScopeExecutionLimits = ({ workflowConfiguration, onUpdate }: Props) => {
+const ScopeExecutionLimits = ({ workflowConfiguration, onUpdate, autonomous = false, autonomousTimeoutSeconds }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
-  // Time out
-  const timeoutEnabled = workflowConfiguration?.workflow_configuration_timeout_enabled ?? false;
-  const totalSeconds = workflowConfiguration?.workflow_configuration_timeout_seconds ?? 3600;
+  // Time out. On an autonomous run the displayed budget is the OpenAEV-owned session timeout (the
+  // watchdog hard-stops the run at its deadline); it is always on and reflects what the operator set
+  // in the launch drawer (default 24h), not the chaining-engine timeout of a manual chained scenario.
+  const timeoutEnabled = autonomous || (workflowConfiguration?.workflow_configuration_timeout_enabled ?? false);
+  const totalSeconds = autonomous
+    ? (autonomousTimeoutSeconds ?? DEFAULT_AUTONOMOUS_TIMEOUT_SECONDS)
+    : (workflowConfiguration?.workflow_configuration_timeout_seconds ?? 3600);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const minMinutes = hours === 0 ? 1 : 0;
+  // The manual editor caps hours at 23; a 24h+ autonomous budget needs the current value to exist as
+  // an option so the read-only select is not left blank.
+  const hoursOptionCount = Math.max(24, hours + 1);
 
   const handleToggleTimeout = () => onUpdate({ workflow_configuration_timeout_enabled: !timeoutEnabled });
 
@@ -152,15 +167,17 @@ const ScopeExecutionLimits = ({ workflowConfiguration, onUpdate }: Props) => {
     >
       <LimitSection
         icon={<HourglassEmptyOutlined fontSize="small" />}
-        title={t('Simulation time out')}
-        tooltip={t('Maximum total runtime for the entire chained scenario. Execution stops automatically once the timeout is reached.')}
+        title={autonomous ? t('Session time out') : t('Simulation time out')}
+        tooltip={autonomous
+          ? t('Maximum total runtime for this autonomous session. OpenAEV automatically stops the run and tears down its simulation once the timeout is reached.')
+          : t('Maximum total runtime for the entire chained scenario. Execution stops automatically once the timeout is reached.')}
         enabled={timeoutEnabled}
         onToggle={handleToggleTimeout}
       >
         <FormControl size="small" disabled={!timeoutEnabled}>
           <InputLabel sx={{ color: theme.palette.grey['500'] }}>{t('Hours')}</InputLabel>
           <Select value={hours} label={t('Hours')} onChange={handleHoursChange}>
-            {Array.from({ length: 24 }, (_, i) => (
+            {Array.from({ length: hoursOptionCount }, (_, i) => (
               <MenuItem key={i} value={i}>{String(i).padStart(2, '0')}</MenuItem>
             ))}
           </Select>
@@ -175,32 +192,38 @@ const ScopeExecutionLimits = ({ workflowConfiguration, onUpdate }: Props) => {
         </FormControl>
       </LimitSection>
 
-      <Divider flexItem />
+      {/* The per-step rate limit paces the manual chaining engine; on an autonomous run the AI
+          orchestrator paces itself, so the control does not apply and is hidden. */}
+      {!autonomous && (
+        <>
+          <Divider flexItem />
 
-      <LimitSection
-        icon={<SpeedOutlined fontSize="small" />}
-        title={t('Simulation rate limit')}
-        tooltip={t('Controls how often an attack step is executed. Useful for simulating brute-force or slow, stealthy attacks.')}
-        enabled={rateLimitEnabled}
-        onToggle={handleToggleRateLimit}
-      >
-        <FormControl size="small" disabled={!rateLimitEnabled}>
-          <InputLabel sx={{ color: theme.palette.grey['500'] }}>{t('Max Attempts')}</InputLabel>
-          <Select value={maxAttempts} label={t('Max Attempts')} onChange={handleMaxAttemptsChange}>
-            {Array.from({ length: 99 }, (_, i) => (
-              <MenuItem key={i + 1} value={i + 1}>{String(i + 1).padStart(2, '0')}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl size="small" disabled={!rateLimitEnabled}>
-          <InputLabel sx={{ color: theme.palette.grey['500'] }}>{t('Minutes')}</InputLabel>
-          <Select value={rateMinutes} label={t('Minutes')} onChange={handleRateMinutesChange}>
-            {Array.from({ length: 59 }, (_, i) => (
-              <MenuItem key={i + 1} value={i + 1}>{String(i + 1).padStart(2, '0')}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </LimitSection>
+          <LimitSection
+            icon={<SpeedOutlined fontSize="small" />}
+            title={t('Simulation rate limit')}
+            tooltip={t('Controls how often an attack step is executed. Useful for simulating brute-force or slow, stealthy attacks.')}
+            enabled={rateLimitEnabled}
+            onToggle={handleToggleRateLimit}
+          >
+            <FormControl size="small" disabled={!rateLimitEnabled}>
+              <InputLabel sx={{ color: theme.palette.grey['500'] }}>{t('Max Attempts')}</InputLabel>
+              <Select value={maxAttempts} label={t('Max Attempts')} onChange={handleMaxAttemptsChange}>
+                {Array.from({ length: 99 }, (_, i) => (
+                  <MenuItem key={i + 1} value={i + 1}>{String(i + 1).padStart(2, '0')}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl size="small" disabled={!rateLimitEnabled}>
+              <InputLabel sx={{ color: theme.palette.grey['500'] }}>{t('Minutes')}</InputLabel>
+              <Select value={rateMinutes} label={t('Minutes')} onChange={handleRateMinutesChange}>
+                {Array.from({ length: 59 }, (_, i) => (
+                  <MenuItem key={i + 1} value={i + 1}>{String(i + 1).padStart(2, '0')}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </LimitSection>
+        </>
+      )}
     </Paper>
   );
 };

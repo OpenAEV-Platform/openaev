@@ -7,6 +7,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import NodePopover from '../chaining_flow/nodes/NodePopover';
 import LogicNodeTooltip, { type TooltipRow } from '../chaining_flow/NodeTooltip';
 import { formatConditionKeyLabel } from '../events/event-types';
+import GraphCardTooltip from './GraphCardTooltip';
 import graphTooltipSlotProps from './graphTooltipSlotProps';
 
 export interface GraphTriggerCardProps {
@@ -24,6 +25,8 @@ export interface GraphTriggerCardProps {
   dimmed?: boolean;
   pathIndex?: number;
   readOnly?: boolean;
+  /** Force-closes the rich tooltip when it changes (graph structural relayout). */
+  tooltipDismissKey?: unknown;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   /** Inline "+": add an action gated by this trigger (continue the chain). */
@@ -33,9 +36,10 @@ export interface GraphTriggerCardProps {
 }
 
 /**
- * Card visual for a trigger (event) in the causal graph. The orchestrator often leaves triggers
- * unnamed, so the title falls back to the listened-on fields. Reuses the shared structured tooltip
- * and carries an inline "+" slot (hidden in read-only) to add a gated action.
+ * Card visual for an event (kind 'trigger' internally) in the causal graph. Titled from the event
+ * name, falling back to "Untitled event" (the listened-on fields stay in the tooltip). Reuses the
+ * shared structured tooltip and carries an inline "+" slot (hidden in read-only) to add a gated
+ * action.
  */
 const GraphTriggerCard = ({
   id,
@@ -49,6 +53,7 @@ const GraphTriggerCard = ({
   dimmed = false,
   pathIndex,
   readOnly = false,
+  tooltipDismissKey,
   onEdit,
   onDelete,
   onAddAction,
@@ -72,17 +77,25 @@ const GraphTriggerCard = ({
     onDelete?.(id);
   };
 
+  // This card is the EVENT node (kind 'trigger' internally), so its title must read as the event's
+  // name. When the event is unnamed, fall back to the human condition line (e.g.
+  // `Hostname contains "dc01"`) so the node is self-describing, and only then to the generic
+  // placeholder — never to the raw listened-on condition-FIELD keys, which made an unnamed event
+  // look like a trigger. The listened-on fields still appear in the tooltip's "Listens on" row.
   const trimmedName = (name ?? '').trim();
-  const title = trimmedName
-    || (conditionFields.length > 0
-      ? conditionFields.map(formatConditionKeyLabel).join(', ')
-      : t('Trigger'));
+  const firstConditionLine = conditionLines.find(line => !!line && !!line.trim())?.trim();
+  const title = trimmedName || firstConditionLine || t('Untitled event');
 
   let summaryLine: ReactNode = t('Waits for a matching finding');
   if (conditionLines.length === 1) {
     summaryLine = conditionLines[0];
   } else if (conditionLines.length > 1) {
     summaryLine = `${conditionLines[0]} (+${conditionLines.length - 1})`;
+  }
+  // An unnamed event promotes its condition line to the title; drop it from the subtitle so the
+  // card never prints the same line twice.
+  if (title === summaryLine) {
+    summaryLine = t('Waits for a matching finding');
   }
 
   const tooltipRows: TooltipRow[] = [];
@@ -101,7 +114,7 @@ const GraphTriggerCard = ({
 
   const tooltip = (
     <LogicNodeTooltip
-      eyebrow={t('Trigger')}
+      eyebrow={t('Event')}
       title={title}
       description={description}
       rows={tooltipRows}
@@ -113,7 +126,7 @@ const GraphTriggerCard = ({
   const active = selected || highlighted;
 
   return (
-    <Tooltip title={tooltip} placement="top" arrow disableInteractive enterDelay={300} slotProps={graphTooltipSlotProps}>
+    <GraphCardTooltip title={tooltip} dismissKey={tooltipDismissKey}>
       <Box
         sx={{
           'position': 'relative',
@@ -303,7 +316,7 @@ const GraphTriggerCard = ({
           />
         )}
       </Box>
-    </Tooltip>
+    </GraphCardTooltip>
   );
 };
 

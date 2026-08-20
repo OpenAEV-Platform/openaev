@@ -1,7 +1,11 @@
+import { AccountTreeOutlined, Add } from '@mui/icons-material';
+import { Button } from '@mui/material';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchConditions, fetchSteps } from '../../../../actions/chaining/chaining-actions';
 import { fetchValidAssets, fetchValidTeams } from '../../../../actions/chaining/workflow-actions';
+import EmptyPlaceholder from '../../../../components/common/EmptyPlaceholder';
+import { useFormatter } from '../../../../components/i18n';
 import type {
   EventOutput,
   ScopeAssetOutput,
@@ -10,7 +14,7 @@ import type {
 } from '../../../../utils/api-types';
 import useLivePolling from '../../../../utils/hooks/useLivePolling';
 import useRemainingViewportHeight from '../../../../utils/hooks/useRemainingViewportHeight';
-import AddComponentButton, { type LogicContext } from './AddComponentButton';
+import { type LogicContext } from './AddComponentButton';
 import ComponentStepperDrawer, { type DrawerView } from './drawer/ComponentStepperDrawer';
 import LogicGraph from './logic-graph/LogicGraph';
 import LogicReadOnlyBanner from './LogicReadOnlyBanner';
@@ -35,6 +39,7 @@ interface LogicProps {
 }
 
 const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, readOnlyMessage }: LogicProps) => {
+  const { t } = useFormatter();
   // The canvas sizes itself to the exact space left under the page chrome (no page scrollbar).
   const [graphContainerRef, graphHeight] = useRemainingViewportHeight();
   // Fetch computed valid assets (allowlist minus denylist)
@@ -58,8 +63,6 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
   const [compatibleActionFilter, setCompatibleActionFilter] = useState<string | undefined>();
   // Event to link a newly created action to (set when adding an action via a trigger's "+")
   const [linkToEventId, setLinkToEventId] = useState<string | undefined>();
-  // Output types to seed a new trigger with (set when adding a trigger via an action's "+")
-  const [prefillEventFields, setPrefillEventFields] = useState<string[] | undefined>();
   // Event currently being edited
   const [editingEvent, setEditingEvent] = useState<{
     eventId: string;
@@ -68,6 +71,9 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
   // Latest event metas
   const [eventMetas, setEventMetas] = useState<Record<string, EventMeta>>({});
 
+  // Re-read the scope perimeter whenever the workflow changes and after each graph refresh, so an
+  // action configured right after a scope edit inherits the current assets/teams (the backend
+  // realigns the already-authored steps on its side).
   useEffect(() => {
     if (workflowId) {
       fetchValidAssets(workflowId).then((assets: ScopeAssetOutput[]) => {
@@ -77,7 +83,7 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
         setValidTeams(teams);
       });
     }
-  }, [workflowId]);
+  }, [workflowId, refreshKey]);
 
   // Fingerprint of the workflow's shape (which steps/triggers exist and when each last changed) so a
   // live poll can tell a real edit from a no-op tick: it re-draws the graph on an add, a delete or an
@@ -141,7 +147,6 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
   const handleOpenDrawer = useCallback(() => {
     setCompatibleActionFilter(undefined);
     setLinkToEventId(undefined);
-    setPrefillEventFields(undefined);
     setDrawerView('choose');
   }, []);
 
@@ -149,24 +154,14 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
   const handleOpenActionDrawer = useCallback((field?: string) => {
     setCompatibleActionFilter(field);
     setLinkToEventId(undefined);
-    setPrefillEventFields(undefined);
     setDrawerView('action');
   }, []);
 
   // Inline "+" on a trigger: add an action gated by that trigger
   const handleAddActionToEvent = useCallback((eventId: string) => {
     setCompatibleActionFilter(undefined);
-    setPrefillEventFields(undefined);
     setLinkToEventId(eventId);
     setDrawerView('action');
-  }, []);
-
-  // Inline "+" on an action: add a trigger fed by that action's output types
-  const handleAddTriggerAfterAction = useCallback((_stepId: string, outputTypes: string[]) => {
-    setEditingEvent(null);
-    setLinkToEventId(undefined);
-    setPrefillEventFields(outputTypes);
-    setDrawerView('event');
   }, []);
 
   const handleEditStep = useCallback((stepId: string, meta: ActionMeta) => {
@@ -182,7 +177,6 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
       eventId,
       meta,
     });
-    setPrefillEventFields(undefined);
     setDrawerView('event');
   }, []);
 
@@ -190,6 +184,38 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
   if (hasExistingData === null) {
     return null;
   }
+
+  // Zero-state shown when the workflow has no steps/triggers. Read-only inspection (autonomous run,
+  // or a launched simulation) used to render a blank tab — it now gets a proper placeholder that the
+  // live poll fills in place. Editable contexts keep the "Add component" call-to-action.
+  const emptyState = readOnly
+    ? (
+        <EmptyPlaceholder
+          icon={<AccountTreeOutlined />}
+          title={t('No logic to display')}
+          message={t('This workflow does not contain any steps or triggers yet. They appear here as they are authored.')}
+        />
+      )
+    : (
+        <EmptyPlaceholder
+          icon={<AccountTreeOutlined />}
+          title={t('No components yet')}
+          message={context === 'scenario'
+            ? t('Start adding components to complete the configuration of your scenario.')
+            : t('Start adding components to complete the configuration of your simulation.')}
+          action={(
+            <Button
+              variant="contained"
+              color="primary"
+              size="large"
+              startIcon={<Add />}
+              onClick={handleOpenDrawer}
+            >
+              {t('Add component')}
+            </Button>
+          )}
+        />
+      );
 
   return (
     <OutputProvidersProvider>
@@ -212,7 +238,6 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
                   onEditStep={handleEditStep}
                   onEditEvent={handleEditEvent}
                   onAddActionToEvent={handleAddActionToEvent}
-                  onAddTriggerAfterAction={handleAddTriggerAfterAction}
                   onEventMetasChange={setEventMetas}
                   readOnly={readOnly}
                 />
@@ -225,15 +250,12 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
                 )}
               </>
             )
-          : (
-              !readOnly && (
-                <AddComponentButton nodeCount={0} context={context} onClick={handleOpenDrawer} />
-              )
-            )}
+          : emptyState}
       </div>
       <ComponentStepperDrawer
         workflowId={workflowId}
         context={context}
+        readOnly={readOnly}
         scenarioId={scenarioId}
         exerciseId={exerciseId}
         validAssets={validAssets}
@@ -250,7 +272,6 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
         compatibleActionFilter={compatibleActionFilter}
         onCompatibleActionFilterChange={setCompatibleActionFilter}
         linkToEventId={linkToEventId}
-        prefillEventFields={prefillEventFields}
       />
     </OutputProvidersProvider>
   );

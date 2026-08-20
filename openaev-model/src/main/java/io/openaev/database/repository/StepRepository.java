@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -167,6 +168,26 @@ public interface StepRepository extends JpaRepository<Step, String> {
   Optional<String> findInjectIdByStepId(@Param("stepId") String stepId);
 
   /**
+   * The same resolution as {@link #findInjectIdByStepId(String)} for many steps at once, as {@code
+   * (stepId, injectId)} pairs. The attack-path graph read resolves the inject of every execution it
+   * returns, so doing it row by row would be one query per visible execution. Steps whose data
+   * carries no {@code inject_id} are filtered out rather than returned as null pairs.
+   *
+   * @param stepIds the steps whose data may carry an inject_id
+   * @return one row per resolved step: {@code [stepId, injectId]}
+   */
+  @Query(
+      value =
+          """
+      SELECT step_id, jsonb_path_query_first(step_data, '$.**.inject_id') #>> '{}' AS inject_id
+      FROM steps
+      WHERE step_id IN (:stepIds)
+        AND jsonb_path_query_first(step_data, '$.**.inject_id') #>> '{}' IS NOT NULL
+      """,
+      nativeQuery = true)
+  List<Object[]> findInjectIdsByStepIds(@Param("stepIds") Collection<String> stepIds);
+
+  /**
    * Returns the step IDs associated with any of the given inject IDs in a single query.
    *
    * @param injectIds the inject IDs for which we want the associated steps
@@ -233,4 +254,89 @@ public interface StepRepository extends JpaRepository<Step, String> {
    * @return {@code true} if at least one run step references this template
    */
   boolean existsByStepTemplateId(String stepTemplateId);
+
+  /**
+   * Checks whether the given workflow references the given injector contract in one of its steps.
+   *
+   * <p>{@code step_data.inject_injector_contract} holds the serialized {@link
+   * io.openaev.database.model.InjectorContract} for steps created through the chaining UI, but
+   * legacy steps may only hold the contract ID as a plain string: both shapes are handled.
+   *
+   * @param workflowId the ID of the workflow whose steps are inspected
+   * @param injectorContractId the injector contract ID to look for
+   * @return {@code true} if the workflow references the injector contract
+   */
+  @Query(
+      value =
+          """
+        SELECT EXISTS (
+          SELECT 1
+          FROM steps s
+          WHERE s.step_workflow_id = :workflowId
+            AND (
+              (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'object'
+                AND s.step_data -> 'inject_injector_contract' ->> 'injector_contract_id' = :injectorContractId)
+              OR
+              (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'string'
+                AND s.step_data ->> 'inject_injector_contract' = :injectorContractId)
+            )
+        )
+        """,
+      nativeQuery = true)
+  boolean existsInjectorContractByWorkflowIdAndInjectorContractId(
+      @Param("workflowId") String workflowId,
+      @Param("injectorContractId") String injectorContractId);
+
+  /**
+   * Returns the TEMPLATE steps (authored logic-map nodes) of the given tenant whose frozen {@code
+   * step_data} references any of the given injector contract ids.
+   *
+   * <p>Unlike regular injects, a chaining step has NO foreign key to its injector contract - the
+   * contract lives only as a JSON snapshot inside {@code step_data}, so there is nothing for the
+   * database {@code ON DELETE CASCADE} to act on. This query is the JSONB counterpart used to
+   * cascade-clean those steps when their contract / payload is deleted from the threat arsenal.
+   * Both serialized shapes are matched: the full contract object (UI steps, {@code
+   * inject_injector_contract.injector_contract_id}) and the legacy plain-string contract id.
+   *
+   * <p>Tenant scoping is mandatory here: {@code InjectorContract} has a composite {@code (id,
+   * tenant_id)} key and the default contracts are provisioned id-for-id into every tenant, so the
+   * same contract id string legitimately exists in several tenants at once. Native SQL bypasses the
+   * Hibernate {@code tenantFilter}, and the {@code steps} table has no {@code tenant_id} of its
+   * own, so the tenant is resolved through the owning workflow's scenario or simulation ({@code
+   * COALESCE} - a workflow is attached to exactly one of the two). A workflow attached to neither
+   * is unreachable from any tenant UI and is deliberately left alone rather than risk sweeping
+   * another tenant's graph.
+   *
+   * <p>Scoped to TEMPLATE steps on purpose: RUN steps carry immutable execution history and must
+   * survive their contract's deletion, mirroring the TEMPLATE-only rule of {@code
+   * WorkflowScopeRuleCascadeListener}. The canonical {@code step_status = 'TEMPLATE'} check is the
+   * primary guard; the redundant {@code step_template_id IS NULL} belt guarantees an orphaned run
+   * artifact with a null template link can never be mistaken for an authored node.
+   *
+   * @param injectorContractIds the deleted injector contract ids to look for
+   * @param tenantId the tenant whose logic maps are swept (the tenant the contract was deleted in)
+   * @return the matching TEMPLATE steps (empty when the input is empty)
+   */
+  @Query(
+      value =
+          """
+        SELECT s.* FROM steps s
+        JOIN workflows w ON w.workflow_id = s.step_workflow_id
+        LEFT JOIN scenarios sc ON sc.scenario_id = w.workflow_scenario_id
+        LEFT JOIN exercises e ON e.exercise_id = w.workflow_simulation_id
+        WHERE s.step_status = 'TEMPLATE'
+          AND s.step_template_id IS NULL
+          AND COALESCE(sc.tenant_id, e.tenant_id) = :tenantId
+          AND (
+            (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'object'
+              AND s.step_data -> 'inject_injector_contract' ->> 'injector_contract_id' IN (:injectorContractIds))
+            OR
+            (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'string'
+              AND s.step_data ->> 'inject_injector_contract' IN (:injectorContractIds))
+          )
+        """,
+      nativeQuery = true)
+  List<Step> findTemplateStepsByInjectorContractIds(
+      @Param("injectorContractIds") Collection<String> injectorContractIds,
+      @Param("tenantId") String tenantId);
 }

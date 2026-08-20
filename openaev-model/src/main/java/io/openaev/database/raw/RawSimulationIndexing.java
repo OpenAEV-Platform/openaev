@@ -136,6 +136,13 @@ public interface RawSimulationIndexing extends RawTenant {
   boolean getExercise_lessons_enabled();
 
   /**
+   * Returns whether this simulation was created by an autonomous (AI-driven) run.
+   *
+   * @return {@code true} if the simulation is autonomous, {@code false} otherwise
+   */
+  boolean getExercise_autonomous();
+
+  /**
    * Returns the creation timestamp of the exercise.
    *
    * @return the creation timestamp

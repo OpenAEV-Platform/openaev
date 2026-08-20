@@ -1187,6 +1187,78 @@ class InjectExpectationServiceTest {
   }
 
   @Nested
+  @DisplayName("findMergedExpectationsByInjectAndTargetAndTargetType same-type display merge")
+  class SameTypeDisplayMergeTests {
+
+    private ManualInjectExpectation manualStep(String id, String name, Double score) {
+      ManualInjectExpectation expectation = new ManualInjectExpectation();
+      expectation.setId(id);
+      expectation.setName(name);
+      expectation.setScore(score);
+      expectation.setExpectedScore(100.0);
+      expectation.setResults(
+          new ArrayList<>(
+              List.of(
+                  InjectExpectationResult.builder()
+                      .sourceId("phishing-injector")
+                      .sourceType("injector")
+                      .sourceName("Phishing")
+                      .result(score != null && score == 0.0 ? "Compromised" : "No interaction")
+                      .score(score)
+                      .build())));
+      return expectation;
+    }
+
+    @Test
+    @DisplayName("Merging same-type expectations never mutates the managed entities")
+    void sameTypeMergeIsDisplayOnly() {
+      // Regression: the three phishing steps are all MANUAL, so the display merge fires. It used
+      // to append the sibling rows' results into the FIRST managed entity and overwrite its score
+      // with the max - Hibernate then flushed that on commit, so every poll of the results page
+      // grew the row's results JSON (until requests exceeded the Hikari leak threshold and
+      // exhausted the pool) and flipped a compromised step back to green in the database.
+      ManualInjectExpectation opened = manualStep("exp-opened", "Email not opened", 0.0);
+      ManualInjectExpectation clicked = manualStep("exp-clicked", "Link not clicked", 100.0);
+      ManualInjectExpectation submitted =
+          manualStep("exp-submitted", "Credentials not submitted", 100.0);
+      when(injectExpectationRepository.findAllByInjectAndTeam("inject-id", "team-id"))
+          .thenReturn(List.of(opened, clicked, submitted));
+
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "team-id", "TEAMS");
+
+      assertEquals(1, merged.size());
+      BaseInjectExpectation electedClone = merged.get(0);
+      assertNotSame(opened, electedClone);
+      assertEquals(3, electedClone.getResults().size());
+      // Worst-step verdict: one compromised step keeps the merged human response red.
+      assertEquals(0.0, electedClone.getScore());
+      // The managed entities are untouched: nothing to flush back to the database.
+      assertEquals(1, opened.getResults().size());
+      assertEquals(0.0, opened.getScore());
+      assertEquals(1, clicked.getResults().size());
+      assertEquals(100.0, clicked.getScore());
+      assertEquals(1, submitted.getResults().size());
+      assertEquals(100.0, submitted.getScore());
+    }
+
+    @Test
+    @DisplayName("A single expectation per type is returned as-is")
+    void singleExpectationPerTypeIsReturnedAsIs() {
+      ManualInjectExpectation single = manualStep("exp-single", "Manual validation", null);
+      when(injectExpectationRepository.findAllByInjectAndTeam("inject-id", "team-id"))
+          .thenReturn(List.of(single));
+
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "team-id", "TEAMS");
+
+      assertEquals(List.of(single), merged);
+    }
+  }
+
+  @Nested
   @DisplayName("findMergedExpectationsByInjectAndTargetAndTargetType for asset groups")
   class AssetGroupSecurityPlatformEnrichmentTests {
 
