@@ -1582,9 +1582,9 @@ public class WorkflowService {
     // If none step TEMPLATE with valid conditions && no step template delayed update workflow with
     // status END - unless this is an autonomous keep-alive workflow, which must stay parked in RUN
     // between decision cycles so the orchestrator can keep appending chained steps to a live run.
-    if ((!hasActiveSteps
+    if (!hasActiveSteps
         && !workflowRun.isKeepAlive()
-        && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty())) {
+        && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
       workflowEndService.markWorkflowEnded(
           workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
     }
