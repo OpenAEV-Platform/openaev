@@ -175,7 +175,8 @@ class WorkflowEndServiceTest {
       simulation.setStatus(ExerciseStatus.RUNNING);
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
       Inject finishedInject = buildInjectWithStatus(ExecutionStatus.EXECUTED);
-      when(injectService.findBySimulationId(simulation.getId())).thenReturn(List.of(finishedInject));
+      when(injectService.findBySimulationId(simulation.getId()))
+          .thenReturn(List.of(finishedInject));
 
       // Act
       workflowEndService.endWorkflow(
@@ -189,7 +190,8 @@ class WorkflowEndServiceTest {
     }
 
     @Test
-    @DisplayName("given workflow already END should finish simulation via stopSimulationByEndWorkflow")
+    @DisplayName(
+        "given workflow already END should finish simulation via stopSimulationByEndWorkflow")
     void given_workflowAlreadyEnd_should_finishAssociatedSimulation() {
       // Arrange
       Exercise simulation = new Exercise();
@@ -198,7 +200,8 @@ class WorkflowEndServiceTest {
       Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
       workflowRun.setStatus(WorkflowStatus.END);
       Inject finishedInject = buildInjectWithStatus(ExecutionStatus.EXECUTED);
-      when(injectService.findBySimulationId(simulation.getId())).thenReturn(List.of(finishedInject));
+      when(injectService.findBySimulationId(simulation.getId()))
+          .thenReturn(List.of(finishedInject));
 
       // Act
       workflowEndService.stopSimulationByEndWorkflow(workflowRun);
@@ -220,7 +223,8 @@ class WorkflowEndServiceTest {
       List<Workflow> expected = List.of(buildRunWorkflow());
       when(workflowRepository.findAllExpiredRunWorkflowIds())
           .thenReturn(expected.stream().map(Workflow::getId).toList());
-      when(workflowRepository.findAllByIdWithScopeRules(expected.stream().map(Workflow::getId).toList()))
+      when(workflowRepository.findAllByIdWithScopeRules(
+              expected.stream().map(Workflow::getId).toList()))
           .thenReturn(expected);
 
       // Act
@@ -229,7 +233,8 @@ class WorkflowEndServiceTest {
       // Assert
       assertEquals(expected, result);
       verify(workflowRepository).findAllExpiredRunWorkflowIds();
-      verify(workflowRepository).findAllByIdWithScopeRules(expected.stream().map(Workflow::getId).toList());
+      verify(workflowRepository)
+          .findAllByIdWithScopeRules(expected.stream().map(Workflow::getId).toList());
     }
   }
 

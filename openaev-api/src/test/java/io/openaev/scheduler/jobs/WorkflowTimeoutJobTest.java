@@ -48,8 +48,7 @@ class WorkflowTimeoutJobTest {
     void given_singleExpiredWorkflow_should_forceCompleteIt() {
       // Arrange
       Workflow expiredWorkflow = buildRunWorkflow();
-      when(workflowEndService.findAllExpiredRunWorkflows())
-          .thenReturn(List.of(expiredWorkflow));
+      when(workflowEndService.findAllExpiredRunWorkflows()).thenReturn(List.of(expiredWorkflow));
 
       // Act
       workflowTimeoutJob.execute(jobExecutionContext);
@@ -64,8 +63,7 @@ class WorkflowTimeoutJobTest {
       // Arrange
       Workflow expired1 = buildRunWorkflow();
       Workflow expired2 = buildRunWorkflow();
-      when(workflowEndService.findAllExpiredRunWorkflows())
-          .thenReturn(List.of(expired1, expired2));
+      when(workflowEndService.findAllExpiredRunWorkflows()).thenReturn(List.of(expired1, expired2));
 
       // Act
       workflowTimeoutJob.execute(jobExecutionContext);

@@ -3,7 +3,6 @@ package io.openaev.service.chaining;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.WorkflowRepository;
-import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
@@ -28,6 +27,7 @@ public class WorkflowEndService {
   private final InjectStatusService injectStatusService;
   private final ResultsMetricCollector resultsMetricCollector;
   private final WorkflowRepository workflowRepository;
+  private final ScopeSnapshotService scopeSnapshotService;
 
   private static final Set<ExecutionStatus> ACTIVE_INJECT_STATUSES =
       Set.of(ExecutionStatus.QUEUING, ExecutionStatus.EXECUTING, ExecutionStatus.PENDING);
@@ -92,7 +92,7 @@ public class WorkflowEndService {
    * @return the number of injects completed
    */
   public int stopActiveInjects(String simulationId, WORKFLOW_END_CAUSE cause) {
-    if(cause == WORKFLOW_END_CAUSE.DELETED) return 0;
+    if (cause == WORKFLOW_END_CAUSE.DELETED) return 0;
 
     List<Inject> injects = injectService.findBySimulationId(simulationId);
     int stoppedCount = 0;
@@ -129,7 +129,7 @@ public class WorkflowEndService {
     if (simulation != null && workflowRun.getStatus().equals(WorkflowStatus.END)) {
       int countInjects = 0;
 
-      if(hasActiveInjects(simulation.getId()))
+      if (hasActiveInjects(simulation.getId()))
         countInjects = stopActiveInjects(simulation.getId(), WORKFLOW_END_CAUSE.CANCELED);
 
       simulation.setStatus(ExerciseStatus.FINISHED);
@@ -173,8 +173,6 @@ public class WorkflowEndService {
     markWorkflowEnded(workflowRun, cause);
     workflowRepository.save(workflowRun);
   }
-
-
 
   /**
    * Finds all RUN workflows whose timeout has expired.

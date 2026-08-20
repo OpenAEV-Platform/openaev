@@ -1494,6 +1494,7 @@ public class WorkflowService {
   public List<Workflow> findAllExpiredRunWorkflows() {
     return workflowEndService.findAllExpiredRunWorkflows();
   }
+
   /**
    * Sets the workflow status to END and persists it.
    *
@@ -1560,7 +1561,8 @@ public class WorkflowService {
           "[Chaining] No step template for workflow template {}. End running {}",
           workflowTemplateId,
           workflowRun.getId());
-      workflowEndService.markWorkflowEnded(workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
+      workflowEndService.markWorkflowEnded(
+          workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
       return workflowRun;
     }
 
@@ -1583,7 +1585,8 @@ public class WorkflowService {
     if ((!hasActiveSteps
         && !workflowRun.isKeepAlive()
         && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty())) {
-      workflowEndService.markWorkflowEnded(workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
+      workflowEndService.markWorkflowEnded(
+          workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
     }
 
     return workflowRun;
