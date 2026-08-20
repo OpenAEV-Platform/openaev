@@ -53,6 +53,7 @@ class WorkflowServiceTest {
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
   @Mock private ScopeVariableRepository scopeVariableRepository;
   @Mock private io.openaev.database.repository.AssetRepository assetRepository;
+  @Mock private io.openaev.database.repository.AssetAgentJobRepository assetAgentJobRepository;
   @Mock private io.openaev.database.repository.AssetGroupRepository assetGroupRepository;
   @Mock private io.openaev.database.repository.TeamRepository teamRepository;
   @Mock private io.openaev.database.repository.UserRepository userRepository;
@@ -1165,6 +1166,7 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
+              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
@@ -1514,6 +1516,7 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
+              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
@@ -1702,6 +1705,7 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
+              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
@@ -1970,6 +1974,7 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
+              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
@@ -2729,6 +2734,108 @@ class WorkflowServiceTest {
       // shares this exact body).
       verify(stepService, never()).updateInjectStepTemplateData(any(), any());
       verify(stepService, never()).updateInjectStepTemplateDataAndTrigger(any(), any(), any());
+    }
+  }
+  private static Exercise exerciseWithId(String id) {
+    Exercise exercise = new Exercise();
+    exercise.setId(id);
+    return exercise;
+  }
+
+  @Nested
+  @DisplayName("cancelSimulationEndWorkflowRun")
+  class CancelSimulationEndWorkflowRunTests {
+
+    @Test
+    @DisplayName("ends the run, deletes its delay queue and states, and removes its asset agent"
+        + " jobs by inject id")
+    void given_singleRunWithActiveSteps_should_endItAndCleanUpDependencies() {
+      // Arrange
+      Exercise simulation = exerciseWithId("sim-1");
+      Workflow run =
+          Workflow.builder().id("wf-run-1").status(WorkflowStatus.RUN).simulation(simulation).build();
+
+      Step activeStepWithInject =
+          Step.builder().id("step-1").status(StepStatus.RUN).data("{\"inject_id\": \"inject-1\"}")
+              .build();
+      Step activeStepWithoutInject =
+          Step.builder().id("step-2").status(StepStatus.READY).data("{}").build();
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1"))
+          .thenReturn(new ArrayList<>(List.of(activeStepWithInject, activeStepWithoutInject)));
+
+      // Act
+      workflowService.cancelSimulationEndWorkflowRun(List.of(run));
+
+      // Assert
+      assertEquals(WorkflowStatus.END, run.getStatus());
+      verify(workflowRepository).save(run);
+      verify(stepDelayQueueService).deleteAllByWorkflowRun(run);
+      verify(workflowStateService).deleteAllBySimulationId("sim-1");
+      assertEquals(StepStatus.END, activeStepWithInject.getStatus());
+      assertEquals(StepStatus.END, activeStepWithoutInject.getStatus());
+      verify(assetAgentJobRepository).deleteAllByInjectIds(List.of("inject-1"));
+      verify(stepService)
+          .saveSteps(List.of(activeStepWithInject, activeStepWithoutInject));
+    }
+
+    @Test
+    @DisplayName("aggregates inject ids and ended steps across multiple workflow runs")
+    void given_multipleRuns_should_aggregateInjectIdsAndSaveAllStepsOnce() {
+      // Arrange
+      Exercise simulation1 = exerciseWithId("sim-1");
+      Exercise simulation2 = exerciseWithId("sim-2");
+      Workflow run1 =
+          Workflow.builder()
+              .id("wf-run-1")
+              .status(WorkflowStatus.RUN)
+              .simulation(simulation1)
+              .build();
+      Workflow run2 =
+          Workflow.builder()
+              .id("wf-run-2")
+              .status(WorkflowStatus.RUN)
+              .simulation(simulation2)
+              .build();
+
+      Step step1 =
+          Step.builder().id("step-1").status(StepStatus.RUN).data("{\"inject_id\": \"inject-1\"}")
+              .build();
+      Step step2 =
+          Step.builder().id("step-2").status(StepStatus.RUN).data("{\"inject_id\": \"inject-2\"}")
+              .build();
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1")).thenReturn(new ArrayList<>(List.of(step1)));
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-2")).thenReturn(new ArrayList<>(List.of(step2)));
+
+      // Act
+      workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
+
+      // Assert
+      verify(workflowStateService).deleteAllBySimulationId("sim-1");
+      verify(workflowStateService).deleteAllBySimulationId("sim-2");
+      verify(assetAgentJobRepository).deleteAllByInjectIds(List.of("inject-1", "inject-2"));
+      verify(stepService).saveSteps(List.of(step1, step2));
+    }
+
+    @Test
+    @DisplayName("does not re-end a run already in END status (idempotent)")
+    void given_alreadyEndedRun_should_notFreezeSnapshotAgain() {
+      // Arrange
+      Exercise simulation = exerciseWithId("sim-1");
+      Workflow run =
+          Workflow.builder()
+              .id("wf-run-1")
+              .status(WorkflowStatus.END)
+              .simulation(simulation)
+              .build();
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1")).thenReturn(new ArrayList<>());
+
+      // Act
+      workflowService.cancelSimulationEndWorkflowRun(List.of(run));
+
+      // Assert
+      assertEquals(WorkflowStatus.END, run.getStatus());
+      verifyNoInteractions(scopeSnapshotService);
+      verify(workflowRepository).save(run);
     }
   }
 }

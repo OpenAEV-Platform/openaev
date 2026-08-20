@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.AssetAgentJob;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -39,4 +40,10 @@ public interface AssetAgentJobRepository
               + " WHERE j.agent.id IN :agentIds AND j.inject IS NOT NULL"
               + " GROUP BY j.agent.id")
   Set<Object[]> countPendingJobsByAgentIds(@Param("agentIds") Set<String> agentIds);
+
+  @Modifying
+  @Query(
+      value = "DELETE FROM asset_agent_jobs j WHERE j.asset_agent_inject IN :injectIds",
+      nativeQuery = true)
+  void deleteAllByInjectIds(List<String> injectIds);
 }

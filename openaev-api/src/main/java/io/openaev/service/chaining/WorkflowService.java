@@ -66,6 +66,7 @@ public class WorkflowService {
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
   private final AssetRepository assetRepository;
+  private final AssetAgentJobRepository assetAgentJobRepository;
   private final AssetGroupRepository assetGroupRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
@@ -961,6 +962,42 @@ public class WorkflowService {
     copy = workflowRepository.save(copy);
     stepService.copyStepTemplate(source, copy);
     return copy;
+  }
+
+  public void cancelSimulationEndWorkflowRun(List<Workflow> workflows) {
+    List<Step> stepsToUpdate = new ArrayList<>();
+    List<String> injectsIds = new ArrayList<>();
+    workflows.forEach(
+        workflow -> {
+          // Workflow -> END transition (also freezes the end scope snapshot - ADR-006):
+          endWorkflow(workflow);
+
+          // Step delay queue -> DELETE
+          stepDelayQueueService.deleteAllByWorkflowRun(workflow);
+
+          // Steps active -> END  active and get inject ids for remove asset agent jobs
+          List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
+          steps.forEach(
+              step -> {
+                String injectId = StepService.getField(step.getData(), "inject_id");
+                if (injectId != null) injectsIds.add(injectId);
+                step.setStatus(StepStatus.END);
+              });
+
+          stepsToUpdate.addAll(steps);
+
+          // Workflow States -> DELETE  (only use for execution)
+          deleteWorkflowStatesBySimulationId(workflow.getSimulation().getId());
+        });
+
+    // Asset agent jobs -> DELETE all  by inject id
+    deleteAllAssetAgentJobs(injectsIds);
+
+    stepService.saveSteps(stepsToUpdate);
+  }
+
+  private void deleteAllAssetAgentJobs(List<String> injectsIds) {
+    assetAgentJobRepository.deleteAllByInjectIds(injectsIds);
   }
 
   /**
