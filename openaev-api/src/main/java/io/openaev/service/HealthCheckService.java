@@ -3,7 +3,6 @@ package io.openaev.service;
 import com.cronutils.utils.VisibleForTesting;
 import io.minio.MinioClient;
 import io.openaev.database.repository.HealthCheckRepository;
-import io.openaev.driver.MinioDriver;
 import io.openaev.engine.EngineService;
 import io.openaev.service.exception.HealthCheckFailureException;
 import java.io.IOException;
@@ -16,6 +15,7 @@ import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 /** Service containing the logic related to service health checks */
@@ -25,8 +25,8 @@ import org.springframework.stereotype.Service;
 public class HealthCheckService {
 
   private final HealthCheckRepository healthCheckRepository;
-  private final MinioDriver minioDriver;
   private final MinioService minioService;
+  @Qualifier("healthCheckMinioClient") private final MinioClient healthCheckMinioClient;
   private final RabbitmqService rabbitmqService;
   private final EngineService engineService;
 
@@ -41,10 +41,6 @@ public class HealthCheckService {
 
   private final AtomicReference<CachedStorageUsage> cachedStorageUsage = new AtomicReference<>();
   private final ReentrantLock storageUsageRefreshLock = new ReentrantLock();
-
-  private static final Duration PROBE_TIMEOUT = Duration.ofSeconds(2);
-
-  private volatile MinioClient healthCheckMinioClient;
 
   /**
    * Run health checks by testing connection to the service dependencies (database/rabbitMq/file
@@ -116,34 +112,10 @@ public class HealthCheckService {
   @VisibleForTesting
   protected void runFileStorageCheck() throws HealthCheckFailureException {
     try {
-      minioService.checkTenantPathAccessible(healthCheckMinioClient());
+      minioService.checkStorageAccessible(healthCheckMinioClient);
     } catch (Exception e) {
       throw new HealthCheckFailureException("FileStorage check failure", e);
     }
-  }
-
-  /**
-   * Dedicated MinIO client for probes, built once and reused.
-   *
-   * <p>It is a private instance so the short probe timeouts never mutate the client injected by
-   * Spring. It is cached because rebuilding it per probe means a fresh OkHttp connection pool — so
-   * a new TCP (and TLS) handshake on every call, and with AWS role authentication a fresh
-   * credentials lookup on IMDS/STS, which dominates the endpoint response time.
-   */
-  private MinioClient healthCheckMinioClient() {
-    MinioClient client = this.healthCheckMinioClient;
-    if (client == null) {
-      synchronized (this) {
-        client = this.healthCheckMinioClient;
-        if (client == null) {
-          client = minioDriver.getMinioClient();
-          client.setTimeout(
-              PROBE_TIMEOUT.toMillis(), PROBE_TIMEOUT.toMillis(), PROBE_TIMEOUT.toMillis());
-          this.healthCheckMinioClient = client;
-        }
-      }
-    }
-    return client;
   }
 
   @VisibleForTesting

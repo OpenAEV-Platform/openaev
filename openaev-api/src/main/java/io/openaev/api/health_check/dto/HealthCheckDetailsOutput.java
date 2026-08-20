@@ -1,16 +1,17 @@
 package io.openaev.api.health_check.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * Detailed health check response, returned when the endpoint is called with {@code details=true}.
+ * Health check response.
  *
- * <p>Sizes are expressed in bytes and are best effort: a {@code null} value means the metric could
- * not be retrieved from the dependency. They are computed periodically (not on every call) since
- * the health check endpoint is polled very frequently.
+ * <p>When the endpoint is called without {@code details=true}, only the {@code status} field is
+ * present. Size fields are omitted from JSON when {@code null}.
  */
 @Schema(description = "Detailed health check response.")
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record HealthCheckDetailsOutput(
     @Schema(description = "Status of the platform", example = "success") @JsonProperty("status")
         String status,

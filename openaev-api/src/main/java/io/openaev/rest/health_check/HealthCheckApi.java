@@ -66,7 +66,7 @@ public class HealthCheckApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Service is healthy"),
         @ApiResponse(responseCode = "503", description = "Service is not running properly")
       })
-  public ResponseEntity<?> healthCheck(
+  public ResponseEntity<HealthCheckDetailsOutput> healthCheck(
       @RequestParam("health_access_key") String requestHealthAccessKey,
       @RequestParam(value = "details", required = false, defaultValue = "false") boolean details) {
     if (StringUtils.isBlank(requestHealthAccessKey)
@@ -78,15 +78,13 @@ public class HealthCheckApi extends RestBehavior {
       healthCheckService.runHealthCheck();
     } catch (HealthCheckFailureException e) {
       String message = String.format("Health check failure : %s", e.getMessage());
-      // ResponseStatusException is resolved by Spring at DEBUG, invisible at our ERROR log level:
-      // without this the probe returns 503 with no trace of which dependency actually failed.
       log.error(message, e);
       throw new ResponseStatusException(
           HttpStatusCode.valueOf(HttpStatus.SERVICE_UNAVAILABLE.value()), message);
     }
     if (!details) {
-      // Default response kept as-is: probes already rely on this plain body.
-      return new ResponseEntity<>(SUCCESS_STATUS, HttpStatus.OK);
+      return new ResponseEntity<>(
+          new HealthCheckDetailsOutput(SUCCESS_STATUS, null, null, null), HttpStatus.OK);
     }
     StorageUsage storageUsage = healthCheckService.getStorageUsage();
     return new ResponseEntity<>(

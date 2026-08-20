@@ -154,7 +154,7 @@ class MinioServiceTest extends IntegrationTest {
 
     // -- ACT & ASSERT --
     try {
-      assertDoesNotThrow(() -> minioService.checkTenantPathAccessible());
+      assertDoesNotThrow(() -> minioService.checkStorageAccessible());
     } finally {
       TenantContext.setCurrentTenant(previousTenant);
     }

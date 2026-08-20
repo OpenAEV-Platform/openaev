@@ -1321,7 +1321,7 @@ public class OpenSearchService implements EngineService {
         }
       }
     } catch (IOException e) {
-      log.warn("Unable to retrieve engine used size", e);
+      throw new AnalyticsEngineException("Unable to retrieve engine used size", e);
     }
     return null;
   }

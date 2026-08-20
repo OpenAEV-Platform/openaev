@@ -1245,8 +1245,7 @@ public class ElasticService implements EngineService {
       }
       return all.primaries().store().sizeInBytes();
     } catch (IOException | ElasticsearchException e) {
-      log.warn("Unable to retrieve engine used size", e);
-      return null;
+      throw new AnalyticsEngineException("Unable to retrieve engine used size", e);
     }
   }
 

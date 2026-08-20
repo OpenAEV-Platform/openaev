@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -57,8 +58,10 @@ public class MinioDriver {
   private static final long CONNECT_TIMEOUT_MS = 10_000L;
   private static final long WRITE_TIMEOUT_MS = 60_000L;
   private static final long READ_TIMEOUT_MS = 60_000L;
+  private static final long HEALTHCHECK_TIMEOUT_MS = 2_000L;
 
   @Bean
+  @Primary
   public MinioClient minioClient() throws Exception {
     MinioClient minioClient = getMinioClient();
     minioClient.setTimeout(CONNECT_TIMEOUT_MS, WRITE_TIMEOUT_MS, READ_TIMEOUT_MS);
@@ -73,6 +76,14 @@ public class MinioDriver {
       // Migrate existing root-level files to default tenant path
       moveDefaultTenantFiles(minioClient, bucket);
     }
+    return minioClient;
+  }
+
+  @Bean("healthCheckMinioClient")
+  public MinioClient healthCheckMinioClient() {
+    MinioClient minioClient = getMinioClient();
+    minioClient.setTimeout(
+        HEALTHCHECK_TIMEOUT_MS, HEALTHCHECK_TIMEOUT_MS, HEALTHCHECK_TIMEOUT_MS);
     return minioClient;
   }
 

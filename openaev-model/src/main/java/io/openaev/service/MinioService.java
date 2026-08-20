@@ -190,8 +190,8 @@ public class MinioService implements DependenciesManager {
 
   // -- HELPERS --
 
-  public void checkTenantPathAccessible() throws Exception {
-    checkTenantPathAccessible(minioClient);
+  public void checkStorageAccessible() throws Exception {
+    checkStorageAccessible(minioClient);
   }
 
   /**
@@ -204,7 +204,7 @@ public class MinioService implements DependenciesManager {
    * <p>Takes the client as a parameter so callers (e.g. health checks) can pass one configured with
    * short timeouts.
    */
-  public void checkTenantPathAccessible(MinioClient client) throws Exception {
+  public void checkStorageAccessible(MinioClient client) throws Exception {
     Iterator<Result<Item>> results =
         client
             .listObjects(
@@ -224,9 +224,8 @@ public class MinioService implements DependenciesManager {
    * Total size of the objects stored in the bucket, in bytes, all tenants included.
    *
    * <p>Object storage exposes no aggregated size, so the whole bucket listing has to be walked:
-   * this is a costly operation (one listing round-trip per 1 000 objects) and must never be called
-   * on a hot path without caching. Objects that cannot be read are skipped rather than failing the
-   * whole computation, so the result is a best effort figure.
+  * this is a costly operation (one listing round-trip per 1 000 objects) and must never be called
+  * on a hot path without caching.
    *
    * @return the sum of the object sizes in bytes
    */
@@ -236,7 +235,7 @@ public class MinioService implements DependenciesManager {
       try {
         usedSize += result.get().size();
       } catch (Exception e) {
-        log.warn("Error while computing the size of a stored object", e);
+        throw new IllegalStateException("Unable to read object metadata while computing used size", e);
       }
     }
     return usedSize;

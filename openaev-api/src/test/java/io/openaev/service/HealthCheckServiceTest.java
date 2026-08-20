@@ -7,7 +7,6 @@ import static org.mockito.Mockito.*;
 
 import io.minio.MinioClient;
 import io.openaev.database.repository.*;
-import io.openaev.driver.MinioDriver;
 import io.openaev.engine.EngineService;
 import io.openaev.service.HealthCheckService.StorageUsage;
 import io.openaev.service.exception.HealthCheckFailureException;
@@ -23,7 +22,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class HealthCheckServiceTest {
 
   @Mock private HealthCheckRepository healthCheckRepository;
-  @Mock private MinioDriver minioDriver;
   @Mock private MinioService minioService;
   @Mock private MinioClient minioClient;
   @Mock private RabbitmqService rabbitmqService;
@@ -41,16 +39,14 @@ class HealthCheckServiceTest {
   @DisplayName("Test runFileStorageCheck")
   @Test
   void test_runFileStorageCheck() throws Exception {
-    when(minioDriver.getMinioClient()).thenReturn(minioClient);
     healthCheckService.runFileStorageCheck();
-    verify(minioService).checkTenantPathAccessible(minioClient);
+    verify(minioService).checkStorageAccessible(minioClient);
   }
 
   @DisplayName("Test runFileStorageCheck when check fails ")
   @Test
   void test_runFileStorageCheck_WHEN_client_throws_exception() throws Exception {
-    when(minioDriver.getMinioClient()).thenReturn(minioClient);
-    doThrow(new IOException("test")).when(minioService).checkTenantPathAccessible(minioClient);
+    doThrow(new IOException("test")).when(minioService).checkStorageAccessible(minioClient);
     assertThrows(
         HealthCheckFailureException.class,
         () -> {
@@ -61,17 +57,12 @@ class HealthCheckServiceTest {
   @DisplayName("Given repeated probes, should build the storage client only once")
   @Test
   void given_repeated_probes_should_build_the_storage_client_only_once() throws Exception {
-    // -- PREPARE --
-    when(minioDriver.getMinioClient()).thenReturn(minioClient);
-
     // -- EXECUTE --
     healthCheckService.runFileStorageCheck();
     healthCheckService.runFileStorageCheck();
 
     // -- ASSERT --
-    // Rebuilding the client per probe reopens a TCP/TLS connection (and re-fetches AWS credentials)
-    verify(minioDriver, times(1)).getMinioClient();
-    verify(minioService, times(2)).checkTenantPathAccessible(minioClient);
+    verify(minioService, times(2)).checkStorageAccessible(minioClient);
   }
 
   @DisplayName("Test runRabbitMQCheck")
