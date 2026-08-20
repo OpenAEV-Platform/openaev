@@ -402,7 +402,7 @@ public class InjectApi extends RestBehavior {
   public void injectExecutionCallback(
       TxCtx ctx, @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
-    injectExecutionCallback(ctx, null, injectId, input);
+    doInjectExecutionCallback(ctx, null, injectId, input);
   }
 
   @PostMapping({
@@ -440,6 +440,11 @@ public class InjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
+    doInjectExecutionCallback(ctx, agentId, injectId, input);
+  }
+  
+  private void doInjectExecutionCallback(
+      TxCtx ctx, String agentId, String injectId, InjectExecutionInput input) throws IOException {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LEGACY_INGESTION_EXECUTION_TRACE)
         && injectTraceQueueService != null) {
       InjectExecutionCallback injectExecutionCallback =
