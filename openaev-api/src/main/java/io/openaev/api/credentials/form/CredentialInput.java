@@ -30,6 +30,11 @@ public record CredentialInput(
         AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
     @JsonProperty("aws_source_profile_access_key_id") String awsSourceProfileAccessKeyId,
     @JsonProperty("aws_source_profile_secret_access_key") String awsSourceProfileSecretAccessKey,
+    @JsonProperty("azure_environment") String azureEnvironment,
+    @JsonProperty("azure_client_id") String azureClientId,
+    @JsonProperty("azure_client_secret") String azureClientSecret,
+    @JsonProperty("azure_tenant_id") String azureTenantId,
+    @JsonProperty("azure_subscription_id") String azureSubscriptionId,
     @JsonProperty("credential_tags") List<String> credentialTagIds) {
 
   public CredentialInput(
@@ -51,6 +56,11 @@ public record CredentialInput(
         credentialPassword,
         credentialHashAlgorithm,
         credentialHash,
+        null,
+        null,
+        null,
+        null,
+        null,
         null,
         null,
         null,

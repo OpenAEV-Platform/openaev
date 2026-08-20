@@ -3112,8 +3112,10 @@ export interface CredentialContractOutput {
     | "USERNAME_PASSWORD"
     | "HASH"
     | "AWS_ACCESS_KEY"
-    | "AWS_ASSUME_ROLE";
-  credential_type: "IDENTITY" | "CLOUD_AWS";
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
   fields?: CredentialContractField[];
 }
 
@@ -3130,7 +3132,9 @@ export interface CredentialFullOutput {
     | "USERNAME_PASSWORD"
     | "HASH"
     | "AWS_ACCESS_KEY"
-    | "AWS_ASSUME_ROLE";
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY";
   /** AWS access key ID */
   credential_aws_access_key_id?: string;
   /** Secret AWS default region */
@@ -3207,7 +3211,7 @@ export interface CredentialFullOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type: "IDENTITY" | "CLOUD_AWS";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
   /** Secret username */
   credential_username?: string;
 }
@@ -3258,11 +3262,18 @@ export interface CredentialInput {
   aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
   aws_source_profile_access_key_id?: string;
   aws_source_profile_secret_access_key?: string;
+  azure_client_id?: string;
+  azure_client_secret?: string;
+  azure_environment?: string;
+  azure_subscription_id?: string;
+  azure_tenant_id?: string;
   credential_auth_method:
     | "USERNAME_PASSWORD"
     | "HASH"
     | "AWS_ACCESS_KEY"
-    | "AWS_ASSUME_ROLE";
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY";
   credential_description?: string;
   credential_hash?: string;
   credential_hash_algorithm?: "SHA" | "NTLM";
@@ -3270,7 +3281,7 @@ export interface CredentialInput {
   credential_name: string;
   credential_password?: string;
   credential_tags?: string[];
-  credential_type: "IDENTITY" | "CLOUD_AWS";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
   credential_username?: string;
 }
 
@@ -3280,7 +3291,9 @@ export interface CredentialOutput {
     | "USERNAME_PASSWORD"
     | "HASH"
     | "AWS_ACCESS_KEY"
-    | "AWS_ASSUME_ROLE";
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY";
   /**
    * Credential creation timestamp
    * @format date-time
@@ -3305,7 +3318,7 @@ export interface CredentialOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type?: "IDENTITY" | "CLOUD_AWS";
+  credential_type?: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
 }
 
 export interface CustomDashboard {

@@ -225,7 +225,87 @@ public class CredentialService {
                     "aws_source_identity_type",
                     AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name(),
                     "aws_source_identity_type",
-                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name()))));
+                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name()))),
+        new CredentialContractOutput(
+            CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AZURE,
+            CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL,
+            List.of(
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_environment",
+                    CredentialContractOutput.CredentialContractFieldType.select,
+                    true,
+                    AzureEnvironments.names(),
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_client_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_client_secret",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_tenant_id",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_subscription_id",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null))),
+        new CredentialContractOutput(
+            CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AZURE,
+            CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY,
+            List.of(
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_environment",
+                    CredentialContractOutput.CredentialContractFieldType.select,
+                    true,
+                    AzureEnvironments.names(),
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_client_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_subscription_id",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null))));
   }
 
   /**
@@ -366,7 +446,12 @@ public class CredentialService {
         input.awsExternalId(),
         input.awsSourceIdentityType(),
         input.awsSourceProfileAccessKeyId(),
-        input.awsSourceProfileSecretAccessKey());
+        input.awsSourceProfileSecretAccessKey(),
+        input.azureEnvironment(),
+        input.azureClientId(),
+        input.azureClientSecret(),
+        input.azureTenantId(),
+        input.azureSubscriptionId());
   }
 
   /**
