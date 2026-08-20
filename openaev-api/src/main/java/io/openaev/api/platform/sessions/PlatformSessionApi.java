@@ -39,7 +39,7 @@ public class PlatformSessionApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(
       actionPerformed = Action.READ,
-      resourceType = ResourceType.PLATFORM_SETTING,
+      resourceType = ResourceType.SESSION,
       isEnterpriseEdition = true)
   @Operation(
       summary = "List platform sessions",
@@ -52,7 +52,7 @@ public class PlatformSessionApi extends RestBehavior {
   @Transactional
   @AccessControl(
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.PLATFORM_SETTING,
+      resourceType = ResourceType.SESSION,
       isEnterpriseEdition = true)
   @Operation(summary = "Kill a platform session", description = "Kill a single session by id")
   public ResponseEntity<Void> killSession(@PathVariable String sessionId) {
@@ -65,7 +65,7 @@ public class PlatformSessionApi extends RestBehavior {
   @Transactional
   @AccessControl(
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.PLATFORM_SETTING,
+      resourceType = ResourceType.SESSION,
       isEnterpriseEdition = true)
   @Operation(
       summary = "Kill platform user sessions",
