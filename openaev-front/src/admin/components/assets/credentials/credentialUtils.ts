@@ -22,11 +22,13 @@ const convertCredentialFullOutputToCredentialInput = (credential: CredentialFull
     aws_source_profile_access_key_id: credential.credential_aws_source_profile_access_key_id,
     aws_source_profile_secret_access_key: credential.credential_aws_source_profile_access_key_id ? DOTS : '',
     // AZURE
+    // The environment is the only field required by both Azure auth methods, so it is the one
+    // telling whether a secret is stored: the client id is absent on a system-assigned identity.
     azure_environment: credential.credential_azure_environment,
     azure_client_id: credential.credential_azure_client_id,
-    azure_client_secret: credential.credential_azure_client_id ? DOTS : '',
-    azure_tenant_id: credential.credential_azure_client_id ? DOTS : '',
-    azure_subscription_id: credential.credential_azure_client_id ? DOTS : '',
+    azure_client_secret: credential.credential_azure_environment ? DOTS : '',
+    azure_tenant_id: credential.credential_azure_environment ? DOTS : '',
+    azure_subscription_id: credential.credential_azure_environment ? DOTS : '',
   };
 };
 
