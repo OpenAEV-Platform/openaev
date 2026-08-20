@@ -30,9 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -63,10 +61,7 @@ public class AttackPatternApi extends RestBehavior {
   public Page<AttackPattern> attackPatterns(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
-        (Specification<AttackPattern> specification, Pageable pageable) ->
-            this.attackPatternRepository.findAll(specification, pageable),
-        searchPaginationInput,
-        AttackPattern.class);
+        this.attackPatternRepository::findAll, searchPaginationInput, AttackPattern.class);
   }
 
   @PostMapping("/search-with-ai")

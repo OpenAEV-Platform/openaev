@@ -9,7 +9,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import { type RoleOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
 import RoleForm, { type RoleCreateInput } from './RoleForm';
 
 export interface RolePopoverProps {
@@ -52,12 +52,16 @@ const RolePopover: FunctionComponent<RolePopoverProps> = ({ onDelete, onUpdate, 
   if (onUpdate) entries.push({
     label: 'Update',
     action: () => handleUpdate(),
-    userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS),
+    userRight: true,
+    disabled: !ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES),
+    disabledMessage: PERMISSION_REQUIRED,
   });
   if (onDelete) entries.push({
     label: 'Delete',
     action: () => handleDelete(),
-    userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS),
+    userRight: true,
+    disabled: !ability.can(ACTIONS.DELETE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES),
+    disabledMessage: PERMISSION_REQUIRED,
   });
 
   const onSubmit = (data: RoleCreateInput) => {

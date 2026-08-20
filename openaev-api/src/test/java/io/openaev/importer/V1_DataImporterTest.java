@@ -2159,6 +2159,9 @@ class V1_DataImporterTest extends IntegrationTest {
     targetInjector.setId(UUID.randomUUID().toString());
     targetInjector.setName("target-injector-" + UUID.randomUUID());
     targetInjector.setType(NMAP_DUMMY_INJECTOR_TYPE);
+    // injectors is v2-active: tenant_id is part of the composite PK (NOT NULL). Attribute the
+    // fixture injector to the current tenant, like InjectorFixture, or the insert fails.
+    targetInjector.setTenantId(TenantContext.getCurrentTenant());
     targetInjector = injectorRepository.save(targetInjector);
 
     InjectorContract contract = injectorContractRepository.findById(contractId).orElseThrow();

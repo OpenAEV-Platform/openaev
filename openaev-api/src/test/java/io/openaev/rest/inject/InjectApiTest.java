@@ -143,6 +143,14 @@ class InjectApiTest extends IntegrationTest {
     emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     managerFactory.getManager(Tenant.DEFAULT_TENANT_UUID).monitorIntegrations();
+    // The manager bootstrap above joins this test's transaction and pins its scope to the default
+    // tenant (ManagerCreator.setScopeOnCurrentTransaction). Inject endpoints carrying a TxCtx then
+    // re-resolve the caller's scope; the mock user from @WithMockUser has no tenant membership
+    // row, so without this grant the resolved scope is empty and conflicts with the already-set
+    // default tenant scope. Skipped for tests that manage their own users.
+    if (testUserHolder.isSet()) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
 
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");

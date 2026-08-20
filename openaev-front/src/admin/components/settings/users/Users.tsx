@@ -9,7 +9,7 @@ import TenantUsersTab from './tenant_users/TenantUsersTab';
 
 const Users = () => {
   const { t } = useFormatter();
-  const { scope, canAccessTenant, canAccessPlatform, isEnterpriseEdition } = useSecurityScope();
+  const { scope, canAccessTenantUsers, canAccessPlatform, isEnterpriseEdition } = useSecurityScope();
   const platformScope = scope === 'platform';
 
   return (
@@ -22,7 +22,7 @@ const Users = () => {
             current: true,
           }]}
         />
-        {!platformScope && canAccessTenant && <TenantUsersTab />}
+        {!platformScope && canAccessTenantUsers && <TenantUsersTab />}
         {platformScope && canAccessPlatform && (isEnterpriseEdition ? <PlatformUsersTab /> : <NoEnterpriseEdition />)}
       </div>
       <SecurityMenu />

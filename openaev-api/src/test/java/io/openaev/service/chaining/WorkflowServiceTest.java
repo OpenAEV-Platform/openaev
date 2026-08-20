@@ -1,5 +1,7 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.service.chaining.WorkflowService.DUPLICATE_SCOPE_VARIABLE_MESSAGE;
+import static io.openaev.service.chaining.WorkflowService.UK_SCOPE_VARIABLE_KEY_TYPE_WORKFLOW;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -14,6 +16,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
@@ -22,8 +25,10 @@ import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollecto
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.fixtures.WorkflowFixture;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Stream;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -38,6 +43,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("WorkflowService Tests")
@@ -817,7 +823,7 @@ class WorkflowServiceTest {
       workflowService.updateWorkflowConfiguration(workflowId, input);
 
       // Assert - the scope is pushed onto the already-authored step templates
-      verify(workflowRepository).flush();
+      verify(workflowRepository, times(2)).flush();
       verify(stepService).syncScopeAssetsOnStepTemplates(workflow, List.of("asset-123"));
     }
 
@@ -1376,6 +1382,73 @@ class WorkflowServiceTest {
       assertEquals(PrimitiveType.Text, updated.getType());
       assertEquals("TopSecret", updated.getValue());
       verify(workflowRepository).save(workflow);
+    }
+
+    @Test
+    @DisplayName("should translate the database uniqueness violation into a business message")
+    void given_databaseDuplicateKeyViolation_should_throwAlreadyExistingException() {
+      // Arrange - the duplicate is reported by the database on flush
+      Workflow workflow = buildTemplate(false);
+      doThrow(uniqueViolation(UK_SCOPE_VARIABLE_KEY_TYPE_WORKFLOW))
+          .when(workflowRepository)
+          .flush();
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", null)));
+
+      // Act
+      AlreadyExistingException exception =
+          assertThrows(
+              AlreadyExistingException.class,
+              () -> service.updateWorkflowConfiguration(workflow.getId(), configInput));
+
+      // Assert - the raw constraint name never reaches the caller
+      assertEquals(DUPLICATE_SCOPE_VARIABLE_MESSAGE, exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("should rethrow an integrity violation raised by another constraint")
+    void given_unrelatedConstraintViolation_should_rethrowAsIs() {
+      // Arrange - only the scope-variable uniqueness gets a dedicated business message
+      Workflow workflow = buildTemplate(false);
+      DataIntegrityViolationException unrelated = uniqueViolation("uk_workflow_template");
+      doThrow(unrelated).when(workflowRepository).flush();
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", null)));
+
+      // Act & Assert
+      assertSame(
+          unrelated,
+          assertThrows(
+              DataIntegrityViolationException.class,
+              () -> service.updateWorkflowConfiguration(workflow.getId(), configInput)));
+    }
+
+    @Test
+    @DisplayName("should flush the configuration so the database reports the duplicate in time")
+    void given_changedConfiguration_should_flushWithinTheServiceCall() {
+      // Arrange - a deferred flush would raise the violation at commit, past any translation
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", null)));
+
+      // Act
+      service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      verify(workflowRepository).save(workflow);
+      verify(workflowRepository).flush();
+    }
+
+    private DataIntegrityViolationException uniqueViolation(String constraintName) {
+      return new DataIntegrityViolationException(
+          "could not execute statement",
+          new ConstraintViolationException(
+              "duplicate key value violates unique constraint",
+              new SQLException(),
+              constraintName));
     }
 
     @Test

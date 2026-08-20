@@ -5,6 +5,9 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
 import io.openaev.api.threat_arsenal.dto.*;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ChainingTypeRegistry;
 import io.openaev.database.model.PrimitiveType;
@@ -15,6 +18,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractAuthorCountOutpu
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.schema.model.PropertySchemaDTO;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -40,6 +44,8 @@ public class ThreatArsenalApi {
   public static final String TENANT_THREAT_ARSENAL_URL = TENANT_PREFIX + "/threat_arsenals";
 
   private final ThreatArsenalService threatArsenalService;
+  private final PreviewFeatureService previewFeatureService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- READ --
 
@@ -178,7 +184,8 @@ public class ThreatArsenalApi {
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalAction createAction(
-      @Valid @RequestBody ThreatArsenalActionCreateInput input) {
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody ThreatArsenalActionCreateInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
     return threatArsenalService.create(input);
   }
 
@@ -189,8 +196,10 @@ public class ThreatArsenalApi {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalAction updateAction(
+      @RequireTenantSelector TxCtx ctx,
       @NotBlank @PathVariable final String actionId,
       @Valid @RequestBody ThreatArsenalActionUpdateInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
     return threatArsenalService.update(actionId, input);
   }
 
@@ -203,7 +212,9 @@ public class ThreatArsenalApi {
       resourceId = "#actionId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.THREAT_ARSENAL)
-  public ThreatArsenalAction duplicateAction(@NotBlank @PathVariable final String actionId) {
+  public ThreatArsenalAction duplicateAction(
+      @RequireTenantSelector TxCtx ctx, @NotBlank @PathVariable final String actionId) {
+    writeScopeResolver.tenantForWrite(ctx, null);
     return threatArsenalService.duplicate(actionId);
   }
 

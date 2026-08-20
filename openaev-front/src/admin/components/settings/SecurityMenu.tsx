@@ -32,7 +32,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isValidated: isEnterpriseEdition, openDialog } = useEnterpriseEdition();
-  const { scope, canAccessTenant, canAccessPlatform } = useSecurityScope();
+  const { scope, canAccessTenant, canAccessTenantSettings, canAccessTenantUsers, canAccessPlatform } = useSecurityScope();
   const ability = useContext(AbilityContext);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
 
@@ -60,7 +60,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
   // no per-entity repetition):
   // - This tenant: Users / Groups / Organizations / Roles / Sessions / Policies.
   // - Platform: platform-wide Users / Groups / Roles plus the Tenants registry.
-  const scopedEntries: RightMenuEntry[] = (canAccessTenant || canAccessPlatform)
+  const scopedEntries: RightMenuEntry[] = (canAccessTenantUsers || canAccessPlatform)
     ? [
         {
           path: scopedPath('users'),
@@ -106,7 +106,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
       ]
     : [
         ...scopedEntries,
-        ...(canAccessTenant
+        ...(canAccessTenantSettings
           ? [
               {
                 path: `${SECURITY_BASE}/organizations`,

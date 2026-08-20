@@ -121,6 +121,10 @@ public class ScenarioImportApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public void injectsImport(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope for this write (importInjectsForScenario reads InjectorContract#
+      // getFirstInjector() to attach an injector to each imported inject).
+      TxCtx ctx,
       @RequestPart("file") MultipartFile file,
       @PathVariable @NotBlank final String scenarioId,
       HttpServletResponse response)

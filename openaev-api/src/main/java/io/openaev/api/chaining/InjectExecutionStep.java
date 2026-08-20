@@ -1187,10 +1187,13 @@ public class InjectExecutionStep implements ActionStep {
       } else {
 
         String injectorId = injectorNode.asText();
-        Injector injector = inject.getInjector();
-
+        // injectors is v2-active and run() is already tenant-scoped by StepEventService. Resolve
+        // the injector explicitly by (id, tenant) through InjectUtils rather than the deserialized
+        // association, whose composite join relies on the step data's tenant_id and returns null
+        // when it is absent (then setInjector/NPE re-queues the step forever).
+        Injector injector;
         try {
-          Hibernate.initialize(inject.getInjector());
+          injector = injectUtils.resolveInjector(injectorId, injectorContract);
         } catch (Exception e) {
           throw new ChainingException(
               "Injector not found for injectorId "
@@ -1198,7 +1201,6 @@ public class InjectExecutionStep implements ActionStep {
                   + " and step (READY) ID "
                   + step.getId());
         }
-        injector.setTenantId(injectorContract.getTenant().getId());
         inject.setInjector(injector);
       }
 
