@@ -396,10 +396,13 @@ public class InjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
+  // TxCtx scopes the transaction so the legacy-ingestion path can reach security_coverages
+  // (v2-activated) through InjectExpectationService's vulnerability verdict / security-coverage
+  // send-job propagation, same as the agent-callback overload below.
   public void injectExecutionCallback(
-      @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
+      TxCtx ctx, @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
-    injectExecutionCallback(null, injectId, input);
+    injectExecutionCallback(ctx, null, injectId, input);
   }
 
   @PostMapping({
@@ -427,7 +430,11 @@ public class InjectApi extends RestBehavior {
             description =
                 "The inject to update was not in a valid state in regards to the requested action. Retry in a few seconds."),
       })
+  // TxCtx scopes the transaction so the legacy (non-queued) path can reach security_coverages
+  // (v2-activated), read via InjectExpectationService's vulnerability verdict propagation into
+  // SecurityCoverageSendJobService#shouldCreateCoverageSendJob (exercise.getSecurityCoverage()).
   public void injectExecutionCallback(
+      TxCtx ctx,
       @PathVariable
           String agentId, // must allow null because http injector used also this method to work.
       @PathVariable String injectId,

@@ -316,6 +316,13 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // security_coverages reads in the propagation path.
           "io.openaev.rest.challenge.ChallengeApi#tryChallenge",
           "io.openaev.rest.challenge.SimulationChallengeApi#validateChallenge",
+          // inject execution callback (legacy, non-queued path): the vulnerability-verdict
+          // propagation chain (matchesVulnerabilityExpectations -> ... ->
+          // propagateTechnicalExpectation)
+          // reads security_coverages via
+          // SecurityCoverageSendJobService#shouldCreateCoverageSendJob.
+          // Both overloads (with/without agentId) are covered by the single name entry.
+          "io.openaev.rest.inject.InjectApi#injectExecutionCallback",
           // security platforms: serialize the collectors association (tenant-active table) so the
           // UI can keep collector-managed platforms read-only (#7025). Both overloads of
           // securityPlatforms (GET list and POST search) are covered by the single name entry.
