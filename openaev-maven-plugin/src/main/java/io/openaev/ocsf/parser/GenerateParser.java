@@ -7,7 +7,7 @@ import io.openaev.ocsf.parser.generator.Generator;
 import io.openaev.ocsf.parser.schema.*;
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -88,11 +88,11 @@ public class GenerateParser extends AbstractMojo {
   }
 
   public void execute() throws MojoExecutionException {
-    URI absoluteRoot = getFinalBaseDir().getAbsoluteFile().toURI();
+    Path path = Paths.get(getFinalBaseDir().getAbsoluteFile().toURI());
     PluginContext ctx =
         new PluginContext(
-            Paths.get(absoluteRoot).resolve("openaev-maven-plugin/src/main/resources"),
-            Paths.get(absoluteRoot).resolve("openaev-model").resolve(subLocation));
+            path.resolve("openaev-maven-plugin/src/main/resources"),
+            path.resolve("openaev-model").resolve(subLocation));
     try {
       SchemaSource schemaSource = Ocsf.schema(OcsfSchemaVersion._1_9_0, ctx);
       Generator generator = new Generator(schemaSource, ctx);
