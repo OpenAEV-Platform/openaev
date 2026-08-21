@@ -1174,35 +1174,39 @@ public class InjectExecutionStep implements ActionStep {
       // GET INJECTOR
       JsonNode injectorNode = root.path("inject_injector");
 
-      // INJECTOR ID FROM JSON NULL
-      if ((injectorNode.isMissingNode() || injectorNode.asText().isEmpty())) {
+      // A missing field, an explicit JSON null (JsonNode#asText() on a NullNode returns the
+      // literal string "null", not "", so it must be checked separately) and an empty string all
+      // mean "no explicit injector id was serialized into the step data" - the normal case for a
+      // payload-based inject, whose injector is auto-resolved from the injector contract's linked
+      // injector(s), exactly like InjectService/AtomicTestingService/SimulationInjectApi do when
+      // creating/updating an inject with no explicit injectorId.
+      String injectorId =
+          (injectorNode.isMissingNode() || injectorNode.isNull() || injectorNode.asText().isEmpty())
+              ? null
+              : injectorNode.asText();
 
+      // injectors is v2-active and run() is already tenant-scoped by StepEventService. Resolve
+      // the injector explicitly by (id, tenant) through InjectUtils rather than the deserialized
+      // association, whose composite join relies on the step data's tenant_id and returns null
+      // when it is absent (then setInjector/NPE re-queues the step forever).
+      Injector injector;
+      try {
+        injector = injectUtils.resolveInjector(injectorId, injectorContract);
+      } catch (Exception e) {
+        throw new ChainingException(
+            "Injector not found for injectorId "
+                + injectorId
+                + " and step (READY) ID "
+                + step.getId());
+      }
+      if (injector == null) {
         throw new ChainingException(
             "Injector not found for injectorContractId "
                 + injectorContract.getId()
                 + " and step (READY) ID "
                 + step.getId());
-
-        // GET INJECTOR FROM DB
-      } else {
-
-        String injectorId = injectorNode.asText();
-        // injectors is v2-active and run() is already tenant-scoped by StepEventService. Resolve
-        // the injector explicitly by (id, tenant) through InjectUtils rather than the deserialized
-        // association, whose composite join relies on the step data's tenant_id and returns null
-        // when it is absent (then setInjector/NPE re-queues the step forever).
-        Injector injector;
-        try {
-          injector = injectUtils.resolveInjector(injectorId, injectorContract);
-        } catch (Exception e) {
-          throw new ChainingException(
-              "Injector not found for injectorId "
-                  + injectorId
-                  + " and step (READY) ID "
-                  + step.getId());
-        }
-        inject.setInjector(injector);
       }
+      inject.setInjector(injector);
 
       // Modify payload arguments with inputs from step
       ObjectNode updatedContent =

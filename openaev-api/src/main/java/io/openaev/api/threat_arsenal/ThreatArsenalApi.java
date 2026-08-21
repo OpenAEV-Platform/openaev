@@ -55,7 +55,11 @@ public class ThreatArsenalApi {
       resourceId = "#actionId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.THREAT_ARSENAL)
-  public ThreatArsenalActionFullOutput threatArsenal(@PathVariable String actionId) {
+  public ThreatArsenalActionFullOutput threatArsenal(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (injector_contract_injector_type is resolved through the injectors
+      // table, which is v2 tenant-scoped).
+      TxCtx ctx, @PathVariable String actionId) {
     return threatArsenalService.findById(actionId);
   }
 
@@ -129,7 +133,9 @@ public class ThreatArsenalApi {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public Page<? extends InjectorContractBaseOutput> threatArsenals(
-      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (the search projection joins the v2 tenant-scoped injectors table).
+      TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     InjectorContractService.OutputMode outputMode =
         input.isIncludeContentDetails()
             ? InjectorContractService.OutputMode.THREAT_ARSENAL_CONTENT
@@ -147,7 +153,9 @@ public class ThreatArsenalApi {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public Page<? extends InjectorContractBaseOutput> threatArsenalsNonTabletop(
-      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (the search projection joins the v2 tenant-scoped injectors table).
+      TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     InjectorContractService.OutputMode outputMode =
         input.isIncludeContentDetails()
             ? InjectorContractService.OutputMode.THREAT_ARSENAL_CONTENT
@@ -224,8 +232,11 @@ public class ThreatArsenalApi {
       resourceId = "#actionId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.THREAT_ARSENAL)
-  public void deleteAction(@PathVariable String actionId) {
-    threatArsenalService.delete(actionId);
+  public void deleteAction(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (isEligibleForDeletion resolves the v2 tenant-scoped injectors table).
+      TxCtx ctx, @PathVariable String actionId) {
+    threatArsenalService.delete(ctx, actionId);
   }
 
   @Operation(summary = "Bulk delete threat arsenal actions")
@@ -235,7 +246,10 @@ public class ThreatArsenalApi {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalBulkDeleteOutput bulkDeleteActions(
-      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
-    return ThreatArsenalBulkDeleteOutput.of(threatArsenalService.bulkDelete(input));
+      // TxCtx is still declared so the resolver injects the request scope; there is no real
+      // transaction here to write the GUC into (SUPPORTS), so it is passed down manually into
+      // each short read/chunk transaction in ThreatArsenalService#bulkDelete.
+      TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    return ThreatArsenalBulkDeleteOutput.of(threatArsenalService.bulkDelete(ctx, input));
   }
 }
