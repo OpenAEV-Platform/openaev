@@ -3,6 +3,7 @@ import * as C from '@mui/material/colors';
 import { type ApexOptions } from 'apexcharts';
 
 import { scaleFactor } from '../components/AppThemeProvider';
+import { sanitizeHtml } from './String';
 
 type Temp = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800;
 
@@ -53,6 +54,14 @@ export const colors = (temp: Temp): string[] => {
   ];
 };
 
+// Theme colors are always resolved from the MUI palette (6-digit hex, or an rgb()/rgba()
+// palette token), so anything else is untrusted and must be rejected rather than
+// interpolated into a style attribute.
+const SAFE_CSS_COLOR_REGEX = /^(#[0-9a-fA-F]{3,8}|rgba?\([0-9.,%\s]+\))$/;
+const sanitizeCssColor = (value: unknown, fallback: string): string => (
+  typeof value === 'string' && SAFE_CSS_COLOR_REGEX.test(value) ? value : fallback
+);
+
 /**
  * A custom tooltip for ApexChart.
  * This tooltip only display the label of the data it hovers.
@@ -62,11 +71,16 @@ export const colors = (temp: Temp): string[] => {
  *
  * @param {Theme} theme
  */
-const simpleLabelTooltip = (theme: Theme): ApexTooltip['custom'] => ({ seriesIndex, w }) => (`
-  <div style="background: ${theme.palette.background.nav}; color: ${theme.palette.text?.primary}; padding: 2px 6px; font-size: 12px">
-    ${w.config.labels[seriesIndex]}
+export const simpleLabelTooltip = (theme: Theme): ApexTooltip['custom'] => ({ seriesIndex, w }) => {
+  const safeNavColor = sanitizeCssColor(theme.palette.background.nav, 'inherit');
+  const safeTextColor = sanitizeCssColor(theme.palette.text?.primary, 'inherit');
+  const safeLabel = sanitizeHtml(w.config.labels?.[seriesIndex]);
+  return (`
+  <div style="background: ${safeNavColor}; color: ${safeTextColor}; padding: 2px 6px; font-size: 12px">
+    ${safeLabel}
   </div>
 `);
+};
 
 export const resultColors = (temp: Temp) => [
   C.deepPurple[temp],
@@ -745,11 +759,18 @@ export const polarAreaChartOptions = (
       },
       position: legendPosition,
       fontFamily: '"IBM Plex Sans", sans-serif',
+      // See donutChartOptions: ApexCharts renders the legend label text via raw
+      // `innerHTML`, independently from the tooltip sink. Sanitize here too.
+      formatter: (legendName: string) => sanitizeHtml(legendName),
     },
     tooltip: {
       enabled: !isFakeData,
       theme: theme.palette.mode,
       custom: simpleLabelTooltip(theme),
+      // See donutChartOptions: ApexCharts bypasses `tooltip.custom` for pie-family
+      // charts and renders the series name into the default tooltip y-label via raw
+      // `innerHTML`. Sanitize the series name on that disjoint path too.
+      y: { title: { formatter: (seriesName: string) => sanitizeHtml(seriesName) } },
     },
     fill: { opacity: isFakeData ? 0.2 : 0.5 },
     stroke: { show: !isFakeData },
@@ -882,6 +903,14 @@ export const donutChartOptions = ({
       enabled: !isFakeData && displayTooltip,
       theme: theme.palette.mode,
       custom: simpleLabelTooltip(theme),
+      // For pie/donut charts ApexCharts bypasses `tooltip.custom` and renders the
+      // series name into the default tooltip's y-label via raw `innerHTML`
+      // (Tooltip/Labels.js: `ttYLabel.innerHTML = seriesName`), with an identity
+      // formatter by default. Sanitize the series name here so a malicious label
+      // cannot inject markup through that path. This runs on a disjoint rendering
+      // path from `custom` and `legend.formatter`, so legitimate labels are never
+      // double-escaped.
+      y: { title: { formatter: (seriesName: string) => sanitizeHtml(seriesName) } },
     },
     noData: { text: emptyChartText || 'No data to display' },
     legend: {
@@ -894,6 +923,11 @@ export const donutChartOptions = ({
       fontFamily: '"IBM Plex Sans", sans-serif',
       onItemClick: { toggleDataSeries: !isFakeData },
       onItemHover: { highlightDataSeries: !isFakeData },
+      // ApexCharts renders the legend label text via `innerHTML` with no built-in
+      // escaping, independently from the `tooltip.custom` sink handled by
+      // `simpleLabelTooltip`. Sanitize here too so a malicious label cannot inject
+      // markup via the legend (rendered on load, without requiring a hover).
+      formatter: (legendName: string) => sanitizeHtml(legendName),
     },
     dataLabels: {
       enabled: !isFakeData && displayLabels,
