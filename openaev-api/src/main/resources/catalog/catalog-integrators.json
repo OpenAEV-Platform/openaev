@@ -4415,7 +4415,7 @@
             "description": "Craft and send emails over SMTP",
             "short_description": "Craft and send emails over SMTP",
             "use_cases": [
-                "Technical"
+                "Communication"
             ],
             "verified": true,
             "last_verified_date": "",
