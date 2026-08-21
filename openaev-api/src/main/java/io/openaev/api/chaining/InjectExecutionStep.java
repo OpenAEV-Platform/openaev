@@ -27,6 +27,7 @@ import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectService;
@@ -596,7 +597,7 @@ public class InjectExecutionStep implements ActionStep {
    * @param stepRun the step to end
    */
   @Override
-  public void end(Step stepRun) {
+  public void end(Step stepRun) throws ChainingException {
     if (!StepStatus.RUN.equals(stepRun.getStatus())) {
       return;
     }

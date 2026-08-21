@@ -267,7 +267,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
       // May move stepUpdated from RUN to END before persisting.
       try {
         actionStep.end(stepUpdated);
-      } catch (ChainingException e) {
+      } catch (Exception e) {
         log.error(
             "[Chaining] Update consume: end() completion check failed for Step (RUN). Step ID: {} {}",
             stepUpdated.getId(),
