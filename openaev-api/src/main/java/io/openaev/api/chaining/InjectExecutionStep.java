@@ -620,8 +620,7 @@ public class InjectExecutionStep implements ActionStep {
       return;
     }
 
-    List<BaseInjectExpectation> expectations =
-        injectExpectationService.findAllByInjectId(injectId);
+    List<BaseInjectExpectation> expectations = injectExpectationService.findAllByInjectId(injectId);
 
     boolean hasExecutionTraces = !injectStatus.getTraces().isEmpty();
     boolean allExpectationsResolved =

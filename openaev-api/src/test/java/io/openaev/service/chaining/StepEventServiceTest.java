@@ -358,9 +358,7 @@ class StepEventServiceTest {
       Workflow workflowRun = mock(Workflow.class);
       when(stepUpdated.getWorkflow()).thenReturn(workflowRun);
       when(actionStep.update(stepRun)).thenReturn(Optional.of(stepUpdated));
-      doThrow(new ChainingException("end() failed"))
-          .when(actionStep)
-          .end(stepUpdated);
+      doThrow(new ChainingException("end() failed")).when(actionStep).end(stepUpdated);
 
       // Act
       stepEventService.handleExternalUpdateEvent(event);
@@ -390,9 +388,7 @@ class StepEventServiceTest {
       Workflow workflowRun = mock(Workflow.class);
       when(stepUpdated.getWorkflow()).thenReturn(workflowRun);
       when(actionStep.update(stepRun)).thenReturn(Optional.of(stepUpdated));
-      doThrow(new ChainingException("end() failed"))
-          .when(actionStep)
-          .end(stepUpdated);
+      doThrow(new ChainingException("end() failed")).when(actionStep).end(stepUpdated);
 
       // Act
       stepEventService.handleExternalUpdateEvent(event);
@@ -420,9 +416,7 @@ class StepEventServiceTest {
       Workflow workflowRun = mock(Workflow.class);
       when(stepUpdated.getWorkflow()).thenReturn(workflowRun);
       when(actionStep.update(stepRun)).thenReturn(Optional.of(stepUpdated));
-      doThrow(new ChainingException("end() failed"))
-          .when(actionStep)
-          .end(stepUpdated);
+      doThrow(new ChainingException("end() failed")).when(actionStep).end(stepUpdated);
       doThrow(new IOException("RabbitMQ down"))
           .when(queueChainingService)
           .republishUpdateEvent(any());
