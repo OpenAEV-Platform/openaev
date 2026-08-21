@@ -145,7 +145,7 @@ STEP STATUS LIFECYCLE (from diagram):
 ```
 WorkflowTimeoutJob (Quartz, @DisallowConcurrentExecution)
   └─> Finds expired RUN workflows (timeout from WorkflowConfiguration)
-        └─> WorkflowTimeoutService.forceCompleteWorkflowByTimeout()
+        └─> WorkflowEndService.forceCompleteWorkflowByTimeout()
               └─> Sets workflow status: END
               └─> Terminates active steps (READY/RUN → END)
               └─> Deletes pending delay queue entries
@@ -262,7 +262,7 @@ io.openaev.service.chaining/          ← Business logic layer
   ├── ExternalUpdateEvent.java        ← Queue message for external updates (Queueable)
   ├── ScopeService.java               ← Asset scope resolution (allowlist/denylist)
   ├── StepDelayQueueService.java      ← DB-persisted delay queue for time conditions
-  └── WorkflowTimeoutService.java     ← Finds expired workflows, force-completes them
+  └── WorkflowEndService.java     ← Finds expired workflows, force-completes them
 
 io.openaev.aop/
   ├── WorkflowUpdateEvent.java        ← Annotation: marks methods that trigger workflow updates
@@ -394,7 +394,7 @@ openaev-front/src/components/common/chaining/
 ### Workflow Lifecycle
 
 - Workflow status transitions: `TEMPLATE` → `RUN` → `END` (normal) or `STOP` (manual).
-- `WorkflowTimeoutService` handles timeout expiration — it force-ends workflows, steps, delay queue entries, and injects.
+- `WorkflowEndService` handles timeout expiration — it force-ends workflows, steps, delay queue entries, and injects.
 - Default timeout: 3600 seconds (`WorkflowService.DEFAULT_TIMEOUT_SECONDS`).
 
 ### Conditions
@@ -426,7 +426,7 @@ openaev-front/src/components/common/chaining/
 ### Testing
 
 - Tests exist at multiple levels: unit tests, integration tests, repository tests.
-- Key test classes: `StepServiceTest`, `ConditionServiceTest`, `WorkflowServiceTest`, `ChainingIntegrationTest`, `StepEventServiceTest`, `WorkflowTimeoutServiceTest`, `ScopeServiceTest`, `QueueChainingServiceTest`.
+- Key test classes: `StepServiceTest`, `ConditionServiceTest`, `WorkflowServiceTest`, `ChainingIntegrationTest`, `StepEventServiceTest`, `WorkflowEndServiceTest`, `ScopeServiceTest`, `QueueChainingServiceTest`.
 - Fixtures: `WorkflowFixture`, composers: `WorkflowComposer`, `ConditionComposer`.
 - Always test timeout guards (workflow ended checks) when adding new execution paths.
 
