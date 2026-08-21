@@ -8,7 +8,6 @@ import static io.openaev.api.users.dto.UserOutput.ALIAS_ORGANIZATION;
 import static io.openaev.api.users.dto.UserOutput.ALIAS_PGP_KEY;
 import static io.openaev.api.users.dto.UserOutput.ALIAS_PHONE;
 import static io.openaev.api.users.dto.UserOutput.ALIAS_PHONE2;
-import static io.openaev.api.users.dto.UserOutput.ALIAS_PLAIN_PASSWORD;
 import static io.openaev.api.users.dto.UserOutput.ALIAS_TAGS;
 import static io.openaev.api.users.dto.UserOutput.ALIAS_TENANTS;
 import static io.openaev.config.AppConfig.EMAIL_FORMAT;
@@ -33,4 +32,7 @@ public record UserInput(
     @JsonProperty(ALIAS_ORGANIZATION) String organizationId,
     @JsonProperty(ALIAS_TAGS) List<String> tagIds,
     @JsonProperty(ALIAS_ADMIN) boolean admin,
-    @JsonProperty(ALIAS_TENANTS) List<String> tenantIds) {}
+    @JsonProperty(ALIAS_TENANTS) List<String> tenantIds) {
+  /** Input-only: a password is submitted at creation, and never returned by any endpoint. */
+  public static final String ALIAS_PLAIN_PASSWORD = "user_plain_password";
+}

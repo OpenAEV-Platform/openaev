@@ -36,7 +36,6 @@ public record UserOutput(
   public static final String ALIAS_ORGANIZATION_ID = "user_organization_id";
   public static final String ALIAS_ORGANIZATION_NAME = "user_organization_name";
   public static final String ALIAS_ORGANIZATION = "user_organization";
-  public static final String ALIAS_PLAIN_PASSWORD = "user_plain_password";
   public static final String ALIAS_TAGS = "user_tags";
   public static final String ALIAS_TENANTS = "user_tenants";
 }

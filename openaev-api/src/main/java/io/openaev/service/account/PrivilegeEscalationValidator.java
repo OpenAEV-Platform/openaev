@@ -19,6 +19,23 @@ public final class PrivilegeEscalationValidator {
 
   private PrivilegeEscalationValidator() {}
 
+  // -- ADMIN FLAG --
+
+  /**
+   * The {@code user_admin} flag is the global RBAC bypass and is not grantable through the users
+   * API: managing users would otherwise be enough to promote oneself. It is set from the
+   * configuration only - the bootstrap admin and the SSO role mapping.
+   */
+  public static void assertAdminFlagUnchanged(final boolean requested, final boolean current) {
+    if (requested != current) {
+      throw new PrivilegeGrantException(
+          PrivilegeGrantException.UNHELD_CAPABILITIES,
+          List.of(Capability.BYPASS.name()),
+          "The administrator flag cannot be set through the users API: grant a platform role"
+              + " holding BYPASS instead");
+    }
+  }
+
   // -- CAPABILITIES --
 
   public static void assertCanAssignCapabilities(

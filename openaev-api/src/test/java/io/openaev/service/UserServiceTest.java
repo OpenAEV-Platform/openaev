@@ -90,7 +90,7 @@ class UserServiceTest extends IntegrationTest {
   // -- UPDATE --
 
   @Test
-  void given_existingUser_should_updateUser() {
+  void given_existingUser_should_updateUserButKeepItsAddress() {
     // -- ARRANGE --
     User persisted =
         userComposer.forUser(getUser("Original", "Name", "update@test.invalid")).persist().get();
@@ -101,7 +101,7 @@ class UserServiceTest extends IntegrationTest {
     User updated = userService.updateUser(persisted.getId(), input);
 
     // -- ASSERT --
-    assertThat(updated.getEmail()).isEqualTo("updated@test.invalid");
+    assertThat(updated.getEmail()).isEqualTo("update@test.invalid");
     assertThat(updated.getFirstname()).isEqualTo("Updated");
     assertThat(updated.getLastname()).isEqualTo("Lastname");
     assertThat(updated.getPgpKey()).isEqualTo("pgp-key-123");
