@@ -2,9 +2,8 @@ package io.openaev.api.stix_process;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -28,10 +27,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -42,9 +38,9 @@ public class StixApi extends RestBehavior {
 
   public static final String STIX_URI = "/api/stix";
   public static final String TENANT_STIX_URI = TENANT_PREFIX + "/stix";
-  private final ObjectMapper objectMapper;
   private final StixService stixService;
   private final OpenCTIConnectorService openCTIService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @PostMapping(
       value = "/process-bundle",
@@ -65,7 +61,8 @@ public class StixApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
   public ResponseEntity<?> processBundle(@RequestBody @Validated CTIEvent ctiEvent, TxCtx ctx)
       throws ParsingException, ConnectorError, IOException {
-    String tenantId = TenantContext.getCurrentTenant();
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+
     try {
       openCTIService.acknowledgeReceivedOfCoverage(
           ctiEvent.getInternal().getWorkId(), "OpenAEV ready to process the operation", tenantId);

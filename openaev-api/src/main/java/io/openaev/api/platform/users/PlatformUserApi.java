@@ -8,8 +8,6 @@ import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.exception.InputValidationException;
-import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -94,20 +92,6 @@ public class PlatformUserApi {
   @Transactional
   public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
     return toPlatformOutput(userService.updateUser(userId, input));
-  }
-
-  @Operation(summary = "Change the password of a platform user")
-  @AccessControl(
-      resourceId = "#userId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.PLATFORM_USER,
-      isEnterpriseEdition = true)
-  @PutMapping("/{userId}/password")
-  @Transactional
-  public UserOutput changePassword(
-      @PathVariable String userId, @Valid @RequestBody ChangePasswordInput input)
-      throws InputValidationException {
-    return toPlatformOutput(userService.changePassword(userId, input));
   }
 
   // -- DELETE --

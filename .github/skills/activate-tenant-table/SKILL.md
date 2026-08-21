@@ -296,27 +296,67 @@ deployed, same `VulnerabilityService` underneath) alongside
 `VulnerabilityApi`; neither grep sees it because it only references the
 service. A deprecated controller that still ships is a live path.
 
-**Walk shared gates up to every entrypoint, not just one hop.** A helper
-method shared by several controllers (a launch gate, a mapper, a projection
-builder, ...) can have more callers than the ones you happened to notice.
-Stopping at the first caller is the #7188-class regression: the executors
-activation (#6409) found `ExerciseService.throwIfExerciseNotLaunchable`'s
-callers `updateExerciseStart` and `deprecatedUpdateExerciseStart` and wired
-`TxCtx` on both, but `ExerciseApi#changeExerciseStatus` — a third, equally
-direct caller of the exact same gate — was never enumerated and shipped with
-the tenant-scope gap undetected. Every intermediate method found this way
-becomes its own grep target, repeated until every hit is a real entrypoint
-(`@RestController` method, `@Scheduled`/`@RabbitListener`, ...):
+**Walk shared gates up to every entrypoint, not just one hop.** A helper or
+service method shared by several controllers (a launch gate, a mapper, a
+projection builder, a search/query method, ...) can have more callers than the
+ones you happened to notice. Stopping at the first caller is the #7188-class
+regression: the executors activation (#6409) found
+`ExerciseService.throwIfExerciseNotLaunchable`'s callers `updateExerciseStart`
+and `deprecatedUpdateExerciseStart` and wired `TxCtx` on both, but
+`ExerciseApi#changeExerciseStatus` — a third, equally direct caller of the
+exact same gate — was never enumerated and shipped with the tenant-scope gap
+undetected. Every intermediate method found this way becomes its own grep
+target, repeated until every hit is a real entrypoint (`@RestController`
+method, `@Scheduled`/`@RabbitListener`, ...).
+
+The same failure shipped again on the `injectors` activation (#6410): the
+inventory found `InjectorContractService.searchInjectorContracts` used by
+`InjectorContractApi#injectorContracts` (its `/injector_contracts/search`
+endpoint), wired `TxCtx` there, added it to `TX_SCOPED_ENTRYPOINTS`, and
+STOPPED — treating the shared service method as "done" because ONE caller was
+now covered. `ThreatArsenalApi#threatArsenals` / `#threatArsenalsNonTabletop`
+/ `#threatArsenal` are three independent, sibling controller methods calling
+that identical shared `InjectorContractService` search/association code
+(`injectorContract.getInjectorType()` → `getFirstInjector()` joins the
+activated `injectors` table exactly like the search projection does), and none
+were ever grepped for because nothing re-ran the caller-search on
+`InjectorContractService.searchInjectorContracts` (or on
+`InjectorContract#getInjectorType`/`getFirstInjector`) as its own symbol once
+it was flagged as shared. The bug shipped silently (200 OK,
+`injector_contract_injector_type: null`) and surfaced weeks later as a
+frontend regression (Threat Arsenal "Update" wrongly disabled), not as a test
+failure — the same silent-empty-join shape as #7026/#7007.
+
+**This is why "repeated until every hit is a real entrypoint" is a hard
+stopping rule, not a suggestion to use best judgment on when to stop.**
+Concretely, for EVERY shared method (helper gate OR service method) found
+while walking the closure:
+
+1. Grep every call site of that exact method name, codebase-wide — not just
+   in the file/package you were already looking at.
+2. For each call site, walk up to its enclosing method.
+3. If that enclosing method is ALREADY a `@RestController`
+   endpoint/`@Scheduled`/`@RabbitListener` entrypoint, it is a leaf: pin it in
+   `TX_SCOPED_ENTRYPOINTS` (or classify it as a background path, Phase 5b).
+4. If it is NOT yet a real entrypoint (another shared helper/service method),
+   treat IT as a newly found shared method and go back to step 1 for it too.
+5. Do this even after you have already wired and tested one caller — finding
+   and fixing the first caller is not a signal to stop, it is the signal that
+   THIS symbol is shared and every other caller must now be enumerated.
 
 ```bash
 # for EVERY shared method discovered while walking up (not just the first one
-# found) - repeat until the hit list is only entrypoints
+# found, and not just the first one you fixed) - repeat until the hit list is
+# only entrypoints
 grep -rn "\.{sharedMethodName}(" openaev-api/src/main/java --include="*.java"
 ```
 
-When a shared gate has N callers, count them: N entrypoints in the inventory
-must produce N `TxCtx` additions (or N documented exceptions) — a gate found
-with only "the callers I happened to notice" is not a complete inventory.
+When a shared gate or service method has N callers, count them: N entrypoints
+in the inventory must produce N `TxCtx` additions (or N documented exceptions)
+— a gate or service method found with only "the callers I happened to notice"
+is not a complete inventory. Before closing Phase 1/3b, re-run the grep above
+on every shared symbol you touched in this activation, one last time, and
+confirm the hit count still matches the entrypoint count in your report.
 
 **Hunt every association accessor, whether or not the table has its own API.**
 An association load (`entity.get{Entities}()`) bypasses the repository
@@ -1155,10 +1195,17 @@ Before marking the issue done, write down:
       migration was done first (own reviewed change)
 - [ ] inventory complete; every reader classified; redone before go-live
 - [ ] call graph walked to every `@RestController` entrypoint (not one hop):
-      for each shared gate/helper method found along the way, its full caller
-      list was grepped and the count of `TxCtx` additions matches the count of
-      callers found (#6409 regression: `changeExerciseStatus` was a third,
-      unwired caller of `throwIfExerciseNotLaunchable` missed this way)
+      for each shared gate/helper/service method found along the way, its full
+      caller list was grepped and the count of `TxCtx` additions matches the
+      count of callers found; the caller-search was RE-RUN on that symbol even
+      after the first caller was wired and tested, not just the first time it
+      was seen (#6409 regression: `changeExerciseStatus` was a third, unwired
+      caller of `throwIfExerciseNotLaunchable` missed this way; #6410
+      regression: `ThreatArsenalApi#threatArsenals` / `#threatArsenalsNonTabletop`
+      / `#threatArsenal` were three sibling callers of the same
+      `InjectorContractService` search/association code already wired for
+      `InjectorContractApi#injectorContracts`, missed because the shared
+      service method was never re-grepped once one caller looked done)
 - [ ] association-accessor scan run for every entity holding a reference to
       the activated entity, regardless of whether the activated table has its
       own API (eager/lazy loads bypass the repository grep either way)

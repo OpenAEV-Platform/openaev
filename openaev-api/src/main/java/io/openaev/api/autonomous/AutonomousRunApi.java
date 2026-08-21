@@ -149,7 +149,12 @@ public class AutonomousRunApi extends RestBehavior {
   @PostMapping("/capabilities/resolve")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public CapabilityReport resolveCapabilities(@Valid @RequestBody CapabilityQueryInput input) {
+  public CapabilityReport resolveCapabilities(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (buildArsenalInventory reads injectorRepository.findAll(), which is
+      // v2 tenant-scoped through the injectors table; without a scope the arsenal is reported
+      // empty and every technique/output looks like a capability gap).
+      TxCtx ctx, @Valid @RequestBody CapabilityQueryInput input) {
     return capabilityResolverService.resolve(input);
   }
 
