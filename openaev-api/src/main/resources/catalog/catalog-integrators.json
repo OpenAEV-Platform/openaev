@@ -4478,6 +4478,11 @@
                         "format": "duration",
                         "type": "string"
                     },
+                    "INJECTOR_TYPE": {
+                        "default": "openaev_email_smtp",
+                        "description": "Type of the injector.",
+                        "type": "string"
+                    },
                     "INJECTOR_AUTHOR": {
                         "default": null,
                         "description": "Optional author override for the connector's payloads and contracts. When absent, the platform attributes them to the connector's name.",
