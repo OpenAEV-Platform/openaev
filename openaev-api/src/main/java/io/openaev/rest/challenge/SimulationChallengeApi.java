@@ -10,6 +10,7 @@ import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ExerciseRepository;
@@ -76,6 +77,9 @@ public class SimulationChallengeApi extends RestBehavior {
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   @Transactional(rollbackFor = Exception.class)
   public SimulationChallengesReader validateChallenge(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for this transaction.
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String challengeId,
       @Valid @RequestBody ChallengeTryInput input,
