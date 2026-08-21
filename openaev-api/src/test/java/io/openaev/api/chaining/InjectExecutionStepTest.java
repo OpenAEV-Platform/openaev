@@ -1495,7 +1495,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
-  void given_terminalInjectWithTracesAndResolvedExpectations_should_endStep() {
+  void given_terminalInjectWithTracesAndResolvedExpectations_should_endStep()
+      throws ChainingException {
     // ARRANGE
     String injectId = UUID.randomUUID().toString();
     Step stepRun = stepRunForInject(injectId);
@@ -1515,7 +1516,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
-  void given_terminalInjectWithPendingExpectation_should_keepStepRunning() {
+  void given_terminalInjectWithPendingExpectation_should_keepStepRunning()
+      throws ChainingException {
     // ARRANGE
     String injectId = UUID.randomUUID().toString();
     Step stepRun = stepRunForInject(injectId);
@@ -1537,7 +1539,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
-  void given_stepNotInRunStatus_should_doNothing() {
+  void given_stepNotInRunStatus_should_doNothing() throws ChainingException {
     // ARRANGE
     String injectId = UUID.randomUUID().toString();
     Step stepRun = stepRunForInject(injectId);
@@ -1552,7 +1554,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
-  void given_injectStatusStillInProgress_should_keepStepRunning() {
+  void given_injectStatusStillInProgress_should_keepStepRunning() throws ChainingException {
     // ARRANGE
     String injectId = UUID.randomUUID().toString();
     Step stepRun = stepRunForInject(injectId);
@@ -1571,7 +1573,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
-  void given_terminalStatusButNoExecutionTraces_should_keepStepRunning() {
+  void given_terminalStatusButNoExecutionTraces_should_keepStepRunning() throws ChainingException {
     // ARRANGE
     String injectId = UUID.randomUUID().toString();
     Step stepRun = stepRunForInject(injectId);
