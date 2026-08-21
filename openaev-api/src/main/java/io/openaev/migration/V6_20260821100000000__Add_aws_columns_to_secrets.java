@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20260818100000000__Add_aws_columns_to_secrets extends BaseJavaMigration {
+public class V6_20260821100000000__Add_aws_columns_to_secrets extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
