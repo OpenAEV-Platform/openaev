@@ -244,9 +244,10 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
     }
 
     Optional<Step> stepUpdatedOpt;
+    ActionStep actionStep;
 
     try {
-      ActionStep actionStep = stepService.factoryAction(stepRun.getStepAction(), stepRun.getId());
+      actionStep = stepService.factoryAction(stepRun.getStepAction(), stepRun.getId());
       stepUpdatedOpt = actionStep.update(stepRun);
     } catch (ChainingException e) {
       // Todo: system notif queue fail + system log for step + status FAIL
@@ -262,6 +263,19 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
 
     if (stepUpdatedOpt.isPresent()) {
       Step stepUpdated = stepUpdatedOpt.get();
+
+      // May move stepUpdated from RUN to END before persisting.
+      try {
+        actionStep.end(stepUpdated);
+      } catch (ChainingException e) {
+        log.error(
+            "[Chaining] Update consume: end() completion check failed for Step (RUN). Step ID: {} {}",
+            stepUpdated.getId(),
+            e.getMessage(),
+            e);
+        retryEndCheck(stepEvent, stepUpdated);
+      }
+
       stepService.saveStep(stepUpdated);
       try {
         workflowService.evaluateWorkflowProgress(stepUpdated.getWorkflow());
@@ -274,6 +288,30 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
             e.getMessage(),
             e);
       }
+    }
+  }
+
+  /**
+   * Retries the end() completion check (bounded, mirrors {@link #handleReadyStepEvent}): the step
+   * may already be inject-terminal but end() failed transiently, so re-queue a fresh update event
+   * instead of leaving the step stuck in RUN until the workflow times out.
+   */
+  private void retryEndCheck(ExternalUpdateEvent stepEvent, Step stepUpdated) {
+    if (stepEvent.getRetryCount() < chainingConfig.getMaxRetryCount()) {
+      stepEvent.setRetryCount(stepEvent.getRetryCount() + 1);
+      try {
+        queueChainingService.republishUpdateEvent(stepEvent);
+      } catch (IOException ioEx) {
+        log.error(
+            "[Chaining] Failed to re-queue update event for Step ID: {}. Event is lost.",
+            stepUpdated.getId(),
+            ioEx);
+      }
+    } else {
+      log.error(
+          "[Chaining] Step {} end() check failed after {} retries. Step stays RUN until workflow timeout.",
+          stepUpdated.getId(),
+          chainingConfig.getMaxRetryCount());
     }
   }
 }

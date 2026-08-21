@@ -35,6 +35,7 @@ import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.ExerciseTeamUserService;
+import io.openaev.service.InjectExpectationService;
 import io.openaev.service.UserService;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
@@ -68,6 +69,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @MockitoBean private ScopeService scopeService;
   @MockitoBean private ExerciseTeamUserService exerciseTeamUserService;
   @MockitoBean private ExecutionContextService executionContextService;
+  @MockitoBean private InjectExpectationService injectExpectationService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
@@ -1458,6 +1460,152 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // ASSERT
     assertNotNull(StepService.getField(runUpdated.getOutput(), "outputs.agent_id"));
     assertEquals("testValue", StepService.getField(runUpdated.getOutput(), "outputs.message.test"));
+  }
+
+  // -------------------
+  // end() completion analysis: Status / ExecutionTraces / Expectation
+  // -------------------
+
+  /**
+   * Builds a bare Step in RUN status carrying only the inject_id in its data, matching what end()
+   * needs to resolve the underlying inject.
+   */
+  private Step stepRunForInject(String injectId) {
+    Step stepRun = new Step();
+    stepRun.setStatus(StepStatus.RUN);
+    stepRun.setData("{\"inject_id\":\"" + injectId + "\"}");
+    return stepRun;
+  }
+
+  private InjectStatus mockInjectStatus(ExecutionStatus name, boolean withTrace) {
+    InjectStatus injectStatus = mock(InjectStatus.class);
+    when(injectStatus.getName()).thenReturn(name);
+    List<ExecutionTrace> traces =
+        withTrace ? List.of(mock(ExecutionTrace.class)) : Collections.emptyList();
+    when(injectStatus.getTraces()).thenReturn(traces);
+    return injectStatus;
+  }
+
+  private BaseInjectExpectation mockExpectation(boolean hasResult) {
+    BaseInjectExpectation expectation = mock(BaseInjectExpectation.class);
+    List<InjectExpectationResult> results =
+        hasResult ? List.of(mock(InjectExpectationResult.class)) : Collections.emptyList();
+    when(expectation.getResults()).thenReturn(results);
+    return expectation;
+  }
+
+  @Test
+  void given_terminalInjectWithTracesAndResolvedExpectations_should_endStep() {
+    // ARRANGE
+    String injectId = UUID.randomUUID().toString();
+    Step stepRun = stepRunForInject(injectId);
+
+    Inject inject = mock(Inject.class);
+    InjectStatus injectStatus = mockInjectStatus(ExecutionStatus.EXECUTED, true);
+    when(inject.getStatus()).thenReturn(Optional.of(injectStatus));
+    when(injectService.inject(injectId)).thenReturn(inject);
+    List<BaseInjectExpectation> expectations = List.of(mockExpectation(true));
+    when(injectExpectationService.findAllByInjectId(injectId)).thenReturn(expectations);
+
+    // ACT
+    injectExecutionStep.end(stepRun);
+
+    // ASSERT
+    assertEquals(StepStatus.END, stepRun.getStatus());
+  }
+
+  @Test
+  void given_terminalInjectWithPendingExpectation_should_keepStepRunning() {
+    // ARRANGE
+    String injectId = UUID.randomUUID().toString();
+    Step stepRun = stepRunForInject(injectId);
+
+    Inject inject = mock(Inject.class);
+    InjectStatus injectStatus = mockInjectStatus(ExecutionStatus.EXECUTED, true);
+    when(inject.getStatus()).thenReturn(Optional.of(injectStatus));
+    when(injectService.inject(injectId)).thenReturn(inject);
+    // One resolved, one still pending -> not all resolved
+    List<BaseInjectExpectation> expectations =
+        List.of(mockExpectation(true), mockExpectation(false));
+    when(injectExpectationService.findAllByInjectId(injectId)).thenReturn(expectations);
+
+    // ACT
+    injectExecutionStep.end(stepRun);
+
+    // ASSERT
+    assertEquals(StepStatus.RUN, stepRun.getStatus());
+  }
+
+  @Test
+  void given_stepNotInRunStatus_should_doNothing() {
+    // ARRANGE
+    String injectId = UUID.randomUUID().toString();
+    Step stepRun = stepRunForInject(injectId);
+    stepRun.setStatus(StepStatus.END);
+
+    // ACT
+    injectExecutionStep.end(stepRun);
+
+    // ASSERT
+    verifyNoInteractions(injectService);
+    assertEquals(StepStatus.END, stepRun.getStatus());
+  }
+
+  @Test
+  void given_injectStatusStillInProgress_should_keepStepRunning() {
+    // ARRANGE
+    String injectId = UUID.randomUUID().toString();
+    Step stepRun = stepRunForInject(injectId);
+
+    Inject inject = mock(Inject.class);
+    InjectStatus injectStatus = mockInjectStatus(ExecutionStatus.EXECUTING, true);
+    when(inject.getStatus()).thenReturn(Optional.of(injectStatus));
+    when(injectService.inject(injectId)).thenReturn(inject);
+
+    // ACT
+    injectExecutionStep.end(stepRun);
+
+    // ASSERT
+    assertEquals(StepStatus.RUN, stepRun.getStatus());
+    verifyNoInteractions(injectExpectationService);
+  }
+
+  @Test
+  void given_terminalStatusButNoExecutionTraces_should_keepStepRunning() {
+    // ARRANGE
+    String injectId = UUID.randomUUID().toString();
+    Step stepRun = stepRunForInject(injectId);
+
+    Inject inject = mock(Inject.class);
+    InjectStatus injectStatus = mockInjectStatus(ExecutionStatus.EXECUTED, false);
+    when(inject.getStatus()).thenReturn(Optional.of(injectStatus));
+    when(injectService.inject(injectId)).thenReturn(inject);
+    List<BaseInjectExpectation> expectations = List.of(mockExpectation(true));
+    when(injectExpectationService.findAllByInjectId(injectId)).thenReturn(expectations);
+
+    // ACT
+    injectExecutionStep.end(stepRun);
+
+    // ASSERT
+    assertEquals(StepStatus.RUN, stepRun.getStatus());
+  }
+
+  @Test
+  void given_noInjectStatusYet_should_keepStepRunning() {
+    // ARRANGE
+    String injectId = UUID.randomUUID().toString();
+    Step stepRun = stepRunForInject(injectId);
+
+    Inject inject = mock(Inject.class);
+    when(inject.getStatus()).thenReturn(Optional.empty());
+    when(injectService.inject(injectId)).thenReturn(inject);
+
+    // ACT
+    assertDoesNotThrow(() -> injectExecutionStep.end(stepRun));
+
+    // ASSERT
+    assertEquals(StepStatus.RUN, stepRun.getStatus());
+    verifyNoInteractions(injectExpectationService);
   }
 
   public static InjectorContract getInjectorContract() throws JsonProcessingException {
