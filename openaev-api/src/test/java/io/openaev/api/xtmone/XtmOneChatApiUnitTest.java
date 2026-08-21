@@ -52,7 +52,8 @@ class XtmOneChatApiUnitTest {
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
-    verify(client).streamChatMessage(eq("hello"), isNull(), eq("agent-1"), eq(context), any());
+    verify(client)
+        .streamChatMessage(eq("hello"), isNull(), eq("agent-1"), eq(context), eq(false), any());
   }
 
   @Test
@@ -69,6 +70,72 @@ class XtmOneChatApiUnitTest {
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
-    verify(client).streamChatMessage(eq("hello"), isNull(), eq("agent-1"), isNull(), any());
+    verify(client)
+        .streamChatMessage(eq("hello"), isNull(), eq("agent-1"), isNull(), eq(false), any());
+  }
+
+  /**
+   * The approval opt-in is the whole feature's on-switch: this proxy rebuilds the upstream body
+   * from a fixed set of fields, so a dropped {@code supports_tool_approval} means XTM One never
+   * pauses for a decision and every gated tool degrades to a plain "I could not run that" message.
+   * The failure is silent and looks, from the browser, exactly like the widget being ignored —
+   * hence a test on the forwarding itself rather than only on the endpoints it enables.
+   */
+  @Test
+  @DisplayName("Given supports_tool_approval true should forward the declaration upstream")
+  void given_supportsToolApproval_should_forwardTrue() throws Exception {
+    // -- ARRANGE --
+    when(config.isConfigured()).thenReturn(true);
+    Map<String, Object> body = new HashMap<>();
+    body.put("content", "hello");
+    body.put("agent_slug", "agent-1");
+    body.put("supports_tool_approval", true);
+
+    // -- ACT --
+    ResponseEntity<StreamingResponseBody> response = api.sendMessage(body);
+    response.getBody().writeTo(new ByteArrayOutputStream());
+
+    // -- ASSERT --
+    verify(client)
+        .streamChatMessage(eq("hello"), isNull(), eq("agent-1"), isNull(), eq(true), any());
+  }
+
+  @Test
+  @DisplayName("Given supports_tool_approval false should forward false")
+  void given_supportsToolApprovalFalse_should_forwardFalse() throws Exception {
+    // -- ARRANGE --
+    when(config.isConfigured()).thenReturn(true);
+    Map<String, Object> body = new HashMap<>();
+    body.put("content", "hello");
+    body.put("supports_tool_approval", false);
+
+    // -- ACT --
+    ResponseEntity<StreamingResponseBody> response = api.sendMessage(body);
+    response.getBody().writeTo(new ByteArrayOutputStream());
+
+    // -- ASSERT --
+    verify(client).streamChatMessage(eq("hello"), isNull(), isNull(), isNull(), eq(false), any());
+  }
+
+  /**
+   * A non-boolean must not be read as a declaration. Declaring support is a promise to answer: XTM
+   * One pauses the turn and waits indefinitely, with no timeout and no safe default decision, so a
+   * client that cannot actually answer must never be taken to have opted in.
+   */
+  @Test
+  @DisplayName("Given a non-boolean supports_tool_approval should not claim support")
+  void given_nonBooleanSupportsToolApproval_should_forwardFalse() throws Exception {
+    // -- ARRANGE --
+    when(config.isConfigured()).thenReturn(true);
+    Map<String, Object> body = new HashMap<>();
+    body.put("content", "hello");
+    body.put("supports_tool_approval", "true");
+
+    // -- ACT --
+    ResponseEntity<StreamingResponseBody> response = api.sendMessage(body);
+    response.getBody().writeTo(new ByteArrayOutputStream());
+
+    // -- ASSERT --
+    verify(client).streamChatMessage(eq("hello"), isNull(), isNull(), isNull(), eq(false), any());
   }
 }

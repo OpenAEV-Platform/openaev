@@ -28,6 +28,20 @@ public class MvcConfig implements WebMvcConfigurer {
 
   private static final int CACHE_PERIOD = 3600;
 
+  /**
+   * Outer bound on async request processing, which in practice means the chatbot SSE streams (the
+   * only {@code StreamingResponseBody} endpoints: {@code XtmOneChatApi#sendMessage} and {@code
+   * XtmOneProxyApi#postAgentStream}).
+   *
+   * <p>Must stay <b>above</b> {@code XtmOneClient#CHAT_STREAM_RESPONSE_TIMEOUT} so the upstream
+   * read times out first and unwinds the blocked reader thread itself; if this fires first, Spring
+   * completes the response while that thread is still parked in {@code read()} with no way to
+   * interrupt it. A turn paused for human tool approval is silent for as long as the reviewer
+   * takes, so both values have to clear XTM One's own 30-minute abandonment bound — keep the three
+   * in that order when changing any of them.
+   */
+  private static final int ASYNC_REQUEST_TIMEOUT_MS = 45 * 60 * 1000;
+
   @Resource private ObjectMapper objectMapper;
   @Resource private TenantInterceptor tenantInterceptor;
   @Resource private OrchestratorRunTenantInterceptor orchestratorRunTenantInterceptor;
@@ -71,7 +85,7 @@ public class MvcConfig implements WebMvcConfigurer {
   @Override
   public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
     configurer.setTaskExecutor(getTaskExecutor());
-    configurer.setDefaultTimeout(900_000);
+    configurer.setDefaultTimeout(ASYNC_REQUEST_TIMEOUT_MS);
   }
 
   @Bean

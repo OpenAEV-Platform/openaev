@@ -175,6 +175,18 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
       // while the OpenAEV proxy exposes '/messages/steer' relative to
       // its '/api/xtmone/chat' base.
       steer: '/messages/steer',
+      // Human-in-the-loop tool approval. Both have no default in the chatbot
+      // on purpose: setting `approve` is what makes the panel advertise
+      // `supports_tool_approval` upstream, and advertising it is a promise to
+      // answer — XTM One then pauses a turn and waits indefinitely for a
+      // decision. Left unset, the panel never claims support and a gated tool
+      // degrades to a plain assistant message instead of hanging the turn.
+      approve: '/messages/approve',
+      // Reload recovery: read as
+      // '{apiBaseUrl}/conversations/{conversation_id}/pending-approvals'.
+      // `approval_required` is a single event on the stream, so a reload loses
+      // the prompt — including the tool_call_ids a decision has to name.
+      pendingApprovals: '/conversations',
       sessions: '/sessions',
       upload: '/upload',
       download: '/files',

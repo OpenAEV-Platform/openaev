@@ -670,15 +670,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@filigran/chatbot@npm:3.7.4":
-  version: 3.7.4
-  resolution: "@filigran/chatbot@npm:3.7.4"
+"@filigran/chatbot@npm:3.9.1":
+  version: 3.9.1
+  resolution: "@filigran/chatbot@npm:3.9.1"
   peerDependencies:
     react: ">=18"
     react-dom: ">=18"
     react-markdown: ">=10"
+    remark-breaks: ">=4"
     remark-gfm: ">=4"
-  checksum: 10c0/b29ceb727765ccd8c06eb7f482cf54eff8dcfb1b669bdbfe96ced0222a47decbd58e82bb80cbcedf29206e64c4ccc6e7dee80ef025dd182d6f5cfa497b174b9a
+  checksum: 10c0/626a39ea4e267da664660547ecc116760d3cf7099134798e581a57851db19eb6168039c4900c659ffadf4581b2154592a58e9ce044f188ce694d38def9893609
   languageName: node
   linkType: hard
 
@@ -7479,6 +7480,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"mdast-util-newline-to-break@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "mdast-util-newline-to-break@npm:2.0.0"
+  dependencies:
+    "@types/mdast": "npm:^4.0.0"
+    mdast-util-find-and-replace: "npm:^3.0.0"
+  checksum: 10c0/756a5660b0a821e0d6d6a0b2d9b13ac32e41cc028c485a91bccf6300977e2557236c6cc93dbd55c68b785f1ed6eae69209a4ffe182533cd1cdfda369021bebd2
+  languageName: node
+  linkType: hard
+
 "mdast-util-phrasing@npm:^4.0.0":
   version: 4.1.0
   resolution: "mdast-util-phrasing@npm:4.1.0"
@@ -8578,7 +8589,7 @@ __metadata:
     "@emotion/styled": "npm:11.14.1"
     "@eslint/js": "npm:9.39.5"
     "@faker-js/faker": "npm:10.6.0"
-    "@filigran/chatbot": "npm:3.7.4"
+    "@filigran/chatbot": "npm:3.9.1"
     "@filigran/rich-text-editor": "npm:1.2.0"
     "@fontsource/geologica": "npm:5.3.0"
     "@fontsource/ibm-plex-sans": "npm:5.3.0"
@@ -8667,6 +8678,7 @@ __metadata:
     react-syntax-highlighter: "npm:16.1.1"
     redux: "npm:5.0.1"
     redux-thunk: "npm:3.1.0"
+    remark-breaks: "npm:4.0.0"
     remark-flexible-markers: "npm:1.3.6"
     remark-gfm: "npm:4.0.1"
     remark-parse: "npm:11.0.0"
@@ -9813,6 +9825,17 @@ __metadata:
     rehype-stringify: "npm:^10.0.0"
     unified: "npm:^11.0.0"
   checksum: 10c0/13d82086b673b3ce1fddb54cc8d30be16bde83fb62f1507f0af06070c94b85d07c3780fa994357bad2c9d51b84e4108ff661677b71d187e4f2167cab22d84363
+  languageName: node
+  linkType: hard
+
+"remark-breaks@npm:4.0.0":
+  version: 4.0.0
+  resolution: "remark-breaks@npm:4.0.0"
+  dependencies:
+    "@types/mdast": "npm:^4.0.0"
+    mdast-util-newline-to-break: "npm:^2.0.0"
+    unified: "npm:^11.0.0"
+  checksum: 10c0/d7b319a7993b54c5d574e9255080c5de68cfa24f993873b0ee296af13f478521c41d4b7ae0fc14b4607ea70c8f6967e998ab7a467de13139141e66a1a34cb6be
   languageName: node
   linkType: hard
 

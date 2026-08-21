@@ -1,7 +1,11 @@
 package io.openaev.api.xtmone;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -25,6 +29,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -39,6 +44,7 @@ class XtmOneChatApiTest extends IntegrationTest {
   private static final String CHAT_AGENTS_URL = "/api/xtmone/chat/agents";
   private static final String CHAT_SESSIONS_URL = "/api/xtmone/chat/sessions";
   private static final String CHAT_STEER_URL = "/api/xtmone/chat/messages/steer";
+  private static final String CHAT_APPROVE_URL = "/api/xtmone/chat/messages/approve";
   private static final String CONVERSATION_ID = "11111111-1111-1111-1111-111111111111";
 
   @Autowired private MockMvc mvc;
@@ -397,6 +403,460 @@ class XtmOneChatApiTest extends IntegrationTest {
                   .content(
                       "{\"content\":\"hello\",\"conversation_id\":\"" + CONVERSATION_ID + "\"}"))
           .andExpect(status().isConflict());
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/xtmone/chat/messages/approve")
+  class ApproveToolCalls {
+
+    private static final String DECISION =
+        "{\"tool_call_id\":\"toolu_1\",\"decision\":\"approve\"}";
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One not configured should return 400")
+    void given_notConfigured_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(false);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"conversation_id\":\""
+                          + CONVERSATION_ID
+                          + "\",\"decisions\":["
+                          + DECISION
+                          + "]}"))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a non-UUID conversation id should return 400 without calling XTM One")
+    void given_invalidConversationId_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"conversation_id\":\"not-a-uuid\",\"decisions\":[" + DECISION + "]}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    /**
+     * Upstream rejects a partial set outright, because resuming with an undecided call leaves a
+     * {@code tool_use} block without its {@code tool_result} and the model providers refuse that.
+     * An empty set is the degenerate case of the same rule, so it is stopped here rather than spent
+     * on a round trip.
+     */
+    @Test
+    @WithMockUser
+    @DisplayName("Given an empty decisions array should return 400 without calling XTM One")
+    void given_emptyDecisions_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"conversation_id\":\"" + CONVERSATION_ID + "\",\"decisions\":[]}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given no decisions field at all should return 400 without calling XTM One")
+    void given_noDecisionsField_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"conversation_id\":\"" + CONVERSATION_ID + "\"}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    /**
+     * {@code tool_call_id} is the key every decision is sent back on, and never the tool name: one
+     * turn can propose the same tool twice with different arguments. A decision that names no call
+     * cannot be applied to one.
+     */
+    @Test
+    @WithMockUser
+    @DisplayName("Given a decision without a tool_call_id should return 400")
+    void given_decisionWithoutToolCallId_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"conversation_id\":\""
+                          + CONVERSATION_ID
+                          + "\",\"decisions\":[{\"decision\":\"approve\"}]}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    /**
+     * On a human-consent control an unrecognised verdict must be refused here, rather than leaving
+     * upstream's leniency as the only thing between an undecided call and an executed one.
+     */
+    @Test
+    @WithMockUser
+    @DisplayName("Given an unknown verdict should return 400 without calling XTM One")
+    void given_unknownVerdict_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"conversation_id\":\""
+                          + CONVERSATION_ID
+                          + "\",\"decisions\":[{\"tool_call_id\":\"toolu_1\","
+                          + "\"decision\":\"yes\"}]}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    /** Case matters: the verdicts are wire values, not display text. */
+    @Test
+    @WithMockUser
+    @DisplayName("Given a differently-cased verdict should return 400")
+    void given_miscasedVerdict_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"conversation_id\":\""
+                          + CONVERSATION_ID
+                          + "\",\"decisions\":[{\"tool_call_id\":\"toolu_1\","
+                          + "\"decision\":\"Approve\"}]}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given more decisions than the cap should return 400 without calling XTM One")
+    void given_tooManyDecisions_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      StringBuilder payload =
+          new StringBuilder("{\"conversation_id\":\"" + CONVERSATION_ID + "\",\"decisions\":[");
+      for (int i = 0; i < 51; i++) {
+        if (i > 0) {
+          payload.append(',');
+        }
+        payload
+            .append("{\"tool_call_id\":\"toolu_")
+            .append(i)
+            .append("\",\"decision\":\"approve\"}");
+      }
+      payload.append("]}");
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(payload.toString()))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given an over-long rejection reason should return 400 without calling XTM One")
+    void given_overLongRejectionReason_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      String reason = "x".repeat(2001);
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"conversation_id\":\""
+                          + CONVERSATION_ID
+                          + "\",\"decisions\":[{\"tool_call_id\":\"toolu_1\","
+                          + "\"decision\":\"reject\",\"rejection_reason\":\""
+                          + reason
+                          + "\"}]}"))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    /**
+     * The rejection reason is the agent's only correction channel — there is deliberately no "edit
+     * the arguments" verdict — so it has to survive the proxy hop rather than being dropped with
+     * the rest of the unrecognised fields.
+     */
+    @Test
+    @WithMockUser
+    @DisplayName("Given a rejection with a reason should forward the reason upstream")
+    void given_rejectionWithReason_should_forwardReason() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.approveToolCalls(anyString(), anyList()))
+          .thenReturn(Map.of("status", "accepted", "decided", 1));
+
+      // -- ACT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"conversation_id\":\""
+                          + CONVERSATION_ID
+                          + "\",\"decisions\":[{\"tool_call_id\":\"toolu_1\","
+                          + "\"decision\":\"reject\",\"rejection_reason\":\"too broad\"}]}"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.status").value("accepted"));
+
+      // -- ASSERT --
+      ArgumentCaptor<List<Map<String, Object>>> captor = ArgumentCaptor.captor();
+      verify(xtmOneClient).approveToolCalls(eq(CONVERSATION_ID), captor.capture());
+      assertThat(captor.getValue())
+          .singleElement()
+          .isEqualTo(
+              Map.of(
+                  "tool_call_id",
+                  "toolu_1",
+                  "decision",
+                  "reject",
+                  "rejection_reason",
+                  "too broad"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given an approve_always verdict should forward it as-is")
+    void given_approveAlways_should_forwardVerdict() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.approveToolCalls(anyString(), anyList()))
+          .thenReturn(Map.of("status", "accepted"));
+
+      // -- ACT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"conversation_id\":\""
+                          + CONVERSATION_ID
+                          + "\",\"decisions\":[{\"tool_call_id\":\"toolu_1\","
+                          + "\"decision\":\"approve_always\"}]}"))
+          .andExpect(status().isOk());
+
+      // -- ASSERT --
+      ArgumentCaptor<List<Map<String, Object>>> captor = ArgumentCaptor.captor();
+      verify(xtmOneClient).approveToolCalls(eq(CONVERSATION_ID), captor.capture());
+      assertThat(captor.getValue().getFirst())
+          .containsEntry("decision", "approve_always")
+          .doesNotContainKey("rejection_reason");
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given several proposals should forward every decision in order")
+    void given_severalDecisions_should_forwardAll() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.approveToolCalls(anyString(), anyList()))
+          .thenReturn(Map.of("status", "accepted", "decided", 2));
+
+      // -- ACT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"conversation_id\":\""
+                          + CONVERSATION_ID
+                          + "\",\"decisions\":["
+                          + "{\"tool_call_id\":\"toolu_1\",\"decision\":\"approve\"},"
+                          + "{\"tool_call_id\":\"toolu_2\",\"decision\":\"reject\"}]}"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.decided").value(2));
+
+      // -- ASSERT --
+      ArgumentCaptor<List<Map<String, Object>>> captor = ArgumentCaptor.captor();
+      verify(xtmOneClient).approveToolCalls(eq(CONVERSATION_ID), captor.capture());
+      assertThat(captor.getValue()).hasSize(2);
+      assertThat(captor.getValue().get(0)).containsEntry("tool_call_id", "toolu_1");
+      assertThat(captor.getValue().get(1)).containsEntry("tool_call_id", "toolu_2");
+    }
+
+    /**
+     * 409 means nothing is awaiting a decision — finished, cancelled, or already answered. It has
+     * to reach the client distinctly so the panel refreshes instead of retrying: a second decision
+     * on a settled call has nothing to apply to, and swallowing it would tell the user they
+     * approved something that never ran.
+     */
+    @Test
+    @WithMockUser
+    @DisplayName("Given upstream answers 409 (nothing awaiting) should propagate 409")
+    void given_upstreamConflict_should_return409() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.approveToolCalls(anyString(), anyList()))
+          .thenThrow(
+              new ResponseStatusException(
+                  HttpStatus.CONFLICT,
+                  "No turn is currently awaiting approval for this conversation"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"conversation_id\":\""
+                          + CONVERSATION_ID
+                          + "\",\"decisions\":["
+                          + DECISION
+                          + "]}"))
+          .andExpect(status().isConflict());
+    }
+  }
+
+  @Nested
+  @DisplayName("GET /api/xtmone/chat/conversations/{conversationId}/pending-approvals")
+  class PendingApprovals {
+
+    private String url(String conversationId) {
+      return "/api/xtmone/chat/conversations/" + conversationId + "/pending-approvals";
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given XTM One not configured should return 400")
+    void given_notConfigured_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(false);
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(url(CONVERSATION_ID)).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a non-UUID conversation id should return 400 without calling XTM One")
+    void given_invalidConversationId_should_returnBadRequest() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(url("not-a-uuid")).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isBadRequest());
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    /** An empty list is the ordinary answer — most conversations are not paused. */
+    @Test
+    @WithMockUser
+    @DisplayName("Given no paused turn should return 200 with an empty proposals list")
+    void given_noPausedTurn_should_returnEmptyProposals() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.getPendingApprovals(CONVERSATION_ID))
+          .thenReturn(
+              Map.of("conversation_id", CONVERSATION_ID, "proposals", List.of(), "turn", "idle"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(url(CONVERSATION_ID)).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.proposals").isArray())
+          .andExpect(jsonPath("$.proposals").isEmpty())
+          .andExpect(jsonPath("$.turn").value("idle"));
+    }
+
+    /**
+     * The turn marker is the completion signal for a recovered prompt: the resumed turn writes to
+     * the connection that carried the original prompt, which the reload closed, so the panel polls
+     * this until it reads idle instead of guessing how long to wait. It has to survive the proxy.
+     */
+    @Test
+    @WithMockUser
+    @DisplayName("Given a paused turn should return the proposals and the running turn marker")
+    void given_pausedTurn_should_returnProposalsAndTurnState() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.getPendingApprovals(CONVERSATION_ID))
+          .thenReturn(
+              Map.of(
+                  "conversation_id",
+                  CONVERSATION_ID,
+                  "proposals",
+                  List.of(
+                      Map.of(
+                          "tool_call_id",
+                          "toolu_1",
+                          "tool_name",
+                          "delete_entity",
+                          "arguments",
+                          Map.of("cascade", true))),
+                  "turn",
+                  "running"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(url(CONVERSATION_ID)).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.proposals[0].tool_call_id").value("toolu_1"))
+          .andExpect(jsonPath("$.proposals[0].tool_name").value("delete_entity"))
+          .andExpect(jsonPath("$.proposals[0].arguments.cascade").value(true))
+          .andExpect(jsonPath("$.turn").value("running"));
+    }
+
+    /**
+     * Upstream answers 404 rather than 403 for someone else's conversation, so it never confirms
+     * that one exists. Propagated rather than degraded to an empty list: a masked failure would
+     * read as "nothing is pending" and leave a genuinely paused turn invisible.
+     */
+    @Test
+    @WithMockUser
+    @DisplayName("Given upstream answers 404 should propagate 404 rather than an empty list")
+    void given_upstreamNotFound_should_return404() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.getPendingApprovals(CONVERSATION_ID))
+          .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(url(CONVERSATION_ID)).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
     }
   }
 }
