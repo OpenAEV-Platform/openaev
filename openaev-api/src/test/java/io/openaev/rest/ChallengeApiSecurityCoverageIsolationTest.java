@@ -100,7 +100,8 @@ class ChallengeApiSecurityCoverageIsolationTest extends IntegrationTest {
     Exercise exerciseA =
         inTenant(tenantAId, () -> exerciseRepository.save(ExerciseFixture.createDefaultExercise()));
     Challenge challengeA =
-        inTenant(tenantAId, () -> challengeRepository.save(ChallengeFixture.createDefaultChallenge()));
+        inTenant(
+            tenantAId, () -> challengeRepository.save(ChallengeFixture.createDefaultChallenge()));
 
     mvc.perform(
             post(
@@ -119,7 +120,8 @@ class ChallengeApiSecurityCoverageIsolationTest extends IntegrationTest {
     FlagInput flag = new FlagInput();
     flag.setType("VALUE");
     flag.setValue("secret-flag");
-    return new ChallengeInput(name, "category", "content", 100.0, 3, List.of(), List.of(), List.of(flag));
+    return new ChallengeInput(
+        name, "category", "content", 100.0, 3, List.of(), List.of(), List.of(flag));
   }
 
   private String createChallengeInTenant(String tenantId, String name) throws Exception {
@@ -141,7 +143,8 @@ class ChallengeApiSecurityCoverageIsolationTest extends IntegrationTest {
   }
 
   private <T> T inTenant(String tenantId, Supplier<T> work) {
-    String previousTenant = TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
+    String previousTenant =
+        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
     TenantContext.setCurrentTenant(tenantId);
     try {
       return tenantTx.execute(TxCtx.forTenant(tenantId), work);
@@ -154,4 +157,3 @@ class ChallengeApiSecurityCoverageIsolationTest extends IntegrationTest {
     }
   }
 }
-

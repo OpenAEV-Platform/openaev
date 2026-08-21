@@ -53,8 +53,14 @@ class SimulationChallengeApiSecurityCoverageIsolationTest extends IntegrationTes
   @Test
   @DisplayName("challenge validate from tenant B cannot access tenant A challenge")
   void challengeValidateFromTenantBCannotAccessTenantAChallenge() throws Exception {
-    tenantA = tenantHelper.createTenantWithCapabilities("sec-cov-challenge-a", CHALLENGE_CAPABILITIES).getId();
-    tenantB = tenantHelper.createTenantWithCapabilities("sec-cov-challenge-b", CHALLENGE_CAPABILITIES).getId();
+    tenantA =
+        tenantHelper
+            .createTenantWithCapabilities("sec-cov-challenge-a", CHALLENGE_CAPABILITIES)
+            .getId();
+    tenantB =
+        tenantHelper
+            .createTenantWithCapabilities("sec-cov-challenge-b", CHALLENGE_CAPABILITIES)
+            .getId();
 
     Exercise exerciseA = createExerciseForTenant(tenantA);
     Challenge challengeA = createChallengeForTenant(tenantA);
@@ -72,15 +78,18 @@ class SimulationChallengeApiSecurityCoverageIsolationTest extends IntegrationTes
   }
 
   private Exercise createExerciseForTenant(String tenantId) {
-    return inTenant(tenantId, () -> exerciseRepository.save(ExerciseFixture.createDefaultExercise()));
+    return inTenant(
+        tenantId, () -> exerciseRepository.save(ExerciseFixture.createDefaultExercise()));
   }
 
   private Challenge createChallengeForTenant(String tenantId) {
-    return inTenant(tenantId, () -> challengeRepository.save(ChallengeFixture.createDefaultChallenge()));
+    return inTenant(
+        tenantId, () -> challengeRepository.save(ChallengeFixture.createDefaultChallenge()));
   }
 
   private <T> T inTenant(String tenantId, Supplier<T> work) {
-    String previousTenant = TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
+    String previousTenant =
+        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
     TenantContext.setCurrentTenant(tenantId);
     try {
       return tenantTx.execute(TxCtx.forTenant(tenantId), work);
@@ -93,4 +102,3 @@ class SimulationChallengeApiSecurityCoverageIsolationTest extends IntegrationTes
     }
   }
 }
-

@@ -12,16 +12,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Capability;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Inject;
+import io.openaev.database.model.Capability;
 import io.openaev.opencti.connectors.ConnectorBase;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorService;
-import io.openaev.rest.inject.form.InjectExecutionAction;
-import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
@@ -47,7 +43,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Non-admin counterpart of SecurityCoverageHttpIsolationTest under security_coverages v2 activation.
+ * Non-admin counterpart of SecurityCoverageHttpIsolationTest under security_coverages v2
+ * activation.
  */
 @TestPropertySource(properties = "openaev.tenant.active-tables=security_coverages")
 @WithMockUser(isAdmin = false)
@@ -80,8 +77,14 @@ class SecurityCoverageHttpNonAdminIsolationTest extends IntegrationTest {
 
   @BeforeEach
   void setUp() throws Exception {
-    tenantA = tenantHelper.createTenantWithCapabilities("sec-cov-http-non-admin-a", MANAGE_STIX_BUNDLE).getId();
-    tenantB = tenantHelper.createTenantWithCapabilities("sec-cov-http-non-admin-b", MANAGE_STIX_BUNDLE).getId();
+    tenantA =
+        tenantHelper
+            .createTenantWithCapabilities("sec-cov-http-non-admin-a", MANAGE_STIX_BUNDLE)
+            .getId();
+    tenantB =
+        tenantHelper
+            .createTenantWithCapabilities("sec-cov-http-non-admin-b", MANAGE_STIX_BUNDLE)
+            .getId();
 
     ConnectorBase connector = mock(ConnectorBase.class);
     when(connector.getUrl()).thenReturn("https://opencti.local");
@@ -175,7 +178,8 @@ class SecurityCoverageHttpNonAdminIsolationTest extends IntegrationTest {
   }
 
   private <T> T inTenant(String tenantId, Supplier<T> work) {
-    String previousTenant = TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
+    String previousTenant =
+        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
     TenantContext.setCurrentTenant(tenantId);
     try {
       return tenantTx.execute(TxCtx.forTenant(tenantId), work);
@@ -188,4 +192,3 @@ class SecurityCoverageHttpNonAdminIsolationTest extends IntegrationTest {
     }
   }
 }
-
