@@ -12,6 +12,7 @@ public class FieldMeta implements Emitter {
   private final Modifier modifier;
   private final String type;
   private final String name;
+  private String initialiser;
 
   public FieldMeta(Modifier modifier, String type, String name) {
     this.modifier = modifier;
@@ -24,15 +25,26 @@ public class FieldMeta implements Emitter {
     return this;
   }
 
+  public FieldMeta withInitialiser(String initialiser) {
+    this.initialiser = initialiser;
+    return this;
+  }
+
   @Override
   public String emit() {
-    return this.annotations.stream().map(AnnotationMeta::emit).collect(Collectors.joining("\n"))
-        + "\n"
-        + modifier.getValue()
-        + " "
-        + type
-        + " "
-        + name
-        + ";";
+    String render =
+        this.annotations.stream().map(AnnotationMeta::emit).collect(Collectors.joining("\n"))
+            + "\n"
+            + modifier.getValue()
+            + " "
+            + type
+            + " "
+            + name;
+
+    if (initialiser != null && !initialiser.isBlank()) {
+      render += " = " + initialiser;
+    }
+
+    return render + ";";
   }
 }

@@ -1,11 +1,13 @@
 package io.openaev.ocsf.schema.v190.objects;
 
-public class OcsfObjectDelegation {
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "created_time")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT createdTimeField;
+import io.openaev.ocsf.schema.OcsfObject;
 
+public class OcsfObjectDelegation extends OcsfObject {
   @com.fasterxml.jackson.annotation.JsonProperty(value = "parent_uid")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT parentUidField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "created_time")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT createdTimeField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "issuer_uid")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT issuerUidField;

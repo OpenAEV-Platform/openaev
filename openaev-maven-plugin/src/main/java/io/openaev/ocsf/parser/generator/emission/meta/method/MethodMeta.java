@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 public class MethodMeta implements Emitter {
   private final Set<AnnotationMeta> annotations = new HashSet<>();
   private final Set<ArgumentMeta> arguments = new HashSet<>();
+  private final Set<Class<? extends Throwable>> throwables = new HashSet<>();
   private final Modifier modifier;
   private final String returnType;
   private final String name;
@@ -33,21 +34,31 @@ public class MethodMeta implements Emitter {
     return this;
   }
 
+  public MethodMeta withThrow(Class<? extends Throwable> throwableClass) {
+    throwables.add(throwableClass);
+    return this;
+  }
+
   @Override
   public String emit() {
-    return this.annotations.stream().map(AnnotationMeta::emit).collect(Collectors.joining("\n"))
-        + "\n"
-        + modifier.getValue()
-        + " "
-        + returnType
-        + " "
-        + name
-        + "("
-        + this.arguments.stream().map(ArgumentMeta::emit).collect(Collectors.joining(", "))
-        + ") {"
-        + "\n"
-        + Helper.indent(1, body)
-        + "\n"
-        + "}";
+    String render =
+        this.annotations.stream().map(AnnotationMeta::emit).collect(Collectors.joining("\n"))
+            + "\n"
+            + modifier.getValue()
+            + " "
+            + returnType
+            + " "
+            + name
+            + "("
+            + this.arguments.stream().map(ArgumentMeta::emit).collect(Collectors.joining(", "))
+            + ")";
+    if (throwables.stream().findAny().isPresent()) {
+      render +=
+          " throws "
+              + throwables.stream().map(Class::getCanonicalName).collect(Collectors.joining(", "));
+    }
+    render += " {" + "\n" + Helper.indent(1, body) + "\n" + "}";
+
+    return render;
   }
 }

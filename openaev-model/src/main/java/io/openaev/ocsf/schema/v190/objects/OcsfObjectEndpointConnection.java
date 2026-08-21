@@ -1,6 +1,8 @@
 package io.openaev.ocsf.schema.v190.objects;
 
-public class OcsfObjectEndpointConnection {
+import io.openaev.ocsf.schema.OcsfObject;
+
+public class OcsfObjectEndpointConnection extends OcsfObject {
   @com.fasterxml.jackson.annotation.JsonProperty(value = "network_endpoint")
   private io.openaev.ocsf.schema.v190.objects.OcsfObjectNetworkEndpoint networkEndpointField;
 

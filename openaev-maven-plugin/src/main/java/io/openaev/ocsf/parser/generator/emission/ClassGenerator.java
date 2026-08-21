@@ -8,7 +8,7 @@ import io.openaev.utils.StringUtils;
 import java.io.IOException;
 
 public abstract class ClassGenerator {
-  protected static final String SCHEMA_PACKAGE_NAME = "io.openaev.ocsf.schema";
+  public static final String SCHEMA_PACKAGE_NAME = "io.openaev.ocsf.schema";
   protected final StringUtils stringUtils = new StringUtils();
 
   public abstract ClassMetadata metadata(

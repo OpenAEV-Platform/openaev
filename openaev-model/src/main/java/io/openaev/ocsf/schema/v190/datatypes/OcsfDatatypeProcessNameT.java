@@ -1,8 +1,8 @@
 package io.openaev.ocsf.schema.v190.datatypes;
 
-import io.openaev.ocsf.schema.BaseType;
+import io.openaev.ocsf.schema.OcsfDatatype;
 
-public class OcsfDatatypeProcessNameT extends BaseType<java.lang.String> {
+public class OcsfDatatypeProcessNameT extends OcsfDatatype<java.lang.String> {
 
   public OcsfDatatypeProcessNameT(java.lang.String value) {
     super(value);

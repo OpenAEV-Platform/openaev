@@ -7,10 +7,10 @@ import java.util.Objects;
 import lombok.Getter;
 
 @Getter
-public abstract class BaseType<T> implements OcsfSerialisable {
+public abstract class OcsfDatatype<T> implements OcsfSerialisable {
   private final T value;
 
-  public BaseType(T value) {
+  public OcsfDatatype(T value) {
     this.value = value;
   }
 
@@ -27,7 +27,7 @@ public abstract class BaseType<T> implements OcsfSerialisable {
   @Override
   public boolean equals(Object o) {
     if (o.getClass() == this.getClass()) {
-      BaseType<?> that = (BaseType<?>) o;
+      OcsfDatatype<?> that = (OcsfDatatype<?>) o;
       return this.value.equals(that.value);
     }
     return Objects.equals(value, o);

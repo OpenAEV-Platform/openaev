@@ -6,6 +6,7 @@ import io.openaev.ocsf.parser.client.url.OcsfSchemaExtension;
 import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
 import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.cls.ClassMeta;
+import io.openaev.ocsf.parser.generator.emission.meta.cls.ExtendMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.field.FieldMeta;
 import io.openaev.ocsf.parser.schema.SchemaDimension;
 import io.openaev.ocsf.parser.schema.Version;
@@ -31,8 +32,10 @@ public class ObjectClassGenerator extends ClassGenerator {
   public String emit(ClassMetadata metadata, DictionaryHelper helper) throws IOException {
     ClassMeta meta =
         new ClassMeta()
+            .withImport(SCHEMA_PACKAGE_NAME + ".OcsfObject")
             .withName(compositeOcsfClassName(metadata.ocsfIdentifier()))
-            .withPackage(metadata.classPackage());
+            .withPackage(metadata.classPackage())
+            .withExtend(new ExtendMeta("OcsfObject"));
 
     JsonNode sourceNode = metadata.source();
     for (Map.Entry<String, JsonNode> attr : sourceNode.get("attributes").properties()) {

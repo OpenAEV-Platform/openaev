@@ -1,13 +1,22 @@
 package io.openaev.ocsf.parser.generator;
 
+import static io.openaev.ocsf.parser.generator.emission.ClassGenerator.SCHEMA_PACKAGE_NAME;
 import static io.openaev.ocsf.parser.schema.SchemaDimension.*;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.fs.ClassFileWriter;
 import io.openaev.ocsf.parser.PluginContext;
 import io.openaev.ocsf.parser.generator.emission.ClassClassGenerator;
 import io.openaev.ocsf.parser.generator.emission.ClassMetadata;
 import io.openaev.ocsf.parser.generator.emission.DatatypeClassGenerator;
 import io.openaev.ocsf.parser.generator.emission.ObjectClassGenerator;
+import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
+import io.openaev.ocsf.parser.generator.emission.meta.cls.ClassMeta;
+import io.openaev.ocsf.parser.generator.emission.meta.field.FieldMeta;
+import io.openaev.ocsf.parser.generator.emission.meta.method.ArgumentMeta;
+import io.openaev.ocsf.parser.generator.emission.meta.method.MethodMeta;
 import io.openaev.ocsf.parser.schema.SchemaSource;
 import io.openaev.ocsf.parser.schema.source.ReferentialSource;
 import io.openaev.ocsf.parser.schema.source.Source;
@@ -98,5 +107,40 @@ public class Generator {
                 datatypeClassGenerator.emit(md, helper));
       }
     }
+
+    // generate helpers
+    String helperClassPackage =
+        stringUtils.toVersionedPackage(schemaSource.getVersion(), SCHEMA_PACKAGE_NAME);
+    ClassMeta converterBodyMeta =
+        new ClassMeta()
+            .withImport(ObjectMapper.class.getCanonicalName())
+            .withName("OcsfConverter")
+            .withPackage(helperClassPackage)
+            .withField(
+                new FieldMeta(Modifier.PRIVATE, ObjectMapper.class.getTypeName(), "mapper")
+                    .withInitialiser("new ObjectMapper()"));
+    for (ClassMetadata md : tracker.values()) {
+      switch (md.dimension()) {
+        case SINGLE_OBJECT, SINGLE_CLASS ->
+            converterBodyMeta =
+                converterBodyMeta.withMethod(
+                    new MethodMeta(
+                            Modifier.PUBLIC,
+                            md.fullyQualifiedClassName(),
+                            "to" + md.className(),
+                            "return mapper.treeToValue(node, "
+                                + md.fullyQualifiedClassName()
+                                + ".class);")
+                        .withArgument(new ArgumentMeta(JsonNode.class, "node"))
+                        .withThrow(JsonProcessingException.class));
+      }
+    }
+    classFileWriter.overwrite(
+        pluginContext
+            .getRootOpenAEVAPISourceDirectory()
+            .resolve(stringUtils.packageToPath(helperClassPackage))
+            .toString(),
+        "OcsfConverter",
+        converterBodyMeta.emit());
   }
 }

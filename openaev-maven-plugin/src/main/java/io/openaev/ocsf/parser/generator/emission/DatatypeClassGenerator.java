@@ -36,10 +36,10 @@ public class DatatypeClassGenerator extends ClassGenerator {
 
     ClassMeta meta =
         new ClassMeta()
-            .withImport(SCHEMA_PACKAGE_NAME + ".BaseType")
+            .withImport(SCHEMA_PACKAGE_NAME + ".OcsfDatatype")
             .withName(compositeOcsfClassName(metadata.ocsfIdentifier()))
             .withPackage(metadata.classPackage())
-            .withExtend(new ExtendMeta("BaseType").withGenericTypeArgument(type))
+            .withExtend(new ExtendMeta("OcsfDatatype").withGenericTypeArgument(type))
             // ctor
             .withMethod(
                 new MethodMeta(

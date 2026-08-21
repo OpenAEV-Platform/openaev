@@ -1,9 +1,8 @@
 package io.openaev.ocsf.schema.v190.objects;
 
-public class OcsfObjectCisBenchmarkResult {
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "desc")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT descField;
+import io.openaev.ocsf.schema.OcsfObject;
 
+public class OcsfObjectCisBenchmarkResult extends OcsfObject {
   @com.fasterxml.jackson.annotation.JsonProperty(value = "remediation")
   private io.openaev.ocsf.schema.v190.objects.OcsfObjectRemediation remediationField;
 
@@ -12,4 +11,7 @@ public class OcsfObjectCisBenchmarkResult {
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT nameField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "desc")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT descField;
 }

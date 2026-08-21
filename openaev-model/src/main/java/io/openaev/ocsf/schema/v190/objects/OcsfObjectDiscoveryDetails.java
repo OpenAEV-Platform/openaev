@@ -1,8 +1,13 @@
 package io.openaev.ocsf.schema.v190.objects;
 
-public class OcsfObjectDiscoveryDetails {
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "rule")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectRule ruleField;
+import io.openaev.ocsf.schema.OcsfObject;
+
+public class OcsfObjectDiscoveryDetails extends OcsfObject {
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "type")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT typeField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "occurrences")
+  private io.openaev.ocsf.schema.v190.objects.OcsfObjectOccurrenceDetails occurrencesField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "count")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT countField;
@@ -13,9 +18,6 @@ public class OcsfObjectDiscoveryDetails {
   @com.fasterxml.jackson.annotation.JsonProperty(value = "value")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT valueField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "occurrences")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectOccurrenceDetails occurrencesField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "type")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT typeField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "rule")
+  private io.openaev.ocsf.schema.v190.objects.OcsfObjectRule ruleField;
 }

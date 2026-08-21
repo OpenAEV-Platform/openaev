@@ -1,6 +1,8 @@
 package io.openaev.ocsf.schema.v190.objects;
 
-public class OcsfObjectCisControl {
+import io.openaev.ocsf.schema.OcsfObject;
+
+public class OcsfObjectCisControl extends OcsfObject {
   @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT nameField;
 

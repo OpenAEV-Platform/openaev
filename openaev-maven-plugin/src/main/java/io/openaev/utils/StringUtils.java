@@ -3,6 +3,7 @@ package io.openaev.utils;
 import io.openaev.ocsf.parser.schema.Version;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,10 +28,10 @@ public class StringUtils {
   }
 
   public String toVersionedPackage(Version version, String prefix, String... parts) {
-    return prefix
-        + ".v"
-        + version.versionNumber().getValue().replaceAll("[.]", "")
-        + "."
-        + String.join(".", parts);
+    String pkg = prefix + ".v" + version.versionNumber().getValue().replaceAll("[.]", "");
+    if (Arrays.stream(parts).findAny().isPresent()) {
+      pkg += "." + String.join(".", parts);
+    }
+    return pkg;
   }
 }

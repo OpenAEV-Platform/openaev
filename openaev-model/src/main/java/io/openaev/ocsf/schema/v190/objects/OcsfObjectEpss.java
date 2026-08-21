@@ -1,8 +1,10 @@
 package io.openaev.ocsf.schema.v190.objects;
 
-public class OcsfObjectEpss {
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "created_time")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT createdTimeField;
+import io.openaev.ocsf.schema.OcsfObject;
+
+public class OcsfObjectEpss extends OcsfObject {
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "percentile")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeFloatT percentileField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "score")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT scoreField;
@@ -13,6 +15,6 @@ public class OcsfObjectEpss {
   @com.fasterxml.jackson.annotation.JsonProperty(value = "version")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT versionField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "percentile")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeFloatT percentileField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "created_time")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT createdTimeField;
 }

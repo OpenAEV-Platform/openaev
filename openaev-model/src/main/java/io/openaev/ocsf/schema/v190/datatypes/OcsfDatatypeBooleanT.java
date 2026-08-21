@@ -1,8 +1,8 @@
 package io.openaev.ocsf.schema.v190.datatypes;
 
-import io.openaev.ocsf.schema.BaseType;
+import io.openaev.ocsf.schema.OcsfDatatype;
 
-public class OcsfDatatypeBooleanT extends BaseType<java.lang.Boolean> {
+public class OcsfDatatypeBooleanT extends OcsfDatatype<java.lang.Boolean> {
 
   public OcsfDatatypeBooleanT(java.lang.Boolean value) {
     super(value);

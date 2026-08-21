@@ -1,6 +1,8 @@
 package io.openaev.ocsf.schema.v190.objects;
 
-public class OcsfObjectAuthorization {
+import io.openaev.ocsf.schema.OcsfObject;
+
+public class OcsfObjectAuthorization extends OcsfObject {
   @com.fasterxml.jackson.annotation.JsonProperty(value = "decision")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT decisionField;
 

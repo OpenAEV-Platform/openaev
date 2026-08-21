@@ -1,6 +1,8 @@
 package io.openaev.ocsf.schema.v190.objects;
 
-public class OcsfObjectHttpHeader {
+import io.openaev.ocsf.schema.OcsfObject;
+
+public class OcsfObjectHttpHeader extends OcsfObject {
   @com.fasterxml.jackson.annotation.JsonProperty(value = "value")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT valueField;
 

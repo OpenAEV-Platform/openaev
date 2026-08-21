@@ -1,6 +1,8 @@
 package io.openaev.ocsf.schema.v190.objects;
 
-public class OcsfObjectEnvironmentVariable {
+import io.openaev.ocsf.schema.OcsfObject;
+
+public class OcsfObjectEnvironmentVariable extends OcsfObject {
   @com.fasterxml.jackson.annotation.JsonProperty(value = "value")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT valueField;
 

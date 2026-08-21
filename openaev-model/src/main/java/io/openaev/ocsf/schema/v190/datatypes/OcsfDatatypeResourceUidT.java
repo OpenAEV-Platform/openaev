@@ -1,8 +1,8 @@
 package io.openaev.ocsf.schema.v190.datatypes;
 
-import io.openaev.ocsf.schema.BaseType;
+import io.openaev.ocsf.schema.OcsfDatatype;
 
-public class OcsfDatatypeResourceUidT extends BaseType<java.lang.String> {
+public class OcsfDatatypeResourceUidT extends OcsfDatatype<java.lang.String> {
 
   public OcsfDatatypeResourceUidT(java.lang.String value) {
     super(value);

@@ -1,34 +1,36 @@
 package io.openaev.ocsf.schema.v190.objects;
 
-public class OcsfObjectServicePrivilegeAnalysis {
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "all_privileges_unused")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeBooleanT allPrivilegesUnusedField;
+import io.openaev.ocsf.schema.OcsfObject;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "analyzed_privileges_count")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT analyzedPrivilegesCountField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "execute_count")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT executeCountField;
+public class OcsfObjectServicePrivilegeAnalysis extends OcsfObject {
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "unused_privileges_count")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT unusedPrivilegesCountField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "last_used_time_dt")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT lastUsedTimeDtField;
 
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "execute_count")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT executeCountField;
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT nameField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "last_used_time")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT lastUsedTimeField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "unused_privileges_count")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT unusedPrivilegesCountField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "privilege_attack_info_list")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectPrivilegeAttackInfo
-      privilegeAttackInfoListField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "write_count")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT writeCountField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "read_count")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT readCountField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "write_count")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT writeCountField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "last_used_time")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT lastUsedTimeField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "analyzed_privileges_count")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT analyzedPrivilegesCountField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "all_privileges_unused")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeBooleanT allPrivilegesUnusedField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "privilege_attack_info_list")
+  private io.openaev.ocsf.schema.v190.objects.OcsfObjectPrivilegeAttackInfo
+      privilegeAttackInfoListField;
 }

@@ -1,48 +1,50 @@
 package io.openaev.ocsf.schema.v190.objects;
 
-public class OcsfObjectIdp {
+import io.openaev.ocsf.schema.OcsfObject;
+
+public class OcsfObjectIdp extends OcsfObject {
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "scim")
+  private io.openaev.ocsf.schema.v190.objects.OcsfObjectScim scimField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "state")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT stateField;
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "domain")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT domainField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "protocol_name")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT protocolNameField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "tenant_uid")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT tenantUidField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "fingerprint")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectFingerprint fingerprintField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "sso")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectSso ssoField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "state_id")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT stateIdField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT nameField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "state")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT stateField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "scim")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectScim scimField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "auth_factors")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectAuthFactor authFactorsField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "has_mfa")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeBooleanT hasMfaField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "issuer")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT issuerField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "uid_numeric")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeLongT uidNumericField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "sso")
+  private io.openaev.ocsf.schema.v190.objects.OcsfObjectSso ssoField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "has_mfa")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeBooleanT hasMfaField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "tenant_uid")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT tenantUidField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT nameField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "url_string")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeUrlT urlStringField;
 
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "auth_factors")
+  private io.openaev.ocsf.schema.v190.objects.OcsfObjectAuthFactor authFactorsField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "state_id")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT stateIdField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "fingerprint")
+  private io.openaev.ocsf.schema.v190.objects.OcsfObjectFingerprint fingerprintField;
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "uid")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT uidField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "uid_numeric")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeLongT uidNumericField;
 }

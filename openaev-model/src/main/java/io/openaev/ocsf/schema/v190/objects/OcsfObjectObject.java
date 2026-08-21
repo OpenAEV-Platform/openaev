@@ -1,3 +1,5 @@
 package io.openaev.ocsf.schema.v190.objects;
 
-public class OcsfObjectObject {}
+import io.openaev.ocsf.schema.OcsfObject;
+
+public class OcsfObjectObject extends OcsfObject {}
