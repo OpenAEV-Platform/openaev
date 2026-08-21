@@ -4411,7 +4411,7 @@
         },
         {
             "title": "Email",
-            "slug": "openaev_email",
+            "slug": "openaev_email_smtp",
             "description": "Craft and send emails over SMTP",
             "short_description": "Craft and send emails over SMTP",
             "use_cases": [
