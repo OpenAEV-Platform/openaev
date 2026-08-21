@@ -1500,6 +1500,7 @@ public class WorkflowService {
    *
    * @param workflowRun the running workflow to end
    */
+  @Transactional(rollbackFor = Exception.class)
   public void endWorkflow(Workflow workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
     workflowEndService.endWorkflow(workflowRun, cause);
   }

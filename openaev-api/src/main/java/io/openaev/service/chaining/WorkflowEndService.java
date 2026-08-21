@@ -167,7 +167,6 @@ public class WorkflowEndService {
    *
    * @param workflowRun the running workflow to end
    */
-  @Transactional(rollbackFor = Exception.class)
   public void endWorkflow(Workflow workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
     markWorkflowEnded(workflowRun, cause);
     workflowRepository.save(workflowRun);
