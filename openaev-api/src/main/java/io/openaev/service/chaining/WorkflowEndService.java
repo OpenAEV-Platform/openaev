@@ -150,7 +150,6 @@ public class WorkflowEndService {
    *
    * @param workflowRun the RUN workflow reaching END/STOP
    */
-  @Transactional(rollbackFor = Exception.class)
   void markWorkflowEnded(Workflow workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
     if (WorkflowStatus.END.equals(workflowRun.getStatus())) {
       return;
