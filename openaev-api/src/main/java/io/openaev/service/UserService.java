@@ -27,6 +27,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
+import io.openaev.service.account.PrivilegeEscalationValidator;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.ReferenceResolver;
@@ -133,6 +134,7 @@ public class UserService {
       throw new DataIntegrityViolationException(
           "User with email " + input.email() + " already exists");
     }
+    PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), false);
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
@@ -182,10 +184,8 @@ public class UserService {
   /**
    * Returns a user by ID (platform scope, no tenant filtering).
    *
-   * <p>No {@code @Transactional} here: the annotation was dead on the only internal caller ({@link
-   * #changePassword}, which self-invokes this method and therefore bypasses the Spring proxy), and
-   * {@code userRepository.findById(...)} already runs under its own Spring Data JPA transaction for
-   * every external caller.
+   * <p>No {@code @Transactional} here: {@code userRepository.findById(...)} already runs under its
+   * own Spring Data JPA transaction.
    */
   public User user(@NotBlank final String userId) {
     return userRepository
@@ -236,17 +236,12 @@ public class UserService {
         existing.getTenants() != null
             ? existing.getTenants().stream().map(Tenant::getId).toList()
             : List.of();
-    existing.setUpdateAttributes(input);
-    existing.setTags(
-        referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
-    existing.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), existing.isAdmin());
+    applyProfile(existing, input);
     existing.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(
                 input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
-    if (StringUtils.hasLength(input.plainPassword())) {
-      existing.setPassword(this.encodeUserPassword(input.plainPassword()));
-    }
     User savedUser = userRepository.save(existing);
     // Evict cache for old tenants (removed memberships) and new tenants (added memberships)
     List<String> newTenantIds = input.tenantIds() != null ? input.tenantIds() : List.of();
@@ -257,19 +252,14 @@ public class UserService {
     return savedUser;
   }
 
-  /** Changes the password of any user (platform-level administrative operation). */
-  @Transactional(rollbackFor = Exception.class)
-  public User changePassword(String userId, ChangePasswordInput input)
-      throws InputValidationException {
-    if (!input.getPassword().equals(input.getPasswordValidation())) {
-      throw new InputValidationException("password_validation", "Bad password validation");
-    }
-    User existing = user(userId);
-    existing.setPassword(this.encodeUserPassword(input.getPassword()));
-    User savedUser = userRepository.save(existing);
-    // Security: an administrative password change kills every live session of the user
-    sessionManager.invalidateUserSession(userId);
-    return savedUser;
+  public void applyProfile(User user, UserInput input) {
+    user.setFirstname(input.firstname());
+    user.setLastname(input.lastname());
+    user.setPhone(input.phone());
+    user.setPhone2(input.phone2());
+    user.setPgpKey(input.pgpKey());
+    user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
+    user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
   }
 
   /**
