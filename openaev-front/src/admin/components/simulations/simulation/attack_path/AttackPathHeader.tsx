@@ -1,5 +1,14 @@
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { AccountTreeOutlined, ArrowBackOutlined, FilterAltOffOutlined, FullscreenExitOutlined, FullscreenOutlined, HelpOutline, LocalFireDepartment, MoreHorizOutlined, SearchOutlined, TableRowsOutlined } from '@mui/icons-material';
-import { Autocomplete, Box, Button, ButtonBase, ListItemButton, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { Autocomplete as MuiAutocomplete, Box, Button, ButtonBase, ListItemButton, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, type ReactNode, useState } from 'react';
 
@@ -262,29 +271,23 @@ const AttackPathHeader: FunctionComponent<Props> = ({
       }}
     >
       {showPicker && (
-        <Autocomplete
-          size="small"
-          options={pickerOptions}
-          value={selectedRow}
-          isOptionEqualToValue={(o, v) => o.simulationId === v.simulationId}
-          getOptionLabel={o => labelFor(o.simulationId)}
-          onChange={(_, v) => {
-            if (v?.simulationId) {
-              onSimulationChange(v.simulationId);
-            }
-          }}
-          renderOption={(props, o) => {
-            const { key, ...rest } = props as { key: string } & Record<string, unknown>;
-            return (
-              <Box
-                component="li"
-                key={key}
-                {...rest}
-                sx={{
-                  display: 'flex',
-                  gap: 1,
-                }}
-              >
+        // The panel is allowed to outgrow this width by the library itself
+        // (min-w = trigger width, max-w-82), so the old slotProps override that
+        // widened the MUI paper is no longer needed.
+        <div style={{ width: 200 }}>
+          <Combobox
+            options={pickerOptions}
+            value={selectedRow}
+            onValueChange={(v) => {
+              const next = v as typeof pickerOptions[number] | null;
+              if (next?.simulationId) {
+                onSimulationChange(next.simulationId);
+              }
+            }}
+            isOptionEqualToValue={(o, v) => o.simulationId === v.simulationId}
+            getOptionLabel={o => labelFor(o.simulationId)}
+            renderOption={o => (
+              <>
                 <span>{labelFor(o.simulationId)}</span>
                 <Typography
                   component="span"
@@ -294,30 +297,19 @@ const AttackPathHeader: FunctionComponent<Props> = ({
                 >
                   {`${o.endpointCount ?? 0} ${t('endpoints')} · ${o.executionCount ?? 0} ${t('exec.')}`}
                 </Typography>
-              </Box>
-            );
-          }}
-          renderInput={params => <TextField {...params} label={t('Simulation')} />}
-          // The closed field only ever shows a compact date (08/05/26, 04:06 PM), so it is sized for
-          // that instead of the old 300px that also had to fit the simulation name. The dropdown is
-          // let out of that width: its rows carry the date AND the endpoint/exec counts, which would
-          // otherwise be crushed into the narrower field.
-          slotProps={{
-            paper: {
-              sx: {
-                width: 'max-content',
-                minWidth: '100%',
-              },
-            },
-          }}
-          sx={{
-            'width': 200,
-            '& .MuiOutlinedInput-root': {
-              height: CONTROL_HEIGHT,
-              paddingBlock: 0,
-            },
-          }}
-        />
+              </>
+            )}
+          >
+            <ComboboxLabel>{t('Simulation')}</ComboboxLabel>
+            <ComboboxField>
+              <ComboboxInput />
+              <ComboboxControls>
+                <ComboboxTrigger />
+              </ComboboxControls>
+            </ComboboxField>
+            <ComboboxContent />
+          </Combobox>
+        </div>
       )}
 
       {/* Focus escapes read as actions (buttons with a directional icon), not deletable chips. */}
@@ -563,7 +555,12 @@ const AttackPathHeader: FunctionComponent<Props> = ({
         ))}
       </Popover>
 
-      <Autocomplete<SearchOption>
+      {/* FDS-WORKAROUND: stays on MUI. This field carries a leading magnifier
+          (startAdornment); the library Combobox has no leading-icon slot and its
+          RFC defers it out of v1, arbitrating that the magnifier belongs to
+          SearchField. Remove this workaround when a combobox-with-leading-icon
+          exists, or when this field is rebuilt on SearchField. */}
+      <MuiAutocomplete<SearchOption>
         size="small"
         options={searchOptions}
         value={null}
