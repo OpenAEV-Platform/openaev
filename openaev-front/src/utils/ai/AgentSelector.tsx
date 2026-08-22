@@ -53,7 +53,7 @@ const AgentSelector: FunctionComponent<AgentSelectorProps> = ({
             <ComboboxTrigger />
           </ComboboxControls>
         </ComboboxField>
-        <ComboboxContent emptyMessage={t('No agent available')} loadingMessage={t('Loading')} />
+        <ComboboxContent emptyMessage={t('No agent available')} />
       </Combobox>
     </div>
   );

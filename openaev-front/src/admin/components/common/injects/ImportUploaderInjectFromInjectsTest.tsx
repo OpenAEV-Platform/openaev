@@ -36,6 +36,12 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
+// These two field labels were already untranslated before the Combobox
+// adoption (they were `label="Sheet"` / `label="Mapper"` on a MUI
+// TextField). They are kept untranslated rather than given invented
+// translations in nine locales; adding real keys is a separate task.
+const SHEET_LABEL = 'Sheet';
+
 interface FormProps {
   sheetName: string;
   timezone: string;
@@ -119,7 +125,7 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
               required
               error={!!errors.sheetName}
             >
-              <ComboboxLabel>{t('Sheet')}</ComboboxLabel>
+              <ComboboxLabel>{SHEET_LABEL}</ComboboxLabel>
               <ComboboxField>
                 <ComboboxInput />
                 <ComboboxControls>
