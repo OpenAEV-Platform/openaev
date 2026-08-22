@@ -2053,3 +2053,109 @@ recorded here only so the two are not confused when the padding work is scoped.
 **Not urgent, but it caps the wave.** Seventeen surfaces out of the 130 in the
 OpenAEV container perimeter — 13%, and they are the only ones with no path
 forward. Everything else either converts or is out of scope by design.
+
+---
+
+Raised during: the Combobox adoption wave, library pin
+`da333e701d3073568159eabed00716c8e222a621`. Geometry and colour measured at the
+DOM in this product's own environment — real `ThemeLight()`/`ThemeDark()`, real
+`static/css/design-system-host.css`, `@fontsource/ibm-plex-sans` and
+`@fontsource/geologica` loaded as `src/index.tsx` loads them, and the theme class
+on `documentElement` as `AppThemeProvider` sets it. Three screens, both modes.
+
+## 39. `Combobox` needs a CAUSE on every one of its callbacks — and one product site expresses that cause as an event's PRESENCE
+
+**This is the wave's first blocker: 8 sites, 15 screens.** More than free value,
+more than the size axis.
+
+Six sites read MUI's change `reason`, across three different callbacks, and a
+seventh guards on something the library also does not provide:
+
+| callback | sites | what they read |
+|---|---|---|
+| `onInputChange` | `ReportingAutocompleteField.tsx:52`, `FilterAutocomplete.tsx:59`, `FilterChipPopoverInput.tsx:153`, `AutocompleteField.tsx:146` | `'input'` ×2, `'reset'` ×2 |
+| `onClose` | `ScenarioField.tsx:137` | `'selectOption'` |
+| `onChange` | `TagsFilter.jsx`, `ChannelsFilter.tsx` | `'clear'` — **converted**, see below |
+
+**The two `onChange` sites did not need the library to change.** In single mode a
+cleared field is exactly a null value; in multiple mode both handlers at the only
+call site reduce to the same state update. Both mappings were verified by reading
+the call sites, and both shipped. They are listed so the next reader does not
+re-open them.
+
+**The four `onInputChange` sites cannot be mapped, and they fail in opposite
+directions.** The library calls `onInputChange` from `setInputValue`, which
+`toggle()` and `clearAll()` also call, so a programmatic reset is
+indistinguishable from a keystroke. The two reading `'input'` drive a server
+search, so they would fire a query on every selection and every clear. The two
+reading `'reset'` ignore resets precisely to protect the text the user typed,
+which would now be overwritten.
+
+**The fourth form, and the reason this entry exists as written.** `ToolBar.tsx`
+(3 sites) never mentions `reason`. It writes:
+
+```js
+handleSearch(i, event, newValue) {
+  if (!event) return;          // MUI passes null on a programmatic reset
+  …
+}
+```
+
+That `if (!event) return` **is** `if (reason === 'input')`, expressed through the
+presence of the event object rather than a cause string. A fix that only adds a
+`reason` string to `onInputChange` would still leave these three sites
+unconvertible, because what they need is the same distinction under another name.
+A grep for `reason` does not find them — this one was found by opening the file.
+
+**Ask.** Give every callback that can fire from more than one cause a stated
+cause, with a named vocabulary, and cover the keystroke-vs-programmatic
+distinction explicitly rather than only the close-vs-select one. MUI's own set
+(`input`, `reset`, `clear`, `selectOption`, `removeOption`, `escape`, `blur`,
+`toggleInput`) is what this product already codes against.
+
+**Not worked around.** A local guard — "ignore an input change whose value equals
+the selected option's label" — would be exactly the local workaround the
+migration contract forbids. The 8 sites are left on MUI, listed, with the reason
+stated at each.
+
+## 40. `ComboboxChips` renders a bare `<ul>`, and in a host without a Tailwind preflight it costs 26px of height and paints a bullet
+
+The library deliberately ships no Tailwind preflight ("No preflight in
+distributed CSS"), so a host stylesheet that does not normalise lists leaves the
+browser's own defaults in place. Measured on the chip row:
+
+| declared on the `<ul>`/`<li>` by the browser | value |
+|---|---|
+| `list-style-type` | `disc` — **a visible bullet before the chips** |
+| `padding-inline-start` | `40px` |
+| `margin-block` | `14.4px` top and bottom |
+
+**Consequence, measured.** A `multiple` field carrying two chips renders **63px
+tall** where `Combobox.figma.json` declares a **36px** field. Applying what a
+preflight would apply — `list-style: none`, `padding-inline-start: 0`,
+`margin-block: 0` — brings it to **37px** in the same DOM, so the `<ul>` margin
+alone accounts for **26px**. Reproduced identically in both modes.
+
+**Ask.** Reset the chip row's own list box in the component, exactly as
+`SearchField.tsx:239` already does for its input (`"border-0 m-0 p-0 box-border"`).
+
+## 41. `ComboboxInput` does not reset the native input box, so the field is 1px over spec and paints a grey rectangle
+
+Same root cause as 40, different element. The bare `<input>` keeps the browser's
+`border: 2px inset rgb(118,118,118)` and `padding: 1px`.
+
+`21px` line-height `+ 1 + 1` padding `+ 2 + 2` border = **27px** for the input,
+then `27 + 4 + 4` (`py-1`) `+ 1 + 1` (field border) = **37px**, so `min-h-9`
+never binds. Setting `border: 0; padding: 0` on the input in the live DOM brings
+the field to **exactly 36px**, the declared value.
+
+**The border paints.** It is not a rounding artefact: `inset` style,
+`rgb(118,118,118)`, visible as a grey rectangle inside the field on all three
+screens, in both modes.
+
+**Why the fidelity gate is green anyway.** `check:figma-fidelity` compares
+declared classes to applied classes, and `min-h-9` really is applied. It does not
+measure rendered geometry, so it cannot see that the floor never binds. 75 green
+checks, and the field is still 1px over spec.
+
+**Ask.** Same as 40: reset the input's own box, as `SearchField` does.

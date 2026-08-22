@@ -371,3 +371,56 @@ in filigran-design-system).
   makes `bridge-freshness` meaningful; its branch ref (`sandyghs-miniature-enigma`
   @ `8ab126d`) is untouched.
 - Friction / process feedback: see the two points above.
+
+### 2026-08-20 — Combobox wave: 23 sites adopt the library field
+- Branch: fds/combobox-adoption
+- Pin: f86e76e -> da333e7. Proven on the bytes the product serves, not on a local
+  rebuild: `transparency-50` gone from `dist/index.css` (was 8 occurrences),
+  `transparency-55` present 10 times, `--border-elevation-disabled` present,
+  `yarn.lock` resolution on da333e7, and the regenerated bridge records
+  `themeCssHash: 3c0ef256…`, which is the git hash of `theme.css` at that commit.
+- The bridge was regenerated from a lib checkout DETACHED at da333e7, with its
+  on-disk `theme.css` hash checked against git first. Generating from a stale
+  sibling returns the previous values, which look perfectly plausible.
+- Beyond the Combobox: the pin carries the disabled-token wave. Two tokens this
+  product wires into its MUI theme move value —
+  `--text-default-disabled` (dark #a0b4e3 -> #95969d, light #2b4f8d -> #62636a)
+  and `--bg-elevation-disabled` (dark #0c1527 -> #313235, light #c8d6ee ->
+  #cacbce). `palette.text.disabled` has 74 references in this front, so the shift
+  from a blue-tinted to a neutral gray ramp is product-wide. Disabled controls are
+  exempt from WCAG 1.4.3, so this is legibility, not conformance.
+  `--color-filigran-brand-primary-transparency-50` was renamed to `-55`; no
+  product code reads it, only the generated bridge, so the rename is inert here.
+- Census, by TypeScript compiler API over 1537 files, negative controls passed in
+  both directions: 44 authored MUI `<Autocomplete>` sites in 39 files, plus 33
+  mount sites of 8 wrappers. The 15 files the earlier map missed all import
+  `Autocomplete as X` — a renamed import, which the previous extractor did not
+  resolve. Clean 2x2 split, no exception.
+- Converted: 23 sites. Left on MUI: 21, each with its reason, the biggest bucket
+  being the missing change cause (8 sites, 15 screens — see LIBRARY-FEEDBACK 39).
+- Visual validation, both modes, three screens (creation form field, filter,
+  multiple field with chips), measured at the DOM in this product's environment:
+  field background, radius, label and text colours all match
+  `Combobox.figma.json`; the single-row field is 37px against 36px declared, and
+  the chip field 63px. Both deltas are library defects, filed as 40 and 41.
+- Friction / process feedback:
+  1. Three false results caught by controls rather than by luck. A `PUSH_EXIT=0`
+     that was `tail`'s status, not `git push`'s — read the state, never a
+     pipeline's exit code. A "the bump did not take" reading taken while yarn was
+     still linking, because the wrapper had backgrounded yarn inside an already
+     backgrounded command. And an "ArrowDown does nothing" verdict that was the
+     key name: `Down` is not `ArrowDown`, found by a negative control on a second
+     field.
+  2. Two bench defects that looked like product defects: a field rendering dark on
+     a light page (the bench bypassed `AppThemeProvider`, which sets the theme
+     class on `documentElement`) and system-font typography (the bench did not
+     import `@fontsource/*`). Both were mine. The third anomaly in the same
+     capture was real — see 41.
+  3. `check-fds-conformity.mjs` reports 18 checks and 0 issues, but
+     `bridge-freshness` SKIPS when no sibling lib checkout exists — the one check
+     that would prove the bridge matches the pin. Freshness was proven by hash
+     instead. Worth making that skip loud, or resolving the pin from
+     `package.json` as this log already asked on 2026-08-14.
+  4. `mr-2` is NOT emitted in the served `dist/index.css`. A spacing utility taken
+     from the library would have rendered 0 with no error anywhere; product-side
+     spacing went through `theme.spacing()`.
