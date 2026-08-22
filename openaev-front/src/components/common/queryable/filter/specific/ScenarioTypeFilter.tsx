@@ -1,4 +1,14 @@
-import { Autocomplete, MenuItem, Select, TextField } from '@mui/material';
+import { MenuItem, Select } from '@mui/material';
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
 
 import { type Filter, type PropertySchemaDTO } from '../../../../../utils/api-types';
@@ -53,28 +63,27 @@ const ScenarioTypeFilter: FunctionComponent<{
           </MenuItem>
         ))}
       </Select>
-      <Autocomplete
+      <Combobox<Option>
         multiple
-        selectOnFocus
         openOnFocus
-        autoHighlight
-        noOptionsText={t('No available options')}
         options={options}
+        value={value}
+        onValueChange={(newValue) => {
+          helpers.handleUpdateValuesById(filter.id, (newValue as Option[]).map(o => o.id));
+        }}
         getOptionLabel={option => option.label ?? ''}
         isOptionEqualToValue={(option, v) => option.id === v.id}
-        value={value}
-        onChange={(_event, newValue) => {
-          helpers.handleUpdateValuesById(filter.id, newValue.map(o => o.id));
-        }}
-        renderInput={paramsInput => (
-          <TextField
-            {...paramsInput}
-            label={t(propertySchema.schema_property_name)}
-            variant="outlined"
-            size="small"
-          />
-        )}
-      />
+      >
+        <ComboboxLabel>{t(propertySchema.schema_property_name)}</ComboboxLabel>
+        <ComboboxField>
+          <ComboboxChips />
+          <ComboboxInput />
+          <ComboboxControls>
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent emptyMessage={t('No available options')} />
+      </Combobox>
     </>
   );
 };
