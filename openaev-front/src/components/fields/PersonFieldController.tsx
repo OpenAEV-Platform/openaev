@@ -1,4 +1,13 @@
-import { Autocomplete as MuiAutocomplete, Box, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -38,22 +47,25 @@ const PersonFieldController: FunctionComponent<Props> = ({ name, label }) => {
       name={name}
       control={control}
       render={({ field, fieldState: { error } }) => (
-        <MuiAutocomplete
-          value={options.find(o => o.id === field.value) || null}
-          fullWidth
+        <Combobox<Option>
           options={options}
-          onChange={(_, value) => field.onChange(value?.id ?? null)}
+          value={options.find(o => o.id === field.value) ?? null}
+          onValueChange={value => field.onChange((value as Option | null)?.id ?? null)}
           getOptionLabel={option => option.label}
           isOptionEqualToValue={(option, value) => option.id === value.id}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
-              {option.label}
-            </Box>
-          )}
-          renderInput={params => (
-            <TextField {...params} label={label} variant="standard" error={!!error} helperText={error?.message} />
-          )}
-        />
+          error={!!error}
+          renderOption={option => option.label}
+        >
+          <ComboboxLabel>{label}</ComboboxLabel>
+          <ComboboxField>
+            <ComboboxInput onBlur={field.onBlur} name={field.name} ref={field.ref} />
+            <ComboboxControls>
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+          {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+        </Combobox>
       )}
     />
   );
