@@ -74,8 +74,15 @@ const DocumentField: FunctionComponent<Props> = ({
   };
 
   return (
-    <div style={{ ...style, position: 'relative' }}>
-      <Combobox<{ id: string; label: string }>
+    <div style={{
+      ...style,
+      position: 'relative',
+    }}
+    >
+      <Combobox<{
+        id: string;
+        label: string;
+      }>
         options={documentsOptions}
         value={valueResolver() ?? null}
         onValueChange={(value) => {

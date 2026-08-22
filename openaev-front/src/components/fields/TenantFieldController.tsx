@@ -1,4 +1,3 @@
-import { HomeWorkOutlined } from '@mui/icons-material';
 import {
   Combobox,
   ComboboxChips,
@@ -10,6 +9,7 @@ import {
   ComboboxLabel,
   ComboboxTrigger,
 } from '@filigran/design-system';
+import { HomeWorkOutlined } from '@mui/icons-material';
 import { type FunctionComponent, useCallback, useEffect, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';

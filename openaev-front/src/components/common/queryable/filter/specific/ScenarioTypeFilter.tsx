@@ -1,4 +1,3 @@
-import { MenuItem, Select } from '@mui/material';
 import {
   Combobox,
   ComboboxChips,
@@ -9,6 +8,7 @@ import {
   ComboboxLabel,
   ComboboxTrigger,
 } from '@filigran/design-system';
+import { MenuItem, Select } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { type Filter, type PropertySchemaDTO } from '../../../../../utils/api-types';

@@ -1,4 +1,3 @@
-import { MenuItem, Select } from '@mui/material';
 import {
   Combobox,
   ComboboxContent,
@@ -8,6 +7,7 @@ import {
   ComboboxLabel,
   ComboboxTrigger,
 } from '@filigran/design-system';
+import { MenuItem, Select } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { SCENARIO_NOT_SCHEDULED_STATUS, SCENARIO_SCHEDULED_STATUS } from '../../../../../admin/components/scenarios/scenario/ScenarioStatus';

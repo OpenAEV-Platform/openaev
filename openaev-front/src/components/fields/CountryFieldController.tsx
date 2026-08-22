@@ -1,4 +1,3 @@
-import { FlagOutlined } from '@mui/icons-material';
 import {
   Combobox,
   ComboboxContent,
@@ -9,6 +8,7 @@ import {
   ComboboxLabel,
   ComboboxTrigger,
 } from '@filigran/design-system';
+import { FlagOutlined } from '@mui/icons-material';
 import type { FunctionComponent } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';

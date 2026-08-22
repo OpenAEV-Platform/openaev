@@ -1,4 +1,14 @@
-import { Autocomplete, MenuItem, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
+import { Box, MenuItem, TextField } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { type Control, Controller, type UseFormSetValue, useWatch } from 'react-hook-form';
 
@@ -93,27 +103,28 @@ const ListWidgetParameters = (props: Props) => {
         control={props.control}
         name="widget_config.sorts.0.fieldName"
         render={({ field, fieldState }) => (
-          <Autocomplete
-            options={propertySelection}
-            groupBy={option => option.group}
-            value={propertySelection.find(o => o.id === field.value) ?? null}
-            onChange={(_, value) => field.onChange(value?.id)}
-            getOptionLabel={option => option.label ?? ''}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            renderInput={params => (
-              <TextField
-                {...params}
-                label={t('Sort field')}
-                variant="standard"
-                fullWidth
-                sx={{ mt: 2 }}
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message}
-                required={true}
-              />
-            )}
-            freeSolo={false}
-          />
+          <Box sx={{ mt: 2 }}>
+            <Combobox
+              options={propertySelection}
+              groupBy={option => option.group}
+              value={propertySelection.find(o => o.id === field.value) ?? null}
+              onValueChange={value => field.onChange((value as { id: string } | null)?.id)}
+              getOptionLabel={option => option.label ?? ''}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              required
+              error={!!fieldState.error}
+            >
+              <ComboboxLabel>{t('Sort field')}</ComboboxLabel>
+              <ComboboxField>
+                <ComboboxInput />
+                <ComboboxControls>
+                  <ComboboxTrigger />
+                </ComboboxControls>
+              </ComboboxField>
+              <ComboboxContent />
+              {fieldState.error?.message ? <ComboboxHelperText>{fieldState.error.message}</ComboboxHelperText> : null}
+            </Combobox>
+          </Box>
         )}
       />
       <Controller

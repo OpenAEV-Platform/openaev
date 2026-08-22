@@ -1,4 +1,14 @@
-import { Autocomplete, MenuItem, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
+import { Box, MenuItem, TextField } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { type Control, Controller, useFormContext, type UseFormSetValue, useWatch } from 'react-hook-form';
 
@@ -196,27 +206,28 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
             name={mode === 'temporal' ? 'widget_config.date_attribute' : 'widget_config.field'}
             render={({ field, fieldState }) => {
               return (
-                <Autocomplete
-                  options={fieldOptions}
-                  groupBy={option => option.group}
-                  value={fieldOptions.find(o => o.id === field.value) ?? null}
-                  onChange={(_, value) => field.onChange(value?.id)}
-                  getOptionLabel={option => option.label ?? ''}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  renderInput={params => (
-                    <TextField
-                      {...params}
-                      label={mode === 'temporal' ? t('Date attribute') : t('Breakdown by')}
-                      variant="standard"
-                      fullWidth
-                      sx={{ mt: 2 }}
-                      error={!!fieldState.error}
-                      helperText={fieldState.error?.message}
-                      required
-                    />
-                  )}
-                  freeSolo={false}
-                />
+                <Box sx={{ mt: 2 }}>
+                  <Combobox
+                    options={fieldOptions}
+                    groupBy={option => option.group}
+                    value={fieldOptions.find(o => o.id === field.value) ?? null}
+                    onValueChange={value => field.onChange((value as { id: string } | null)?.id)}
+                    getOptionLabel={option => option.label ?? ''}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    required
+                    error={!!fieldState.error}
+                  >
+                    <ComboboxLabel>{mode === 'temporal' ? t('Date attribute') : t('Breakdown by')}</ComboboxLabel>
+                    <ComboboxField>
+                      <ComboboxInput />
+                      <ComboboxControls>
+                        <ComboboxTrigger />
+                      </ComboboxControls>
+                    </ComboboxField>
+                    <ComboboxContent />
+                    {fieldState.error?.message ? <ComboboxHelperText>{fieldState.error.message}</ComboboxHelperText> : null}
+                  </Combobox>
+                </Box>
               );
             }}
           />

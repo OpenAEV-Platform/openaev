@@ -1,4 +1,14 @@
-import { Autocomplete, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
+import { Box } from '@mui/material';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -50,27 +60,28 @@ const WidgetConfigDateAttributeController: FunctionComponent<Props> = ({ widgetT
       name="widget_config.date_attribute"
       render={({ field, fieldState }) => {
         return (
-          <Autocomplete
-            options={dateOptions}
-            groupBy={option => option.group}
-            value={dateOptions.find(o => o.id === field.value) ?? null}
-            onChange={(_, value) => field.onChange(value?.id)}
-            getOptionLabel={option => option.label ?? ''}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            renderInput={params => (
-              <TextField
-                {...params}
-                label={t('Date attribute')}
-                variant="standard"
-                fullWidth
-                sx={{ mt: 2 }}
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message}
-                required
-              />
-            )}
-            freeSolo={false}
-          />
+          <Box sx={{ mt: 2 }}>
+            <Combobox
+              options={dateOptions}
+              groupBy={option => option.group}
+              value={dateOptions.find(o => o.id === field.value) ?? null}
+              onValueChange={value => field.onChange((value as { id: string } | null)?.id)}
+              getOptionLabel={option => option.label ?? ''}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              required
+              error={!!fieldState.error}
+            >
+              <ComboboxLabel>{t('Date attribute')}</ComboboxLabel>
+              <ComboboxField>
+                <ComboboxInput />
+                <ComboboxControls>
+                  <ComboboxTrigger />
+                </ComboboxControls>
+              </ComboboxField>
+              <ComboboxContent />
+              {fieldState.error?.message ? <ComboboxHelperText>{fieldState.error.message}</ComboboxHelperText> : null}
+            </Combobox>
+          </Box>
         );
       }}
     />

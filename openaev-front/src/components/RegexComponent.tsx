@@ -35,8 +35,6 @@ const RegexComponent: FunctionComponent<Props> = ({
   const regexOptions = alphabet(26);
   const [value, setValue] = useState<string | null | undefined>(fieldValue ?? '');
 
-  const inputLabelProps = required ? { required: true } : {};
-
   return (
     <Combobox<string>
       openOnFocus

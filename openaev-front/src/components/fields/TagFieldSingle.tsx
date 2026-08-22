@@ -1,5 +1,3 @@
-import { AddOutlined, LabelOutlined } from '@mui/icons-material';
-import { Box, Dialog, DialogContent, DialogTitle, IconButton, TextField } from '@mui/material';
 import {
   Combobox,
   ComboboxContent,
@@ -9,6 +7,8 @@ import {
   ComboboxLabel,
   ComboboxTrigger,
 } from '@filigran/design-system';
+import { AddOutlined, LabelOutlined } from '@mui/icons-material';
+import { Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { type FieldErrors } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -100,8 +100,16 @@ const TagFieldSingle: FunctionComponent<Props> = ({
   };
 
   return (
-    <div style={{ position: 'relative' }}>
-      <Combobox<{ id: string; label: string; color: string | undefined }>
+    <div style={{
+      ...style,
+      position: 'relative',
+    }}
+    >
+      <Combobox<{
+        id: string;
+        label: string;
+        color: string | undefined;
+      }>
         options={tagsOptions}
         value={value() ?? null}
         onValueChange={(next) => {

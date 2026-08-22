@@ -1,4 +1,3 @@
-import { Box, TextField } from '@mui/material';
 import {
   Combobox,
   ComboboxContent,
@@ -78,7 +77,11 @@ const SecurityPlatformField: FunctionComponent<Props> = ({
   const selectedValue = securityPlatformsOptions.find(option => option.id === fieldValue) || null;
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{
+      ...style,
+      position: 'relative',
+    }}
+    >
       <Combobox
         options={securityPlatformsOptions}
         value={selectedValue}
