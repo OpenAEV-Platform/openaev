@@ -1,5 +1,15 @@
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete as MuiAutocomplete, Box, Button, MenuItem, TextField } from '@mui/material';
+import { Box, Button, MenuItem, TextField } from '@mui/material';
 import moment from 'moment-timezone';
 import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -88,6 +98,8 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
     handleSubmitForm(onSubmitImportTest)(e);
   };
 
+  const [sheet, setSheet] = useState<string | null>(null);
+
   return (
     <form id="importUploadInjectForm" onSubmit={handleSubmitWithoutPropagation}>
       <div className={classes.container}>
@@ -95,28 +107,30 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
           control={control}
           name="sheetName"
           render={({ field: { onChange } }) => (
-            <MuiAutocomplete
-              size="small"
-              selectOnFocus
-              autoHighlight
-              clearOnBlur={false}
-              clearOnEscape={false}
+            <Combobox<string>
               options={sheets}
-              onChange={(_, v) => {
+              // The MUI field was uncontrolled; the library Combobox is always
+              // controlled, so the field's own selection lives in local state.
+              value={sheet}
+              onValueChange={(v) => {
+                setSheet(v as string | null);
                 onChange(v);
               }}
-              renderInput={params => (
-                <TextField
-                  {...params}
-                  label="Sheet"
-                  variant="standard"
-                  fullWidth
-                  error={!!errors.sheetName}
-                  helperText={errors.sheetName?.message}
-                  InputLabelProps={{ required: true }}
-                />
-              )}
-            />
+              required
+              error={!!errors.sheetName}
+            >
+              <ComboboxLabel>{t('Sheet')}</ComboboxLabel>
+              <ComboboxField>
+                <ComboboxInput />
+                <ComboboxControls>
+                  <ComboboxTrigger />
+                </ComboboxControls>
+              </ComboboxField>
+              <ComboboxContent />
+              {errors.sheetName?.message
+                ? <ComboboxHelperText>{errors.sheetName.message}</ComboboxHelperText>
+                : null}
+            </Combobox>
           )}
         />
         <Controller
