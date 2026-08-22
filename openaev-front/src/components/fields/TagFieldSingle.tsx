@@ -1,5 +1,14 @@
 import { AddOutlined, LabelOutlined } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, Box, Dialog, DialogContent, DialogTitle, IconButton, TextField } from '@mui/material';
+import { Box, Dialog, DialogContent, DialogTitle, IconButton, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { type FieldErrors } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -92,39 +101,37 @@ const TagFieldSingle: FunctionComponent<Props> = ({
 
   return (
     <div style={{ position: 'relative' }}>
-      <MuiAutocomplete
-        value={value()}
-        size="small"
-        disabled={disabled}
-        selectOnFocus
-        autoHighlight
-        clearOnBlur={false}
-        clearOnEscape={false}
+      <Combobox<{ id: string; label: string; color: string | undefined }>
         options={tagsOptions}
-        onChange={(_, value) => {
-          fieldOnChange(value?.label ?? '');
+        value={value() ?? null}
+        onValueChange={(next) => {
+          fieldOnChange((next as { label: string } | null)?.label ?? '');
         }}
-        renderOption={(props, option) => (
-          <Box component="li" {...props} key={option.id}>
+        getOptionLabel={option => option.label}
+        isOptionEqualToValue={(option, v) => option.id === v.id}
+        disabled={disabled}
+        error={!!errors[name]}
+        // The MUI field hid its clear control via a `classes` override.
+        clearable={false}
+        renderOption={option => (
+          <>
+            {/* The tint comes from the tag's own data and stays on the glyph, never behind text. */}
             <div className={classes.icon} style={{ color: option.color }}>
               <LabelOutlined />
             </div>
             <div className={classes.text}>{option.label}</div>
-          </Box>
+          </>
         )}
-        isOptionEqualToValue={(option, value) => option.id === value.id}
-        renderInput={params => (
-          <TextField
-            {...params}
-            label={label}
-            variant="standard"
-            fullWidth
-            style={style}
-            error={!!errors[name]}
-          />
-        )}
-        classes={{ clearIndicator: classes.autoCompleteIndicator }}
-      />
+      >
+        <ComboboxLabel>{label}</ComboboxLabel>
+        <ComboboxField>
+          <ComboboxInput />
+          <ComboboxControls>
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent />
+      </Combobox>
       <IconButton
         onClick={handleOpenTagCreation}
         edge="end"

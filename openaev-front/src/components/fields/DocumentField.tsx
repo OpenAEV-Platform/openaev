@@ -1,4 +1,13 @@
-import { Autocomplete as MuiAutocomplete, Box, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { FileOutline } from 'mdi-material-ui';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { type FieldError } from 'react-hook-form';
@@ -65,40 +74,37 @@ const DocumentField: FunctionComponent<Props> = ({
   };
 
   return (
-    <div style={{ position: 'relative' }}>
-      <MuiAutocomplete
-        value={valueResolver()}
-        size="small"
-        multiple={false}
-        selectOnFocus={true}
-        autoHighlight={true}
-        clearOnBlur={false}
-        clearOnEscape={false}
+    <div style={{ ...style, position: 'relative' }}>
+      <Combobox<{ id: string; label: string }>
         options={documentsOptions}
-        onChange={(_, value) => {
-          fieldOnChange(value?.id ?? '');
+        value={valueResolver() ?? null}
+        onValueChange={(value) => {
+          fieldOnChange((value as { id: string } | null)?.id ?? '');
         }}
-        renderOption={(props, option) => (
-          <Box component="li" {...props} key={option.id}>
+        getOptionLabel={option => option.label}
+        isOptionEqualToValue={(option, value) => option.id === value.id}
+        error={!!error}
+        // The MUI field hid its clear control via a `classes` override.
+        clearable={false}
+        renderOption={option => (
+          <>
             <div className={classes.icon}>
               <FileOutline />
             </div>
             <div className={classes.text}>{option.label}</div>
-          </Box>
+          </>
         )}
-        isOptionEqualToValue={(option, value) => option.id === value.id}
-        renderInput={params => (
-          <TextField
-            {...params}
-            label={label}
-            variant="standard"
-            fullWidth
-            style={style}
-            error={!!error}
-          />
-        )}
-        classes={{ clearIndicator: classes.autoCompleteIndicator }}
-      />
+      >
+        <ComboboxLabel>{label}</ComboboxLabel>
+        <ComboboxField>
+          <ComboboxInput />
+          <ComboboxControls>
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent />
+        {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+      </Combobox>
     </div>
   );
 };
