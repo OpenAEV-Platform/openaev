@@ -1,4 +1,16 @@
-import { Autocomplete, Button, Checkbox, Chip, FormControlLabel, FormGroup, MenuItem, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
+import { Button, Checkbox, FormControlLabel, FormGroup, MenuItem, TextField } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
 
 import { searchNotificationTriggers } from '../../../../actions/notifications/notification-trigger-actions';
@@ -181,33 +193,29 @@ const TriggerForm: FunctionComponent<Props> = ({
       )}
       {triggerType === 'DIGEST' && (
         <>
-          <Autocomplete
-            multiple
-            options={liveTriggers}
-            value={selectedChildren}
-            onChange={(_, newValue) => setChildTriggerIds(newValue.map(trigger => trigger.notification_trigger_id))}
-            getOptionLabel={trigger => trigger.notification_trigger_name ?? ''}
-            isOptionEqualToValue={(option, val) => option.notification_trigger_id === val.notification_trigger_id}
-            style={{ marginTop: 20 }}
-            renderTags={(tagValue, getTagProps) =>
-              tagValue.map((option, index) => (
-                <Chip
-                  {...getTagProps({ index })}
-                  key={option.notification_trigger_id}
-                  label={option.notification_trigger_name}
-                  size="small"
-                />
-              ))}
-            renderInput={params => (
-              <TextField
-                {...params}
-                variant="standard"
-                label={t('Composed triggers')}
-                error={!!childrenError}
-                helperText={childrenError}
-              />
-            )}
-          />
+          <div style={{ marginTop: 20 }}>
+            <Combobox
+              multiple
+              options={liveTriggers}
+              value={selectedChildren}
+              onValueChange={newValue => setChildTriggerIds((newValue as typeof liveTriggers).map(trigger => trigger.notification_trigger_id))}
+              getOptionLabel={trigger => trigger.notification_trigger_name ?? ''}
+              isOptionEqualToValue={(option, val) => option.notification_trigger_id === val.notification_trigger_id}
+              error={!!childrenError}
+            >
+              <ComboboxLabel>{t('Composed triggers')}</ComboboxLabel>
+              <ComboboxField>
+                <ComboboxChips />
+                <ComboboxInput />
+                <ComboboxControls>
+                  <ComboboxClear />
+                  <ComboboxTrigger />
+                </ComboboxControls>
+              </ComboboxField>
+              <ComboboxContent />
+              {childrenError ? <ComboboxHelperText>{childrenError}</ComboboxHelperText> : null}
+            </Combobox>
+          </div>
           <TextField
             variant="standard"
             fullWidth
