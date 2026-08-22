@@ -1,6 +1,16 @@
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { LabelOutlined } from '@mui/icons-material';
-import { Autocomplete, Box, Chip, TextField } from '@mui/material';
+import { Chip } from '@mui/material';
 import * as R from 'ramda';
+import { useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -25,6 +35,10 @@ const useStyles = makeStyles()(() => ({
 
 const TagsFilter = (props) => {
   const { classes } = useStyles();
+  // The library Combobox is always controlled ("there is no uncontrolled mode"),
+  // so the field's own transient selection now lives here — it is what the
+  // uncontrolled MUI Autocomplete used to keep internally.
+  const [selected, setSelected] = useState(null);
   const { t } = useFormatter();
   const { tags } = useHelper(helper => ({ tags: helper.getTags() }));
   const { onAddTag, onClearTag, onRemoveTag, currentTags, fullWidth } = props;
@@ -36,43 +50,45 @@ const TagsFilter = (props) => {
   const tagsOptions = tags.map(tagTransform);
   return (
     <>
-      <Autocomplete
-        sx={{
-          width: fullWidth ? '100%' : 250,
-          float: 'left',
-          marginRight: '10px',
-        }}
-        selectOnFocus={true}
-        openOnFocus={true}
-        autoSelect={false}
-        autoHighlight={true}
-        size="small"
-        options={tagsOptions}
-        onChange={(event, value, reason) => {
-          // When removing, a null change is fired
-          // We handle directly the remove through the chip deletion.
-          if (value !== null) onAddTag(value);
-          if (reason === 'clear' && fullWidth) onClearTag();
-        }}
-        isOptionEqualToValue={(option, value) => value === undefined || value === '' || option.id === value.id}
-        renderOption={(p, option) => (
-          <Box component="li" {...p} key={option.id}>
-            <div className={classes.icon} style={{ color: option.color }}>
-              <LabelOutlined />
-            </div>
-            <div className={classes.text}>{option.label}</div>
-          </Box>
-        )}
-        renderInput={params => (
-          <TextField
-            label={t('Tags')}
-            size="small"
-            fullWidth={true}
-            variant="outlined"
-            {...params}
-          />
-        )}
-      />
+      <div style={{
+        width: fullWidth ? '100%' : 250,
+        float: 'left',
+        marginRight: 10,
+      }}
+      >
+        <Combobox
+          openOnFocus
+          options={tagsOptions}
+          value={selected}
+          onValueChange={(value) => {
+            setSelected(value);
+            // MUI reported a `clear` reason here; in single mode a cleared field
+            // is exactly a null value, so the two paths stay distinguishable.
+            if (value !== null) onAddTag(value);
+            else if (fullWidth) onClearTag();
+          }}
+          getOptionLabel={option => option.label}
+          isOptionEqualToValue={(option, value) => value === undefined || value === '' || option.id === value.id}
+          renderOption={option => (
+            <>
+              {/* The tint comes from the tag's own data and stays on the glyph. */}
+              <div className={classes.icon} style={{ color: option.color }}>
+                <LabelOutlined />
+              </div>
+              <div className={classes.text}>{option.label}</div>
+            </>
+          )}
+        >
+          <ComboboxLabel>{t('Tags')}</ComboboxLabel>
+          <ComboboxField>
+            <ComboboxInput />
+            <ComboboxControls>
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+        </Combobox>
+      </div>
       {!fullWidth && (
         <div className={classes.filters}>
           {R.map(

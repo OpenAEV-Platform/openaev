@@ -1,5 +1,14 @@
-import { Autocomplete, Box, TextField } from '@mui/material';
-import { type FunctionComponent, useContext } from 'react';
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
+import { type FunctionComponent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type ChannelsHelper } from '../../../../actions/channels/channel-helper';
@@ -40,6 +49,10 @@ interface ChannelTransformed {
 const ChannelsFilter: FunctionComponent<Props> = (props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
+  // The library Combobox is always controlled ("there is no uncontrolled mode"),
+  // so the field's own selection now lives here — it is what the uncontrolled
+  // MUI Autocomplete used to keep internally.
+  const [selected, setSelected] = useState<ChannelTransformed[]>([]);
   const { fetchChannels } = useContext(ArticleContext);
 
   const dispatch = useAppDispatch();
@@ -75,39 +88,44 @@ const ChannelsFilter: FunctionComponent<Props> = (props) => {
       float: 'right',
     }}
     >
-      <Autocomplete
-        sx={{ width: fullWidth ? '100%' : 250 }}
-        selectOnFocus={true}
-        openOnFocus={true}
-        autoSelect={false}
-        autoHighlight={true}
-        size="small"
-        multiple
-        options={channelsOptions}
-        onChange={(event, value, reason) => {
-          if (reason === 'clear') {
-            onClearChannels();
-          } else {
-            onChannelsChange(value);
-          }
-        }}
-        isOptionEqualToValue={(option, value: ChannelTransformed) => value === undefined || option.id === value.id}
-        renderOption={(p, option) => (
-          <Box component="li" {...p} key={option.id}>
-            <div className={classes.icon} style={{ color: option.color }}>
-              <ChannelIcon type={option.type} />
-            </div>
-            <div className={classes.text}>{option.label}</div>
-          </Box>
-        )}
-        renderInput={params => (
-          <TextField
-            label={t('Channels')}
-            variant="outlined"
-            {...params}
-          />
-        )}
-      />
+      <div style={{ width: fullWidth ? '100%' : 250 }}>
+        <Combobox<ChannelTransformed>
+          multiple
+          openOnFocus
+          options={channelsOptions}
+          value={selected}
+          onValueChange={(value) => {
+            setSelected(value as ChannelTransformed[]);
+            // MUI reported a `clear` reason here. Both handlers at the only call
+            // site reduce to the same state update, so an empty selection can
+            // take the clear path and the prop stays wired.
+            const next = value as ChannelTransformed[];
+            if (next.length === 0) onClearChannels();
+            else onChannelsChange(next);
+          }}
+          getOptionLabel={option => option.label}
+          isOptionEqualToValue={(option, value) => value === undefined || option.id === value.id}
+          renderOption={option => (
+            <>
+              {/* The tint is derived from the channel type and stays on the glyph. */}
+              <div className={classes.icon} style={{ color: option.color }}>
+                <ChannelIcon type={option.type} />
+              </div>
+              <div className={classes.text}>{option.label}</div>
+            </>
+          )}
+        >
+          <ComboboxLabel>{t('Channels')}</ComboboxLabel>
+          <ComboboxField>
+            <ComboboxChips />
+            <ComboboxInput />
+            <ComboboxControls>
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+        </Combobox>
+      </div>
     </div>
   );
 };
