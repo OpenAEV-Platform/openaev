@@ -2118,44 +2118,22 @@ the selected option's label" — would be exactly the local workaround the
 migration contract forbids. The 8 sites are left on MUI, listed, with the reason
 stated at each.
 
-## 40. `ComboboxChips` renders a bare `<ul>`, and in a host without a Tailwind preflight it costs 26px of height and paints a bullet
+## 40 & 41 — withdrawn, fixed upstream before this branch merged
 
-The library deliberately ships no Tailwind preflight ("No preflight in
-distributed CSS"), so a host stylesheet that does not normalise lists leaves the
-browser's own defaults in place. Measured on the chip row:
+Two defects raised on pin `da333e7` and closed on pin `114854d` by library #145,
+which added `box-border` to the field shell, `m-0 list-none p-0` to the chip row
+and `border-0 m-0 p-0 box-border` to the input, and locked all three with
+`scripts/lib/form-control-ua-reset.test.ts`:
 
-| declared on the `<ul>`/`<li>` by the browser | value |
-|---|---|
-| `list-style-type` | `disc` — **a visible bullet before the chips** |
-| `padding-inline-start` | `40px` |
-| `margin-block` | `14.4px` top and bottom |
+- the chip row's bare `<ul>` kept the browser's `list-style: disc`, 40px
+  `padding-inline-start` and 14.4px `margin-block`, costing a visible bullet and
+  **26px of height** on every multiple field;
+- the bare `<input>` kept the browser's `border: 2px inset` and `1px` padding, so
+  the field sat **1px** over spec and painted a grey rectangle inside itself.
 
-**Consequence, measured.** A `multiple` field carrying two chips renders **63px
-tall** where `Combobox.figma.json` declares a **36px** field. Applying what a
-preflight would apply — `list-style: none`, `padding-inline-start: 0`,
-`margin-block: 0` — brings it to **37px** in the same DOM, so the `<ul>` margin
-alone accounts for **26px**. Reproduced identically in both modes.
-
-**Ask.** Reset the chip row's own list box in the component, exactly as
-`SearchField.tsx:239` already does for its input (`"border-0 m-0 p-0 box-border"`).
-
-## 41. `ComboboxInput` does not reset the native input box, so the field is 1px over spec and paints a grey rectangle
-
-Same root cause as 40, different element. The bare `<input>` keeps the browser's
-`border: 2px inset rgb(118,118,118)` and `padding: 1px`.
-
-`21px` line-height `+ 1 + 1` padding `+ 2 + 2` border = **27px** for the input,
-then `27 + 4 + 4` (`py-1`) `+ 1 + 1` (field border) = **37px**, so `min-h-9`
-never binds. Setting `border: 0; padding: 0` on the input in the live DOM brings
-the field to **exactly 36px**, the declared value.
-
-**The border paints.** It is not a rounding artefact: `inset` style,
-`rgb(118,118,118)`, visible as a grey rectangle inside the field on all three
-screens, in both modes.
-
-**Why the fidelity gate is green anyway.** `check:figma-fidelity` compares
-declared classes to applied classes, and `min-h-9` really is applied. It does not
-measure rendered geometry, so it cannot see that the floor never binds. 75 green
-checks, and the field is still 1px over spec.
-
-**Ask.** Same as 40: reset the input's own box, as `SearchField` does.
+Re-measured at the new pin, in this product's environment, both modes: the
+single-row field, the filter and the chip field all render **36px**, the declared
+value; the input reports `border-width: 0` and `padding: 0`; the chip row reports
+`list-style-type: none`, `padding-inline-start: 0` and `margin-block: 0`. Kept as
+a stub rather than deleted so the numbers survive for whoever meets the same
+no-preflight interaction on the next component.

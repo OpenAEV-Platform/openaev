@@ -419,3 +419,31 @@ in filigran-design-system).
   3. `mr-2` is NOT emitted in the served `dist/index.css`. A spacing utility taken
      from the library would have rendered 0 with no error anywhere; product-side
      spacing went through `theme.spacing()`.
+
+### 2026-08-23 — Combobox wave: re-pin to 114854d, the three native-reset defects close
+- Branch: fds/combobox-adoption
+- Pin: da333e7 -> 114854d. Byte-proven on the installed package, and the first
+  grep was against the wrong file: the class strings live in `dist/chunk-*.mjs`,
+  not `dist/index.mjs`, which returned 0 for all three and looked like a bump that
+  had not landed. In the chunk: `border-0 m-0 p-0 box-border`, `list-none`,
+  `box-border`. And emitted in the SERVED stylesheet, which is the part that
+  decides anything: `.border-0{border-width:0}`, `.list-none{list-style-type:none}`,
+  `.box-border{box-sizing:border-box}`, `.m-0{margin:0}`, `.p-0{padding:0}`.
+- No token moved: `theme.css` carries the SAME hash at both pins
+  (`3c0ef256…`), so #145's token-family work was a gate, not a value change, and
+  the regenerated bridge is byte-identical to the previous one. Verified by diff
+  rather than assumed.
+- Re-measured, both modes, the same three screens: single-row field, filter and
+  chip field all **36px** — the declared value, down from 37/37/63. The input
+  reports `border-width: 0` and `padding: 0`; the chip row reports
+  `list-style-type: none`, `padding-inline-start: 0`, `margin-block: 0`. The grey
+  rectangle and the bullet are gone from the render.
+- LIBRARY-FEEDBACK 40 and 41 withdrawn, kept as a stub carrying the numbers.
+  39 (the missing change cause, 8 sites / 15 screens) stays open.
+- Friction / process feedback: `bridge-freshness` still SKIPS here. The library
+  fixed it in #145 (`scripts/lib/fds-conformity-bridge-freshness.test.ts`), but
+  this product runs its own generated copy of `check-fds-conformity.mjs`, which
+  has not been regenerated. The fix does not reach the product until
+  `pnpm generate:fds-migration --product openaev --write-to-product` runs —
+  deliberately out of scope for this branch, which would otherwise churn the
+  generated migration docs mid-review.
