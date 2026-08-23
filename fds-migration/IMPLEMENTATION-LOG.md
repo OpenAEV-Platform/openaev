@@ -416,11 +416,6 @@ in filigran-design-system).
      class on `documentElement`) and system-font typography (the bench did not
      import `@fontsource/*`). Both were mine. The third anomaly in the same
      capture was real — see 41.
-  3. `check-fds-conformity.mjs` reports 18 checks and 0 issues, but
-     `bridge-freshness` SKIPS when no sibling lib checkout exists — the one check
-     that would prove the bridge matches the pin. Freshness was proven by hash
-     instead. Worth making that skip loud, or resolving the pin from
-     `package.json` as this log already asked on 2026-08-14.
-  4. `mr-2` is NOT emitted in the served `dist/index.css`. A spacing utility taken
+  3. `mr-2` is NOT emitted in the served `dist/index.css`. A spacing utility taken
      from the library would have rendered 0 with no error anywhere; product-side
      spacing went through `theme.spacing()`.
