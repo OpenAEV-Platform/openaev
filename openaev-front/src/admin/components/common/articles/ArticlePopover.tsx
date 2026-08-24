@@ -1,5 +1,6 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
-import { Fragment, useContext, useEffect, useState } from 'react';
+import { Fragment, useContext, useState } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 
 import ButtonPopover from '../../../../components/common/ButtonPopover';
@@ -7,10 +8,10 @@ import CommonDialog from '../../../../components/common/dialog/Dialog';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
-import type { Article, ArticleUpdateInput } from '../../../../utils/api-types';
+import type { Article } from '../../../../utils/api-types';
 import { ArticleContext, PermissionsContext } from '../Context';
 import ArticleForm from './ArticleForm';
-import { resolveChannelId } from './ArticleUtils';
+import { type ArticleFormInput, articleFormSchema, resolveChannelId } from './ArticleUtils';
 
 interface ArticlePopoverProps {
   article: Article;
@@ -21,7 +22,7 @@ interface ArticlePopoverProps {
   inline?: boolean;
 }
 
-const buildFormValues = (article: Article): ArticleUpdateInput => ({
+const buildFormValues = (article: Article): ArticleFormInput => ({
   article_name: article.article_name ?? '',
   article_author: article.article_author,
   article_content: article.article_content,
@@ -45,18 +46,24 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false, inline = f
   const [openEdit, setOpenEdit] = useState(false);
 
   // Form Initialisation
-  const methods = useForm<ArticleUpdateInput>({ defaultValues: buildFormValues(article) });
+  const methods = useForm<ArticleFormInput>({
+    mode: 'onTouched',
+    resolver: zodResolver(articleFormSchema(t)),
+    defaultValues: buildFormValues(article),
+  });
 
   const { handleSubmit } = methods;
 
   // Edit action
-  const handleOpenEdit = () => setOpenEdit(true);
-  const handleCloseEdit = () => {
-    methods.reset();
-    setOpenEdit(false);
+  // Seed the form when the panel opens: `article` gets a new object identity on
+  // every parent render, so resetting on identity change would wipe user input.
+  const handleOpenEdit = () => {
+    methods.reset(buildFormValues(article));
+    setOpenEdit(true);
   };
+  const handleCloseEdit = () => setOpenEdit(false);
 
-  const onSubmitEdit: SubmitHandler<ArticleUpdateInput> = async (data) => {
+  const onSubmitEdit: SubmitHandler<ArticleFormInput> = async (data) => {
     await onUpdateArticle(article, data);
     handleCloseEdit();
   };
@@ -97,17 +104,12 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false, inline = f
     userRight: true,
   });
 
-  useEffect(() => {
-    methods.reset(buildFormValues(article));
-  }, [article, methods]);
-
   const editForm = (
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmitEdit)}>
         <ArticleForm
           editing
           handleClose={handleCloseEdit}
-          documentsIds={article.article_documents ?? []}
         />
       </form>
     </FormProvider>

@@ -18,7 +18,7 @@ import TextFieldController from '../../../../components/fields/TextFieldControll
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import { useHelper } from '../../../../store';
-import { type ArticleCreateInput, type ArticleUpdateInput, type Channel, type Document } from '../../../../utils/api-types';
+import { type Channel, type Document } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type AppAbility } from '../../../../utils/permissions/ability';
@@ -30,6 +30,7 @@ import ChannelIcon from '../../components/channels/ChannelIcon';
 import DocumentPopover from '../../components/documents/DocumentPopover';
 import DocumentType from '../../components/documents/DocumentType';
 import ArticleAddDocuments, { type ChannelType } from './ArticleAddDocuments';
+import { type ArticleFormInput } from './ArticleUtils';
 
 const useStyles = makeStyles()(() => ({
   icon: {
@@ -41,7 +42,7 @@ const useStyles = makeStyles()(() => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
+  autoCompleteIndicator: { '& .MuiAutocomplete-clearIndicator': { display: 'none' } },
   itemHead: {
     paddingLeft: 10,
     textTransform: 'uppercase',
@@ -114,7 +115,6 @@ const inlineStyles: Record<string, CSSProperties> = {
 interface ArticleFormProps {
   handleClose: () => void;
   editing: boolean;
-  documentsIds?: string[];
 }
 
 export interface ArticleChannel {
@@ -138,7 +138,7 @@ const ArticleForm = ({
   const dispatch = useAppDispatch();
   const ability: AppAbility = useContext(AbilityContext);
 
-  const { control, watch, setValue, formState: { isSubmitting } } = useFormContext<ArticleCreateInput | ArticleUpdateInput>();
+  const { control, watch, setValue, formState: { isSubmitting } } = useFormContext<ArticleFormInput>();
   const [documentsSortBy, setDocumentsSortBy] = useState('document_name');
   const [documentsOrderAsc, setDocumentsOrderAsc] = useState(true);
   const watchChannelId = watch('article_channel');
@@ -232,32 +232,28 @@ const ArticleForm = ({
       <Controller
         name="article_channel"
         control={control}
-        rules={{ required: t('This field is required.') }}
         render={({ field: { onChange, value }, fieldState }) => {
           return (
             <AutocompleteField
+              variant="standard"
               label={t('Channel')}
+              multiple={false}
               options={sortedChannels}
               value={value}
               onChange={onChange}
-              onInputChange={() => {}}
-              style={{ marginTop: theme.spacing(4.5) }}
-              error={!!fieldState.error}
-              renderOption={(renderProps, option) => {
-                const channelOption = option as ArticleChannel;
-                return (
-                  <Box
-                    component="li"
-                    {...renderProps}
-                    key={channelOption.id}
-                  >
-                    <div className={classes.icon}>
-                      <ChannelIcon type={channelOption.type} />
-                    </div>
-                    <div className={classes.text}>{t(channelOption.label)}</div>
-                  </Box>
-                );
+              onInputChange={() => {
               }}
+              style={{ width: '100%' }}
+              error={!!fieldState.error}
+              renderOption={(renderProps, option) => (
+                <Box component="li" {...renderProps} key={option.id}>
+                  <div className={classes.icon}>
+                    <ChannelIcon type={(option as ArticleChannel).type} />
+                  </div>
+                  <div className={classes.text}>{t(option.label)}</div>
+                </Box>
+              )}
+              className={classes.autoCompleteIndicator}
             />
           );
         }}
@@ -275,22 +271,14 @@ const ArticleForm = ({
         style={{ marginTop: 20 }}
       />
 
-      <Controller
+      <MarkDownFieldController
         name="article_content"
-        control={control}
-        render={() => (
-          <div style={{ marginTop: 20 }}>
-            <MarkDownFieldController
-              name="article_content"
-              label={t('Content')}
-              style={{ marginTop: 20 }}
-              disabled={isSubmitting}
-              askAi
-              inInject={false}
-              inArticle
-            />
-          </div>
-        )}
+        label={t('Content')}
+        style={{ marginTop: 20 }}
+        disabled={isSubmitting}
+        askAi
+        inInject={false}
+        inArticle
       />
 
       <Grid container spacing={3} style={{ marginTop: 20 }}>
@@ -348,11 +336,10 @@ const ArticleForm = ({
           />
         </ListItem>
 
-        {currentDocuments.map((documentId) => {
-          const document = documentsMap[documentId] || {};
+        {currentDocuments.map(documentId => documentsMap[documentId]).filter(document => document !== undefined).map((document) => {
           return (
             <ListItem
-              key={documentId}
+              key={document.document_id}
               divider
               secondaryAction={(
                 <DocumentPopover

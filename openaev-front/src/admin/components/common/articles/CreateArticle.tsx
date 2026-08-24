@@ -1,3 +1,4 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import { type FunctionComponent, useContext } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
@@ -5,9 +6,9 @@ import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
-import { type ArticleCreateInput } from '../../../../utils/api-types';
 import { ArticleContext } from '../Context';
 import ArticleForm from './ArticleForm';
+import { type ArticleFormInput, articleFormSchema } from './ArticleUtils';
 
 interface CreateArticleProps {
   openCreate: boolean;
@@ -27,7 +28,9 @@ const CreateArticle: FunctionComponent<CreateArticleProps> = ({
   // Context
   const { onAddArticle } = useContext(ArticleContext);
 
-  const methods = useForm<ArticleCreateInput>({
+  const methods = useForm<ArticleFormInput>({
+    mode: 'onTouched',
+    resolver: zodResolver(articleFormSchema(t)),
     defaultValues: {
       article_name: '',
       article_channel: '',
@@ -38,12 +41,18 @@ const CreateArticle: FunctionComponent<CreateArticleProps> = ({
 
   const { handleSubmit, reset } = methods;
 
-  const onSubmit: SubmitHandler<ArticleCreateInput> = async (data) => {
+  // The form state lives outside the dialog, so it must be cleared on close
+  // otherwise reopening shows the previously typed values.
+  const handleClose = () => {
+    reset();
+    handleCloseCreate();
+  };
+
+  const onSubmit: SubmitHandler<ArticleFormInput> = async (data) => {
     const result = await onAddArticle(data);
     if (result.result) {
       onCreate?.(result.result);
-      reset();
-      handleCloseCreate();
+      handleClose();
     }
   };
 
@@ -54,7 +63,7 @@ const CreateArticle: FunctionComponent<CreateArticleProps> = ({
       <Dialog
         open={openCreate}
         slots={{ transition: Transition }}
-        onClose={handleCloseCreate}
+        onClose={handleClose}
         fullWidth
         maxWidth="md"
         slotProps={{ paper: { elevation: 1 } }}
@@ -65,7 +74,7 @@ const CreateArticle: FunctionComponent<CreateArticleProps> = ({
             <form onSubmit={handleSubmit(onSubmit)}>
               <ArticleForm
                 editing={false}
-                handleClose={handleCloseCreate}
+                handleClose={handleClose}
               />
             </form>
           </FormProvider>
