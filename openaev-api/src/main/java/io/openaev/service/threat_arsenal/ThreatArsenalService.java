@@ -7,6 +7,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.threat_arsenal.dto.*;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
@@ -430,7 +431,12 @@ public class ThreatArsenalService {
    * @throws ElementNotFoundException if the injector contract is not payload-based
    */
   @Transactional(rollbackFor = Exception.class)
-  public void delete(String actionId) {
+  public void delete(
+      // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for this transaction (isEligibleForDeletion resolves InjectorContract#getInjectorType(),
+      // which is v2 tenant-scoped through the injectors table; without a scope it silently reads
+      // null and every action looks "orphaned", bypassing the deletion guard).
+      TxCtx ctx, String actionId) {
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     if (!isEligibleForDeletion(injectorContract)) {
       throw new ElementNotFoundException("Only payload-based or orphaned actions can be deleted.");
@@ -453,13 +459,17 @@ public class ThreatArsenalService {
    * BulkDeleteExecutor}, which also tracks the deletion as a massive operation (header progress
    * indicator) and suppresses the per-entity stream events.
    *
+   * @param ctx the tenant scope for the read transaction and each chunk transaction (the eligible
+   *     resolution and every chunk read/write InjectorContract#getInjectorType()/getPayload()
+   *     through the v2 tenant-scoped injectors table)
    * @param input the search + selection input
    * @return the ids that were actually deleted
    */
-  public List<String> bulkDelete(InjectorContractSearchPaginationInput input) {
+  public List<String> bulkDelete(TxCtx ctx, InjectorContractSearchPaginationInput input) {
     List<String> eligibleIds =
-        bulkDeleteExecutor.resolveInTransaction(() -> resolveEligibleIds(input));
+        bulkDeleteExecutor.resolveInTransaction(ctx, () -> resolveEligibleIds(input));
     return bulkDeleteExecutor.deleteInChunks(
+        ctx,
         "threat arsenal items",
         eligibleIds,
         chunk -> chunk.forEach(injectorContractService::deleteInjectorContractById));

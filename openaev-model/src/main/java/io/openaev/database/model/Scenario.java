@@ -34,6 +34,7 @@ import java.util.*;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.hibernate.annotations.*;
 import org.hibernate.type.SqlTypes;
 
@@ -246,6 +247,12 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
 
   // -- OCTI GENERATION SCENARIO FROM STIX --
 
+  // mappedBy @OneToOne: SecurityCoverage owns the FK, so Hibernate cannot proxy this side and
+  // resolves it with an immediate extra query on every Scenario load, tenant-gated once
+  // security_coverages is active. Excluded from @Data's generated toString() so logging/debugging
+  // a Scenario can never trigger that query outside a scoped transaction (ArchUnit:
+  // TenantActiveTableAccessArchTest#security_coverages_scenario_association_access_is_reviewed).
+  @ToString.Exclude
   @OneToOne(mappedBy = "scenario")
   @JsonProperty("scenario_security_coverage")
   @JsonIgnore

@@ -26,14 +26,12 @@ import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
-import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ScenarioExecutionJobTest extends IntegrationTest {
 
@@ -244,7 +242,9 @@ class ScenarioExecutionJobTest extends IntegrationTest {
         assertThat(createdExercises)
             .singleElement()
             .satisfies(
-                exercise -> assertThat(exercise.getScenario()).isEqualTo(scenarioWrapper.get()));
+                exercise ->
+                    assertThat(exercise.getScenario().getId())
+                        .isEqualTo(scenarioWrapper.get().getId()));
       }
     }
 
@@ -276,7 +276,9 @@ class ScenarioExecutionJobTest extends IntegrationTest {
         assertThat(createdExercises)
             .singleElement()
             .satisfies(
-                exercise -> assertThat(exercise.getScenario()).isEqualTo(scenarioWrapper.get()));
+                exercise ->
+                    assertThat(exercise.getScenario().getId())
+                        .isEqualTo(scenarioWrapper.get().getId()));
       }
     }
 
