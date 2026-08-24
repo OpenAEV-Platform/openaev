@@ -181,7 +181,7 @@ public class MeApiTest extends IntegrationTest {
       mvc.perform(get(MeApi.ME_URI + "/tokens").accept(MediaType.APPLICATION_JSON).with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$").isArray())
-          .andExpect(jsonPath("$[?(@.token_deleted_at != null)]").isEmpty());
+          .andExpect(jsonPath("$[?(@.token_deleted_at && @.token_deleted_at != null)]").isEmpty());
 
       List<Token> activeTokens =
           tokenRepository.findAll(
