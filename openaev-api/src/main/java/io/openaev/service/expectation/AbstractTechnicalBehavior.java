@@ -12,7 +12,6 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.rest.collector.service.CollectorService;
-import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.ExpectationUtils;
 import jakarta.annotation.Nullable;
@@ -79,10 +78,10 @@ public abstract class AbstractTechnicalBehavior
         assetToExecute -> {
           List<Agent> activeAgents = getActiveAgents(assetToExecute.asset(), inject);
 
-          if (activeAgents.isEmpty()
-              && !isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject)) {
-            return;
-          }
+              if (activeAgents.isEmpty()
+                  && !isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject)) {
+                return;
+              }
 
           if (assetToExecute.isDirectlyLinkedToInject()) {
             activeAgents.forEach(

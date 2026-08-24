@@ -87,6 +87,14 @@ public class InjectExpectationService {
 
   // -- BEHAVIOR-BASED EXPECTATION CREATION --
 
+  /** Converts one content expectation into an untargeted BaseInjectExpectation template. */
+  public BaseInjectExpectation toExpectationTemplate(
+      ExecutableInject executableInject,
+      io.openaev.model.inject.form.Expectation expectationFromContent) {
+    return expectationConverter(
+        executableInject, expectationFromContent, expectationPropertiesConfig);
+  }
+
   /**
    * Simple entry point: reads expectations from inject content and initializes them through
    * behaviors.

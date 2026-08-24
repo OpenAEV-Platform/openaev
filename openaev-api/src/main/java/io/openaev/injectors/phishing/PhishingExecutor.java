@@ -3,6 +3,7 @@ package io.openaev.injectors.phishing;
 import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewInfoTrace;
 
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.CustomDomain;
 import io.openaev.database.model.CustomDomain.CustomDomainStatus;
 import io.openaev.database.model.Execution;

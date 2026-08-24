@@ -1,5 +1,6 @@
 package io.openaev.injectors.manual;
 
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.ExecutionTraceAction;
