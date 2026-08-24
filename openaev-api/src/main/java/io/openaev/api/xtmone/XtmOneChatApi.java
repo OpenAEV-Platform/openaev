@@ -46,7 +46,10 @@ public class XtmOneChatApi extends RestBehavior {
   /**
    * The three verdicts the chatbot can submit; anything else is not a decision this route relays.
    */
-  private static final Set<String> ALLOWED_VERDICTS = Set.of("approve", "approve_always", "reject");
+  private static final String REJECT_VERDICT = "reject";
+
+  private static final Set<String> ALLOWED_VERDICTS =
+      Set.of("approve", "approve_always", REJECT_VERDICT);
 
   /** One turn can propose several calls, but not unboundedly many. */
   private static final int MAX_DECISIONS_PER_REQUEST = 50;
@@ -198,7 +201,14 @@ public class XtmOneChatApi extends RestBehavior {
         if (reasonText.length() > MAX_REJECTION_REASON_LENGTH) {
           return ResponseEntity.badRequest().build();
         }
-        forwarded.put("rejection_reason", reasonText);
+        // Only a refusal carries a reason. Upstream declares the field on every decision and
+        // reads it solely on the reject path, so forwarding it beside an approval is accepted
+        // and then ignored — dropped here instead, to keep an approval payload to what an
+        // approval means. Not a 400: a client attaching a stray reason still made a valid
+        // decision, and refusing it would lose a consent the reviewer did give.
+        if (REJECT_VERDICT.equals(verdict.toString())) {
+          forwarded.put("rejection_reason", reasonText);
+        }
       }
       decisions.add(forwarded);
     }

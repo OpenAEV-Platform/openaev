@@ -658,6 +658,40 @@ class XtmOneChatApiTest extends IntegrationTest {
                   "too broad"));
     }
 
+    /**
+     * A reason means nothing beside an approval, and upstream reads the field only on the reject
+     * path. The decision itself still stands — dropping the field is not grounds to refuse a
+     * consent the reviewer did give.
+     */
+    @Test
+    @WithMockUser
+    @DisplayName("Given an approval carrying a reason should drop the reason and still approve")
+    void given_approvalWithReason_should_dropReason() throws Exception {
+      // -- ARRANGE --
+      when(xtmOneConfig.isConfigured()).thenReturn(true);
+      when(xtmOneClient.approveToolCalls(anyString(), anyList()))
+          .thenReturn(Map.of("status", "accepted"));
+
+      // -- ACT --
+      mvc.perform(
+              post(CHAT_APPROVE_URL)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"conversation_id\":\""
+                          + CONVERSATION_ID
+                          + "\",\"decisions\":[{\"tool_call_id\":\"toolu_1\","
+                          + "\"decision\":\"approve\",\"rejection_reason\":\"stray note\"}]}"))
+          .andExpect(status().isOk());
+
+      // -- ASSERT --
+      ArgumentCaptor<List<Map<String, Object>>> captor = ArgumentCaptor.captor();
+      verify(xtmOneClient).approveToolCalls(eq(CONVERSATION_ID), captor.capture());
+      assertThat(captor.getValue())
+          .singleElement()
+          .isEqualTo(Map.of("tool_call_id", "toolu_1", "decision", "approve"));
+    }
+
     @Test
     @WithMockUser
     @DisplayName("Given an approve_always verdict should forward it as-is")

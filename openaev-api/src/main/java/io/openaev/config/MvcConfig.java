@@ -29,9 +29,11 @@ public class MvcConfig implements WebMvcConfigurer {
   private static final int CACHE_PERIOD = 3600;
 
   /**
-   * Outer bound on async request processing, which in practice means the chatbot SSE streams (the
-   * only {@code StreamingResponseBody} endpoints: {@code XtmOneChatApi#sendMessage} and {@code
-   * XtmOneProxyApi#postAgentStream}).
+   * Outer bound on async request processing. This is the container-wide default, so it covers every
+   * async return type the platform exposes — the reactive streams ({@code StreamApi#streamFlux},
+   * {@code AiApi#queryAi}) as well as the chatbot SSE streams ({@code XtmOneChatApi#sendMessage}
+   * and {@code XtmOneProxyApi#postAgentStream}, the only {@code StreamingResponseBody} endpoints).
+   * The chatbot streams are merely what forces the value this high; nothing here is scoped to them.
    *
    * <p>Must stay <b>above</b> {@code XtmOneClient#CHAT_STREAM_RESPONSE_TIMEOUT} so the upstream
    * read times out first and unwinds the blocked reader thread itself; if this fires first, Spring
