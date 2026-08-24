@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to fetch reports from and upload to (example: 3.260818.1)"
+        description: "Release tag to fetch reports from and upload to (example: 3.260821.0)"
         required: true
         type: string
 
@@ -25,11 +25,13 @@ jobs:
       - name: Resolve CI run and artifact ids
         id: context
         uses: actions/github-script@v9
+        env:
+          TEST_TAG: 3.260821.0
         with:
           script: |
             const tag = context.eventName === 'workflow_dispatch'
               ? core.getInput('tag')
-              : context.payload.release.tag_name;
+              : (context.payload.release?.tag_name || process.env.TEST_TAG);
             if (!tag) {
               core.notice('❌ No release tag provided');
               return;
