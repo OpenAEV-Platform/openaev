@@ -1,4 +1,4 @@
-FROM node:22.16.0-alpine3.20 AS front-builder
+FROM node:24.19.0-alpine3.24 AS front-builder
 
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front/packages ./packages
