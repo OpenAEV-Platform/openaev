@@ -1,4 +1,14 @@
-import { Autocomplete, Checkbox, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
+import { Autocomplete as MuiAutocomplete, Checkbox, TextField } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useCallback, useContext, useEffect, useState } from 'react';
 
@@ -36,25 +46,26 @@ export const BasicTextInput: FunctionComponent<Props> = ({
     );
   };
   return (
-    <Autocomplete
+    <Combobox<string>
       multiple
-      freeSolo
-      fullWidth
-      size="small"
+      allowCustomValue
+      createValueFromInput={input => input}
       options={[]}
       value={values}
       inputValue={inputValue}
-      onInputChange={(_, search) => setInputValue(search)}
-      onChange={(_, newValues) => {
+      onInputChange={(search, meta) => {
+        if (meta.cause === 'type') setInputValue(search);
+      }}
+      onValueChange={(newValues) => {
         commit(newValues as string[]);
         setInputValue('');
       }}
-      renderInput={paramsInput => (
-        <TextField
-          {...paramsInput}
-          variant="outlined"
-          size="small"
-          label={t(filter.key)}
+      keepInputOnBlur
+    >
+      <ComboboxLabel>{t(filter.key)}</ComboboxLabel>
+      <ComboboxField>
+        <ComboboxChips />
+        <ComboboxInput
           placeholder={t('Press Enter to add a value')}
           autoFocus
           onBlur={() => {
@@ -66,8 +77,12 @@ export const BasicTextInput: FunctionComponent<Props> = ({
             }
           }}
         />
-      )}
-    />
+        <ComboboxControls>
+          <ComboboxTrigger />
+        </ComboboxControls>
+      </ComboboxField>
+      <ComboboxContent />
+    </Combobox>
   );
 };
 
@@ -149,8 +164,13 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
     helpers.handleUpdateValuesById(filter.id, newValues);
   };
 
+  // FDS-WORKAROUND: this field stays on MUI. It drives selection from its own
+  // row handler (`renderOption` attaches `onClick` and swallows Enter), and the
+  // library keeps the option row's element, role and state — a consumer cannot
+  // own the row's click. Remove when the library exposes a row-level interaction
+  // hook, or when this input stops toggling from the row.
   return (
-    <Autocomplete
+    <MuiAutocomplete
       selectOnFocus
       openOnFocus
       autoHighlight
