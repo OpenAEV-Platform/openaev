@@ -1,6 +1,8 @@
 name: "[Core] Release Trivy Report Upload"
 
 on:
+  push:
+    branches: [ trivy-report-release ]
   release:
     types: [published]
   workflow_dispatch:
