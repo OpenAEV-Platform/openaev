@@ -156,6 +156,10 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public List<Inject> createInjectsForScenario(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (createAndSaveInjectList resolves the injector through the v2
+      // tenant-scoped injectors table) — sibling createInjectForScenario already carries this.
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody List<InjectInput> inputs) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
@@ -175,6 +179,10 @@ public class ScenarioInjectApi extends RestBehavior {
       summary = "Assistant to generate injects for scenario",
       description = "Generates injects based on the provided attack pattern and targets.")
   public List<Inject> generateInjectsForScenario(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (buildInject resolves the injector through the v2 tenant-scoped
+      // injectors table).
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody InjectAssistantInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);

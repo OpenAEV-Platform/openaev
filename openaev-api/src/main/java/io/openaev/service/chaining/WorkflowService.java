@@ -11,13 +11,7 @@ import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.AssetGroupRepository;
-import io.openaev.database.repository.AssetRepository;
-import io.openaev.database.repository.ScopeVariableRepository;
-import io.openaev.database.repository.TeamRepository;
-import io.openaev.database.repository.UserRepository;
-import io.openaev.database.repository.WorkflowRepository;
-import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.database.repository.*;
 import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -69,6 +63,7 @@ public class WorkflowService {
   private final AssetGroupRepository assetGroupRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
+  private final WorkflowEndService workflowEndService;
 
   private final ScopeMetricCollector scopeMetricCollector;
   private final ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
@@ -1497,9 +1492,7 @@ public class WorkflowService {
    * @return list of expired workflows
    */
   public List<Workflow> findAllExpiredRunWorkflows() {
-    List<String> workflowIds = workflowRepository.findAllExpiredRunWorkflowIds();
-    if (workflowIds.isEmpty()) return Collections.emptyList();
-    return workflowRepository.findAllByIdWithScopeRules(workflowIds);
+    return workflowEndService.findAllExpiredRunWorkflows();
   }
 
   /**
@@ -1507,24 +1500,9 @@ public class WorkflowService {
    *
    * @param workflowRun the running workflow to end
    */
-  public void endWorkflow(Workflow workflowRun) {
-    markWorkflowEnded(workflowRun);
-    workflowRepository.save(workflowRun);
-  }
-
-  /**
-   * Single END transition for a RUN workflow: sets the status and freezes the end scope snapshot
-   * exactly once (re-running the launch-time resolution). Idempotent - a run already ended is left
-   * untouched so the frozen end photo is never overwritten. See ADR-006.
-   *
-   * @param workflowRun the RUN workflow reaching END/STOP
-   */
-  private void markWorkflowEnded(Workflow workflowRun) {
-    if (WorkflowStatus.END.equals(workflowRun.getStatus())) {
-      return;
-    }
-    workflowRun.setStatus(WorkflowStatus.END);
-    scopeSnapshotService.freezeEnd(workflowRun);
+  @Transactional(rollbackFor = Exception.class)
+  public void endWorkflow(Workflow workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
+    workflowEndService.endWorkflow(workflowRun, cause);
   }
 
   /**
@@ -1584,7 +1562,8 @@ public class WorkflowService {
           "[Chaining] No step template for workflow template {}. End running {}",
           workflowTemplateId,
           workflowRun.getId());
-      markWorkflowEnded(workflowRun);
+      workflowEndService.markWorkflowEnded(
+          workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
       return workflowRun;
     }
 
@@ -1607,7 +1586,8 @@ public class WorkflowService {
     if (!hasActiveSteps
         && !workflowRun.isKeepAlive()
         && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
-      markWorkflowEnded(workflowRun);
+      workflowEndService.markWorkflowEnded(
+          workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
     }
 
     return workflowRun;

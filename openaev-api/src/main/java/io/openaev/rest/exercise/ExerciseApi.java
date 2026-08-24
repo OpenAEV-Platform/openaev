@@ -1009,7 +1009,12 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping({EXERCISE_URI + "/import", TENANT_EXERCISE_URI + "/import"})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public ImportResult exerciseImport(@RequestPart("file") MultipartFile file) throws Exception {
+  public ImportResult exerciseImport(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (the V1_DataImporter resolves InjectorContract#getFirstInjector() and
+      // InjectorService#injectorTypeExists(...), both v2 tenant-scoped through the injectors
+      // table; without a scope, imported injects silently lose their injector).
+      TxCtx ctx, @RequestPart("file") MultipartFile file) throws Exception {
     return importService.handleFileImport(file, null, null);
   }
 

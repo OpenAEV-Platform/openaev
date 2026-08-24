@@ -3,6 +3,7 @@ package io.openaev.injectors.phishing.api;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.PhishingEmailTemplate;
 import io.openaev.database.model.ResourceType;
@@ -73,7 +74,11 @@ public class PhishingEmailTemplateApi extends RestBehavior {
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.PHISHING_EMAIL_TEMPLATE)
   public PhishingEmailTemplate createEmailTemplate(
-      @Valid @RequestBody PhishingEmailTemplateInput input) {
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (upsert -> resyncLandingPageContracts reads the tenant's phishing
+      // injector, v2 tenant-scoped through the injectors table; without a scope every landing
+      // page's Threat Arsenal action silently fails to resync).
+      TxCtx ctx, @Valid @RequestBody PhishingEmailTemplateInput input) {
     PhishingEmailTemplate emailTemplate = new PhishingEmailTemplate();
     applyInput(emailTemplate, input);
     return emailTemplateService.upsert(emailTemplate);
@@ -86,7 +91,9 @@ public class PhishingEmailTemplateApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PHISHING_EMAIL_TEMPLATE)
   public PhishingEmailTemplate updateEmailTemplate(
-      @PathVariable String id, @Valid @RequestBody PhishingEmailTemplateInput input) {
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (same reason as createEmailTemplate above).
+      TxCtx ctx, @PathVariable String id, @Valid @RequestBody PhishingEmailTemplateInput input) {
     PhishingEmailTemplate emailTemplate = emailTemplateService.emailTemplate(id);
     applyInput(emailTemplate, input);
     return emailTemplateService.upsert(emailTemplate);
@@ -101,7 +108,10 @@ public class PhishingEmailTemplateApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.PHISHING_EMAIL_TEMPLATE)
-  public PhishingEmailTemplate duplicateEmailTemplate(@PathVariable String id) {
+  public PhishingEmailTemplate duplicateEmailTemplate(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (same reason as createEmailTemplate above).
+      TxCtx ctx, @PathVariable String id) {
     PhishingEmailTemplate source = emailTemplateService.emailTemplate(id);
     PhishingEmailTemplate copy = new PhishingEmailTemplate();
     copy.setName(source.getName() + " (copy)");
@@ -124,7 +134,11 @@ public class PhishingEmailTemplateApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PHISHING_EMAIL_TEMPLATE)
-  public void deleteEmailTemplate(@PathVariable String id) {
+  public void deleteEmailTemplate(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (delete -> resyncLandingPageContracts, same reason as
+      // createEmailTemplate above).
+      TxCtx ctx, @PathVariable String id) {
     emailTemplateService.delete(id);
   }
 
@@ -134,7 +148,10 @@ public class PhishingEmailTemplateApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PHISHING_EMAIL_TEMPLATE)
   public List<String> bulkDeleteEmailTemplates(
-      @RequestBody @Valid final PhishingEmailTemplateBulkProcessingInput input) {
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (bulkDelete -> resyncLandingPageContracts, same reason as
+      // createEmailTemplate above).
+      TxCtx ctx, @RequestBody @Valid final PhishingEmailTemplateBulkProcessingInput input) {
     return emailTemplateService.bulkDelete(input);
   }
 

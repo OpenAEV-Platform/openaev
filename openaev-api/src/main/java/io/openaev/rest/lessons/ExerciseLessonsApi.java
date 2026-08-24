@@ -346,7 +346,11 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void sendExerciseLessons(
-      @PathVariable String exerciseId, @Valid @RequestBody LessonsSendInput input) {
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (MailingService#sendEmail resolves the email injector contract's
+      // linked injector, v2 tenant-scoped through the injectors table; without a scope the
+      // association is empty and the send throws IllegalStateException).
+      TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody LessonsSendInput input) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
