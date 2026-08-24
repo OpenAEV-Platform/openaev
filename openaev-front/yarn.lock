@@ -872,9 +872,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@hookform/resolvers@npm:5.8.0":
-  version: 5.8.0
-  resolution: "@hookform/resolvers@npm:5.8.0"
+"@hookform/resolvers@npm:5.9.0":
+  version: 5.9.0
+  resolution: "@hookform/resolvers@npm:5.9.0"
   dependencies:
     "@standard-schema/utils": "npm:^0.3.0"
   peerDependencies:
@@ -894,7 +894,7 @@ __metadata:
     fluentvalidation-ts: ^3.0.0
     fp-ts: ^2.7.0
     io-ts: ^2.0.0
-    joi: ^17.0.0
+    joi: ^17.0.0 || ^18.0.0
     nope-validator: ">=0.12.0"
     react-hook-form: ^7.55.0
     superstruct: ">=0.12.0"
@@ -952,7 +952,7 @@ __metadata:
       optional: true
     zod:
       optional: true
-  checksum: 10c0/5beb3e028bfb0e30e26918c11bcb6226f64294a4e11563868b24fee3e5d5ff6641d93d4ff905d28732d7e4fcc69df9004115fba411d452c6eae388a807c3fafe
+  checksum: 10c0/6f579fe35713236e6a483d6afcfa4deea9c7826a9e09ce0da7e7a77af64af11e88ea09269e0f342a12e31ebaf604f917630e3cc6108c50146b60d1fe20d750b5
   languageName: node
   linkType: hard
 
@@ -8573,7 +8573,7 @@ __metadata:
     "@fontsource/geologica": "npm:5.3.0"
     "@fontsource/ibm-plex-sans": "npm:5.3.0"
     "@hello-pangea/dnd": "npm:18.0.1"
-    "@hookform/resolvers": "npm:5.8.0"
+    "@hookform/resolvers": "npm:5.9.0"
     "@microsoft/fetch-event-source": "npm:2.0.1"
     "@mui/icons-material": "npm:7.3.11"
     "@mui/lab": "npm:7.0.0-beta.17"
