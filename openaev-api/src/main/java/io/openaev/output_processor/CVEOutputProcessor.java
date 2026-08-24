@@ -34,7 +34,8 @@ public class CVEOutputProcessor extends FindingCapableOutputProcessor {
             new ContractOutputField(ID, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(SEVERITY, ContractOutputTechnicalType.Text, true)),
-        findingService);
+        findingService,
+        NOT_SENSITIVE);
     this.injectExpectationService = injectExpectationService;
   }
 

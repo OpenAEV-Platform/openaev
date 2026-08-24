@@ -28,7 +28,8 @@ public class PortScanOutputProcessor extends FindingCapableOutputProcessor {
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(PORT, ContractOutputTechnicalType.Number, true),
             new ContractOutputField(SERVICE, ContractOutputTechnicalType.Text, true)),
-        findingService);
+        findingService,
+        NOT_SENSITIVE);
   }
 
   @Override

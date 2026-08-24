@@ -27,7 +27,8 @@ public class UsernameOutputProcessor extends FindingCapableOutputProcessor {
             new ContractOutputField(USERNAME, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(DOMAIN, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
-        findingService);
+        findingService,
+        NOT_SENSITIVE);
   }
 
   @Override

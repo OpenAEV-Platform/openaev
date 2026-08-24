@@ -14,7 +14,12 @@ public class IPv6OutputProcessor extends FindingCapableOutputProcessor {
   private static final InetAddressValidator VALIDATOR = InetAddressValidator.getInstance();
 
   public IPv6OutputProcessor(FindingService findingService) {
-    super(ContractOutputType.IPv6, ContractOutputTechnicalType.Text, List.of(), findingService);
+    super(
+        ContractOutputType.IPv6,
+        ContractOutputTechnicalType.Text,
+        List.of(),
+        findingService,
+        NOT_SENSITIVE);
   }
 
   @Override

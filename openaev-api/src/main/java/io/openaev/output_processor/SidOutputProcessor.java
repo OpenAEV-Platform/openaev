@@ -25,7 +25,8 @@ public class SidOutputProcessor extends FindingCapableOutputProcessor {
             new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(SID, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
-        findingService);
+        findingService,
+        NOT_SENSITIVE);
   }
 
   @Override

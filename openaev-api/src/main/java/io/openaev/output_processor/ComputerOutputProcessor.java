@@ -25,7 +25,8 @@ public class ComputerOutputProcessor extends FindingCapableOutputProcessor {
             new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(COMPUTER_NAME, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
-        findingService);
+        findingService,
+        NOT_SENSITIVE);
   }
 
   @Override

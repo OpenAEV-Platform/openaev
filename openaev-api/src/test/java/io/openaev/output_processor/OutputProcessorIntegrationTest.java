@@ -46,6 +46,23 @@ class OutputProcessorIntegrationTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("Should flag credentials as the only sensitive finding type")
+  void given_everyFindingCapableProcessor_should_flagOnlyCredentialsAsSensitive() {
+    // Sensitivity is hardcoded per processor: this guards the matrix so a new finding type is a
+    // deliberate decision instead of an implicit "not sensitive".
+    for (ContractOutputType type : ContractOutputType.values()) {
+      OutputProcessor processor = registry.getProcessor(type).get();
+      if (!(processor instanceof FindingCapableOutputProcessor findingProcessor)) {
+        continue;
+      }
+
+      assertThat(findingProcessor.isSensitive())
+          .withFailMessage("Unexpected sensitivity for type: " + type)
+          .isEqualTo(type == ContractOutputType.Credentials);
+    }
+  }
+
+  @Test
   @DisplayName("Should return same instance on multiple calls to getProcessor")
   void shouldReturnSameInstanceOnMultipleCalls() {
     OutputProcessor handler1 = registry.getProcessor(ContractOutputType.Text).get();

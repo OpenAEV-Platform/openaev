@@ -31,7 +31,8 @@ public class GroupOutputProcessor extends FindingCapableOutputProcessor {
             new ContractOutputField(MEMBER_COUNT, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(RID, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
-        findingService);
+        findingService,
+        NOT_SENSITIVE);
   }
 
   @Override

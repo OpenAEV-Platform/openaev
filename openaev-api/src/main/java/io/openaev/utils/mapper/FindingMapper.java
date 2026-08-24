@@ -2,6 +2,7 @@ package io.openaev.utils.mapper;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
+import io.openaev.helper.FindingValueRedactor;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
@@ -43,7 +44,8 @@ public class FindingMapper {
       Finding finding, List<Asset> relatedAssets, Instant firstSeen, Instant lastSeen) {
     return AggregatedFindingOutput.builder()
         .id(finding.getId())
-        .value(finding.getValue())
+        .value(FindingValueRedactor.redact(finding.getValue(), finding.isSensitive()))
+        .sensitive(finding.isSensitive())
         .type(finding.getType())
         .creationDate(firstSeen)
         .updateDate(lastSeen)
@@ -59,7 +61,8 @@ public class FindingMapper {
   public RelatedFindingOutput toRelatedFindingOutput(Finding finding) {
     return RelatedFindingOutput.builder()
         .id(finding.getId())
-        .value(finding.getValue())
+        .value(FindingValueRedactor.redact(finding.getValue(), finding.isSensitive()))
+        .sensitive(finding.isSensitive())
         .type(finding.getType())
         .updateDate(finding.getUpdateDate())
         .assets(

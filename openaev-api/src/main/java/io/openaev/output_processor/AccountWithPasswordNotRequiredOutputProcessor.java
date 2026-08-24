@@ -29,7 +29,8 @@ public class AccountWithPasswordNotRequiredOutputProcessor extends FindingCapabl
             new ContractOutputField(ACCOUNT, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(STATUS, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
-        findingService);
+        findingService,
+        NOT_SENSITIVE);
   }
 
   @Override

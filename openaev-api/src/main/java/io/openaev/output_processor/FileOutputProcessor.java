@@ -43,7 +43,8 @@ public class FileOutputProcessor extends FindingCapableOutputProcessor {
             new ContractOutputField(PATH, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(SHARE, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
-        findingService);
+        findingService,
+        NOT_SENSITIVE);
   }
 
   @Override

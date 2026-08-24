@@ -29,10 +29,18 @@ public class FindingWriter {
       String name,
       String assetId,
       String[] tagIds,
+      boolean sensitive,
       String tenantId) {
     String findingId =
         findingRepository.upsertFinding(
-            findingField, findingType, findingValue, findingLabels, injectId, name, tenantId);
+            findingField,
+            findingType,
+            findingValue,
+            findingLabels,
+            injectId,
+            name,
+            sensitive,
+            tenantId);
     findingRepository.insertFindingAsset(findingId, assetId);
     findingRepository.insertFindingTags(findingId, tagIds);
   }

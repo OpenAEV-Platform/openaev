@@ -32,10 +32,17 @@ public class AggregatedFindingOutput {
   @NotNull
   private ContractOutputType type;
 
-  @Schema(description = "Finding Value")
+  @Schema(
+      description =
+          "Finding value. Redacted when the finding is sensitive: the API never discloses the"
+              + " cleartext value of a sensitive finding.")
   @JsonProperty("finding_value")
   @NotBlank
   private String value;
+
+  @Schema(description = "Whether the finding holds sensitive material, hence a redacted value")
+  @JsonProperty("finding_is_sensitive")
+  private boolean sensitive;
 
   @Schema(description = "First time the finding was seen")
   @JsonProperty("finding_created_at")

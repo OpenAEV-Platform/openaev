@@ -195,6 +195,8 @@ export interface AggregatedFindingOutput {
    * @minLength 1
    */
   finding_id: string;
+  /** Whether the finding holds sensitive material, hence a redacted value */
+  finding_is_sensitive?: boolean;
   /**
    * Represents the data type being extracted.
    * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
@@ -230,7 +232,7 @@ export interface AggregatedFindingOutput {
    */
   finding_updated_at: string;
   /**
-   * Finding Value
+   * Finding value. Redacted when the finding is sensitive: the API never discloses the cleartext value of a sensitive finding.
    * @minLength 1
    */
   finding_value: string;
@@ -5555,6 +5557,8 @@ export interface Finding {
   /** @minLength 1 */
   finding_id: string;
   finding_inject_id?: string;
+  /** Whether the finding value holds sensitive material and is redacted by API */
+  finding_is_sensitive?: boolean;
   /** @deprecated */
   finding_labels?: string[];
   finding_name?: string;
@@ -5647,6 +5651,8 @@ export interface FindingSummaryOutput {
   finding_first_seen?: string;
   /** Representative finding id used to resolve the (type, value) group */
   finding_id?: string;
+  /** Whether the finding holds sensitive material, hence a redacted value */
+  finding_is_sensitive?: boolean;
   /**
    * Last time this finding was seen across all occurrences
    * @format date-time
@@ -5693,7 +5699,7 @@ export interface FindingSummaryOutput {
    * @format int64
    */
   finding_users_count?: number;
-  /** Finding value */
+  /** Finding value, redacted when the finding is sensitive */
   finding_value?: string;
 }
 
@@ -9995,6 +10001,8 @@ export interface RelatedFindingOutput {
   finding_id: string;
   /** Inject linked to finding */
   finding_inject: InjectSimple;
+  /** Whether the finding holds sensitive material, hence a redacted value */
+  finding_is_sensitive?: boolean;
   /** Scenario linked to inject */
   finding_scenario?: ScenarioSimple;
   /** Simulation linked to inject */
@@ -10044,7 +10052,7 @@ export interface RelatedFindingOutput {
    */
   finding_users?: TargetSimple[];
   /**
-   * Finding Value
+   * Finding value. Redacted when the finding is sensitive: the API never discloses the cleartext value of a sensitive finding.
    * @minLength 1
    */
   finding_value: string;

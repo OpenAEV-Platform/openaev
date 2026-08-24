@@ -11,7 +11,12 @@ import org.springframework.stereotype.Component;
 public class NumberOutputProcessor extends FindingCapableOutputProcessor {
 
   public NumberOutputProcessor(FindingService findingService) {
-    super(ContractOutputType.Number, ContractOutputTechnicalType.Number, List.of(), findingService);
+    super(
+        ContractOutputType.Number,
+        ContractOutputTechnicalType.Number,
+        List.of(),
+        findingService,
+        NOT_SENSITIVE);
   }
 
   @Override

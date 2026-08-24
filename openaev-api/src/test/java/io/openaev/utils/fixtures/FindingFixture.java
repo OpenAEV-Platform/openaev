@@ -54,6 +54,8 @@ public class FindingFixture {
     finding.setName("Credentials");
     finding.setField(CREDENTIALS_FIELD);
     finding.setValue("admin:admin");
+    // Credentials are the only finding type flagged sensitive by its output processor.
+    finding.setSensitive(true);
     return finding;
   }
 }

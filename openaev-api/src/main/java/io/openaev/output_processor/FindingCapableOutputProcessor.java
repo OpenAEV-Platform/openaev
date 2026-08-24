@@ -9,21 +9,37 @@ import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import java.util.Collections;
 import java.util.List;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 /** Abstract base class for output processors that are capable of generating findings. */
 @Slf4j
 public abstract class FindingCapableOutputProcessor extends AbstractOutputProcessor {
 
+  /** Sensitivity decision of a finding type, hardcoded by each processor. */
+  protected static final boolean SENSITIVE = true;
+
+  protected static final boolean NOT_SENSITIVE = false;
+
   protected final FindingService findingService;
+
+  /**
+   * Whether the findings produced by this processor hold sensitive material (secrets, hashes...).
+   * The sensitivity is a property of the finding TYPE, decided once per processor, and is persisted
+   * on every finding it creates so the API can redact the value when serializing it. The database
+   * keeps the cleartext value.
+   */
+  @Getter private final boolean sensitive;
 
   protected FindingCapableOutputProcessor(
       ContractOutputType type,
       ContractOutputTechnicalType technicalType,
       List<ContractOutputField> fields,
-      FindingService findingService) {
+      FindingService findingService,
+      boolean sensitive) {
     super(type, technicalType, fields);
     this.findingService = findingService;
+    this.sensitive = sensitive;
   }
 
   /**
@@ -44,7 +60,8 @@ public abstract class FindingCapableOutputProcessor extends AbstractOutputProces
         this::toFindingValue,
         this::toFindingAssets,
         this::toFindingTeams,
-        this::toFindingUsers);
+        this::toFindingUsers,
+        this.sensitive);
     afterFindings(executionContext, structuredOutputNode);
   }
 

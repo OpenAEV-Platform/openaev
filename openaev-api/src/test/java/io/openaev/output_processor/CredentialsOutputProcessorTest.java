@@ -17,6 +17,12 @@ class CredentialsOutputProcessorTest {
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Test
+  @DisplayName("Should be flagged sensitive so the API redacts the value")
+  void shouldBeFlaggedSensitive() {
+    assertTrue(processor.isSensitive());
+  }
+
+  @Test
   @DisplayName("Should return true when both username and password are present")
   void shouldReturnTrueWhenBothUsernameAndPasswordPresent() throws Exception {
     JsonNode node = objectMapper.readTree("{\"username\": \"alice\", \"password\": \"pass1\"}");

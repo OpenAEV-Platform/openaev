@@ -9,6 +9,7 @@ import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.helper.FindingValueRedactor;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
@@ -69,7 +70,8 @@ public class FindingService {
     return FindingSummaryOutput.builder()
         .id(finding.getId())
         .type(type)
-        .value(value)
+        .value(FindingValueRedactor.redact(value, finding.isSensitive()))
+        .sensitive(finding.isSensitive())
         .firstSeen(seen != null ? seen.getFirstSeen() : finding.getCreationDate())
         .lastSeen(seen != null ? seen.getLastSeen() : finding.getUpdateDate())
         .occurrences(seen != null ? seen.getOccurrences() : 1)
@@ -118,6 +120,8 @@ public class FindingService {
    *     node (used for injector findings).
    * @param teamExtractor A function to extract associated team IDs for each finding from the JSON
    *     node (used for injector findings).
+   * @param sensitive Whether the findings produced by this processor hold sensitive material and
+   *     must be redacted when serialized by the API.
    */
   public void generateFindings(
       ExecutionProcessingContext executionContext,
@@ -127,7 +131,8 @@ public class FindingService {
       Function<JsonNode, String> valueExtractor,
       Function<JsonNode, List<String>> assetExtractor,
       Function<JsonNode, List<String>> userExtractor,
-      Function<JsonNode, List<String>> teamExtractor) {
+      Function<JsonNode, List<String>> teamExtractor,
+      boolean sensitive) {
 
     if (executionContext.isAgentExecution()) {
       processAgentFindings(
@@ -137,7 +142,8 @@ public class FindingService {
           contractOutputContext,
           executionContext.valueTargetedAssetsMap(),
           validator,
-          valueExtractor);
+          valueExtractor,
+          sensitive);
     } else {
       processInjectorFindings(
           structuredOutputNode,
@@ -147,7 +153,8 @@ public class FindingService {
           valueExtractor,
           assetExtractor,
           userExtractor,
-          teamExtractor);
+          teamExtractor,
+          sensitive);
     }
   }
 
@@ -158,7 +165,8 @@ public class FindingService {
       ContractOutputContext contractOutputContext,
       Map<String, Endpoint> valueTargetedAssetsMap,
       Predicate<JsonNode> validator,
-      Function<JsonNode, String> valueExtractor) {
+      Function<JsonNode, String> valueExtractor,
+      boolean sensitive) {
 
     if (structuredOutputNode == null || !structuredOutputNode.isArray()) {
       log.debug("Skipping agent findings: structuredOutputNode is null or not an array");
@@ -176,13 +184,21 @@ public class FindingService {
           .ifPresentOrElse(
               asset ->
                   saveAgentFinding(
-                      inject, asset, contractOutputContext, valueExtractor.apply(jsonNode)),
+                      inject,
+                      asset,
+                      contractOutputContext,
+                      valueExtractor.apply(jsonNode),
+                      sensitive),
               () -> log.warn("Finding dropped: No asset match for host in {}", jsonNode));
     }
   }
 
   public void saveAgentFinding(
-      Inject inject, Asset asset, ContractOutputContext contractOutputContext, String value) {
+      Inject inject,
+      Asset asset,
+      ContractOutputContext contractOutputContext,
+      String value,
+      boolean sensitive) {
 
     findingWriter.saveCompleteFinding(
         contractOutputContext.key(),
@@ -193,6 +209,7 @@ public class FindingService {
         contractOutputContext.name(),
         asset.getId(),
         contractOutputContext.tagIds(),
+        sensitive,
         inject.getTenant() != null ? inject.getTenant().getId() : null);
   }
 
@@ -217,7 +234,8 @@ public class FindingService {
       Function<JsonNode, String> valueExtractor,
       Function<JsonNode, List<String>> assetExtractor,
       Function<JsonNode, List<String>> userExtractor,
-      Function<JsonNode, List<String>> teamExtractor) {
+      Function<JsonNode, List<String>> teamExtractor,
+      boolean sensitive) {
 
     if (structuredOutputNode == null) {
       log.debug("Skipping injector findings: structuredOutputNode is null");
@@ -232,7 +250,8 @@ public class FindingService {
             valueExtractor,
             assetExtractor,
             userExtractor,
-            teamExtractor);
+            teamExtractor,
+            sensitive);
 
     createFindings(findings, inject.getId());
   }
@@ -321,7 +340,8 @@ public class FindingService {
       Function<JsonNode, String> valueExtractor,
       Function<JsonNode, List<String>> assetExtractor,
       Function<JsonNode, List<String>> userExtractor,
-      Function<JsonNode, List<String>> teamExtractor) {
+      Function<JsonNode, List<String>> teamExtractor,
+      boolean sensitive) {
 
     if (contractOutputContext.isMultiple() && structuredOutputNode.isArray()) {
       List<Finding> findings = new ArrayList<>();
@@ -341,7 +361,8 @@ public class FindingService {
                 valueExtractor,
                 assetExtractor,
                 userExtractor,
-                teamExtractor));
+                teamExtractor,
+                sensitive));
       }
       return findings;
     }
@@ -354,7 +375,8 @@ public class FindingService {
             valueExtractor,
             assetExtractor,
             userExtractor,
-            teamExtractor));
+            teamExtractor,
+            sensitive));
   }
 
   private Finding buildSingleFinding(
@@ -364,7 +386,8 @@ public class FindingService {
       Function<JsonNode, String> valueExtractor,
       Function<JsonNode, List<String>> assetExtractor,
       Function<JsonNode, List<String>> userExtractor,
-      Function<JsonNode, List<String>> teamExtractor) {
+      Function<JsonNode, List<String>> teamExtractor,
+      boolean sensitive) {
 
     if (!validator.test(structuredOutputNode)) {
       throw new IllegalArgumentException(
@@ -373,6 +396,7 @@ public class FindingService {
 
     Finding finding = FindingUtils.createFinding(contractOutputContext);
     finding.setValue(valueExtractor.apply(structuredOutputNode));
+    finding.setSensitive(sensitive);
     return linkFinding(structuredOutputNode, finding, assetExtractor, userExtractor, teamExtractor);
   }
 

@@ -29,7 +29,8 @@ public class CredentialsOutputProcessor extends FindingCapableOutputProcessor {
             new ContractOutputField(PASSWORD, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HASH, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
-        findingService);
+        findingService,
+        SENSITIVE);
   }
 
   @Override
