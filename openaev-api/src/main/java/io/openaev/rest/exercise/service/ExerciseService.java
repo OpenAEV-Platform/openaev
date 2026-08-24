@@ -57,7 +57,6 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.StepService;
-import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;

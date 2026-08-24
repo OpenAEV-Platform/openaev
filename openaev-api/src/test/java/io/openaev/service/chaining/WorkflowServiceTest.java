@@ -100,6 +100,7 @@ class WorkflowServiceTest {
             workflowScopeRuleRepository,
             scopeVariableRepository,
             assetRepository,
+            assetAgentJobRepository,
             assetGroupRepository,
             teamRepository,
             userRepository,
