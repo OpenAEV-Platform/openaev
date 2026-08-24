@@ -94,26 +94,11 @@ Audit logging will allow you to have a trace of the actions performed using API 
 #### Credential status validation
 
 A scheduled job periodically re-checks the credentials stored in the platform against their cloud
-provider and records the result on the credential, so an operator can see that a service principal
+provider and records the result on the credential, so an operator can see that a credential
 was revoked or expired *before* a simulation fails on it.
 
 The job runs per tenant and only considers credentials whose status is stale, capped by a per-run
-budget. Only Azure credentials are validated today; credential types with no remote counterpart
-(username/password, hash) are never checked and keep the `UNSET` status.
-
-!!! info "A failed check never invalidates a credential"
-
-    Only an explicit rejection by the provider (invalid or revoked secret, missing permission) sets
-    a credential to `INACTIVE`. Anything inconclusive — timeout, throttling, provider outage,
-    network error — leaves the previous status untouched, so a transient Azure incident cannot
-    flag a whole tenant's credentials overnight.
-
-!!! warning "Managed Identity requires the platform to run inside Azure"
-
-    An Azure Managed Identity is resolved through the Azure Instance Metadata Service (IMDS), which
-    is only reachable from inside Azure. When OpenAEV runs anywhere else, the check for these
-    credentials is always inconclusive and their status is left as-is. This is expected and
-    requires no action.
+budget. credential types with no remote counterpart (username/password, hash) are never checked and keep the `UNSET` status.
 
 | Parameter                                                   | Environment variable                                       | Default value | Description                                                                                              |
 |:------------------------------------------------------------|:-----------------------------------------------------------|:--------------|:---------------------------------------------------------------------------------------------------------|
