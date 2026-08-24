@@ -1823,6 +1823,7 @@
   "inject_assets": "Attività",
   "inject_attack_patterns": "Schema di attacco",
   "inject_contract_domains": "Domini",
+  "inject_enabled": "Attivo",
   "inject_expectation_description": "Descrizione",
   "inject_expectation_expected_score": "Punteggio previsto",
   "inject_expectation_expiration_time": "Tempo di scadenza",

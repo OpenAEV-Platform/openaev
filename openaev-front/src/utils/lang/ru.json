@@ -1823,6 +1823,7 @@
   "inject_assets": "Активы",
   "inject_attack_patterns": "Модель атаки",
   "inject_contract_domains": "Домены",
+  "inject_enabled": "Включено",
   "inject_expectation_description": "Описание",
   "inject_expectation_expected_score": "Ожидаемый результат",
   "inject_expectation_expiration_time": "Срок действия",

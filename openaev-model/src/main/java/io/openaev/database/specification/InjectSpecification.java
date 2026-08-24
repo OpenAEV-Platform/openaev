@@ -25,8 +25,10 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import org.apache.commons.lang3.EnumUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -150,6 +152,38 @@ public class InjectSpecification {
 
   public static Specification<Inject> hasStatus(List<ExecutionStatus> statuses) {
     return (root, query, cb) -> root.get("status").get("name").in(statuses);
+  }
+
+  /**
+   * Matches injects on their execution status name. An inject never launched has no status row and
+   * is serialized as DRAFT, so DRAFT must also match a missing status. Values are OR-combined ("any
+   * of these") and negations AND-combined ("none of these"), like the generic filter engine.
+   */
+  public static Specification<Inject> hasExecutionStatusNames(
+      @NotNull final List<String> statusNames, final boolean negate) {
+    List<ExecutionStatus> statuses =
+        statusNames.stream()
+            .filter(StringUtils::isNotBlank)
+            .map(name -> EnumUtils.getEnumIgnoreCase(ExecutionStatus.class, name.trim()))
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+    boolean includesDraft = statuses.contains(ExecutionStatus.DRAFT);
+
+    return (root, query, cb) -> {
+      if (statuses.isEmpty()) {
+        return negate ? cb.conjunction() : cb.disjunction();
+      }
+      Path<ExecutionStatus> statusName = root.join("status", JoinType.LEFT).get("name");
+      if (negate) {
+        return includesDraft
+            ? cb.and(cb.isNotNull(statusName), cb.not(statusName.in(statuses)))
+            : cb.or(cb.isNull(statusName), cb.not(statusName.in(statuses)));
+      }
+      return includesDraft
+          ? cb.or(cb.isNull(statusName), statusName.in(statuses))
+          : statusName.in(statuses);
+    };
   }
 
   public static Specification<Inject> hasCollectingStatus(List<CollectExecutionStatus> statuses) {

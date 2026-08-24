@@ -1823,6 +1823,7 @@
   "inject_assets": "에셋",
   "inject_attack_patterns": "공격 패턴",
   "inject_contract_domains": "도메인",
+  "inject_enabled": "활성화됨",
   "inject_expectation_description": "설명",
   "inject_expectation_expected_score": "예상 점수",
   "inject_expectation_expiration_time": "만료 시간",

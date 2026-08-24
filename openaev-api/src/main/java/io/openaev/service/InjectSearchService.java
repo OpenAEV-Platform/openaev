@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
+import static io.openaev.rest.inject.utils.InjectFilterUtils.handleCustomFilter;
 import static io.openaev.utils.JpaUtils.createJoinArrayAggOnId;
 import static io.openaev.utils.JpaUtils.createJoinArrayAggOnIdForJoin;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
@@ -40,6 +41,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -309,13 +311,16 @@ public class InjectSearchService {
                   return predicate;
                 });
 
+    UnaryOperator<Specification<Inject>> deepFilterSpecification =
+        handleCustomFilter(searchPaginationInput);
+
     return buildPaginationCriteriaBuilder(
         (Specification<Inject> specification,
             Specification<Inject> specificationCount,
             Pageable pageable) ->
             injectResults(
-                customSpec.and(specification),
-                customSpec.and(specificationCount),
+                customSpec.and(deepFilterSpecification.apply(specification)),
+                customSpec.and(deepFilterSpecification.apply(specificationCount)),
                 pageable,
                 joinMap),
         searchPaginationInput,
@@ -379,13 +384,16 @@ public class InjectSearchService {
                     currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
                     Grant.GRANT_TYPE.OBSERVER));
 
+    UnaryOperator<Specification<Inject>> deepFilterSpecification =
+        handleCustomFilter(searchPaginationInput);
+
     return buildPaginationCriteriaBuilder(
         (Specification<Inject> specification,
             Specification<Inject> specificationCount,
             Pageable pageable) ->
             injectResults(
-                customSpec.and(specification),
-                customSpec.and(specificationCount),
+                customSpec.and(deepFilterSpecification.apply(specification)),
+                customSpec.and(deepFilterSpecification.apply(specificationCount)),
                 pageable,
                 joinMap),
         searchPaginationInput,

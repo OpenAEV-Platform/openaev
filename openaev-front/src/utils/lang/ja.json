@@ -1823,6 +1823,7 @@
   "inject_assets": "資産",
   "inject_attack_patterns": "攻撃パターン",
   "inject_contract_domains": "ドメイン",
+  "inject_enabled": "有効",
   "inject_expectation_description": "説明",
   "inject_expectation_expected_score": "予想スコア",
   "inject_expectation_expiration_time": "有効期限",

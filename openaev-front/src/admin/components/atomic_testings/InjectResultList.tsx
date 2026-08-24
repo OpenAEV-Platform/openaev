@@ -59,7 +59,6 @@ interface Props {
   goTo: (injectId: string, inject: InjectResultOutput) => string;
   queryableHelpers: QueryableHelpers;
   searchPaginationInput: SearchPaginationInput;
-  availableFilterNames?: string[];
   contextId?: string;
   // Optional creation button rendered at the top right of the list header
   // (OpenCTI-aligned placement), next to the import action.
@@ -117,6 +116,8 @@ const InjectResultList: FunctionComponent<Props> = ({
     'inject_asset_groups',
     'inject_teams',
     'inject_contract_domains',
+    'inject_status',
+    'inject_enabled',
   ];
   const [injects, setInjects] = useState<InjectResultOutput[]>([]);
 

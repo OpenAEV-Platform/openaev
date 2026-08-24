@@ -1823,6 +1823,7 @@
   "inject_assets": "Vermögenswerte",
   "inject_attack_patterns": "Angriffsmuster",
   "inject_contract_domains": "Domains",
+  "inject_enabled": "Aktiviert",
   "inject_expectation_description": "Beschreibung",
   "inject_expectation_expected_score": "Erwartete Punktzahl",
   "inject_expectation_expiration_time": "Verfallszeit",

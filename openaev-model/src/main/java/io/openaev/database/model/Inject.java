@@ -91,6 +91,8 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   private String city;
 
   @Getter
+  // Filterable: a disabled inject is never scheduled, so it has no execution status of its own
+  @Queryable(filterable = true)
   @Column(name = "inject_enabled")
   @JsonProperty("inject_enabled")
   private boolean enabled = true;

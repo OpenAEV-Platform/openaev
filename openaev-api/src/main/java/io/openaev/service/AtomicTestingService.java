@@ -3,6 +3,7 @@ package io.openaev.service;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.rest.inject.utils.InjectFilterUtils.handleCustomFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +29,7 @@ import jakarta.persistence.criteria.Join;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.UnaryOperator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -343,13 +345,16 @@ public class AtomicTestingService {
                     currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
                     Grant.GRANT_TYPE.OBSERVER));
 
+    UnaryOperator<Specification<Inject>> deepFilterSpecification =
+        handleCustomFilter(searchPaginationInput);
+
     return buildPaginationCriteriaBuilder(
         (Specification<Inject> specification,
             Specification<Inject> specificationCount,
             Pageable pageable) ->
             injectSearchService.injectResults(
-                customSpec.and(specification),
-                customSpec.and(specificationCount),
+                customSpec.and(deepFilterSpecification.apply(specification)),
+                customSpec.and(deepFilterSpecification.apply(specificationCount)),
                 pageable,
                 joinMap),
         searchPaginationInput,
