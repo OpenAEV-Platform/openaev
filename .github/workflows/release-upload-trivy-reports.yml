@@ -86,7 +86,7 @@ jobs:
               core.notice(`❌ No successful [Core] CI run found for tag ${tag}`);
               return;
             }
-            core.notice(`✅ run found: ${run}`);
+            core.notice(`✅ run found: ${JSON.stringify(run)}`);
             const artifacts = await github.paginate(
               github.rest.actions.listWorkflowRunArtifacts,
               {
