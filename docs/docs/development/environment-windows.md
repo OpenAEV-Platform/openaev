@@ -57,14 +57,14 @@ winget install Git.Git
 
 ### Node.js
 
-Install Node.js 22 or later. Use [nvm-windows](https://github.com/coreybutler/nvm-windows) to manage versions:
+Install Node.js 24 or later. Use [nvm-windows](https://github.com/coreybutler/nvm-windows) to manage versions:
 
 1. Download and install nvm-windows from the [releases page](https://github.com/coreybutler/nvm-windows/releases).
-2. Install and activate Node.js 22:
+2. Install and activate Node.js 24:
 
 ```bash
-nvm install 22
-nvm use 22
+nvm install 24
+nvm use 24
 ```
 
 ### Yarn
