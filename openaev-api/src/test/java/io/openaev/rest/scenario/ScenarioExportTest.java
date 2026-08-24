@@ -1,21 +1,19 @@
 package io.openaev.rest.scenario;
 
+import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Base;
-import io.openaev.database.model.ContractOutputElement;
-import io.openaev.database.model.OutputParser;
-import io.openaev.database.model.Scenario;
-import io.openaev.database.model.Step;
-import io.openaev.database.model.Tag;
-import io.openaev.database.model.Workflow;
+import io.openaev.database.model.*;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.export.Mixins;
 import io.openaev.utils.ZipUtils;
 import io.openaev.utils.fixtures.*;
@@ -23,8 +21,10 @@ import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.io.IOException;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import net.javacrumbs.jsonunit.core.Option;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +44,7 @@ public class ScenarioExportTest extends IntegrationTest {
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DomainComposer domainComposer;
+  @Autowired private PayloadRepository payloadRepository;
   @Autowired private TagComposer tagComposer;
   @Autowired private DocumentComposer documentComposer;
   @Autowired private WorkflowComposer workflowComposer;
@@ -324,6 +325,85 @@ public class ScenarioExportTest extends IntegrationTest {
 
       // Assert
       assertThatJson(actualJson).node("scenario_injects").isArray().isEqualTo("[]");
+    }
+  }
+
+  @Nested
+  @DisplayName("Scenario payload nullable export")
+  class ScenarioPayloadNullableExport {
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given_payloadInputWithNullJsonLists_should_exportScenarioWithoutError")
+    void given_payloadInputWithNullJsonLists_should_exportScenarioWithoutError() throws Exception {
+      // Arrange
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+
+      var actionInput =
+          ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId()));
+      String actionName = "nullable-lists-export-regression-" + System.nanoTime();
+      com.fasterxml.jackson.databind.node.ObjectNode createActionBody =
+          mapper.valueToTree(actionInput);
+      createActionBody.put("action_name", actionName);
+      createActionBody.putNull("action_arguments");
+      createActionBody.putNull("action_prerequisites");
+
+      mvc.perform(
+              post(tenantUri(TENANT_THREAT_ARSENAL_URL))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(createActionBody.toString())
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      Payload payload =
+          StreamSupport.stream(payloadRepository.findAll().spliterator(), false)
+              .filter(existingPayload -> actionName.equals(existingPayload.getName()))
+              .findFirst()
+              .orElseThrow();
+
+      InjectorContractComposer.Composer injectorContractComposerRef =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector());
+      injectorContractComposerRef.get().setPayload(payload);
+
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .withInject(
+                  injectComposer
+                      .forInject(InjectFixture.getDefaultInject())
+                      .withInjectorContract(injectorContractComposerRef))
+              .persist()
+              .get();
+
+      manager.flush();
+      manager.clear();
+
+      // Act
+      byte[] response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + scenario.getId() + "/export")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+      String actualJson = getJsonExportFromZip(response, scenario.getName());
+
+      // Assert
+      assertThatJson(actualJson)
+          .node("scenario_information.scenario_id")
+          .isEqualTo(scenario.getId());
+      assertThatJson(actualJson).node("scenario_injects").isArray().isNotEmpty();
+      assertThatJson(actualJson)
+          .node(
+              "scenario_injects[0].inject_injector_contract.injector_contract_payload.payload_arguments")
+          .isEqualTo("[]");
+      assertThatJson(actualJson)
+          .node(
+              "scenario_injects[0].inject_injector_contract.injector_contract_payload.payload_prerequisites")
+          .isEqualTo("[]");
     }
   }
 }

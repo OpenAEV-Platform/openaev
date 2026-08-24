@@ -2,9 +2,11 @@ package io.openaev.utils.fixtures;
 
 import static io.openaev.helper.CryptoHelper.md5Hex;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.SecurityCoverage;
 import io.openaev.database.model.StixRefToExternalRef;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Vulnerability;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -22,6 +24,11 @@ public class SecurityCoverageFixture {
     securityCoverage.setVulnerabilitiesRefs(new HashSet<>());
     securityCoverage.setIndicatorsRefs(new HashSet<>());
     securityCoverage.setBundleHashMd5(md5Hex(securityCoverage.getContent()));
+    // security_coverages is tenant-active and its TenantBaseListener was removed at go-live: stamp
+    // the tenant explicitly here, matching what the listener used to do, instead of leaving every
+    // call site to remember it. TenantContext.getCurrentTenant() never throws (defaults to
+    // Tenant.DEFAULT_TENANT_UUID), so this is safe even outside a request context.
+    securityCoverage.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return securityCoverage;
   }
 

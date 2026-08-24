@@ -7,6 +7,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.ChallengeFlag.FLAG_TYPE;
 import io.openaev.database.raw.RawDocument;
@@ -143,7 +144,9 @@ public class ChallengeApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.CHALLENGE)
   public ChallengeResult tryChallenge(
-      @PathVariable String challengeId, @Valid @RequestBody ChallengeTryInput input)
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for this transaction.
+      TxCtx ctx, @PathVariable String challengeId, @Valid @RequestBody ChallengeTryInput input)
       throws InputValidationException {
     validateUUID(challengeId);
     return challengeService.tryChallenge(challengeId, input);

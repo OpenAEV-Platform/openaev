@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>3.260818.1</version>
+        <version>3.260821.0</version>
     </parent>
 
     <artifactId>openaev-api</artifactId>
@@ -38,7 +38,7 @@
         <dependency>
             <groupId>io.openaev</groupId>
             <artifactId>openaev-framework</artifactId>
-            <version>3.260818.1</version>
+            <version>3.260821.0</version>
         </dependency>
         <dependency>
             <groupId>co.elastic.clients</groupId>
@@ -193,7 +193,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.6.0-jre</version>
+            <version>33.7.1-jre</version>
         </dependency>
         <!-- Playwright drives an in-container headless Chromium to render reports (PDF/HTML).
              On dev machines the browser bundle is downloaded automatically on first use; the

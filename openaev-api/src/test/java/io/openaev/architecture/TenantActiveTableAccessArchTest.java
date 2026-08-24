@@ -10,8 +10,10 @@ import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.model.attackpath.AttackPathExecution;
@@ -23,6 +25,7 @@ import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
 import io.openaev.database.repository.MitigationRepository;
+import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
@@ -83,6 +86,7 @@ import io.openaev.service.InjectorService;
 import io.openaev.service.MailingService;
 import io.openaev.service.MapperService;
 import io.openaev.service.ScenarioToExerciseService;
+import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.attackpath.AttackPathCausalSeedService;
 import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
@@ -97,6 +101,7 @@ import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
 import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
@@ -151,7 +156,8 @@ class TenantActiveTableAccessArchTest {
           "connector_instances",
           "autonomous_runs",
           "autonomous_events",
-          "autonomous_directives");
+          "autonomous_directives",
+          "security_coverages");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -561,6 +567,64 @@ class TenantActiveTableAccessArchTest {
           .because(
               "attackpath_finding is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule security_coverages_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Coverage upsert/read logic; caller transaction scope is pinned at API entrypoint by
+              // TenantScopedEntrypointsTxCtxArchTest.
+              SecurityCoverageService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(SecurityCoverageRepository.class)
+          .because(
+              "security_coverages is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule security_coverages_exercise_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Own service; every public entrypoint is TxCtx-scoped, pinned by
+              // TenantScopedEntrypointsTxCtxArchTest:
+              SecurityCoverageService.class,
+              // Reads exercise.getSecurityCoverage() in shouldCreateCoverageSendJob, reached only
+              // from TxCtx-carrying HTTP entrypoints (ExpectationApi#deleteInjectExpectationResult,
+              // ChallengeApi#tryChallenge, SimulationChallengeApi#validateChallenge,
+              // InjectApi#injectExecutionCallback) and from already-scoped background jobs
+              // (SecurityCoverageJob, InjectsExecutionJob#handleAutoClosingSimulations), all pinned
+              // by SecurityCoverageTenantScopeTest#SendJobCreationGateRequiresScope:
+              SecurityCoverageSendJobService.class)
+          .should()
+          .callMethod(Exercise.class, "getSecurityCoverage")
+          .because(
+              "security_coverages is reached through Exercise's association WITHOUT touching the"
+                  + " repository: a lazy getSecurityCoverage() in an unscoped context silently"
+                  + " reads null. New callers must run inside a scoped transaction and be"
+                  + " allowlisted here");
+
+  @ArchTest
+  static final ArchRule security_coverages_scenario_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Own service; every public entrypoint is TxCtx-scoped, pinned by
+              // TenantScopedEntrypointsTxCtxArchTest:
+              SecurityCoverageService.class,
+              // Copies the scenario's coverage onto the new exercise during scenario->exercise
+              // promotion; callers (ScenarioApi, AutonomousRunService) already carry TxCtx,
+              // verified in the Phase 3 audit:
+              ScenarioToExerciseService.class)
+          .should()
+          .callMethod(Scenario.class, "getSecurityCoverage")
+          .because(
+              "security_coverages is reached through Scenario's association WITHOUT touching the"
+                  + " repository: a lazy getSecurityCoverage() in an unscoped context silently"
+                  + " reads null. New callers must run inside a scoped transaction and be"
+                  + " allowlisted here");
 
   @ArchTest
   static final ArchRule connector_instances_repository_access_is_reviewed =

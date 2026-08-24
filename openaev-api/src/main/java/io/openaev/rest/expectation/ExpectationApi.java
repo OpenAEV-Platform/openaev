@@ -63,6 +63,9 @@ public class ExpectationApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SIMULATION)
   public InjectExpectationOutput deleteInjectExpectationResult(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for this transaction.
+      TxCtx ctx,
       @PathVariable @NotBlank final String expectationId,
       @PathVariable @NotBlank final String sourceId) {
     return toOutput(

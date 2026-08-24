@@ -118,16 +118,24 @@ public class PlayerApi extends RestBehavior {
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
-    // A platform administrator account can only be modified by another administrator:
-    // otherwise anyone with the players capability could rewrite an admin's email.
+    ReservedKeyValidator.validateUserEmailPattern(user.getEmail());
     if (user.isAdmin() && !userService.currentUser().isAdmin()) {
       throw new ForbiddenException("Only an administrator can update a platform administrator");
     }
-    user.setUpdateAttributes(input);
+    applyProfile(user, input);
+    return userRepository.save(user);
+  }
+
+  private void applyProfile(User user, PlayerInput input) {
+    user.setFirstname(input.getFirstname());
+    user.setLastname(input.getLastname());
+    user.setPhone(input.getPhone());
+    user.setPhone2(input.getPhone2());
+    user.setPgpKey(input.getPgpKey());
+    user.setCountry(input.getCountry());
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     user.setOrganization(
         updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
-    return userRepository.save(user);
   }
 
   @DeleteMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
