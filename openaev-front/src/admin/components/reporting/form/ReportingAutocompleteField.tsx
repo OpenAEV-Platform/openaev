@@ -10,7 +10,6 @@ import {
   ComboboxLabel,
   ComboboxTrigger,
 } from '@filigran/design-system';
-import { Box, Chip, TextField } from '@mui/material';
 import { type FunctionComponent, useMemo } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
