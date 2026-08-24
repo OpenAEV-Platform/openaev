@@ -5,7 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.*;
-import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
@@ -21,21 +22,22 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("WorkflowTimeoutService Tests")
-class WorkflowTimeoutServiceTest {
+@DisplayName("WorkflowEndService Tests")
+class WorkflowEndServiceTest {
 
-  @Mock private WorkflowService workflowService;
   @Mock private StepService stepService;
   @Mock private StepDelayQueueService stepDelayQueueService;
-  @Mock private ExerciseService simulationService;
   @Mock private InjectService injectService;
   @Mock private InjectStatusService injectStatusService;
   @Mock private ResultsMetricCollector resultsMetricCollector;
+  @Mock private WorkflowRepository workflowRepository;
+  @Mock private ExerciseRepository exerciseRepository;
+  @Mock private ScopeSnapshotService scopeSnapshotService;
 
-  @InjectMocks private WorkflowTimeoutService workflowTimeoutService;
+  @InjectMocks private WorkflowEndService workflowEndService;
 
   @Nested
-  @DisplayName("forceCompleteWorkflow")
+  @DisplayName("forceCompleteWorkflowByTimeout")
   class ForceCompleteWorkflowTests {
 
     @Test
@@ -56,23 +58,23 @@ class WorkflowTimeoutServiceTest {
           .thenReturn(List.of(activeInject, finishedInject));
 
       // Act
-      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+      workflowEndService.forceCompleteWorkflowByTimeout(workflowRun);
 
       // Assert — verify ordering
       InOrder inOrder =
           inOrder(
               stepService,
               stepDelayQueueService,
-              workflowService,
+              workflowRepository,
               injectService,
               injectStatusService,
-              simulationService);
+              exerciseRepository);
       inOrder.verify(stepService).endActiveStepsByWorkflowId(workflowRun.getId());
       inOrder.verify(stepDelayQueueService).deleteAllByWorkflowRun(workflowRun);
-      inOrder.verify(workflowService).endWorkflow(workflowRun);
+      inOrder.verify(workflowRepository).save(workflowRun);
       inOrder.verify(injectService).findBySimulationId(simulation.getId());
       inOrder.verify(injectStatusService).save(activeInject.getStatus().get());
-      inOrder.verify(simulationService).saveSimulation(simulation);
+      inOrder.verify(exerciseRepository).save(simulation);
 
       // Assert — active inject status was set to SUCCESS with info trace
       assertEquals(ExecutionStatus.ERROR, activeInject.getStatus().get().getName());
@@ -107,7 +109,7 @@ class WorkflowTimeoutServiceTest {
           .thenReturn(List.of(queuingInject, executingInject, pendingInject));
 
       // Act
-      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+      workflowEndService.forceCompleteWorkflowByTimeout(workflowRun);
 
       // Assert — all three active injects completed with ERROR
       assertEquals(ExecutionStatus.ERROR, queuingInject.getStatus().get().getName());
@@ -133,10 +135,10 @@ class WorkflowTimeoutServiceTest {
           .thenReturn(List.of(finishedInject));
 
       // Act
-      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+      workflowEndService.forceCompleteWorkflowByTimeout(workflowRun);
 
       // Assert — simulation still finished, no inject status changed
-      verify(simulationService).saveSimulation(simulation);
+      verify(exerciseRepository).save(simulation);
       verifyNoInteractions(injectStatusService);
       assertEquals(ExerciseStatus.FINISHED, simulation.getStatus());
     }
@@ -149,15 +151,65 @@ class WorkflowTimeoutServiceTest {
       when(stepService.endActiveStepsByWorkflowId(workflowRun.getId())).thenReturn(0);
 
       // Act
-      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+      workflowEndService.forceCompleteWorkflowByTimeout(workflowRun);
 
       // Assert — workflow ended, no simulation interaction
       verify(stepService).endActiveStepsByWorkflowId(workflowRun.getId());
       verify(stepDelayQueueService).deleteAllByWorkflowRun(workflowRun);
-      verify(workflowService).endWorkflow(workflowRun);
-      verifyNoInteractions(simulationService);
+      verify(workflowRepository).save(workflowRun);
+      verifyNoInteractions(exerciseRepository);
       verifyNoInteractions(injectService);
       verifyNoInteractions(injectStatusService);
+    }
+  }
+
+  @Nested
+  @DisplayName("endWorkflow / stopSimulationByEndWorkflow")
+  class EndWorkflowSimulationSyncTests {
+
+    @Test
+    @DisplayName("given NO_MORE_PROGRESS should end workflow and finish its simulation")
+    void given_noMoreProgress_should_finishAssociatedSimulation() {
+      // Arrange
+      Exercise simulation = new Exercise();
+      simulation.setId(UUID.randomUUID().toString());
+      simulation.setStatus(ExerciseStatus.RUNNING);
+      Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
+      Inject finishedInject = buildInjectWithStatus(ExecutionStatus.EXECUTED);
+      when(injectService.findBySimulationId(simulation.getId()))
+          .thenReturn(List.of(finishedInject));
+
+      // Act
+      workflowEndService.endWorkflow(
+          workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
+
+      // Assert
+      assertEquals(WorkflowStatus.END, workflowRun.getStatus());
+      assertEquals(ExerciseStatus.FINISHED, simulation.getStatus());
+      verify(exerciseRepository).save(simulation);
+      verify(workflowRepository).save(workflowRun);
+    }
+
+    @Test
+    @DisplayName(
+        "given workflow already END should finish simulation via stopSimulationByEndWorkflow")
+    void given_workflowAlreadyEnd_should_finishAssociatedSimulation() {
+      // Arrange
+      Exercise simulation = new Exercise();
+      simulation.setId(UUID.randomUUID().toString());
+      simulation.setStatus(ExerciseStatus.RUNNING);
+      Workflow workflowRun = buildRunWorkflowWithSimulation(simulation);
+      workflowRun.setStatus(WorkflowStatus.END);
+      Inject finishedInject = buildInjectWithStatus(ExecutionStatus.EXECUTED);
+      when(injectService.findBySimulationId(simulation.getId()))
+          .thenReturn(List.of(finishedInject));
+
+      // Act
+      workflowEndService.stopSimulationByEndWorkflow(workflowRun);
+
+      // Assert
+      assertEquals(ExerciseStatus.FINISHED, simulation.getStatus());
+      verify(exerciseRepository).save(simulation);
     }
   }
 
@@ -170,14 +222,20 @@ class WorkflowTimeoutServiceTest {
     void should_delegateToWorkflowService() {
       // Arrange
       List<Workflow> expected = List.of(buildRunWorkflow());
-      when(workflowService.findAllExpiredRunWorkflows()).thenReturn(expected);
+      when(workflowRepository.findAllExpiredRunWorkflowIds())
+          .thenReturn(expected.stream().map(Workflow::getId).toList());
+      when(workflowRepository.findAllByIdWithScopeRules(
+              expected.stream().map(Workflow::getId).toList()))
+          .thenReturn(expected);
 
       // Act
-      List<Workflow> result = workflowTimeoutService.findAllExpiredRunWorkflows();
+      List<Workflow> result = workflowEndService.findAllExpiredRunWorkflows();
 
       // Assert
       assertEquals(expected, result);
-      verify(workflowService).findAllExpiredRunWorkflows();
+      verify(workflowRepository).findAllExpiredRunWorkflowIds();
+      verify(workflowRepository)
+          .findAllByIdWithScopeRules(expected.stream().map(Workflow::getId).toList());
     }
   }
 

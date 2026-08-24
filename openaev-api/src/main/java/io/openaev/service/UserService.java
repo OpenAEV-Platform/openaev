@@ -14,6 +14,8 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.SessionManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TagRepository;
@@ -25,6 +27,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
+import io.openaev.service.account.PrivilegeEscalationValidator;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.ReferenceResolver;
@@ -98,6 +101,7 @@ public class UserService {
   private MailingService mailingService;
   private final RandomUtils randomUtils;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final TenantScopedTransaction tenantTx;
 
   /** Cache for admin users to improve lookup performance. */
   private Cache adminCache;
@@ -130,6 +134,7 @@ public class UserService {
       throw new DataIntegrityViolationException(
           "User with email " + input.email() + " already exists");
     }
+    PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), false);
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
@@ -138,10 +143,13 @@ public class UserService {
         new ArrayList<>(
             referenceResolver.resolve(
                 input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
+    // The user's id is generated on save (UUID generator), not before: evict only after
+    // persisting, using the saved user's id, or evictForUser is called with a null key.
+    User createdUser = createUser(user, input.plainPassword(), UUID.randomUUID().toString());
     if (!CollectionUtils.isEmpty(input.tenantIds())) {
-      tenantMembershipCacheManager.evictForUser(user.getId(), input.tenantIds());
+      tenantMembershipCacheManager.evictForUser(createdUser.getId(), input.tenantIds());
     }
-    return createUser(user, input.plainPassword(), UUID.randomUUID().toString());
+    return createdUser;
   }
 
   /** Creates a user for internal/technical purposes (SSO login, connector provisioning). */
@@ -176,10 +184,8 @@ public class UserService {
   /**
    * Returns a user by ID (platform scope, no tenant filtering).
    *
-   * <p>No {@code @Transactional} here: the annotation was dead on the only internal caller ({@link
-   * #changePassword}, which self-invokes this method and therefore bypasses the Spring proxy), and
-   * {@code userRepository.findById(...)} already runs under its own Spring Data JPA transaction for
-   * every external caller.
+   * <p>No {@code @Transactional} here: {@code userRepository.findById(...)} already runs under its
+   * own Spring Data JPA transaction.
    */
   public User user(@NotBlank final String userId) {
     return userRepository
@@ -230,17 +236,12 @@ public class UserService {
         existing.getTenants() != null
             ? existing.getTenants().stream().map(Tenant::getId).toList()
             : List.of();
-    existing.setUpdateAttributes(input);
-    existing.setTags(
-        referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
-    existing.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), existing.isAdmin());
+    applyProfile(existing, input);
     existing.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(
                 input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
-    if (StringUtils.hasLength(input.plainPassword())) {
-      existing.setPassword(this.encodeUserPassword(input.plainPassword()));
-    }
     User savedUser = userRepository.save(existing);
     // Evict cache for old tenants (removed memberships) and new tenants (added memberships)
     List<String> newTenantIds = input.tenantIds() != null ? input.tenantIds() : List.of();
@@ -251,19 +252,14 @@ public class UserService {
     return savedUser;
   }
 
-  /** Changes the password of any user (platform-level administrative operation). */
-  @Transactional(rollbackFor = Exception.class)
-  public User changePassword(String userId, ChangePasswordInput input)
-      throws InputValidationException {
-    if (!input.getPassword().equals(input.getPasswordValidation())) {
-      throw new InputValidationException("password_validation", "Bad password validation");
-    }
-    User existing = user(userId);
-    existing.setPassword(this.encodeUserPassword(input.getPassword()));
-    User savedUser = userRepository.save(existing);
-    // Security: an administrative password change kills every live session of the user
-    sessionManager.invalidateUserSession(userId);
-    return savedUser;
+  public void applyProfile(User user, UserInput input) {
+    user.setFirstname(input.firstname());
+    user.setLastname(input.lastname());
+    user.setPhone(input.phone());
+    user.setPhone2(input.phone2());
+    user.setPgpKey(input.pgpKey());
+    user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
+    user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
   }
 
   /**
@@ -315,6 +311,10 @@ public class UserService {
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
       String username = user.getName() != null ? user.getName() : user.getEmail();
+      // Background @Async path (no ambient transaction, no v2 scope): sendEmail resolves the
+      // tenant-scoped injectors table for the email notifier, and this reset flow is anonymous/
+      // global (login only, no tenant selector), so it always uses the platform default tenant's
+      // email integration, matching MailingService's own 3-arg overload default.
       if ("fr".equals(input.getLang())) {
         String subject = "Code de récupération OpenAEV: " + resetToken;
         String body =
@@ -324,7 +324,9 @@ public class UserService {
                 + "Nous avons reçu une demande de réinitialisation de votre mot de passe OpenAEV.</br>"
                 + "Entrez le code de réinitialisation du mot de passe suivant : "
                 + resetToken;
-        mailingService.sendEmail(subject, body, List.of(user));
+        tenantTx.execute(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> mailingService.sendEmail(subject, body, List.of(user)));
       } else {
         String subject = "OpenAEV account recovery code: " + resetToken;
         String body =
@@ -334,7 +336,9 @@ public class UserService {
                 + "A request has been made to reset your OpenAEV password.</br>"
                 + "Enter the following password recovery code: "
                 + resetToken;
-        mailingService.sendEmail(subject, body, List.of(user));
+        tenantTx.execute(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> mailingService.sendEmail(subject, body, List.of(user)));
       }
       // Store in memory reset token
       synchronized (resetTokenMap) {

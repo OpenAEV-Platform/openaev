@@ -132,15 +132,13 @@ public class Payload implements GrantableBase, TenantBase {
   @JsonProperty("payload_elevation_required")
   private boolean elevationRequired;
 
-  @Setter
   @Type(JsonType.class)
-  @Column(name = "payload_arguments")
+  @Column(name = "payload_arguments", nullable = false)
   @JsonProperty("payload_arguments")
   private List<PayloadArgument> arguments = new ArrayList<>();
 
-  @Setter
   @Type(JsonType.class)
-  @Column(name = "payload_prerequisites")
+  @Column(name = "payload_prerequisites", nullable = false)
   @JsonProperty("payload_prerequisites")
   private List<PayloadPrerequisite> prerequisites = new ArrayList<>();
 
