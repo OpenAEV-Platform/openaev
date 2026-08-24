@@ -3533,6 +3533,7 @@
   "The team {name} has been {status}.": "Команда {name} была {status}.",
   "The time and start date do not match, as the time provided is either too close to the current moment or in the past": "Время и дата начала не совпадают, так как указанное время либо слишком близко к текущему моменту, либо находится в прошлом",
   "The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.": "Токен отсутствует в конфигурации вашей платформы, пожалуйста, попросите представителя Filigran предоставить вам его или инструкции по развертыванию на месте. Для этого вы можете открыть тикет в службу поддержки.",
+  "The value should be a number": "Значение должно быть числом",
   "The widget behind this drill-down could not be resolved.": "Не удалось определить виджет для этой детализации.",
   "Theme": "Тема",
   "There is no evaluation for this objective yet": "Для этой цели пока нет оценки",
