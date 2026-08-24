@@ -222,7 +222,7 @@ runs:
         mvn -B -ntp -pl openaev-api test
         -Dmaven.compiler.skip=true
         ${{ steps.suite.outputs.surefire_arg }}
-    - name: Diagnose test discovery/fork failures
+    - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }}) ❌ Diagnose test discovery/fork failures
       if: ${{ failure() && steps.run-tests.outcome == 'failure' }}
       shell: bash
       run: |
