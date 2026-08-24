@@ -28,7 +28,7 @@ public class UserContract {
   @JsonProperty("user_lang")
   private final String lang;
 
-  @VariableContract(name = VARIABLE_FAMILY + ".pgpkey", description = "PGP key of the user")
+  @VariableContract(name = VARIABLE_FAMILY + ".pgpKey", description = "PGP key of the user")
   @JsonProperty("user_pgp_key")
   private final String pgpKey;
 
