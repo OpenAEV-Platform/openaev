@@ -2,6 +2,7 @@ package io.openaev.driver;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import co.elastic.clients.elasticsearch._types.Time;
 import co.elastic.clients.elasticsearch._types.analysis.CustomNormalizer;
 import co.elastic.clients.elasticsearch._types.analysis.Normalizer;
 import co.elastic.clients.elasticsearch._types.mapping.*;
@@ -15,6 +16,7 @@ import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.AuditLogProperties;
 import io.openaev.config.EngineConfig;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.repository.IndexingStatusRepository;
@@ -49,10 +51,13 @@ import org.springframework.stereotype.Component;
 public class ElasticDriver {
   public static final String ES_MODEL_VERSION = "1.0";
   public static final String ES_ILM_POLICY = "-ilm-policy";
+  public static final String ES_AUDIT_ILM_POLICY = "-audit-log-ilm-policy";
   public static final String ES_CORE_SETTINGS = "-core-settings";
+  public static final String AUDIT_LOG_INDEX = "audit-log";
 
   private EngineContext searchEngine;
   private final EngineConfig config;
+  private final AuditLogProperties auditLogProperties;
   private final IndexingStatusRepository indexingStatusRepository;
 
   /**
@@ -146,6 +151,55 @@ public class ElasticDriver {
     client.ilm().putLifecycle(lifecycleRequest);
   }
 
+  private void createAuditRolloverPolicy(ElasticsearchClient client) throws IOException {
+    PutLifecycleRequest lifecycleRequest =
+        new PutLifecycleRequest.Builder()
+            .name(config.getIndexPrefix() + ES_AUDIT_ILM_POLICY)
+            .policy(
+                new IlmPolicy.Builder()
+                    .phases(
+                        new Phases.Builder()
+                            .hot(
+                                new Phase.Builder()
+                                    .actions(
+                                        new Actions.Builder()
+                                            .rollover(
+                                                new RolloverAction.Builder()
+                                                    .maxPrimaryShardSize(
+                                                        auditLogProperties
+                                                            .getEngineRolloverMaxSize())
+                                                    .maxAge(
+                                                        Time.of(
+                                                            t ->
+                                                                t.time(
+                                                                    auditLogProperties
+                                                                        .getEngineRolloverMaxAge())))
+                                                    .build())
+                                            .setPriority(
+                                                new SetPriorityAction.Builder()
+                                                    .priority(100)
+                                                    .build())
+                                            .build())
+                                    .build())
+                            .delete(
+                                new Phase.Builder()
+                                    .minAge(
+                                        Time.of(
+                                            t ->
+                                                t.time(
+                                                    auditLogProperties.getEngineRetentionDays()
+                                                        + "d")))
+                                    .actions(
+                                        new Actions.Builder()
+                                            .delete(new DeleteAction.Builder().build())
+                                            .build())
+                                    .build())
+                            .build())
+                    .build())
+            .build();
+    client.ilm().putLifecycle(lifecycleRequest);
+  }
+
   private void createCoreSettings(ElasticsearchClient client) throws IOException {
     PutComponentTemplateRequest.Builder coreSettings = new PutComponentTemplateRequest.Builder();
     coreSettings.name(config.getIndexPrefix() + ES_CORE_SETTINGS);
@@ -175,12 +229,17 @@ public class ElasticDriver {
 
   @SuppressWarnings("SameParameterValue")
   private void setupIndex(
-      ElasticsearchClient client, String name, String version, Map<String, Property> mappings)
+      ElasticsearchClient client,
+      String name,
+      String version,
+      Map<String, Property> mappings,
+      boolean resetIndexingCursor,
+      String lifecyclePolicy)
       throws IOException {
     // Create template
     String indexName = config.getIndexPrefix() + "_" + name;
     String coreSettings = config.getIndexPrefix() + ES_CORE_SETTINGS;
-    String ilmPolicy = config.getIndexPrefix() + ES_ILM_POLICY;
+    String ilmPolicy = lifecyclePolicy;
     PutIndexTemplateRequest.Builder mapping = new PutIndexTemplateRequest.Builder();
     mapping.name(indexName);
     mapping.meta("version", JsonData.of(version));
@@ -239,11 +298,72 @@ public class ElasticDriver {
         // already initialized (a missing row means wipe & recreate at boot). Deleting the row
         // here kept models with no data yet in a wipe/recreate loop at every single boot,
         // because the indexing job only persists the row once a first document is indexed.
-        resetIndexingCursor(name);
+        if (resetIndexingCursor) {
+          resetIndexingCursor(name);
+        }
       } catch (ElasticsearchException e2) {
         log.error("cannot create index", e2);
       }
     }
+  }
+
+  private Map<String, Property> auditLogMappings() {
+    Map<String, Property> userMetadataProperties = new HashMap<>();
+    userMetadataProperties.put(
+        "user_email", new Property.Builder().keyword(k -> k.ignoreAbove(512)).build());
+    userMetadataProperties.put(
+        "user_agent", new Property.Builder().text(t -> t.fields("keyword", keyword())).build());
+    userMetadataProperties.put(
+        "x_forwarded_for", new Property.Builder().keyword(k -> k.ignoreAbove(512)).build());
+    userMetadataProperties.put(
+        "ip", new Property.Builder().keyword(k -> k.ignoreAbove(512)).build());
+    userMetadataProperties.put(
+        "session_id", new Property.Builder().keyword(k -> k.ignoreAbove(512)).build());
+
+    Map<String, Property> requestMetadataProperties = new HashMap<>();
+    requestMetadataProperties.put(
+        "url", new Property.Builder().text(t -> t.fields("keyword", keyword())).build());
+    requestMetadataProperties.put(
+        "method", new Property.Builder().keyword(k -> k.ignoreAbove(128)).build());
+    requestMetadataProperties.put(
+        "signature",
+        new Property.Builder().object(o -> o.dynamic(DynamicMapping.True).enabled(true)).build());
+
+    Map<String, Property> mappings = new HashMap<>();
+    mappings.put("entity_type", new Property.Builder().keyword(k -> k.ignoreAbove(256)).build());
+    mappings.put(
+        "created_at", new Property.Builder().date(new DateProperty.Builder().build()).build());
+    mappings.put("event_type", new Property.Builder().keyword(k -> k.ignoreAbove(256)).build());
+    mappings.put("event_status", new Property.Builder().keyword(k -> k.ignoreAbove(256)).build());
+    mappings.put("event_access", new Property.Builder().keyword(k -> k.ignoreAbove(256)).build());
+    mappings.put("event_scope", new Property.Builder().keyword(k -> k.ignoreAbove(256)).build());
+    mappings.put("user_id", new Property.Builder().keyword(k -> k.ignoreAbove(512)).build());
+    mappings.put("tenant_id", new Property.Builder().keyword(k -> k.ignoreAbove(512)).build());
+    mappings.put(
+        "timestamp", new Property.Builder().date(new DateProperty.Builder().build()).build());
+    mappings.put(
+        "user_metadata",
+        new Property.Builder()
+            .object(o -> o.dynamic(DynamicMapping.False).properties(userMetadataProperties))
+            .build());
+    mappings.put(
+        "request_metadata",
+        new Property.Builder()
+            .object(o -> o.dynamic(DynamicMapping.False).properties(requestMetadataProperties))
+            .build());
+    mappings.put(
+        "context_data",
+        new Property.Builder().object(o -> o.dynamic(DynamicMapping.True).enabled(true)).build());
+    mappings.put(
+        "message", new Property.Builder().text(t -> t.fields("keyword", keyword())).build());
+    return mappings;
+  }
+
+  private Property keyword() {
+    return new Property.Builder()
+        .keyword(
+            new KeywordProperty.Builder().ignoreAbove(512).normalizer("string_normalizer").build())
+        .build();
   }
 
   /**
@@ -337,7 +457,15 @@ public class ElasticDriver {
     // https://www.elastic.co/guide/en/elasticsearch/client/java-api-client/current/opentelemetry.html
     // Initialize elastic if needed.
     createRolloverPolicy(elasticClient);
+    createAuditRolloverPolicy(elasticClient);
     createCoreSettings(elasticClient);
+    setupIndex(
+        elasticClient,
+        AUDIT_LOG_INDEX,
+        ES_MODEL_VERSION,
+        auditLogMappings(),
+        false,
+        config.getIndexPrefix() + ES_AUDIT_ILM_POLICY);
     // TODO Fetch the current model versions
     // | type     | last_updated_at      | version db | elastic version
     // | findings | 2024-12-04T12:00:00Z | 2.0        | 1.0
@@ -374,7 +502,13 @@ public class ElasticDriver {
           cleanUpIndex(esModel.getName(), elasticClient);
         }
         log.debug("Ensuring index {}", esModel.getName());
-        setupIndex(elasticClient, esModel.getName(), ES_MODEL_VERSION, mappings);
+        setupIndex(
+            elasticClient,
+            esModel.getName(),
+            ES_MODEL_VERSION,
+            mappings,
+            true,
+            config.getIndexPrefix() + ES_ILM_POLICY);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

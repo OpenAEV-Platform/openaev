@@ -1298,6 +1298,11 @@ public class OpenSearchService implements EngineService {
     return driver.getObjectMapper();
   }
 
+  @Override
+  public void indexDocument(String index, String id, Object document) throws IOException {
+    openSearchClient.index(request -> request.index(index).id(id).document(document));
+  }
+
   // endregion
 
   /**

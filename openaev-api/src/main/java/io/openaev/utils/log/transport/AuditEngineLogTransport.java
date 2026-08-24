@@ -5,6 +5,8 @@ import io.openaev.config.EngineConfig;
 import io.openaev.database.model.LogTransport;
 import io.openaev.engine.EngineService;
 import io.openaev.engine.model.log.LogEvent;
+import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,7 +57,23 @@ public class AuditEngineLogTransport implements AuditLogTransportUtils {
     try {
       String index = engineConfig.getIndexPrefix() + "_" + AUDIT_LOG_INDEX;
       String uuid = UUID.randomUUID().toString();
-      engineService.indexDocument(index, uuid, message);
+      Instant now = Instant.now();
+      engineService.indexDocument(
+          index,
+          uuid,
+          Map.of(
+              "entity_type",
+              "Activity",
+              "event_scope",
+              "log",
+              "event_status",
+              "success",
+              "created_at",
+              now,
+              "timestamp",
+              now,
+              "message",
+              message));
       return true;
     } catch (Exception e) {
       log.warn("[AUDIT] Failed to index audit message to search engine: {}", e.getMessage(), e);

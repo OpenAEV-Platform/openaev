@@ -1,6 +1,7 @@
 package io.openaev.driver;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.config.AuditLogProperties;
 import io.openaev.config.EngineConfig;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.repository.IndexingStatusRepository;
@@ -60,10 +61,13 @@ import software.amazon.awssdk.regions.Region;
 public class OpenSearchDriver {
   public static final String ES_MODEL_VERSION = "1.0";
   public static final String ES_ILM_POLICY = "-ilm-policy";
+  public static final String ES_AUDIT_ILM_POLICY = "-audit-log-ilm-policy";
   public static final String ES_CORE_SETTINGS = "-core-settings";
+  public static final String AUDIT_LOG_INDEX = "audit-log";
 
   private final EngineContext searchEngine;
   private final EngineConfig config;
+  private final AuditLogProperties auditLogProperties;
   private final IndexingStatusRepository indexingStatusRepository;
 
   /**
@@ -219,6 +223,82 @@ public class OpenSearchDriver {
     }
   }
 
+  private void createAuditRolloverPolicy(OpenSearchClient client) throws IOException {
+    String policyName = config.getIndexPrefix() + ES_AUDIT_ILM_POLICY;
+    String endpoint = "/_plugins/_ism/policies/" + policyName;
+    try (Response response =
+        client.generic().execute(Requests.builder().endpoint(endpoint).method("GET").build())) {
+      final int status = response.getStatus();
+      if (status != 404) {
+        return;
+      }
+    }
+
+    String jsonRequest =
+        String.format(
+            """
+                    {
+                      "policy": {
+                        "description": "OpenAEV audit-log ISM Policy",
+                        "default_state": "hot",
+                        "states": [
+                          {
+                            "name": "hot",
+                            "actions": [
+                              {
+                                "rollover": {
+                                  "min_primary_shard_size": "%s",
+                                  "min_index_age": "%s"
+                                }
+                              }
+                            ],
+                            "transitions": [
+                              {
+                                "state_name": "delete",
+                                "conditions": {
+                                  "min_index_age": "%sd"
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "name": "delete",
+                            "actions": [
+                              {
+                                "delete": {}
+                              }
+                            ],
+                            "transitions": []
+                          }
+                        ],
+                        "ism_template": {
+                          "index_patterns": ["%s_%s*"],
+                          "priority": 200
+                        }
+                      }
+                    }
+                    """,
+            auditLogProperties.getEngineRolloverMaxSize(),
+            auditLogProperties.getEngineRolloverMaxAge(),
+            auditLogProperties.getEngineRetentionDays(),
+            config.getIndexPrefix(),
+            AUDIT_LOG_INDEX);
+
+    try (Response response =
+        client
+            .generic()
+            .execute(
+                Requests.builder().endpoint(endpoint).method("PUT").json(jsonRequest).build())) {
+      final int status = response.getStatus();
+      log.info("Create audit rollover policy: {}", status);
+      if (status != 201) {
+        Optional<Body> body = response.getBody();
+        String message = body.isPresent() ? body.get().bodyAsString() : "no response";
+        throw new IOException(message);
+      }
+    }
+  }
+
   /**
    * Creating the core settings
    *
@@ -263,7 +343,12 @@ public class OpenSearchDriver {
    */
   @SuppressWarnings("SameParameterValue")
   private void setupIndex(
-      OpenSearchClient client, String name, String version, Map<String, Property> mappings)
+      OpenSearchClient client,
+      String name,
+      String version,
+      Map<String, Property> mappings,
+      boolean resetIndexingCursor,
+      String lifecyclePolicy)
       throws IOException {
     // Create template
     String indexName = config.getIndexPrefix() + "_" + name;
@@ -295,10 +380,11 @@ public class OpenSearchDriver {
                                 String.format(
                                     """
                                   "index_state_management": {
+                                    "policy_id": "%s",
                                     "rollover_alias": "%s",
                                   }
                             """,
-                                    indexName))))
+                                    lifecyclePolicy, indexName))))
                     .mapping(
                         new IndexSettingsMapping.Builder()
                             .totalFields(
@@ -332,8 +418,69 @@ public class OpenSearchDriver {
       // already initialized (a missing row means wipe & recreate at boot). Deleting the row
       // here kept models with no data yet in a wipe/recreate loop at every single boot,
       // because the indexing job only persists the row once a first document is indexed.
-      resetIndexingCursor(name);
+      if (resetIndexingCursor) {
+        resetIndexingCursor(name);
+      }
     }
+  }
+
+  private Map<String, Property> auditLogMappings() {
+    Map<String, Property> userMetadataProperties = new HashMap<>();
+    userMetadataProperties.put(
+        "user_email", new Property.Builder().keyword(k -> k.ignoreAbove(512)).build());
+    userMetadataProperties.put(
+        "user_agent", new Property.Builder().text(t -> t.fields("keyword", keyword())).build());
+    userMetadataProperties.put(
+        "x_forwarded_for", new Property.Builder().keyword(k -> k.ignoreAbove(512)).build());
+    userMetadataProperties.put(
+        "ip", new Property.Builder().keyword(k -> k.ignoreAbove(512)).build());
+    userMetadataProperties.put(
+        "session_id", new Property.Builder().keyword(k -> k.ignoreAbove(512)).build());
+
+    Map<String, Property> requestMetadataProperties = new HashMap<>();
+    requestMetadataProperties.put(
+        "url", new Property.Builder().text(t -> t.fields("keyword", keyword())).build());
+    requestMetadataProperties.put(
+        "method", new Property.Builder().keyword(k -> k.ignoreAbove(128)).build());
+    requestMetadataProperties.put(
+        "signature",
+        new Property.Builder().object(o -> o.dynamic(DynamicMapping.True).enabled(true)).build());
+
+    Map<String, Property> mappings = new HashMap<>();
+    mappings.put("entity_type", new Property.Builder().keyword(k -> k.ignoreAbove(256)).build());
+    mappings.put(
+        "created_at", new Property.Builder().date(new DateProperty.Builder().build()).build());
+    mappings.put("event_type", new Property.Builder().keyword(k -> k.ignoreAbove(256)).build());
+    mappings.put("event_status", new Property.Builder().keyword(k -> k.ignoreAbove(256)).build());
+    mappings.put("event_access", new Property.Builder().keyword(k -> k.ignoreAbove(256)).build());
+    mappings.put("event_scope", new Property.Builder().keyword(k -> k.ignoreAbove(256)).build());
+    mappings.put("user_id", new Property.Builder().keyword(k -> k.ignoreAbove(512)).build());
+    mappings.put("tenant_id", new Property.Builder().keyword(k -> k.ignoreAbove(512)).build());
+    mappings.put(
+        "timestamp", new Property.Builder().date(new DateProperty.Builder().build()).build());
+    mappings.put(
+        "user_metadata",
+        new Property.Builder()
+            .object(o -> o.dynamic(DynamicMapping.False).properties(userMetadataProperties))
+            .build());
+    mappings.put(
+        "request_metadata",
+        new Property.Builder()
+            .object(o -> o.dynamic(DynamicMapping.False).properties(requestMetadataProperties))
+            .build());
+    mappings.put(
+        "context_data",
+        new Property.Builder().object(o -> o.dynamic(DynamicMapping.True).enabled(true)).build());
+    mappings.put(
+        "message", new Property.Builder().text(t -> t.fields("keyword", keyword())).build());
+    return mappings;
+  }
+
+  private Property keyword() {
+    return new Property.Builder()
+        .keyword(
+            new KeywordProperty.Builder().ignoreAbove(512).normalizer("string_normalizer").build())
+        .build();
   }
 
   /**
@@ -436,7 +583,15 @@ public class OpenSearchDriver {
     // TODO enable telemetry ?
     // Initialize opensearch if needed.
     createRolloverPolicy(openClient);
+    createAuditRolloverPolicy(openClient);
     createCoreSettings(openClient);
+    setupIndex(
+        openClient,
+        AUDIT_LOG_INDEX,
+        ES_MODEL_VERSION,
+        auditLogMappings(),
+        false,
+        config.getIndexPrefix() + ES_AUDIT_ILM_POLICY);
     // TODO Fetch the current model versions
     // | type     | last_updated_at      | version db | search version
     // | findings | 2024-12-04T12:00:00Z | 2.0        | 1.0
@@ -472,7 +627,13 @@ public class OpenSearchDriver {
           cleanUpIndex(esModel.getName(), openClient);
         }
         log.debug("Ensuring index {}", esModel.getName());
-        setupIndex(openClient, esModel.getName(), ES_MODEL_VERSION, mappings);
+        setupIndex(
+            openClient,
+            esModel.getName(),
+            ES_MODEL_VERSION,
+            mappings,
+            true,
+            config.getIndexPrefix() + ES_ILM_POLICY);
       } catch (IOException e) {
         throw new AnalyticsEngineException(
             "Error while setting up index " + esModel.getName() + " with Opensearch", e);

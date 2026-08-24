@@ -1230,6 +1230,11 @@ public class ElasticService implements EngineService {
     return driver.getObjectMapper();
   }
 
+  @Override
+  public void indexDocument(String index, String id, Object document) throws IOException {
+    elasticClient.index(request -> request.index(index).id(id).document(document));
+  }
+
   // endregion
 
   private String toElasticField(@NotBlank final String field) {
