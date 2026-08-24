@@ -337,6 +337,99 @@ class StepEventServiceTest {
     }
   }
 
+  @Nested
+  class RetryOnEndCheckFailure {
+
+    @Test
+    void given_endCheckFails_should_requeue_whenRetryCountBelowMax()
+        throws IOException, ChainingException {
+      // Arrange
+      ExternalUpdateEvent event =
+          ExternalUpdateEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      assertEquals(0, event.getRetryCount());
+
+      Step stepRun = mock(Step.class);
+      when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepService.findByIdAndStatus(event.getStepId(), StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
+          .thenReturn(actionStep);
+
+      Step stepUpdated = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(stepUpdated.getWorkflow()).thenReturn(workflowRun);
+      when(actionStep.update(stepRun)).thenReturn(Optional.of(stepUpdated));
+      doThrow(new ChainingException("end() failed")).when(actionStep).end(stepUpdated);
+
+      // Act
+      stepEventService.handleExternalUpdateEvent(event);
+
+      // Assert
+      assertEquals(1, event.getRetryCount());
+      verify(queueChainingService).republishUpdateEvent(event);
+      // update()'s result is still persisted despite end() failing
+      verify(stepService).saveStep(stepUpdated);
+    }
+
+    @Test
+    void given_endCheckFails_should_drop_whenMaxRetriesReached()
+        throws IOException, ChainingException {
+      // Arrange
+      ExternalUpdateEvent event =
+          ExternalUpdateEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      event.setRetryCount(chainingConfig.getMaxRetryCount());
+
+      Step stepRun = mock(Step.class);
+      when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepService.findByIdAndStatus(event.getStepId(), StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
+          .thenReturn(actionStep);
+
+      Step stepUpdated = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(stepUpdated.getWorkflow()).thenReturn(workflowRun);
+      when(actionStep.update(stepRun)).thenReturn(Optional.of(stepUpdated));
+      doThrow(new ChainingException("end() failed")).when(actionStep).end(stepUpdated);
+
+      // Act
+      stepEventService.handleExternalUpdateEvent(event);
+
+      // Assert — event dropped, not re-queued, but step is still saved (RUN, self-healing on next
+      // event)
+      verify(queueChainingService, never()).republishUpdateEvent(any());
+      verify(stepService).saveStep(stepUpdated);
+    }
+
+    @Test
+    void given_endCheckFails_andRepublishFails_should_logAndNotThrow()
+        throws IOException, ChainingException {
+      // Arrange
+      ExternalUpdateEvent event =
+          ExternalUpdateEvent.builder().stepId(UUID.randomUUID().toString()).build();
+
+      Step stepRun = mock(Step.class);
+      when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepService.findByIdAndStatus(event.getStepId(), StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
+          .thenReturn(actionStep);
+
+      Step stepUpdated = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(stepUpdated.getWorkflow()).thenReturn(workflowRun);
+      when(actionStep.update(stepRun)).thenReturn(Optional.of(stepUpdated));
+      doThrow(new ChainingException("end() failed")).when(actionStep).end(stepUpdated);
+      doThrow(new IOException("RabbitMQ down"))
+          .when(queueChainingService)
+          .republishUpdateEvent(any());
+
+      // Act — should not throw
+      stepEventService.handleExternalUpdateEvent(event);
+
+      // Assert
+      assertEquals(1, event.getRetryCount());
+      verify(queueChainingService).republishUpdateEvent(event);
+    }
+  }
+
   // -- TENANT PROPAGATION (#6357) --
 
   @Nested
