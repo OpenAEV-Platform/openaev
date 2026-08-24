@@ -196,7 +196,7 @@ class ReportingScheduleServiceTest {
             anyString(),
             attachmentsCaptor.capture());
     assertThat(recipientsCaptor.getValue())
-        .extracting(context -> context.getUser().email())
+        .extracting(context -> context.getUser().getEmail())
         .containsExactly("alice@filigran.io", "bob@filigran.io");
     assertThat(subjectCaptor.getValue()).contains("Scheduled report: My report");
     assertThat(attachmentsCaptor.getValue()).hasSize(1);
@@ -237,7 +237,7 @@ class ReportingScheduleServiceTest {
             bodyCaptor.capture(),
             anyList());
     assertThat(recipientsCaptor.getValue())
-        .extracting(context -> context.getUser().email())
+        .extracting(context -> context.getUser().getEmail())
         .containsExactly("owner@filigran.io");
     assertThat(subjectCaptor.getValue()).contains("Scheduled report generation failed");
     assertThat(bodyCaptor.getValue()).contains("Chromium crashed");
@@ -260,7 +260,7 @@ class ReportingScheduleServiceTest {
     // -- Assert --
     List<ExecutionContext> recipients = capturedRecipients();
     assertThat(recipients)
-        .extracting(context -> context.getUser().email())
+        .extracting(context -> context.getUser().getEmail())
         .containsExactly("owner@filigran.io");
   }
 
@@ -288,7 +288,7 @@ class ReportingScheduleServiceTest {
     // (User.setEmail normalizes to lowercase, hence the lowercase expectation)
     List<ExecutionContext> recipients = capturedRecipients();
     assertThat(recipients)
-        .extracting(context -> context.getUser().email())
+        .extracting(context -> context.getUser().getEmail())
         .containsExactly("shared@filigran.io", "second@filigran.io");
   }
 

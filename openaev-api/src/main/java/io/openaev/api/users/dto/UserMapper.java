@@ -30,13 +30,13 @@ public class UserMapper {
    */
   public static User fromUserContract(UserContract protectUser) {
     User user = new User();
-    user.setId(protectUser.id());
-    user.setEmail(protectUser.email());
-    user.setFirstname(protectUser.firstname());
-    user.setLastname(protectUser.lastname());
-    user.setLang(protectUser.lang());
-    user.setPgpKey(protectUser.pgpKey());
-    user.setPhone(protectUser.phone());
+    user.setId(protectUser.getId());
+    user.setEmail(protectUser.getEmail());
+    user.setFirstname(protectUser.getFirstname());
+    user.setLastname(protectUser.getLastname());
+    user.setLang(protectUser.getLang());
+    user.setPgpKey(protectUser.getPgpKey());
+    user.setPhone(protectUser.getPhone());
     return user;
   }
 

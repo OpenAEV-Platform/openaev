@@ -127,7 +127,7 @@ public class EmailExecutor extends Injector {
     if (!manualRecipients.isEmpty()) {
       Set<String> existingEmails =
           users.stream()
-              .map(uc -> uc.getUser() != null ? uc.getUser().email() : null)
+              .map(uc -> uc.getUser() != null ? uc.getUser().getEmail() : null)
               .filter(Objects::nonNull)
               .map(email -> email.toLowerCase())
               .collect(Collectors.toSet());

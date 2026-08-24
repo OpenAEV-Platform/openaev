@@ -151,7 +151,7 @@ public class EmailService {
             .map(
                 uc -> {
                   try {
-                    return new InternetAddress(uc.getUser().email());
+                    return new InternetAddress(uc.getUser().getEmail());
                   } catch (AddressException e) {
                     throw new RuntimeException(e);
                   }
@@ -168,17 +168,17 @@ public class EmailService {
               fromName,
               replyTos,
               subject,
-              singleUserContext.getUser().email(),
+              singleUserContext.getUser().getEmail(),
               mimeMessage);
       this.sendEmailWithRetry(execution, encMessage);
     } else {
       this.sendEmailWithRetry(execution, mimeMessage);
     }
-    List<String> userIds = usersContext.stream().map(c -> c.getUser().id()).toList();
+    List<String> userIds = usersContext.stream().map(c -> c.getUser().getId()).toList();
     execution.addTrace(
         getNewSuccessTrace(
             "Mail sent to "
-                + usersContext.stream().map(c -> c.getUser().email()).collect(joining(", ")),
+                + usersContext.stream().map(c -> c.getUser().getEmail()).collect(joining(", ")),
             ExecutionTraceAction.EXECUTION,
             userIds));
     // Store message in Imap after sending

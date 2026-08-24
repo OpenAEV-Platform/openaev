@@ -675,7 +675,7 @@ public class InjectsExecutionJob implements Job {
               executableInject.getUsers().stream()
                   .map(ExecutionContext::getUser)
                   .filter(Objects::nonNull)
-                  .map(UserContract::id)
+                  .map(UserContract::getId)
                   .filter(Objects::nonNull)
                   .toList());
           contextData.put("total_endpoints", endpointResolutions.size());

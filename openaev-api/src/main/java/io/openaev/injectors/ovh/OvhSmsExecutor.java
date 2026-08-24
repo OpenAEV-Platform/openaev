@@ -60,12 +60,13 @@ public class OvhSmsExecutor extends Injector {
         .forEach(
             context -> {
               UserContract user = context.getUser();
-              String phone = user.phone();
-              String email = user.email();
+              String phone = user.getPhone();
+              String email = user.getEmail();
               if (!StringUtils.hasLength(phone)) {
                 String message = "Sms fail for " + email + ": no phone number";
                 execution.addTrace(
-                    getNewErrorTrace(message, ExecutionTraceAction.COMPLETE, List.of(user.id())));
+                    getNewErrorTrace(
+                        message, ExecutionTraceAction.COMPLETE, List.of(user.getId())));
               } else {
                 try {
                   String callResult = smsService.sendSms(context, phone, smsMessage);
@@ -85,18 +86,18 @@ public class OvhSmsExecutor extends Injector {
                             + ")";
                     execution.addTrace(
                         getNewErrorTrace(
-                            message, ExecutionTraceAction.COMPLETE, List.of(user.id())));
+                            message, ExecutionTraceAction.COMPLETE, List.of(user.getId())));
                   } else {
                     String message =
                         "Sms sent to " + email + " through " + phone + " (" + callResult + ")";
                     execution.addTrace(
                         getNewSuccessTrace(
-                            message, ExecutionTraceAction.COMPLETE, List.of(user.id())));
+                            message, ExecutionTraceAction.COMPLETE, List.of(user.getId())));
                   }
                 } catch (Exception e) {
                   execution.addTrace(
                       getNewErrorTrace(
-                          e.getMessage(), ExecutionTraceAction.COMPLETE, List.of(user.id())));
+                          e.getMessage(), ExecutionTraceAction.COMPLETE, List.of(user.getId())));
                 }
               }
             });

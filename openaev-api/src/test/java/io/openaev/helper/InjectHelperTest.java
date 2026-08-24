@@ -85,7 +85,7 @@ public class InjectHelperTest extends IntegrationTest {
     ExecutableInject executableInject = executableInjects.get(0);
     assertEquals(1, executableInject.getTeamSize());
     assertEquals(1, executableInject.getUsers().size());
-    assertEquals(USER_EMAIL, executableInject.getUsers().get(0).getUser().email());
+    assertEquals(USER_EMAIL, executableInject.getUsers().get(0).getUser().getEmail());
 
     // -- CLEAN -
     this.exerciseRepository.delete(exercise);

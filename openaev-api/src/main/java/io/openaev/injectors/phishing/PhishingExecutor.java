@@ -154,7 +154,7 @@ public class PhishingExecutor extends Injector {
                 : null;
         String teamId = teamName != null ? teamIdByName.get(teamName) : null;
         PhishingResult result =
-            phishingTrackingService.createResult(inject, landingPage, targetUser.id(), teamId);
+            phishingTrackingService.createResult(inject, landingPage, targetUser.getId(), teamId);
         // Victim-facing landing URL: e.g. https://security.acme.com/auth/<token> - benign path, no
         // tenant id, resolved back to its tenant from the globally-unique token server-side.
         String landingUrl =
