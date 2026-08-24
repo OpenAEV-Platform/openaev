@@ -33,7 +33,6 @@ class TenantScopedEntrypointsTxCtxArchTest {
       Set.of(
           // import_mappers (v2)
           "io.openaev.rest.mapper.MapperApi#getImportMapper",
-          "io.openaev.rest.mapper.MapperApi#getImportMapper",
           "io.openaev.rest.mapper.MapperApi#getImportMapperById",
           "io.openaev.rest.mapper.MapperApi#createImportMapper",
           "io.openaev.rest.mapper.MapperApi#exportMappers",
