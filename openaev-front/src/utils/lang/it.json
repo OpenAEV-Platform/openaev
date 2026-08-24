@@ -3627,6 +3627,7 @@
   "The team {name} has been {status}.": "Il team {name} è stato {status}.",
   "The time and start date do not match, as the time provided is either too close to the current moment or in the past": "L'ora e la data di inizio non corrispondono, poiché l'ora fornita è troppo vicina al momento attuale o al passato",
   "The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.": "Il token non è presente nella configurazione della piattaforma; chiedete al vostro rappresentante Filigran di fornirvelo o di fornirvi le istruzioni per l'implementazione on-premise. Potete aprire un ticket di supporto per farlo.",
+  "The value should be a number": "Il valore deve essere un numero",
   "The widget behind this drill-down could not be resolved.": "Impossibile risolvere il widget alla base di questa esplorazione.",
   "Theme": "Tema",
   "There is no evaluation for this objective yet": "Non c'è ancora una valutazione per questo obiettivo",

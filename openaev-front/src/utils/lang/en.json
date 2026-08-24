@@ -3627,6 +3627,7 @@
   "The team {name} has been {status}.": "The team {name} has been {status}.",
   "The time and start date do not match, as the time provided is either too close to the current moment or in the past": "The time and start date do not match, as the time provided is either too close to the current moment or in the past",
   "The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.": "The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.",
+  "The value should be a number": "The value should be a number",
   "The widget behind this drill-down could not be resolved.": "The widget behind this drill-down could not be resolved.",
   "Theme": "Theme",
   "There is no evaluation for this objective yet": "There is no evaluation for this objective yet",

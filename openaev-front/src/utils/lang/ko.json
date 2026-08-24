@@ -3627,6 +3627,7 @@
   "The team {name} has been {status}.": "팀 {name}이 {status}되었습니다.",
   "The time and start date do not match, as the time provided is either too close to the current moment or in the past": "제공된 시간이 현재에 너무 가깝거나 과거이므로 시간과 시작 날짜가 일치하지 않습니다",
   "The token is missing in your platform configuration, please ask your Filigran representative to provide you with it or with on-premise deployment instructions. Your can open a support ticket to do so.": "플랫폼 구성에 토큰이 누락된 경우 Filigran 담당자에게 토큰을 제공하거나 온프레미스 배포 지침을 요청하세요. 이를 위해 지원 티켓을 개설할 수 있습니다.",
+  "The value should be a number": "값은 숫자여야 합니다.",
   "The widget behind this drill-down could not be resolved.": "이 드릴다운의 위젯을 확인할 수 없습니다.",
   "Theme": "테마",
   "There is no evaluation for this objective yet": "아직 이 목표에 대한 평가가 없습니다",
