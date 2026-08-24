@@ -100,13 +100,24 @@ public class PayloadService {
     // the injector links, otherwise the contract (stamped on the payload's tenant) could reference
     // another tenant's injector or fail on the injectors_injector_contracts FK.
     String payloadTenantId = payload.getTenant().getId();
+    List<Injector> allPayloadInjectors = this.injectorRepository.findAllByPayloads(true);
     List<Injector> injectors =
-        this.injectorRepository.findAllByPayloads(true).stream()
+        allPayloadInjectors.stream()
             .filter(injector -> payloadTenantId.equals(injector.getTenantId()))
             .toList();
 
     Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
     if (referenceInjector == null) {
+      log.warn(
+          "No injector contract can be synchronised for payload '{}' (id={}, tenant={}): no"
+              + " payload-capable injector found in that tenant (visible payload-capable injectors:"
+              + " {})",
+          payload.getName(),
+          payload.getId(),
+          payloadTenantId,
+          allPayloadInjectors.stream()
+              .map(injector -> injector.getName() + "@" + injector.getTenantId())
+              .toList());
       return null;
     }
 
