@@ -7,6 +7,9 @@ import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
 import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
+import io.openaev.secrets.provider.SecretValidationResult;
+import io.openaev.secrets.provider.impl.validators.AzureCredentialValidator;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
@@ -17,7 +20,10 @@ import org.springframework.stereotype.Component;
  * assume are stored.
  */
 @Component
+@RequiredArgsConstructor
 public class AzureManagedIdentityHandler implements SecretHandler {
+
+  private final AzureCredentialValidator azureCredentialValidator;
 
   @Override
   public boolean supports(Secret secret) {
@@ -70,5 +76,23 @@ public class AzureManagedIdentityHandler implements SecretHandler {
     }
     throw new IllegalArgumentException(
         "Secret type mismatch: expected AZURE_MANAGED_IDENTITY secret");
+  }
+
+  /**
+   * Probes the managed identity through IMDS.
+   *
+   * <p>Only conclusive when the platform runs inside Azure; anywhere else IMDS is unreachable and
+   * the validator reports an inconclusive result, leaving the stored status untouched.
+   */
+  @Override
+  public SecretValidationResult validateConnection(Secret secret) {
+    if (!(secret instanceof AzureManagedIdentitySecret azureSecret)) {
+      throw new IllegalArgumentException(
+          "Secret type mismatch: expected AZURE_MANAGED_IDENTITY secret");
+    }
+    return azureCredentialValidator.validateManagedIdentity(
+        azureSecret.getAzureEnvironment(),
+        azureSecret.getAzureClientId(),
+        azureSecret.getAzureSubscriptionId());
   }
 }

@@ -1,5 +1,6 @@
 package io.openaev.scheduler;
 
+import static io.openaev.scheduler.jobs.CredentialsStatusValidatorJob.CREDENTIALS_STATUS_VALIDATOR_JOB;
 import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_JOB;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_JOB;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_JOB;
@@ -168,6 +169,14 @@ public class PlatformJobDefinitions {
   public JobDetail urlAccessTokenPurgeJobDetail() {
     return JobBuilder.newJob(UrlAccessTokenPurgeJob.class)
         .withIdentity(URL_ACCESS_TOKEN_PURGE_JOB)
+        .storeDurably()
+        .build();
+  }
+
+  @Bean
+  public JobDetail credentialsStatusValidatorJobDetail() {
+    return JobBuilder.newJob(CredentialsStatusValidatorJob.class)
+        .withIdentity(CREDENTIALS_STATUS_VALIDATOR_JOB)
         .storeDurably()
         .build();
   }

@@ -7,6 +7,8 @@ import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
 import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
+import io.openaev.secrets.provider.SecretValidationResult;
+import io.openaev.secrets.provider.impl.validators.AzureCredentialValidator;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Component;
 public class AzureServicePrincipalHandler implements SecretHandler {
 
   protected final NativeEncryptionService nativeEncryptionService;
+  private final AzureCredentialValidator azureCredentialValidator;
 
   @Override
   public boolean supports(Secret secret) {
@@ -80,5 +83,25 @@ public class AzureServicePrincipalHandler implements SecretHandler {
     }
     throw new IllegalArgumentException(
         "Secret type mismatch: expected AZURE_SERVICE_PRINCIPAL secret");
+  }
+
+  /**
+   * Decrypts the stored client secret and probes Entra ID with it.
+   *
+   * <p>The plaintext is built here and handed straight to the validator: it is never logged, never
+   * stored on the entity, and never travels back in the result.
+   */
+  @Override
+  public SecretValidationResult validateConnection(Secret secret) {
+    if (!(secret instanceof AzureServicePrincipalSecret azureSecret)) {
+      throw new IllegalArgumentException(
+          "Secret type mismatch: expected AZURE_SERVICE_PRINCIPAL secret");
+    }
+    return azureCredentialValidator.validateServicePrincipal(
+        azureSecret.getAzureEnvironment(),
+        azureSecret.getAzureTenantId(),
+        azureSecret.getAzureClientId(),
+        nativeEncryptionService.decrypt(azureSecret.getAzureClientSecret()),
+        azureSecret.getAzureSubscriptionId());
   }
 }
