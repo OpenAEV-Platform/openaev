@@ -3,7 +3,7 @@ package io.openaev.api.users.dto;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.User;
-import io.openaev.execution.ProtectUser;
+import io.openaev.injector_contract.variables.contract.UserContract;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -28,15 +28,15 @@ public class UserMapper {
    * @param protectUser to map
    * @return mapped User
    */
-  public static User fromProtectUser(ProtectUser protectUser) {
+  public static User fromUserContract(UserContract protectUser) {
     User user = new User();
-    user.setId(protectUser.getId());
-    user.setEmail(protectUser.getEmail());
-    user.setFirstname(protectUser.getFirstname());
-    user.setLastname(protectUser.getLastname());
-    user.setLang(protectUser.getLang());
-    user.setPgpKey(protectUser.getPgpKey());
-    user.setPhone(protectUser.getPhone());
+    user.setId(protectUser.id());
+    user.setEmail(protectUser.email());
+    user.setFirstname(protectUser.firstname());
+    user.setLastname(protectUser.lastname());
+    user.setLang(protectUser.lang());
+    user.setPgpKey(protectUser.pgpKey());
+    user.setPhone(protectUser.phone());
     return user;
   }
 

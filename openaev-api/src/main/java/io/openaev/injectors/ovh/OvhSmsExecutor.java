@@ -9,11 +9,11 @@ import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.Inject;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
-import io.openaev.execution.ProtectUser;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
 import io.openaev.expectation.Expectation;
 import io.openaev.expectation.ManualExpectation;
+import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.injectors.ovh.model.OvhSmsContent;
 import io.openaev.injectors.ovh.service.OvhSmsService;
 import io.openaev.model.ExecutionProcess;
@@ -59,14 +59,13 @@ public class OvhSmsExecutor extends Injector {
         .parallel()
         .forEach(
             context -> {
-              ProtectUser user = context.getUser();
-              String phone = user.getPhone();
-              String email = user.getEmail();
+              UserContract user = context.getUser();
+              String phone = user.phone();
+              String email = user.email();
               if (!StringUtils.hasLength(phone)) {
                 String message = "Sms fail for " + email + ": no phone number";
                 execution.addTrace(
-                    getNewErrorTrace(
-                        message, ExecutionTraceAction.COMPLETE, List.of(user.getId())));
+                    getNewErrorTrace(message, ExecutionTraceAction.COMPLETE, List.of(user.id())));
               } else {
                 try {
                   String callResult = smsService.sendSms(context, phone, smsMessage);
@@ -86,18 +85,18 @@ public class OvhSmsExecutor extends Injector {
                             + ")";
                     execution.addTrace(
                         getNewErrorTrace(
-                            message, ExecutionTraceAction.COMPLETE, List.of(user.getId())));
+                            message, ExecutionTraceAction.COMPLETE, List.of(user.id())));
                   } else {
                     String message =
                         "Sms sent to " + email + " through " + phone + " (" + callResult + ")";
                     execution.addTrace(
                         getNewSuccessTrace(
-                            message, ExecutionTraceAction.COMPLETE, List.of(user.getId())));
+                            message, ExecutionTraceAction.COMPLETE, List.of(user.id())));
                   }
                 } catch (Exception e) {
                   execution.addTrace(
                       getNewErrorTrace(
-                          e.getMessage(), ExecutionTraceAction.COMPLETE, List.of(user.getId())));
+                          e.getMessage(), ExecutionTraceAction.COMPLETE, List.of(user.id())));
                 }
               }
             });
