@@ -589,16 +589,50 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
-   * Ends a step and checks whether the workflow can be marked as finished.
+   * Moves the step from RUN to END once the inject is terminal (EXECUTED/PARTIAL/ERROR) and has
+   * both execution traces and fully resolved expectations. Called on every ExternalUpdateEvent
+   * since any event may be the one completing the step.
    *
    * @param stepRun the step to end
-   * @param workflow the workflow containing the step
    */
   @Override
-  public void end(Step stepRun, Workflow workflow) {
-    // todo Condition end of step
-    // todo check if every output has been received
-    // Get all step with id workflow = X if all end workflow = END;
+  public void end(Step stepRun) throws ChainingException {
+    if (!StepStatus.RUN.equals(stepRun.getStatus())) {
+      return;
+    }
+
+    String data = stepRun.getData();
+    String injectId = StepService.getField(data, "inject_id");
+    if (injectId == null || injectId.isBlank()) {
+      log.info("No inject ID found for step ID: {}", stepRun.getId());
+      return;
+    }
+
+    Inject inject = injectService.inject(injectId);
+    InjectStatus injectStatus = inject.getStatus().orElse(null);
+    if (injectStatus == null || injectStatus.getName() == null) {
+      return;
+    }
+
+    boolean injectIsTerminal =
+        injectStatus.getName().isSuccess() || injectStatus.getName().isError();
+    if (!injectIsTerminal) {
+      return;
+    }
+
+    List<BaseInjectExpectation> expectations = injectExpectationService.findAllByInjectId(injectId);
+
+    boolean hasExecutionTraces = !injectStatus.getTraces().isEmpty();
+    boolean allExpectationsResolved =
+        expectations.stream().noneMatch(expectation -> expectation.getResults().isEmpty());
+
+    if (hasExecutionTraces && allExpectationsResolved) {
+      log.info(
+          "[Chaining] Step {} output matches inject terminal status {}. Moving step to END.",
+          stepRun.getId(),
+          injectStatus.getName());
+      stepRun.setStatus(StepStatus.END);
+    }
   }
 
   // -------------------
