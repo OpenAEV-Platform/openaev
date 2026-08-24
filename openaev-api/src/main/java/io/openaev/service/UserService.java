@@ -53,6 +53,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -171,9 +172,7 @@ public class UserService {
     if (StringUtils.hasLength(password)) {
       user.setPassword(this.encodeUserPassword(password));
     }
-    List<Group> assignableGroups =
-        groupRepository.findAll(GroupSpecification.defaultUserAssignablePlatform());
-    user.setGroups(assignableGroups);
+    syncAutoAssignGroups(user);
     User savedUser = userRepository.save(user);
     this.createUserToken(savedUser, token);
     return savedUser;
@@ -242,6 +241,7 @@ public class UserService {
         new ArrayList<>(
             referenceResolver.resolve(
                 input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
+    syncAutoAssignGroups(existing);
     User savedUser = userRepository.save(existing);
     // Evict cache for old tenants (removed memberships) and new tenants (added memberships)
     List<String> newTenantIds = input.tenantIds() != null ? input.tenantIds() : List.of();
@@ -547,5 +547,28 @@ public class UserService {
 
   public Optional<User> findByEmailIgnoreCase(String email) {
     return userRepository.findByEmailIgnoreCase(email);
+  }
+
+  /**
+   * Ensures the user holds every default-assign group applicable to their current scope:
+   * platform-scoped auto-assign groups, plus the auto-assign groups of each tenant they are
+   * attached to. Never removes an existing group membership.
+   */
+  private void syncAutoAssignGroups(User user) {
+    Specification<Group> spec = GroupSpecification.defaultUserAssignablePlatform();
+    for (Tenant tenant : user.getTenants()) {
+      spec = spec.or(GroupSpecification.defaultUserAssignableTenant(tenant.getId()));
+    }
+    List<Group> applicableGroups = groupRepository.findAll(spec);
+    if (applicableGroups.isEmpty()) {
+      return;
+    }
+    List<Group> current = new ArrayList<>(user.getUnscopedGroups());
+    for (Group group : applicableGroups) {
+      if (!current.contains(group)) {
+        current.add(group);
+      }
+    }
+    user.setGroups(current);
   }
 }
