@@ -86,7 +86,7 @@ See the domain-specific instruction files in `.github/instructions/` for detaile
 
 Before creating a pull request, validate locally:
 
-1. **Formatting**: `mvn spotless:check` (or via Docker: `docker run --rm -v $(pwd):/app -w /app maven:3.9-eclipse-temurin-21 mvn spotless:check`)
+1. **Formatting**: `mvn spotless:check` (or via Docker: `docker run --rm -v $(pwd):/app -w /app maven:3.9-eclipse-temurin-21-noble mvn spotless:check`)
 2. **PR title**: Must match `type(scope?): description (#issue)` — no `[context]` prefix. The `openaev-pr-checks` GitHub App validates this pattern; titles with extra prefixes (e.g. `[backend]`) will be rejected.
 3. **Compile**: `mvn compile -DskipTests` (or via Docker)
 4. **Frontend** (if changed): `cd openaev-front && yarn check-ts && yarn lint`
