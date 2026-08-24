@@ -1,6 +1,7 @@
 import { AddOutlined, CenterFocusStrongOutlined, RemoveOutlined } from '@mui/icons-material';
 import { Box, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { toBlob } from 'html-to-image';
 import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -78,6 +79,14 @@ interface AttackPathCanvasProps {
   showMiniMap?: boolean;
   /** Overlay rendered in the bottom-right stack, under the minimap (the graph legend). */
   legend?: ReactNode;
+  /**
+   * Capture the WHOLE graph as a PNG; nonce re-fires on repeat. The capture is driven from here
+   * rather than from the parent because only the canvas knows the world geometry and can lift the
+   * off-screen culling that keeps the DOM small — culled cards would be missing from the image.
+   */
+  exportRequest?: number;
+  /** Result of an {@link AttackPathCanvasProps#exportRequest}: null when the capture failed. */
+  onExportDone?: (png: Blob | null) => void;
 }
 
 interface Camera {
@@ -96,6 +105,19 @@ const INITIAL_MAX_ZOOM = 1.1;
 const ZOOM_STEP = 1.15;
 const DRAG_THRESHOLD = 4;
 const CULL_MARGIN = 240;
+// Margin kept around the graph in an exported PNG, so no card touches the image edge.
+const EXPORT_PADDING = 48;
+// Browsers refuse canvases beyond ~16k on a side or ~2^28 pixels, and answer with a blank image
+// rather than an error: a huge graph is captured at a lower density instead.
+const MAX_EXPORT_SIDE = 8192;
+const MAX_EXPORT_PIXELS = 32_000_000;
+const exportPixelRatio = (width: number, height: number) => Math.min(
+  2,
+  window.devicePixelRatio || 1,
+  MAX_EXPORT_SIDE / width,
+  MAX_EXPORT_SIDE / height,
+  Math.sqrt(MAX_EXPORT_PIXELS / (width * height)),
+);
 // After a manual pan/zoom/fit, live pursuit stays hands-off for this long before following again,
 // so the user can inspect (or hold the full overview) without the camera being snatched away.
 const PURSUIT_MANUAL_PAUSE_MS = 6000;
@@ -130,10 +152,16 @@ const AttackPathCanvas = ({
   anchorRequest,
   showMiniMap = true,
   legend,
+  exportRequest,
+  onExportDone,
 }: AttackPathCanvasProps) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const containerRef = useRef<HTMLDivElement>(null);
+  const worldRef = useRef<HTMLDivElement>(null);
+  // While true the whole world is mounted (no culling) and entrance animations are off, so a PNG
+  // capture sees a complete, settled graph.
+  const [exporting, setExporting] = useState(false);
   const [camera, setCamera] = useState<Camera>({
     zoom: 1,
     x: 0,
@@ -691,7 +719,8 @@ const AttackPathCanvas = ({
   // Cull off-screen cards: with hundreds of nodes only mount those whose screen rect intersects the
   // viewport (expanded by a margin so cards just outside slide in without a pop).
   const visibleNodes = useMemo(() => {
-    if (size.w === 0) {
+    // A PNG export captures the DOM: everything must be mounted, culled or not.
+    if (size.w === 0 || exporting) {
       return nodes;
     }
     const left = -CULL_MARGIN;
@@ -709,7 +738,88 @@ const AttackPathCanvas = ({
       const sh = r.height * camera.zoom;
       return sx + sw >= left && sx <= right && sy + sh >= top && sy <= bottom;
     });
-  }, [nodes, effectiveRects, camera, size]);
+  }, [nodes, effectiveRects, camera, size, exporting]);
+
+  // Frame of an exported PNG: the auto-layout world, widened to also contain cards the user dragged
+  // outside of it, plus a margin — so nothing is cropped whatever the current pan/zoom is.
+  const exportFrame = useCallback(() => {
+    let minX = 0;
+    let minY = 0;
+    let maxX = worldWidth;
+    let maxY = worldHeight;
+    effectiveRects.forEach((r) => {
+      minX = Math.min(minX, r.x);
+      minY = Math.min(minY, r.y);
+      maxX = Math.max(maxX, r.x + r.width);
+      maxY = Math.max(maxY, r.y + r.height);
+    });
+    return {
+      width: maxX - minX + EXPORT_PADDING * 2,
+      height: maxY - minY + EXPORT_PADDING * 2,
+      offsetX: EXPORT_PADDING - minX,
+      offsetY: EXPORT_PADDING - minY,
+    };
+  }, [effectiveRects, worldWidth, worldHeight]);
+  const exportFrameRef = useRef(exportFrame);
+  exportFrameRef.current = exportFrame;
+  const onExportDoneRef = useRef(onExportDone);
+  onExportDoneRef.current = onExportDone;
+
+  // An export first switches the canvas into export mode (see `exporting`), because the culled
+  // cards have to be mounted before the DOM can be captured. The nonce is tracked so a REMOUNT (a
+  // trip through the table view, say) does not replay the last capture.
+  const handledExportRef = useRef(exportRequest ?? 0);
+  useEffect(() => {
+    if (exportRequest && exportRequest !== handledExportRef.current) {
+      handledExportRef.current = exportRequest;
+      setExporting(true);
+    }
+  }, [exportRequest]);
+
+  // Effects run after the commit, so by now every card is in the DOM; one frame then lets the
+  // browser lay them out before their computed styles are read.
+  useEffect(() => {
+    if (!exporting) {
+      return undefined;
+    }
+    let settled = false;
+    const done = (png: Blob | null) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      onExportDoneRef.current?.(png);
+      setExporting(false);
+    };
+    const frame = requestAnimationFrame(() => {
+      const world = worldRef.current;
+      if (!world) {
+        done(null);
+        return;
+      }
+      const { width, height, offsetX, offsetY } = exportFrameRef.current();
+      toBlob(world, {
+        width,
+        height,
+        pixelRatio: exportPixelRatio(width, height),
+        backgroundColor: theme.palette.background.default,
+        // Applied to the clone only: it replaces the live camera transform, so the capture frames
+        // the whole world whatever the user's current pan/zoom is.
+        style: {
+          transform: `translate(${offsetX}px, ${offsetY}px)`,
+          transformOrigin: '0 0',
+        },
+      })
+        .then(png => done(png))
+        .catch(() => done(null));
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      // Torn down before the capture produced anything: answer, so the caller is not left waiting
+      // on a blob that will never come. A capture that already answered ignores this.
+      done(null);
+    };
+  }, [exporting, theme.palette.background.default]);
 
   const controlButtonSx = {
     'padding': 0.75,
@@ -778,6 +888,7 @@ const AttackPathCanvas = ({
       }}
     >
       <Box
+        ref={worldRef}
         sx={{
           position: 'absolute',
           top: 0,
@@ -794,7 +905,8 @@ const AttackPathCanvas = ({
           if (!r) {
             return null;
           }
-          const isEntering = enterNodeIds?.has(node.id) ?? false;
+          // A card mid-entrance is half faded: freeze the animation off while capturing a PNG.
+          const isEntering = !exporting && (enterNodeIds?.has(node.id) ?? false);
           return (
             <Box
               key={node.id}
