@@ -48,6 +48,10 @@ public class Token implements Base {
   @NotNull
   private Instant created;
 
+  @Column(name = "token_deleted_at")
+  @JsonProperty("token_deleted_at")
+  private Instant deletedAt;
+
   @Override
   public boolean isUserHasAccess(User user) {
     if (user.isAdmin()) {

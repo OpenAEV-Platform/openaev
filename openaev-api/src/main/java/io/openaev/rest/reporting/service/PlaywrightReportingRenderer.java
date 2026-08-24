@@ -190,7 +190,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
         actingUser == null
             ? null
             : this.tokenRepository
-                .findFirstByUserIdOrderByCreatedAsc(actingUser.getId())
+                .findFirstByUserIdAndDeletedAtIsNullOrderByCreatedAsc(actingUser.getId())
                 .map(Token::getValue)
                 .orElse(null);
     if (tokenValue == null) {

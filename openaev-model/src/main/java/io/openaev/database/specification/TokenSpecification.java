@@ -8,4 +8,8 @@ public class TokenSpecification {
   public static Specification<Token> fromUser(String userId) {
     return (root, query, cb) -> cb.equal(root.get("user").get("id"), userId);
   }
+
+  public static Specification<Token> active() {
+    return (root, query, cb) -> cb.isNull(root.get("deletedAt"));
+  }
 }

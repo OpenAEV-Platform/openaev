@@ -13,7 +13,7 @@ public class ObjectNormalizationPolicy {
   public static final Set<String> DIFF_SKIP_FIELDS = Set.of("type");
 
   private static final Set<String> GLOBAL_DENYLIST_FIELDS =
-      Set.of("password", "secret", "token", "api_key", "authorization");
+      Set.of("password", "secret", "token", "token_value", "api_key", "authorization");
 
   private static final Map<String, Set<String>> ENTITY_DENYLIST_FIELDS =
       Map.of(

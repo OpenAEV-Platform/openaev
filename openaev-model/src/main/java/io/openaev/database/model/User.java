@@ -23,6 +23,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
@@ -286,6 +287,7 @@ public class User implements Base {
 
   @Setter
   @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+  @SQLRestriction("token_deleted_at IS NULL")
   @JsonIgnore
   private List<Token> tokens = new ArrayList<>();
 

@@ -18,16 +18,17 @@ public interface TokenRepository
   @NotNull
   Optional<Token> findById(@NotNull String id);
 
-  Optional<Token> findByValue(String value);
+  Optional<Token> findByIdAndDeletedAtIsNull(String id);
+
+  Optional<Token> findByValueAndDeletedAtIsNull(String value);
 
   /**
    * Oldest (most stable) API token of a user. Used by the reporting renderer to authenticate the
    * headless browser as the acting user; the token value never leaves the server process.
    */
-  Optional<Token> findFirstByUserIdOrderByCreatedAsc(String userId);
+  Optional<Token> findFirstByUserIdAndDeletedAtIsNullOrderByCreatedAsc(String userId);
 
-  /** Returns true if the given user has at least one token. */
-  boolean existsByUserId(String userId);
+  boolean existsByUserIdAndDeletedAtIsNull(String userId);
 
   // -- ADMIN --
 

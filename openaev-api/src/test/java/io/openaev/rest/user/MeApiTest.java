@@ -1,10 +1,14 @@
 package io.openaev.rest.user;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -14,8 +18,11 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.TokenRepository;
+import io.openaev.database.specification.TokenSpecification;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
@@ -26,6 +33,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -37,6 +45,7 @@ public class MeApiTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private PlatformGroupComposer platformGroupComposer;
   @Autowired private GroupRepository groupRepository;
+  @Autowired private TokenRepository tokenRepository;
 
   @Nested
   @DisplayName("GET /api/me")
@@ -76,6 +85,76 @@ public class MeApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("POST /api/me/token/refresh")
+  @WithMockUser(isAdmin = true)
+  class RenewToken {
+
+    @Test
+    @DisplayName("given_ownedActiveToken_should_softDeleteOldToken_and_createNewActiveToken")
+    void given_ownedActiveToken_should_softDeleteOldToken_and_createNewActiveToken()
+        throws Exception {
+      // Arrange
+      User user = testUserHolder.get();
+      Token token = new Token();
+      token.setUser(user);
+      token.setValue("old-token-value-" + System.nanoTime());
+      token.setCreated(java.time.Instant.now());
+      Token persistedToken = tokenRepository.save(token);
+
+      // Act
+      MvcResult result =
+          mvc.perform(
+                  post(MeApi.ME_URI + "/token/refresh")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content("{\"token_id\":\"" + persistedToken.getId() + "\"}")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+              .andReturn();
+
+      // Assert
+      String response = result.getResponse().getContentAsString();
+      String renewedTokenId = JsonPath.read(response, "$.token_id");
+
+      Token oldToken = tokenRepository.findById(persistedToken.getId()).orElseThrow();
+      Token newToken = tokenRepository.findById(renewedTokenId).orElseThrow();
+
+      assertNotNull(oldToken.getDeletedAt());
+      assertTrue(oldToken.getValue().startsWith("[RENEWED:"));
+      assertNotEquals(persistedToken.getValue(), oldToken.getValue());
+      assertTrue(
+          tokenRepository.findByValueAndDeletedAtIsNull(persistedToken.getValue()).isEmpty());
+
+      assertNotEquals(oldToken.getId(), newToken.getId());
+      assertTrue(newToken.getDeletedAt() == null);
+      assertTrue(newToken.getUser().getId().equals(user.getId()));
+    }
+
+    @Test
+    @DisplayName("given_deletedToken_should_notRenewToken")
+    void given_deletedToken_should_notRenewToken() throws Exception {
+      // Arrange
+      User user = testUserHolder.get();
+      Token token = new Token();
+      token.setUser(user);
+      token.setValue("deleted-token-value-" + System.nanoTime());
+      token.setCreated(java.time.Instant.now());
+      token.setDeletedAt(java.time.Instant.now());
+      Token deletedToken = tokenRepository.save(token);
+
+      // Act & Assert
+      mvc.perform(
+              post(MeApi.ME_URI + "/token/refresh")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"token_id\":\"" + deletedToken.getId() + "\"}")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+    }
+  }
+
+  @Nested
   @DisplayName("GET /api/me/tokens")
   @WithMockUser(isAdmin = true)
   class GetMyTokens {
@@ -83,13 +162,31 @@ public class MeApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should return list of tokens for current user")
     void given_authenticatedUser_should_returnTokenList() throws Exception {
-      // -------- Arrange --------
-      // No specific setup needed — uses the mock user from @WithMockUser
+      // Arrange
+      User user = testUserHolder.get();
+      Token activeToken = new Token();
+      activeToken.setUser(user);
+      activeToken.setValue("active-token-" + System.nanoTime());
+      activeToken.setCreated(java.time.Instant.now());
+      tokenRepository.save(activeToken);
 
-      // -------- Act & Assert --------
+      Token deletedToken = new Token();
+      deletedToken.setUser(user);
+      deletedToken.setValue("deleted-token-" + System.nanoTime());
+      deletedToken.setCreated(java.time.Instant.now());
+      deletedToken.setDeletedAt(java.time.Instant.now());
+      tokenRepository.save(deletedToken);
+
+      // Act & Assert
       mvc.perform(get(MeApi.ME_URI + "/tokens").accept(MediaType.APPLICATION_JSON).with(csrf()))
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$").isArray());
+          .andExpect(jsonPath("$").isArray())
+          .andExpect(jsonPath("$[?(@.token_deleted_at != null)]").isEmpty());
+
+      List<Token> activeTokens =
+          tokenRepository.findAll(
+              TokenSpecification.fromUser(user.getId()).and(TokenSpecification.active()));
+      assertTrue(activeTokens.stream().noneMatch(t -> t.getDeletedAt() != null));
     }
   }
 
