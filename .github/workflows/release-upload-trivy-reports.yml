@@ -26,7 +26,7 @@ jobs:
         with:
           script: |
             const tag = context.eventName === 'workflow_dispatch'
-              ? core.getInput('tag')
+              ? context.payload.inputs?.tag
               : context.payload.release?.tag_name;
             if (!tag) {
               core.notice('No release tag provided');
