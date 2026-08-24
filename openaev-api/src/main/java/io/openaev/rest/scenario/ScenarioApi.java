@@ -147,10 +147,14 @@ public class ScenarioApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public Scenario createScenarioWithInjectorContracts(
-      @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
+      // TxCtx is still declared so the resolver injects the request scope; there is no real
+      // transaction here to write the GUC into (SUPPORTS), so it is passed down manually into
+      // ScenarioService's own @Transactional method.
+      TxCtx ctx, @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
     return BulkOperationContext.runSuppressed(
         () ->
             this.scenarioService.createScenarioWithInjectorContracts(
+                ctx,
                 TenantContext.getCurrentTenant(),
                 inputs.getScenarioInput(),
                 inputs.getInjectorContractSearchPaginationInput(),
@@ -167,10 +171,14 @@ public class ScenarioApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public List<Scenario> updateScenariosWithInjectorContracts(
-      @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
+      // TxCtx is still declared so the resolver injects the request scope; there is no real
+      // transaction here to write the GUC into (SUPPORTS), so it is passed down manually into
+      // ScenarioService's own @Transactional method.
+      TxCtx ctx, @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
     return BulkOperationContext.runSuppressed(
         () ->
             this.scenarioService.updateScenariosWithInjectorContracts(
+                ctx,
                 inputs.getScenarioIds(),
                 inputs.getInjectorContractSearchPaginationInput(),
                 inputs.getLocale()));
@@ -403,8 +411,12 @@ public class ScenarioApi extends RestBehavior {
   @PostMapping({SCENARIO_URI + "/import", TENANT_SCENARIO_URI + "/import"})
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
-  public ImportResult importScenario(@RequestPart("file") @NotNull MultipartFile file)
-      throws Exception {
+  public ImportResult importScenario(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (the V1_DataImporter resolves InjectorContract#getFirstInjector() and
+      // InjectorService#injectorTypeExists(...), both v2 tenant-scoped through the injectors
+      // table; without a scope, imported injects silently lose their injector).
+      TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file) throws Exception {
     return this.importService.handleFileImport(file, null, null);
   }
 

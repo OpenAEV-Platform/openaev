@@ -57,6 +57,7 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -785,7 +786,7 @@ public class ExerciseService {
               // Single END transition (also freezes the end scope snapshot once - ADR-006):
               // never set the status directly, or the canceled run keeps drifting "during
               // execution" forever.
-              workflowService.endWorkflow(workflow);
+              workflowService.endWorkflow(workflow, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
               List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
               steps.forEach(step -> step.setStatus(StepStatus.END));
               stepsToUpdate.addAll(steps);

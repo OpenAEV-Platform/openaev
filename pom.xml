@@ -10,7 +10,7 @@
 
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>3.260818.1</version>
+    <version>3.260821.0</version>
     <packaging>pom</packaging>
 
     <name>OpenAEV platform</name>
@@ -41,9 +41,11 @@
         <velocity-engine-core.version>2.4.1</velocity-engine-core.version>
         <logback.version>1.6.3</logback.version>
         <log4j2.version>2.25.5</log4j2.version>
-        <httpclient5.version>5.6.3</httpclient5.version>
+        <httpclient5.version>5.6.4</httpclient5.version>
         <kotlin.version>2.1.21</kotlin.version>
         <opentelemetry.version>1.65.0</opentelemetry.version>
+        <amqp-client.version>5.34.0</amqp-client.version>
+        <rabbit-amqp-client.version>${amqp-client.version}</rabbit-amqp-client.version>
     </properties>
 
     <distributionManagement>
@@ -215,7 +217,7 @@
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
-                <version>3.9.0</version>
+                <version>3.10.0</version>
                 <configuration>
                     <java>
                         <includes>

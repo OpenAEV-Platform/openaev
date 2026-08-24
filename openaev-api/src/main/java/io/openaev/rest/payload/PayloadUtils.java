@@ -219,9 +219,13 @@ public class PayloadUtils {
           .getArguments()
           .forEach(argument -> argumentsByKey.putIfAbsent(argument.getKey(), argument));
       target.setArguments(new ArrayList<>(argumentsByKey.values()));
+    } else {
+      target.setArguments(new ArrayList<>());
     }
     if (target.getPrerequisites() != null) {
       target.setPrerequisites(new ArrayList<>(new LinkedHashSet<>(target.getPrerequisites())));
+    } else {
+      target.setPrerequisites(new ArrayList<>());
     }
   }
 
