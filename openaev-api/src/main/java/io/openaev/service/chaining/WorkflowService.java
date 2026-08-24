@@ -959,13 +959,14 @@ public class WorkflowService {
     return copy;
   }
 
+  @Transactional(rollbackFor = Exception.class)
   public void cancelSimulationEndWorkflowRun(List<Workflow> workflows) {
     List<Step> stepsToUpdate = new ArrayList<>();
     List<String> injectsIds = new ArrayList<>();
     workflows.forEach(
         workflow -> {
           // Workflow -> END transition (also freezes the end scope snapshot - ADR-006):
-          endWorkflow(workflow);
+          endWorkflow(workflow, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
 
           // Step delay queue -> DELETE
           stepDelayQueueService.deleteAllByWorkflowRun(workflow);
@@ -1541,7 +1542,6 @@ public class WorkflowService {
    *
    * @param workflowRun the running workflow to end
    */
-  @Transactional(rollbackFor = Exception.class)
   public void endWorkflow(Workflow workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
     workflowEndService.endWorkflow(workflowRun, cause);
   }
