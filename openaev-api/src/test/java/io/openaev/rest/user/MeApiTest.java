@@ -100,6 +100,7 @@ public class MeApiTest extends IntegrationTest {
       token.setValue("old-token-value-" + System.nanoTime());
       token.setCreated(java.time.Instant.now());
       Token persistedToken = tokenRepository.save(token);
+      String oldTokenValue = persistedToken.getValue();
 
       // Act
       MvcResult result =
@@ -122,9 +123,8 @@ public class MeApiTest extends IntegrationTest {
 
       assertNotNull(oldToken.getDeletedAt());
       assertTrue(oldToken.getValue().startsWith("[RENEWED:"));
-      assertNotEquals(persistedToken.getValue(), oldToken.getValue());
-      assertTrue(
-          tokenRepository.findByValueAndDeletedAtIsNull(persistedToken.getValue()).isEmpty());
+      assertNotEquals(oldTokenValue, oldToken.getValue());
+      assertTrue(tokenRepository.findByValueAndDeletedAtIsNull(oldTokenValue).isEmpty());
 
       assertNotEquals(oldToken.getId(), newToken.getId());
       assertTrue(newToken.getDeletedAt() == null);

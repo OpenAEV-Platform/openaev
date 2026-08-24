@@ -52,6 +52,7 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
@@ -109,7 +110,7 @@ public class UserService {
   private final RandomUtils randomUtils;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
   private final TenantScopedTransaction tenantTx;
-  private final Optional<AuditLogger> auditLogger;
+  private final ObjectProvider<AuditLogger> auditLoggerProvider;
 
   /** Cache for admin users to improve lookup performance. */
   private Cache adminCache;
@@ -501,29 +502,27 @@ public class UserService {
     token.setValue(discreteToken);
     Token createdToken = tokenRepository.save(token);
     User actor = currentUserOrNull();
-    auditLogger.ifPresent(
-        logger -> {
-          Map<String, Object> contextData = new LinkedHashMap<>();
-          contextData.put("token_id", createdToken.getId());
-          contextData.put(
-              "token_user_id",
-              createdToken.getUser() != null ? createdToken.getUser().getId() : null);
-          contextData.put("actor_user_id", actor != null ? actor.getId() : null);
-          contextData.put("timestamp", now());
+    AuditLogger auditLogger = auditLoggerProvider.getIfAvailable();
+    if (auditLogger != null) {
+      Map<String, Object> contextData = new LinkedHashMap<>();
+      contextData.put("token_id", createdToken.getId());
+      contextData.put(
+          "token_user_id", createdToken.getUser() != null ? createdToken.getUser().getId() : null);
+      contextData.put("actor_user_id", actor != null ? actor.getId() : null);
+      contextData.put("timestamp", now());
 
-          logger.logEvent(
-              AuditEvent.builder()
-                  .eventType(EventType.MUTATION)
-                  .eventScope(AuditEventScope.CREATE)
-                  .eventStatus(EventStatus.SUCCESS)
-                  .resourceType(ResourceType.USER)
-                  .resourceId(
-                      createdToken.getUser() != null ? createdToken.getUser().getId() : null)
-                  .contextData(contextData)
-                  .message("User token created")
-                  .origin(actor != null ? AuditEventOrigin.REQUEST : AuditEventOrigin.SYSTEM)
-                  .build());
-        });
+      auditLogger.logEvent(
+          AuditEvent.builder()
+              .eventType(EventType.MUTATION)
+              .eventScope(AuditEventScope.CREATE)
+              .eventStatus(EventStatus.SUCCESS)
+              .resourceType(ResourceType.USER)
+              .resourceId(createdToken.getUser() != null ? createdToken.getUser().getId() : null)
+              .contextData(contextData)
+              .message("User token created")
+              .origin(actor != null ? AuditEventOrigin.REQUEST : AuditEventOrigin.SYSTEM)
+              .build());
+    }
     return createdToken;
   }
 
