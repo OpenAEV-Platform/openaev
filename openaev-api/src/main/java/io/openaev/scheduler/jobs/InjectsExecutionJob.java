@@ -81,6 +81,8 @@ public class InjectsExecutionJob implements Job {
   // Thread-safe and expensive to instantiate; never recreate per dependency evaluation
   private static final ExpressionParser SPEL_PARSER = new SpelExpressionParser();
 
+  private static final String ATOMIC_BATCH_KEY = "atomic";
+
   @Value("${openaev.notification.simulation-completed-delay-seconds:3600}")
   private long delayForSimulationCompletedEvent;
 
@@ -494,6 +496,18 @@ public class InjectsExecutionJob implements Job {
       Map<String, List<ExecutableInject>> byExercises =
           injects.stream()
               .filter(
+                  executableInject -> {
+                    Inject inject = executableInject.getInjection().getInject();
+                    if (inject.getTenant() != null) {
+                      return true;
+                    }
+                    String message =
+                        "Inject " + inject.getId() + " has no tenant, cannot be executed";
+                    log.warn(message);
+                    injectStatusService.failInjectStatus(inject.getId(), message);
+                    return false;
+                  })
+              .filter(
                   executableInject ->
                       // If we got dependencies, we check that the parents are not part of the
                       // current batch of injects running. If so, we're filtering them out and
@@ -516,56 +530,49 @@ public class InjectsExecutionJob implements Job {
                   groupingBy(
                       ex ->
                           ex.getInjection().getExercise() == null
-                              ? "atomic"
+                              // Atomic injects have no exercise to group by.
+                              ? ATOMIC_BATCH_KEY
                               : ex.getInjection().getExercise().getId()));
 
-      // Execute exercise batches in parallel. Each inject execution opens its own tenant scope so
-      // nested parallel workers never share or leak tenant context.
+      // Execute exercise batches in parallel. Each inject execution resolves and opens its own
+      // tenant scope - a plain field lookup, not a DB call - so nested parallel workers never
+      // share or leak tenant context, and the correctness of the scope no longer depends on a
+      // batch being single-tenant.
       byExercises.entrySet().parallelStream()
           .forEach(
               entry -> {
-                // Atomic testing don't belong to an exercise, so it's safer to retrieve
-                // tenant from inject itself
-                Optional<String> tenantIdForEntry =
-                    entry.getValue().stream()
-                        .map(executableInject -> executableInject.getInjection().getInject())
-                        .map(Inject::getTenant)
-                        .map(Tenant::getId)
-                        .filter(Objects::nonNull)
-                        .findFirst();
-                if (tenantIdForEntry.isEmpty()) {
-                  log.warn(
-                      "Skipping inject batch for {} because tenant could not be resolved",
-                      entry.getKey());
-                  return;
-                }
-
-                String tenantId = tenantIdForEntry.orElseThrow();
-                // Execute each inject in parallel under its own scoped transaction/thread-local.
                 entry.getValue().parallelStream()
                     .forEach(
-                        executableInject ->
-                            executeInTenant(
-                                tenantId,
-                                () -> {
-                                  Inject inject = executableInject.getInjection().getInject();
-                                  try {
-                                    this.executeInject(executableInject);
-                                  } catch (RuntimeException e) {
-                                    Throwable cause = e.getCause() != null ? e.getCause() : e;
-                                    log.warn(cause.getMessage(), cause);
-                                    injectStatusService.failInjectStatus(
-                                        inject.getId(), cause.getMessage());
-                                  } catch (Exception e) {
-                                    log.warn(e.getMessage(), e);
-                                    injectStatusService.failInjectStatus(
-                                        inject.getId(), e.getMessage());
-                                  }
-                                }));
+                        executableInject -> {
+                          Inject inject = executableInject.getInjection().getInject();
+                          executeInTenant(
+                              inject.getTenant().getId(),
+                              () -> {
+                                try {
+                                  this.executeInject(executableInject);
+                                } catch (RuntimeException e) {
+                                  Throwable cause = e.getCause() != null ? e.getCause() : e;
+                                  log.warn(cause.getMessage(), cause);
+                                  injectStatusService.failInjectStatus(
+                                      inject.getId(), cause.getMessage());
+                                } catch (Exception e) {
+                                  log.warn(e.getMessage(), e);
+                                  injectStatusService.failInjectStatus(
+                                      inject.getId(), e.getMessage());
+                                }
+                              });
+                        });
 
                 // Update the exercise once all injects of the batch are processed.
-                if (!entry.getKey().equals("atomic")) {
-                  executeInTenant(tenantId, () -> updateExercise(entry.getKey()));
+                if (!entry.getKey().equals(ATOMIC_BATCH_KEY)) {
+                  entry.getValue().stream()
+                      .findFirst()
+                      .map(
+                          executableInject ->
+                              executableInject.getInjection().getInject().getTenant().getId())
+                      .ifPresent(
+                          tenantId ->
+                              executeInTenant(tenantId, () -> updateExercise(entry.getKey())));
                 }
               });
       // Change status of finished simulations.
