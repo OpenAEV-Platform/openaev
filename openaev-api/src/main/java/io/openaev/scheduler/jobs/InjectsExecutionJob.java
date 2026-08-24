@@ -519,7 +519,8 @@ public class InjectsExecutionJob implements Job {
                               ? "atomic"
                               : ex.getInjection().getExercise().getId()));
 
-      // Execute injects in parallel for each exercise.
+      // Execute exercise batches in parallel. Each inject execution opens its own tenant scope so
+      // nested parallel workers never share or leak tenant context.
       byExercises.entrySet().parallelStream()
           .forEach(
               entry -> {
@@ -539,33 +540,33 @@ public class InjectsExecutionJob implements Job {
                   return;
                 }
 
-                executeInTenant(
-                    tenantIdForEntry.orElseThrow(),
-                    () -> {
-                      // Execute each inject for the exercise in order.
-                      entry.getValue().parallelStream()
-                          .forEach(
-                              executableInject -> {
-                                Inject inject = executableInject.getInjection().getInject();
-                                try {
-                                  this.executeInject(executableInject);
-                                } catch (RuntimeException e) {
-                                  Throwable cause = e.getCause() != null ? e.getCause() : e;
-                                  log.warn(cause.getMessage(), cause);
-                                  injectStatusService.failInjectStatus(
-                                      inject.getId(), cause.getMessage());
-                                } catch (Exception e) {
-                                  log.warn(e.getMessage(), e);
-                                  injectStatusService.failInjectStatus(
-                                      inject.getId(), e.getMessage());
-                                }
-                              });
+                String tenantId = tenantIdForEntry.orElseThrow();
+                // Execute each inject in parallel under its own scoped transaction/thread-local.
+                entry.getValue().parallelStream()
+                    .forEach(
+                        executableInject ->
+                            executeInTenant(
+                                tenantId,
+                                () -> {
+                                  Inject inject = executableInject.getInjection().getInject();
+                                  try {
+                                    this.executeInject(executableInject);
+                                  } catch (RuntimeException e) {
+                                    Throwable cause = e.getCause() != null ? e.getCause() : e;
+                                    log.warn(cause.getMessage(), cause);
+                                    injectStatusService.failInjectStatus(
+                                        inject.getId(), cause.getMessage());
+                                  } catch (Exception e) {
+                                    log.warn(e.getMessage(), e);
+                                    injectStatusService.failInjectStatus(
+                                        inject.getId(), e.getMessage());
+                                  }
+                                }));
 
-                      // Update the exercise once all injects of the batch are processed.
-                      if (!entry.getKey().equals("atomic")) {
-                        updateExercise(entry.getKey());
-                      }
-                    });
+                // Update the exercise once all injects of the batch are processed.
+                if (!entry.getKey().equals("atomic")) {
+                  executeInTenant(tenantId, () -> updateExercise(entry.getKey()));
+                }
               });
       // Change status of finished simulations.
       handleInjectExpectationCollectStatus();
