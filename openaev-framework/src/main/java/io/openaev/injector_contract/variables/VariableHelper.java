@@ -83,7 +83,7 @@ public final class VariableHelper {
       variable(
           UserContract.VARIABLE_FAMILY,
           "User that will receive the injection",
-          VariableType.String,
+          VariableType.Object,
           One,
           getVariablesFromContract(UserContract.class));
 

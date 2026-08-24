@@ -23,20 +23,20 @@ public class UserMapper {
   }
 
   /**
-   * Maps a ProtectUser class to User entity.
+   * Maps a UserContract class to User entity.
    *
-   * @param protectUser to map
+   * @param userContract to map
    * @return mapped User
    */
-  public static User fromUserContract(UserContract protectUser) {
+  public static User fromUserContract(UserContract userContract) {
     User user = new User();
-    user.setId(protectUser.getId());
-    user.setEmail(protectUser.getEmail());
-    user.setFirstname(protectUser.getFirstname());
-    user.setLastname(protectUser.getLastname());
-    user.setLang(protectUser.getLang());
-    user.setPgpKey(protectUser.getPgpKey());
-    user.setPhone(protectUser.getPhone());
+    user.setId(userContract.getId());
+    user.setEmail(userContract.getEmail());
+    user.setFirstname(userContract.getFirstname());
+    user.setLastname(userContract.getLastname());
+    user.setLang(userContract.getLang());
+    user.setPgpKey(userContract.getPgpKey());
+    user.setPhone(userContract.getPhone());
     return user;
   }
 
