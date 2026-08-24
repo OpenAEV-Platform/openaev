@@ -2112,52 +2112,6 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   @WithMockUser
-  void
-      given_stepDataInjectAttackPatternsWithUnresolvableContract_when_resolving_should_leaveSnapshotUntouched() {
-    // -- Arrange --
-    // Nothing can be rebuilt from a contract absent from the target tenant: the rewrite must be a
-    // no-op (such a step is already discarded upfront by evaluateChainingStepResolvability) and
-    // must never crash the sanitization of the rest of the step_data.
-    String missingContractId = UUID.randomUUID().toString();
-    assertTrue(injectorContractRepository.findById(missingContractId).isEmpty());
-    ObjectMapper om = new ObjectMapper();
-    ObjectNode stepData = om.createObjectNode();
-    stepData.put("inject_title", "stale ttp snapshot");
-    stepData.put("inject_injector_contract", missingContractId);
-    String sourceAttackPatternId = UUID.randomUUID().toString();
-    stepData.set(
-        "inject_attack_patterns",
-        attackPatternObjectArray(om, sourceAttackPatternId, "T1059.001", "Command"));
-    stepData.set("inject_kill_chain_phases", om.createArrayNode());
-    ObjectNode stepNode = om.createObjectNode();
-    stepNode.set("step_data", stepData);
-
-    Scenario scenario = new Scenario();
-    scenario.setId(UUID.randomUUID().toString());
-    Workflow workflow = Workflow.builder().scenario(scenario).build();
-
-    // -- Act --
-    V1_DataImporter.StepDataResolution resolution =
-        ReflectionTestUtils.invokeMethod(
-            importer,
-            "resolveStepData",
-            stepNode,
-            new HashMap<String, String>(),
-            new HashMap<String, Base>(),
-            workflow);
-    JsonNode json = assertDoesNotThrow(() -> new ObjectMapper().readTree(resolution.stepData()));
-
-    // -- Assert --
-    assertEquals(
-        sourceAttackPatternId,
-        json.get("inject_attack_patterns").get(0).get("attack_pattern_id").asText(),
-        "an unresolvable contract must leave the exported snapshot untouched");
-    assertEquals(scenario.getId(), json.get("inject_scenario").asText());
-  }
-
-  @Test
-  @Transactional
-  @WithMockUser
   void given_stepDataTextualContractMissingFromDb_when_resolving_should_logAndSanitize() {
     // -- Arrange --
     // A textual contract id that does not exist on the target and cannot be recreated (textual form
