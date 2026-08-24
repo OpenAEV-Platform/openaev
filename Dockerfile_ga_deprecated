@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21.0.11_10-jre-noble AS app
+FROM eclipse-temurin:21.0.12_8-jre-noble AS app
 
 # Fixed world-readable browser path so any runtime UID finds the Chromium bundle (reporting)
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
