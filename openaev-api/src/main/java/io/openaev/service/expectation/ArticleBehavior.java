@@ -22,7 +22,7 @@ public class ArticleBehavior extends AbstractTableTopBehavior {
   }
 
   @Override
-  protected InjectExpectationResult buildDefaultPlayerResult() {
+  protected InjectExpectationResult buildDefaultPlayerResult(Double expectedScore) {
     return buildDefaultForMediaPressure();
   }
 }

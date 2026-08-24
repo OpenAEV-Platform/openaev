@@ -21,10 +21,8 @@ import io.openaev.injectors.email.service.EmailService;
 import io.openaev.model.ExecutionProcess;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ChannelExecutor extends Injector {
 
@@ -146,25 +144,29 @@ public class ChannelExecutor extends Injector {
           execution.addTrace(
               getNewInfoTrace("Email disabled for this inject", ExecutionTraceAction.EXECUTION));
         }
-        List<Expectation> expectations = new ArrayList<>();
-        if (!content.getExpectations().isEmpty()) {
-          expectations.addAll(
-              content.getExpectations().stream()
-                  .flatMap(
-                      (entry) ->
-                          switch (entry.getType()) {
-                            case MANUAL -> Stream.of((Expectation) new ManualExpectation(entry));
-                            case ARTICLE ->
-                                articles.stream()
-                                    .map(
-                                        article ->
-                                            (Expectation) new ChannelExpectation(entry, article));
-                            default -> Stream.of();
-                          })
-                  .toList());
-        }
 
-        injectExpectationService.buildAndSaveInjectExpectations(injection, expectations);
+        injectExpectationService.computeAndSaveExpectations(
+            injection,
+            content.getExpectations(),
+            null,
+            entry ->
+                switch (entry.getType()) {
+                  case MANUAL ->
+                      List.of(injectExpectationService.toExpectationTemplate(injection, entry));
+                  case ARTICLE ->
+                      articles.stream()
+                          .map(
+                              article -> {
+                                ArticleInjectExpectation template =
+                                    (ArticleInjectExpectation)
+                                        injectExpectationService.toExpectationTemplate(
+                                            injection, entry);
+                                template.setArticle(article);
+                                return (BaseInjectExpectation) template;
+                              })
+                          .toList();
+                  default -> List.of();
+                });
 
         return new ExecutionProcess(false);
       } else {

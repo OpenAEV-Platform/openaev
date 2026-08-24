@@ -21,7 +21,7 @@ public abstract class AbstractTableTopBehavior
   protected final InjectExpectationRepository injectExpectationRepository;
 
   /** Returns the default result entry for player-level expectations. */
-  protected abstract InjectExpectationResult buildDefaultPlayerResult();
+  protected abstract InjectExpectationResult buildDefaultPlayerResult(Double expectedScore);
 
   // -- INITIALIZE AND SAVE --
 
@@ -35,12 +35,10 @@ public abstract class AbstractTableTopBehavior
       TableTopInjectExpectation expectationTemplate,
       @Nullable String implantType) {
 
-    boolean isAtomicTesting = executableInject.getInjection().getInject().isAtomicTesting();
-    boolean isExerciseInject = !executableInject.isDirect();
-    boolean isChainingExecution = executableInject.isChainingExecution();
-    if (!isExerciseInject && !isAtomicTesting && !isChainingExecution) {
+    if (!shouldInitializeExpectation(executableInject)) {
       return;
     }
+    boolean isAtomicTesting = executableInject.getInjection().getInject().isAtomicTesting();
 
     List<Team> teams = executableInject.getTeams();
     if (teams.isEmpty()) {
@@ -142,7 +140,8 @@ public abstract class AbstractTableTopBehavior
     }
 
     if (tableTop.getUser() != null) {
-      InjectExpectationResult defaultPlayerResult = buildDefaultPlayerResult();
+      InjectExpectationResult defaultPlayerResult =
+          buildDefaultPlayerResult(expectation.getExpectedScore());
       if (defaultPlayerResult != null) {
         expectation.setResults(new ArrayList<>(List.of(defaultPlayerResult)));
       }

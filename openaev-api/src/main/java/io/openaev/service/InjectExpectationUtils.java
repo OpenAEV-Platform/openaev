@@ -34,6 +34,19 @@ public class InjectExpectationUtils {
   // -- VALIDATION --
 
   /**
+   * Returns whether expectation initialization should run for the given executable inject.
+   *
+   * <p>Expectations are initialized for scheduled exercise injects, direct atomic testing runs and
+   * chaining executions. Other direct runs are ignored.
+   */
+  public static boolean shouldInitializeExpectation(ExecutableInject executableInject) {
+    boolean isAtomicTesting = executableInject.getInjection().getInject().isAtomicTesting();
+    boolean isExerciseInject = !executableInject.isDirect();
+    boolean isChainingExecution = executableInject.isChainingExecution();
+    return isExerciseInject || isAtomicTesting || isChainingExecution;
+  }
+
+  /**
    * Validates that an expectation has meaningful data. An expectation without at least a name,
    * description, or positive score is considered empty/invalid and should not be persisted — see
    * OpenAEV-Platform/openaev#4891.
@@ -194,6 +207,11 @@ public class InjectExpectationUtils {
         expectation.getType(),
         expectationPropertiesConfig);
 
+    //    switch (expectation.getType()) {
+    //      case ARTICLE ->
+    //              ((ArticleInjectExpectation)
+    // baseInjectExpectation).setArticle(expectation.getArticle());
+    //    }
     if (MANUAL.equals(expectation.getType())) {
       baseInjectExpectation.setDescription(expectation.getDescription());
     }
@@ -459,7 +477,7 @@ public class InjectExpectationUtils {
   private static void setCommonFields(
       BaseInjectExpectation baseInjectExpectation,
       ExecutableInject executableInject,
-      Double score,
+      Double expectedScore,
       boolean isGroup,
       String name,
       Integer order,
@@ -469,7 +487,7 @@ public class InjectExpectationUtils {
 
     baseInjectExpectation.setExercise(executableInject.getInjection().getExercise());
     baseInjectExpectation.setInject(executableInject.getInjection().getInject());
-    baseInjectExpectation.setExpectedScore(score);
+    baseInjectExpectation.setExpectedScore(expectedScore);
     baseInjectExpectation.setExpectationGroup(isGroup);
     baseInjectExpectation.setName(name);
     baseInjectExpectation.setOrder(order);

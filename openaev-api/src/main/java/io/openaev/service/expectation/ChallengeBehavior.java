@@ -23,7 +23,7 @@ public class ChallengeBehavior extends AbstractTableTopBehavior {
   // TODO /!\ /!\ : The UI needs to be fixed: when the score and result are initialized to
   //  null, the user can no longer validate the flag.
   @Override
-  protected InjectExpectationResult buildDefaultPlayerResult() {
+  protected InjectExpectationResult buildDefaultPlayerResult(Double expectedScore) {
     return ChallengeExpectationUtils.buildDefaultChallengeInjectExpectationResult();
   }
 }

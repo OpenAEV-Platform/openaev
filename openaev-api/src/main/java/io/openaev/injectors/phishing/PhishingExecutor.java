@@ -3,6 +3,7 @@ package io.openaev.injectors.phishing;
 import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewInfoTrace;
 
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.CustomDomain;
 import io.openaev.database.model.CustomDomain.CustomDomainStatus;
 import io.openaev.database.model.Execution;
@@ -33,7 +34,6 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -120,22 +120,14 @@ public class PhishingExecutor extends Injector {
     // per-recipient tracking token before its email is sent, so an early recipient can open/click
     // while the loop is still sending. If the expectations did not exist yet, that open/click would
     // find nothing to fulfill and would never be retried.
-    List<Expectation> expectations =
-        content.getExpectations().stream()
-            .flatMap(
-                entry ->
-                    switch (entry.getType()) {
-                      case MANUAL -> Stream.of((Expectation) new ManualExpectation(entry));
-                      default -> Stream.of();
-                    })
-            .toList();
-    injectExpectationService.buildAndSaveInjectExpectations(injection, expectations);
-
-    // Phishing expectations are inverted: pre-score every step to GREEN ("resisted") now, before
-    // any lure is sent. The matching open/click/submit transition flips a step to RED ("fell for
-    // it") later. A recipient who never interacts keeps the green verdict, because the expiration
-    // collector only touches rows whose score is still null.
-    phishingTrackingService.initializeExpectationsAsResisted(inject.getId());
+    injectExpectationService.computeAndSaveExpectations(
+        injection,
+        content.getExpectations(),
+        null,
+        entry ->
+            entry.getType() == BaseInjectExpectation.EXPECTATION_TYPE.MANUAL
+                ? List.of(injectExpectationService.toExpectationTemplate(injection, entry))
+                : List.of());
 
     // The execution context carries each recipient's team NAME (see InjectHelper), but
     // phishing_result_team is an FK to teams.team_id. Map the name back to the real id from the

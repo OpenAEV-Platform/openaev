@@ -107,7 +107,7 @@ class ManualBehaviorTest extends IntegrationTest {
 
       // Act
       manualBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
-          executableInject, template, null);
+          executableInject, template, null, null);
       entityManager.flush();
 
       // Assert

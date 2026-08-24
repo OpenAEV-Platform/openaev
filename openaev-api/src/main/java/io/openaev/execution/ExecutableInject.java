@@ -4,6 +4,7 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.openaev.database.model.*;
+import io.openaev.rest.inject.service.AssetToExecute;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -27,6 +28,7 @@ public class ExecutableInject {
   private final String stepId;
 
   @JsonIgnore private final List<MultipartFile> directAttachments = new ArrayList<>();
+  @JsonIgnore private List<AssetToExecute> assetsToExecute;
 
   public ExecutableInject(
       boolean runtime,
@@ -91,5 +93,10 @@ public class ExecutableInject {
 
   public void addDirectAttachment(MultipartFile file) {
     this.directAttachments.add(file);
+  }
+
+  public void cacheAssetsToExecute(List<AssetToExecute> resolvedAssetsToExecute) {
+    this.assetsToExecute =
+        resolvedAssetsToExecute != null ? List.copyOf(resolvedAssetsToExecute) : null;
   }
 }

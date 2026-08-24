@@ -139,10 +139,11 @@ public class InjectsExecutionJob implements Job {
               + ")");
     }
     List<AssetToExecute> resolvedAssets = injectService.resolveAllAssetsToExecute(inject);
+    executableInject.cacheAssetsToExecute(resolvedAssets);
     List<Map<String, Object>> endpointResolutions = buildEndpointResolutions(resolvedAssets);
     log.info("Executing inject {}", inject.getInject().getTitle());
     try {
-      this.executor.execute(executableInject, resolvedAssets);
+      this.executor.execute(executableInject);
     } finally {
       logTargetResolution(inject, executableInject, endpointResolutions);
     }

@@ -6,7 +6,6 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
-import io.openaev.rest.inject.service.AssetToExecute;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -27,34 +26,15 @@ public interface ExpectationBehavior<T extends BaseInjectExpectation> {
   boolean supports(BaseInjectExpectation expectation);
 
   /**
-   * Creates and persists inject expectations for each target from a template expectation.
-   *
-   * @param executableInject the executable inject containing targets
-   * @param expectationTemplate the expectation template to apply on each target
-   */
-  void initializeAndSaveInjectExpectationsFromExecutableInject(
-      ExecutableInject executableInject, T expectationTemplate, @Nullable String implantType);
-
-  /**
    * Creates and persists inject expectations for each target from a template expectation, reusing
    * asset targets already resolved by the caller when provided.
    *
-   * <p>The default implementation ignores the pre-resolved assets (table-top behaviors resolve
-   * their own team/player targets); technical behaviors override it to avoid re-running the
-   * expensive asset resolution once per expectation type.
-   *
    * @param executableInject the executable inject containing targets
    * @param expectationTemplate the expectation template to apply on each target
-   * @param preResolvedAssets asset targets already resolved by the caller, or {@code null}
+   * @param implantType the implant/injector type used to compute signatures when relevant
    */
-  default void initializeAndSaveInjectExpectationsFromExecutableInject(
-      ExecutableInject executableInject,
-      T expectationTemplate,
-      @Nullable String implantType,
-      @Nullable List<AssetToExecute> preResolvedAssets) {
-    initializeAndSaveInjectExpectationsFromExecutableInject(
-        executableInject, expectationTemplate, implantType);
-  }
+  void initializeAndSaveInjectExpectationsFromExecutableInject(
+      ExecutableInject executableInject, T expectationTemplate, @Nullable String implantType);
 
   /**
    * Initialize expectation result.

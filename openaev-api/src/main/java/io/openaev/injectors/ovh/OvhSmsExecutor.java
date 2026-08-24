@@ -4,6 +4,7 @@ import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
 import static org.springframework.util.StringUtils.hasText;
 
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.Inject;
@@ -23,7 +24,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 import org.springframework.util.StringUtils;
 
 public class OvhSmsExecutor extends Injector {
@@ -102,17 +102,14 @@ public class OvhSmsExecutor extends Injector {
               }
             });
     if (isSmsSent.get()) {
-      List<Expectation> expectations =
-          content.getExpectations().stream()
-              .flatMap(
-                  entry ->
-                      switch (entry.getType()) {
-                        case MANUAL -> Stream.of((Expectation) new ManualExpectation(entry));
-                        default -> Stream.of();
-                      })
-              .toList();
-
-      injectExpectationService.buildAndSaveInjectExpectations(injection, expectations);
+      injectExpectationService.computeAndSaveExpectations(
+          injection,
+          content.getExpectations(),
+          null,
+          entry ->
+              entry.getType() == BaseInjectExpectation.EXPECTATION_TYPE.MANUAL
+                  ? List.of(injectExpectationService.toExpectationTemplate(injection, entry))
+                  : List.of());
     }
     return new ExecutionProcess(false);
   }

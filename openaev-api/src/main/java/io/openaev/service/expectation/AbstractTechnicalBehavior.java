@@ -1,9 +1,6 @@
 package io.openaev.service.expectation;
 
-import static io.openaev.service.InjectExpectationUtils.applyExpirationOrderingGuarantee;
-import static io.openaev.service.InjectExpectationUtils.computeChildrenScore;
-import static io.openaev.service.InjectExpectationUtils.filterCollectorsForExpectation;
-import static io.openaev.service.InjectExpectationUtils.reconcileWithDirectVulnerableVerdict;
+import static io.openaev.service.InjectExpectationUtils.*;
 import static io.openaev.utils.AgentUtils.getActiveAgents;
 import static io.openaev.utils.ExpectationSignatureUtils.convertToInjectExpectationSignatures;
 import static io.openaev.utils.ExpectationUtils.*;
@@ -14,15 +11,11 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.rest.collector.service.CollectorService;
-import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.ExpectationUtils;
 import jakarta.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 
@@ -37,16 +30,6 @@ public abstract class AbstractTechnicalBehavior
 
   // -- INITIALIZE AND SAVE --
 
-  /** {@inheritDoc} Resolves asset targets itself before delegating. */
-  @Override
-  public void initializeAndSaveInjectExpectationsFromExecutableInject(
-      ExecutableInject executableInject,
-      TechnicalInjectExpectation expectationTemplate,
-      String implantType) {
-    initializeAndSaveInjectExpectationsFromExecutableInject(
-        executableInject, expectationTemplate, implantType, null);
-  }
-
   /**
    * Creates and persists expectations for each asset target (agent → asset → asset-group). Results
    * and signatures are set on leaf expectations only (agent, or asset if agentless).
@@ -57,82 +40,80 @@ public abstract class AbstractTechnicalBehavior
   public void initializeAndSaveInjectExpectationsFromExecutableInject(
       ExecutableInject executableInject,
       TechnicalInjectExpectation expectationTemplate,
-      @Nullable String implantType,
-      @Nullable List<AssetToExecute> preResolvedAssets) {
-    Inject inject = executableInject.getInjection().getInject();
-    List<AssetToExecute> assetToExecutes =
-        preResolvedAssets != null
-            ? preResolvedAssets
-            : this.injectService.resolveAllAssetsToExecute(inject);
+      @Nullable String implantType) {
 
-    List<TechnicalInjectExpectation> allExpectations = new ArrayList<>();
-    // A group parent row must exist exactly once per asset group (with at least one eligible
-    // asset), not once per eligible asset of the group.
-    Set<String> assetGroupsWithParentRow = new HashSet<>();
-
-    assetToExecutes.forEach(
-        assetToExecute -> {
-          List<Agent> activeAgents = getActiveAgents(assetToExecute.asset(), inject);
-
-          if (activeAgents.isEmpty()
-              && !isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject)) {
-            return;
-          }
-
-          if (assetToExecute.isDirectlyLinkedToInject()) {
-            activeAgents.forEach(
-                agent -> {
-                  allExpectations.add(
-                      buildExpectationForTarget(
-                          expectationTemplate, null, assetToExecute.asset(), agent));
-                });
-            allExpectations.add(
-                buildExpectationForTarget(expectationTemplate, null, assetToExecute.asset(), null));
-          }
-
-          assetToExecute
-              .assetGroups()
-              .forEach(
-                  assetGroup -> {
-                    activeAgents.forEach(
-                        agent -> {
-                          allExpectations.add(
-                              buildExpectationForTarget(
-                                  expectationTemplate, assetGroup, assetToExecute.asset(), agent));
-                        });
-                    allExpectations.add(
-                        buildExpectationForTarget(
-                            expectationTemplate, assetGroup, assetToExecute.asset(), null));
-                    if (assetGroupsWithParentRow.add(assetGroup.getId())) {
-                      allExpectations.add(
-                          buildExpectationForTarget(expectationTemplate, assetGroup, null, null));
-                    }
-                  });
-        });
-
-    List<TechnicalInjectExpectation> leafExpectations =
-        allExpectations.stream()
-            .filter(e -> !isAssetGroupExpectation(e))
-            .filter(
-                e ->
-                    isAgentExpectation(e)
-                        || isAgentlessAssetExpectationNecessary(e.getAsset(), inject))
-            .toList();
-    if (!leafExpectations.isEmpty()) {
-      // Fetched once per invocation (not per leaf), and only when a leaf actually needs them.
-      List<Collector> tenantCollectors =
-          collectorService.securityPlatformCollectors(inject.getTenant().getId());
-      Map<String, Endpoint> valueTargetedAssetsMap = injectService.getValueTargetedAssetMap(inject);
-      leafExpectations.forEach(
-          e -> {
-            initializeResults(e, tenantCollectors);
-            String agentId = e.getAgent() != null ? e.getAgent().getId() : null;
-            List<ExpectationSignature> expectationSignatures =
-                computeSignatures(
-                    implantType, inject.getId(), e.getAsset(), agentId, valueTargetedAssetsMap);
-            e.setSignatures(convertToInjectExpectationSignatures(expectationSignatures, e));
-          });
+    if (!shouldInitializeExpectation(executableInject)) {
+      return;
     }
+
+    Inject inject = executableInject.getInjection().getInject();
+    List<TechnicalInjectExpectation> allExpectations = new ArrayList<>();
+
+    executableInject
+        .getAssetsToExecute()
+        .forEach(
+            assetToExecute -> {
+              List<Agent> activeAgents = getActiveAgents(assetToExecute.asset(), inject);
+
+              if (activeAgents.isEmpty()
+                  && !isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject)) {
+                return;
+              }
+
+              if (assetToExecute.isDirectlyLinkedToInject()) {
+                activeAgents.forEach(
+                    agent -> {
+                      allExpectations.add(
+                          buildExpectationForTarget(
+                              expectationTemplate, null, assetToExecute.asset(), agent));
+                    });
+                allExpectations.add(
+                    buildExpectationForTarget(
+                        expectationTemplate, null, assetToExecute.asset(), null));
+              }
+
+              assetToExecute
+                  .assetGroups()
+                  .forEach(
+                      assetGroup -> {
+                        activeAgents.forEach(
+                            agent -> {
+                              allExpectations.add(
+                                  buildExpectationForTarget(
+                                      expectationTemplate,
+                                      assetGroup,
+                                      assetToExecute.asset(),
+                                      agent));
+                            });
+                        allExpectations.add(
+                            buildExpectationForTarget(
+                                expectationTemplate, assetGroup, assetToExecute.asset(), null));
+                        allExpectations.add(
+                            buildExpectationForTarget(expectationTemplate, assetGroup, null, null));
+                      });
+            });
+
+    List<Collector> tenantCollectors =
+        collectorService.securityPlatformCollectors(inject.getTenant().getId());
+
+    allExpectations.stream()
+        .filter(e -> !isAssetGroupExpectation(e))
+        .filter(
+            e ->
+                isAgentExpectation(e) || isAgentlessAssetExpectationNecessary(e.getAsset(), inject))
+        .forEach(
+            e -> {
+              initializeResults(e, tenantCollectors);
+              String agentId = e.getAgent() != null ? e.getAgent().getId() : null;
+              List<ExpectationSignature> expectationSignatures =
+                  computeSignatures(
+                      implantType,
+                      inject.getId(),
+                      e.getAsset(),
+                      agentId,
+                      injectService.getValueTargetedAssetMap(inject));
+              e.setSignatures(convertToInjectExpectationSignatures(expectationSignatures, e));
+            });
     injectExpectationRepository.saveAll(allExpectations);
   }
 
@@ -145,14 +126,6 @@ public abstract class AbstractTechnicalBehavior
     expectation.setAssetGroup(assetGroup);
     expectation.setAsset(asset);
     expectation.setAgent(agent);
-    // Level-specific evaluation flag (legacy factory semantics): agent rows are always evaluated
-    // individually, asset rows are grouped exactly when they belong to an asset group, and only
-    // the group parent row keeps the flag configured in the inject content (the template's).
-    if (agent != null) {
-      expectation.setExpectationGroup(false);
-    } else if (asset != null) {
-      expectation.setExpectationGroup(assetGroup != null);
-    }
     return expectation;
   }
 

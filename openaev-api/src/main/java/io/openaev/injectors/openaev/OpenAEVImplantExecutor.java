@@ -37,8 +37,8 @@ public class OpenAEVImplantExecutor extends Injector {
     Inject inject = this.injectService.inject(injection.getInjection().getInject().getId());
 
     List<AssetToExecute> assetToExecutes = this.injectService.resolveAllAssetsToExecute(inject);
+    injection.cacheAssetsToExecute(assetToExecutes);
 
-    // Check assetToExecutes target
     if (assetToExecutes.isEmpty()) {
       execution.addTrace(
           getNewErrorTrace(
@@ -46,8 +46,8 @@ public class OpenAEVImplantExecutor extends Injector {
               ExecutionTraceAction.COMPLETE));
     }
 
-    injectExpectationService.computeAndSaveExpectationsFromInjectContent(
-        injection, OAEV_IMPLANT, assetToExecutes);
+    // Compute and save expectations
+    injectExpectationService.computeAndSaveExpectations(injection, OAEV_IMPLANT);
 
     return new ExecutionProcess(true);
   }
