@@ -29,10 +29,10 @@ jobs:
               ? core.getInput('tag')
               : context.payload.release.tag_name;
             if (!tag) {
-              core.notice('No release tag provided');
+              core.notice('❌ No release tag provided');
               return;
             }
-
+            core.notice(`✅ tag provided: ${tag}`);
             // Tag-triggered runs usually have head_branch = null, so resolve the
             // commit behind the release tag and match by head_sha instead.
             let tagSha;
@@ -53,10 +53,10 @@ jobs:
                 tagSha = tagObject.data.object.sha;
               }
             } catch (error) {
-              core.notice(`Unable to resolve tag ref for ${tag}: ${error.message}`);
+              core.notice(`❌ Unable to resolve tag ref for ${tag}: ${error.message}`);
               return;
             }
-
+            core.notice(`✅ tagSha found: ${tagSha}`);
             let run;
             for (let page = 1; page <= 5 && !run; page += 1) {
               const runsResponse = await github.rest.actions.listWorkflowRuns({
@@ -79,10 +79,10 @@ jobs:
             }
 
             if (!run) {
-              core.notice(`No successful [Core] CI run found for tag ${tag}`);
+              core.notice(`❌ No successful [Core] CI run found for tag ${tag}`);
               return;
             }
-
+            core.notice(`✅ run found: ${run}`);
             const artifacts = await github.paginate(
               github.rest.actions.listWorkflowRunArtifacts,
               {
@@ -92,18 +92,20 @@ jobs:
                 per_page: 100,
               },
             );
-
+            
             function findArtifactId(name) {
               const artifact = artifacts.find(candidate =>
                 candidate.name === name && !candidate.expired
               );
               return artifact ? String(artifact.id) : '';
             }
-
+            let standardReport = findArtifactId('container-vulnerability-report-standard')
+            let ub9Report = findArtifactId('container-vulnerability-report-ubi9')
             core.setOutput('tag', tag);
             core.setOutput('run-id', String(run.id));
-            core.setOutput('standard-artifact-id', findArtifactId('container-vulnerability-report-standard'));
-            core.setOutput('ubi9-artifact-id', findArtifactId('container-vulnerability-report-ubi9'));
+            core.setOutput('standard-artifact-id', standardReport);
+            core.setOutput('ubi9-artifact-id', ub9Report);
+            core.notice(`✅ Found standardReport and ubi9Report ${standardReport} ${ub9Report}`);
 
       - name: Download standard report
         if: ${{ steps.context.outputs.standard-artifact-id != '' }}
