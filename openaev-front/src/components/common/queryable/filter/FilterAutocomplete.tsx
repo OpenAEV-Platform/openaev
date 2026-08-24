@@ -1,5 +1,14 @@
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { FilterListOffOutlined } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, IconButton, TextField, Tooltip } from '@mui/material';
+import { IconButton, Tooltip } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -56,33 +65,42 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
 
   return (
     <div className={classes.container}>
-      <MuiAutocomplete
-        options={options}
-        sx={{ width: domains ? '95%' : 200 }}
-        value={null}
-        onChange={(_, selectOptionValue) => {
-          if (selectOptionValue) {
-            handleChange(selectOptionValue.id, selectOptionValue.operator);
-          }
-        }}
-        inputValue={inputValue}
-        onInputChange={(_, newValue, reason) => {
-          if (reason === 'reset') {
-            return;
-          }
-          setInputValue(newValue);
-        }}
-        renderInput={params => (
-          <TextField
-            {...params}
-            variant="outlined"
-            size="small"
-            label={domains ? t('Please choose a scenario or simulation, or leave this field blank to include all scenarios and atomic tests') : t('Add filter')}
-            style={style}
-          />
-        )}
-        renderOption={(props, option) => <li {...props} key={props.key}>{option.label}</li>}
-      />
+      <div style={{ width: domains ? '95%' : 200 }}>
+        <Combobox
+          options={options}
+          value={null}
+          onValueChange={(selectOptionValue) => {
+            const next = selectOptionValue as typeof options[number] | null;
+            if (next) {
+              handleChange(next.id, next.operator);
+            }
+          }}
+          inputValue={inputValue}
+          onInputChange={(newValue, meta) => {
+            // MUI reported `reason === 'reset'` here to protect the typed text
+            // from a programmatic reset; the library states the same cause.
+            if (meta.cause !== 'type') {
+              return;
+            }
+            setInputValue(newValue);
+          }}
+          getOptionLabel={option => option.label}
+          renderOption={option => option.label}
+        >
+          <ComboboxLabel>
+            {domains
+              ? t('Please choose a scenario or simulation, or leave this field blank to include all scenarios and atomic tests')
+              : t('Add filter')}
+          </ComboboxLabel>
+          <ComboboxField>
+            <ComboboxInput />
+            <ComboboxControls>
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+        </Combobox>
+      </div>
       <Tooltip title={t('Clear filters')}>
         <IconButton
           style={{
