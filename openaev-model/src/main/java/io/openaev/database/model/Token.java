@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.helper.MonoIdSerializer;
@@ -49,7 +50,7 @@ public class Token implements Base {
   private Instant created;
 
   @Column(name = "token_deleted_at")
-  @JsonProperty("token_deleted_at")
+  @JsonIgnore
   private Instant deletedAt;
 
   @Override
