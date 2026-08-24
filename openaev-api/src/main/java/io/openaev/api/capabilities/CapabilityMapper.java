@@ -13,22 +13,19 @@ public class CapabilityMapper {
 
   public static CapabilityOutput toOutput(Capability capability, List<CapabilityOutput> children) {
     return new CapabilityOutput(
-        capability.name(), capability.isCheckable(), scopeNames(capability), children);
+        capability.name(), capability.isCheckable(), scopes(capability), children);
   }
 
   public static CapabilityOutput toOutput(
       CapabilityGroup capability, List<Capability> groupRoots, List<CapabilityOutput> children) {
-    return new CapabilityOutput(capability.name(), false, scopeNames(groupRoots), children);
+    return new CapabilityOutput(capability.name(), false, scopes(groupRoots), children);
   }
 
-  private static Set<String> scopeNames(Capability cap) {
-    return cap.getScopes().stream().map(CapabilityScope::name).collect(Collectors.toSet());
+  private static Set<CapabilityScope> scopes(Capability cap) {
+    return Set.copyOf(cap.getScopes());
   }
 
-  private static Set<String> scopeNames(List<Capability> capabilities) {
-    return capabilities.stream()
-        .flatMap(c -> c.getScopes().stream())
-        .map(CapabilityScope::name)
-        .collect(Collectors.toSet());
+  private static Set<CapabilityScope> scopes(List<Capability> capabilities) {
+    return capabilities.stream().flatMap(c -> c.getScopes().stream()).collect(Collectors.toSet());
   }
 }
