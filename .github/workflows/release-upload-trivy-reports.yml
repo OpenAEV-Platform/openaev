@@ -60,7 +60,9 @@ jobs:
               core.notice(`❌ Unable to resolve tag ref for ${tag}: ${error.message}`);
               return;
             }
-            core.notice(`✅ tagSha found: ${tagSha}`);
+
+            core.notice(`✅ tagSha resolved: ${tagSha}`);
+
             let run;
             for (let page = 1; page <= 5 && !run; page += 1) {
               const runsResponse = await github.rest.actions.listWorkflowRuns({
@@ -86,7 +88,9 @@ jobs:
               core.notice(`❌ No successful [Core] CI run found for tag ${tag}`);
               return;
             }
+            
             core.notice(`✅ run found: ${JSON.stringify(run)}`);
+            
             const artifacts = await github.paginate(
               github.rest.actions.listWorkflowRunArtifacts,
               {
@@ -109,6 +113,7 @@ jobs:
             core.setOutput('run-id', String(run.id));
             core.setOutput('standard-artifact-id', standardReport);
             core.setOutput('ubi9-artifact-id', ub9Report);
+            
             core.notice(`✅ Found standardReport and ubi9Report ${standardReport} ${ub9Report}`);
 
       - name: Download standard report
