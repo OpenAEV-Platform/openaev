@@ -14,7 +14,18 @@
   font-size: 16px;
 }
 
-/* The library's floating surfaces read their stacking level here; 1300 is MUI's `zIndex.modal`, above this app's top bar at `zIndex.appBar` (1100) — see fds-migration/LIBRARY-FEEDBACK.md #12 */
+/* The library's floating surfaces read their stacking level here. The binding
+ * number is the host's MODAL layer, not its top bar: this app hosts forms in a
+ * Drawer (1200) and filters in a Popover (1300), and a modal both opens a
+ * stacking context and lays a click-capturing backdrop inside it — a library
+ * surface below it is not merely painted under the chrome, the backdrop owns
+ * the pixel and no real pointer reaches a row.
+ *
+ * Measured here against the Popover at 1300: at 50, 1200 and 1299 the backdrop
+ * owns the pixel; at 1300 and 1400 the option row does. 1300 therefore works,
+ * but only because the library's portal is appended to <body> after MUI's, so
+ * the tie resolves in its favour. 1400 does not depend on that insertion order.
+ * See fds-migration/LIBRARY-FEEDBACK.md #12. */
 :root {
-  --fds-z-overlay: 1300;
+  --fds-z-overlay: 1400;
 }
