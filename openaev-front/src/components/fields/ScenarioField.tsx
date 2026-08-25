@@ -1,11 +1,20 @@
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { Kayaking } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, Box, Chip, TextField } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type { AxiosResponse } from 'axios';
 import {
   type CSSProperties,
   type FunctionComponent,
-  type HTMLAttributes,
   type KeyboardEventHandler,
   useEffect, useState,
 } from 'react';
@@ -51,7 +60,6 @@ const useStyles = makeStyles()(() => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
 }));
 
 const ScenarioField: FunctionComponent<Props> = ({
@@ -119,54 +127,51 @@ const ScenarioField: FunctionComponent<Props> = ({
         options={scenarioOptions}
         style={style}
         onKeyDown={onKeyDown}
-        renderOption={(renderProps: HTMLAttributes<HTMLLIElement>, option: Option) => (
-          <Box component="li" {...renderProps} key={option.id}>
+        renderOption={(option: Option) => (
+          <>
             <div className={classes.icon}>
               <Kayaking />
             </div>
             <div className={classes.text}>{option.label}</div>
-          </Box>
+          </>
         )}
-        classes={{ clearIndicator: classes.autoCompleteIndicator }}
       />
     );
   }
 
   if (multiple && !useForm) {
     return (
-      <MuiAutocomplete
-        multiple
-        open={open}
-        onOpen={() => setOpen(true)}
-        onClose={(_, reason) => {
-          if (reason === 'selectOption') return;
-          setOpen(false);
-        }}
-        options={multipleOptions}
-        loading={loading}
-        value={values}
-        onChange={(_, newValue) => onValuesChange?.(newValue)}
-        getOptionLabel={option => option.label}
-        isOptionEqualToValue={(option, val) => option.id === val.id}
-        renderTags={(tagValue, getTagProps) =>
-          tagValue.map((option, index) => (
-            <Chip
-              label={option.label}
-              {...getTagProps({ index })}
-              key={option.id}
-              size="small"
-            />
-          ))}
-        renderInput={params => (
-          <TextField
-            {...params}
-            label={label}
-            variant="outlined"
-            size="small"
-          />
-        )}
-        style={{ marginTop: theme.spacing(2) }}
-      />
+      <div style={{ marginTop: theme.spacing(2) }}>
+        <Combobox<Option>
+          multiple
+          open={open}
+          onOpenChange={(next, meta) => {
+            // MUI reported `selectOption` and the site swallowed it so the panel
+            // stayed open across picks; `meta.cause` states the same thing.
+            if (!next && meta.cause === 'select') {
+              return;
+            }
+            setOpen(next);
+          }}
+          options={multipleOptions}
+          loading={loading}
+          value={values}
+          onValueChange={newValue => onValuesChange?.(newValue as Option[])}
+          getOptionLabel={option => option.label}
+          isOptionEqualToValue={(option, val) => option.id === val.id}
+        >
+          <ComboboxLabel>{label}</ComboboxLabel>
+          <ComboboxField>
+            <ComboboxChips />
+            <ComboboxInput />
+            <ComboboxControls>
+              <ComboboxClear />
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+        </Combobox>
+      </div>
     );
   }
 

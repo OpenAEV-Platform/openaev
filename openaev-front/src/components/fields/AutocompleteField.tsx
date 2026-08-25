@@ -1,6 +1,18 @@
-import { Autocomplete, Box, Checkbox, TextField, Tooltip } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, type FunctionComponent, type HTMLAttributes, type Key, type ReactNode, useMemo } from 'react';
+import {
+  Combobox,
+  type ComboboxChangeMeta,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
+import { Checkbox, Tooltip } from '@mui/material';
+import { type CSSProperties, type FunctionComponent, useMemo } from 'react';
 
 import { type GroupOption, type Option } from '../../utils/Option';
 import { useFormatter } from '../i18n';
@@ -14,16 +26,19 @@ interface BaseProps {
   disableCloseOnSelect?: boolean;
   disableOptionTooltip?: boolean;
   open?: boolean;
+  onOpenChange?: (open: boolean, meta: ComboboxChangeMeta) => void;
   required?: boolean;
   error?: boolean;
   className?: string;
-  variant?: 'standard' | 'outlined' | 'filled';
   disabled?: boolean;
   style?: CSSProperties;
-  renderOption?: (
-    props: HTMLAttributes<HTMLLIElement>,
-    option: AutocompleteOption,
-  ) => ReactNode;
+  /**
+   * Hides an option outright. Was expressed as a `renderOption` returning
+   * `null`: MUI let the row vanish that way, but the wrapper never used the
+   * node a caller returned — only whether it was `null`. So the contract has
+   * always been "hide this option", and it is now stated as one.
+   */
+  hideOption?: (option: AutocompleteOption) => boolean;
   openOnFocus?: boolean;
   selectOnFocus?: boolean;
   autoFocus?: boolean;
@@ -51,18 +66,24 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
     required = false,
     error = false,
     className = '',
-    variant = 'outlined',
     disabled,
     openOnFocus = true,
     selectOnFocus = true,
     disableOptionTooltip = false,
     autoFocus = false,
+    hideOption,
   } = props;
 
   const multiple = props.multiple === true;
   const value = props.value;
   const { t } = useFormatter();
-  const theme = useTheme();
+
+  // Hiding is done on the list itself rather than through `filterOptions`, so
+  // the library keeps owning the text search it applies on top.
+  const visibleOptions = useMemo(
+    () => (hideOption ? options.filter(o => !hideOption(o)) : options),
+    [options, hideOption],
+  );
 
   const selectedOption = useMemo(() => {
     if (!options.length) {
@@ -88,108 +109,104 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
     }
   };
 
-  const defaultRenderOption = (
-    liProps: HTMLAttributes<HTMLLIElement> & { key?: Key },
-    option: AutocompleteOption,
-  ) => {
+  const renderRow = (option: AutocompleteOption) => {
     const checked = multiple
-      ? value?.includes(option.id)
+      ? (value as string[] | undefined)?.includes(option.id)
       : value === option.id;
 
-    // React ignores a `key` arriving through a props spread, so extract it and
-    // set it explicitly on the outermost element of the returned node.
-    const { key, ...itemProps } = liProps;
-    const optionKey = key ?? option.id;
-
-    const listItem = (itemKey?: Key) => (
-      <Box
-        component="li"
-        key={itemKey}
-        {...itemProps}
-        sx={{
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          padding: 0,
-          margin: 0,
-          display: 'flex',
-          alignItems: 'center',
-        }}
-      >
-        {multiple && <Checkbox checked={checked} />}
-
-        <Box
-          sx={{
-            display: 'inline-block',
+    const body = (
+      <>
+        {/* The row already carries `aria-selected`, so the box is a visual echo
+            and is taken out of the accessibility tree rather than named twice. */}
+        {multiple && (
+          <Checkbox
+            checked={!!checked}
+            size="small"
+            sx={{ padding: 0 }}
+            inputProps={{
+              'aria-hidden': true,
+              'tabIndex': -1,
+            }}
+          />
+        )}
+        <span
+          style={{
             flexGrow: 1,
-            marginLeft: multiple ? theme.spacing(1) : 0,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
             fontStyle: option.italic ? 'italic' : 'normal',
           }}
         >
           {option.label}
-        </Box>
-      </Box>
+        </span>
+      </>
     );
 
     if (disableOptionTooltip) {
-      return listItem(optionKey);
+      return body;
     }
 
+    // The tooltip now wraps the row's CONTENT, not the row: the library owns the
+    // row element and its accessibility contract. The anchor is given a real box
+    // filling the row, since `display: contents` leaves nothing to hover.
     return (
-      <Tooltip key={optionKey} title={option.label}>
-        {listItem()}
+      <Tooltip title={option.label}>
+        <span
+          style={{
+            display: 'flex',
+            flex: 1,
+            minWidth: 0,
+            alignItems: 'center',
+          }}
+        >
+          {body}
+        </span>
       </Tooltip>
     );
   };
 
   return (
-    <Autocomplete<AutocompleteOption, boolean>
-      style={props.style}
-      disabled={disabled}
-      className={className}
-      size="small"
-      open={props.open}
-      selectOnFocus={selectOnFocus}
-      openOnFocus={openOnFocus}
-      autoHighlight
-      disableCloseOnSelect={props.disableCloseOnSelect ?? false}
-      noOptionsText={t('No available options')}
-      multiple={multiple}
-      options={options}
-      value={selectedOption}
-      groupBy={option => ('group' in option ? option.group : '')}
-      getOptionLabel={option => option.label ?? ''}
-      isOptionEqualToValue={(option, val) => option.id === val.id}
-      onInputChange={(_, search, reason) => {
-        if (reason === 'input') {
-          onInputChange(search);
-        }
-      }}
-      onChange={(_, newValue) => handleValue(newValue)}
-      renderInput={params => (
-        <TextField
-          {...params}
-          label={label}
-          variant={variant}
-          size="small"
-          required={required}
-          error={error}
-          // autoFocus must live on the TextField: on the Autocomplete root it
-          // would land on a plain div and never focus the input.
-          autoFocus={autoFocus}
-        />
-      )}
-      renderOption={(liProps, option) => {
-        if (props.renderOption) {
-          const custom = props.renderOption(liProps, option);
-          if (custom === null) {
-            return null;
+    <div className={className} style={props.style}>
+      <Combobox<AutocompleteOption>
+        disabled={disabled}
+        multiple={multiple}
+        open={props.open}
+        onOpenChange={props.onOpenChange}
+        openOnFocus={openOnFocus}
+        selectOnFocus={selectOnFocus}
+        closeOnSelect={props.disableCloseOnSelect !== true}
+        options={visibleOptions}
+        value={selectedOption}
+        groupBy={option => ('group' in option ? option.group : '')}
+        getOptionLabel={option => option.label ?? ''}
+        isOptionEqualToValue={(option, val) => option.id === val.id}
+        error={error}
+        onInputChange={(search, meta) => {
+          if (meta.cause === 'type') {
+            onInputChange(search);
           }
-        }
-
-        return defaultRenderOption(liProps, option);
-      }}
-    />
+        }}
+        onValueChange={newValue => handleValue(newValue)}
+        renderOption={renderRow}
+      >
+        <ComboboxLabel>
+          {label}
+          {required ? ' *' : ''}
+        </ComboboxLabel>
+        <ComboboxField>
+          {multiple && <ComboboxChips />}
+          <ComboboxInput autoFocus={autoFocus} />
+          <ComboboxControls>
+            <ComboboxClear />
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent emptyMessage={t('No available options')} />
+        {error ? <ComboboxHelperText>{t('This field is required')}</ComboboxHelperText> : null}
+      </Combobox>
+    </div>
   );
 };
 

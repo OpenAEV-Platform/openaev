@@ -54,7 +54,6 @@ const PersonFieldController: FunctionComponent<Props> = ({ name, label }) => {
           getOptionLabel={option => option.label}
           isOptionEqualToValue={(option, value) => option.id === value.id}
           error={!!error}
-          renderOption={option => option.label}
         >
           <ComboboxLabel>{label}</ComboboxLabel>
           <ComboboxField>

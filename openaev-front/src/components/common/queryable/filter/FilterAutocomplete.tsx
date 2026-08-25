@@ -85,7 +85,6 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
             setInputValue(newValue);
           }}
           getOptionLabel={option => option.label}
-          renderOption={option => option.label}
         >
           <ComboboxLabel>
             {domains

@@ -8,7 +8,6 @@ import {
   ComboboxLabel,
   ComboboxTrigger,
 } from '@filigran/design-system';
-import { Autocomplete as MuiAutocomplete, Checkbox, TextField } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useCallback, useContext, useEffect, useState } from 'react';
 
@@ -164,67 +163,52 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
     helpers.handleUpdateValuesById(filter.id, newValues);
   };
 
-  // FDS-WORKAROUND: this field stays on MUI. It drives selection from its own
-  // row handler (`renderOption` attaches `onClick` and swallows Enter), and the
-  // library keeps the option row's element, role and state — a consumer cannot
-  // own the row's click. Remove when the library exposes a row-level interaction
-  // hook, or when this input stops toggling from the row.
   return (
-    <MuiAutocomplete
+    <Combobox<GroupOption | Option>
+      multiple
       selectOnFocus
       openOnFocus
-      autoHighlight
-      multiple
-      noOptionsText={t('No available options')}
       options={mergedOptions}
       value={selectedOptions}
       inputValue={inputValue}
-      renderValue={() => null}
+      loading={loading}
       isOptionEqualToValue={(option, value) => option.id === value.id}
       groupBy={(option: GroupOption | Option) => 'group' in option ? option.group : ''}
       getOptionLabel={option => option.label ?? ''}
-      onInputChange={(_, search, reason) => {
-        if (reason === 'reset') {
+      onInputChange={(search, meta) => {
+        if (meta.cause !== 'type') {
           return;
         }
         setInputValue(search);
         debouncedSearchOptions(search);
       }}
-      renderInput={paramsInput => (
-        <TextField
-          {...paramsInput}
-          label={t(propertySchema.schema_property_name)}
-          variant="outlined"
-          size="small"
-        />
-      )}
-      loading={loading}
-      renderOption={(props, option) => {
-        const checked = filter.values?.includes(option.id);
-        return (
-          <li
-            {...props}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.stopPropagation();
-              }
-            }}
-            key={option.id}
-            onClick={() => onClick(option.id)}
-            style={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              padding: 0,
-              margin: 0,
-            }}
-          >
-            <Checkbox checked={checked} />
-            <span style={{ padding: '0 4px 0 4px' }}>{option.label}</span>
-          </li>
-        );
+      onValueChange={(next) => {
+        // Was: every row owned its own click and called `onClick(option.id)`. The
+        // library owns the row, so the new selection is diffed against the old one
+        // and the same helper is replayed for whatever moved.
+        const before = new Set(filter.values ?? []);
+        const after = new Set((next as (GroupOption | Option)[]).map(o => o.id));
+        for (const id of after) {
+          if (!before.has(id)) {
+            onClick(id);
+          }
+        }
+        for (const id of before) {
+          if (!after.has(id)) {
+            onClick(id);
+          }
+        }
       }}
-    />
+    >
+      <ComboboxLabel>{t(propertySchema.schema_property_name)}</ComboboxLabel>
+      <ComboboxField>
+        <ComboboxInput />
+        <ComboboxControls>
+          <ComboboxTrigger />
+        </ComboboxControls>
+      </ComboboxField>
+      <ComboboxContent emptyMessage={t('No available options')} />
+    </Combobox>
   );
 };
 

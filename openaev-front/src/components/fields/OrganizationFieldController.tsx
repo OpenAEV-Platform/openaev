@@ -1,5 +1,17 @@
+import {
+  Combobox,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+  IconButton,
+} from '@filigran/design-system';
 import { AddOutlined, DomainOutlined } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, Box, Dialog, DialogContent, DialogTitle, IconButton, TextField } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -74,53 +86,43 @@ const OrganizationFieldController: FunctionComponent<Props> = ({ name, label }) 
         name={name}
         control={control}
         render={({ field, fieldState: { error } }) => (
-          <MuiAutocomplete
-            {...field}
-            value={options.find(o => o.id === field.value) || null}
-            fullWidth
-            multiple={false}
+          <Combobox<Option>
             options={options}
-            onChange={(_, value) => field.onChange(value?.id || '')}
+            value={options.find(o => o.id === field.value) || null}
+            onValueChange={value => field.onChange((value as Option | null)?.id || '')}
             getOptionLabel={option => option.label}
             isOptionEqualToValue={(option, value) => option.id === value.id}
-            renderOption={(props, option) => (
-              <Box component="li" {...props} key={option.id}>
+            error={!!error}
+            renderOption={option => (
+              <>
                 <div className={classes.icon}>
                   <DomainOutlined />
                 </div>
                 <div className={classes.text}>{option.label}</div>
-              </Box>
+              </>
             )}
-            renderInput={params => (
-              <TextField
-                {...params}
-                label={label}
-                variant="standard"
-                error={!!error}
-                helperText={error?.message}
-                slotProps={{
-                  input: {
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        <IconButton
-                          style={{
-                            position: 'absolute',
-                            right: '35px',
-                          }}
-                          onClick={() => setOpen(true)}
-                        >
-                          <AddOutlined />
-                        </IconButton>
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  },
-                }}
-              />
-            )}
-            classes={{ clearIndicator: classes.autoCompleteIndicator }}
-          />
+          >
+            <ComboboxLabel>{label}</ComboboxLabel>
+            <ComboboxField
+              adornment={(
+                <IconButton
+                  size="sm"
+                  priority="tertiary"
+                  onClick={() => setOpen(true)}
+                  aria-label={t('Create')}
+                  icon={<AddOutlined fontSize="small" />}
+                />
+              )}
+            >
+              <ComboboxInput name={field.name} onBlur={field.onBlur} />
+              <ComboboxControls>
+                <ComboboxClear />
+                <ComboboxTrigger />
+              </ComboboxControls>
+            </ComboboxField>
+            <ComboboxContent />
+            {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+          </Combobox>
         )}
       />
       <Dialog open={open} onClose={() => setOpen(false)} slotProps={{ paper: { elevation: 1 } }}>

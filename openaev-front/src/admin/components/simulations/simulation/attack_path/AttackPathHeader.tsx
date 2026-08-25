@@ -8,7 +8,7 @@ import {
   ComboboxTrigger,
 } from '@filigran/design-system';
 import { AccountTreeOutlined, ArrowBackOutlined, FilterAltOffOutlined, FullscreenExitOutlined, FullscreenOutlined, HelpOutline, LocalFireDepartment, MoreHorizOutlined, SearchOutlined, TableRowsOutlined } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, Box, Button, ButtonBase, ListItemButton, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { Box, Button, ButtonBase, ListItemButton, Paper, Popover, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, type ReactNode, useState } from 'react';
 
@@ -555,70 +555,68 @@ const AttackPathHeader: FunctionComponent<Props> = ({
         ))}
       </Popover>
 
-      {/* FDS-WORKAROUND: stays on MUI. This field carries a leading magnifier
-          (startAdornment); the library Combobox has no leading-icon slot and its
-          RFC defers it out of v1, arbitrating that the magnifier belongs to
-          SearchField. Remove this workaround when a combobox-with-leading-icon
-          exists, or when this field is rebuilt on SearchField. */}
-      <MuiAutocomplete<SearchOption>
-        size="small"
-        options={searchOptions}
-        value={null}
-        inputValue={searchInput}
-        onInputChange={(_, v) => onSearchInputChange(v)}
-        onChange={(_, v) => {
-          onSearchSelect(v);
-          onSearchInputChange('');
-        }}
-        blurOnSelect
-        clearOnBlur
-        groupBy={o => searchGroupLabel(o.kind)}
-        getOptionLabel={o => o.label}
-        isOptionEqualToValue={(o, v) => o.nodeId === v.nodeId && o.label === v.label}
-        filterOptions={(opts, state) => {
-          const q = state.inputValue.trim().toLowerCase();
-          if (!q) {
-            return opts;
-          }
-          return opts.filter(o => o.label.toLowerCase().includes(q) || (o.sub ?? '').toLowerCase().includes(q));
-        }}
-        renderOption={(props, o) => {
-          const { key, ...rest } = props as { key: string } & Record<string, unknown>;
-          return (
-            <li key={key} {...rest}>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" noWrap>{o.label}</Typography>
-                {o.sub && <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{o.sub}</Typography>}
-              </Box>
-            </li>
-          );
-        }}
-        renderInput={params => (
-          <TextField
-            {...params}
-            placeholder={t('Search endpoint, injector, finding…')}
-            InputProps={{
-              ...params.InputProps,
-              startAdornment: (
-                <SearchOutlined
-                  fontSize="small"
-                  sx={{
-                    mr: 0.5,
-                    color: 'text.secondary',
-                  }}
-                />
-              ),
-            }}
-          />
-        )}
-        sx={{
-          'width': 240,
-          '& .MuiOutlinedInput-root': {
-            height: CONTROL_HEIGHT,
-            paddingBlock: 0,
-          },
-        }}
-      />
+      <div style={{ width: 240 }}>
+        <Combobox<SearchOption>
+          options={searchOptions}
+          value={null}
+          inputValue={searchInput}
+          onInputChange={(v, meta) => {
+            if (meta.cause === 'type') {
+              onSearchInputChange(v);
+            }
+          }}
+          onValueChange={(v) => {
+            onSearchSelect(v as SearchOption | null);
+            onSearchInputChange('');
+          }}
+          keepInputOnBlur={false}
+          groupBy={o => searchGroupLabel(o.kind)}
+          getOptionLabel={o => o.label}
+          isOptionEqualToValue={(o, v) => o.nodeId === v.nodeId && o.label === v.label}
+          filterOptions={(opts, inputValue) => {
+            const q = inputValue.trim().toLowerCase();
+            if (!q) {
+              return opts;
+            }
+            return opts.filter(o => o.label.toLowerCase().includes(q) || (o.sub ?? '').toLowerCase().includes(q));
+          }}
+          renderOption={o => (
+            <div style={{ minWidth: 0 }}>
+              <div style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              >
+                {o.label}
+              </div>
+              {o.sub
+                ? (
+                    <div
+                      className="content-caption text-default-secondary"
+                      style={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {o.sub}
+                    </div>
+                  )
+                : null}
+            </div>
+          )}
+          clearable={false}
+        >
+          <ComboboxField startIcon={<SearchOutlined fontSize="small" />}>
+            <ComboboxInput placeholder={t('Search endpoint, injector, finding…')} />
+            <ComboboxControls>
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent emptyMessage={t('No result')} />
+        </Combobox>
+      </div>
       <ToggleButtonGroup
         size="small"
         exclusive

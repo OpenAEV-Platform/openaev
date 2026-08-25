@@ -83,7 +83,6 @@ const ReportingAutocompleteField: FunctionComponent<Props> = (props) => {
       }}
       required={required}
       error={error}
-      renderOption={option => option.label}
     >
       <ComboboxLabel>{label}</ComboboxLabel>
       <ComboboxField>

@@ -1,12 +1,18 @@
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+} from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ExpandMore } from '@mui/icons-material';
 import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
-  Autocomplete,
   Button,
-  Chip,
   MenuItem,
   TextField as MuiTextField,
   Typography,
@@ -268,50 +274,43 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
                 name="scenario_mails_reply_to"
                 render={({ field, fieldState }) => {
                   return (
-                    <Autocomplete
+                    <Combobox<string>
                       multiple
-                      id="email-reply-to-input"
-                      freeSolo
+                      // No `onOpenChange` beside it: nothing can move the panel, so none is
+                      // mounted and Enter/ArrowDown keep their native meaning in the input.
                       open={false}
                       options={[]}
-                      value={field.value}
-                      onChange={() => {
-                        if (undefined !== field.value && inputValue !== '' && !field.value.includes(inputValue)) {
-                          field.onChange([...(field.value || []), inputValue.trim()]);
+                      value={field.value ?? []}
+                      allowCustomValue
+                      createValueFromInput={input => input.trim()}
+                      getOptionLabel={email => email}
+                      isOptionEqualToValue={(a, b) => a === b}
+                      inputValue={inputValue}
+                      onInputChange={(newInputValue, meta) => {
+                        if (meta.cause === 'type') {
+                          setInputValue(newInputValue);
                         }
                       }}
-                      onBlur={field.onBlur}
-                      inputValue={inputValue}
-                      onInputChange={(_event, newInputValue) => {
-                        setInputValue(newInputValue);
+                      onValueChange={(next) => {
+                        // Every value reaching here was typed, the list being empty by design.
+                        const emails = (next as string[]).map(email => email.trim()).filter(email => email !== '');
+                        field.onChange(Array.from(new Set(emails)));
+                        // MUI cleared the text itself through its `reset` cause; the
+                        // library reports causes instead, so the commit clears it here.
+                        setInputValue('');
                       }}
-                      disableClearable={true}
-                      renderTags={(tags: string[], getTagProps) => tags.map((email: string, index: number) => {
-                        return (
-                          <Chip
-                            variant="outlined"
-                            label={email}
-                            {...getTagProps({ index })}
-                            key={email}
-                            style={{ borderRadius: 4 }}
-                            onDelete={() => {
-                              const newValue = [...(field.value || [])];
-                              newValue.splice(index, 1);
-                              field.onChange(newValue);
-                            }}
-                          />
-                        );
-                      })}
-                      renderInput={params => (
-                        <MuiTextField
-                          {...params}
-                          variant="standard"
-                          label={t('Reply to')}
-                          error={!!fieldState.error}
-                          helperText={errors.scenario_mails_reply_to?.find ? errors.scenario_mails_reply_to?.find(value => value != null)?.message ?? '' : ''}
-                        />
-                      )}
-                    />
+                      clearable={false}
+                      error={!!fieldState.error}
+                    >
+                      <ComboboxLabel>{t('Reply to')}</ComboboxLabel>
+                      <ComboboxField>
+                        <ComboboxChips />
+                        <ComboboxInput id="email-reply-to-input" onBlur={field.onBlur} />
+                      </ComboboxField>
+                      <ComboboxHelperText>
+                        {errors.scenario_mails_reply_to?.find ? errors.scenario_mails_reply_to?.find(value => value != null)?.message ?? '' : ''}
+                      </ComboboxHelperText>
+                    </Combobox>
                   );
                 }}
               />

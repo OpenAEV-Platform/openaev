@@ -1,5 +1,4 @@
 import { FlagOutlined } from '@mui/icons-material';
-import { Box } from '@mui/material';
 import * as R from 'ramda';
 import { Component } from 'react';
 import { withStyles } from 'tss-react/mui';
@@ -36,13 +35,13 @@ class CountryFieldComponent extends Component {
           style={{ marginTop: 20 }}
           // Country is optional: the clear icon is the only way to empty it.
           disableClearable={false}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
+          renderOption={option => (
+            <>
               <div className={classes.icon}>
                 <FlagOutlined />
               </div>
               <div className={classes.text}>{option.label}</div>
-            </Box>
+            </>
           )}
         />
       </div>
