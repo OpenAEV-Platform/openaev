@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-import type { ArticleCreateInput, ArticleUpdateInput, Channel, Document, Tag } from '../../../../utils/api-types';
+import type { ArticleCreateInput, ArticleUpdateInput, Channel, Document } from '../../../../utils/api-types';
+import type { Option } from '../../../../utils/Option';
 import { zodImplement } from '../../../../utils/Zod';
 
 // Extract the validation logic of the Mime Types
@@ -10,10 +11,11 @@ export const isMimeTypeValid = (docType: string | undefined, allowedTypes: strin
 };
 
 // Extract the logic from the Tags
-export const matchesTags = (docTags: string[] | undefined, selectedTags: Tag[]) => {
+// TagsFilter emits options ({ id, label }), not raw Tag entities.
+export const matchesTags = (docTags: string[] | undefined, selectedTags: Option[]) => {
   if (selectedTags.length === 0) return true;
   const safeDocTags = docTags ?? [];
-  return selectedTags.some(tag => safeDocTags.includes(tag.tag_id));
+  return selectedTags.some(tag => safeDocTags.includes(tag.id));
 };
 
 // Extract the text search

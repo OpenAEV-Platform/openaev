@@ -9,8 +9,9 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
-import { type Document, type Tag } from '../../../../utils/api-types';
+import { type Document } from '../../../../utils/api-types';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { type Option } from '../../../../utils/Option';
 import CreateDocument from '../../components/documents/CreateDocument';
 import { ArticleContext, PermissionsContext } from '../Context';
 import TagsFilter from '../filters/TagsFilter';
@@ -47,7 +48,7 @@ const ArticleAddDocuments = ({ handleAddDocuments, articleDocumentsIds, channelT
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [documentsIds, setDocumentsIds] = useState<string[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
+  const [tags, setTags] = useState<Option[]>([]);
 
   // Fetching data
   const { documents } = useHelper((helper: DocumentHelper) => ({ documents: helper.getDocumentsMap() }));
@@ -136,7 +137,7 @@ const ArticleAddDocuments = ({ handleAddDocuments, articleDocumentsIds, channelT
         fullWidth
       />
       <TagsFilter
-        onAddTag={(value: Tag | null) => {
+        onAddTag={(value: Option) => {
           if (value) {
             setTags([value]);
           }
