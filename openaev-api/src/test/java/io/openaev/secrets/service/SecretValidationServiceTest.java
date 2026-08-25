@@ -208,6 +208,8 @@ class SecretValidationServiceTest extends IntegrationTest {
       assertThat(result.outcome()).isEqualTo(SecretValidationResult.OUTCOME.UNKNOWN);
       assertThat(result.detail()).isEqualTo(SECRET_NOT_FOUND);
       assertThat(result.statusToPersist()).isEmpty();
+      // No validator ever ran, so the row must not even be stamped as verified.
+      assertThat(result.wasChecked()).isFalse();
     }
 
     @Test
@@ -289,9 +291,27 @@ class SecretValidationServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("A credential no validator ever ran on is left completely untouched")
+    void given_notCheckedOutcome_should_writeNothing() {
+      // Arrange — a dangling secret: inconclusive AND never probed.
+      CredentialSecretReference reference = seedReference(AZURE_SERVICE_PRINCIPAL, UNSET, null);
+
+      // Act
+      int updated =
+          secretValidationService.persistResults(
+              Map.of(reference.getId(), SecretValidationResult.notChecked(SECRET_NOT_FOUND)));
+
+      // Assert — no status, and no verification stamp either.
+      assertThat(updated).isZero();
+      SecretReference reloaded =
+          secretReferenceRepository.findById(reference.getId()).orElseThrow();
+      assertThat(reloaded.getStatus()).isEqualTo(UNSET);
+      assertThat(reloaded.getLastVerifiedAt()).isNull();
+    }
+
+    @Test
     @DisplayName("An unsupported credential type is left completely untouched")
-    void given_unsupportedOutcome_should_writeNothing() {
-      // Arrange
+    void given_unsupportedOutcome_should_writeNothing() { // Arrange
       CredentialSecretReference reference = seedReference(AZURE_SERVICE_PRINCIPAL, UNSET, null);
 
       // Act

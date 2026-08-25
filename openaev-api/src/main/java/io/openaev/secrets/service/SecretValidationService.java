@@ -124,7 +124,7 @@ public class SecretValidationService {
       log.warn(
           "Credential validation: reference {} has no resolvable secret, status left untouched",
           candidate.referenceId());
-      return SecretValidationResult.inactive(SECRET_NOT_FOUND);
+      return SecretValidationResult.notChecked(SECRET_NOT_FOUND);
     }
 
     Optional<SecretHandler> handler = secretHandlerResolver.findFor(secret);
@@ -133,12 +133,12 @@ public class SecretValidationService {
           "Credential validation: no handler supports secret type {} of reference {}",
           secret.getType(),
           candidate.referenceId());
-      return SecretValidationResult.inactive(HANDLER_NOT_FOUND);
+      return SecretValidationResult.notChecked(HANDLER_NOT_FOUND);
     }
 
     try {
       SecretValidationResult result = handler.get().validateConnection(secret);
-      return result != null ? result : SecretValidationResult.inactive(VALIDATOR_ERROR);
+      return result != null ? result : SecretValidationResult.unknown(VALIDATOR_ERROR);
     } catch (RuntimeException e) {
       // Inconclusive, never INACTIVE: an unexpected validator failure says nothing about the
       // credential itself. Message only, no stack payload: provider errors embed identifiers.
@@ -146,7 +146,7 @@ public class SecretValidationService {
           "Credential validation: validator failed for reference {}: {}",
           candidate.referenceId(),
           e.getMessage());
-      return SecretValidationResult.inactive(VALIDATOR_ERROR);
+      return SecretValidationResult.unknown(VALIDATOR_ERROR);
     }
   }
 
