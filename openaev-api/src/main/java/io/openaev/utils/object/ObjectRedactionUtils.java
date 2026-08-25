@@ -21,7 +21,11 @@ public class ObjectRedactionUtils {
       Set.of(
           Pattern.compile(".*password.*"),
           Pattern.compile(".*secret.*"),
-          Pattern.compile(".*credential.*"));
+          Pattern.compile(".*credential.*"),
+          Pattern.compile("^aws_session_token$"),
+          Pattern.compile("^aws_secret_access_key$"),
+          Pattern.compile("^aws_external_id$"),
+          Pattern.compile("^aws_source_profile_secret_access_key$"));
 
   /** Sensitive-like fields that are explicitly allowed and therefore not redacted. */
   private static final Set<Pattern> ALLOWED_SENSITIVE_FIELDS_REGEX_TO_REDACT =
@@ -90,12 +94,12 @@ public class ObjectRedactionUtils {
         return null;
       }
 
-      if (shouldHash(fieldName)) {
-        return hashWithSHA256(stringValue);
-      }
-
       if (shouldRedact(fieldName)) {
         return REDACTED;
+      }
+
+      if (shouldHash(fieldName)) {
+        return hashWithSHA256(stringValue);
       }
     }
     return value;
@@ -141,13 +145,13 @@ public class ObjectRedactionUtils {
       return;
     }
 
-    if (shouldHash(fieldName)) {
-      result.put(key, hashWithSHA256(toHashInput(value)));
+    if (shouldRedact(fieldName)) {
+      result.put(key, REDACTED);
       return;
     }
 
-    if (shouldRedact(fieldName)) {
-      result.put(key, REDACTED);
+    if (shouldHash(fieldName)) {
+      result.put(key, hashWithSHA256(toHashInput(value)));
       return;
     }
 
