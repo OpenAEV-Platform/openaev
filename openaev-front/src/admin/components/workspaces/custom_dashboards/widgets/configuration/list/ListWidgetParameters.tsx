@@ -7,8 +7,15 @@ import {
   ComboboxInput,
   ComboboxLabel,
   ComboboxTrigger,
+  Select,
+  SelectContent,
+  SelectHelperText,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
 } from '@filigran/design-system';
-import { Box, MenuItem, TextField } from '@mui/material';
+import { Box } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { type Control, Controller, type UseFormSetValue, useWatch } from 'react-hook-form';
 
@@ -131,21 +138,24 @@ const ListWidgetParameters = (props: Props) => {
         control={props.control}
         name="widget_config.sorts.0.direction"
         render={({ field, fieldState }) => (
-          <TextField
-            {...field}
-            select
-            variant="standard"
-            fullWidth
-            label={t('Direction')}
-            sx={{ mt: 2 }}
-            value={field.value ?? ''}
-            error={!!fieldState.error}
-            helperText={fieldState.error?.message}
-            onChange={e => field.onChange(e.target.value)}
-            required={true}
-          >
-            {['ASC', 'DESC'].map(dir => <MenuItem key={dir} value={dir}>{t(dir)}</MenuItem>)}
-          </TextField>
+          <div style={{ marginTop: 16 }}>
+            <Select
+              value={field.value ?? ''}
+              onValueChange={field.onChange}
+              error={!!fieldState.error}
+              required
+              name={field.name}
+            >
+              <SelectLabel required>{t('Direction')}</SelectLabel>
+              <SelectTrigger>
+                <SelectValue placeholder={t('Direction')} />
+              </SelectTrigger>
+              <SelectContent>
+                {['ASC', 'DESC'].map(dir => <SelectItem key={dir} value={dir}>{t(dir)}</SelectItem>)}
+              </SelectContent>
+              {fieldState.error?.message ? <SelectHelperText>{fieldState.error?.message}</SelectHelperText> : null}
+            </Select>
+          </div>
         )}
       />
 

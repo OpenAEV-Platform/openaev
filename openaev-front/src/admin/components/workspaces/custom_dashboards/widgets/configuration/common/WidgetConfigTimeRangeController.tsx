@@ -1,4 +1,12 @@
-import { MenuItem, TextField } from '@mui/material';
+import {
+  Select,
+  SelectContent,
+  SelectHelperText,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { DatePicker } from '@mui/x-date-pickers';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
@@ -24,21 +32,24 @@ const WidgetConfigTimeRangeController = () => {
         name="widget_config.time_range"
         defaultValue={timeRangeItems[0].value}
         render={({ field, fieldState }) => (
-          <TextField
-            {...field}
-            select
-            variant="standard"
-            fullWidth
-            label={t('Time range')}
-            sx={{ mt: 2 }}
-            value={field.value ?? ''}
-            onChange={e => field.onChange(e.target.value)}
-            error={!!fieldState.error}
-            helperText={fieldState.error?.message}
-            required
-          >
-            {timeRangeItems.map(timeRange => <MenuItem key={timeRange.value} value={timeRange.value}>{t(timeRange.label_key)}</MenuItem>)}
-          </TextField>
+          <div style={{ marginTop: 16 }}>
+            <Select
+              value={field.value ?? ''}
+              onValueChange={field.onChange}
+              error={!!fieldState.error}
+              required
+              name={field.name}
+            >
+              <SelectLabel required>{t('Time range')}</SelectLabel>
+              <SelectTrigger>
+                <SelectValue placeholder={t('Time range')} />
+              </SelectTrigger>
+              <SelectContent>
+                {timeRangeItems.map(timeRange => <SelectItem key={timeRange.value} value={timeRange.value}>{t(timeRange.label_key)}</SelectItem>)}
+              </SelectContent>
+              {fieldState.error?.message ? <SelectHelperText>{fieldState.error?.message}</SelectHelperText> : null}
+            </Select>
+          </div>
         )}
       />
       {
