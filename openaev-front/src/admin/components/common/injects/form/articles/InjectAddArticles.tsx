@@ -2,18 +2,16 @@ import * as R from 'ramda';
 import { type FunctionComponent, useContext, useMemo, useState } from 'react';
 
 import { type FullArticleStore } from '../../../../../../actions/channels/Article';
-import { fetchChannels } from '../../../../../../actions/channels/channel-action';
 import { type ChannelsHelper } from '../../../../../../actions/channels/channel-helper';
 import SelectListPicker, { type SelectListPickerElements } from '../../../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../../../components/i18n';
 import SearchFilter from '../../../../../../components/SearchFilter';
 import { useHelper } from '../../../../../../store';
 import { type Article } from '../../../../../../utils/api-types';
-import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
 import ChannelIcon from '../../../../components/channels/ChannelIcon';
 import CreateArticle from '../../../articles/CreateArticle';
-import { PermissionsContext } from '../../../Context';
+import { ArticleContext, PermissionsContext } from '../../../Context';
 
 interface Props {
   open: boolean;
@@ -37,13 +35,15 @@ const InjectAddArticles: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-  const dispatch = useAppDispatch();
   const { permissions } = useContext(PermissionsContext);
+  // Channels are scoped to the current screen (simulation, scenario…):
+  // always go through ArticleContext instead of the global endpoint.
+  const { fetchChannels } = useContext(ArticleContext);
 
   const { channelsMap } = useHelper((helper: ChannelsHelper) => ({ channelsMap: helper.getChannelsMap() }));
 
   useDataLoader(() => {
-    dispatch(fetchChannels());
+    fetchChannels();
   });
 
   const [keyword, setKeyword] = useState('');
