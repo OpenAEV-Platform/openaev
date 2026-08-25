@@ -29,24 +29,31 @@ const TimeRangeFilters: FunctionComponent<Props> = ({ handleTimeRange, handleSta
 
   return (
     <>
-      <Select
-        value={timeRangeValue}
-        onValueChange={(next) => {
-          handleTimeRange(next);
-        }}
-      >
-        <SelectLabel>{t('Time range')}</SelectLabel>
-        <SelectTrigger>
-          <SelectValue placeholder={t('Time range')} />
-        </SelectTrigger>
-        <SelectContent>
-          {timeRangeItems.map(item => (
-            <SelectItem key={item.value} value={item.value}>
-              {t(item.label_key)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* The library Select renders NO wrapper of its own — unlike Combobox,
+          which wraps its parts in a flex column. Its label and its trigger are
+          therefore siblings of whatever holds them, and in the grid this row
+          uses they landed in two different cells, one beside the other. The
+          wrapper keeps them together. */}
+      <div>
+        <Select
+          value={timeRangeValue}
+          onValueChange={(next) => {
+            handleTimeRange(next);
+          }}
+        >
+          <SelectLabel>{t('Time range')}</SelectLabel>
+          <SelectTrigger>
+            <SelectValue placeholder={t('Time range')} />
+          </SelectTrigger>
+          <SelectContent>
+            {timeRangeItems.map(item => (
+              <SelectItem key={item.value} value={item.value}>
+                {t(item.label_key)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       {
         timeRangeValue === CUSTOM_TIME_RANGE && (
           <>

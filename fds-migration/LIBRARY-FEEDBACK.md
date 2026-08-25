@@ -2180,3 +2180,25 @@ expresses).
 
 No product compensation in the meantime — arbitrated. The 12 sites keep paying
 48px until the library changes the floor.
+
+## 43. `Select` renders no wrapper of its own, so its label and trigger separate
+
+Measured at pin `cd4b8ee`, on the scenario statistics row.
+
+`Combobox` wraps its parts: `<div className={cn("flex w-full flex-col", …)}>`.
+`Select` does not — `SelectPrimitive.Root` emits no DOM node, so `SelectLabel`
+and `SelectTrigger` become **siblings of whatever holds the Select**.
+
+In a flex or grid parent that is not a stacked column, they are laid out as two
+independent items. Measured on a `grid-template-columns: 330px 330px 330px` row:
+the parameter field, the label "Plage horaire" and the trigger "3 derniers mois"
+all reported `top: 342` — the label had been placed in its own grid cell, beside
+the trigger instead of above it. Reported by the review as a misalignment
+between the two filters, and it is exactly this.
+
+Every product site must therefore add a wrapper element the component could have
+provided. That is a silent trap: the composition looks right, typechecks, and
+renders correctly in any parent that happens to be a block.
+
+**The request.** Give `Select` the same wrapper `Combobox` already has, so the
+two components compose the same way and neither depends on its parent's display.
