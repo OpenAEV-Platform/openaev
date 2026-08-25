@@ -7,17 +7,17 @@ import {
   ComboboxInput,
   ComboboxLabel,
   ComboboxTrigger,
+  Select,
+  SelectContent,
+  SelectHelperText,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
 } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { TableViewOutlined } from '@mui/icons-material';
-import {
-  Alert,
-  Box,
-  Button,
-  MenuItem,
-  TextField,
-  Tooltip,
-} from '@mui/material';
+import { Alert, Box, Button, Tooltip } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { InformationOutline } from 'mdi-material-ui';
 import moment from 'moment-timezone';
@@ -109,7 +109,6 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
 
   // Form
   const {
-    register,
     control,
     handleSubmit: handleSubmitForm,
     formState: { errors, isDirty, isSubmitting },
@@ -387,20 +386,23 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
           control={control}
           name="timezone"
           render={({ field }) => (
-            <TextField
-              select
-              variant="standard"
-              fullWidth
-              value={field.value}
-              label={t('Timezone')}
+            <Select
+              value={field.value ?? ''}
+              onValueChange={field.onChange}
+              name={field.name}
               error={!!errors.timezone}
-              helperText={errors.timezone?.message}
-              inputProps={register('timezone')}
             >
-              {timezones.map(tz => (
-                <MenuItem key={tz} value={tz}>{t(tz)}</MenuItem>
-              ))}
-            </TextField>
+              <SelectLabel>{t('Timezone')}</SelectLabel>
+              <SelectTrigger>
+                <SelectValue placeholder={t('Timezone')} />
+              </SelectTrigger>
+              <SelectContent>
+                {timezones.map(tz => (
+                  <SelectItem key={tz} value={tz}>{t(tz)}</SelectItem>
+                ))}
+              </SelectContent>
+              {errors.timezone?.message ? <SelectHelperText>{errors.timezone?.message}</SelectHelperText> : null}
+            </Select>
           )}
         />
       </div>
