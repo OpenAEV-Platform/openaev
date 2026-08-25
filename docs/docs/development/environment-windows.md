@@ -92,7 +92,7 @@ This starts:
 |---|---|---|
 | PostgreSQL 17 | 5432 | Database |
 | MinIO | 10000, 10001 | S3-compatible object storage |
-| Elasticsearch 8 | 9200 | Analytics engine |
+| Elasticsearch 9 | 9200 | Analytics engine |
 | RabbitMQ 4 | 5672, 15672 | Message broker |
 
 !!! warning
