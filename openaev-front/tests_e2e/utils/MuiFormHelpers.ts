@@ -33,9 +33,10 @@ class MuiFormHelpers {
     const combobox = fieldLocator
       .locator('xpath=ancestor::div[contains(@class, "flex-col")][1]/p[substring(@id, string-length(@id) - 6) = "-helper"]');
     // Select renders NO wrapper of its own (LIBRARY-FEEDBACK 43), so its helper
-    // text is a plain sibling of the trigger, wherever the trigger sits.
-    const select = fieldLocator
-      .locator('xpath=following-sibling::p[substring(@id, string-length(@id) - 6) = "-helper"]');
+    // text is a plain sibling of the trigger. Its id is a raw `React.useId()`,
+    // not the `…-helper` the Combobox uses, so it cannot be matched by suffix —
+    // and the Select's only sibling paragraph IS its helper text.
+    const select = fieldLocator.locator('xpath=following-sibling::p');
     return mui.or(combobox).or(select);
   }
 
