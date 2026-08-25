@@ -17,10 +17,14 @@ import { useFormatter } from '../../../i18n';
 import { type FilterHelpers } from './FilterHelpers';
 import { buildEmptyFilter } from './FilterUtils';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()(theme => ({
   container: {
     display: 'flex',
     gap: 10,
+    // Measured at 0: this field sits flush against the search box it follows on
+    // every list toolbar. The gap belongs on the boundary between the two, so it
+    // lives here and reaches every page that mounts this field.
+    marginLeft: theme.spacing(1),
   },
 }));
 
@@ -72,6 +76,10 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
             const next = selectOptionValue as typeof options[number] | null;
             if (next) {
               handleChange(next.id, next.operator);
+              // The filter is added elsewhere and this field holds no value, so
+              // the text must go with it. MUI cleared it through its own `reset`
+              // cause, which the `type`-only guard below drops.
+              setInputValue('');
             }
           }}
           inputValue={inputValue}

@@ -29,3 +29,16 @@
 :root {
   --fds-z-overlay: 1400;
 }
+
+/* The two floating surfaces this app hosts library fields in must read their
+ * ground from the design system, not from MUI's own paper. `layer-2` is the
+ * arbitrated elevation for both; the token is declared for `:root`, `.light`
+ * and `.dark`, so it follows the mode without a second rule here.
+ *
+ * Scoped through explicit hooks rather than `.MuiDrawer-paper` /
+ * `.MuiPopover-paper`: this app mounts many other papers that must not move. */
+.fds-drawer-surface,
+.fds-filter-popover {
+  background-color: var(--bg-elevation-default-layer-2);
+  background-image: none;
+}

@@ -133,7 +133,7 @@ const Drawer: FunctionComponent<DrawerProps> = ({
           minHeight: `calc(100vh - ${bannerHeightNumber}px)`,
         },
       }}
-      classes={{ paper: variant === 'full' ? classes.drawerPaperFull : classes.drawerPaperHalf }}
+      classes={{ paper: `fds-drawer-surface ${variant === 'full' ? classes.drawerPaperFull : classes.drawerPaperHalf}` }}
       onClose={handleClose}
       PaperProps={PaperProps}
       ModalProps={{ disableEnforceFocus }}

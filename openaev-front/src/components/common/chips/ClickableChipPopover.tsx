@@ -63,6 +63,7 @@ const ClickableChipPopover: FunctionComponent<Props> = ({
         horizontal: 'left',
       }}
       PaperProps={{
+        className: 'fds-filter-popover',
         elevation: 1,
         style: { marginTop: 10 },
       }}

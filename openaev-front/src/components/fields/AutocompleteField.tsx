@@ -25,6 +25,7 @@ interface BaseProps {
   disableCloseOnSelect?: boolean;
   disableOptionTooltip?: boolean;
   open?: boolean;
+  placeholder?: string;
   onOpenChange?: (open: boolean, meta: ComboboxChangeMeta) => void;
   required?: boolean;
   error?: boolean;
@@ -71,6 +72,7 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
     disableOptionTooltip = false,
     autoFocus = false,
     hideOption,
+    placeholder,
   } = props;
 
   const multiple = props.multiple === true;
@@ -196,7 +198,7 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
         </ComboboxLabel>
         <ComboboxField>
           {multiple && <ComboboxChips />}
-          <ComboboxInput autoFocus={autoFocus} />
+          <ComboboxInput autoFocus={autoFocus} placeholder={placeholder} />
           <ComboboxControls>
             <ComboboxClear />
             <ComboboxTrigger />
