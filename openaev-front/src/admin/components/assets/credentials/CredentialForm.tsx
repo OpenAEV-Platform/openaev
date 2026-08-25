@@ -4,7 +4,6 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useMemo, useState } from 'react';
 import {
   FormProvider,
-  type Resolver,
   type SubmitHandler,
   useForm,
   useWatch,
@@ -32,8 +31,6 @@ interface Props {
   initialValues?: Partial<CredentialInput>;
 }
 
-type CredentialFormValues = Partial<CredentialInput> & Record<string, unknown>;
-
 const CredentialForm: FunctionComponent<Props> = ({
   onSubmit,
   handleClose,
@@ -46,8 +43,8 @@ const CredentialForm: FunctionComponent<Props> = ({
   const [isLoadingContracts, setIsLoadingContracts] = useState(true);
 
   const matchesCondition = (
-    values: Record<string, unknown>,
-    conditionField?: string,
+    values: CredentialInput,
+    conditionField?: keyof CredentialInput,
     conditionValue?: string,
   ): boolean => {
     if (!conditionField || !conditionValue) {
@@ -61,13 +58,12 @@ const CredentialForm: FunctionComponent<Props> = ({
       .object({
         credential_name: z.string().min(1, { message: t('Should not be empty') }),
         credential_description: z.string().optional(),
-        credential_type: z.string().min(1, { message: t('Should not be empty') }),
-        credential_auth_method: z.string().min(1, { message: t('Should not be empty') }),
+        credential_type: z.enum(['IDENTITY', 'CLOUD_AWS']),
+        credential_auth_method: z.enum(['USERNAME_PASSWORD', 'HASH', 'AWS_ACCESS_KEY', 'AWS_ASSUME_ROLE']),
         credential_tags: z.array(z.string()).optional(),
       })
-      .passthrough()
       .check(({ value, issues }) => {
-        const values = value as Record<string, unknown>;
+        const values = value;
         const contract = contracts.find(
           c => c.credential_type === values.credential_type
             && c.credential_auth_method === values.credential_auth_method,
@@ -81,22 +77,23 @@ const CredentialForm: FunctionComponent<Props> = ({
           .filter((field: CredentialContractField) => {
             const isVisible = !field.visible_condition_field || matchesCondition(
               values,
-              field.visible_condition_field,
+              field.visible_condition_field as keyof CredentialInput,
               field.visible_condition_value,
             );
             const isRequired = field.required || matchesCondition(
               values,
-              field.mandatory_condition_field,
+              field.mandatory_condition_field as keyof CredentialInput,
               field.mandatory_condition_value,
             );
             return isVisible && isRequired;
           })
           .forEach((field: CredentialContractField) => {
             const fieldName = field.field_name;
-            if (!fieldName) {
+            if (!fieldName || !(fieldName in values)) {
               return;
             }
-            const fieldValue = values[fieldName];
+
+            const fieldValue = values[fieldName as keyof typeof values];
             const isEmptyString = typeof fieldValue === 'string' && fieldValue.trim().length === 0;
             const isMissing = fieldValue === undefined || fieldValue === null || isEmptyString;
 
@@ -113,10 +110,10 @@ const CredentialForm: FunctionComponent<Props> = ({
     [contracts, t],
   );
 
-  const methods = useForm<CredentialFormValues>({
+  const methods = useForm<CredentialInput>({
     mode: 'onTouched',
-    resolver: zodResolver(schema) as unknown as Resolver<CredentialFormValues>,
-    defaultValues: initialValues as CredentialFormValues,
+    resolver: zodResolver(schema),
+    defaultValues: initialValues,
   });
 
   const {
@@ -189,7 +186,7 @@ const CredentialForm: FunctionComponent<Props> = ({
   });
 
   const currentFormValues = useMemo(
-    () => getValues() as Record<string, unknown>,
+    () => getValues() as CredentialInput,
     [getValues, watchedConditionValues],
   );
 
@@ -209,7 +206,7 @@ const CredentialForm: FunctionComponent<Props> = ({
     const isRequired = !!field.required
       || matchesCondition(
         currentFormValues,
-        field.mandatory_condition_field,
+        field.mandatory_condition_field as keyof CredentialInput,
         field.mandatory_condition_value,
       );
 
@@ -235,7 +232,7 @@ const CredentialForm: FunctionComponent<Props> = ({
     };
   };
 
-  const handleSubmitSanitized: SubmitHandler<CredentialFormValues> = async (values, event) => {
+  const handleSubmitSanitized: SubmitHandler<CredentialInput> = async (values, event) => {
     const allowedKeys = new Set<string>([
       'credential_name',
       'credential_type',
@@ -250,7 +247,7 @@ const CredentialForm: FunctionComponent<Props> = ({
     const sanitizedEntries = Object.entries(values)
       .filter(([key, value]) => allowedKeys.has(key) && value != DOTS);
 
-    await onSubmit(Object.fromEntries(sanitizedEntries) as unknown as CredentialInput, event);
+    await onSubmit(Object.fromEntries(sanitizedEntries) as CredentialInput, event);
   };
 
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
@@ -312,7 +309,7 @@ const CredentialForm: FunctionComponent<Props> = ({
           .filter((field: CredentialContractField) => field.visible_condition_field
             ? matchesCondition(
                 currentFormValues,
-                field.visible_condition_field,
+                field.visible_condition_field as keyof CredentialInput,
                 field.visible_condition_value,
               )
             : true)

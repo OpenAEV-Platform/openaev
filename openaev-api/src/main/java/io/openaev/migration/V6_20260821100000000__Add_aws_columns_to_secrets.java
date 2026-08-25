@@ -18,9 +18,9 @@ public class V6_20260821100000000__Add_aws_columns_to_secrets extends BaseJavaMi
           ADD COLUMN IF NOT EXISTS secret_aws_secret_access_key TEXT,
           ADD COLUMN IF NOT EXISTS secret_aws_session_token TEXT,
           ADD COLUMN IF NOT EXISTS secret_aws_default_region VARCHAR(255),
-          ADD COLUMN IF NOT EXISTS secret_aws_role_arn VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS secret_aws_role_arn TEXT,
           ADD COLUMN IF NOT EXISTS secret_aws_source_identity_type VARCHAR(255),
-          ADD COLUMN IF NOT EXISTS secret_aws_external_id VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS secret_aws_external_id TEXT,
           ADD COLUMN IF NOT EXISTS secret_aws_source_profile_access_key_id VARCHAR(255),
           ADD COLUMN IF NOT EXISTS secret_aws_source_profile_secret_access_key TEXT
           """);

@@ -72,7 +72,6 @@ class CredentialApiTest extends IntegrationTest {
               .getContentAsString();
 
       // Assert
-      assertThatJson(response).isArray().size().isEqualTo(4);
       List<String> authMethods = JsonPath.read(response, "$[*].credential_auth_method");
       assertThat(authMethods)
           .containsExactlyInAnyOrder(

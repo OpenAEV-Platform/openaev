@@ -21,7 +21,7 @@ public record CredentialContractOutput(
   }
 
   public record CredentialContractField(
-      @JsonProperty("field_name") String fieldName,
+      @JsonProperty("field_name") @NotNull String fieldName,
       @JsonProperty("field_type") CredentialContractFieldType fieldType,
       @JsonProperty("required") boolean required,
       @JsonProperty("choices") List<String> choices,
