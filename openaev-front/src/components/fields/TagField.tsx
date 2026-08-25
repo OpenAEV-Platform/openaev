@@ -157,7 +157,7 @@ const TagField: FunctionComponent<Props> = ({
                 priority="tertiary"
                 disabled={disabled}
                 onClick={() => handleOpenTagCreation()}
-                aria-label={t('Create')}
+                aria-label={t('Create a new tag')}
                 icon={<AddOutlined fontSize="small" />}
               />
             </Can>

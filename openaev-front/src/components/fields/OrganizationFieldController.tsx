@@ -109,7 +109,7 @@ const OrganizationFieldController: FunctionComponent<Props> = ({ name, label }) 
                   size="sm"
                   priority="tertiary"
                   onClick={() => setOpen(true)}
-                  aria-label={t('Create')}
+                  aria-label={t('Create a new organization')}
                   icon={<AddOutlined fontSize="small" />}
                 />
               )}

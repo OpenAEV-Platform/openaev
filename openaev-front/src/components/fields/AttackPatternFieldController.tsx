@@ -148,7 +148,7 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
                       size="sm"
                       priority="tertiary"
                       onClick={() => openCreate()}
-                      aria-label={t('Create')}
+                      aria-label={t('Create a new attack pattern')}
                       icon={<AddOutlined fontSize="small" />}
                     />
                   )

@@ -614,7 +614,7 @@ const AttackPathHeader: FunctionComponent<Props> = ({
               <ComboboxTrigger />
             </ComboboxControls>
           </ComboboxField>
-          <ComboboxContent emptyMessage={t('No result')} />
+          <ComboboxContent emptyMessage={t('No results found')} />
         </Combobox>
       </div>
       <ToggleButtonGroup

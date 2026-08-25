@@ -6,7 +6,6 @@ import {
   ComboboxContent,
   ComboboxControls,
   ComboboxField,
-  ComboboxHelperText,
   ComboboxInput,
   ComboboxLabel,
   ComboboxTrigger,
@@ -204,7 +203,6 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
           </ComboboxControls>
         </ComboboxField>
         <ComboboxContent emptyMessage={t('No available options')} />
-        {error ? <ComboboxHelperText>{t('This field is required')}</ComboboxHelperText> : null}
       </Combobox>
     </div>
   );
