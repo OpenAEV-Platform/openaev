@@ -9,6 +9,8 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import io.openaev.api.chaining.InjectExecutionStep;
+import io.openaev.api.markings.MarkingDefinitionDependenciesManager;
+import io.openaev.api.markings.MarkingDefinitionService;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
@@ -24,6 +26,7 @@ import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
+import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.database.repository.MitigationRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
@@ -157,7 +160,8 @@ class TenantActiveTableAccessArchTest {
           "autonomous_runs",
           "autonomous_events",
           "autonomous_directives",
-          "security_coverages");
+          "security_coverages",
+          "marking_definitions");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -566,6 +570,25 @@ class TenantActiveTableAccessArchTest {
           .areAssignableTo(AttackPathFindingRepository.class)
           .because(
               "attackpath_finding is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule marking_definitions_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Own service; every public entrypoint is TxCtx-scoped, pinned by
+              // TenantScopedEntrypointsTxCtxArchTest:
+              MarkingDefinitionService.class,
+              // Seeds the default TLP/PAP scales at tenant creation. It writes rows for the tenant
+              // being created and never reads, so it needs no read scope; the tenant is set
+              // explicitly on every entity rather than inferred from a scope:
+              MarkingDefinitionDependenciesManager.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(MarkingDefinitionRepository.class)
+          .because(
+              "marking_definitions is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
