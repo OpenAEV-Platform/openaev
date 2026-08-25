@@ -50,7 +50,7 @@
     "@mui/lab": "7.0.0-beta.17",
     "@mui/material": "7.3.11",
     "@mui/system": "7.3.11",
-    "@mui/x-date-pickers": "8.29.2",
+    "@mui/x-date-pickers": "8.29.3",
     "@redux-devtools/extension": "4.0.0",
     "@tanstack/react-virtual": "3.14.10",
     "@uiw/react-md-editor": "4.1.1",

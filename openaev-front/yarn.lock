@@ -1283,13 +1283,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mui/x-date-pickers@npm:8.29.2":
-  version: 8.29.2
-  resolution: "@mui/x-date-pickers@npm:8.29.2"
+"@mui/x-date-pickers@npm:8.29.3":
+  version: 8.29.3
+  resolution: "@mui/x-date-pickers@npm:8.29.3"
   dependencies:
     "@babel/runtime": "npm:^7.28.4"
     "@mui/utils": "npm:^7.3.5"
-    "@mui/x-internals": "npm:8.29.2"
+    "@mui/x-internals": "npm:8.29.3"
     "@types/react-transition-group": "npm:^4.4.12"
     clsx: "npm:^2.1.1"
     prop-types: "npm:^15.8.1"
@@ -1327,13 +1327,13 @@ __metadata:
       optional: true
     moment-jalaali:
       optional: true
-  checksum: 10c0/b424c3dc695fcb24308a88906793a0348b94bb026e641ebc540ae1ef26976d4eacf68b4ab5a3c721f22d71ea9cdddf49885d1a3bb96413b0b694c3693ecb10cd
+  checksum: 10c0/223c809cf6b0b17324e7b9951676d014bf7a7eebd1f90a095396d1c06ce1f70429c6d2f91f56b4b65f62fd973bc45828343dacdb3a67a11aef4445d156f5db54
   languageName: node
   linkType: hard
 
-"@mui/x-internals@npm:8.29.2":
-  version: 8.29.2
-  resolution: "@mui/x-internals@npm:8.29.2"
+"@mui/x-internals@npm:8.29.3":
+  version: 8.29.3
+  resolution: "@mui/x-internals@npm:8.29.3"
   dependencies:
     "@babel/runtime": "npm:^7.28.4"
     "@mui/utils": "npm:^7.3.5"
@@ -1341,7 +1341,7 @@ __metadata:
     use-sync-external-store: "npm:^1.6.0"
   peerDependencies:
     react: ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/2f43fc4305011b3b232e635de28b596ca259fcd641bc4097f686dd6ce4218413bf609d968f7d164f074547d0845eaf9cc4977543fd3ba86cd6fab12fa48c6370
+  checksum: 10c0/62bf51b77ad89436b4f2c742b2e727d71d6acdf07a4aa92d6f1651c47945c2a640ba3224c54b329e504b9175c3dbdf9b47ca5e6bc80d8170b0f9e084d8bc2352
   languageName: node
   linkType: hard
 
@@ -8589,7 +8589,7 @@ __metadata:
     "@mui/lab": "npm:7.0.0-beta.17"
     "@mui/material": "npm:7.3.11"
     "@mui/system": "npm:7.3.11"
-    "@mui/x-date-pickers": "npm:8.29.2"
+    "@mui/x-date-pickers": "npm:8.29.3"
     "@playwright/test": "npm:1.62.1"
     "@redux-devtools/extension": "npm:4.0.0"
     "@stylistic/eslint-plugin": "npm:5.10.0"
