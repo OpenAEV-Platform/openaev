@@ -24,10 +24,9 @@ import org.springframework.web.bind.annotation.*;
 /**
  * The marking catalogue: the vocabulary that clearances and row attachments are both expressed in.
  *
- * <p>TODO: add Capa - Guarded by the existing tenant-settings capability chain rather than a marking-specific one —
- * step 2.1 of the marking design is deliberately capability-free.
- *
- * */
+ * <p>TODO: add Capa - Guarded by the existing tenant-settings capability chain rather than a
+ * marking-specific one — step 2.1 of the marking design is deliberately capability-free.
+ */
 @RestController
 @RequestMapping({MarkingDefinitionApi.MARKING_URI, MarkingDefinitionApi.TENANT_MARKING_URI})
 @RequiredArgsConstructor

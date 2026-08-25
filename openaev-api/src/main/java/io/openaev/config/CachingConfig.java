@@ -27,7 +27,12 @@ public class CachingConfig {
      */
     CaffeineCacheManager cacheManager =
         new CaffeineCacheManager(
-            "license", "global", "adminUsers", "tenantMembership", "userTenantIds");
+            "license",
+            "global",
+            "adminUsers",
+            "tenantMembership",
+            "userTenantIds",
+            "markingClearance");
 
     cacheManager.setCaffeine(
         Caffeine.newBuilder().expireAfterWrite(Duration.ofDays(1)).maximumSize(100));
@@ -40,6 +45,13 @@ public class CachingConfig {
     // User tenant-id list: same TTL/capacity as membership (keyed by userId)
     cacheManager.registerCustomCache(
         "userTenantIds",
+        Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(5)).maximumSize(10_000).build());
+
+    // Marking clearance: keyed by userId:tenantId:bypass. The TTL is a backstop, not the
+    // invalidation strategy — a stale clearance is larger than the data justifies, so it fails
+    // OPEN. Every reduction must evict explicitly (see MarkingClearanceCacheManager).
+    cacheManager.registerCustomCache(
+        "markingClearance",
         Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(5)).maximumSize(10_000).build());
 
     return cacheManager;
