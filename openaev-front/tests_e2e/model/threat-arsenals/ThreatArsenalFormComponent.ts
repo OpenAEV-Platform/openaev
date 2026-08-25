@@ -45,7 +45,10 @@ class ThreatArsenalFormComponent {
     this.tagsField = page.getByRole('combobox', { name: 'Tags' });
     this.domainsField = page.getByRole('combobox', { name: 'Domains' });
     this.expectationsField = page.getByRole('combobox', {
-      name: 'Expectations',
+      // A Combobox-based field, not a Select: `ComboboxLabel` has no `required`
+      // prop, so the site appends the asterisk as text and it stays in the
+      // accessible name. `SelectLabel` renders it `aria-hidden` instead.
+      name: 'Expectations *',
       exact: true,
     });
 

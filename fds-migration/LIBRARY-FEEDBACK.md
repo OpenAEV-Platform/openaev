@@ -2202,3 +2202,19 @@ renders correctly in any parent that happens to be a block.
 
 **The request.** Give `Select` the same wrapper `Combobox` already has, so the
 two components compose the same way and neither depends on its parent's display.
+
+## 44. `ComboboxLabel` has no `required`, so the two field families expose the marker differently
+
+`SelectLabel` takes `required` and renders the asterisk as
+`<span aria-hidden="true">*</span>` — deliberately out of the accessible name.
+`ComboboxLabel` has no such prop, so every site fakes it with literal text
+(`{label}{required ? ' *' : ''}`), which lands **inside** the accessible name.
+
+Measured on the arsenal action form: the Select-based "Type" is named `Type`,
+the Combobox-based "Expectations" is named `Expectations *`. Four E2E locators
+broke on this during the sweep, in three different ways, before the asymmetry
+was identified.
+
+**The request.** Give `ComboboxLabel` the same `required` prop with the same
+`aria-hidden` marker, so a required field is named the same way whichever family
+it belongs to.
