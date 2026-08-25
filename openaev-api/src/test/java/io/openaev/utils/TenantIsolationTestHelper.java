@@ -179,6 +179,15 @@ public class TenantIsolationTestHelper {
   public void switchToTenant(String tenantId, EntityManager entityManager) {
     entityManager.flush();
     entityManager.clear();
+    switchToTenantNoFlush(tenantId);
+  }
+
+  /**
+   * Switches the current tenant context and enables the Hibernate tenant filter.
+   *
+   * @param tenantId the tenant ID to switch to
+   */
+  public void switchToTenantNoFlush(String tenantId) {
     TenantContext.setCurrentTenant(tenantId);
     Session session = entityManager.unwrap(Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
