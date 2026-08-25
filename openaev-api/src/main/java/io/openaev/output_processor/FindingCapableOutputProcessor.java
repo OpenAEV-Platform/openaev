@@ -19,8 +19,6 @@ public abstract class FindingCapableOutputProcessor extends AbstractOutputProces
   /** Sensitivity decision of a finding type, hardcoded by the processors that produce secrets. */
   protected static final boolean SENSITIVE = true;
 
-  private static final boolean NOT_SENSITIVE = false;
-
   protected final FindingService findingService;
 
   /**
@@ -43,7 +41,7 @@ public abstract class FindingCapableOutputProcessor extends AbstractOutputProces
       ContractOutputTechnicalType technicalType,
       List<ContractOutputField> fields,
       FindingService findingService) {
-    this(type, technicalType, fields, findingService, NOT_SENSITIVE);
+    this(type, technicalType, fields, findingService, false);
   }
 
   protected FindingCapableOutputProcessor(
