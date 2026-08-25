@@ -134,6 +134,40 @@ class UserServiceTest extends IntegrationTest {
     assertThat(reloaded.getUnscopedGroups()).extracting(Group::getId).contains(tenantGroup.getId());
   }
 
+  @Test
+  @DisplayName("given_groupRemovedInTenant_should_notReassignItOnPlatformUpdate")
+  void given_groupRemovedInTenant_should_notReassignItOnPlatformUpdate() {
+    // -- ARRANGE --
+    Tenant tenant =
+        tenantComposer.forTenant(TenantFixture.getTenant("auto-assign-removed")).persist().get();
+    Group tenantGroup = autoAssignGroup("tenant-auto-assign-removed", tenant);
+    UserInput input =
+        getUserInputWithTenants(
+            "auto-assign-removed@test.invalid",
+            "Auto",
+            "Removed",
+            "secureP@ss1",
+            List.of(tenant.getId()));
+    User created = userService.createUser(input);
+    // The tenant admin removes the auto-assign group from the user, from within the tenant.
+    created.getUnscopedGroups().remove(tenantGroup);
+    userService.saveUser(created);
+    entityManager.flush();
+    entityManager.clear();
+
+    // -- ACT --
+    // A later update from the platform screen keeps the very same tenants attached.
+    userService.updateUser(created.getId(), input);
+
+    // -- ASSERT --
+    entityManager.flush();
+    entityManager.clear();
+    User reloaded = userService.user(created.getId());
+    assertThat(reloaded.getUnscopedGroups())
+        .extracting(Group::getId)
+        .doesNotContain(tenantGroup.getId());
+  }
+
   private Group autoAssignGroup(String name, Tenant tenant) {
     Group group = new Group();
     group.setName(name);
