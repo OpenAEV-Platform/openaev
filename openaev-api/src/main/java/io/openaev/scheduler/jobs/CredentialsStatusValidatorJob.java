@@ -2,7 +2,7 @@ package io.openaev.scheduler.jobs;
 
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
-import io.openaev.secrets.provider.SecretValidationResult;
+import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.service.SecretValidationCandidate;
 import io.openaev.secrets.service.SecretValidationService;
 import io.openaev.service.tenants.TenantService;
@@ -112,7 +112,7 @@ public class CredentialsStatusValidatorJob implements Job {
     }
 
     // Phase 2 — network calls, no transaction and no DB connection held.
-    Map<String, SecretValidationResult> results = new LinkedHashMap<>();
+    Map<String, SecretConnectionResult> results = new LinkedHashMap<>();
     for (SecretValidationCandidate candidate : candidates) {
       results.put(candidate.referenceId(), secretValidationService.validate(candidate));
     }
