@@ -30,7 +30,7 @@ public class CredentialsOutputProcessor extends FindingCapableOutputProcessor {
             new ContractOutputField(HASH, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
         findingService,
-        SENSITIVE);
+        true);
   }
 
   @Override

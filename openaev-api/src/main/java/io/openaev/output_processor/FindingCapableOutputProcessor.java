@@ -16,9 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class FindingCapableOutputProcessor extends AbstractOutputProcessor {
 
-  /** Sensitivity decision of a finding type, hardcoded by the processors that produce secrets. */
-  protected static final boolean SENSITIVE = true;
-
   protected final FindingService findingService;
 
   /**
@@ -32,9 +29,9 @@ public abstract class FindingCapableOutputProcessor extends AbstractOutputProces
   /**
    * Declares a processor whose findings hold no sensitive material, which is the case of every
    * finding type but credentials. A processor producing secrets must use the constructor taking an
-   * explicit sensitivity and pass {@link #SENSITIVE}. The full type - sensitivity matrix is
-   * asserted by {@code OutputProcessorIntegrationTest}, so adding a sensitive type there is a
-   * deliberate, reviewed decision.
+   * explicit sensitivity and pass {@code true}. The full type - sensitivity matrix is asserted by
+   * {@code OutputProcessorIntegrationTest}, so adding a sensitive type there is a deliberate,
+   * reviewed decision.
    */
   protected FindingCapableOutputProcessor(
       ContractOutputType type,
