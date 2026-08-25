@@ -5,17 +5,7 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
-/**
- * Flags findings whose value holds sensitive material, so the API can redact them.
- *
- * <p>The column defaults to {@code false}: only the finding types declared sensitive by their
- * output processor are flagged. Credentials findings are the only ones today - their value is
- * {@code username:password} or {@code username:hash} - so existing rows of that type are backfilled
- * to keep already detected credentials masked, not only the ones detected after the upgrade.
- *
- * <p>The stored value stays cleartext (deduplication, correlation and attack paths rely on it); the
- * redaction happens at serialization time.
- */
+/** Flags findings whose value holds sensitive material, so the API can redact them. */
 @Component
 public class V6_20260824180000000__Add_finding_is_sensitive extends BaseJavaMigration {
 
