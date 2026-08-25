@@ -1,20 +1,20 @@
 import { ControlPointOutlined, DescriptionOutlined } from '@mui/icons-material';
 import { Box, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import * as R from 'ramda';
 import { useContext, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchDocuments } from '../../../../actions/Document';
-import SelectListPicker from '../../../../components/common/SelectListPicker';
+import type { DocumentHelper } from '../../../../actions/helper';
+import SelectListPicker, { type SelectListPickerElements } from '../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
-import { useAppDispatch } from '../../../../utils/hooks';
+import { type Document, type Tag } from '../../../../utils/api-types';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import CreateDocument from '../../components/documents/CreateDocument';
-import { PermissionsContext } from '../Context';
+import { ArticleContext, PermissionsContext } from '../Context';
 import TagsFilter from '../filters/TagsFilter';
+import { isMimeTypeValid, matchesSearch, matchesTags } from './ArticleUtils';
 
 const useStyles = makeStyles()(theme => ({
   item: {
@@ -28,22 +28,31 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
-const ArticleAddDocuments = (props) => {
-  const { handleAddDocuments, articleDocumentsIds, channelType } = props;
+export type ChannelType = 'newspaper' | 'tv' | 'microblogging';
+
+interface ArticleAddDocumentsProps {
+  handleAddDocuments: (docsIds: string[]) => void;
+  articleDocumentsIds: string[];
+  channelType: ChannelType;
+}
+
+const ArticleAddDocuments = ({ handleAddDocuments, articleDocumentsIds, channelType }: ArticleAddDocumentsProps) => {
   // Standard hooks
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const { t } = useFormatter();
+  // Documents are scoped to the current screen (simulation, scenario…):
+  // always go through ArticleContext instead of the global endpoint.
+  const { fetchDocuments } = useContext(ArticleContext);
 
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
-  const [documentsIds, setDocumentsIds] = useState([]);
-  const [tags, setTags] = useState([]);
+  const [documentsIds, setDocumentsIds] = useState<string[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
 
   // Fetching data
-  const { documents } = useHelper(helper => ({ documents: helper.getDocumentsMap() }));
+  const { documents } = useHelper((helper: DocumentHelper) => ({ documents: helper.getDocumentsMap() }));
   useDataLoader(() => {
-    dispatch(fetchDocuments());
+    fetchDocuments();
   });
 
   const handleClose = () => {
@@ -52,12 +61,10 @@ const ArticleAddDocuments = (props) => {
     setDocumentsIds([]);
   };
 
-  const toggleDocument = (documentId) => {
-    if (documentsIds.includes(documentId)) {
-      setDocumentsIds(documentsIds.filter(id => id !== documentId));
-    } else {
-      setDocumentsIds([...documentsIds, documentId]);
-    }
+  const toggleDocument = (documentId: string) => {
+    setDocumentsIds(prev => (prev.includes(documentId)
+      ? prev.filter(id => id !== documentId)
+      : [...prev, documentId]));
   };
 
   const submitAddDocuments = () => {
@@ -65,56 +72,41 @@ const ArticleAddDocuments = (props) => {
     handleClose();
   };
 
-  const onCreate = (result) => {
+  const onCreate = (result: Document) => {
     setDocumentsIds(prev => [...prev, result.document_id]);
   };
 
-  const filterByKeyword = n => keyword === ''
-    || (n.document_name || '').toLowerCase().indexOf(keyword.toLowerCase())
-    !== -1
-    || (n.document_description || '')
-      .toLowerCase()
-      .indexOf(keyword.toLowerCase()) !== -1
-      || (n.document_type || '').toLowerCase().indexOf(keyword.toLowerCase())
-      !== -1;
-  const filteredDocuments = R.pipe(
-    R.filter(
-      n => tags.length === 0
-        || R.any(
-          filter => R.includes(filter, n.document_tags),
-          R.pluck('id', tags),
-        ),
-    ),
-    R.filter(filterByKeyword),
-  )(Object.values(documents));
-  let finalDocuments = filteredDocuments;
-  let filters = null;
-  if (channelType === 'newspaper') {
-    finalDocuments = filteredDocuments.filter(d => d.document_type.includes('image/'));
-    filters = ['image/'];
-  } else if (channelType === 'microblogging') {
-    finalDocuments = filteredDocuments.filter(
-      d => d.document_type.includes('image/')
-        || d.document_type.includes('video/'),
-    );
-    filters = ['image/', 'video/'];
-  } else if (channelType === 'tv') {
-    finalDocuments = filteredDocuments.filter(d => d.document_type.includes('video/'));
-    filters = ['video/'];
-  }
-  finalDocuments = R.take(20, finalDocuments);
+  const allowedMimeTypes = useMemo(() => {
+    switch (channelType) {
+      case 'newspaper': return ['image/'];
+      case 'microblogging': return ['image/', 'video/'];
+      case 'tv': return ['video/'];
+      default: return [];
+    }
+  }, [channelType]);
+
+  const filters = allowedMimeTypes.length > 0 ? allowedMimeTypes : null;
+
+  const finalDocuments = useMemo(() => {
+    const allDocuments: Document[] = Object.values(documents);
+    return allDocuments
+      .filter(doc => matchesTags(doc.document_tags, tags)
+        && matchesSearch(doc, keyword)
+        && isMimeTypeValid(doc.document_type, allowedMimeTypes))
+      .slice(0, 20);
+  }, [documents, tags, keyword, allowedMimeTypes]);
 
   // Context
   const { permissions } = useContext(PermissionsContext);
 
-  const elements = useMemo(() => ({
+  const elements: SelectListPickerElements<Document> = useMemo(() => ({
     icon: { value: () => <DescriptionOutlined /> },
     headers: [
       {
         field: 'document_name',
         label: 'Name',
         isSortable: true,
-        value: document => document.document_name,
+        value: document => document.document_name ?? '',
         width: 45,
       },
       {
@@ -140,11 +132,11 @@ const ArticleAddDocuments = (props) => {
     }}
     >
       <SearchFilter
-        onChange={value => setKeyword(value || '')}
+        onChange={(value: string | undefined) => setKeyword(value ?? '')}
         fullWidth
       />
       <TagsFilter
-        onAddTag={(value) => {
+        onAddTag={(value: Tag | null) => {
           if (value) {
             setTags([value]);
           }
