@@ -103,7 +103,7 @@ const MarkingDefinitions = () => {
           fetch={searchMarkingDefinitionsToLoad}
           searchPaginationInput={searchPaginationInput}
           setContent={setMarkings}
-          entityPrefix="marking"
+          entityPrefix="marking_definition"
           availableFilterNames={availableFilterNames}
           queryableHelpers={queryableHelpers}
           topBarButtons={(

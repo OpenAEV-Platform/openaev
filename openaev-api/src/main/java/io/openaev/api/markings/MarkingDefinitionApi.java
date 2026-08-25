@@ -1,6 +1,7 @@
 package io.openaev.api.markings;
 
 import static io.openaev.api.markings.MarkingDefinitionMapper.toOutput;
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.markings.form.MarkingDefinitionInput;
@@ -23,19 +24,19 @@ import org.springframework.web.bind.annotation.*;
 /**
  * The marking catalogue: the vocabulary that clearances and row attachments are both expressed in.
  *
- * <p>Guarded by the existing tenant-settings capability chain rather than a marking-specific one —
+ * <p>TODO: add Capa - Guarded by the existing tenant-settings capability chain rather than a marking-specific one —
  * step 2.1 of the marking design is deliberately capability-free.
  *
- * <p>{@code marking_definitions} is tenant-isolated on <b>v2</b>, so every handler takes a {@link
- * TxCtx}. It looks unused: {@code TenantScopeTransactionAspect} reads it to set the transaction's
- * tenant scope, and without it the statement inspector filters every row away silently. The
- * signatures are pinned by {@code TenantScopedEntrypointsTxCtxArchTest}.
- */
+ * */
 @RestController
-@RequestMapping("/api/marking-definitions")
+@RequestMapping({MarkingDefinitionApi.MARKING_URI, MarkingDefinitionApi.TENANT_MARKING_URI})
 @RequiredArgsConstructor
 @Tag(name = "Marking definitions", description = "Manage the tenant's classification scales")
 public class MarkingDefinitionApi extends RestBehavior {
+
+  public static final String MARKING_URI = "/api/marking-definitions";
+
+  public static final String TENANT_MARKING_URI = TENANT_PREFIX + "/marking-definitions";
 
   private final MarkingDefinitionService markingDefinitionService;
   private final TenantWriteScopeResolver writeScopeResolver;

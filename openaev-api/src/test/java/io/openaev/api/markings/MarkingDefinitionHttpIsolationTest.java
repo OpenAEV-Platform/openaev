@@ -35,16 +35,6 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * End-to-end proof that, with {@code marking_definitions} activated, the tenant scope isolates the
  * table through the real {@link MarkingDefinitionApi} endpoints.
- *
- * <p><b>Header route only.</b> {@link MarkingDefinitionApi} is mapped on {@code
- * /api/marking-definitions} and has no {@code /api/tenants/{tenantId}/...} route, so the selector
- * is always {@code X-Tenant-Ids}. Generating path-route cases would 404 for the wrong reason and
- * produce fake-green negatives (see TENANT_ISOLATION.md, "Red and green"). Unlike the pilot, the
- * header route is legitimately testable here: {@link MarkingDefinition} carries no v1 Hibernate
- * {@code @Filter} whose predicate would contradict v2's.
- *
- * <p>Each test stays on a single tenant selector: the per-request scope is set once per transaction
- * and {@code TenantScopeTransactionAspect} refuses to redefine it.
  */
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=marking_definitions")
@@ -56,6 +46,8 @@ class MarkingDefinitionHttpIsolationTest extends IntegrationTest {
 
   private static final String MARKING_URI = "/api/marking-definitions";
   private static final String MARKING_BY_ID = MARKING_URI + "/{markingId}";
+  private static final String TENANT_MARKING_URI = "/api/tenants/{tenantId}/marking-definitions";
+  private static final String TENANT_MARKING_BY_ID = TENANT_MARKING_URI + "/{markingId}";
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
 
   private static final String NAME_A = "ISO:MARKING-A";
@@ -128,6 +120,39 @@ class MarkingDefinitionHttpIsolationTest extends IntegrationTest {
     // -- ASSERT --
     assertTrue(
         response.contains(markingA), "A's marking must appear when A is selected via header");
+    assertFalse(response.contains(markingB), "B's marking must not appear");
+  }
+
+  // -- PATH ROUTE (the selector the frontend actually uses) --
+
+  @Test
+  @DisplayName("via the /api/tenants/{tenantId} path: A's marking is visible, B's is hidden")
+  void given_tenantAPathRoute_should_readOwnMarkingAndHideTenantBs() throws Exception {
+    // -- ACT & ASSERT --
+    mvc.perform(get(TENANT_MARKING_BY_ID, tenantA, markingA)).andExpect(status().isOk());
+    mvc.perform(get(TENANT_MARKING_BY_ID, tenantA, markingB)).andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("via the /api/tenants/{tenantId} path: search is scoped to that tenant")
+  void given_tenantAPathRoute_should_scopeSearchToTenantA() throws Exception {
+    // -- ARRANGE --
+    String body = asJsonString(PaginationFixture.getDefault().textSearch("").size(200).build());
+
+    // -- ACT --
+    String response =
+        mvc.perform(
+                post(TENANT_MARKING_URI + "/search", tenantA)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body)
+                    .with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // -- ASSERT --
+    assertTrue(response.contains(markingA), "A's marking must appear on A's path route");
     assertFalse(response.contains(markingB), "B's marking must not appear");
   }
 
