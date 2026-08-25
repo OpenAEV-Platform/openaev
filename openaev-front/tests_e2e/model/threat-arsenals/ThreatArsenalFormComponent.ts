@@ -44,15 +44,29 @@ class ThreatArsenalFormComponent {
     this.attackPatternsField = page.getByRole('combobox', { name: 'Attack patterns' });
     this.tagsField = page.getByRole('combobox', { name: 'Tags' });
     this.domainsField = page.getByRole('combobox', { name: 'Domains' });
-    this.expectationsField = page.getByRole('combobox', { name: 'Expectations *' });
+    this.expectationsField = page.getByRole('combobox', {
+      name: 'Expectations',
+      exact: true,
+    });
 
     // Commands fields
-    this.typeField = page.getByRole('combobox', { name: 'Type *' });
-    this.architectureField = page.getByRole('combobox', { name: 'Architecture *' });
+    // The library marks a required field with an `aria-hidden` asterisk, so the
+    // accessible name is the label alone — MUI used to fold the marker into it.
+    this.typeField = page.getByRole('combobox', {
+      name: 'Type',
+      exact: true,
+    });
+    this.architectureField = page.getByRole('combobox', {
+      name: 'Architecture',
+      exact: true,
+    });
     this.platformsField = page.getByRole('combobox', { name: 'Platforms' });
     this.argumentBtn = page.getByRole('button', { name: 'New argument' });
     this.prerequisiteBtn = page.getByRole('button', { name: 'New prerequisite' });
-    this.executorField = page.getByRole('combobox', { name: 'Executor *' });
+    this.executorField = page.getByRole('combobox', {
+      name: 'Executor',
+      exact: true,
+    });
     this.commandField = page.locator('textarea[name="command_content"]');
     this.documentsAddBtn = page.getByText('Add document');
     this.hostnameField = page.getByRole('textbox', { name: 'Hostname*' });
@@ -140,7 +154,12 @@ class ThreatArsenalFormComponent {
     }
 
     if (data.type) {
-      const typeCombobox = this.page.getByRole('combobox', { name: 'Type *' }).nth(index + 1);
+      const typeCombobox = this.page
+        .getByRole('combobox', {
+          name: 'Type',
+          exact: true,
+        })
+        .nth(index + 1);
       const typeValue = data.type.toLowerCase().replace(/\s+/g, '-');
 
       // Wait for the combobox to be visible and enabled
