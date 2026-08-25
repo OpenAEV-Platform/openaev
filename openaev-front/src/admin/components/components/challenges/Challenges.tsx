@@ -1,19 +1,22 @@
 import { RowingOutlined } from '@mui/icons-material';
 import { Chip, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
-import { useContext } from 'react';
-import { useDispatch } from 'react-redux';
+import { type CSSProperties, useContext } from 'react';
 import { Link, useLocation } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchChallenges } from '../../../../actions/challenge-action';
 import { fetchDocuments } from '../../../../actions/Document';
 import { fetchExercises } from '../../../../actions/Exercise';
+import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
+import { type ChallengeHelper } from '../../../../actions/helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
+import { type Challenge } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -53,7 +56,7 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
-const headerStyles = {
+const headerStyles: Record<string, CSSProperties> = {
   iconSort: {
     position: 'absolute',
     margin: '0 0 0 5px',
@@ -86,7 +89,7 @@ const headerStyles = {
   },
 };
 
-const inlineStyles = {
+const inlineStyles: Record<string, CSSProperties> = {
   challenge_name: { width: '25%' },
   challenge_category: { width: '20%' },
   challenge_score: { width: '10%' },
@@ -98,7 +101,7 @@ const Challenges = () => {
   // Standard hooks
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { t } = useFormatter();
   const location = useLocation();
   const params = new URLSearchParams(location.search);
@@ -108,11 +111,11 @@ const Challenges = () => {
   // Filter and sort hook
   const searchColumns = ['name', 'content', 'category'];
   const filtering = useSearchAndFilter('challenge', 'name', searchColumns, { defaultKeyword: initialKeyword });
+
   // Fetching data
-  const { challenges, documentsMap, exercisesMap } = useHelper(helper => ({
+  const { challenges, exercisesMap } = useHelper((helper: ChallengeHelper & ExercisesHelper) => ({
     exercisesMap: helper.getExercisesMap(),
     challenges: helper.getChallenges(),
-    documentsMap: helper.getDocumentsMap(),
   }));
   useDataLoader(() => {
     dispatch(fetchExercises());
@@ -121,7 +124,8 @@ const Challenges = () => {
       dispatch(fetchDocuments());
     }
   });
-  const sortedChallenges = filtering.filterAndSort(challenges);
+  const sortedChallenges: Challenge[] = filtering.filterAndSort(challenges);
+
   return (
     <>
       <Breadcrumbs
@@ -142,7 +146,6 @@ const Challenges = () => {
             onAddTag={filtering.handleAddTag}
             onRemoveTag={filtering.handleRemoveTag}
             currentTags={filtering.tags}
-            tagsFetched
           />
         </div>
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.CHALLENGES}>
@@ -205,104 +208,99 @@ const Challenges = () => {
           />
           <ListItemSecondaryAction>&nbsp;</ListItemSecondaryAction>
         </ListItem>
-        {sortedChallenges.map((challenge) => {
-          const docs = challenge.challenge_documents
-            .map(d => (documentsMap[d] ? documentsMap[d] : undefined))
-            .filter(d => d !== undefined);
-          return (
-            <ListItem
-              key={challenge.challenge_id}
-              classes={{ root: classes.item }}
-              divider={true}
-            >
-              <ListItemIcon>
-                <RowingOutlined color="primary" />
-              </ListItemIcon>
-              <ListItemText
-                primary={(
-                  <div style={bodyItemsStyles.bodyItems}>
-                    <div
-                      style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles.challenge_name,
-                      }}
-                    >
-                      {challenge.challenge_name}
-                    </div>
-                    <div
-                      style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles.challenge_category,
-                      }}
-                    >
-                      {challenge.challenge_category}
-                    </div>
-                    <div
-                      style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles.challenge_score,
-                      }}
-                    >
-                      {challenge.challenge_score}
-                    </div>
-                    <div
-                      style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles.challenge_exercises,
-                      }}
-                    >
-                      {challenge.challenge_exercises && challenge.challenge_exercises.length > 0 ? (
-                        challenge.challenge_exercises.slice(0, 3).map((e) => {
-                          const exercise = exercisesMap[e];
-
-                          if (!exercise) {
-                            return <span key={e}>-</span>;
-                          }
-
-                          return (
-                            <Tooltip
-                              key={exercise.exercise_id}
-                              title={exercise.exercise_name}
-                            >
-                              <Chip
-                                icon={<RowingOutlined style={{ fontSize: 12 }} />}
-                                classes={{ root: classes.exercise }}
-                                variant="outlined"
-                                label={exercise.exercise_name}
-                                component={Link}
-                                clickable
-                                to={`/admin/simulations/${exercise.exercise_id}`}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                }}
-                              />
-                            </Tooltip>
-                          );
-                        })
-                      ) : (
-                        <span>-</span>
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        ...bodyItemsStyles.bodyItem,
-                        ...inlineStyles.challenge_tags,
-                      }}
-                    >
-                      <ItemTags
-                        variant="list"
-                        tags={challenge.challenge_tags}
-                      />
-                    </div>
+        {sortedChallenges.map(challenge => (
+          <ListItem
+            key={challenge.challenge_id}
+            classes={{ root: classes.item }}
+            divider={true}
+          >
+            <ListItemIcon>
+              <RowingOutlined color="primary" />
+            </ListItemIcon>
+            <ListItemText
+              primary={(
+                <div style={bodyItemsStyles.bodyItems}>
+                  <div
+                    style={{
+                      ...bodyItemsStyles.bodyItem,
+                      ...inlineStyles.challenge_name,
+                    }}
+                  >
+                    {challenge.challenge_name}
                   </div>
-                )}
-              />
-              <ListItemSecondaryAction>
-                <ChallengePopover challenge={challenge} documents={docs} />
-              </ListItemSecondaryAction>
-            </ListItem>
-          );
-        })}
+                  <div
+                    style={{
+                      ...bodyItemsStyles.bodyItem,
+                      ...inlineStyles.challenge_category,
+                    }}
+                  >
+                    {challenge.challenge_category}
+                  </div>
+                  <div
+                    style={{
+                      ...bodyItemsStyles.bodyItem,
+                      ...inlineStyles.challenge_score,
+                    }}
+                  >
+                    {challenge.challenge_score}
+                  </div>
+                  <div
+                    style={{
+                      ...bodyItemsStyles.bodyItem,
+                      ...inlineStyles.challenge_exercises,
+                    }}
+                  >
+                    {challenge.challenge_exercises && challenge.challenge_exercises.length > 0 ? (
+                      challenge.challenge_exercises.slice(0, 3).map((e) => {
+                        const exercise = exercisesMap[e];
+
+                        if (!exercise) {
+                          return <span key={e}>-</span>;
+                        }
+
+                        return (
+                          <Tooltip
+                            key={exercise.exercise_id}
+                            title={exercise.exercise_name}
+                          >
+                            <Chip
+                              icon={<RowingOutlined style={{ fontSize: 12 }} />}
+                              classes={{ root: classes.exercise }}
+                              variant="outlined"
+                              label={exercise.exercise_name}
+                              component={Link}
+                              clickable
+                              to={`/admin/simulations/${exercise.exercise_id}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                              }}
+                            />
+                          </Tooltip>
+                        );
+                      })
+                    ) : (
+                      <span>-</span>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      ...bodyItemsStyles.bodyItem,
+                      ...inlineStyles.challenge_tags,
+                    }}
+                  >
+                    <ItemTags
+                      variant="list"
+                      tags={challenge.challenge_tags}
+                    />
+                  </div>
+                </div>
+              )}
+            />
+            <ListItemSecondaryAction>
+              <ChallengePopover challenge={challenge} />
+            </ListItemSecondaryAction>
+          </ListItem>
+        ))}
       </List>
     </>
   );
