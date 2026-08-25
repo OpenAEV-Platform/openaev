@@ -28,9 +28,15 @@ class MuiFormHelpers {
       .locator('xpath=ancestor::*[contains(@class, "MuiFormControl-root")]')
       .first()
       .locator('.MuiFormHelperText-root.Mui-error');
-    const library = fieldLocator
+    // Combobox wraps its parts in a flex column, so its helper text is a child
+    // of that root.
+    const combobox = fieldLocator
       .locator('xpath=ancestor::div[contains(@class, "flex-col")][1]/p[substring(@id, string-length(@id) - 6) = "-helper"]');
-    return mui.or(library);
+    // Select renders NO wrapper of its own (LIBRARY-FEEDBACK 43), so its helper
+    // text is a plain sibling of the trigger, wherever the trigger sits.
+    const select = fieldLocator
+      .locator('xpath=following-sibling::p[substring(@id, string-length(@id) - 6) = "-helper"]');
+    return mui.or(combobox).or(select);
   }
 
   static getListContainer(listItemLocator: Locator): Locator {
