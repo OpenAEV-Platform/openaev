@@ -1,19 +1,15 @@
+import {
+  Select,
+  SelectContent,
+  SelectHelperText,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-material';
-import {
-  Box,
-  FormControl,
-  FormHelperText,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
-  type SelectChangeEvent,
-  Switch,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, IconButton, Switch, TextField, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -86,15 +82,15 @@ const EventConditionRow: FunctionComponent<Props> = ({
     );
   };
 
-  const handleFieldChange = (e: SelectChangeEvent<ConditionKeyType>) => {
+  const handleFieldChange = (value: ConditionKeyType) => {
     onUpdate({
       ...condition,
-      field: e.target.value,
+      field: value,
     });
   };
 
-  const handleOperatorChange = (e: SelectChangeEvent<ComparisonOperator>) => {
-    const newOp = e.target.value;
+  const handleOperatorChange = (value: ComparisonOperator) => {
+    const newOp = value;
     const updated: EventCondition = {
       ...condition,
       operator: newOp,
@@ -150,74 +146,70 @@ const EventConditionRow: FunctionComponent<Props> = ({
       </span>
 
       {/* Field to check */}
-      <FormControl size="small" sx={{ minWidth: 140 }}>
-        <InputLabel>{t('Field to Check')}</InputLabel>
-        <Select<ConditionKeyType>
-          label={t('Field to Check')}
+      <div style={{ minWidth: 140 }}>
+        <Select
           value={condition.field}
-          onChange={handleFieldChange}
+          onValueChange={value => handleFieldChange(value as ConditionKeyType)}
           disabled={isArgumentTypesUnavailable}
-          renderValue={val => formatConditionKeyLabel(val)}
         >
+          <SelectLabel>{t('Field to Check')}</SelectLabel>
+          <SelectTrigger>
+            <span>{formatConditionKeyLabel(condition.field)}</span>
+          </SelectTrigger>
+          <SelectContent>
+            {!isLoadingArgumentTypes && !argumentTypesError && conditionKeyTypes.map((key) => {
+              const keyProviders = providers[key] ?? [];
+              return (
+                <SelectItem
+                  key={key}
+                  value={key}
+                >
+                  <span style={{ flex: 1 }}>{formatConditionKeyLabel(key)}</span>
+                  {keyProviders.length > 0 && (
+                    <Tooltip
+                      title={buildProviderTooltip(key)}
+                      placement="right"
+                    >
+                      <InfoOutlined sx={{
+                        fontSize: 16,
+                        color: 'info.main',
+                        flexShrink: 0,
+                      }}
+                      />
+                    </Tooltip>
+                  )}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
           {isLoadingArgumentTypes && (
-            <MenuItem disabled>{t('Loading argument types...')}</MenuItem>
+            <SelectHelperText>{t('Loading argument types...')}</SelectHelperText>
           )}
           {!isLoadingArgumentTypes && argumentTypesError && (
-            <MenuItem disabled>{t('Failed to load argument types')}</MenuItem>
+            <SelectHelperText>{t('Failed to load argument types')}</SelectHelperText>
           )}
-          {!isLoadingArgumentTypes && !argumentTypesError && conditionKeyTypes.map((key) => {
-            const keyProviders = providers[key] ?? [];
-            return (
-              <MenuItem
-                key={key}
-                value={key}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                }}
-              >
-                <span style={{ flex: 1 }}>{formatConditionKeyLabel(key)}</span>
-                {keyProviders.length > 0 && (
-                  <Tooltip
-                    title={buildProviderTooltip(key)}
-                    placement="right"
-                  >
-                    <InfoOutlined sx={{
-                      fontSize: 16,
-                      color: 'info.main',
-                      flexShrink: 0,
-                    }}
-                    />
-                  </Tooltip>
-                )}
-              </MenuItem>
-            );
-          })}
         </Select>
-        {isLoadingArgumentTypes && (
-          <FormHelperText>{t('Loading argument types...')}</FormHelperText>
-        )}
-        {!isLoadingArgumentTypes && argumentTypesError && (
-          <FormHelperText error>{t('Failed to load argument types')}</FormHelperText>
-        )}
-      </FormControl>
+      </div>
 
       {/* Operator */}
-      <FormControl size="small" sx={{ minWidth: 130 }}>
-        <InputLabel>{t('Operator')}</InputLabel>
-        <Select<ComparisonOperator>
-          label={t('Operator')}
+      <div style={{ minWidth: 130 }}>
+        <Select
           value={condition.operator}
-          onChange={handleOperatorChange}
+          onValueChange={value => handleOperatorChange(value as ComparisonOperator)}
         >
-          {COMPARISON_OPERATORS.map(op => (
-            <MenuItem key={op} value={op}>
-              {t(OPERATOR_LABELS[op])}
-            </MenuItem>
-          ))}
+          <SelectLabel>{t('Operator')}</SelectLabel>
+          <SelectTrigger>
+            <SelectValue placeholder={t('Operator')} />
+          </SelectTrigger>
+          <SelectContent>
+            {COMPARISON_OPERATORS.map(op => (
+              <SelectItem key={op} value={op}>
+                {t(OPERATOR_LABELS[op])}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
-      </FormControl>
+      </div>
 
       {/* Expected value */}
       {showValue && (
