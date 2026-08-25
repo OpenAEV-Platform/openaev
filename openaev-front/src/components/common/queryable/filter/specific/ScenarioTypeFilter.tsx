@@ -7,8 +7,12 @@ import {
   ComboboxInput,
   ComboboxLabel,
   ComboboxTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@filigran/design-system';
-import { MenuItem, Select } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { type Filter, type PropertySchemaDTO } from '../../../../../utils/api-types';
@@ -51,18 +55,20 @@ const ScenarioTypeFilter: FunctionComponent<{
 
   return (
     <>
-      <Select
-        value={operators[0]}
-        label="Operator"
-        fullWidth
-        style={{ marginBottom: 15 }}
-      >
-        {operators.map(op => (
-          <MenuItem key={op} value={op}>
-            {t(OperatorKeyValues[op])}
-          </MenuItem>
-        ))}
-      </Select>
+      <div style={{ marginBottom: 15 }}>
+        <Select value={operators[0]}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {operators.map(op => (
+              <SelectItem key={op} value={op}>
+                {t(OperatorKeyValues[op])}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <Combobox<Option>
         multiple
         openOnFocus

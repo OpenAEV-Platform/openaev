@@ -1,8 +1,15 @@
-import { MenuItem, Popover, Select, type SelectChangeEvent } from '@mui/material';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
+import { Popover } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 interface Props {
-  handleChangeValue: (event: SelectChangeEvent) => void;
+  handleChangeValue: (value: string) => void;
   open: boolean;
   onClose: () => void;
   anchorEl?: HTMLElement;
@@ -25,20 +32,23 @@ const ClickableChipPopover: FunctionComponent<Props> = ({
 
     return (
       <>
-        <Select
-          value={element || availableValues[0]}
-          label="Values"
-          variant="standard"
-          fullWidth
-          onChange={handleChangeValue}
-          style={{ marginBottom: 15 }}
-        >
-          {availableValues?.map(value => (
-            <MenuItem key={value} value={value}>
-              {value}
-            </MenuItem>
-          ))}
-        </Select>
+        <div style={{ marginBottom: 15 }}>
+          <Select
+            value={element || availableValues[0]}
+            onValueChange={handleChangeValue}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(availableValues ?? []).map(value => (
+                <SelectItem key={value} value={value}>
+                  {value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </>
     );
   };

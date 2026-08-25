@@ -6,8 +6,12 @@ import {
   ComboboxInput,
   ComboboxLabel,
   ComboboxTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@filigran/design-system';
-import { MenuItem, Select } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { SCENARIO_NOT_SCHEDULED_STATUS, SCENARIO_SCHEDULED_STATUS } from '../../../../../admin/components/scenarios/scenario/ScenarioStatus';
@@ -50,18 +54,20 @@ const ScenarioStatusFilter: FunctionComponent<{
 
   return (
     <>
-      <Select
-        value={operators[0]}
-        label="Operator"
-        fullWidth
-        style={{ marginBottom: 15 }}
-      >
-        {operators.map(value => (
-          <MenuItem key={value} value={value}>
-            {t(OperatorKeyValues[value])}
-          </MenuItem>
-        ))}
-      </Select>
+      <div style={{ marginBottom: 15 }}>
+        <Select value={operators[0]}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {operators.map(value => (
+              <SelectItem key={value} value={value}>
+                {t(OperatorKeyValues[value])}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <Combobox<Option>
         openOnFocus
         options={options}

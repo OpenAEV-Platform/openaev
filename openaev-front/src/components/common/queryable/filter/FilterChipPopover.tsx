@@ -1,4 +1,11 @@
-import { MenuItem, Popover, Select, type SelectChangeEvent } from '@mui/material';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
+import { Popover } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { type Filter, type PropertySchemaDTO } from '../../../../utils/api-types';
@@ -31,8 +38,8 @@ const FilterChipPopover: FunctionComponent<Props> = ({
   // Standard hooks
   const { t } = useFormatter();
 
-  const handleChangeOperator = (event: SelectChangeEvent) => {
-    helpers.handleChangeOperatorById(filter.id, event.target.value as Filter['operator']);
+  const handleChangeOperator = (value: string) => {
+    helpers.handleChangeOperatorById(filter.id, value as Filter['operator']);
   };
 
   const displayOperatorAndFilter = () => {
@@ -47,20 +54,23 @@ const FilterChipPopover: FunctionComponent<Props> = ({
     const operators = availableOperators(propertySchema);
     return (
       <>
-        <Select
-          value={filter.operator ?? operators[0]}
-          label="Operator"
-          variant="standard"
-          fullWidth
-          onChange={handleChangeOperator}
-          style={{ marginBottom: 15 }}
-        >
-          {operators.map(value => (
-            <MenuItem key={value} value={value}>
-              {t(OperatorKeyValues[value])}
-            </MenuItem>
-          ))}
-        </Select>
+        <div style={{ marginBottom: 15 }}>
+          <Select
+            value={filter.operator ?? operators[0]}
+            onValueChange={handleChangeOperator}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {operators.map(value => (
+                <SelectItem key={value} value={value}>
+                  {t(OperatorKeyValues[value])}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <FilterChipPopoverInput filter={filter} helpers={helpers} propertySchema={propertySchema} contextId={contextId} />
       </>
     );
