@@ -56,7 +56,8 @@ const DomainFieldController = ({
             options={options}
             value={currentIds}
             error={!!error}
-            onInputChange={() => {}}
+            onInputChange={() => {
+            }}
             onChange={onChange}
             renderOption={(props, option) => {
               if (option.label === TO_CLASSIFY) return null;
@@ -70,7 +71,7 @@ const DomainFieldController = ({
                     py: 1,
                   }}
                 >
-                  <Checkbox checked={currentIds.includes(option.id)} style={{ marginRight: 8 }} />
+                  <Checkbox checked={currentIds.includes(option.id)} sx={{ mr: 1 }} />
                   {option.label}
                 </Box>
               );

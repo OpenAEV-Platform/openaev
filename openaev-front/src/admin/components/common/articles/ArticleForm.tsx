@@ -8,9 +8,7 @@ import { type CSSProperties, useContext, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchChannels } from '../../../../actions/channels/channel-action';
 import { type ChannelsHelper } from '../../../../actions/channels/channel-helper';
-import { fetchDocuments } from '../../../../actions/Document';
 import { type DocumentHelper } from '../../../../actions/helper';
 import AutocompleteField from '../../../../components/fields/AutocompleteField';
 import MarkDownFieldController from '../../../../components/fields/MarkDownFieldController';
@@ -19,7 +17,6 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import { useHelper } from '../../../../store';
 import { type Channel, type Document } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type AppAbility } from '../../../../utils/permissions/ability';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
@@ -29,6 +26,7 @@ import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ChannelIcon from '../../components/channels/ChannelIcon';
 import DocumentPopover from '../../components/documents/DocumentPopover';
 import DocumentType from '../../components/documents/DocumentType';
+import { ArticleContext } from '../Context';
 import ArticleAddDocuments, { type ChannelType } from './ArticleAddDocuments';
 import { type ArticleFormInput } from './ArticleUtils';
 
@@ -135,8 +133,10 @@ const ArticleForm = ({
   const theme = useTheme();
   const { t } = useFormatter();
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const ability: AppAbility = useContext(AbilityContext);
+  // Channels and documents are scoped to the current screen (simulation, scenario…):
+  // always go through ArticleContext instead of the global endpoints.
+  const { fetchChannels, fetchDocuments } = useContext(ArticleContext);
 
   const { control, watch, setValue, formState: { isSubmitting } } = useFormContext<ArticleFormInput>();
   const [documentsSortBy, setDocumentsSortBy] = useState('document_name');
@@ -155,10 +155,10 @@ const ArticleForm = ({
 
   useDataLoader(() => {
     if (ability.can(ACTIONS.ACCESS, SUBJECTS.CHANNELS)) {
-      dispatch(fetchChannels());
+      fetchChannels();
     }
     if (ability.can(ACTIONS.ACCESS, SUBJECTS.DOCUMENTS)) {
-      dispatch(fetchDocuments());
+      fetchDocuments();
     }
   });
 

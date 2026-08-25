@@ -3,7 +3,6 @@ import { Box, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useContext, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { fetchDocuments } from '../../../../actions/Document';
 import type { DocumentHelper } from '../../../../actions/helper';
 import SelectListPicker, { type SelectListPickerElements } from '../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../components/i18n';
@@ -11,10 +10,9 @@ import ItemTags from '../../../../components/ItemTags';
 import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
 import { type Document, type Tag } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import CreateDocument from '../../components/documents/CreateDocument';
-import { PermissionsContext } from '../Context';
+import { ArticleContext, PermissionsContext } from '../Context';
 import TagsFilter from '../filters/TagsFilter';
 import { isMimeTypeValid, matchesSearch, matchesTags } from './ArticleUtils';
 
@@ -41,8 +39,10 @@ interface ArticleAddDocumentsProps {
 const ArticleAddDocuments = ({ handleAddDocuments, articleDocumentsIds, channelType }: ArticleAddDocumentsProps) => {
   // Standard hooks
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const { t } = useFormatter();
+  // Documents are scoped to the current screen (simulation, scenario…):
+  // always go through ArticleContext instead of the global endpoint.
+  const { fetchDocuments } = useContext(ArticleContext);
 
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
@@ -52,7 +52,7 @@ const ArticleAddDocuments = ({ handleAddDocuments, articleDocumentsIds, channelT
   // Fetching data
   const { documents } = useHelper((helper: DocumentHelper) => ({ documents: helper.getDocumentsMap() }));
   useDataLoader(() => {
-    dispatch(fetchDocuments());
+    fetchDocuments();
   });
 
   const handleClose = () => {
