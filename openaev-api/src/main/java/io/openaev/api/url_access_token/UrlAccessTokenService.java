@@ -1,13 +1,13 @@
 package io.openaev.api.url_access_token;
 
-import static io.openaev.api.users.dto.UserMapper.fromProtectUser;
+import static io.openaev.api.users.dto.UserMapper.fromUserContract;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.UrlAccessToken;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UrlAccessTokenRepository;
-import io.openaev.execution.ProtectUser;
+import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.service.UserService;
 import io.openaev.utils.RandomUtils;
 import jakarta.validation.constraints.NotBlank;
@@ -82,9 +82,9 @@ public class UrlAccessTokenService {
    */
   public String generateTokenUrl(
       @NotNull final Exercise exercise,
-      @NotNull final ProtectUser protectUser,
+      @NotNull final UserContract protectUser,
       @NotBlank final String url) {
-    User user = fromProtectUser(protectUser);
+    User user = fromUserContract(protectUser);
     return this.generateTokenUrl(exercise, user, url);
   }
 

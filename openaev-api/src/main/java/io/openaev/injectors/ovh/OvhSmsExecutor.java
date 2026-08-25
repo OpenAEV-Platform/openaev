@@ -9,11 +9,11 @@ import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.Inject;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
-import io.openaev.execution.ProtectUser;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
 import io.openaev.expectation.Expectation;
 import io.openaev.expectation.ManualExpectation;
+import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.injectors.ovh.model.OvhSmsContent;
 import io.openaev.injectors.ovh.service.OvhSmsService;
 import io.openaev.model.ExecutionProcess;
@@ -59,7 +59,7 @@ public class OvhSmsExecutor extends Injector {
         .parallel()
         .forEach(
             context -> {
-              ProtectUser user = context.getUser();
+              UserContract user = context.getUser();
               String phone = user.getPhone();
               String email = user.getEmail();
               if (!StringUtils.hasLength(phone)) {

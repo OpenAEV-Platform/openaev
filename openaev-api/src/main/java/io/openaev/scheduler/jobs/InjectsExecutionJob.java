@@ -22,10 +22,10 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
-import io.openaev.execution.ProtectUser;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
+import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -683,7 +683,7 @@ public class InjectsExecutionJob implements Job {
               executableInject.getUsers().stream()
                   .map(ExecutionContext::getUser)
                   .filter(Objects::nonNull)
-                  .map(ProtectUser::getId)
+                  .map(UserContract::getId)
                   .filter(Objects::nonNull)
                   .toList());
           contextData.put("total_endpoints", endpointResolutions.size());
