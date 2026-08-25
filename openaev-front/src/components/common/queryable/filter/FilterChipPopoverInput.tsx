@@ -5,7 +5,6 @@ import {
   ComboboxControls,
   ComboboxField,
   ComboboxInput,
-  ComboboxLabel,
   ComboboxTrigger,
 } from '@filigran/design-system';
 import { DateTimePicker } from '@mui/x-date-pickers';
@@ -61,11 +60,10 @@ export const BasicTextInput: FunctionComponent<Props> = ({
       }}
       keepInputOnBlur
     >
-      <ComboboxLabel>{t(filter.key)}</ComboboxLabel>
       <ComboboxField>
         <ComboboxChips />
         <ComboboxInput
-          placeholder={t('Press Enter to add a value')}
+          placeholder={t(filter.key)}
           autoFocus
           onBlur={() => {
             // Clicking away with pending text must still register the value
@@ -200,9 +198,8 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
         }
       }}
     >
-      <ComboboxLabel>{t(propertySchema.schema_property_name)}</ComboboxLabel>
       <ComboboxField>
-        <ComboboxInput />
+        <ComboboxInput placeholder={t(propertySchema.schema_property_name)} />
         <ComboboxControls>
           <ComboboxTrigger />
         </ComboboxControls>

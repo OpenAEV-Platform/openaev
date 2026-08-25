@@ -447,3 +447,43 @@ in filigran-design-system).
   `pnpm generate:fds-migration --product openaev --write-to-product` runs —
   deliberately out of scope for this branch, which would otherwise churn the
   generated migration docs mid-review.
+
+## 2026-08-25 — Combobox adoption closed at 41 of 44, pin `cd4b8ee` (library #155)
+
+- Re-pinned on `cd4b8ee`. Proved on the SERVED dep chunk, not on the lockfile:
+  `data-combobox-adornment` ×2, `empty:hidden` ×1, `combobox-start-icon` ×1,
+  `onOpenChange` ×63 — and `leadingIcon` **×0**, the negative control for the
+  rename the library made before merging.
+- 13 sites converted: the 7 on controlled `open`, the row-interaction site, the
+  leading-icon search, and the 4 create ornaments. Remaining: 3 `ToolBar`, settled.
+- #155 answered three open questions in its own contract, so none needed a
+  product guess: `open={false}` with no `onOpenChange` mounts no panel at all and
+  leaves the keys their native meaning; `startIcon` lives on `ComboboxField`;
+  `adornment` is `empty:hidden`, so a permissions gate that renders nothing costs
+  neither width nor the shell's gap.
+- `AutocompleteField`'s `renderOption` only ever tested its result for `null` — a
+  caller's node was discarded. It is now `hideOption`. Its `variant` prop went
+  with it (the library field has one style), across 5 typed callers.
+- Chips-only inputs measured at the real pointer, not asserted: click → focus,
+  `aria-expanded` stays `false`, no `aria-controls`, **0 listbox and 0 Radix
+  popper**, `ArrowDown` inert, `Enter` commits a chip. The first pass showed the
+  input keeping its text after committing — MUI cleared it through its `reset`
+  cause, which the `cause === 'type'` filter drops. Fixed on all five and replayed.
+- Three faults CI caught that local gates did not: three ornaments all named
+  "Create" (ambiguous for a screen reader, and Playwright's `getByRole(name)` is
+  a SUBSTRING match, so distinct names still collided — the locator became
+  `exact`); `No result` existed in no locale (`No results found` does); and a
+  required-field helper text invented here, removed rather than translated.
+- Correction to the previous round's report: the two `arsenals` E2E jobs were
+  already red on `3314a216e`, not green as reported. They asserted
+  `.MuiFormHelperText-root.Mui-error` under a `MuiFormControl-root` ancestor
+  around a field converted in the earlier wave. `MuiFormHelpers.getFieldError`
+  now matches either shape. CI closed at **37/37**.
+- V1 label pattern applied to the 4 chip-feeding fields: the name moves from
+  `ComboboxLabel` to the input's placeholder, freeing ~24px of height each. Two
+  measured consequences: `FilterAutocomplete`'s domains variant carries a 122-char
+  guidance sentence, of which **24 characters** fit its 146px input; and
+  `FilterChipPopoverInput`'s free-value input traded its "Press Enter to add a
+  value" hint for the filter's name, a placeholder holding only one of the two.
+- LIBRARY-FEEDBACK 42 opened: `min-h-8` as the single option-row floor. 12 sites
+  render one glyph plus one line and pay 48px; no product compensation, arbitrated.

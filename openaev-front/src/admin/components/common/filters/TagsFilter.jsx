@@ -4,7 +4,6 @@ import {
   ComboboxControls,
   ComboboxField,
   ComboboxInput,
-  ComboboxLabel,
   ComboboxTrigger,
 } from '@filigran/design-system';
 import { LabelOutlined } from '@mui/icons-material';
@@ -79,9 +78,8 @@ const TagsFilter = (props) => {
             </>
           )}
         >
-          <ComboboxLabel>{t('Tags')}</ComboboxLabel>
           <ComboboxField>
-            <ComboboxInput />
+            <ComboboxInput placeholder={t('Tags')} />
             <ComboboxControls>
               <ComboboxTrigger />
             </ComboboxControls>

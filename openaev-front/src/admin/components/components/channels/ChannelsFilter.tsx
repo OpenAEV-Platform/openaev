@@ -5,7 +5,6 @@ import {
   ComboboxControls,
   ComboboxField,
   ComboboxInput,
-  ComboboxLabel,
   ComboboxTrigger,
 } from '@filigran/design-system';
 import { type FunctionComponent, useContext, useState } from 'react';
@@ -115,10 +114,9 @@ const ChannelsFilter: FunctionComponent<Props> = (props) => {
             </>
           )}
         >
-          <ComboboxLabel>{t('Channels')}</ComboboxLabel>
           <ComboboxField>
             <ComboboxChips />
-            <ComboboxInput />
+            <ComboboxInput placeholder={t('Channels')} />
             <ComboboxControls>
               <ComboboxTrigger />
             </ComboboxControls>

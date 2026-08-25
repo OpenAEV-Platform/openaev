@@ -4,7 +4,6 @@ import {
   ComboboxControls,
   ComboboxField,
   ComboboxInput,
-  ComboboxLabel,
   ComboboxTrigger,
 } from '@filigran/design-system';
 import { FilterListOffOutlined } from '@mui/icons-material';
@@ -86,13 +85,12 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
           }}
           getOptionLabel={option => option.label}
         >
-          <ComboboxLabel>
-            {domains
-              ? t('Please choose a scenario or simulation, or leave this field blank to include all scenarios and atomic tests')
-              : t('Add filter')}
-          </ComboboxLabel>
           <ComboboxField>
-            <ComboboxInput />
+            <ComboboxInput
+              placeholder={domains
+                ? t('Please choose a scenario or simulation, or leave this field blank to include all scenarios and atomic tests')
+                : t('Add filter')}
+            />
             <ComboboxControls>
               <ComboboxTrigger />
             </ComboboxControls>

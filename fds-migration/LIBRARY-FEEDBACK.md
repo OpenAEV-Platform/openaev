@@ -2137,3 +2137,46 @@ value; the input reports `border-width: 0` and `padding: 0`; the chip row report
 `list-style-type: none`, `padding-inline-start: 0` and `margin-block: 0`. Kept as
 a stub rather than deleted so the numbers survive for whoever meets the same
 no-preflight interaction on the next component.
+
+## 42. Option row floor: `min-h-8` as the single floor, so a site pays only for what it renders
+
+Measured at pin `cd4b8ee` (after #155, which did not touch this).
+
+`Combobox.tsx` sets the option row's floor from the PRESENCE of a prop, never
+from what that prop returns:
+
+```
+renderOption ? "min-h-12" : "min-h-8"
+```
+
+So any site that supplies `renderOption` pays a 48px row, and a site that does
+not gets 32px. `renderOption` is being read as "rich content" and it is not one.
+
+**Measured in this product.** On the arsenal filter field, 7 options, every row
+`min-height: 48px` / `class="min-h-12"`, content a single line of text
+("Auteur", "Domaines", "Mis à jour le"). MUI gave these rows ~36px.
+
+Fifteen converted files pass `renderOption`. They split in two:
+
+- **3 were identity** — `renderOption={option => option.label}`, returning
+  exactly what the default renders. Removed on this branch: 48px → 32px, no
+  visual change. That was the product's own waste.
+- **12 render one glyph plus one line of text** and cannot avoid the floor
+  without dropping the glyph: `CountryFieldController`, `TenantFieldController`,
+  `PlatformFieldController`, `TagFieldSingle`, `TagsFilter`, `ChannelsFilter`,
+  `SecurityPlatformField`, `DocumentField`, `InjectContractComponent`,
+  `ImportUploaderInjectFromXlsInjects`, `FilterChipPopoverInput`,
+  `AttackPathHeader`.
+
+**The request.** Keep `min-h-8` as the single floor for every option row. `min-h`
+is a floor, not a fixed height, so a genuinely two-line row grows on its own and
+needs no declaration; a one-line row stops paying 16px it does not use. This is
+one character in the component and removes the prop-presence heuristic entirely.
+
+Alternatives considered and not preferred: a per-site `optionSize` prop (moves the
+decision to 15 call sites for one default that should just be right), and a floor
+derived from measured content (a layout read for something a floor already
+expresses).
+
+No product compensation in the meantime — arbitrated. The 12 sites keep paying
+48px until the library changes the floor.
