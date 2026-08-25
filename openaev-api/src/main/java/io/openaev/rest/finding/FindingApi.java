@@ -28,13 +28,13 @@ public class FindingApi extends RestBehavior {
   // -- CRUD --
 
   @GetMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.READ,
       resourceType = ResourceType.FINDING)
   public ResponseEntity<Finding> finding(@PathVariable @NotNull final String id) {
-    return ResponseEntity.ok(this.findingService.finding(id));
+    return ResponseEntity.ok(this.findingService.redactValue(this.findingService.finding(id)));
   }
 
   @GetMapping({FINDING_URI + "/{id}/summary", TENANT_FINDING_URI + "/{id}/summary"})

@@ -9,7 +9,6 @@ import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.helper.FindingValueRedactor;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
@@ -32,6 +31,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class FindingService {
 
   private static final String HOST = "host";
+
+  /** Mask substituted to the secret part of a sensitive finding value. */
+  public static final String MASK = "******";
+
+  private static final char IDENTITY_SEPARATOR = ':';
+  private static final int VISIBLE_FRAGMENT_LENGTH = 2;
+  private static final int MIN_LENGTH_FOR_FRAGMENT = 5;
+
   private final InjectService injectService;
 
   private final FindingRepository findingRepository;
@@ -39,6 +46,55 @@ public class FindingService {
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
+
+  // -- REDACTION --
+
+  /**
+   * Redacts the value of a sensitive finding before it leaves the platform through the API. The
+   * database row keeps the full cleartext value (it is needed for deduplication, correlation and
+   * attack path computation): only the returned representation is masked.
+   *
+   * <p>The redaction is partial on purpose, so an operator can still tell WHICH secret was
+   * discovered when the value is already known to them, without the API ever disclosing the secret
+   * itself:
+   *
+   * <ul>
+   *   <li>{@code jdoe:Sup3rS3cret} becomes {@code jdoe:******} - the identity part (before the
+   *       first {@code :}) is kept, the secret part is fully masked
+   *   <li>{@code Sup3rS3cret} becomes {@code Su******} - a two character fragment is kept
+   *   <li>a short value is masked entirely, since a fragment would disclose most of it
+   * </ul>
+   *
+   * @param value the cleartext finding value
+   * @param sensitive whether the finding holds sensitive material
+   * @return the value as-is when the finding is not sensitive, its redacted form otherwise
+   */
+  public static String redact(final String value, final boolean sensitive) {
+    if (!sensitive || value == null || value.isBlank()) {
+      return value;
+    }
+
+    int separatorIndex = value.indexOf(IDENTITY_SEPARATOR);
+    if (separatorIndex > 0 && separatorIndex < value.length() - 1) {
+      return value.substring(0, separatorIndex + 1) + MASK;
+    }
+    if (value.length() < MIN_LENGTH_FOR_FRAGMENT) {
+      return MASK;
+    }
+    return value.substring(0, VISIBLE_FRAGMENT_LENGTH) + MASK;
+  }
+
+  /**
+   * Redacts in place the value of a finding entity before the API serializes it. The caller must
+   * run in a read only transaction, so the masked value is never flushed to the database: the row
+   * keeps the cleartext value.
+   */
+  public Finding redactValue(@NotNull final Finding finding) {
+    if (finding.isSensitive()) {
+      finding.setValue(redact(finding.getValue(), true));
+    }
+    return finding;
+  }
 
   // -- CRUD --
 
@@ -70,7 +126,7 @@ public class FindingService {
     return FindingSummaryOutput.builder()
         .id(finding.getId())
         .type(type)
-        .value(FindingValueRedactor.redact(value, finding.isSensitive()))
+        .value(redact(value, finding.isSensitive()))
         .sensitive(finding.isSensitive())
         .firstSeen(seen != null ? seen.getFirstSeen() : finding.getCreationDate())
         .lastSeen(seen != null ? seen.getLastSeen() : finding.getUpdateDate())

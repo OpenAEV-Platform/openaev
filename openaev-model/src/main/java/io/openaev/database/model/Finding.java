@@ -9,7 +9,6 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
-import io.openaev.helper.FindingValueSerializer;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -55,13 +54,12 @@ public class Finding implements TenantBase {
 
   /**
    * Cleartext value as detected. It is persisted as-is (deduplication, correlation and attack paths
-   * rely on it), but a sensitive finding is never disclosed through the API: {@link
-   * FindingValueSerializer} redacts it at serialization time.
+   * rely on it), but a sensitive finding is never disclosed through the API: the API layer redacts
+   * it before returning the finding.
    */
   @Queryable(searchable = true, filterable = true, sortable = true)
   @Column(name = "finding_value", nullable = false)
   @JsonProperty("finding_value")
-  @JsonSerialize(using = FindingValueSerializer.class)
   @NotBlank
   protected String value;
 

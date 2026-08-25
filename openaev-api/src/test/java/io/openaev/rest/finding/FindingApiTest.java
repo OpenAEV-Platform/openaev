@@ -1,7 +1,7 @@
 package io.openaev.rest.finding;
 
-import static io.openaev.helper.FindingValueRedactor.MASK;
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.rest.finding.FindingService.MASK;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.FindingFixture.createDefaultTextFindingWithRandomValue;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
