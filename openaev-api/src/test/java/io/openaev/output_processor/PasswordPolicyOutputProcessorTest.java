@@ -18,6 +18,12 @@ class PasswordPolicyOutputProcessorTest {
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Test
+  @DisplayName("Should be flagged sensitive so the API redacts the value")
+  void shouldBeFlaggedSensitive() {
+    assertTrue(processor.isSensitive());
+  }
+
+  @Test
   @DisplayName("should return true when key and value are present")
   void shouldReturnTrueWhenKeyAndValuePresent() throws Exception {
     JsonNode node =

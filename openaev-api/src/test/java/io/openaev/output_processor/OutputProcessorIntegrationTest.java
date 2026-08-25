@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.ContractOutputType;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -45,9 +46,12 @@ class OutputProcessorIntegrationTest extends IntegrationTest {
         .isInstanceOf(SignatureOutputProcessor.class);
   }
 
+  private static final Set<ContractOutputType> SENSITIVE_TYPES =
+      Set.of(ContractOutputType.Credentials, ContractOutputType.PasswordPolicy);
+
   @Test
-  @DisplayName("Should flag credentials as the only sensitive finding type")
-  void given_everyFindingCapableProcessor_should_flagOnlyCredentialsAsSensitive() {
+  @DisplayName("Should flag credentials and password policies as the sensitive finding types")
+  void given_everyFindingCapableProcessor_should_flagOnlySensitiveTypes() {
     // Processors default to "not sensitive" and only the ones producing secrets opt in, so this
     // assertion is the single place where the whole type - sensitivity matrix is stated: a new
     // finding type that should be redacted has to be declared here as well.
@@ -59,7 +63,7 @@ class OutputProcessorIntegrationTest extends IntegrationTest {
 
       assertThat(findingProcessor.isSensitive())
           .withFailMessage("Unexpected sensitivity for type: " + type)
-          .isEqualTo(type == ContractOutputType.Credentials);
+          .isEqualTo(SENSITIVE_TYPES.contains(type));
     }
   }
 

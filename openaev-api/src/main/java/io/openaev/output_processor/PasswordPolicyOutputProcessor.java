@@ -27,7 +27,8 @@ public class PasswordPolicyOutputProcessor extends FindingCapableOutputProcessor
             new ContractOutputField(KEY, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(VALUE, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
-        findingService);
+        findingService,
+        true);
   }
 
   @Override

@@ -22,7 +22,7 @@ public class V6_20260824180000000__Add_finding_is_sensitive extends BaseJavaMigr
           """
           UPDATE findings
           SET finding_is_sensitive = TRUE
-          WHERE finding_type = 'Credentials'
+          WHERE finding_type IN ('Credentials', 'PasswordPolicy')
             AND finding_is_sensitive IS FALSE;
           """);
     }

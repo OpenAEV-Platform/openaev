@@ -35,13 +35,16 @@ Additional types exist for Active Directory findings (SID, delegation, Kerberoas
 
 ## Sensitive Findings
 
-Some Finding types carry secret material. Credentials Findings, whose value is a `username:password`
-or `username:hash` pair, are flagged as **sensitive**: their value is redacted everywhere the
-platform returns it (list, detail, Simulation, Scenario, Endpoint and Inject views), so
-`jdoe:Sup3rS3cret` is displayed and returned by the API as `jdoe:******`.
+Some Finding types carry secret material and are flagged as **sensitive**: their value is redacted
+everywhere the platform returns it (list, detail, Simulation, Scenario, Endpoint and Inject views).
 
-The identity part is kept so you can still recognise which account was compromised; the secret part
-is never disclosed.
+| Sensitive type | Value shape | Redacted as |
+| --- | --- | --- |
+| Credentials | `jdoe:Sup3rS3cret` | `jdoe:******` |
+| Password policy | `MinimumPasswordLength: 8` | `MinimumPasswordLength:******` |
+
+The identity part - the account for credentials, the policy setting for password policies - is kept
+so you can still recognise what was discovered; the secret part is never disclosed.
 
 !!! warning "The secret is not deleted"
 
@@ -49,9 +52,8 @@ is never disclosed.
     path computation rely on it. Only its API representation is redacted: it is not possible to
     retrieve the cleartext value of a sensitive Finding through the REST API.
 
-Sensitivity is decided per Finding type, not per Finding: Credentials is the only sensitive type
-today. Findings created before the upgrade are flagged retroactively, so previously detected
-credentials are redacted as well.
+Sensitivity is decided per Finding type, not per Finding. Findings created before the upgrade are
+flagged retroactively, so previously detected sensitive Findings are redacted as well.
 
 ## Findings list
 
