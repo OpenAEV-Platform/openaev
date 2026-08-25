@@ -6,7 +6,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { fetchPlatformUserById } from '../../../../actions/platform/users/platform-user-action';
 import { fetchAllGroups, fetchUserById } from '../../../../actions/security/securityDetail-actions';
 import { fetchUserSessions, killSession } from '../../../../actions/sessions/session-actions';
-import { deleteUser, updateUser, updateUserPassword } from '../../../../actions/users/User';
+import { deleteUser, updateUser } from '../../../../actions/users/User';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { DetailHero, DetailSections, Field, InformationGrid, Section } from '../../../../components/common/detail/EntityDetailCommon';
 import Empty from '../../../../components/Empty';
@@ -14,7 +14,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import { GROUP_BASE_URL, USER_BASE_URL } from '../../../../constants/BaseUrls';
-import { type ChangePasswordInput, type Group, type SessionOutput, type UserInput, type UserOutput } from '../../../../utils/api-types';
+import { type Group, type SessionOutput, type UserInput, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
@@ -125,7 +125,7 @@ const UserDetail = () => {
               ? (
                   <PlatformUserPopover
                     platformUser={user}
-                    actions={['Update', 'Update password', 'Delete']}
+                    actions={['Update', 'Delete']}
                     onUpdate={updated => setUser(updated)}
                     onDelete={() => navigate(usersLink)}
                   />
@@ -133,13 +133,12 @@ const UserDetail = () => {
               : (
                   <UserPopover
                     user={user}
-                    actions={['Update', 'Update password', 'Delete']}
+                    actions={['Update', 'Delete']}
                     onSubmitUpdate={(data: UserInput) => dispatch(updateUser(userId, data)).then(loadUser)}
                     onSubmitDelete={() => dispatch(deleteUser(userId)).then(() => navigate(usersLink))}
-                    onSubmitPassword={(data: ChangePasswordInput) => dispatch(updateUserPassword(userId, data))}
                     permissions={{
-                      manage: [ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS],
-                      delete: [ACTIONS.DELETE, SUBJECTS.TENANT_SETTINGS],
+                      manage: [ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES],
+                      delete: [ACTIONS.DELETE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES],
                     }}
                   />
                 )}

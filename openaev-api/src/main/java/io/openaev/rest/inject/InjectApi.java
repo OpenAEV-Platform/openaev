@@ -274,8 +274,6 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public Page<InjectTarget> injectTargetSearch(
-      // ctx is unused directly: the aspect reads it to scope this transaction against the
-      // v2-active executors table (an AGENT target type reads the agent's executor).
       TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetType,
@@ -398,10 +396,13 @@ public class InjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
+  // TxCtx scopes the transaction so the legacy-ingestion path can reach security_coverages
+  // (v2-activated) through InjectExpectationService's vulnerability verdict / security-coverage
+  // send-job propagation, same as the agent-callback overload below.
   public void injectExecutionCallback(
-      @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
+      TxCtx ctx, @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
-    injectExecutionCallback(null, injectId, input);
+    doInjectExecutionCallback(ctx, null, injectId, input);
   }
 
   @PostMapping({
@@ -429,12 +430,21 @@ public class InjectApi extends RestBehavior {
             description =
                 "The inject to update was not in a valid state in regards to the requested action. Retry in a few seconds."),
       })
+  // TxCtx scopes the transaction so the legacy (non-queued) path can reach security_coverages
+  // (v2-activated), read via InjectExpectationService's vulnerability verdict propagation into
+  // SecurityCoverageSendJobService#shouldCreateCoverageSendJob (exercise.getSecurityCoverage()).
   public void injectExecutionCallback(
+      TxCtx ctx,
       @PathVariable
           String agentId, // must allow null because http injector used also this method to work.
       @PathVariable String injectId,
       @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
+    doInjectExecutionCallback(ctx, agentId, injectId, input);
+  }
+
+  private void doInjectExecutionCallback(
+      TxCtx ctx, String agentId, String injectId, InjectExecutionInput input) throws IOException {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LEGACY_INGESTION_EXECUTION_TRACE)
         && injectTraceQueueService != null) {
       InjectExecutionCallback injectExecutionCallback =

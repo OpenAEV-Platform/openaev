@@ -3,22 +3,19 @@ import { type FunctionComponent, useCallback, useContext, useMemo, useState } fr
 import { type UserType } from '../../../../../actions/users/users-helper';
 import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../../components/common/DialogDelete';
-import Drawer from '../../../../../components/common/Drawer';
 import { useFormatter } from '../../../../../components/i18n';
-import { type ChangePasswordInput, type UserInput, type UserOutput } from '../../../../../utils/api-types';
+import { type UserInput, type UserOutput } from '../../../../../utils/api-types';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
-import { type Actions, type Subjects } from '../../../../../utils/permissions/types';
-import UserPasswordForm from './UserPasswordForm';
+import { type Actions, PERMISSION_REQUIRED, type Subjects } from '../../../../../utils/permissions/types';
 import UserUpdate from './UserUpdate';
 
-type ActionType = 'Update' | 'Update password' | 'Delete';
+type ActionType = 'Update' | 'Delete';
 
 interface UserPopoverProps {
   user: UserOutput;
   actions?: ActionType[];
   onSubmitUpdate: (data: UserInput) => void;
   onSubmitDelete: () => void;
-  onSubmitPassword?: (data: ChangePasswordInput) => void;
   deleteMessage?: string;
   type?: UserType;
   permissions: {
@@ -33,7 +30,6 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
   actions = [],
   onSubmitUpdate,
   onSubmitDelete,
-  onSubmitPassword,
   deleteMessage,
   type = 'TENANT',
   permissions,
@@ -51,16 +47,6 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
     onSubmitUpdate(data);
     handleCloseEdit();
   }, [onSubmitUpdate, handleCloseEdit]);
-
-  // Password
-  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
-  const handleOpenPassword = useCallback(() => setIsPasswordOpen(true), []);
-  const handleClosePassword = useCallback(() => setIsPasswordOpen(false), []);
-
-  const handlePassword = useCallback((data: ChangePasswordInput) => {
-    onSubmitPassword?.(data);
-    handleClosePassword();
-  }, [onSubmitPassword, handleClosePassword]);
 
   // Deletion
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -80,30 +66,29 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
       label: string;
       action: () => void;
       userRight: boolean;
+      disabled: boolean;
+      disabledMessage: string;
     }[] = [];
     if (actions.includes('Update')) {
       result.push({
         label: t('Update'),
         action: handleOpenEdit,
-        userRight: canManage,
-      });
-    }
-    if (actions.includes('Update password') && onSubmitPassword) {
-      result.push({
-        label: t('Update password'),
-        action: handleOpenPassword,
-        userRight: canManage,
+        userRight: true,
+        disabled: !canManage,
+        disabledMessage: PERMISSION_REQUIRED,
       });
     }
     if (actions.includes('Delete')) {
       result.push({
         label: t('Delete'),
         action: handleOpenDelete,
-        userRight: canDelete,
+        userRight: true,
+        disabled: !canDelete,
+        disabledMessage: PERMISSION_REQUIRED,
       });
     }
     return result;
-  }, [actions, ability, permissions, onSubmitPassword, handleOpenEdit, handleOpenPassword, handleOpenDelete, t]);
+  }, [actions, ability, permissions, handleOpenEdit, handleOpenDelete, t]);
 
   return (
     <>
@@ -124,18 +109,6 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
           handleSubmit={handleDelete}
           text={deleteMessage ?? t('Do you want to delete this user?')}
         />
-      )}
-      {actions.includes('Update password') && onSubmitPassword && (
-        <Drawer
-          open={isPasswordOpen}
-          handleClose={handleClosePassword}
-          title={t('Update the user password')}
-        >
-          <UserPasswordForm
-            onSubmit={handlePassword}
-            handleClose={handleClosePassword}
-          />
-        </Drawer>
       )}
     </>
   );

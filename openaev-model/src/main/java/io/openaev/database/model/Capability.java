@@ -334,12 +334,6 @@ public enum Capability {
       pair(ResourceType.VULNERABILITY, Action.SEARCH),
       pair(ResourceType.ORGANIZATION, Action.READ),
       pair(ResourceType.ORGANIZATION, Action.SEARCH),
-      pair(ResourceType.GROUP_ROLE, Action.READ),
-      pair(ResourceType.GROUP_ROLE, Action.SEARCH),
-      pair(ResourceType.USER_GROUP, Action.READ),
-      pair(ResourceType.USER_GROUP, Action.SEARCH),
-      pair(ResourceType.USER, Action.READ),
-      pair(ResourceType.USER, Action.SEARCH),
       pair(ResourceType.COLLECTOR, Action.READ),
       pair(ResourceType.COLLECTOR, Action.SEARCH),
       pair(ResourceType.INJECTOR, Action.READ),
@@ -378,12 +372,6 @@ public enum Capability {
       pair(ResourceType.VULNERABILITY, Action.CREATE),
       pair(ResourceType.ORGANIZATION, Action.WRITE),
       pair(ResourceType.ORGANIZATION, Action.CREATE),
-      pair(ResourceType.GROUP_ROLE, Action.WRITE),
-      pair(ResourceType.GROUP_ROLE, Action.CREATE),
-      pair(ResourceType.USER_GROUP, Action.WRITE),
-      pair(ResourceType.USER_GROUP, Action.CREATE),
-      pair(ResourceType.USER, Action.WRITE),
-      pair(ResourceType.USER, Action.CREATE),
       pair(ResourceType.MAPPER, Action.WRITE),
       pair(ResourceType.MAPPER, Action.CREATE),
       pair(ResourceType.MAPPER, Action.DUPLICATE),
@@ -410,9 +398,6 @@ public enum Capability {
       pair(ResourceType.KILL_CHAIN_PHASE, Action.DELETE),
       pair(ResourceType.VULNERABILITY, Action.DELETE),
       pair(ResourceType.ORGANIZATION, Action.DELETE),
-      pair(ResourceType.GROUP_ROLE, Action.DELETE),
-      pair(ResourceType.USER_GROUP, Action.DELETE),
-      pair(ResourceType.USER, Action.DELETE),
       pair(ResourceType.MAPPER, Action.DELETE),
       pair(ResourceType.COLLECTOR, Action.DELETE),
       pair(ResourceType.INJECTOR, Action.DELETE),
@@ -420,10 +405,34 @@ public enum Capability {
       pair(ResourceType.INJECTOR_CONTRACT, Action.DELETE),
       pair(ResourceType.NOTIFIER, Action.DELETE)),
 
+  ACCESS_TENANT_USERS_GROUPS_AND_ROLES(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.USER_GROUP, Action.READ),
+      pair(ResourceType.USER_GROUP, Action.SEARCH),
+      pair(ResourceType.GROUP_ROLE, Action.READ),
+      pair(ResourceType.GROUP_ROLE, Action.SEARCH),
+      pair(ResourceType.USER, Action.READ),
+      pair(ResourceType.USER, Action.SEARCH)),
+  MANAGE_TENANT_USERS_GROUPS_AND_ROLES(
+      ACCESS_TENANT_USERS_GROUPS_AND_ROLES,
+      pair(ResourceType.USER_GROUP, Action.WRITE),
+      pair(ResourceType.USER_GROUP, Action.CREATE),
+      pair(ResourceType.GROUP_ROLE, Action.WRITE),
+      pair(ResourceType.GROUP_ROLE, Action.CREATE),
+      pair(ResourceType.USER, Action.WRITE),
+      pair(ResourceType.USER, Action.CREATE)),
+  DELETE_TENANT_USERS_GROUPS_AND_ROLES(
+      MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+      pair(ResourceType.USER_GROUP, Action.DELETE),
+      pair(ResourceType.GROUP_ROLE, Action.DELETE),
+      pair(ResourceType.USER, Action.DELETE)),
+
   // Platform Users, Groups & Roles
   ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES(
       null,
-      CapabilityGroup.PLATFORM_USERS_GROUPS_AND_ROLES,
+      CapabilityGroup.SECURITY,
       EnumSet.of(CapabilityScope.PLATFORM),
       pair(ResourceType.PLATFORM_GROUP, Action.READ),
       pair(ResourceType.PLATFORM_GROUP, Action.SEARCH),
@@ -462,7 +471,16 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.JOB, Action.READ),
       pair(ResourceType.JOB, Action.WRITE),
-      pair(ResourceType.AGENT, Action.CREATE));
+      pair(ResourceType.AGENT, Action.CREATE)),
+
+  MANAGE_SESSIONS(
+      null,
+      CapabilityGroup.SECURITY,
+      true,
+      true,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.SESSION, Action.READ),
+      pair(ResourceType.SESSION, Action.WRITE));
 
   private record ResourceTypeActionPair(ResourceType resource, Action action) {}
 

@@ -1,7 +1,7 @@
 package io.openaev.scheduler.jobs;
 
 import io.openaev.database.model.Workflow;
-import io.openaev.service.chaining.WorkflowTimeoutService;
+import io.openaev.service.chaining.WorkflowEndService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,11 +20,11 @@ import org.springframework.stereotype.Component;
 @DisallowConcurrentExecution
 public class WorkflowTimeoutJob implements Job {
 
-  private final WorkflowTimeoutService workflowTimeoutService;
+  private final WorkflowEndService workflowEndService;
 
   @Override
   public void execute(JobExecutionContext jobExecutionContext) {
-    List<Workflow> expiredWorkflows = workflowTimeoutService.findAllExpiredRunWorkflows();
+    List<Workflow> expiredWorkflows = workflowEndService.findAllExpiredRunWorkflows();
     if (expiredWorkflows.isEmpty()) {
       return;
     }
@@ -34,7 +34,7 @@ public class WorkflowTimeoutJob implements Job {
 
     for (Workflow workflow : expiredWorkflows) {
       try {
-        workflowTimeoutService.forceCompleteWorkflow(workflow);
+        workflowEndService.forceCompleteWorkflowByTimeout(workflow);
       } catch (Exception e) {
         log.error(
             "[Chaining] Failed to force-complete expired workflow run {}. Will retry on next cycle.",

@@ -779,20 +779,8 @@ public class ExerciseService {
       // End WORKFLOW + STEP + delete workflow states
       List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
       if (!run.isEmpty()) {
-        List<Step> stepsToUpdate = new ArrayList<>();
-        run.forEach(
-            workflow -> {
-              // Single END transition (also freezes the end scope snapshot once - ADR-006):
-              // never set the status directly, or the canceled run keeps drifting "during
-              // execution" forever.
-              workflowService.endWorkflow(workflow);
-              List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
-              steps.forEach(step -> step.setStatus(StepStatus.END));
-              stepsToUpdate.addAll(steps);
-            });
-        stepService.saveSteps(stepsToUpdate);
+        workflowService.cancelSimulationEndWorkflowRun(run);
 
-        workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
         // Stopping is not resetting: it ends the run and keeps its record. A manual chained
         // simulation used to drop ALL its injects here, which emptied the Execution screen while
         // the attack path (whose rows are only cleared on reset) still showed the same run - the

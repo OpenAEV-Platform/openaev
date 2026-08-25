@@ -8,25 +8,50 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import io.openaev.api.chaining.InjectExecutionStep;
+import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Vulnerability;
+import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.CollectorRepository;
+import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.CweRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.ImportMapperRepository;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
 import io.openaev.database.repository.MitigationRepository;
+import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousEventRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
+import io.openaev.executors.Executor;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.caldera.service.CalderaExecutorContextService;
+import io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorContextService;
+import io.openaev.executors.mde.service.MdeExecutorContextService;
+import io.openaev.executors.openaev.service.OpenAEVExecutorContextService;
+import io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorContextService;
+import io.openaev.executors.sentinelone.service.SentinelOneExecutorContextService;
+import io.openaev.executors.tanium.service.TaniumExecutorContextService;
+import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.injectors.phishing.service.PhishingLandingPageService;
+import io.openaev.integration.ManagerFactory;
+import io.openaev.integration.migration.ConfigurationMigration;
+import io.openaev.processor.core.V20260420_Migrate_rabbitmq_queues;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
+import io.openaev.processor.datapack.V20260708_Dynamic_injectors_base_url;
 import io.openaev.rest.asset.security_platforms.SecurityPlatformApi;
 import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.collector.CollectorApi;
 import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.connector_instance.ConnectorInstanceApi;
 import io.openaev.rest.executor.ExecutorApi;
 import io.openaev.rest.exercise.ExerciseApi;
 import io.openaev.rest.exercise.ExerciseImportApi;
@@ -37,19 +62,31 @@ import io.openaev.rest.inject.SimulationInjectApi;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.ScenarioInjectService;
 import io.openaev.rest.inject_expectation_trace.InjectExpectationTraceApi;
+import io.openaev.rest.injector.InjectorApi;
+import io.openaev.rest.injector_contract.InjectorContractApi;
+import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.lessons.ExerciseLessonsApi;
 import io.openaev.rest.lessons.ScenarioLessonsApi;
 import io.openaev.rest.lessons_template.LessonsTemplateApi;
 import io.openaev.rest.mapper.MapperApi;
 import io.openaev.rest.mitigation.MitigationApi;
 import io.openaev.rest.payload.PayloadApi;
+import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpsertService;
 import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.scheduler.jobs.ComchecksExecutionJob;
 import io.openaev.service.EndpointService;
 import io.openaev.service.InjectExpectationTraceService;
+import io.openaev.service.InjectImportService;
+import io.openaev.service.InjectTestStatusService;
+import io.openaev.service.InjectorService;
+import io.openaev.service.MailingService;
 import io.openaev.service.MapperService;
+import io.openaev.service.ScenarioToExerciseService;
+import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.attackpath.AttackPathCausalSeedService;
 import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
@@ -59,11 +96,18 @@ import io.openaev.service.autonomous.AutonomousEventService;
 import io.openaev.service.autonomous.AutonomousRunReconciliationWriter;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.autonomous.AutonomousTimeoutService;
+import io.openaev.service.autonomous.CapabilityResolverService;
 import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.service.stix.SecurityCoverageService;
+import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
+import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
+import io.openaev.utils.ExpectationUtils;
+import io.openaev.utils.InjectUtils;
 import io.openaev.utils.mapper.VulnerabilityMapper;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -104,13 +148,16 @@ class TenantActiveTableAccessArchTest {
           "mitigations",
           "collectors",
           "executors",
+          "injectors",
           "attackpath_execution",
           "attackpath_finding",
           "secret_references",
           "secrets",
+          "connector_instances",
           "autonomous_runs",
           "autonomous_events",
-          "autonomous_directives");
+          "autonomous_directives",
+          "security_coverages");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -172,8 +219,10 @@ class TenantActiveTableAccessArchTest {
           .doNotBelongToAnyOf(
               // Resolves the write tenant explicitly (TxCtx threaded from the wired handlers):
               VulnerabilityService.class,
-              // Waived INSERT-only provisioning writer (VALUES insert + TenantContext attribution,
-              // pinned by CweHttpIsolationTest; conversion to the primitive is tracked):
+              // Provisioning datapack: writes cwes through cweRepository.save (still insert-only,
+              // never reads), now under the primitive scope MigrationProcessor sets
+              // (setScopeOnCurrentTransaction on onboarding, execute on startup), so it needs no
+              // waiver. Allowlisted because it legitimately depends on CweRepository to seed cwes:
               V20260330_Default_tenant_data.class)
           .should()
           .dependOnClassesThat()
@@ -275,6 +324,162 @@ class TenantActiveTableAccessArchTest {
                   + " rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
+  static final ArchRule injectors_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              InjectorApi.class,
+              ConnectorInstanceApi.class,
+              InjectorContractApi.class,
+              // Service behind the handlers above:
+              InjectorService.class,
+              ConnectorOrchestrationService.class,
+              InjectorContractService.class,
+              // Inject execution path; scoped via TxCtx-bearing inject endpoints:
+              InjectUtils.class,
+              Executor.class,
+              // Threat arsenal import endpoint carries TxCtx:
+              ThreatArsenalImportService.class,
+              // Payload path scoped by PayloadApi TxCtx entrypoints:
+              PayloadUpsertService.class,
+              PayloadService.class,
+              // Connector teardown runs under ConnectorInstanceApi.deleteConnectorInstance scope:
+              ConnectorInstanceService.class,
+              // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
+              InventoryMetricCollector.class,
+              // Runtime migration scoped with tenantTx.executeNew(TxCtx.forTenant(...)):
+              V20260420_Migrate_rabbitmq_queues.class,
+              // Datapack writer scoped with tenantTx.executeNew(TxCtx.forTenant(...)):
+              V20260708_Dynamic_injectors_base_url.class,
+              // Builtin injector registration for tenant bootstrap is scoped in
+              // createDependencyForTenant:
+              ManagerFactory.class,
+              // Security-platform registration links the registering injector using an explicit
+              // tenant predicate (findByTypeAndTenantId with the platform row's own tenant), safe
+              // under v2 regardless of the ambient scope:
+              SecurityPlatformApi.class,
+              // Autonomous arsenal inventory reads injectors via inspector-scoped findAll() under
+              // the caller's TxCtx / per-tenant background scope; with no scope it fails closed
+              // (empty inventory), never cross-tenant:
+              CapabilityResolverService.class,
+              // Phishing landing-page service synchronises its injector contract via the
+              // tenant-explicit findByTypeAndTenantId(PhishingContract.TYPE, tenantId), mirroring
+              // PayloadService's contract sync; the tenant is resolved from the landing page:
+              PhishingLandingPageService.class,
+              // Comcheck email generation resolves the built-in email injector via the
+              // tenant-scoped findFirstByContractsCompositeIdIdAndTenantId under a per-comcheck
+              // setScopeOnCurrentTransaction(forTenant(exercise tenant)) stamp; each comcheck gets
+              // its own tenant's injector, never a fail-closed null:
+              ComchecksExecutionJob.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(InjectorRepository.class)
+          .because(
+              "injectors is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  // Phase 3b (activate-tenant-table skill) finding: InjectorContract#getInjectors /
+  // #getFirstInjector and Inject#getInjector reach the injectors table through an association,
+  // not the repository, so the rule above cannot see these callers. Running this scan surfaced a
+  // large pre-existing surface; each caller below was traced back to its real HTTP/job entrypoint.
+  // REVIEWED-SAFE (moved out of the unverified block once traced):
+  //  - Executor + all 7 *ExecutorContextService (incl. SentinelOneExecutorContextService, which
+  //    also reads InjectorContract directly): only reached from
+  //    InjectsExecutionJob#executeInject, which runs inside
+  //    executeInTenant(tenantId, work) -> tenantTx.execute(TxCtx.forTenant(tenantId), work).
+  //  - InjectorContractFullOutput#fromInjectorContract: dead code, zero callers anywhere in the
+  //    codebase (main or test) — kept referenced here only for documentation, not a live path.
+  //  - InjectImportService: every entrypoint (AtomicTestingApi#atomicTestingImport,
+  //    ScenarioImportApi#injectsImport, ExerciseImportApi#injectsImport,
+  //    MapperApi#testImportXLSFile) now carries TxCtx.
+  //  - InjectTestStatusService: every entrypoint (ScenarioInjectTestApi#testInject/
+  //    #bulkTestInject, SimulationInjectTestApi#testInject/#bulkTestInject) now carries TxCtx.
+  //  - AgentTargetSearchAdaptor: its only caller, TargetService, is only reached from
+  //    InjectApi#injectTargetSearch, which now carries TxCtx.
+  // STILL PRE_EXISTING_UNVERIFIED_CALLERS (tracked follow-up: injector-phase3b-associations),
+  // not a claim of safety. Do not add to this list without verifying the caller runs inside a
+  // tenant-scoped transaction; fix it and move it to the reviewed-safe list above instead.
+  //  - ScenarioToExerciseService: ScenarioApi#createRunningExerciseFromScenario is fixed, but
+  //    ScenarioExecutionJob (the recurring-scenario cron job) still calls it under a single
+  //    cross-tenant @Transactional with only the v1 TenantContext bridge set per scenario — no
+  //    v2 TxCtx/TenantScopedTransaction at all. This is a real Phase 5b gap (background writer
+  //    not converted to the primitive), tracked under injector-background-paths.
+  @ArchTest
+  static final ArchRule injectors_contract_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Owning-side mutation methods on the entity itself (addInjector/removeInjector/
+              // clearInjectors/setInjectors), not an external caller:
+              InjectorContract.class,
+              // Reads injectorLinks inside the contract's own TxCtx-scoped handlers:
+              InjectorContractService.class,
+              // Reads inside InjectorApi/InjectorService's own TxCtx-scoped handlers:
+              InjectorService.class,
+              // --- REVIEWED-SAFE (see comment above) ---
+              SentinelOneExecutorContextService.class,
+              InjectorContractFullOutput.class,
+              InjectImportService.class,
+              InjectTestStatusService.class,
+              AgentTargetSearchAdaptor.class,
+              // --- PRE_EXISTING_UNVERIFIED_CALLERS (tracked follow-up, see comment above) ---
+              // (ComchecksExecutionJob no longer belongs here: it resolves the email injector via
+              // the tenant-scoped repository method instead of getFirstInjector; see the
+              // injectors_repository rule allowlist.)
+              MailingService.class,
+              InjectUtils.class)
+          .should()
+          .callMethod(InjectorContract.class, "getInjectors")
+          .orShould()
+          .callMethod(InjectorContract.class, "getFirstInjector")
+          .because(
+              "injectors is tenant-active: InjectorContract#getInjectors/#getFirstInjector reach"
+                  + " it through the injectorLinks association without touching the repository. A"
+                  + " caller outside a tenant-scoped transaction silently sees an empty list. New"
+                  + " callers must run inside a scoped transaction and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule injectors_inject_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Inject entity's own accessor, not an external caller:
+              Inject.class,
+              // --- REVIEWED-SAFE (see comment above) ---
+              Executor.class,
+              CalderaExecutorContextService.class,
+              CrowdStrikeExecutorContextService.class,
+              MdeExecutorContextService.class,
+              OpenAEVExecutorContextService.class,
+              PaloAltoCortexExecutorContextService.class,
+              SentinelOneExecutorContextService.class,
+              TaniumExecutorContextService.class,
+              InjectTestStatusService.class,
+              // Scenario->exercise copy stamps the scenario's tenant
+              // (setScopeOnCurrentTransaction(forTenant(...))) before reading getInjector(), so the
+              // lazy load resolves under a real scope instead of fail-closing to null:
+              ScenarioToExerciseService.class,
+              // --- PRE_EXISTING_UNVERIFIED_CALLERS (tracked follow-up, see comment above) ---
+              InjectExecutionStep.class,
+              AttackPathExecution.class,
+              HealthCheckUtils.class,
+              AttackPathExecutionIngestionService.class,
+              // Surfaced by merging main: a pre-existing getInjector() caller (attack-path causal
+              // seed) that became reviewable once this PR activated injectors. Unverified scoping,
+              // same tracked follow-up as its attack-path siblings above.
+              AttackPathCausalSeedService.class,
+              ExpectationUtils.class,
+              InjectUtils.class)
+          .should()
+          .callMethod(Inject.class, "getInjector")
+          .because(
+              "injectors is tenant-active: Inject#injector is a lazy @ManyToOne resolved through"
+                  + " the inspector once accessed beyond its id. A caller outside a tenant-scoped"
+                  + " transaction silently sees a null injector. New callers must run inside a"
+                  + " scoped transaction and be allowlisted here");
+
+  @ArchTest
   static final ArchRule collectors_association_access_is_reviewed =
       noClasses()
           .that()
@@ -364,6 +569,107 @@ class TenantActiveTableAccessArchTest {
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
+  static final ArchRule security_coverages_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Coverage upsert/read logic; caller transaction scope is pinned at API entrypoint by
+              // TenantScopedEntrypointsTxCtxArchTest.
+              SecurityCoverageService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(SecurityCoverageRepository.class)
+          .because(
+              "security_coverages is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule security_coverages_exercise_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Own service; every public entrypoint is TxCtx-scoped, pinned by
+              // TenantScopedEntrypointsTxCtxArchTest:
+              SecurityCoverageService.class,
+              // Reads exercise.getSecurityCoverage() in shouldCreateCoverageSendJob, reached only
+              // from TxCtx-carrying HTTP entrypoints (ExpectationApi#deleteInjectExpectationResult,
+              // ChallengeApi#tryChallenge, SimulationChallengeApi#validateChallenge,
+              // InjectApi#injectExecutionCallback) and from already-scoped background jobs
+              // (SecurityCoverageJob, InjectsExecutionJob#handleAutoClosingSimulations), all pinned
+              // by SecurityCoverageTenantScopeTest#SendJobCreationGateRequiresScope:
+              SecurityCoverageSendJobService.class)
+          .should()
+          .callMethod(Exercise.class, "getSecurityCoverage")
+          .because(
+              "security_coverages is reached through Exercise's association WITHOUT touching the"
+                  + " repository: a lazy getSecurityCoverage() in an unscoped context silently"
+                  + " reads null. New callers must run inside a scoped transaction and be"
+                  + " allowlisted here");
+
+  @ArchTest
+  static final ArchRule security_coverages_scenario_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Own service; every public entrypoint is TxCtx-scoped, pinned by
+              // TenantScopedEntrypointsTxCtxArchTest:
+              SecurityCoverageService.class,
+              // Copies the scenario's coverage onto the new exercise during scenario->exercise
+              // promotion; callers (ScenarioApi, AutonomousRunService) already carry TxCtx,
+              // verified in the Phase 3 audit:
+              ScenarioToExerciseService.class)
+          .should()
+          .callMethod(Scenario.class, "getSecurityCoverage")
+          .because(
+              "security_coverages is reached through Scenario's association WITHOUT touching the"
+                  + " repository: a lazy getSecurityCoverage() in an unscoped context silently"
+                  + " reads null. New callers must run inside a scoped transaction and be"
+                  + " allowlisted here");
+
+  @ArchTest
+  static final ArchRule connector_instances_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Own service; every entry point into it is either a TxCtx-carrying HTTP handler
+              // (ConnectorInstanceApi, CatalogConnectorApi, pinned by
+              // TenantScopedEntrypointsTxCtxArchTest) or an explicit
+              // tenantTx.setScopeOnCurrentTransaction(TxCtx.allTenants()) for the platform-level
+              // XTM Composer callbacks (connectorInstancesManagedByXtmComposer,
+              // connectorInstanceByIdIgnoringTenantFilter):
+              ConnectorInstanceService.class,
+              // Background telemetry reader scoped via tenantTx.execute(TxCtx.allTenants()):
+              InventoryMetricCollector.class,
+              // Reads a connector instance to resolve inject test status; reached only from
+              // TxCtx-carrying inject-test endpoints already reviewed for the injectors
+              // activation (ScenarioInjectTestApi#testInject/#bulkTestInject,
+              // SimulationInjectTestApi#testInject/#bulkTestInject):
+              InjectTestStatusService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(ConnectorInstanceRepository.class)
+          .because(
+              "connector_instances is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule connector_instances_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Joins ManagerCreator#createManager's transaction, which sets
+              // tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId)) before any
+              // factory/migration runs; getInstances() therefore only sees this tenant's
+              // already-migrated instance:
+              ConfigurationMigration.class)
+          .should()
+          .callMethod(CatalogConnector.class, "getInstances")
+          .because(
+              "connector_instances is reached through CatalogConnector's association WITHOUT"
+                  + " touching the repository: a lazy getInstances() call in an unscoped context"
+                  + " silently sees zero rows. New callers must run inside a scoped transaction"
+                  + " and be allowlisted here");
+
   static final ArchRule autonomous_runs_repository_access_is_reviewed =
       noClasses()
           .that()

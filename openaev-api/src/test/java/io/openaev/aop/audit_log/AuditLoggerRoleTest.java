@@ -88,7 +88,7 @@ class AuditLoggerRoleTest extends IntegrationTest {
     @Test
     @WithMockUser(
         withCapabilities = {
-          Capability.MANAGE_TENANT_SETTINGS,
+          Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
           Capability.MANAGE_ASSESSMENT,
           Capability.MANAGE_ASSETS
         })
@@ -194,9 +194,37 @@ class AuditLoggerRoleTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Granting a tenant users, groups and roles capability is audited under its name")
+    void given_tenantUsersGroupsAndRolesGrant_should_logTheCapabilityName() throws Exception {
+      // The audit hook reads the capability set generically, so a newly introduced capability
+      // needs no wiring of its own - this pins that.
+      String roleName = "audit-role-" + UUID.randomUUID();
+      RoleInput createInput =
+          RoleInput.builder()
+              .name(roleName)
+              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
+              .build();
+
+      long sizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
+      mvc.perform(
+              post(ROLE_URI)
+                  .content(asJsonString(createInput))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      String createLog = readNewAuditLogContent(sizeBefore);
+      assertThat(createLog).contains("\"event_access\" : \"administration\"");
+      assertThat(createLog).contains("MANAGE_TENANT_USERS_GROUPS_AND_ROLES");
+      assertThat(createLog).contains("ACCESS_TENANT_USERS_GROUPS_AND_ROLES");
+    }
+
+    @Test
     @WithMockUser(
         withCapabilities = {
-          Capability.MANAGE_TENANT_SETTINGS,
+          Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
           Capability.ACCESS_ASSESSMENT,
           Capability.ACCESS_TAGS,
           Capability.MANAGE_TAGS,

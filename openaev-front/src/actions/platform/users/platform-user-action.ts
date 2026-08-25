@@ -1,7 +1,7 @@
 import type { Dispatch } from 'redux';
 
 import { delReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../../utils/Action';
-import { type ChangePasswordInput, type SearchPaginationInput, type UserInput, type UserOutput } from '../../../utils/api-types';
+import { type SearchPaginationInput, type UserInput, type UserOutput } from '../../../utils/api-types';
 import { PLATFORM_USER_SCHEMA_KEY, platformUser } from './platform-user-schema';
 
 export const PLATFORM_USERS_URI = '/api/platform-users';
@@ -36,13 +36,6 @@ export const updatePlatformUser
   = (userId: UserOutput['user_id'], data: UserInput) =>
     (dispatch: Dispatch) => {
       const uri = `${PLATFORM_USERS_URI}/${userId}`;
-      return putReferential(platformUser, uri, data)(dispatch);
-    };
-
-export const updatePlatformUserPassword
-  = (userId: UserOutput['user_id'], data: ChangePasswordInput) =>
-    (dispatch: Dispatch) => {
-      const uri = `${PLATFORM_USERS_URI}/${userId}/password`;
       return putReferential(platformUser, uri, data)(dispatch);
     };
 

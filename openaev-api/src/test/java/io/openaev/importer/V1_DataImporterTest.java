@@ -25,6 +25,7 @@ import io.openaev.service.ImportEntry;
 import io.openaev.utils.constants.Constants;
 import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.KillChainPhaseFixture;
 import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
@@ -2045,6 +2046,72 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   @WithMockUser
+  void given_stepDataWithSourceInjectAttackPatterns_when_importing_should_rebuildTtpFromContract()
+      throws Exception {
+    // -- Arrange --
+    // The exported step_data carries the SOURCE instance TTP snapshot (inject_attack_patterns /
+    // inject_kill_chain_phases). The target contract is the authoritative source of both fields,
+    // so the import must recompute them from it, otherwise the imported action is displayed
+    // TTP-less ("Other" tactic) by the chaining UI (#7577).
+    KillChainPhase targetPhase =
+        killChainPhaseRepository.save(KillChainPhaseFixture.getKillChainPhase("execution", 2L));
+    AttackPattern targetAttackPattern =
+        AttackPatternFixture.createAttackPatternsWithExternalId("T1059.001");
+    targetAttackPattern.setKillChainPhases(new ArrayList<>(List.of(targetPhase)));
+    targetAttackPattern = attackPatternRepository.save(targetAttackPattern);
+
+    ObjectMapper om = new ObjectMapper();
+    String scenarioName = "wf inject ttp " + UUID.randomUUID();
+    ObjectNode importData =
+        buildScenarioWorkflowWithStepTags(
+            om, scenarioName, om.createArrayNode(), om.createArrayNode(), om.createArrayNode());
+    ObjectNode stepData =
+        (ObjectNode)
+            importData.get("scenario_workflow").get("workflow_steps").get(0).get("step_data");
+    String contractId =
+        stepData.get("inject_injector_contract").get("injector_contract_id").asText();
+    InjectorContract targetContract = injectorContractRepository.findById(contractId).orElseThrow();
+    targetContract.setAttackPatterns(new ArrayList<>(List.of(targetAttackPattern)));
+    injectorContractRepository.save(targetContract);
+
+    String sourceAttackPatternId = UUID.randomUUID().toString();
+    String sourcePhaseId = UUID.randomUUID().toString();
+    ArrayNode sourceAttackPatterns =
+        attackPatternObjectArray(om, sourceAttackPatternId, "T1059.001", "Command and Scripting");
+    ((ArrayNode) sourceAttackPatterns.get(0).get("attack_pattern_kill_chain_phases"))
+        .add(sourcePhaseId);
+    stepData.set("inject_attack_patterns", sourceAttackPatterns);
+    ObjectNode sourcePhase = om.createObjectNode();
+    sourcePhase.put("phase_id", sourcePhaseId);
+    sourcePhase.put("phase_name", "execution");
+    stepData.set("inject_kill_chain_phases", om.createArrayNode().add(sourcePhase));
+
+    // -- Act --
+    this.importer.importData(
+        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    // -- Assert --
+    JsonNode storedData = readStoredStepData(scenarioName, om);
+    JsonNode storedAttackPatterns = storedData.get("inject_attack_patterns");
+    assertEquals(1, storedAttackPatterns.size());
+    assertEquals(
+        targetAttackPattern.getId(),
+        storedAttackPatterns.get(0).get("attack_pattern_id").asText(),
+        "inject_attack_patterns must be rebuilt from the resolved target contract");
+    assertEquals(
+        List.of(targetPhase.getId()),
+        tagIdList(storedAttackPatterns.get(0).get("attack_pattern_kill_chain_phases")),
+        "the nested kill chain phase ids must point to the target instance");
+    assertEquals(
+        targetPhase.getId(),
+        storedData.get("inject_kill_chain_phases").get(0).get("phase_id").asText(),
+        "inject_kill_chain_phases must be rebuilt from the resolved target contract");
+    assertDoesNotThrow(() -> deserializeStepDataAsRun(storedData.toString()));
+  }
+
+  @Test
+  @Transactional
+  @WithMockUser
   void given_stepDataTextualContractMissingFromDb_when_resolving_should_logAndSanitize() {
     // -- Arrange --
     // A textual contract id that does not exist on the target and cannot be recreated (textual form
@@ -2159,6 +2226,9 @@ class V1_DataImporterTest extends IntegrationTest {
     targetInjector.setId(UUID.randomUUID().toString());
     targetInjector.setName("target-injector-" + UUID.randomUUID());
     targetInjector.setType(NMAP_DUMMY_INJECTOR_TYPE);
+    // injectors is v2-active: tenant_id is part of the composite PK (NOT NULL). Attribute the
+    // fixture injector to the current tenant, like InjectorFixture, or the insert fails.
+    targetInjector.setTenantId(TenantContext.getCurrentTenant());
     targetInjector = injectorRepository.save(targetInjector);
 
     InjectorContract contract = injectorContractRepository.findById(contractId).orElseThrow();

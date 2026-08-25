@@ -79,7 +79,11 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
   class Create {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_ASSETS})
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+          Capability.ACCESS_ASSETS
+        })
     @DisplayName("Given a non-reserved id, public POST should succeed")
     void given_nonReservedId_should_succeed_onCreate() throws Exception {
       // -------- Arrange --------
@@ -111,7 +115,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
   class Update {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("Given a role whose id is reserved (SERVICE), should return 400")
     void given_reservedServiceRoleId_should_returnBadRequest_onUpdate() throws Exception {
       // -------- Arrange --------
@@ -134,7 +138,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("Given a role whose id is reserved (PROCESS_STIX), should return 400")
     void given_reservedStixRoleId_should_returnBadRequest_onUpdate() throws Exception {
       // -------- Arrange --------
@@ -166,7 +170,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
   class Delete {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("Given a role whose id is reserved (PROCESS_STIX), should return 400")
     void given_reservedStixRoleId_should_returnBadRequest_onDelete() throws Exception {
       // -------- Arrange --------
@@ -189,7 +193,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.DELETE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("Given a role whose id is reserved (SERVICE), should return 400")
     void given_reservedServiceRoleId_should_returnBadRequest_onDelete() throws Exception {
       // -------- Arrange --------
@@ -220,7 +224,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
   class InternalServicePath {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("given a role with a reserved id, updateRoleInternal should succeed")
     void given_reservedRoleId_should_allowUpdate_viaInternal() {
       // -------- Arrange --------
@@ -243,7 +247,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("given an unknown role id, should throw ElementNotFoundException")
     void given_unknownRoleId_should_throw_ElementNotFoundException() {
       // -------- Arrange --------

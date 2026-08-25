@@ -137,7 +137,7 @@ single-token substring fallback.
 
 ```bash
 # backend
-docker run --rm -v "$PWD":/src -v "$HOME/.m2":/root/.m2 -w /src maven:3.9-eclipse-temurin-21 \
+docker run --rm -v "$PWD":/src -v "$HOME/.m2":/root/.m2 -w /src maven:3.9-eclipse-temurin-21-noble \
   mvn -q -pl openaev-model,openaev-api -am test -Dtest='*OutputProcessor*,*ChainingType*'
 # frontend
 cd openaev-front && yarn eslint src && yarn tsc --noEmit

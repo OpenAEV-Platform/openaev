@@ -253,7 +253,10 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public List<Inject> createInjectsForExercise(
-      @PathVariable String exerciseId, @Valid @RequestBody List<InjectInput> inputs) {
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (createAndSaveInjectList resolves the injector through the v2
+      // tenant-scoped injectors table) — sibling createInjectForExercise already carries this.
+      TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody List<InjectInput> inputs) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
@@ -290,6 +293,10 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
   public InjectStatus executeInject(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (resolveInjector and executor.directExecute resolve the injector
+      // through the v2 tenant-scoped injectors table).
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @Valid @RequestPart("input") DirectInjectInput input,
       @RequestPart("file") Optional<MultipartFile> file) {

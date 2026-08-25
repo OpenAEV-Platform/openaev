@@ -11,11 +11,15 @@ import UserForm from './UserForm';
 interface UserCreateProps {
   onSubmit: (data: UserInput) => Promise<void> | void;
   type: UserType;
+  disabled?: boolean;
+  disabledMessage?: string;
 }
 
 const UserCreate: FunctionComponent<UserCreateProps> = ({
   onSubmit,
   type,
+  disabled,
+  disabledMessage,
 }) => {
   const { t } = useFormatter();
   const { open, handleOpen, handleClose } = useDialog();
@@ -32,7 +36,7 @@ const UserCreate: FunctionComponent<UserCreateProps> = ({
 
   return (
     <>
-      <ButtonCreate onClick={handleOpen} />
+      <ButtonCreate onClick={handleOpen} disabled={disabled} disabledMessage={disabledMessage} />
       <Drawer
         open={open}
         handleClose={handleClose}

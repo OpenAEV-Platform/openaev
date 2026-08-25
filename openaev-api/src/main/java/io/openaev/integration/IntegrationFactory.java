@@ -21,7 +21,7 @@ public abstract class IntegrationFactory {
   protected final CatalogConnectorService catalogConnectorService;
   protected final HttpClientFactory httpClientFactory;
 
-  protected abstract void runMigrations() throws Exception;
+  protected abstract void runMigrations(String tenantId) throws Exception;
 
   protected abstract void insertCatalogEntry() throws Exception;
 
@@ -40,7 +40,7 @@ public abstract class IntegrationFactory {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public void initialise() throws Exception {
+  public void initialise(String tenantId) throws Exception {
     String className = this.getClassName();
     Optional<CatalogConnector> existing = catalogConnectorService.findByFactoryClassName(className);
     if (existing.isEmpty()) {
@@ -65,7 +65,7 @@ public abstract class IntegrationFactory {
               catalogConnectorService.saveAll(List.of(connector));
             });
 
-    runMigrations();
+    runMigrations(tenantId);
   }
 
   @Transactional(rollbackFor = Exception.class)

@@ -1,5 +1,7 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.service.chaining.WorkflowService.DUPLICATE_SCOPE_VARIABLE_MESSAGE;
+import static io.openaev.service.chaining.WorkflowService.UK_SCOPE_VARIABLE_KEY_TYPE_WORKFLOW;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -11,19 +13,25 @@ import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.fixtures.WorkflowFixture;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Stream;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -34,10 +42,10 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("WorkflowService Tests")
@@ -47,6 +55,7 @@ class WorkflowServiceTest {
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
   @Mock private ScopeVariableRepository scopeVariableRepository;
   @Mock private io.openaev.database.repository.AssetRepository assetRepository;
+  @Mock private io.openaev.database.repository.AssetAgentJobRepository assetAgentJobRepository;
   @Mock private io.openaev.database.repository.AssetGroupRepository assetGroupRepository;
   @Mock private io.openaev.database.repository.TeamRepository teamRepository;
   @Mock private io.openaev.database.repository.UserRepository userRepository;
@@ -59,8 +68,47 @@ class WorkflowServiceTest {
   @Mock private ScopeMetricCollector scopeMetricCollector;
   @Mock private ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
   @Mock private ResultsMetricCollector resultsMetricCollector;
+  @Mock private ExerciseRepository exerciseRepository;
+  @Mock private InjectService injectService;
+  @Mock private InjectStatusService injectStatusService;
 
-  @InjectMocks private WorkflowService workflowService;
+  private WorkflowService workflowService;
+  private WorkflowEndService workflowEndService;
+
+  @BeforeEach
+  void setUpWorkflowService() {
+    workflowEndService =
+        new WorkflowEndService(
+            stepService,
+            stepDelayQueueService,
+            exerciseRepository,
+            injectService,
+            injectStatusService,
+            resultsMetricCollector,
+            workflowRepository,
+            scopeSnapshotService);
+
+    workflowService =
+        new WorkflowService(
+            stepService,
+            conditionService,
+            workflowStateService,
+            stepDelayQueueService,
+            scopeSnapshotService,
+            scopeService,
+            workflowRepository,
+            workflowScopeRuleRepository,
+            scopeVariableRepository,
+            assetRepository,
+            assetAgentJobRepository,
+            assetGroupRepository,
+            teamRepository,
+            userRepository,
+            workflowEndService,
+            scopeMetricCollector,
+            chainingSafetyPolicyMetricCollector,
+            resultsMetricCollector);
+  }
 
   // ========================================================================
   // getWorkflowById Tests
@@ -817,7 +865,7 @@ class WorkflowServiceTest {
       workflowService.updateWorkflowConfiguration(workflowId, input);
 
       // Assert - the scope is pushed onto the already-authored step templates
-      verify(workflowRepository).flush();
+      verify(workflowRepository, times(2)).flush();
       verify(stepService).syncScopeAssetsOnStepTemplates(workflow, List.of("asset-123"));
     }
 
@@ -1159,9 +1207,11 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
+              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
+              workflowEndService,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -1379,6 +1429,73 @@ class WorkflowServiceTest {
     }
 
     @Test
+    @DisplayName("should translate the database uniqueness violation into a business message")
+    void given_databaseDuplicateKeyViolation_should_throwAlreadyExistingException() {
+      // Arrange - the duplicate is reported by the database on flush
+      Workflow workflow = buildTemplate(false);
+      doThrow(uniqueViolation(UK_SCOPE_VARIABLE_KEY_TYPE_WORKFLOW))
+          .when(workflowRepository)
+          .flush();
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", null)));
+
+      // Act
+      AlreadyExistingException exception =
+          assertThrows(
+              AlreadyExistingException.class,
+              () -> service.updateWorkflowConfiguration(workflow.getId(), configInput));
+
+      // Assert - the raw constraint name never reaches the caller
+      assertEquals(DUPLICATE_SCOPE_VARIABLE_MESSAGE, exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("should rethrow an integrity violation raised by another constraint")
+    void given_unrelatedConstraintViolation_should_rethrowAsIs() {
+      // Arrange - only the scope-variable uniqueness gets a dedicated business message
+      Workflow workflow = buildTemplate(false);
+      DataIntegrityViolationException unrelated = uniqueViolation("uk_workflow_template");
+      doThrow(unrelated).when(workflowRepository).flush();
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", null)));
+
+      // Act & Assert
+      assertSame(
+          unrelated,
+          assertThrows(
+              DataIntegrityViolationException.class,
+              () -> service.updateWorkflowConfiguration(workflow.getId(), configInput)));
+    }
+
+    @Test
+    @DisplayName("should flush the configuration so the database reports the duplicate in time")
+    void given_changedConfiguration_should_flushWithinTheServiceCall() {
+      // Arrange - a deferred flush would raise the violation at commit, past any translation
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", null)));
+
+      // Act
+      service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      verify(workflowRepository).save(workflow);
+      verify(workflowRepository).flush();
+    }
+
+    private DataIntegrityViolationException uniqueViolation(String constraintName) {
+      return new DataIntegrityViolationException(
+          "could not execute statement",
+          new ConstraintViolationException(
+              "duplicate key value violates unique constraint",
+              new SQLException(),
+              constraintName));
+    }
+
+    @Test
     @DisplayName("should copy scope variables when launching a workflow simulation")
     void given_templateWithScopeVariables_should_copyThemToRun() {
       // Arrange
@@ -1441,9 +1558,11 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
+              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
+              workflowEndService,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -1629,9 +1748,11 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
+              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
+              workflowEndService,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -1897,9 +2018,11 @@ class WorkflowServiceTest {
               workflowScopeRuleRepository,
               scopeVariableRepository,
               assetRepository,
+              assetAgentJobRepository,
               assetGroupRepository,
               teamRepository,
               userRepository,
+              workflowEndService,
               scopeMetricCollector,
               chainingSafetyPolicyMetricCollector,
               resultsMetricCollector);
@@ -2656,6 +2779,135 @@ class WorkflowServiceTest {
       // shares this exact body).
       verify(stepService, never()).updateInjectStepTemplateData(any(), any());
       verify(stepService, never()).updateInjectStepTemplateDataAndTrigger(any(), any(), any());
+    }
+  }
+
+  private static Exercise exerciseWithId(String id) {
+    Exercise exercise = new Exercise();
+    exercise.setId(id);
+    return exercise;
+  }
+
+  @Nested
+  @DisplayName("cancelSimulationEndWorkflowRun")
+  class CancelSimulationEndWorkflowRunTests {
+    private static final String TENANT = "tenant-1";
+
+    @Test
+    @DisplayName(
+        "ends the run, deletes its delay queue and states, and removes its asset agent"
+            + " jobs by inject id")
+    void given_singleRunWithActiveSteps_should_endItAndCleanUpDependencies() {
+      // Arrange
+      Exercise simulation = exerciseWithId("sim-1");
+      Workflow run =
+          Workflow.builder()
+              .id("wf-run-1")
+              .status(WorkflowStatus.RUN)
+              .simulation(simulation)
+              .build();
+
+      Step activeStepWithInject =
+          Step.builder()
+              .id("step-1")
+              .status(StepStatus.RUN)
+              .data("{\"inject_id\": \"inject-1\"}")
+              .build();
+      Step activeStepWithoutInject =
+          Step.builder().id("step-2").status(StepStatus.READY).data("{}").build();
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1"))
+          .thenReturn(new ArrayList<>(List.of(activeStepWithInject, activeStepWithoutInject)));
+
+      // Act
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+        workflowService.cancelSimulationEndWorkflowRun(List.of(run));
+      }
+
+      // Assert
+      assertEquals(WorkflowStatus.END, run.getStatus());
+      verify(workflowRepository).save(run);
+      verify(stepDelayQueueService).deleteAllByWorkflowRun(run);
+      verify(workflowStateService).deleteAllBySimulationId("sim-1");
+      assertEquals(StepStatus.END, activeStepWithInject.getStatus());
+      assertEquals(StepStatus.END, activeStepWithoutInject.getStatus());
+      verify(assetAgentJobRepository).deleteAllByInjectIdsAndTenantId(List.of("inject-1"), TENANT);
+      verify(stepService).saveSteps(List.of(activeStepWithInject, activeStepWithoutInject));
+    }
+
+    @Test
+    @DisplayName("aggregates inject ids and ended steps across multiple workflow runs")
+    void given_multipleRuns_should_aggregateInjectIdsAndSaveAllStepsOnce() {
+      // Arrange
+      Exercise simulation1 = exerciseWithId("sim-1");
+      Exercise simulation2 = exerciseWithId("sim-2");
+      Workflow run1 =
+          Workflow.builder()
+              .id("wf-run-1")
+              .status(WorkflowStatus.RUN)
+              .simulation(simulation1)
+              .build();
+      Workflow run2 =
+          Workflow.builder()
+              .id("wf-run-2")
+              .status(WorkflowStatus.RUN)
+              .simulation(simulation2)
+              .build();
+
+      Step step1 =
+          Step.builder()
+              .id("step-1")
+              .status(StepStatus.RUN)
+              .data("{\"inject_id\": \"inject-1\"}")
+              .build();
+      Step step2 =
+          Step.builder()
+              .id("step-2")
+              .status(StepStatus.RUN)
+              .data("{\"inject_id\": \"inject-2\"}")
+              .build();
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1"))
+          .thenReturn(new ArrayList<>(List.of(step1)));
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-2"))
+          .thenReturn(new ArrayList<>(List.of(step2)));
+
+      // Act
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+        workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
+      }
+
+      // Assert
+      verify(workflowStateService).deleteAllBySimulationId("sim-1");
+      verify(workflowStateService).deleteAllBySimulationId("sim-2");
+      verify(assetAgentJobRepository)
+          .deleteAllByInjectIdsAndTenantId(List.of("inject-1", "inject-2"), TENANT);
+      verify(stepService).saveSteps(List.of(step1, step2));
+    }
+
+    @Test
+    @DisplayName("does not re-end a run already in END status (idempotent)")
+    void given_alreadyEndedRun_should_notFreezeSnapshotAgain() {
+      // Arrange
+      Exercise simulation = exerciseWithId("sim-1");
+      Workflow run =
+          Workflow.builder()
+              .id("wf-run-1")
+              .status(WorkflowStatus.END)
+              .simulation(simulation)
+              .build();
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1")).thenReturn(new ArrayList<>());
+
+      // Act
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+        workflowService.cancelSimulationEndWorkflowRun(List.of(run));
+      }
+
+      // Assert
+      assertEquals(WorkflowStatus.END, run.getStatus());
+      verifyNoInteractions(scopeSnapshotService);
+      verify(workflowRepository).save(run);
     }
   }
 }
