@@ -1,11 +1,18 @@
 import {
+  Combobox,
+  ComboboxChips,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxTrigger,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@filigran/design-system';
-import { Alert, Box, Button, InputLabel, MenuItem, Select as MUISelect, TextField as MuiTextField, TextField, Typography } from '@mui/material';
+import { Alert, Button, InputLabel, TextField as MuiTextField, TextField, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -256,41 +263,31 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
             name="expectation_expected_security_platform_types"
             control={control}
             render={({ field }) => (
-              <MUISelect
-                labelId="expected-platforms-label"
+              <Combobox<string>
                 multiple
-                displayEmpty
-                variant="standard"
-                fullWidth
+                options={SECURITY_PLATFORM_TYPES}
                 value={field.value ?? []}
-                onChange={event => field.onChange(event.target.value)}
-                renderValue={(selected) => {
-                  const values = selected as string[];
-                  if (values.length === 0) {
-                    return (
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        {t('Any security platform')}
-                      </Typography>
-                    );
-                  }
-                  return (
-                    <Box sx={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 0.5,
-                    }}
-                    >
-                      {values.map(type => <ItemSecurityPlatformType key={type} type={type} />)}
-                    </Box>
-                  );
-                }}
+                onValueChange={next => field.onChange(next as string[])}
+                getOptionLabel={type => type}
+                isOptionEqualToValue={(a, b) => a === b}
+                renderOption={type => <ItemSecurityPlatformType type={type} />}
+                clearable={false}
               >
-                {SECURITY_PLATFORM_TYPES.map(type => (
-                  <MenuItem key={type} value={type}>
-                    <ItemSecurityPlatformType type={type} />
-                  </MenuItem>
-                ))}
-              </MUISelect>
+                <ComboboxField>
+                  <ComboboxChips />
+                  {/* An empty selection used to read "Any security platform" in
+                      the trigger; with chips the same sentence is the input's
+                      placeholder, so it shows exactly when nothing is chosen. */}
+                  <ComboboxInput
+                    name={field.name}
+                    placeholder={t('Any security platform')}
+                  />
+                  <ComboboxControls>
+                    <ComboboxTrigger />
+                  </ComboboxControls>
+                </ComboboxField>
+                <ComboboxContent />
+              </Combobox>
             )}
           />
         </div>
