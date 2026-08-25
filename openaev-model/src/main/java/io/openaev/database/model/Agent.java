@@ -131,7 +131,6 @@ public class Agent implements TenantBase, AuditStateCapturable {
   @AuditStateIgnore
   @Column(name = "agent_status", nullable = false)
   @Enumerated(EnumType.STRING)
-  @JsonIgnore
   private AgentStatus status = AgentStatus.ACTIVE;
 
   /** Used for Caldera only */
