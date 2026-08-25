@@ -212,7 +212,9 @@ export const buildHumanResponseProbeConfig = (timeRange: DefaultTimeRange): Widg
  *   remount the grid when this flag flips (see DefaultHomeDashboard) - react-grid-
  *   layout keeps the internal layout of already-mounted children and ignores a
  *   width change, so an in-place flip would leave the core gauges at their old
- *   width and strand Human Response on a second row.
+ *   width and strand Human Response on a second row. To keep every load
+ *   single-mount, the caller defers the FIRST grid mount until the presence
+ *   probe has resolved instead of remounting on the fly (#7599).
  */
 export const buildDefaultHomeWidgets = (
   timeRange: DefaultTimeRange,
