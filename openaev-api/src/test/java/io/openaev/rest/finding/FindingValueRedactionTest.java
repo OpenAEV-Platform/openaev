@@ -29,24 +29,31 @@ class FindingValueRedactionTest {
   class WhenSensitive {
 
     @Test
-    @DisplayName("Should mask a credential value, identity part included")
-    void given_aCredentialShapedValue_should_maskItWithAFragment() {
+    @DisplayName("Should mask each part of a credential value")
+    void given_aCredentialShapedValue_should_maskEveryPart() {
       // -------- Act --------
-      String redacted = FindingService.redact("admin:Sup3rS3cret", true);
+      String redacted = FindingService.redact("admin:motdepasse", true);
 
       // -------- Assert --------
-      assertThat(redacted).isEqualTo("ad" + FindingService.MASK);
-      assertThat(redacted).doesNotContain("Sup3rS3cret");
+      assertThat(redacted).isEqualTo("ad" + FindingService.MASK + ":mo" + FindingService.MASK);
+      assertThat(redacted).doesNotContain("motdepasse");
     }
 
     @Test
-    @DisplayName("Should mask a password policy value the same way")
-    void given_aPasswordPolicyShapedValue_should_maskItWithAFragment() {
+    @DisplayName("Should mask every part of a value holding several separators")
+    void given_aValueWithSeveralSeparators_should_maskEveryPart() {
       // -------- Act --------
-      String redacted = FindingService.redact("MinimumPasswordLength: 8", true);
+      String redacted = FindingService.redact("admin:aad3b435:31d6cfe0", true);
 
       // -------- Assert --------
-      assertThat(redacted).isEqualTo("Mi" + FindingService.MASK);
+      assertThat(redacted)
+          .isEqualTo(
+              "ad"
+                  + FindingService.MASK
+                  + ":aa"
+                  + FindingService.MASK
+                  + ":31"
+                  + FindingService.MASK);
     }
 
     @Test
@@ -60,13 +67,12 @@ class FindingValueRedactionTest {
     }
 
     @Test
-    @DisplayName("Should mask a short value entirely")
-    void given_aShortValue_should_maskItEntirely() {
-      // -------- Act --------
-      String redacted = FindingService.redact("abcd", true);
-
-      // -------- Assert --------
-      assertThat(redacted).isEqualTo(FindingService.MASK);
+    @DisplayName("Should mask a short part entirely")
+    void given_aShortPart_should_maskItEntirely() {
+      // -------- Act & Assert --------
+      assertThat(FindingService.redact("abcd", true)).isEqualTo(FindingService.MASK);
+      assertThat(FindingService.redact("MinimumPasswordLength: 8", true))
+          .isEqualTo("Mi" + FindingService.MASK + ":" + FindingService.MASK);
     }
 
     @Test

@@ -19,6 +19,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class FindingService {
   /** Mask substituted to the secret part of a sensitive finding value. */
   public static final String MASK = "******";
 
+  private static final char PART_SEPARATOR = ':';
   private static final int MASKING_VISIBLE_FRAGMENT_LENGTH = 2;
   private static final int MASKING_MIN_LENGTH_FOR_FRAGMENT = 5;
 
@@ -53,13 +55,13 @@ public class FindingService {
    * database row keeps the full cleartext value (it is needed for deduplication, correlation and
    * attack path computation): only the returned representation is masked.
    *
-   * <p>Every sensitive value is masked the same way: a two character fragment is kept so an
-   * operator can still tell WHICH secret was discovered when the value is already known to them,
-   * without the API ever disclosing the secret itself. A value too short to keep a fragment without
-   * disclosing most of it is masked entirely.
+   * <p>Every part of the value - the parts being separated by {@code :} - is masked the same way: a
+   * two character fragment is kept so an operator can still tell WHICH secret was discovered when
+   * the value is already known to them, without the API ever disclosing it. A part too short to
+   * keep a fragment without disclosing most of it is masked entirely.
    *
    * <ul>
-   *   <li>{@code jdoe:Sup3rS3cret} becomes {@code jd******}
+   *   <li>{@code admin:motdepasse} becomes {@code ad******:mo******}
    *   <li>{@code Sup3rS3cret} becomes {@code Su******}
    *   <li>{@code abcd} becomes {@code ******}
    * </ul>
@@ -73,10 +75,16 @@ public class FindingService {
       return value;
     }
 
-    if (value.length() < MASKING_MIN_LENGTH_FOR_FRAGMENT) {
+    return Arrays.stream(value.split(String.valueOf(PART_SEPARATOR), -1))
+        .map(FindingService::maskPart)
+        .collect(Collectors.joining(String.valueOf(PART_SEPARATOR)));
+  }
+
+  private static String maskPart(final String part) {
+    if (part.length() < MASKING_MIN_LENGTH_FOR_FRAGMENT) {
       return MASK;
     }
-    return value.substring(0, MASKING_VISIBLE_FRAGMENT_LENGTH) + MASK;
+    return part.substring(0, MASKING_VISIBLE_FRAGMENT_LENGTH) + MASK;
   }
 
   /**
