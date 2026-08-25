@@ -1,3 +1,10 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { Alert, Box, Button, InputLabel, MenuItem, Select as MUISelect, TextField as MuiTextField, TextField, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
@@ -141,21 +148,22 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
     <form id="expectationForm" onSubmit={handleSubmitWithoutPropagation}>
       <div>
         <InputLabel id="input-type">{t('Type')}</InputLabel>
-        <MUISelect
-          labelId="input-type"
+        <Select
           value={expectationType}
-          onChange={(event) => {
-            const selectedType = event.target.value;
+          onValueChange={(next) => {
+            const selectedType = next;
             setExpectationType(selectedType);
             setValue('expectation_type', selectedType, { shouldValidate: true });
           }}
-          variant="standard"
-          fullWidth
           error={!!errors.expectation_type}
-          inputProps={register('expectation_type')}
         >
-          {availableTypes.map(type => (<MenuItem key={type} value={type}>{t(type)}</MenuItem>))}
-        </MUISelect>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {availableTypes.map(type => (<SelectItem key={type} value={type}>{t(type)}</SelectItem>))}
+          </SelectContent>
+        </Select>
       </div>
       {(watchType === 'ARTICLE' || watchType === 'CHALLENGE')
         && (

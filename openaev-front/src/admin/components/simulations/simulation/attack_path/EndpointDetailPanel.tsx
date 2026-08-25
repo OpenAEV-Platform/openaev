@@ -1,5 +1,12 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { Close } from '@mui/icons-material';
-import { Alert, Box, Button, IconButton, MenuItem, Pagination, Paper, Select, Typography } from '@mui/material';
+import { Alert, Box, Button, IconButton, Pagination, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
@@ -28,17 +35,19 @@ const PageSizeSelect = ({ value, onChange }: {
   const { t } = useFormatter();
   return (
     <Select
-      size="small"
-      variant="standard"
-      value={value}
-      onChange={e => onChange(Number(e.target.value))}
-      sx={{ fontSize: 12 }}
+      value={String(value)}
+      onValueChange={next => onChange(Number(next))}
     >
-      {PAGE_SIZE_OPTIONS.map(size => (
-        <MenuItem key={size} value={size} sx={{ fontSize: 12 }}>
-          {t('{count} / page', { count: size })}
-        </MenuItem>
-      ))}
+      <SelectTrigger>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {PAGE_SIZE_OPTIONS.map(size => (
+          <SelectItem key={size} value={String(size)}>
+            {t('{count} / page', { count: size })}
+          </SelectItem>
+        ))}
+      </SelectContent>
     </Select>
   );
 };

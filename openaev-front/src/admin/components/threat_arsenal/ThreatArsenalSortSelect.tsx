@@ -1,11 +1,15 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { ArrowDownwardOutlined, ArrowUpwardOutlined } from '@mui/icons-material';
 import {
   Box,
-  FormControl,
   IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
   Tooltip,
 } from '@mui/material';
 import { type FunctionComponent } from 'react';
@@ -43,21 +47,22 @@ const ThreatArsenalSortSelect: FunctionComponent<Props> = ({ sortHelpers }) => {
       marginLeft: 1.25,
     }}
     >
-      <FormControl size="small" sx={{ minWidth: 140 }}>
-        <InputLabel id="threat-arsenal-sort-by-label">{t('Sort by')}</InputLabel>
-        <Select
-          labelId="threat-arsenal-sort-by-label"
-          label={t('Sort by')}
-          value={value}
-          onChange={event => handleFieldChange(event.target.value)}
-        >
+      <Select
+        value={value}
+        onValueChange={next => handleFieldChange(next)}
+      >
+        <SelectLabel>{t('Sort by')}</SelectLabel>
+        <SelectTrigger>
+          <SelectValue placeholder={t('Sort by')} />
+        </SelectTrigger>
+        <SelectContent>
           {THREAT_ARSENAL_SORT_OPTIONS.map(option => (
-            <MenuItem key={option.field} value={option.field}>
+            <SelectItem key={option.field} value={option.field}>
               {t(option.label)}
-            </MenuItem>
+            </SelectItem>
           ))}
-        </Select>
-      </FormControl>
+        </SelectContent>
+      </Select>
       <Tooltip title={sortAsc ? t('Sort ascending') : t('Sort descending')}>
         <span>
           <IconButton

@@ -1,5 +1,13 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { AddOutlined, DeleteOutlined } from '@mui/icons-material';
-import { Button, IconButton, MenuItem, TextField, Typography } from '@mui/material';
+import { Button, IconButton, TextField, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -100,28 +108,31 @@ const NotifierForm: FunctionComponent<Props> = ({
         onChange={e => setDescription(e.target.value)}
         style={{ marginTop: 20 }}
       />
-      <TextField
-        variant="standard"
-        fullWidth
-        select
-        label={t('Type')}
-        value={type}
-        onChange={e => setType(e.target.value as typeof type)}
-        style={{ marginTop: 20 }}
-        disabled={editing}
-      >
-        {NOTIFIER_TYPES.map((option) => {
-          const labels: Record<string, string> = {
-            EMAIL: 'Email',
-            WEBHOOK: 'Webhook',
-          };
-          return (
-            <MenuItem key={option} value={option}>
-              {t(labels[option])}
-            </MenuItem>
-          );
-        })}
-      </TextField>
+      <div style={{ marginTop: 20 }}>
+        <Select
+          value={type}
+          onValueChange={next => setType(next as typeof type)}
+          disabled={editing}
+        >
+          <SelectLabel>{t('Type')}</SelectLabel>
+          <SelectTrigger>
+            <SelectValue placeholder={t('Type')} />
+          </SelectTrigger>
+          <SelectContent>
+            {NOTIFIER_TYPES.map((option) => {
+              const labels: Record<string, string> = {
+                EMAIL: 'Email',
+                WEBHOOK: 'Webhook',
+              };
+              return (
+                <SelectItem key={option} value={option}>
+                  {t(labels[option])}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
       {type === 'EMAIL' && (
         <>
           <TextField
@@ -158,19 +169,22 @@ const NotifierForm: FunctionComponent<Props> = ({
             error={!!urlError}
             helperText={urlError}
           />
-          <TextField
-            variant="standard"
-            fullWidth
-            select
-            label={t('Verb')}
-            value={verb}
-            onChange={e => setVerb(e.target.value)}
-            style={{ marginTop: 20 }}
-          >
-            {['POST', 'PUT', 'GET', 'DELETE'].map(option => (
-              <MenuItem key={option} value={option}>{option}</MenuItem>
-            ))}
-          </TextField>
+          <div style={{ marginTop: 20 }}>
+            <Select
+              value={verb}
+              onValueChange={next => setVerb(next)}
+            >
+              <SelectLabel>{t('Verb')}</SelectLabel>
+              <SelectTrigger>
+                <SelectValue placeholder={t('Verb')} />
+              </SelectTrigger>
+              <SelectContent>
+                {['POST', 'PUT', 'GET', 'DELETE'].map(option => (
+                  <SelectItem key={option} value={option}>{option}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <Typography variant="h5" style={{ marginTop: 20 }}>{t('Headers')}</Typography>
           {headers.map((header, index) => (
             // eslint-disable-next-line react/no-array-index-key

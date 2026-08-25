@@ -1,4 +1,11 @@
-import { FormControl, InputLabel, MenuItem, Select, type SelectChangeEvent } from '@mui/material';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent } from 'react';
 
@@ -22,28 +29,24 @@ const TimeRangeFilters: FunctionComponent<Props> = ({ handleTimeRange, handleSta
 
   return (
     <>
-      <FormControl
-        size="small"
-        sx={{ minWidth: 120 }}
+      <Select
+        value={timeRangeValue}
+        onValueChange={(next) => {
+          handleTimeRange(next);
+        }}
       >
-        <InputLabel id="customDashboardTimeRangeSelectLabel" variant="outlined">{t('Time range')}</InputLabel>
-        <Select
-          labelId="customDashboardTimeRangeSelectLabel"
-          label={t('Time range')}
-          id="customDashboardTimeRangeSelect"
-          variant="outlined"
-          value={timeRangeValue}
-          onChange={(event: SelectChangeEvent) => {
-            handleTimeRange(event.target.value);
-          }}
-        >
+        <SelectLabel>{t('Time range')}</SelectLabel>
+        <SelectTrigger>
+          <SelectValue placeholder={t('Time range')} />
+        </SelectTrigger>
+        <SelectContent>
           {timeRangeItems.map(item => (
-            <MenuItem key={item.value} value={item.value}>
+            <SelectItem key={item.value} value={item.value}>
               {t(item.label_key)}
-            </MenuItem>
+            </SelectItem>
           ))}
-        </Select>
-      </FormControl>
+        </SelectContent>
+      </Select>
       {
         timeRangeValue === CUSTOM_TIME_RANGE && (
           <>

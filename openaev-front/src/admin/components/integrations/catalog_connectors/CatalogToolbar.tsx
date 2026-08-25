@@ -1,5 +1,13 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
-import { MenuItem, TextField, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import { ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -59,24 +67,22 @@ const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange,
         keyword={keyword}
         placeholder={searchPlaceholder ?? `${t('Search the catalog')}...`}
       />
-      <TextField
-        select
-        size="small"
-        variant="outlined"
-        label={t('Sort by')}
+      <Select
         value={sort}
-        onChange={e => onSortChange(e.target.value as CatalogSort)}
-        sx={{
-          width: 200,
-          backgroundColor: theme.palette.background.paper,
-        }}
+        onValueChange={next => onSortChange(next as CatalogSort)}
       >
-        {sortOptions.map(option => (
-          <MenuItem key={option.value} value={option.value}>
-            {option.label}
-          </MenuItem>
-        ))}
-      </TextField>
+        <SelectLabel>{t('Sort by')}</SelectLabel>
+        <SelectTrigger>
+          <SelectValue placeholder={t('Sort by')} />
+        </SelectTrigger>
+        <SelectContent>
+          {sortOptions.map(option => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <span style={{
         marginLeft: 'auto',
         padding: theme.spacing(0.5, 1.25),

@@ -9,8 +9,14 @@ import {
   ComboboxInput,
   ComboboxLabel,
   ComboboxTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
 } from '@filigran/design-system';
-import { Button, Checkbox, FormControlLabel, FormGroup, MenuItem, TextField } from '@mui/material';
+import { Button, Checkbox, FormControlLabel, FormGroup, TextField } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
 
 import { searchNotificationTriggers } from '../../../../actions/notifications/notification-trigger-actions';
@@ -131,29 +137,32 @@ const TriggerForm: FunctionComponent<Props> = ({
       />
       {triggerType === 'LIVE' && (
         <>
-          <TextField
-            variant="standard"
-            fullWidth
-            select
-            label={t('Resource type')}
-            value={resourceType}
-            onChange={(e) => {
-              setResourceType(e.target.value as NotificationTriggerInput['notification_trigger_resource_type']);
-              setFilters(undefined);
-              if (e.target.value !== 'SCENARIO') {
-                // Score degradation is only available for scenarios
-                setEventTypes(existing => existing.filter(eventType => eventType !== 'SCORE_DEGRADATION'));
-              }
-            }}
-            style={{ marginTop: 20 }}
-            disabled={!!initialValues?.notification_trigger_instance_id}
-          >
-            {TRIGGER_RESOURCE_TYPES.map(option => (
-              <MenuItem key={option.value} value={option.value}>
-                {t(option.label)}
-              </MenuItem>
-            ))}
-          </TextField>
+          <div style={{ marginTop: 20 }}>
+            <Select
+              value={resourceType}
+              onValueChange={(next) => {
+                setResourceType(next as NotificationTriggerInput['notification_trigger_resource_type']);
+                setFilters(undefined);
+                if (next !== 'SCENARIO') {
+                  // Score degradation is only available for scenarios
+                  setEventTypes(existing => existing.filter(eventType => eventType !== 'SCORE_DEGRADATION'));
+                }
+              }}
+              disabled={!!initialValues?.notification_trigger_instance_id}
+            >
+              <SelectLabel>{t('Resource type')}</SelectLabel>
+              <SelectTrigger>
+                <SelectValue placeholder={t('Resource type')} />
+              </SelectTrigger>
+              <SelectContent>
+                {TRIGGER_RESOURCE_TYPES.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {t(option.label)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <FormGroup row style={{ marginTop: 20 }}>
             {[
               ...TRIGGER_EVENT_TYPES,
@@ -216,54 +225,63 @@ const TriggerForm: FunctionComponent<Props> = ({
               {childrenError ? <ComboboxHelperText>{childrenError}</ComboboxHelperText> : null}
             </Combobox>
           </div>
-          <TextField
-            variant="standard"
-            fullWidth
-            select
-            label={t('Period')}
-            value={period}
-            onChange={e => setPeriod(e.target.value as typeof period)}
-            style={{ marginTop: 20 }}
-          >
-            {DIGEST_PERIODS.map(option => (
-              <MenuItem key={option} value={option}>
-                {t(option.charAt(0) + option.slice(1).toLowerCase())}
-              </MenuItem>
-            ))}
-          </TextField>
-          {period === 'WEEK' && (
-            <TextField
-              variant="standard"
-              fullWidth
-              select
-              label={t('Day of week')}
-              value={day}
-              onChange={e => setDay(e.target.value)}
-              style={{ marginTop: 20 }}
+          <div style={{ marginTop: 20 }}>
+            <Select
+              value={period}
+              onValueChange={next => setPeriod(next as typeof period)}
             >
-              {WEEK_DAYS.map(option => (
-                <MenuItem key={option.value} value={option.value}>
-                  {t(option.label)}
-                </MenuItem>
-              ))}
-            </TextField>
+              <SelectLabel>{t('Period')}</SelectLabel>
+              <SelectTrigger>
+                <SelectValue placeholder={t('Period')} />
+              </SelectTrigger>
+              <SelectContent>
+                {DIGEST_PERIODS.map(option => (
+                  <SelectItem key={option} value={option}>
+                    {t(option.charAt(0) + option.slice(1).toLowerCase())}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {period === 'WEEK' && (
+            <div style={{ marginTop: 20 }}>
+              <Select
+                value={day}
+                onValueChange={next => setDay(next)}
+              >
+                <SelectLabel>{t('Day of week')}</SelectLabel>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('Day of week')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {WEEK_DAYS.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {t(option.label)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
           {period === 'MONTH' && (
-            <TextField
-              variant="standard"
-              fullWidth
-              select
-              label={t('Day of month')}
-              value={day}
-              onChange={e => setDay(e.target.value)}
-              style={{ marginTop: 20 }}
-            >
-              {Array.from({ length: 31 }, (_, index) => `${index + 1}`).map(option => (
-                <MenuItem key={option} value={option}>
-                  {option}
-                </MenuItem>
-              ))}
-            </TextField>
+            <div style={{ marginTop: 20 }}>
+              <Select
+                value={day}
+                onValueChange={next => setDay(next)}
+              >
+                <SelectLabel>{t('Day of month')}</SelectLabel>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('Day of month')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 31 }, (_, index) => `${index + 1}`).map(option => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
           {period !== 'HOUR' && (
             <TextField

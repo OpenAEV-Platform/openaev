@@ -1,7 +1,12 @@
 import {
-  MenuItem,
-  TextField,
-} from '@mui/material';
+  Select,
+  SelectContent,
+  SelectHelperText,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { engineSchemas } from '../../../../../../actions/schema/schema-action';
@@ -47,23 +52,25 @@ const FilterFieldBaseEntity: FunctionComponent<Props> = ({
   }
 
   return (
-    <TextField
-      select
-      variant="standard"
-      fullWidth
-      label={t('Entity type')}
-      value={value}
+    <Select
+      value={value ?? ''}
+      onValueChange={next => onChange(next)}
       error={error}
-      helperText={error ? t('Should at least select one dimension') : ''}
-      onChange={e => onChange(e.target.value)}
-      required
+      required={true}
     >
-      {entityOptions.map(option => (
-        <MenuItem key={option.id} value={option.id}>
-          {t(option.label)}
-        </MenuItem>
-      ))}
-    </TextField>
+      <SelectLabel required>{t('Entity type')}</SelectLabel>
+      <SelectTrigger>
+        <SelectValue placeholder={t('Entity type')} />
+      </SelectTrigger>
+      <SelectContent>
+        {entityOptions.map(option => (
+          <SelectItem key={option.id} value={option.id}>
+            {t(option.label)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+      <SelectHelperText>{error ? t('Should at least select one dimension') : ''}</SelectHelperText>
+    </Select>
   );
 };
 
