@@ -36,8 +36,8 @@ public class FindingService {
   public static final String MASK = "******";
 
   private static final char IDENTITY_SEPARATOR = ':';
-  private static final int VISIBLE_FRAGMENT_LENGTH = 2;
-  private static final int MIN_LENGTH_FOR_FRAGMENT = 5;
+  private static final int MASKING_VISIBLE_FRAGMENT_LENGTH = 2;
+  private static final int MASKING_MIN_LENGTH_FOR_FRAGMENT = 5;
 
   private final InjectService injectService;
 
@@ -78,10 +78,10 @@ public class FindingService {
     if (separatorIndex > 0 && separatorIndex < value.length() - 1) {
       return value.substring(0, separatorIndex + 1) + MASK;
     }
-    if (value.length() < MIN_LENGTH_FOR_FRAGMENT) {
+    if (value.length() < MASKING_MIN_LENGTH_FOR_FRAGMENT) {
       return MASK;
     }
-    return value.substring(0, VISIBLE_FRAGMENT_LENGTH) + MASK;
+    return value.substring(0, MASKING_VISIBLE_FRAGMENT_LENGTH) + MASK;
   }
 
   /**
