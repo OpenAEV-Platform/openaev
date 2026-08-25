@@ -18,21 +18,9 @@ public abstract class FindingCapableOutputProcessor extends AbstractOutputProces
 
   protected final FindingService findingService;
 
-  /**
-   * Whether the findings produced by this processor hold sensitive material (secrets, hashes...).
-   * The sensitivity is a property of the finding TYPE, decided once per processor, and is persisted
-   * on every finding it creates so the API can redact the value when serializing it. The database
-   * keeps the cleartext value.
-   */
+  /** Whether the findings produced by this processor hold sensitive material. */
   @Getter private final boolean sensitive;
 
-  /**
-   * Declares a processor whose findings hold no sensitive material, which is the case of every
-   * finding type but credentials. A processor producing secrets must use the constructor taking an
-   * explicit sensitivity and pass {@code true}. The full type - sensitivity matrix is asserted by
-   * {@code OutputProcessorIntegrationTest}, so adding a sensitive type there is a deliberate,
-   * reviewed decision.
-   */
   protected FindingCapableOutputProcessor(
       ContractOutputType type,
       ContractOutputTechnicalType technicalType,
