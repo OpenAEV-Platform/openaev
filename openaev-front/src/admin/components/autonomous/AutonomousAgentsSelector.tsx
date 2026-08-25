@@ -1,19 +1,11 @@
-import { AddOutlined, InfoOutlined, OpenInNewOutlined, SmartToyOutlined } from '@mui/icons-material';
 import {
-  Chip,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  MenuItem,
   Select,
-  Skeleton,
-  Stack,
-  Switch,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@filigran/design-system';
+import { AddOutlined, InfoOutlined, OpenInNewOutlined, SmartToyOutlined } from '@mui/icons-material';
+import { Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton, Stack, Switch, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, useMemo, useState } from 'react';
 
@@ -133,44 +125,38 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
     return (
       <Stack direction="row" alignItems="center" spacing={0.5}>
         <Select
-          size="small"
-          variant="standard"
-          disableUnderline
           value={mode}
           disabled={disabled}
-          onChange={event => onModeChange?.(agentId, event.target.value as AutonomousDiscoveryMode)}
-          onClick={event => event.stopPropagation()}
-          renderValue={value => modeLabel(value as AutonomousDiscoveryMode)}
-          MenuProps={{ PaperProps: { sx: { maxWidth: 340 } } }}
-          sx={{
-            fontSize: 12,
-            color: theme.palette.text.secondary,
-          }}
-          inputProps={{ 'aria-label': t('Discovery mode') }}
+          onValueChange={next => onModeChange?.(agentId, next as AutonomousDiscoveryMode)}
         >
-          {AUTONOMOUS_DISCOVERY_MODES.map(m => (
-            <MenuItem
-              key={m}
-              value={m}
-              sx={{
-                display: 'block',
-                paddingTop: 0.75,
-                paddingBottom: 0.75,
-              }}
-            >
-              <Typography variant="body2">{modeLabel(m)}</Typography>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{
-                  display: 'block',
-                  whiteSpace: 'normal',
-                }}
-              >
-                {modeHelp(m)}
-              </Typography>
-            </MenuItem>
-          ))}
+          {/* The row this sits in is itself clickable, so the trigger keeps
+              swallowing the click. The short label is the trigger's content;
+              the rows carry the long help text. */}
+          <SelectTrigger
+            aria-label={t('Discovery mode')}
+            onClick={event => event.stopPropagation()}
+          >
+            <span>{modeLabel(mode)}</span>
+          </SelectTrigger>
+          <SelectContent style={{ maxWidth: 340 }}>
+            {AUTONOMOUS_DISCOVERY_MODES.map(m => (
+              <SelectItem key={m} value={m}>
+                <span>
+                  <Typography variant="body2">{modeLabel(m)}</Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{
+                      display: 'block',
+                      whiteSpace: 'normal',
+                    }}
+                  >
+                    {modeHelp(m)}
+                  </Typography>
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
         <Tooltip title={modeHelp(mode)}>
           <InfoOutlined sx={{

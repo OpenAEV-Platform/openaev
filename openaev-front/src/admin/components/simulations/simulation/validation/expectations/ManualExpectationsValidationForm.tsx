@@ -1,14 +1,12 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  Button,
-  Chip,
-  Grid,
-  MenuItem,
   Select,
-  Slider,
-  TextField as MuiTextField,
-  Typography,
-} from '@mui/material';
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button, Chip, Grid, Slider, TextField as MuiTextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -156,19 +154,21 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
             />
           </Grid>
           <Grid size={{ xs: 6 }}>
-            <Select
-              fullWidth
-              value={watch('expectation_score') < expectation.inject_expectation_expected_score ? 'Failed' : 'Success'}
-              onChange={event => setValue('expectation_score', event.target.value === 'Success' ? 100 : 0)}
-              renderValue={(value) => {
-                return value;
-              }}
-              sx={{ marginTop: 2 }}
-              disabled={isDisabled}
-            >
-              <MenuItem value="Success">{t('Success')}</MenuItem>
-              <MenuItem value="Failed">{t('Failed')}</MenuItem>
-            </Select>
+            <div style={{ marginTop: 16 }}>
+              <Select
+                value={watch('expectation_score') < expectation.inject_expectation_expected_score ? 'Failed' : 'Success'}
+                onValueChange={next => setValue('expectation_score', next === 'Success' ? 100 : 0)}
+                disabled={isDisabled}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Success">{t('Success')}</SelectItem>
+                  <SelectItem value="Failed">{t('Failed')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </Grid>
         </Grid>
         <Slider

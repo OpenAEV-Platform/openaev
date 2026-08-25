@@ -1,28 +1,15 @@
-import { Paper as FdsPaper } from '@filigran/design-system';
+import {
+  Paper as FdsPaper,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+} from '@filigran/design-system';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { DeleteOutlined, DragIndicatorOutlined, RestartAltOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  Checkbox,
-  FormControl,
-  FormHelperText,
-  IconButton,
-  InputLabel,
-  ListItemIcon,
-  ListItemText,
-  MenuItem,
-  Paper,
-  Select,
-  Step,
-  StepLabel,
-  Stepper,
-  ToggleButton,
-  ToggleButtonGroup,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, Button, Checkbox, FormHelperText, IconButton, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Controller, FormProvider, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
@@ -406,29 +393,33 @@ const ReportingForm: FunctionComponent<Props> = ({
         control={control}
         name="reporting_context_type"
         render={({ field }) => (
-          <FormControl fullWidth>
-            <InputLabel id="reporting-context-type-label">{t('Subject type')}</InputLabel>
-            <Select
-              labelId="reporting-context-type-label"
-              value={field.value}
-              onChange={(event) => {
-                field.onChange(event.target.value);
-                // A subject entity belongs to exactly one type.
-                setValue('reporting_context_id', '');
-              }}
-              renderValue={value => t(REPORTING_CONTEXT_LABELS[value as ReportingContextType])}
-            >
+          <Select
+            value={field.value}
+            onValueChange={(next) => {
+              field.onChange(next);
+              // A subject entity belongs to exactly one type.
+              setValue('reporting_context_id', '');
+            }}
+            name={field.name}
+          >
+            <SelectLabel>{t('Subject type')}</SelectLabel>
+            {/* The trigger shows the label alone; the rows carry the icon. This
+                is what `renderValue` did, expressed as the trigger's content. */}
+            <SelectTrigger>
+              <span>{t(REPORTING_CONTEXT_LABELS[field.value as ReportingContextType])}</span>
+            </SelectTrigger>
+            <SelectContent>
               {REPORTING_CONTEXT_TYPES.map((type) => {
                 const TypeIcon = REPORTING_CONTEXT_ICONS[type];
                 return (
-                  <MenuItem key={type} value={type}>
-                    <ListItemIcon><TypeIcon fontSize="small" color="primary" /></ListItemIcon>
-                    <ListItemText>{t(REPORTING_CONTEXT_LABELS[type])}</ListItemText>
-                  </MenuItem>
+                  <SelectItem key={type} value={type}>
+                    <TypeIcon fontSize="small" color="primary" />
+                    {t(REPORTING_CONTEXT_LABELS[type])}
+                  </SelectItem>
                 );
               })}
-            </Select>
-          </FormControl>
+            </SelectContent>
+          </Select>
         )}
       />
       {contextType !== 'PLATFORM' && (
