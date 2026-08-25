@@ -59,7 +59,14 @@ class ThreatArsenalFormComponent {
 
     // Actions
     // Scoped to the action form: the list header hosts a "Create" button too.
-    this.saveButton = page.locator('#actionForm').getByRole('button', { name: 'Create' });
+    // `exact` matters: the form's create-a-related-object ornaments are named
+    // "Create a new tag" and the like, which a substring match also selects.
+    this.saveButton = page
+      .locator('#actionForm')
+      .getByRole('button', {
+        name: 'Create',
+        exact: true,
+      });
   }
 
   // -- Get Locator methods
