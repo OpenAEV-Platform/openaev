@@ -1,9 +1,5 @@
 package io.openaev.service.credential;
 
-import static io.openaev.helper.StreamHelper.iterableToSet;
-import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
-import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
-
 import io.openaev.api.credentials.CredentialMapper;
 import io.openaev.api.credentials.form.*;
 import io.openaev.context.TenantScopedTransaction;
@@ -23,7 +19,6 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SearchPaginationInputMapper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +27,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+
+import java.util.*;
+
+import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 @Service
 @RequiredArgsConstructor
@@ -448,8 +449,7 @@ public class CredentialService {
     applyMetadataInputToCredential(credential, input);
     credential.setConnectorInstanceId(providerId);
     credential.setTenant(new Tenant(tenantId));
-    credential.setStatus(SecretReference.SECRET_STATUS.UNSET);
-    credential.setStatus(null);
+    credential.setStatus(SecretReference.SECRET_STATUS.UNSET);é
     credential.setLastVerifiedAt(null);
     credential.setCreatedBy(userService.currentUserOrNull());
   }
