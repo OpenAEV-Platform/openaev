@@ -164,11 +164,6 @@ public class MeApi extends RestBehavior {
           Map<String, Object> contextData = new LinkedHashMap<>();
           contextData.put("token_id", renewedToken.getId());
           contextData.put("previous_token_id", token.getId());
-          contextData.put(
-              "token_user_id",
-              renewedToken.getUser() != null ? renewedToken.getUser().getId() : null);
-          contextData.put("actor_user_id", user.getId());
-          contextData.put("timestamp", renewedAt);
           contextData.put("masked_reference", token.getValue());
 
           logger.logEvent(
@@ -176,9 +171,8 @@ public class MeApi extends RestBehavior {
                   .eventType(EventType.MUTATION)
                   .eventScope(AuditEventScope.UPDATE)
                   .eventStatus(EventStatus.SUCCESS)
-                  .resourceType(ResourceType.USER)
-                  .resourceId(
-                      renewedToken.getUser() != null ? renewedToken.getUser().getId() : null)
+                  .resourceType(ResourceType.TOKEN)
+                  .resourceId(renewedToken.getId())
                   .contextData(contextData)
                   .message("User token renewed")
                   .origin(AuditEventOrigin.REQUEST)

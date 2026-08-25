@@ -67,8 +67,9 @@ public enum ResourceType {
   CONDITION,
   // Auth related
   SESSION,
-  PLATFORM_SESSION,
-  SKIP_RBAC; // Used to skip RBAC checks.
+  SKIP_RBAC, // Used to skip RBAC checks.
+  TOKEN,
+  PLATFORM_SESSION; // Used to skip RBAC checks.
 
   public static ResourceType fromString(@NotNull String name) {
     try {
