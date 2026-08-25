@@ -32,7 +32,7 @@
         <spring-security-crypto.version>6.5.11</spring-security-crypto.version>
         <bouncycastle.version>1.85.2</bouncycastle.version>
         <jackson-bom.version>2.21.5</jackson-bom.version>
-        <netty.version>4.1.136.Final</netty.version>
+        <netty.version>4.1.137.Final</netty.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <tools-jackson-core.version>3.2.2</tools-jackson-core.version>
         <tomcat.version>10.1.56</tomcat.version>
@@ -44,8 +44,10 @@
         <httpclient5.version>5.6.4</httpclient5.version>
         <kotlin.version>2.1.21</kotlin.version>
         <opentelemetry.version>1.65.0</opentelemetry.version>
-        <amqp-client.version>5.34.0</amqp-client.version>
+        <amqp-client.version>5.35.0</amqp-client.version>
         <rabbit-amqp-client.version>${amqp-client.version}</rabbit-amqp-client.version>
+        <micrometer.version>1.16.7</micrometer.version>
+        <micrometer-tracing.version>1.6.7</micrometer-tracing.version>
     </properties>
 
     <distributionManagement>
