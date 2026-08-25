@@ -22,7 +22,6 @@ import type {
   EnhancedContractElement,
 } from '../../../../utils/api-types-custom';
 import InjectContentFieldComponent from '../../common/injects/form/InjectContentFieldComponent';
-import { humanizeEnum } from '../asset-categories';
 
 interface Props {
   onSubmit: SubmitHandler<CredentialInput>;
@@ -42,8 +41,19 @@ const CredentialForm: FunctionComponent<Props> = ({
   const [contracts, setContracts] = useState<CredentialContractOutput[]>([]);
   const [isLoadingContracts, setIsLoadingContracts] = useState(true);
 
+  const dynamicFieldValueSchema = z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.array(z.string()),
+    z.null(),
+    z.undefined(),
+  ]);
+  type CredentialDynamicValue = z.infer<typeof dynamicFieldValueSchema>;
+  type CredentialFormValues = CredentialInput & Record<string, CredentialDynamicValue>;
+
   const matchesCondition = (
-    values: CredentialInput,
+    values: CredentialFormValues,
     conditionField?: keyof CredentialInput,
     conditionValue?: string,
   ): boolean => {
@@ -62,6 +72,7 @@ const CredentialForm: FunctionComponent<Props> = ({
         credential_auth_method: z.enum(['USERNAME_PASSWORD', 'HASH', 'AWS_ACCESS_KEY', 'AWS_ASSUME_ROLE']),
         credential_tags: z.array(z.string()).optional(),
       })
+      .catchall(dynamicFieldValueSchema)
       .check(({ value, issues }) => {
         const values = value;
         const contract = contracts.find(
@@ -110,10 +121,10 @@ const CredentialForm: FunctionComponent<Props> = ({
     [contracts, t],
   );
 
-  const methods = useForm<CredentialInput>({
+  const methods = useForm<CredentialFormValues>({
     mode: 'onTouched',
     resolver: zodResolver(schema),
-    defaultValues: initialValues,
+    defaultValues: initialValues as CredentialFormValues | undefined,
   });
 
   const {
@@ -186,7 +197,7 @@ const CredentialForm: FunctionComponent<Props> = ({
   });
 
   const currentFormValues = useMemo(
-    () => getValues() as CredentialInput,
+    () => getValues(),
     [getValues, watchedConditionValues],
   );
 
@@ -222,7 +233,7 @@ const CredentialForm: FunctionComponent<Props> = ({
       label: t(`${field.field_name}`) ?? '',
       readOnly: false,
       choices: field.choices?.map((value: string) => ({
-        label: value,
+        label: t(`${value}`),
         value,
       })),
       cardinality: '1',
@@ -232,7 +243,7 @@ const CredentialForm: FunctionComponent<Props> = ({
     };
   };
 
-  const handleSubmitSanitized: SubmitHandler<CredentialInput> = async (values, event) => {
+  const handleSubmitSanitized: SubmitHandler<CredentialFormValues> = async (values, event) => {
     const allowedKeys = new Set<string>([
       'credential_name',
       'credential_type',
@@ -247,7 +258,15 @@ const CredentialForm: FunctionComponent<Props> = ({
     const sanitizedEntries = Object.entries(values)
       .filter(([key, value]) => allowedKeys.has(key) && value != DOTS);
 
-    await onSubmit(Object.fromEntries(sanitizedEntries) as CredentialInput, event);
+    const sanitizedValues = Object.fromEntries(sanitizedEntries) as Partial<CredentialInput>;
+    const payload: CredentialInput = {
+      ...sanitizedValues,
+      credential_name: values.credential_name,
+      credential_type: values.credential_type,
+      credential_auth_method: values.credential_auth_method,
+    };
+
+    await onSubmit(payload, event);
   };
 
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
@@ -289,7 +308,7 @@ const CredentialForm: FunctionComponent<Props> = ({
           required
           items={availableTypes.map(type => ({
             value: type,
-            label: t(`${type}`),
+            label: t(`${t(type)}`),
           }))}
           disabled={isLoadingContracts || availableTypes.length < 2}
         />
@@ -300,7 +319,7 @@ const CredentialForm: FunctionComponent<Props> = ({
           required
           items={availableAuthMethods.map(method => ({
             value: method,
-            label: t(`${humanizeEnum(method)}`),
+            label: t(`${t(method)}`),
           }))}
           disabled={isLoadingContracts || availableAuthMethods.length === 0}
         />
