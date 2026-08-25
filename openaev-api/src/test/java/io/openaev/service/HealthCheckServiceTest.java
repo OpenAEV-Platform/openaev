@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
@@ -11,12 +12,15 @@ import io.openaev.engine.EngineService;
 import io.openaev.service.HealthCheckService.StorageUsage;
 import io.openaev.service.exception.HealthCheckFailureException;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @ExtendWith(MockitoExtension.class)
 class HealthCheckServiceTest {
@@ -54,15 +58,32 @@ class HealthCheckServiceTest {
         });
   }
 
-  @DisplayName("Given repeated probes, should build the storage client only once")
+  @DisplayName("Given repeated probes, should reuse the injected storage client")
   @Test
-  void given_repeated_probes_should_build_the_storage_client_only_once() throws Exception {
+  void given_repeated_probes_should_reuse_the_injected_storage_client() throws Exception {
     // -- EXECUTE --
     healthCheckService.runFileStorageCheck();
     healthCheckService.runFileStorageCheck();
 
     // -- ASSERT --
     verify(minioService, times(2)).checkStorageAccessible(minioClient);
+    verifyNoMoreInteractions(minioService);
+  }
+
+  @DisplayName("The generated constructor must carry the storage client qualifier")
+  @Test
+  void the_generated_constructor_must_carry_the_storage_client_qualifier() {
+    Constructor<?> constructor = HealthCheckService.class.getDeclaredConstructors()[0];
+    int clientIndex = Arrays.asList(constructor.getParameterTypes()).indexOf(MinioClient.class);
+    Qualifier qualifier =
+        Arrays.stream(constructor.getParameterAnnotations()[clientIndex])
+            .filter(Qualifier.class::isInstance)
+            .map(Qualifier.class::cast)
+            .findFirst()
+            .orElse(null);
+
+    assertNotNull(qualifier, "@Qualifier was not copied to the constructor parameter");
+    assertEquals("healthCheckMinioClient", qualifier.value());
   }
 
   @DisplayName("Test runRabbitMQCheck")

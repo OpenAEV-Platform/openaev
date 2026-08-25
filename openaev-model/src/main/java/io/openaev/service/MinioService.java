@@ -224,8 +224,8 @@ public class MinioService implements DependenciesManager {
    * Total size of the objects stored in the bucket, in bytes, all tenants included.
    *
    * <p>Object storage exposes no aggregated size, so the whole bucket listing has to be walked:
-  * this is a costly operation (one listing round-trip per 1 000 objects) and must never be called
-  * on a hot path without caching.
+   * this is a costly operation (one listing round-trip per 1 000 objects) and must never be called
+   * on a hot path without caching.
    *
    * @return the sum of the object sizes in bytes
    */
@@ -235,7 +235,8 @@ public class MinioService implements DependenciesManager {
       try {
         usedSize += result.get().size();
       } catch (Exception e) {
-        throw new IllegalStateException("Unable to read object metadata while computing used size", e);
+        throw new IllegalStateException(
+            "Unable to read object metadata while computing used size", e);
       }
     }
     return usedSize;

@@ -82,8 +82,7 @@ public class MinioDriver {
   @Bean("healthCheckMinioClient")
   public MinioClient healthCheckMinioClient() {
     MinioClient minioClient = getMinioClient();
-    minioClient.setTimeout(
-        HEALTHCHECK_TIMEOUT_MS, HEALTHCHECK_TIMEOUT_MS, HEALTHCHECK_TIMEOUT_MS);
+    minioClient.setTimeout(HEALTHCHECK_TIMEOUT_MS, HEALTHCHECK_TIMEOUT_MS, HEALTHCHECK_TIMEOUT_MS);
     return minioClient;
   }
 

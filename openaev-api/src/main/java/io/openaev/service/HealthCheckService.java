@@ -14,8 +14,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /** Service containing the logic related to service health checks */
@@ -26,7 +26,10 @@ public class HealthCheckService {
 
   private final HealthCheckRepository healthCheckRepository;
   private final MinioService minioService;
-  @Qualifier("healthCheckMinioClient") private final MinioClient healthCheckMinioClient;
+
+  @Qualifier("healthCheckMinioClient")
+  private final MinioClient healthCheckMinioClient;
+
   private final RabbitmqService rabbitmqService;
   private final EngineService engineService;
 

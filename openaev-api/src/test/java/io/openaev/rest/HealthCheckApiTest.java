@@ -45,10 +45,12 @@ public class HealthCheckApiTest extends IntegrationTest {
   @DisplayName("Test healthCheck")
   @Test
   void test_healthCheck() throws Exception {
-    ResponseEntity<HealthCheckDetailsOutput> responseEntity = healthCheckApi.healthCheck(KEY, false);
+    ResponseEntity<HealthCheckDetailsOutput> responseEntity =
+        healthCheckApi.healthCheck(KEY, false);
     verify(healthCheckService).runHealthCheck();
     assertEquals(
-        new ResponseEntity<>(new HealthCheckDetailsOutput("success", null, null, null), HttpStatus.OK),
+        new ResponseEntity<>(
+            new HealthCheckDetailsOutput("success", null, null, null), HttpStatus.OK),
         responseEntity);
   }
 

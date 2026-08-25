@@ -5947,6 +5947,33 @@ export interface HealthCheck {
     | "UNKNOWN";
 }
 
+/** Detailed health check response. */
+export interface HealthCheckDetailsOutput {
+  /**
+   * Size used by the object storage bucket, in bytes
+   * @format int64
+   * @example 20971520
+   */
+  s3_used_size?: number;
+  /**
+   * Size used by the analytics engine indexes (replicas excluded), in bytes
+   * @format int64
+   * @example 524288000
+   */
+  es_used_size?: number;
+  /**
+   * Size used by the PostgreSQL database, in bytes
+   * @format int64
+   * @example 104857600
+   */
+  pg_used_size?: number;
+  /**
+   * Status of the platform
+   * @example "success"
+   */
+  status?: string;
+}
+
 export interface ImportMapper {
   /** @format date-time */
   import_mapper_created_at?: string;
