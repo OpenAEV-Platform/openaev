@@ -9,8 +9,8 @@ import java.util.Set;
 
 /**
  * The tables filtered by the marking dimension, indexed by table name (matched case-insensitively).
- * Mirrors {@link TenantTables}, with a {@link MarkedTable} instead of a family because a marking
- * lives in a join table rather than in a column.
+ * Mirrors {@link TenantTables}, with a {@link MarkedTable} instead of a family because a marking is
+ * a set of ids rather than a single value.
  */
 public record MarkedTables(Map<String, MarkedTable> byTable) {
 
@@ -42,8 +42,8 @@ public record MarkedTables(Map<String, MarkedTable> byTable) {
   /**
    * Restricts these tables to an activation allowlist, the table-by-table rollout knob. An empty
    * allowlist activates nothing, so the dimension stays inert. An entry that is not a known marked
-   * table fails fast, to surface a typo (or a missing join table) at startup rather than silently
-   * leave a table unprotected.
+   * table fails fast, to surface a typo (or a missing marking column) at startup rather than
+   * silently leave a table unprotected.
    */
   public MarkedTables restrictTo(Collection<String> allowlist) {
     Set<String> allowed = new HashSet<>();
@@ -52,10 +52,7 @@ public record MarkedTables(Map<String, MarkedTable> byTable) {
     unknown.removeAll(byTable.keySet());
     if (!unknown.isEmpty()) {
       throw new IllegalArgumentException(
-          "marking active-tables have no "
-              + MarkedTable.JOIN_TABLE_SUFFIX
-              + " join table: "
-              + unknown);
+          "marking active-tables have no " + MarkedTable.MARKING_COLUMN + " column: " + unknown);
     }
     Map<String, MarkedTable> kept = new LinkedHashMap<>();
     byTable.forEach(

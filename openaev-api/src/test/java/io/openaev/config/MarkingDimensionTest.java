@@ -12,9 +12,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Covers the marking dimension in isolation: the anti-join predicate it emits, how it composes with
- * the tenant dimension inside the single inspector, and the rollout knob (inert until a table is
- * allowlisted, fail-fast on an unknown one).
+ * Covers the marking dimension in isolation: the containment predicate it emits, how it composes
+ * with the tenant dimension inside the single inspector, and the rollout knob (inert until a table
+ * is allowlisted, fail-fast on an unknown one).
  *
  * <p>The semantics of the predicate against real rows are proven separately by {@code
  * MarkingRewriteHypothesisTest}; this test pins its shape.
@@ -22,8 +22,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("MarkingDimension")
 class MarkingDimensionTest {
 
-  private static final MarkedTable DOCS =
-      new MarkedTable("documents", "doc_id", "documents_markings", "doc_id");
+  private static final MarkedTable DOCS = new MarkedTable("documents");
 
   private static final MarkedTables ACTIVE = new MarkedTables(Map.of("documents", DOCS));
 
@@ -38,13 +37,10 @@ class MarkingDimensionTest {
     private final MarkingDimension dimension = new MarkingDimension(ACTIVE);
 
     @Test
-    @DisplayName("is an anti-join correlating the marked table with its join table")
-    void emitsAntiJoin() {
+    @DisplayName("is a local column test on the alias, like the tenant one")
+    void emitsContainmentTest() {
       assertEquals(
-          "NOT EXISTS (SELECT 1 FROM documents_markings d_mk"
-              + " WHERE d_mk.doc_id = d.doc_id"
-              + " AND is_marking_missing(d_mk.marking_id))",
-          dimension.readPredicate("documents", "d"));
+          "is_marking_set_allowed(d.marking_ids)", dimension.readPredicate("documents", "d"));
     }
 
     @Test
@@ -55,10 +51,20 @@ class MarkingDimensionTest {
     }
 
     @Test
-    @DisplayName("derives the join alias from the table alias so a self-join stays unambiguous")
-    void joinAliasFollowsTheTableAlias() {
-      assertTrue(dimension.readPredicate("documents", "d1").contains("documents_markings d1_mk"));
-      assertTrue(dimension.readPredicate("documents", "d2").contains("documents_markings d2_mk"));
+    @DisplayName("qualifies the column with the alias so a self-join stays unambiguous")
+    void columnFollowsTheTableAlias() {
+      assertEquals(
+          "is_marking_set_allowed(d1.marking_ids)", dimension.readPredicate("documents", "d1"));
+      assertEquals(
+          "is_marking_set_allowed(d2.marking_ids)", dimension.readPredicate("documents", "d2"));
+    }
+
+    @Test
+    @DisplayName("never mentions a primary key, so composite-key tables need no special case")
+    void ignoresThePrimaryKey() {
+      MarkingDimension links =
+          new MarkingDimension(new MarkedTables(Map.of("links", new MarkedTable("links"))));
+      assertEquals("is_marking_set_allowed(l.marking_ids)", links.readPredicate("links", "l"));
     }
 
     @Test
@@ -91,28 +97,24 @@ class MarkingDimensionTest {
     }
 
     @Test
-    @DisplayName("ANDs the anti-join onto the tenant predicate on a table both dimensions cover")
+    @DisplayName("ANDs the containment test onto the tenant predicate on a table both cover")
     void composesWithTenant() {
       ScopeStatementInspector inspector =
           new ScopeStatementInspector(List.of(tenant, new MarkingDimension(ACTIVE)));
       String out = flatten(inspector.inspect("SELECT * FROM documents d WHERE d.id = ?"));
       assertTrue(
           out.contains(
-              "WHERE can_access_tenant(d.tenant_id)"
-                  + " AND NOT EXISTS (SELECT 1 FROM documents_markings d_mk"
-                  + " WHERE d_mk.doc_id = d.doc_id"
-                  + " AND is_marking_missing(d_mk.marking_id))"),
+              "WHERE can_access_tenant(d.tenant_id) AND is_marking_set_allowed(d.marking_ids)"),
           out);
     }
 
     @Test
-    @DisplayName("guards the WHERE of an UPDATE with the anti-join too")
+    @DisplayName("guards the WHERE of an UPDATE too")
     void guardsUpdate() {
       ScopeStatementInspector inspector =
           new ScopeStatementInspector(List.of(new MarkingDimension(ACTIVE)));
       String out = flatten(inspector.inspect("UPDATE documents SET name = ? WHERE doc_id = ?"));
-      assertTrue(out.contains("NOT EXISTS (SELECT 1 FROM documents_markings documents_mk"), out);
-      assertTrue(out.contains("documents_mk.doc_id = documents.doc_id"), out);
+      assertTrue(out.contains("is_marking_set_allowed(documents.marking_ids)"), out);
     }
 
     @Test
@@ -122,7 +124,10 @@ class MarkingDimensionTest {
           new ScopeStatementInspector(List.of(new MarkingDimension(ACTIVE)));
       String out =
           flatten(inspector.inspect("SELECT * FROM other o JOIN documents d ON d.doc_id = o.ref"));
-      assertTrue(out.contains("JOIN (SELECT * FROM documents d WHERE NOT EXISTS"), out);
+      assertTrue(
+          out.contains(
+              "JOIN (SELECT * FROM documents d WHERE is_marking_set_allowed(d.marking_ids)"),
+          out);
     }
   }
 
@@ -134,12 +139,7 @@ class MarkingDimensionTest {
     @DisplayName("keeps only the allowlisted tables")
     void keepsOnlyAllowlisted() {
       MarkedTables derived =
-          new MarkedTables(
-              Map.of(
-                  "documents",
-                  DOCS,
-                  "assets",
-                  new MarkedTable("assets", "asset_id", "assets_markings", "asset_id")));
+          new MarkedTables(Map.of("documents", DOCS, "assets", new MarkedTable("assets")));
       MarkedTables active = derived.restrictTo(List.of("assets"));
       assertEquals(Set.of("assets"), active.tableNames());
     }
@@ -152,7 +152,7 @@ class MarkingDimensionTest {
     }
 
     @Test
-    @DisplayName("a table with no join table fails fast rather than staying silently unprotected")
+    @DisplayName("a table with no marking column fails fast rather than staying unprotected")
     void unknownTableFailsFast() {
       MarkedTables derived = new MarkedTables(Map.of("documents", DOCS));
       IllegalArgumentException error =

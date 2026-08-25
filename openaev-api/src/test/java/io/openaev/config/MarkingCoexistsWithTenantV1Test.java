@@ -31,11 +31,7 @@ class MarkingCoexistsWithTenantV1Test {
           List.of(
               new TenantDimension(new TenantTables(Set.of(), Set.of())),
               new MarkingDimension(
-                  new MarkedTables(
-                      Map.of(
-                          "documents",
-                          new MarkedTable(
-                              "documents", "doc_id", "documents_markings", "doc_id"))))));
+                  new MarkedTables(Map.of("documents", new MarkedTable("documents"))))));
 
   private static long placeholders(String sql) {
     return sql.chars().filter(c -> c == '?').count();
@@ -51,10 +47,7 @@ class MarkingCoexistsWithTenantV1Test {
     return out.replaceAll("\\s+", " ").trim();
   }
 
-  private static final String MARKING_PREDICATE =
-      "NOT EXISTS (SELECT 1 FROM documents_markings d_mk"
-          + " WHERE d_mk.doc_id = d.doc_id"
-          + " AND is_marking_missing(d_mk.marking_id))";
+  private static final String MARKING_PREDICATE = "is_marking_set_allowed(d.marking_ids)";
 
   @Test
   @DisplayName("no tenant predicate is emitted for a table that is still on v1")
@@ -80,7 +73,7 @@ class MarkingCoexistsWithTenantV1Test {
     // A projected wrap (SELECT * …) is what makes an outer reference to a column the marking
     // predicate never mentions legal.
     String out = rewrite("SELECT d.doc_id FROM documents d WHERE d.tenant_id = ?");
-    assertTrue(out.contains("SELECT * FROM documents d WHERE NOT EXISTS"), out);
+    assertTrue(out.contains("SELECT * FROM documents d WHERE " + MARKING_PREDICATE), out);
   }
 
   @Test
@@ -112,7 +105,7 @@ class MarkingCoexistsWithTenantV1Test {
     // paths tenant v1 does not (bulk HQL updates, native queries).
     String out = rewrite("UPDATE documents SET name = ? WHERE tenant_id = ? AND doc_id = ?");
     assertTrue(out.contains("(tenant_id = ? AND doc_id = ?)"), out);
-    assertTrue(out.contains("NOT EXISTS (SELECT 1 FROM documents_markings documents_mk"), out);
+    assertTrue(out.contains("is_marking_set_allowed(documents.marking_ids)"), out);
   }
 
   @Test
@@ -124,11 +117,11 @@ class MarkingCoexistsWithTenantV1Test {
   }
 
   @Test
-  @DisplayName("the join table itself is not filtered")
-  void joinTableIsNotFiltered() {
-    // Known gap (§6.5): documents_markings is not a marked table, so a direct read of it is not
-    // filtered. It must stay repository-private.
-    String sql = "SELECT dm.marking_id FROM documents_markings dm WHERE dm.doc_id = ?";
-    assertEquals(sql, inspector.inspect(sql));
+  @DisplayName("reading the marking column is filtered by the same predicate as the row")
+  void markingColumnCannotBeReadAroundTheFilter() {
+    // Retires the join-table gap: with the markings held on the marked row there is no second
+    // relation to query, so "which markings does this invisible row carry?" is not expressible.
+    String out = rewrite("SELECT d.marking_ids FROM documents d WHERE d.doc_id = ?");
+    assertTrue(out.contains(MARKING_PREDICATE), out);
   }
 }
