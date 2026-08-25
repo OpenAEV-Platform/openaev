@@ -2548,9 +2548,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@uiw/react-md-editor@npm:4.1.1":
-  version: 4.1.1
-  resolution: "@uiw/react-md-editor@npm:4.1.1"
+"@uiw/react-md-editor@npm:4.1.2":
+  version: 4.1.2
+  resolution: "@uiw/react-md-editor@npm:4.1.2"
   dependencies:
     "@babel/runtime": "npm:^7.14.6"
     "@uiw/react-markdown-preview": "npm:^5.2.0"
@@ -2559,7 +2559,7 @@ __metadata:
   peerDependencies:
     react: ">=16.8.0"
     react-dom: ">=16.8.0"
-  checksum: 10c0/84e0adcd5e4aa23fea6f9aeb4b63ad0ba95166e651cefa3de1e21b4739857996b1f66b579ee3c3569a03c7c410625e3d9fba6f59a687cb0940bc58cbc63c09a9
+  checksum: 10c0/eea762cca64d33f54228ebe66b3e414fb6d98c87f04ac8975678480231f745a08e25df6da8812475288d523c316fcc28bef672617e1ccf9968bcfc44bf4c844d
   languageName: node
   linkType: hard
 
@@ -8604,7 +8604,7 @@ __metadata:
     "@types/react-dom": "npm:19.2.4"
     "@types/react-syntax-highlighter": "npm:15"
     "@typescript-eslint/utils": "npm:8.67.0"
-    "@uiw/react-md-editor": "npm:4.1.1"
+    "@uiw/react-md-editor": "npm:4.1.2"
     "@vitejs/plugin-react": "npm:6.1.0"
     "@vitest/coverage-v8": "npm:4.1.11"
     "@vitest/eslint-plugin": "npm:1.6.27"
