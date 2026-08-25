@@ -53,7 +53,7 @@ const TagsFilter: FunctionComponent<Props> = ({
           if (value !== null) onAddTag(value);
           if (reason === 'clear' && fullWidth) onClearTag?.();
         }}
-        isOptionEqualToValue={(option, value) => option.id === value.id}
+        isOptionEqualToValue={(option, value) => option.id === value?.id}
         renderOption={(props, option) => (
           <Box component="li" {...props} key={option.id}>
             <Box
@@ -87,10 +87,12 @@ const TagsFilter: FunctionComponent<Props> = ({
         )}
       />
       {!fullWidth && (
-        <div style={{
-          float: 'left',
-          margin: '5px 0 0 0',
-        }}
+        <Box
+          component="div"
+          sx={{
+            float: 'left',
+            mt: 0.5,
+          }}
         >
           {currentTags.map(currentTag => (
             <Chip
@@ -100,7 +102,7 @@ const TagsFilter: FunctionComponent<Props> = ({
               onDelete={() => onRemoveTag?.(currentTag.id)}
             />
           ))}
-        </div>
+        </Box>
       )}
     </>
   );
