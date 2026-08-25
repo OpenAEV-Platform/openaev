@@ -449,6 +449,7 @@ public class CredentialService {
     credential.setConnectorInstanceId(providerId);
     credential.setTenant(new Tenant(tenantId));
     credential.setStatus(SecretReference.SECRET_STATUS.UNSET);
+    credential.setStatus(null);
     credential.setLastVerifiedAt(null);
     credential.setCreatedBy(userService.currentUserOrNull());
   }

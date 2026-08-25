@@ -80,10 +80,10 @@ public class AzureCredentialValidator {
       environment = requireEnvironment(environmentName);
     } catch (IllegalArgumentException e) {
       // Stored configuration is wrong, not the credential: it cannot be checked at all.
-      return SecretValidationResult.inactive(INVALID_CONFIGURATION);
+      return SecretValidationResult.unknown(INVALID_CONFIGURATION);
     }
     if (isBlank(tenantId) || isBlank(clientId) || isBlank(clientSecret)) {
-      return SecretValidationResult.inactive(INVALID_CONFIGURATION);
+      return SecretValidationResult.unknown(INVALID_CONFIGURATION);
     }
 
     TokenCredential credential =
@@ -108,7 +108,7 @@ public class AzureCredentialValidator {
     try {
       environment = requireEnvironment(environmentName);
     } catch (IllegalArgumentException e) {
-      return SecretValidationResult.inactive(INVALID_CONFIGURATION);
+      return SecretValidationResult.unknown(INVALID_CONFIGURATION);
     }
 
     TokenCredential credential = tokenCredentialFactory.forManagedIdentity(clientId);
@@ -125,7 +125,7 @@ public class AzureCredentialValidator {
               .getToken(new TokenRequestContext().addScopes(armScope(environment)))
               .block(timeout);
       if (accessToken == null) {
-        return SecretValidationResult.inactive(TIMEOUT);
+        return SecretValidationResult.unknown(TIMEOUT);
       }
       token = accessToken.getToken();
     } catch (RuntimeException e) {
@@ -165,12 +165,12 @@ public class AzureCredentialValidator {
           httpClient.send(request, HttpResponse.BodyHandlers.discarding());
       return mapStatusCode(response.statusCode());
     } catch (java.net.http.HttpTimeoutException e) {
-      return SecretValidationResult.inactive(TIMEOUT);
+      return SecretValidationResult.unknown(TIMEOUT);
     } catch (IOException e) {
-      return SecretValidationResult.inactive(UNREACHABLE);
+      return SecretValidationResult.unknown(UNREACHABLE);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      return SecretValidationResult.inactive(UNREACHABLE);
+      return SecretValidationResult.unknown(UNREACHABLE);
     }
   }
 
@@ -185,8 +185,8 @@ public class AzureCredentialValidator {
       // principal cannot see: in both cases the credential no longer grants what it is stored
       // for.
       case 403, 404 -> SecretValidationResult.inactive(AUTH_FORBIDDEN);
-      case 429 -> SecretValidationResult.inactive(THROTTLED);
-      default -> SecretValidationResult.inactive(UNREACHABLE);
+      case 429 -> SecretValidationResult.unknown(THROTTLED);
+      default -> SecretValidationResult.unknown(UNREACHABLE);
     };
   }
 
@@ -197,7 +197,7 @@ public class AzureCredentialValidator {
   private SecretValidationResult mapFailure(RuntimeException failure) {
     // Managed identity outside Azure, or no identity assigned: never a rejection.
     if (failure instanceof CredentialUnavailableException) {
-      return SecretValidationResult.inactive(UNREACHABLE);
+      return SecretValidationResult.unknown(UNREACHABLE);
     }
     if (failure instanceof ClientAuthenticationException authenticationFailure) {
       Integer statusCode = statusCodeOf(authenticationFailure);
@@ -213,12 +213,12 @@ public class AzureCredentialValidator {
       return mapStatusCode(statusCodeOf(httpFailure, 503));
     }
     if (isTimeout(failure)) {
-      return SecretValidationResult.inactive(TIMEOUT);
+      return SecretValidationResult.unknown(TIMEOUT);
     }
     // Everything left is unclassified — inconclusive by default, never a rejection. Message only:
     // an Azure error body would leak identifiers into the logs.
     log.debug("Azure credential probe failed with an unmapped error: {}", failure.getMessage());
-    return SecretValidationResult.inactive(UNREACHABLE);
+    return SecretValidationResult.unknown(UNREACHABLE);
   }
 
   private static Integer statusCodeOf(HttpResponseException failure) {
