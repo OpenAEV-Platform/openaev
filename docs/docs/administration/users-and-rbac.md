@@ -101,6 +101,9 @@ Below is a full list of capabilities in OpenAEV:
 | `Access channels` | Read-only access to communication channels used to deliver exercise Injects to Players.                                                   |
 | &nbsp;&nbsp;`Manage channels` | Create and update channels. Requires *Access channels*.                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete channels` | Permanently delete channels. Requires *Manage channels*.                                                                                  |
+| `Access phishing` | Read-only access to phishing Landing Pages and Email Templates.                                                                           |
+| &nbsp;&nbsp;`Manage phishing` | Create, update, and duplicate phishing Landing Pages and Email Templates. Requires *Access phishing*.                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`Delete phishing` | Permanently delete phishing Landing Pages and Email Templates. Requires *Manage phishing*.                                                |
 | `Access challenges` | Read-only access to challenges (CTF-style tasks or objectives assigned to Players during exercises).                                      |
 | &nbsp;&nbsp;`Manage challenges` | Create and update challenges. Requires *Access challenges*.                                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`Delete challenges` | Permanently delete challenges. Requires *Manage challenges*.                                                                              |
