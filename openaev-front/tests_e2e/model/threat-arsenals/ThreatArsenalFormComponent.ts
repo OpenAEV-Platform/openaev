@@ -44,29 +44,49 @@ class ThreatArsenalFormComponent {
     this.attackPatternsField = page.getByRole('combobox', { name: 'Attack patterns' });
     this.tagsField = page.getByRole('combobox', { name: 'Tags' });
     this.domainsField = page.getByRole('combobox', { name: 'Domains' });
-    this.expectationsField = page.getByRole('combobox', {
-      name: 'Expectations',
-      exact: true,
-    });
+    this.expectationsField = page
+      .getByRole('combobox', {
+        name: 'Expectations',
+        exact: true,
+      })
+      // The asterisk used to disambiguate this field from another carrying the
+      // same label; the library hides it from the accessible name, so the
+      // requirement itself does the narrowing.
+      .and(page.locator('[aria-required="true"]'));
 
     // Commands fields
     // The library marks a required field with an `aria-hidden` asterisk, so the
     // accessible name is the label alone — MUI used to fold the marker into it.
-    this.typeField = page.getByRole('combobox', {
-      name: 'Type',
-      exact: true,
-    });
-    this.architectureField = page.getByRole('combobox', {
-      name: 'Architecture',
-      exact: true,
-    });
+    this.typeField = page
+      .getByRole('combobox', {
+        name: 'Type',
+        exact: true,
+      })
+      // The asterisk used to disambiguate this field from another carrying the
+      // same label; the library hides it from the accessible name, so the
+      // requirement itself does the narrowing.
+      .and(page.locator('[aria-required="true"]'));
+    this.architectureField = page
+      .getByRole('combobox', {
+        name: 'Architecture',
+        exact: true,
+      })
+      // The asterisk used to disambiguate this field from another carrying the
+      // same label; the library hides it from the accessible name, so the
+      // requirement itself does the narrowing.
+      .and(page.locator('[aria-required="true"]'));
     this.platformsField = page.getByRole('combobox', { name: 'Platforms' });
     this.argumentBtn = page.getByRole('button', { name: 'New argument' });
     this.prerequisiteBtn = page.getByRole('button', { name: 'New prerequisite' });
-    this.executorField = page.getByRole('combobox', {
-      name: 'Executor',
-      exact: true,
-    });
+    this.executorField = page
+      .getByRole('combobox', {
+        name: 'Executor',
+        exact: true,
+      })
+      // The asterisk used to disambiguate this field from another carrying the
+      // same label; the library hides it from the accessible name, so the
+      // requirement itself does the narrowing.
+      .and(page.locator('[aria-required="true"]'));
     this.commandField = page.locator('textarea[name="command_content"]');
     this.documentsAddBtn = page.getByText('Add document');
     this.hostnameField = page.getByRole('textbox', { name: 'Hostname*' });
