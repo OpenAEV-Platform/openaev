@@ -31,8 +31,7 @@ public class DelegationOutputProcessor extends FindingCapableOutputProcessor {
             new ContractOutputField(DELEGATION_TYPE, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(RIGHTS_TO, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
-        findingService,
-        NOT_SENSITIVE);
+        findingService);
   }
 
   @Override

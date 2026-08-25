@@ -25,8 +25,7 @@ public class AdminUsernameOutputProcessor extends FindingCapableOutputProcessor 
             new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(USERNAME, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
-        findingService,
-        NOT_SENSITIVE);
+        findingService);
   }
 
   @Override

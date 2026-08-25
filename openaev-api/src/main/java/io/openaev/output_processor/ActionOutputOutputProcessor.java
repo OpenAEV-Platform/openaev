@@ -15,8 +15,7 @@ public class ActionOutputOutputProcessor extends FindingCapableOutputProcessor {
         ContractOutputType.ActionOutput,
         ContractOutputTechnicalType.Text,
         List.of(),
-        findingService,
-        NOT_SENSITIVE);
+        findingService);
   }
 
   @Override

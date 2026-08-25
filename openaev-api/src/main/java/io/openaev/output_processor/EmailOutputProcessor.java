@@ -28,8 +28,7 @@ public class EmailOutputProcessor extends FindingCapableOutputProcessor {
         List.of(
             new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(EMAIL, ContractOutputTechnicalType.Text, true)),
-        findingService,
-        NOT_SENSITIVE);
+        findingService);
   }
 
   @Override

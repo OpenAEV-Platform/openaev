@@ -27,8 +27,7 @@ public class KerberoastableAccountOutputProcessor extends FindingCapableOutputPr
             new ContractOutputField(USERNAME, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HASH, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
-        findingService,
-        NOT_SENSITIVE);
+        findingService);
   }
 
   @Override

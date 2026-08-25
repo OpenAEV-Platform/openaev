@@ -11,12 +11,7 @@ import org.springframework.stereotype.Component;
 public class TextOutputProcessor extends FindingCapableOutputProcessor {
 
   public TextOutputProcessor(FindingService findingService) {
-    super(
-        ContractOutputType.Text,
-        ContractOutputTechnicalType.Text,
-        List.of(),
-        findingService,
-        NOT_SENSITIVE);
+    super(ContractOutputType.Text, ContractOutputTechnicalType.Text, List.of(), findingService);
   }
 
   @Override

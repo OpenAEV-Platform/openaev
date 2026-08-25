@@ -48,8 +48,9 @@ class OutputProcessorIntegrationTest extends IntegrationTest {
   @Test
   @DisplayName("Should flag credentials as the only sensitive finding type")
   void given_everyFindingCapableProcessor_should_flagOnlyCredentialsAsSensitive() {
-    // Sensitivity is hardcoded per processor: this guards the matrix so a new finding type is a
-    // deliberate decision instead of an implicit "not sensitive".
+    // Processors default to "not sensitive" and only the ones producing secrets opt in, so this
+    // assertion is the single place where the whole type - sensitivity matrix is stated: a new
+    // finding type that should be redacted has to be declared here as well.
     for (ContractOutputType type : ContractOutputType.values()) {
       OutputProcessor processor = registry.getProcessor(type).get();
       if (!(processor instanceof FindingCapableOutputProcessor findingProcessor)) {

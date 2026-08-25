@@ -27,8 +27,7 @@ public class ShareOutputProcessor extends FindingCapableOutputProcessor {
             new ContractOutputField(SHARE_NAME, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(PERMISSIONS, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, false)),
-        findingService,
-        NOT_SENSITIVE);
+        findingService);
   }
 
   @Override

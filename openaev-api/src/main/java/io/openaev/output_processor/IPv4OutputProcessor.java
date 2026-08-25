@@ -14,12 +14,7 @@ public class IPv4OutputProcessor extends FindingCapableOutputProcessor {
   private static final InetAddressValidator VALIDATOR = InetAddressValidator.getInstance();
 
   public IPv4OutputProcessor(FindingService findingService) {
-    super(
-        ContractOutputType.IPv4,
-        ContractOutputTechnicalType.Text,
-        List.of(),
-        findingService,
-        NOT_SENSITIVE);
+    super(ContractOutputType.IPv4, ContractOutputTechnicalType.Text, List.of(), findingService);
   }
 
   @Override
