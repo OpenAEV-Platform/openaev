@@ -1,13 +1,13 @@
 package io.openaev.secrets.provider;
 
 /**
- * Normalized, non-sensitive reason codes carried by {@link SecretValidationResult#detail()}.
+ * Normalized, non-sensitive reason codes carried by {@link SecretConnectionResult#detail()}.
  *
  * <p>Provider SDK messages are NOT usable as-is: an Azure {@code AADSTS} payload or an AWS error
  * body routinely embeds tenant, application and principal identifiers. Validators map their
  * failures onto one of these codes instead, so the value is safe to log and to expose.
  */
-public final class SecretValidationDetails {
+public final class SecretConnectionDetails {
 
   /** The secret referenced by {@code secret_reference_location} could not be loaded. */
   public static final String SECRET_NOT_FOUND = "SECRET_NOT_FOUND";
@@ -36,5 +36,5 @@ public final class SecretValidationDetails {
   /** The stored configuration is invalid (unknown cloud, missing required field). */
   public static final String INVALID_CONFIGURATION = "INVALID_CONFIGURATION";
 
-  private SecretValidationDetails() {}
+  private SecretConnectionDetails() {}
 }

@@ -1,13 +1,9 @@
 package io.openaev.secrets.provider.impl.handlers;
 
-import io.openaev.database.model.AzureEnvironments;
-import io.openaev.database.model.AzureServicePrincipalSecret;
-import io.openaev.database.model.CredentialSecretReference;
-import io.openaev.database.model.Secret;
-import io.openaev.database.model.SecretReference;
+import io.openaev.database.model.*;
+import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
-import io.openaev.secrets.provider.SecretValidationResult;
 import io.openaev.secrets.provider.impl.validators.AzureCredentialValidator;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import lombok.RequiredArgsConstructor;
@@ -92,7 +88,7 @@ public class AzureServicePrincipalHandler implements SecretHandler {
    * stored on the entity, and never travels back in the result.
    */
   @Override
-  public SecretValidationResult validateConnection(Secret secret) {
+  public SecretConnectionResult validateConnection(Secret secret) {
     if (!(secret instanceof AzureServicePrincipalSecret azureSecret)) {
       throw new IllegalArgumentException(
           "Secret type mismatch: expected AZURE_SERVICE_PRINCIPAL secret");

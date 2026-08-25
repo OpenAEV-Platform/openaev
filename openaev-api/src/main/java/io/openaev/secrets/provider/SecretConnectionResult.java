@@ -32,7 +32,7 @@ import java.util.Optional;
  * {@code TIMEOUT}). It must never carry a client secret, a token, or a raw provider error payload:
  * those messages routinely embed tenant and application identifiers.
  */
-public record SecretValidationResult(OUTCOME outcome, String detail, boolean checked) {
+public record SecretConnectionResult(OUTCOME outcome, String detail, boolean checked) {
 
   public enum OUTCOME {
     ACTIVE,
@@ -41,39 +41,39 @@ public record SecretValidationResult(OUTCOME outcome, String detail, boolean che
     UNSUPPORTED
   }
 
-  public SecretValidationResult {
+  public SecretConnectionResult {
     Objects.requireNonNull(outcome, "outcome must not be null");
   }
 
   /** The credential answered and is usable. */
-  public static SecretValidationResult active() {
-    return new SecretValidationResult(OUTCOME.ACTIVE, null, true);
+  public static SecretConnectionResult active() {
+    return new SecretConnectionResult(OUTCOME.ACTIVE, null, true);
   }
 
   /** The provider explicitly rejected the credential (bad secret, revoked, unauthorized). */
-  public static SecretValidationResult inactive(String detail) {
-    return new SecretValidationResult(OUTCOME.INACTIVE, detail, true);
+  public static SecretConnectionResult inactive(String detail) {
+    return new SecretConnectionResult(OUTCOME.INACTIVE, detail, true);
   }
 
   /**
    * A validator ran but could not conclude; the previously known status must be kept, and the
    * attempt is still recorded.
    */
-  public static SecretValidationResult unknown(String detail) {
-    return new SecretValidationResult(OUTCOME.UNKNOWN, detail, true);
+  public static SecretConnectionResult unknown(String detail) {
+    return new SecretConnectionResult(OUTCOME.UNKNOWN, detail, true);
   }
 
   /**
    * No validator ever ran (dangling secret, no handler): inconclusive AND not verified, so the
    * reference is left completely untouched.
    */
-  public static SecretValidationResult notChecked(String detail) {
-    return new SecretValidationResult(OUTCOME.UNKNOWN, detail, false);
+  public static SecretConnectionResult notChecked(String detail) {
+    return new SecretConnectionResult(OUTCOME.UNKNOWN, detail, false);
   }
 
   /** No validator implemented for this secret type: the default for every handler. */
-  public static SecretValidationResult unsupported() {
-    return new SecretValidationResult(OUTCOME.UNSUPPORTED, null, false);
+  public static SecretConnectionResult unsupported() {
+    return new SecretConnectionResult(OUTCOME.UNSUPPORTED, null, false);
   }
 
   /**

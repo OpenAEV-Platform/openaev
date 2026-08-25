@@ -1,14 +1,9 @@
 package io.openaev.secrets.service;
 
-import static io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY;
-import static io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL;
-import static io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH;
-import static io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.ACTIVE;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.INACTIVE;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.UNSET;
-import static io.openaev.secrets.provider.SecretValidationDetails.SECRET_NOT_FOUND;
-import static io.openaev.secrets.provider.SecretValidationDetails.UNREACHABLE;
+import static io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD.*;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.*;
+import static io.openaev.secrets.provider.SecretConnectionDetails.SECRET_NOT_FOUND;
+import static io.openaev.secrets.provider.SecretConnectionDetails.UNREACHABLE;
 import static io.openaev.secrets.service.SecretValidationService.VALIDATABLE_AUTH_METHODS;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,19 +15,14 @@ import io.openaev.database.model.SecretReference.SECRET_STATUS;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.SecretReferenceRepository;
 import io.openaev.database.repository.TenantRepository;
-import io.openaev.secrets.provider.SecretValidationResult;
+import io.openaev.secrets.provider.SecretConnectionResult;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -202,10 +192,10 @@ class SecretValidationServiceTest extends IntegrationTest {
       SecretValidationCandidate candidate = new SecretValidationCandidate(reference.getId(), null);
 
       // Act
-      SecretValidationResult result = secretValidationService.validate(candidate);
+      SecretConnectionResult result = secretValidationService.validate(candidate);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(SecretValidationResult.OUTCOME.UNKNOWN);
+      assertThat(result.outcome()).isEqualTo(SecretConnectionResult.OUTCOME.UNKNOWN);
       assertThat(result.detail()).isEqualTo(SECRET_NOT_FOUND);
       assertThat(result.statusToPersist()).isEmpty();
       // No validator ever ran, so the row must not even be stamped as verified.
@@ -243,7 +233,7 @@ class SecretValidationServiceTest extends IntegrationTest {
       // Act
       int updated =
           secretValidationService.persistResults(
-              Map.of(reference.getId(), SecretValidationResult.active()));
+              Map.of(reference.getId(), SecretConnectionResult.active()));
 
       // Assert
       assertThat(updated).isEqualTo(1);
@@ -261,7 +251,7 @@ class SecretValidationServiceTest extends IntegrationTest {
 
       // Act
       secretValidationService.persistResults(
-          Map.of(reference.getId(), SecretValidationResult.inactive("AUTH_REJECTED")));
+          Map.of(reference.getId(), SecretConnectionResult.inactive("AUTH_REJECTED")));
 
       // Assert
       SecretReference reloaded =
@@ -278,7 +268,7 @@ class SecretValidationServiceTest extends IntegrationTest {
       // Act
       int updated =
           secretValidationService.persistResults(
-              Map.of(reference.getId(), SecretValidationResult.unknown(UNREACHABLE)));
+              Map.of(reference.getId(), SecretConnectionResult.unknown(UNREACHABLE)));
 
       // Assert
       assertThat(updated).isEqualTo(1);
@@ -299,7 +289,7 @@ class SecretValidationServiceTest extends IntegrationTest {
       // Act
       int updated =
           secretValidationService.persistResults(
-              Map.of(reference.getId(), SecretValidationResult.notChecked(SECRET_NOT_FOUND)));
+              Map.of(reference.getId(), SecretConnectionResult.notChecked(SECRET_NOT_FOUND)));
 
       // Assert — no status, and no verification stamp either.
       assertThat(updated).isZero();
@@ -317,7 +307,7 @@ class SecretValidationServiceTest extends IntegrationTest {
       // Act
       int updated =
           secretValidationService.persistResults(
-              Map.of(reference.getId(), SecretValidationResult.unsupported()));
+              Map.of(reference.getId(), SecretConnectionResult.unsupported()));
 
       // Assert — never checked, so never stamped as verified.
       assertThat(updated).isZero();

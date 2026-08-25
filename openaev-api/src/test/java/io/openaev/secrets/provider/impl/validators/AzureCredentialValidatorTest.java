@@ -1,22 +1,10 @@
 package io.openaev.secrets.provider.impl.validators;
 
-import static io.openaev.secrets.provider.SecretValidationDetails.AUTH_REJECTED;
-import static io.openaev.secrets.provider.SecretValidationDetails.INVALID_CONFIGURATION;
-import static io.openaev.secrets.provider.SecretValidationDetails.THROTTLED;
-import static io.openaev.secrets.provider.SecretValidationDetails.TIMEOUT;
-import static io.openaev.secrets.provider.SecretValidationDetails.UNREACHABLE;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_CLIENT_ID;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_CLIENT_SECRET;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_ENVIRONMENT;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_TENANT_ID;
+import static io.openaev.secrets.provider.SecretConnectionDetails.*;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 import com.azure.core.credential.AccessToken;
 import com.azure.core.credential.TokenCredential;
@@ -25,8 +13,8 @@ import com.azure.core.exception.HttpResponseException;
 import com.azure.core.http.HttpResponse;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
-import io.openaev.secrets.provider.SecretValidationResult;
-import io.openaev.secrets.provider.SecretValidationResult.OUTCOME;
+import io.openaev.secrets.provider.SecretConnectionResult;
+import io.openaev.secrets.provider.SecretConnectionResult.OUTCOME;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.concurrent.TimeoutException;
@@ -105,7 +93,7 @@ class AzureCredentialValidatorTest {
       givenTokenIsGranted();
 
       // Act
-      SecretValidationResult result =
+      SecretConnectionResult result =
           validator.validateServicePrincipal(
               AZURE_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
 
@@ -140,7 +128,7 @@ class AzureCredentialValidatorTest {
     @DisplayName("An unsupported cloud name is a configuration problem, not a rejection")
     void given_unsupportedEnvironment_should_returnUnknownInvalidConfiguration() {
       // Arrange / Act
-      SecretValidationResult result =
+      SecretConnectionResult result =
           validator.validateServicePrincipal(
               UNSUPPORTED_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
 
@@ -156,7 +144,7 @@ class AzureCredentialValidatorTest {
     @DisplayName("A blank cloud name is a configuration problem")
     void given_blankEnvironment_should_returnUnknownInvalidConfiguration(String environment) {
       // Arrange / Act
-      SecretValidationResult result =
+      SecretConnectionResult result =
           validator.validateServicePrincipal(
               environment, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
 
@@ -171,13 +159,13 @@ class AzureCredentialValidatorTest {
     @DisplayName("A missing tenant id, client id or client secret is a configuration problem")
     void given_missingMandatoryField_should_returnUnknownInvalidConfiguration(String missing) {
       // Arrange / Act
-      SecretValidationResult missingTenant =
+      SecretConnectionResult missingTenant =
           validator.validateServicePrincipal(
               AZURE_ENVIRONMENT, missing, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
-      SecretValidationResult missingClient =
+      SecretConnectionResult missingClient =
           validator.validateServicePrincipal(
               AZURE_ENVIRONMENT, AZURE_TENANT_ID, missing, AZURE_CLIENT_SECRET, null);
-      SecretValidationResult missingSecret =
+      SecretConnectionResult missingSecret =
           validator.validateServicePrincipal(
               AZURE_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, missing, null);
 
@@ -201,7 +189,7 @@ class AzureCredentialValidatorTest {
       givenTokenIsGranted();
 
       // Act
-      SecretValidationResult result =
+      SecretConnectionResult result =
           validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null);
 
       // Assert
@@ -218,7 +206,7 @@ class AzureCredentialValidatorTest {
       givenTokenIsGranted();
 
       // Act
-      SecretValidationResult result =
+      SecretConnectionResult result =
           validator.validateManagedIdentity(AZURE_ENVIRONMENT, AZURE_CLIENT_ID, null);
 
       // Assert
@@ -235,7 +223,7 @@ class AzureCredentialValidatorTest {
           new CredentialUnavailableException("ManagedIdentityCredential is unavailable"));
 
       // Act
-      SecretValidationResult result =
+      SecretConnectionResult result =
           validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null);
 
       // Assert
@@ -248,7 +236,7 @@ class AzureCredentialValidatorTest {
     @DisplayName("An unsupported cloud name is a configuration problem")
     void given_unsupportedEnvironment_should_returnUnknownInvalidConfiguration() {
       // Arrange / Act
-      SecretValidationResult result =
+      SecretConnectionResult result =
           validator.validateManagedIdentity(UNSUPPORTED_ENVIRONMENT, null, null);
 
       // Assert
@@ -275,7 +263,7 @@ class AzureCredentialValidatorTest {
       givenTokenFailsWith(new ClientAuthenticationException("AADSTS7000215", null));
 
       // Act
-      SecretValidationResult result = validateServicePrincipal();
+      SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
       assertThat(result.outcome()).isEqualTo(OUTCOME.INACTIVE);
@@ -291,7 +279,7 @@ class AzureCredentialValidatorTest {
       givenTokenFailsWith(httpFailure(429));
 
       // Act
-      SecretValidationResult result = validateServicePrincipal();
+      SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
       assertThat(result.outcome()).isEqualTo(OUTCOME.UNKNOWN);
@@ -306,7 +294,7 @@ class AzureCredentialValidatorTest {
       givenTokenFailsWith(httpFailure(503));
 
       // Act
-      SecretValidationResult result = validateServicePrincipal();
+      SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
       assertThat(result.outcome()).isEqualTo(OUTCOME.UNKNOWN);
@@ -320,7 +308,7 @@ class AzureCredentialValidatorTest {
       givenTokenFailsWith(new RuntimeException(new TimeoutException("no answer")));
 
       // Act
-      SecretValidationResult result = validateServicePrincipal();
+      SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
       assertThat(result.outcome()).isEqualTo(OUTCOME.UNKNOWN);
@@ -336,7 +324,7 @@ class AzureCredentialValidatorTest {
           .thenReturn(Mono.never().cast(AccessToken.class).delaySubscription(Duration.ZERO));
 
       // Act
-      SecretValidationResult result = validateServicePrincipal();
+      SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
       assertThat(result.outcome()).isEqualTo(OUTCOME.UNKNOWN);
@@ -350,7 +338,7 @@ class AzureCredentialValidatorTest {
       givenTokenFailsWith(new IllegalStateException("something unexpected"));
 
       // Act
-      SecretValidationResult result = validateServicePrincipal();
+      SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
       assertThat(result.outcome()).isEqualTo(OUTCOME.UNKNOWN);
@@ -366,13 +354,13 @@ class AzureCredentialValidatorTest {
               "Invalid client secret provided: " + AZURE_CLIENT_SECRET, null));
 
       // Act
-      SecretValidationResult result = validateServicePrincipal();
+      SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
       assertThat(result.detail()).isEqualTo(AUTH_REJECTED).doesNotContain(AZURE_CLIENT_SECRET);
     }
 
-    private SecretValidationResult validateServicePrincipal() {
+    private SecretConnectionResult validateServicePrincipal() {
       return validator.validateServicePrincipal(
           AZURE_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
     }

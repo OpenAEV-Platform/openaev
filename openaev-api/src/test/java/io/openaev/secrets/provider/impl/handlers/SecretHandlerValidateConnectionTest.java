@@ -1,26 +1,18 @@
 package io.openaev.secrets.provider.impl.handlers;
 
-import static io.openaev.secrets.provider.SecretValidationResult.OUTCOME.ACTIVE;
-import static io.openaev.secrets.provider.SecretValidationResult.OUTCOME.UNSUPPORTED;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_CLIENT_ID;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_CLIENT_SECRET;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_ENVIRONMENT;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_SUBSCRIPTION_ID;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_TENANT_ID;
+import static io.openaev.secrets.provider.SecretConnectionResult.OUTCOME.ACTIVE;
+import static io.openaev.secrets.provider.SecretConnectionResult.OUTCOME.UNSUPPORTED;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.AzureManagedIdentitySecret;
 import io.openaev.database.model.AzureServicePrincipalSecret;
 import io.openaev.database.model.HashSecret;
 import io.openaev.database.model.UsernamePasswordSecret;
-import io.openaev.secrets.provider.SecretValidationResult;
+import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.impl.validators.AzureCredentialValidator;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import org.junit.jupiter.api.BeforeEach;
@@ -71,10 +63,10 @@ class SecretHandlerValidateConnectionTest {
       when(nativeEncryptionService.decrypt(ENCRYPTED_CLIENT_SECRET))
           .thenReturn(AZURE_CLIENT_SECRET);
       when(azureCredentialValidator.validateServicePrincipal(any(), any(), any(), any(), any()))
-          .thenReturn(SecretValidationResult.active());
+          .thenReturn(SecretConnectionResult.active());
 
       // Act
-      SecretValidationResult result = handler.validateConnection(secret);
+      SecretConnectionResult result = handler.validateConnection(secret);
 
       // Assert
       assertThat(result.outcome()).isEqualTo(ACTIVE);
@@ -125,10 +117,10 @@ class SecretHandlerValidateConnectionTest {
       secret.setAzureClientId(AZURE_CLIENT_ID);
       secret.setAzureSubscriptionId(AZURE_SUBSCRIPTION_ID);
       when(azureCredentialValidator.validateManagedIdentity(any(), any(), any()))
-          .thenReturn(SecretValidationResult.active());
+          .thenReturn(SecretConnectionResult.active());
 
       // Act
-      SecretValidationResult result = handler.validateConnection(secret);
+      SecretConnectionResult result = handler.validateConnection(secret);
 
       // Assert
       assertThat(result.outcome()).isEqualTo(ACTIVE);
@@ -144,7 +136,7 @@ class SecretHandlerValidateConnectionTest {
       AzureManagedIdentitySecret secret = new AzureManagedIdentitySecret();
       secret.setAzureEnvironment(AZURE_ENVIRONMENT);
       when(azureCredentialValidator.validateManagedIdentity(any(), any(), any()))
-          .thenReturn(SecretValidationResult.active());
+          .thenReturn(SecretConnectionResult.active());
 
       // Act
       handler.validateConnection(secret);
@@ -180,7 +172,7 @@ class SecretHandlerValidateConnectionTest {
       SecretHandler handler = new HashHandler(null);
 
       // Act
-      SecretValidationResult result = handler.validateConnection(new HashSecret());
+      SecretConnectionResult result = handler.validateConnection(new HashSecret());
 
       // Assert
       assertThat(result.outcome()).isEqualTo(UNSUPPORTED);
@@ -196,7 +188,7 @@ class SecretHandlerValidateConnectionTest {
       SecretHandler handler = new UsernamePasswordHandler(null);
 
       // Act
-      SecretValidationResult result = handler.validateConnection(new UsernamePasswordSecret());
+      SecretConnectionResult result = handler.validateConnection(new UsernamePasswordSecret());
 
       // Assert
       assertThat(result.outcome()).isEqualTo(UNSUPPORTED);

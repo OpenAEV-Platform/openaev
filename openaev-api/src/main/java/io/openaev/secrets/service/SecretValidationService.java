@@ -1,6 +1,6 @@
 package io.openaev.secrets.service;
 
-import static io.openaev.secrets.provider.SecretValidationDetails.*;
+import static io.openaev.secrets.provider.SecretConnectionDetails.*;
 
 import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD;
@@ -8,7 +8,7 @@ import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
 import io.openaev.database.model.SecretReference.SECRET_STATUS;
 import io.openaev.database.repository.SecretReferenceRepository;
-import io.openaev.secrets.provider.SecretValidationResult;
+import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.impl.handlers.SecretHandler;
 import io.openaev.secrets.provider.impl.handlers.SecretHandlerResolver;
 import java.time.Duration;
@@ -116,7 +116,7 @@ public class SecretValidationService {
    * @return the outcome, never null
    */
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
-  public SecretValidationResult validate(SecretValidationCandidate candidate) {
+  public SecretConnectionResult validate(SecretValidationCandidate candidate) {
     Objects.requireNonNull(candidate, "candidate must not be null");
 
     Secret secret = candidate.secret();
@@ -124,7 +124,7 @@ public class SecretValidationService {
       log.warn(
           "Credential validation: reference {} has no resolvable secret, status left untouched",
           candidate.referenceId());
-      return SecretValidationResult.notChecked(SECRET_NOT_FOUND);
+      return SecretConnectionResult.notChecked(SECRET_NOT_FOUND);
     }
 
     Optional<SecretHandler> handler = secretHandlerResolver.findFor(secret);
@@ -133,12 +133,12 @@ public class SecretValidationService {
           "Credential validation: no handler supports secret type {} of reference {}",
           secret.getType(),
           candidate.referenceId());
-      return SecretValidationResult.notChecked(HANDLER_NOT_FOUND);
+      return SecretConnectionResult.notChecked(HANDLER_NOT_FOUND);
     }
 
     try {
-      SecretValidationResult result = handler.get().validateConnection(secret);
-      return result != null ? result : SecretValidationResult.unknown(VALIDATOR_ERROR);
+      SecretConnectionResult result = handler.get().validateConnection(secret);
+      return result != null ? result : SecretConnectionResult.unknown(VALIDATOR_ERROR);
     } catch (RuntimeException e) {
       // Inconclusive, never INACTIVE: an unexpected validator failure says nothing about the
       // credential itself. Message only, no stack payload: provider errors embed identifiers.
@@ -146,7 +146,7 @@ public class SecretValidationService {
           "Credential validation: validator failed for reference {}: {}",
           candidate.referenceId(),
           e.getMessage());
-      return SecretValidationResult.unknown(VALIDATOR_ERROR);
+      return SecretConnectionResult.unknown(VALIDATOR_ERROR);
     }
   }
 
@@ -165,7 +165,7 @@ public class SecretValidationService {
    * @param resultsByReferenceId outcomes keyed by {@code secret_reference_id}
    * @return the number of references actually updated
    */
-  public int persistResults(Map<String, SecretValidationResult> resultsByReferenceId) {
+  public int persistResults(Map<String, SecretConnectionResult> resultsByReferenceId) {
     Objects.requireNonNull(resultsByReferenceId, "resultsByReferenceId must not be null");
     if (resultsByReferenceId.isEmpty()) {
       return 0;
@@ -177,7 +177,7 @@ public class SecretValidationService {
     List<SecretReference> toSave = new ArrayList<>(references.size());
 
     for (SecretReference reference : references) {
-      SecretValidationResult result = resultsByReferenceId.get(reference.getId());
+      SecretConnectionResult result = resultsByReferenceId.get(reference.getId());
       if (result == null || !result.wasChecked()) {
         continue;
       }

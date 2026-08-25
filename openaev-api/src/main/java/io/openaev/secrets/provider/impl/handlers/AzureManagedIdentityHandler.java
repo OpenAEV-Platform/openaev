@@ -1,13 +1,9 @@
 package io.openaev.secrets.provider.impl.handlers;
 
-import io.openaev.database.model.AzureEnvironments;
-import io.openaev.database.model.AzureManagedIdentitySecret;
-import io.openaev.database.model.CredentialSecretReference;
-import io.openaev.database.model.Secret;
-import io.openaev.database.model.SecretReference;
+import io.openaev.database.model.*;
+import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
-import io.openaev.secrets.provider.SecretValidationResult;
 import io.openaev.secrets.provider.impl.validators.AzureCredentialValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -85,7 +81,7 @@ public class AzureManagedIdentityHandler implements SecretHandler {
    * the validator reports an inconclusive result, leaving the stored status untouched.
    */
   @Override
-  public SecretValidationResult validateConnection(Secret secret) {
+  public SecretConnectionResult validateConnection(Secret secret) {
     if (!(secret instanceof AzureManagedIdentitySecret azureSecret)) {
       throw new IllegalArgumentException(
           "Secret type mismatch: expected AZURE_MANAGED_IDENTITY secret");
