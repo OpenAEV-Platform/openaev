@@ -995,7 +995,7 @@ class FindingApiTest extends IntegrationTest {
           .andExpect(
               jsonPath("$.content.[0].finding_type").value(savedFinding.getType().getLabel()))
           // Credentials are sensitive: the API never returns the cleartext value.
-          .andExpect(jsonPath("$.content.[0].finding_value").value("admin:" + MASK))
+          .andExpect(jsonPath("$.content.[0].finding_value").value("ad" + MASK))
           .andExpect(jsonPath("$.content.[0].finding_is_sensitive").value(true));
     }
 
@@ -1213,7 +1213,7 @@ class FindingApiTest extends IntegrationTest {
         // -------- Act & Assert --------
         mvc.perform(get(FINDING_URI + "/" + finding.getId()).with(csrf()))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.finding_value").value("admin:" + MASK))
+            .andExpect(jsonPath("$.finding_value").value("ad" + MASK))
             .andExpect(jsonPath("$.finding_is_sensitive").value(true));
       }
 
@@ -1226,7 +1226,7 @@ class FindingApiTest extends IntegrationTest {
         // -------- Act & Assert --------
         mvc.perform(get(FINDING_URI + "/" + finding.getId() + "/summary").with(csrf()))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.finding_value").value("admin:" + MASK))
+            .andExpect(jsonPath("$.finding_value").value("ad" + MASK))
             .andExpect(jsonPath("$.finding_is_sensitive").value(true));
       }
 

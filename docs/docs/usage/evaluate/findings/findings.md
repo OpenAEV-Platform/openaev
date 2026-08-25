@@ -40,11 +40,12 @@ everywhere the platform returns it (list, detail, Simulation, Scenario, Endpoint
 
 | Sensitive type | Value shape | Redacted as |
 | --- | --- | --- |
-| Credentials | `jdoe:Sup3rS3cret` | `jdoe:******` |
-| Password policy | `MinimumPasswordLength: 8` | `MinimumPasswordLength:******` |
+| Credentials | `jdoe:Sup3rS3cret` | `jd******` |
+| Password policy | `MinimumPasswordLength: 8` | `Mi******` |
 
-The identity part - the account for credentials, the policy setting for password policies - is kept
-so you can still recognise what was discovered; the secret part is never disclosed.
+Every sensitive value is masked the same way: only a two character fragment is kept, so you can
+still tell which Finding is which when you already know the value, without the platform ever
+disclosing it. A value too short to keep a fragment safely is masked entirely.
 
 !!! warning "The secret is not deleted"
 

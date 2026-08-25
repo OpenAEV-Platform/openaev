@@ -35,7 +35,6 @@ public class FindingService {
   /** Mask substituted to the secret part of a sensitive finding value. */
   public static final String MASK = "******";
 
-  private static final char IDENTITY_SEPARATOR = ':';
   private static final int MASKING_VISIBLE_FRAGMENT_LENGTH = 2;
   private static final int MASKING_MIN_LENGTH_FOR_FRAGMENT = 5;
 
@@ -54,15 +53,15 @@ public class FindingService {
    * database row keeps the full cleartext value (it is needed for deduplication, correlation and
    * attack path computation): only the returned representation is masked.
    *
-   * <p>The redaction is partial on purpose, so an operator can still tell WHICH secret was
-   * discovered when the value is already known to them, without the API ever disclosing the secret
-   * itself:
+   * <p>Every sensitive value is masked the same way: a two character fragment is kept so an
+   * operator can still tell WHICH secret was discovered when the value is already known to them,
+   * without the API ever disclosing the secret itself. A value too short to keep a fragment without
+   * disclosing most of it is masked entirely.
    *
    * <ul>
-   *   <li>{@code jdoe:Sup3rS3cret} becomes {@code jdoe:******} - the identity part (before the
-   *       first {@code :}) is kept, the secret part is fully masked
-   *   <li>{@code Sup3rS3cret} becomes {@code Su******} - a two character fragment is kept
-   *   <li>a short value is masked entirely, since a fragment would disclose most of it
+   *   <li>{@code jdoe:Sup3rS3cret} becomes {@code jd******}
+   *   <li>{@code Sup3rS3cret} becomes {@code Su******}
+   *   <li>{@code abcd} becomes {@code ******}
    * </ul>
    *
    * @param value the cleartext finding value
@@ -74,10 +73,6 @@ public class FindingService {
       return value;
     }
 
-    int separatorIndex = value.indexOf(IDENTITY_SEPARATOR);
-    if (separatorIndex > 0 && separatorIndex < value.length() - 1) {
-      return value.substring(0, separatorIndex + 1) + MASK;
-    }
     if (value.length() < MASKING_MIN_LENGTH_FOR_FRAGMENT) {
       return MASK;
     }

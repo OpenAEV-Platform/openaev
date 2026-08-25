@@ -29,28 +29,28 @@ class FindingValueRedactionTest {
   class WhenSensitive {
 
     @Test
-    @DisplayName("Should keep the identity part and mask the secret part")
-    void given_aCredentialShapedValue_should_maskOnlyTheSecretPart() {
+    @DisplayName("Should mask a credential value, identity part included")
+    void given_aCredentialShapedValue_should_maskItWithAFragment() {
       // -------- Act --------
       String redacted = FindingService.redact("admin:Sup3rS3cret", true);
 
       // -------- Assert --------
-      assertThat(redacted).isEqualTo("admin:" + FindingService.MASK);
+      assertThat(redacted).isEqualTo("ad" + FindingService.MASK);
       assertThat(redacted).doesNotContain("Sup3rS3cret");
     }
 
     @Test
-    @DisplayName("Should mask the secret part of a value holding several separators")
-    void given_aValueWithSeveralSeparators_should_maskEverythingAfterTheFirstOne() {
+    @DisplayName("Should mask a password policy value the same way")
+    void given_aPasswordPolicyShapedValue_should_maskItWithAFragment() {
       // -------- Act --------
-      String redacted = FindingService.redact("admin:aad3b435:31d6cfe0", true);
+      String redacted = FindingService.redact("MinimumPasswordLength: 8", true);
 
       // -------- Assert --------
-      assertThat(redacted).isEqualTo("admin:" + FindingService.MASK);
+      assertThat(redacted).isEqualTo("Mi" + FindingService.MASK);
     }
 
     @Test
-    @DisplayName("Should keep a two character fragment of a value without identity part")
+    @DisplayName("Should keep a two character fragment of a value without separator")
     void given_aValueWithoutSeparator_should_keepAFragment() {
       // -------- Act --------
       String redacted = FindingService.redact("Sup3rS3cret", true);
@@ -67,16 +67,6 @@ class FindingValueRedactionTest {
 
       // -------- Assert --------
       assertThat(redacted).isEqualTo(FindingService.MASK);
-    }
-
-    @Test
-    @DisplayName("Should mask a value whose secret part is empty as a whole")
-    void given_aValueEndingWithTheSeparator_should_maskItWithAFragment() {
-      // -------- Act --------
-      String redacted = FindingService.redact("administrator:", true);
-
-      // -------- Assert --------
-      assertThat(redacted).isEqualTo("ad" + FindingService.MASK);
     }
 
     @Test
