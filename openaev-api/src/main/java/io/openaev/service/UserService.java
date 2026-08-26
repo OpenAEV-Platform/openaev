@@ -6,6 +6,10 @@ import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static java.time.Instant.now;
 
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.DefaultOpenAEVPrincipal;
@@ -41,12 +45,14 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
@@ -104,6 +110,7 @@ public class UserService {
   private final RandomUtils randomUtils;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
   private final TenantScopedTransaction tenantTx;
+  private final ObjectProvider<AuditLogger> auditLoggerProvider;
 
   /** Cache for admin users to improve lookup performance. */
   private Cache adminCache;
@@ -493,7 +500,42 @@ public class UserService {
     token.setCreated(now());
     token.setDeletedAt(null);
     token.setValue(discreteToken);
-    return tokenRepository.save(token);
+    Token createdToken = tokenRepository.save(token);
+    logTokenCreated(createdToken);
+    return createdToken;
+  }
+
+  /**
+   * Emits an audit event for a token creation (AC2). Done here — the single choke point for all
+   * token creations — so the event is produced regardless of the calling flow (user creation,
+   * player creation, service account, connector provisioning, token renewal). The endpoint-level
+   * {@code AccessControlAuditLogAspect} cannot cover it: for e.g. player creation it audits the
+   * player, not the token, so the {@code token_id} would never be recorded.
+   */
+  private void logTokenCreated(Token createdToken) {
+    AuditLogger auditLogger = auditLoggerProvider.getIfAvailable();
+    if (auditLogger == null) {
+      return;
+    }
+    User actor = currentUserOrNull();
+    String tokenUserId = createdToken.getUser() != null ? createdToken.getUser().getId() : null;
+    Map<String, Object> contextData = new LinkedHashMap<>();
+    contextData.put("token_id", createdToken.getId());
+    contextData.put("token_user_id", tokenUserId);
+    contextData.put("actor_user_id", actor != null ? actor.getId() : null);
+    contextData.put("timestamp", now());
+
+    auditLogger.logEvent(
+        AuditEvent.builder()
+            .eventType(EventType.MUTATION)
+            .eventScope(AuditEventScope.CREATE)
+            .eventStatus(EventStatus.SUCCESS)
+            .resourceType(ResourceType.TOKEN)
+            .resourceId(createdToken.getId())
+            .contextData(contextData)
+            .message("User token created")
+            .origin(actor != null ? AuditEventOrigin.REQUEST : AuditEventOrigin.SYSTEM)
+            .build());
   }
 
   public Optional<User> findByTokenAndTenantId(
