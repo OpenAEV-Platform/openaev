@@ -1,6 +1,15 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../utils/Action';
+import {
+  delReferential,
+  getReferential,
+  postReferential,
+  putReferential,
+  simpleCall,
+  simpleDelCall,
+  simplePostCall,
+  simplePutCall,
+} from '../utils/Action';
 import type {
   CreateExerciseInput,
   Exercise,
@@ -21,7 +30,6 @@ type AppDispatch = Dispatch;
 
 export const fetchExercises = () => (dispatch: AppDispatch) => getReferential(schema.arrayOfExercises, '/api/exercises')(dispatch);
 
-// The endpoint consumes a GetExercisesInput body ({ exercise_ids: [...] }), not a bare id array.
 export const fetchExercisesById = (getExercisesInput: GetExercisesInput) => (dispatch: AppDispatch) => postReferential(schema.arrayOfExercises, '/api/exercises/search-by-id', getExercisesInput, undefined, false)(dispatch);
 
 export const searchExercises = (paginationInput: SearchPaginationInput) => simplePostCall('/api/exercises/search', paginationInput);

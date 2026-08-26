@@ -1,5 +1,14 @@
 import { FiberManualRecord } from '@mui/icons-material';
-import { Button, Dialog as MuiDialog, DialogActions, DialogContent, DialogContentText, List, ListItem, Typography } from '@mui/material';
+import {
+  Button,
+  Dialog as MuiDialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  List,
+  ListItem,
+  Typography,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
@@ -12,7 +21,15 @@ import { craftedDocumentFilter } from '../../../../components/common/queryable/f
 import Transition from '../../../../components/common/Transition';
 import ContextLink from '../../../../components/ContextLink';
 import { useFormatter } from '../../../../components/i18n';
-import { ATOMIC_BASE_URL, CHALLENGE_BASE_URL, CHANNEL_BASE_URL, PAYLOAD_BASE_URL, SCENARIO_BASE_URL, SECURITY_PLATFORM_BASE_URL, SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
+import {
+  ATOMIC_BASE_URL,
+  CHALLENGE_BASE_URL,
+  CHANNEL_BASE_URL,
+  PAYLOAD_BASE_URL,
+  SCENARIO_BASE_URL,
+  SECURITY_PLATFORM_BASE_URL,
+  SIMULATION_BASE_URL,
+} from '../../../../constants/BaseUrls';
 import { type Document, type DocumentRelationsOutput, type RelatedEntityOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
@@ -50,11 +67,6 @@ interface Props {
   onToggleAttach?: (documentId: string) => void;
   onUpdate?: (document: Document) => void;
   onDelete?: (documentId: string) => void;
-  /**
-   * When set, the document is system-owned (e.g. a report generation output managed by the
-   * Reporting module) and Update/Delete are disabled with this message as tooltip. The backend
-   * enforces the same read-only contract.
-   */
   managedMessage?: string;
 }
 

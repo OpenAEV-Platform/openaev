@@ -111,6 +111,7 @@ const DocumentForm: FunctionComponent<Props> = ({
           display: 'flex',
           float: 'right',
           gap: theme.spacing(1),
+          marginTop: theme.spacing(1),
         }}
         >
           <Button

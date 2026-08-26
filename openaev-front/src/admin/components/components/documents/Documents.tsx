@@ -217,7 +217,10 @@ const Documents = () => {
         topBarButtons={(
           <Box display="flex" gap={1} alignItems="center">
             <ToggleButtonGroup value="fake" exclusive>
-              <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
+              <ExportButton
+                totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
+                exportProps={exportProps}
+              />
             </ToggleButtonGroup>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.DOCUMENTS}>
               <CreateDocument onCreate={handleCreateDocuments} />
@@ -266,8 +269,6 @@ const Documents = () => {
                       document={document}
                       onUpdate={(result: Document) => setDocuments(documents.map(d => (d.document_id !== result.document_id ? d : result)))}
                       onDelete={(result: string) => setDocuments(documents.filter(d => (d.document_id !== result)))}
-                      // Report generation outputs are managed by the Reporting module:
-                      // read-only from this generic documents surface (backend-enforced too).
                       managedMessage={document.document_can_be_updated === false
                         ? 'Generated report files are managed by the Reporting module and are read-only here.'
                         : undefined}

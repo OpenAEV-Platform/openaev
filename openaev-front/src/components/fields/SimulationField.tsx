@@ -30,10 +30,6 @@ interface Props {
   error?: boolean;
   searchOptionsConfig?: SearchOptionsConfig;
   multiple?: boolean;
-  /**
-   * Binds the field to the surrounding react-hook-form context: the form value is
-   * a list of simulation ids. Requires `name` and a `FormProvider` ancestor.
-   */
   useForm?: boolean;
   placeholder?: string;
   name?: string;
