@@ -11,6 +11,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.markings.MarkingDefinitionDependenciesManager;
 import io.openaev.api.markings.MarkingDefinitionService;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
@@ -90,6 +91,7 @@ import io.openaev.service.MailingService;
 import io.openaev.service.MapperService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.SecurityCoverageSendJobService;
+import io.openaev.service.TenantGroupService;
 import io.openaev.service.attackpath.AttackPathCausalSeedService;
 import io.openaev.service.attackpath.AttackPathDeltaService;
 import io.openaev.service.attackpath.AttackPathGraphService;
@@ -583,7 +585,33 @@ class TenantActiveTableAccessArchTest {
               // Seeds the default TLP/PAP scales at tenant creation. It writes rows for the tenant
               // being created and never reads, so it needs no read scope; the tenant is set
               // explicitly on every entity rather than inferred from a scope:
-              MarkingDefinitionDependenciesManager.class)
+              MarkingDefinitionDependenciesManager.class,
+              // Background primitive: reads the tenant's markings to assign the system clearance a
+              // background transaction runs at (all markings of the tenants in scope — a scheduler
+              // is not a user). Scoped, and in the strongest sense the rule asks for: the read
+              // happens INSIDE the transaction and AFTER setScope() has written
+              // app.current_tenants, so the inspector rewrites it with can_access_tenant, and the
+              // query additionally binds the same tenant ids explicitly. Cannot deadlock against
+              // its own dimension either: marking_definitions is deliberately NOT on
+              // openaev.marking.active-tables (design Q13 — the clearance source must not itself
+              // require a clearance), so no marking predicate applies to this read while the
+              // marking scope is still being computed. Pinned by
+              // TenantScopedTransactionMarkingScopeTest:
+              TenantScopedTransaction.class,
+              // Resolves the markings a group is being told to grant. Runs on the HTTP path inside
+              // a @Transactional method that takes a TxCtx, so app.current_tenants is already set
+              // and the inspector rewrites the read with can_access_tenant: a marking id belonging
+              // to another tenant does not come back, and the size mismatch becomes a 404 rather
+              // than a silent partial assignment.
+              //
+              // 🔴 The inspector is NOT relied on alone here, and the reason is worth knowing: it
+              // can only rewrite a query that is actually issued, so an entity already in the
+              // persistence context is served from Hibernate's first-level cache and never
+              // filtered (TenantGroupMarkingsApiTest demonstrates exactly this). The independent
+              // guarantee is MarkingEscalationValidator — a clearance is per tenant, so nobody
+              // holds another tenant's marking and the assignment is refused regardless. Pinned by
+              // TenantGroupMarkingsApiTest:
+              TenantGroupService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(MarkingDefinitionRepository.class)
