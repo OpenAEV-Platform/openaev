@@ -168,6 +168,38 @@ class UserServiceTest extends IntegrationTest {
         .doesNotContain(tenantGroup.getId());
   }
 
+  @Test
+  @DisplayName("given_alreadyAttachedTenant_should_notAssignAutoAssignGroupsOnUpdate")
+  void given_alreadyAttachedTenant_should_notAssignAutoAssignGroupsOnUpdate() {
+    // -- ARRANGE --
+    Tenant tenant =
+        tenantComposer.forTenant(TenantFixture.getTenant("auto-assign-unchanged")).persist().get();
+    UserInput input =
+        getUserInputWithTenants(
+            "auto-assign-unchanged@test.invalid",
+            "Auto",
+            "Unchanged",
+            "secureP@ss1",
+            List.of(tenant.getId()));
+    User created = userService.createUser(input);
+    entityManager.flush();
+    entityManager.clear();
+    // The auto-assign group only appears after the user already belongs to the tenant.
+    Group lateGroup = autoAssignGroup("tenant-auto-assign-late", tenant);
+
+    // -- ACT --
+    // Updating the user without changing his tenants must not trigger any auto-assignment.
+    userService.updateUser(created.getId(), input);
+
+    // -- ASSERT --
+    entityManager.flush();
+    entityManager.clear();
+    User reloaded = userService.user(created.getId());
+    assertThat(reloaded.getUnscopedGroups())
+        .extracting(Group::getId)
+        .doesNotContain(lateGroup.getId());
+  }
+
   private Group autoAssignGroup(String name, Tenant tenant) {
     Group group = new Group();
     group.setName(name);
