@@ -62,7 +62,7 @@ public class SecurityExpressionHandler extends DefaultMethodSecurityExpressionHa
 
   @Override
   public EvaluationContext createEvaluationContext(
-      Supplier<Authentication> authentication, MethodInvocation invocation) {
+      Supplier<? extends Authentication> authentication, MethodInvocation invocation) {
     StandardEvaluationContext context =
         (StandardEvaluationContext) super.createEvaluationContext(authentication, invocation);
     MethodSecurityExpressionOperations delegate =
