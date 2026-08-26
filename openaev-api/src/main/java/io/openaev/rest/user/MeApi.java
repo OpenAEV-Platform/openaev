@@ -145,7 +145,7 @@ public class MeApi extends RestBehavior {
 
     Instant renewedAt = Instant.now();
     token.setDeletedAt(renewedAt);
-    token.setValue(renewedPlaceholderFor(token));
+    token.setValue("[RENEWED:%s]".formatted(token.getId()));
     tokenRepository.save(token);
 
     return userService.createUserToken(user);
@@ -165,9 +165,5 @@ public class MeApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   public List<Token> tokens() {
     return tokenRepository.findAll(fromUser(currentUser().getId()).and(active()));
-  }
-
-  private String renewedPlaceholderFor(Token token) {
-    return "[RENEWED:%s]".formatted(token.getId());
   }
 }
