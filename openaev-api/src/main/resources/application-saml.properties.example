@@ -1,34 +1,16 @@
-# =============================================================================
-# OpenAEV SAML2 SSO Profile (Spring profile: saml)
-# =============================================================================
-# Copy this file to application-saml.properties to exercise the SAML2 login flow
-# locally, against the public Mock SAML identity provider (https://mocksaml.com).
+# SAML2 SSO against Mock SAML (https://mocksaml.com), to test the login flow locally.
+# Copy to application-saml.properties, then activate with --spring.profiles.active=dev,saml
 #
-# Activate it after the dev profile: --spring.profiles.active=dev,saml
+# Log in on http://localhost:8080/saml2/authenticate/mocksaml with any @example.com or
+# @example.org address and any password: Mock SAML answers 403 for every other domain.
 #
-#   1. open http://localhost:8080/saml2/authenticate/mocksaml
-#   2. log in with any address ending in @example.com or @example.org, any password.
-#      Mock SAML answers 403 for every other domain.
-#
-# Nothing has to be declared on the provider side: Mock SAML reads the audience and the
-# assertion consumer service URL from the authentication request it receives. The service
-# provider metadata stays available on /saml2/service-provider-metadata/mocksaml.
-#
-# To run offline, start the same provider locally and point metadata-uri at it:
-#   docker run -p 4000:4000 boxyhq/mock-saml
-#   http://localhost:4000/api/saml/metadata
-#
-# The entity id and the assertion consumer service URL are left at their defaults,
-# {baseUrl}/saml2/service-provider-metadata/{registrationId} and
-# {baseUrl}/login/saml2/sso/{registrationId}, where {baseUrl} is resolved from the incoming
-# request. They follow whichever host the browser uses, so nothing to set here.
-# openaev.base-url is unrelated: it only drives where the platform redirects after login.
+# Offline: docker run -p 4000:4000 boxyhq/mock-saml, then point metadata-uri at
+# http://localhost:4000/api/saml/metadata
 
 openaev.auth-saml2-enable=true
 
 spring.security.saml2.relyingparty.registration.mocksaml.assertingparty.metadata-uri=https://mocksaml.com/api/saml/metadata
 
-# Mock SAML releases the fields of its user object as attributes: id, email, firstName, lastName.
-# The NameID carries the email, which is what the platform keys the account on.
+# Mock SAML releases id, email, firstName and lastName; the NameID carries the email.
 openaev.provider.mocksaml.firstname_attribute_key=firstName
 openaev.provider.mocksaml.lastname_attribute_key=lastName

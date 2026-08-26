@@ -76,7 +76,7 @@ public class OpenSamlConfig {
                             this.auditLogger.orElse(null), this.sessionManager)));
   }
 
-  // -- PRIVATE --
+  // -- PROTECTED --
 
   OpenSaml5AuthenticationProvider getOpenSaml5AuthenticationProvider() {
     OpenSaml5AuthenticationProvider authenticationProvider = new OpenSaml5AuthenticationProvider();
@@ -90,7 +90,6 @@ public class OpenSamlConfig {
     return authenticationProvider;
   }
 
-  // package-private for OpenSamlConfigTest
   Saml2Authentication saml2UserManagement(@NotNull final Saml2Authentication authentication) {
     Saml2AuthenticatedPrincipal user = (Saml2AuthenticatedPrincipal) authentication.getPrincipal();
     User loginUser = userSaml2Management(user);

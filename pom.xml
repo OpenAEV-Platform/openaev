@@ -141,8 +141,6 @@
                 <artifactId>velocity-engine-core</artifactId>
                 <version>${velocity-engine-core.version}</version>
             </dependency>
-            <!-- Spring Security 6.5 ships OpenSAML 4.3.2 but supports OpenSAML 5 through its OpenSaml5* classes.
-                 Force the 5.x line: 4.3.2 is unmaintained and Spring Security 7 drops OpenSAML 4 support entirely. -->
             <dependency>
                 <groupId>org.opensaml</groupId>
                 <artifactId>opensaml-saml-api</artifactId>
