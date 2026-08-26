@@ -543,8 +543,7 @@ const ThreatArsenal = () => {
                   <Box sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 0.5,
-                    marginRight: 2,
+                    gap: 1,
                   }}
                   >
                     <FormControlLabel

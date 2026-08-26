@@ -40,11 +40,12 @@ const ThreatArsenalSortSelect: FunctionComponent<Props> = ({ sortHelpers }) => {
   };
 
   return (
+    // The toolbar row it sits in already puts 8px between its children, and the
+    // same 8px between this control's own parts.
     <Box sx={{
       display: 'flex',
       alignItems: 'center',
-      gap: 0.5,
-      marginLeft: 1.25,
+      gap: 1,
     }}
     >
       <Select

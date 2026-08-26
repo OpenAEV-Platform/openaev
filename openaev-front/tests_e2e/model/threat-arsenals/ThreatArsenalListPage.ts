@@ -8,6 +8,8 @@ class ThreatArsenalListPage {
   readonly gridViewButton: Locator;
   readonly listViewButton: Locator;
   readonly paginationRow: Locator;
+  readonly filterField: Locator;
+  readonly clearFiltersButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -19,10 +21,26 @@ class ThreatArsenalListPage {
     this.gridViewButton = page.getByRole('button', { name: 'Grid view' });
     this.listViewButton = page.getByRole('button', { name: 'List view' });
     this.paginationRow = page.locator('.MuiTablePagination-root');
+    this.filterField = page.getByPlaceholder('Add filter');
+    this.clearFiltersButton = page.getByRole('button', { name: 'Clear filters' });
+  }
+
+  async addFirstAvailableFilter() {
+    await this.filterField.click();
+    await this.page.getByRole('option').first().click();
+  }
+
+  async clearFilters() {
+    await this.clearFiltersButton.click();
   }
 
   async switchToGridView() {
     await this.gridViewButton.click();
+  }
+
+  /** Keeps the branch out of the tests, which read better without one. */
+  async switchToView(view: 'grid' | 'list') {
+    await (view === 'grid' ? this.gridViewButton : this.listViewButton).click();
   }
 
   async switchToListView() {
