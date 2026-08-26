@@ -39,6 +39,7 @@
         <!-- Override Spring Boot BOM: httpcore5-h2 HTTP/2 HPACK DoS CVE-2026-54428 -->
         <httpcore5.version>5.4.3</httpcore5.version>
         <velocity-engine-core.version>2.4.1</velocity-engine-core.version>
+        <opensaml.version>5.2.3</opensaml.version>
         <logback.version>1.6.3</logback.version>
         <log4j2.version>2.25.5</log4j2.version>
         <httpclient5.version>5.6.4</httpclient5.version>
@@ -71,7 +72,7 @@
                 <enabled>false</enabled>
             </snapshots>
         </repository>
-        <!-- OpenSAML (org.opensaml:opensaml-saml-impl) is only published here, not on Central -->
+        <!-- The org.opensaml and net.shibboleth artifacts are only published here, not on Central -->
         <repository>
             <id>shibboleth-releases</id>
             <name>Shibboleth Releases</name>
@@ -139,6 +140,16 @@
                 <groupId>org.apache.velocity</groupId>
                 <artifactId>velocity-engine-core</artifactId>
                 <version>${velocity-engine-core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.opensaml</groupId>
+                <artifactId>opensaml-saml-api</artifactId>
+                <version>${opensaml.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.opensaml</groupId>
+                <artifactId>opensaml-saml-impl</artifactId>
+                <version>${opensaml.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.opentelemetry</groupId>
