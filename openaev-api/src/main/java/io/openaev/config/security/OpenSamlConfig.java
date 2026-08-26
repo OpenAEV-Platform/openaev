@@ -78,7 +78,7 @@ public class OpenSamlConfig {
 
   // -- PRIVATE --
 
-  private OpenSaml5AuthenticationProvider getOpenSaml5AuthenticationProvider() {
+  OpenSaml5AuthenticationProvider getOpenSaml5AuthenticationProvider() {
     OpenSaml5AuthenticationProvider authenticationProvider = new OpenSaml5AuthenticationProvider();
     authenticationProvider.setResponseAuthenticationConverter(
         responseToken -> {
