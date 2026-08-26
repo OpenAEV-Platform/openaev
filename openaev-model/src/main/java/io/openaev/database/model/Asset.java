@@ -12,6 +12,7 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.DomainConstraint;
 import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.AuditLogIgnore;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
@@ -310,6 +311,7 @@ public class Asset implements TenantBase {
   @Enumerated(EnumType.STRING)
   @JsonProperty("asset_status")
   @Schema(description = "Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS)")
+  @AuditLogIgnore
   private ASSET_ACTIVITY_STATUS activityStatus;
 
   @ManyToOne
