@@ -72,7 +72,7 @@
                 <enabled>false</enabled>
             </snapshots>
         </repository>
-        <!-- OpenSAML (org.opensaml:opensaml-saml-impl) is only published here, not on Central -->
+        <!-- The org.opensaml and net.shibboleth artifacts are only published here, not on Central -->
         <repository>
             <id>shibboleth-releases</id>
             <name>Shibboleth Releases</name>
