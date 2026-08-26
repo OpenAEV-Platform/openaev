@@ -11,6 +11,10 @@ openaev.auth-saml2-enable=true
 
 spring.security.saml2.relyingparty.registration.mocksaml.assertingparty.metadata-uri=https://mocksaml.com/api/saml/metadata
 
+# Mock SAML advertises WantAuthnRequestsSigned, but does not verify the signature. Without this,
+# startup fails on "Signing credentials must not be empty" since no service provider key is configured.
+spring.security.saml2.relyingparty.registration.mocksaml.assertingparty.singlesignon.sign-request=false
+
 # Mock SAML releases id, email, firstName and lastName; the NameID carries the email.
 openaev.provider.mocksaml.firstname_attribute_key=firstName
 openaev.provider.mocksaml.lastname_attribute_key=lastName
