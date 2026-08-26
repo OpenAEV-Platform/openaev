@@ -255,7 +255,7 @@ public class CredentialService {
                     null),
                 new CredentialContractOutput.CredentialContractField(
                     "azure_tenant_id",
-                    CredentialContractOutput.CredentialContractFieldType.password,
+                    CredentialContractOutput.CredentialContractFieldType.text,
                     true,
                     null,
                     null,
@@ -264,7 +264,7 @@ public class CredentialService {
                     null),
                 new CredentialContractOutput.CredentialContractField(
                     "azure_subscription_id",
-                    CredentialContractOutput.CredentialContractFieldType.password,
+                    CredentialContractOutput.CredentialContractFieldType.text,
                     false,
                     null,
                     null,
@@ -295,7 +295,7 @@ public class CredentialService {
                     null),
                 new CredentialContractOutput.CredentialContractField(
                     "azure_subscription_id",
-                    CredentialContractOutput.CredentialContractFieldType.password,
+                    CredentialContractOutput.CredentialContractFieldType.text,
                     false,
                     null,
                     null,

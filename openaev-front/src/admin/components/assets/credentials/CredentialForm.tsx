@@ -22,7 +22,7 @@ import type {
   EnhancedContractElement,
 } from '../../../../utils/api-types-custom';
 import InjectContentFieldComponent from '../../common/injects/form/InjectContentFieldComponent';
-import {humanizeEnum} from "../asset-categories";
+import { humanizeEnum } from '../asset-categories';
 
 interface Props {
   onSubmit: SubmitHandler<CredentialInput>;
@@ -55,7 +55,7 @@ const CredentialForm: FunctionComponent<Props> = ({
 
   const matchesCondition = (
     values: CredentialFormValues,
-    conditionField?: keyof CredentialInput,
+    conditionField?: string,
     conditionValue?: string,
   ): boolean => {
     if (!conditionField || !conditionValue) {
@@ -89,12 +89,12 @@ const CredentialForm: FunctionComponent<Props> = ({
           .filter((field: CredentialContractField) => {
             const isVisible = !field.visible_condition_field || matchesCondition(
               values,
-              field.visible_condition_field as keyof CredentialInput,
+              field.visible_condition_field,
               field.visible_condition_value,
             );
             const isRequired = field.required || matchesCondition(
               values,
-              field.mandatory_condition_field as keyof CredentialInput,
+              field.mandatory_condition_field,
               field.mandatory_condition_value,
             );
             return isVisible && isRequired;
@@ -198,7 +198,7 @@ const CredentialForm: FunctionComponent<Props> = ({
   });
 
   const currentFormValues = useMemo(
-    () => getValues() as Record<string, unknown>,
+    () => getValues(),
     [getValues, watchedConditionValues],
   );
 
