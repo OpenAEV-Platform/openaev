@@ -11,7 +11,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
-import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.stream.StreamSupport;
@@ -24,7 +23,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class InjectorContractContentUtils {
 
-  @Resource protected ObjectMapper mapper;
+  private final ObjectMapper mapper;
 
   public static final String OUTPUTS = "outputs";
   public static final String FIELDS = "fields";
@@ -109,7 +108,7 @@ public class InjectorContractContentUtils {
     if (convertedContent.has(FIELDS) && convertedContent.get(FIELDS).isArray()) {
       ArrayNode fieldsArray = (ArrayNode) convertedContent.get(FIELDS);
       ArrayNode fieldsNode = fieldsArray.deepCopy();
-      ObjectNode injectContent = new ObjectMapper().createObjectNode();
+      ObjectNode injectContent = mapper.createObjectNode();
 
       for (JsonNode field : fieldsNode) {
         String key = field.get(CONTRACT_ELEMENT_CONTENT_KEY).asText();
@@ -257,7 +256,6 @@ public class InjectorContractContentUtils {
     }
 
     try {
-      ObjectMapper mapper = new ObjectMapper();
       ObjectNode objectNode = (ObjectNode) mapper.readTree(injectorContract.getContent());
 
       return objectNode.get("fields") != null
