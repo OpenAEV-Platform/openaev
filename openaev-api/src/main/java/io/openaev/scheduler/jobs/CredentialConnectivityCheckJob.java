@@ -20,37 +20,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * Re-checks stored credentials against their provider and records the outcome on {@code
- * secret_references}, so the UI can tell an operator that a service principal was revoked before a
- * simulation fails on it.
- *
- * <p>Runs per tenant, in three phases, and this ordering is the reason the job exists rather than a
- * plain {@code @Transactional} service method:
- *
- * <ol>
- *   <li>read the due references AND their secrets, in a scoped transaction;
- *   <li>call the providers with NO transaction open — one remote call per credential would
- *       otherwise pin a pooled DB connection for its whole duration;
- *   <li>write the outcomes back, in a second scoped transaction.
- * </ol>
- *
- * <p>{@code TenantScopedTransaction#forEachTenant} cannot drive this: it wraps the whole per-tenant
- * work in ONE transaction, which is exactly what phase 2 must escape. The loop is therefore open
- * coded over {@link TenantService#findActiveTenantIds()} — the same registry {@code forEachTenant}
- * reads — while keeping its failure semantics: one tenant's failure is logged and the others still
- * run.
- *
- * <p>No {@code TenantContext.setCurrentTenant(...)} here, deliberately. That v1 bridge is needed
- * when a job touches a table still carrying {@code @Filter("tenantFilter")}, or inserts rows a
- * {@code TenantBaseListener} must stamp. Neither applies: {@code secrets} and {@code
- * secret_references} are both fully v2 (inspector + {@code can_access_tenant}), and the job only
- * UPDATES pre-existing rows — it never inserts, so no listener needs the thread-local.
+ * Re-checks stored credentials against their provider and records the outcome, so the UI can warn
+ * an operator before a simulation fails on a revoked credential.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 @DisallowConcurrentExecution
-public class CredentialsStatusValidatorJob implements Job {
+public class CredentialConnectivityCheckJob implements Job {
 
   public static final String CREDENTIALS_STATUS_VALIDATOR_JOB = "credentialsStatusValidatorJob";
   public static final String CREDENTIALS_STATUS_VALIDATOR_TRIGGER =

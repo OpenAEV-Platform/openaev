@@ -12,7 +12,7 @@ import com.azure.core.management.AzureEnvironment;
  * lets {@code AzureCredentialValidator} be tested against a stub for every branch — success,
  * rejection, timeout, throttling — without an Azure tenant.
  */
-public interface AzureTokenCredentialFactory {
+public interface AzureCredentialConnectivityCheckFactory {
 
   /**
    * Builds a credential for an application (service principal) authenticating with a client secret.

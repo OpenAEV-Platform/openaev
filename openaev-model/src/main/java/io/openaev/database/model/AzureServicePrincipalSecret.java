@@ -35,12 +35,12 @@ public class AzureServicePrincipalSecret extends Secret {
   private String azureClientSecret;
 
   @Column(name = "secret_azure_tenant_id")
-  @JsonIgnore
+  @JsonProperty("secret_azure_tenant_id")
   @NotNull
   private String azureTenantId;
 
   @Column(name = "secret_azure_subscription_id")
-  @JsonIgnore
+  @JsonProperty("secret_azure_subscription_id")
   private String azureSubscriptionId;
 
   @Column(name = "secret_azure_environment")

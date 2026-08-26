@@ -637,8 +637,7 @@ class CredentialApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("given_azureCredential_should_returnNonSensitiveFieldsOnly")
-    void given_azureCredential_should_returnNonSensitiveFieldsOnly() throws Exception {
-      // Arrange
+    void given_azureCredential_should_returnNonSensitiveFieldsOnly() throws Exception { // Arrange
       Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-get");
       String credentialId =
           JsonPath.read(
@@ -664,12 +663,15 @@ class CredentialApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
 
-      // Assert: the form needs those two to prefill, they are not sensitive
+      // Assert: those identifiers are not credentials, the form needs them to prefill
       assertThatJson(response).node("credential_azure_environment").isEqualTo(AZURE_ENVIRONMENT);
       assertThatJson(response).node("credential_azure_client_id").isEqualTo(AZURE_CLIENT_ID);
-      // Sensitive values must never travel back to the client, even encrypted
-      assertThat(response)
-          .doesNotContain(AZURE_CLIENT_SECRET, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID);
+      assertThatJson(response).node("credential_azure_tenant_id").isEqualTo(AZURE_TENANT_ID);
+      assertThatJson(response)
+          .node("credential_azure_subscription_id")
+          .isEqualTo(AZURE_SUBSCRIPTION_ID);
+      // The client secret must never travel back to the client, even encrypted
+      assertThat(response).doesNotContain(AZURE_CLIENT_SECRET);
     }
   }
 

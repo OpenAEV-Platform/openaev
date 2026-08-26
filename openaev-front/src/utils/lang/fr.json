@@ -688,6 +688,7 @@
   "Cloud IAM enumeration collector missing": "Collecteur d'enumeration IAM cloud manquant",
   "Cloud provider": "Cloud provider",
   "CLOUD_AWS": "Cloud AWS",
+  "CLOUD_AZURE": "Azure Cloud",
   "Cloud_other": "Other",
   "Cloud_resource": "Cloud resource",
   "Cluster (+N, dashed) — click to expand": "Cluster (+N, dashed) — click to expand",

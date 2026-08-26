@@ -2,7 +2,6 @@ package io.openaev.database.model;
 
 import static io.openaev.database.model.Secret.SECRET_TYPE.AZURE_MANAGED_IDENTITY_VALUE;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.Column;
@@ -29,7 +28,7 @@ public class AzureManagedIdentitySecret extends Secret {
   private String azureClientId;
 
   @Column(name = "secret_azure_subscription_id")
-  @JsonIgnore
+  @JsonProperty("secret_azure_subscription_id")
   private String azureSubscriptionId;
 
   @Column(name = "secret_azure_environment")

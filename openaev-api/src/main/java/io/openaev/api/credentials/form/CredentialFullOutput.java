@@ -57,4 +57,8 @@ public record CredentialFullOutput(
     @Schema(description = "Azure environment") @JsonProperty("credential_azure_environment")
         String azureEnvironment,
     @Schema(description = "Azure client id") @JsonProperty("credential_azure_client_id")
-        String azureClientId) {}
+        String azureClientId,
+    @Schema(description = "Azure tenant id") @JsonProperty("credential_azure_tenant_id")
+        String azureTenantId,
+    @Schema(description = "Azure subscription id") @JsonProperty("credential_azure_subscription_id")
+        String azureSubscriptionId) {}

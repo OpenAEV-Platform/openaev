@@ -13,7 +13,7 @@ import io.openaev.database.model.AzureServicePrincipalSecret;
 import io.openaev.database.model.HashSecret;
 import io.openaev.database.model.UsernamePasswordSecret;
 import io.openaev.secrets.provider.SecretConnectionResult;
-import io.openaev.secrets.provider.impl.validators.AzureCredentialValidator;
+import io.openaev.secrets.provider.impl.validators.AzureCredentialConnectivityCheck;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,14 +40,16 @@ class SecretHandlerValidateConnectionTest {
   @DisplayName("Azure service principal handler")
   class AzureServicePrincipal {
 
-    @Mock private AzureCredentialValidator azureCredentialValidator;
+    @Mock private AzureCredentialConnectivityCheck azureCredentialConnectivityCheck;
     @Mock private NativeEncryptionService nativeEncryptionService;
 
     private AzureServicePrincipalHandler handler;
 
     @BeforeEach
     void setUp() {
-      handler = new AzureServicePrincipalHandler(nativeEncryptionService, azureCredentialValidator);
+      handler =
+          new AzureServicePrincipalHandler(
+              nativeEncryptionService, azureCredentialConnectivityCheck);
     }
 
     @Test
@@ -62,7 +64,8 @@ class SecretHandlerValidateConnectionTest {
       secret.setAzureSubscriptionId(AZURE_SUBSCRIPTION_ID);
       when(nativeEncryptionService.decrypt(ENCRYPTED_CLIENT_SECRET))
           .thenReturn(AZURE_CLIENT_SECRET);
-      when(azureCredentialValidator.validateServicePrincipal(any(), any(), any(), any(), any()))
+      when(azureCredentialConnectivityCheck.validateServicePrincipal(
+              any(), any(), any(), any(), any()))
           .thenReturn(SecretConnectionResult.active());
 
       // Act
@@ -71,7 +74,7 @@ class SecretHandlerValidateConnectionTest {
       // Assert
       assertThat(result.outcome()).isEqualTo(ACTIVE);
       verify(nativeEncryptionService).decrypt(ENCRYPTED_CLIENT_SECRET);
-      verify(azureCredentialValidator)
+      verify(azureCredentialConnectivityCheck)
           .validateServicePrincipal(
               eq(AZURE_ENVIRONMENT),
               eq(AZURE_TENANT_ID),
@@ -91,7 +94,7 @@ class SecretHandlerValidateConnectionTest {
       assertThatThrownBy(() -> handler.validateConnection(wrongType))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("AZURE_SERVICE_PRINCIPAL");
-      verifyNoInteractions(azureCredentialValidator);
+      verifyNoInteractions(azureCredentialConnectivityCheck);
     }
   }
 
@@ -99,13 +102,13 @@ class SecretHandlerValidateConnectionTest {
   @DisplayName("Azure managed identity handler")
   class AzureManagedIdentity {
 
-    @Mock private AzureCredentialValidator azureCredentialValidator;
+    @Mock private AzureCredentialConnectivityCheck azureCredentialConnectivityCheck;
 
     private AzureManagedIdentityHandler handler;
 
     @BeforeEach
     void setUp() {
-      handler = new AzureManagedIdentityHandler(azureCredentialValidator);
+      handler = new AzureManagedIdentityHandler(azureCredentialConnectivityCheck);
     }
 
     @Test
@@ -116,7 +119,7 @@ class SecretHandlerValidateConnectionTest {
       secret.setAzureEnvironment(AZURE_ENVIRONMENT);
       secret.setAzureClientId(AZURE_CLIENT_ID);
       secret.setAzureSubscriptionId(AZURE_SUBSCRIPTION_ID);
-      when(azureCredentialValidator.validateManagedIdentity(any(), any(), any()))
+      when(azureCredentialConnectivityCheck.validateManagedIdentity(any(), any(), any()))
           .thenReturn(SecretConnectionResult.active());
 
       // Act
@@ -124,7 +127,7 @@ class SecretHandlerValidateConnectionTest {
 
       // Assert
       assertThat(result.outcome()).isEqualTo(ACTIVE);
-      verify(azureCredentialValidator)
+      verify(azureCredentialConnectivityCheck)
           .validateManagedIdentity(
               eq(AZURE_ENVIRONMENT), eq(AZURE_CLIENT_ID), eq(AZURE_SUBSCRIPTION_ID));
     }
@@ -135,14 +138,14 @@ class SecretHandlerValidateConnectionTest {
       // Arrange — no client id and no subscription is the system-assigned shape.
       AzureManagedIdentitySecret secret = new AzureManagedIdentitySecret();
       secret.setAzureEnvironment(AZURE_ENVIRONMENT);
-      when(azureCredentialValidator.validateManagedIdentity(any(), any(), any()))
+      when(azureCredentialConnectivityCheck.validateManagedIdentity(any(), any(), any()))
           .thenReturn(SecretConnectionResult.active());
 
       // Act
       handler.validateConnection(secret);
 
       // Assert
-      verify(azureCredentialValidator)
+      verify(azureCredentialConnectivityCheck)
           .validateManagedIdentity(eq(AZURE_ENVIRONMENT), isNull(), isNull());
     }
 
@@ -156,7 +159,7 @@ class SecretHandlerValidateConnectionTest {
       assertThatThrownBy(() -> handler.validateConnection(wrongType))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("AZURE_MANAGED_IDENTITY");
-      verifyNoInteractions(azureCredentialValidator);
+      verifyNoInteractions(azureCredentialConnectivityCheck);
     }
   }
 

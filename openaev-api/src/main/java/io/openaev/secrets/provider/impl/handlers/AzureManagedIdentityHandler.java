@@ -4,22 +4,16 @@ import io.openaev.database.model.*;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
-import io.openaev.secrets.provider.impl.validators.AzureCredentialValidator;
+import io.openaev.secrets.provider.impl.validators.AzureCredentialConnectivityCheck;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * Handles Azure managed identity secrets.
- *
- * <p>Unlike the other cloud handlers, this one holds no encrypted value: Azure creates and rotates
- * the credentials of a managed identity itself, so only the cloud to target and the identity to
- * assume are stored.
- */
+/** Handles Azure managed identity secrets. */
 @Component
 @RequiredArgsConstructor
 public class AzureManagedIdentityHandler implements SecretHandler {
 
-  private final AzureCredentialValidator azureCredentialValidator;
+  private final AzureCredentialConnectivityCheck azureCredentialConnectivityCheck;
 
   @Override
   public boolean supports(Secret secret) {
@@ -68,7 +62,8 @@ public class AzureManagedIdentityHandler implements SecretHandler {
     if (secret instanceof AzureManagedIdentitySecret azureManagedIdentitySecret) {
       return SecretMetadata.forAzureManagedIdentity(
           azureManagedIdentitySecret.getAzureEnvironment(),
-          azureManagedIdentitySecret.getAzureClientId());
+          azureManagedIdentitySecret.getAzureClientId(),
+          azureManagedIdentitySecret.getAzureSubscriptionId());
     }
     throw new IllegalArgumentException(
         "Secret type mismatch: expected AZURE_MANAGED_IDENTITY secret");
@@ -86,7 +81,7 @@ public class AzureManagedIdentityHandler implements SecretHandler {
       throw new IllegalArgumentException(
           "Secret type mismatch: expected AZURE_MANAGED_IDENTITY secret");
     }
-    return azureCredentialValidator.validateManagedIdentity(
+    return azureCredentialConnectivityCheck.validateManagedIdentity(
         azureSecret.getAzureEnvironment(),
         azureSecret.getAzureClientId(),
         azureSecret.getAzureSubscriptionId());

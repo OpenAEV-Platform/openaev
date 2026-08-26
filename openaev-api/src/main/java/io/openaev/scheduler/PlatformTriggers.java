@@ -1,6 +1,6 @@
 package io.openaev.scheduler;
 
-import static io.openaev.scheduler.jobs.CredentialsStatusValidatorJob.CREDENTIALS_STATUS_VALIDATOR_TRIGGER;
+import static io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.CREDENTIALS_STATUS_VALIDATOR_TRIGGER;
 import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_TRIGGER;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_TRIGGER;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_TRIGGER;

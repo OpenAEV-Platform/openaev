@@ -454,8 +454,9 @@ class AzureServicePrincipalHandlerTest extends IntegrationTest {
   class ToMetadata {
 
     @Test
-    @DisplayName("Given an Azure service principal secret, should expose environment and client id")
-    void given_azureServicePrincipalSecret_should_exposeEnvironmentAndClientIdOnly() {
+    @DisplayName(
+        "Given an Azure service principal secret, should expose all non-sensitive identifiers")
+    void given_azureServicePrincipalSecret_should_exposeNonSensitiveIdentifiers() {
       // Arrange
       AzureServicePrincipalSecret secret =
           (AzureServicePrincipalSecret)
@@ -467,6 +468,8 @@ class AzureServicePrincipalHandlerTest extends IntegrationTest {
       // Assert
       assertThat(metadata.azureEnvironment()).isEqualTo(AZURE_ENVIRONMENT);
       assertThat(metadata.azureClientId()).isEqualTo(AZURE_CLIENT_ID);
+      assertThat(metadata.azureTenantId()).isEqualTo(AZURE_TENANT_ID);
+      assertThat(metadata.azureSubscriptionId()).isEqualTo(AZURE_SUBSCRIPTION_ID);
       assertThat(metadata.username()).isNull();
       assertThat(metadata.hashAlgorithm()).isNull();
       assertThat(metadata.awsDefaultRegion()).isNull();
@@ -477,7 +480,7 @@ class AzureServicePrincipalHandlerTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Given an Azure service principal secret, should never expose sensitive values")
+    @DisplayName("Given an Azure service principal secret, should never expose the client secret")
     void given_azureServicePrincipalSecret_should_notExposeSensitiveValues() {
       // Arrange
       AzureServicePrincipalSecret secret =
@@ -490,9 +493,7 @@ class AzureServicePrincipalHandlerTest extends IntegrationTest {
       // Assert
       assertThat(metadata.toString())
           .doesNotContain(AZURE_CLIENT_SECRET)
-          .doesNotContain(secret.getAzureClientSecret())
-          .doesNotContain(AZURE_TENANT_ID)
-          .doesNotContain(AZURE_SUBSCRIPTION_ID);
+          .doesNotContain(secret.getAzureClientSecret());
     }
 
     @Test

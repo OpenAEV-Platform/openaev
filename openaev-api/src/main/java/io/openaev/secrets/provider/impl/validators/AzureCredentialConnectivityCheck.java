@@ -44,7 +44,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class AzureCredentialValidator {
+public class AzureCredentialConnectivityCheck {
 
   /** ARM's OAuth scope suffix: a token for the whole resource manager, no narrower grant. */
   private static final String DEFAULT_SCOPE_SUFFIX = ".default";
@@ -54,7 +54,7 @@ public class AzureCredentialValidator {
    */
   private static final String SUBSCRIPTION_API_VERSION = "2022-12-01";
 
-  private final AzureTokenCredentialFactory tokenCredentialFactory;
+  private final AzureCredentialConnectivityCheckFactory tokenCredentialFactory;
 
   @Value("${openaev.credentials.status-validation.timeout-seconds:10}")
   private int timeoutSeconds;

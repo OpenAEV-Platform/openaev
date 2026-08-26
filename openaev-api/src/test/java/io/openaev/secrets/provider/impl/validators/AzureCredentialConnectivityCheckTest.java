@@ -42,19 +42,19 @@ import reactor.core.publisher.Mono;
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AzureCredentialValidator tests")
-class AzureCredentialValidatorTest {
+class AzureCredentialConnectivityCheckTest {
 
   private static final String UNSUPPORTED_ENVIRONMENT = "AzureNotACloud";
   private static final int TIMEOUT_SECONDS = 1;
 
-  @Mock private AzureTokenCredentialFactory tokenCredentialFactory;
+  @Mock private AzureCredentialConnectivityCheckFactory tokenCredentialFactory;
   @Mock private TokenCredential tokenCredential;
 
-  private AzureCredentialValidator validator;
+  private AzureCredentialConnectivityCheck validator;
 
   @BeforeEach
   void setUp() {
-    validator = new AzureCredentialValidator(tokenCredentialFactory);
+    validator = new AzureCredentialConnectivityCheck(tokenCredentialFactory);
     // The timeout is a @Value field: without a Spring context it stays 0, which the validator
     // would clamp to 1s anyway — set it explicitly so the intent is visible.
     ReflectionTestUtils.setField(validator, "timeoutSeconds", TIMEOUT_SECONDS);

@@ -22,6 +22,7 @@ import type {
   EnhancedContractElement,
 } from '../../../../utils/api-types-custom';
 import InjectContentFieldComponent from '../../common/injects/form/InjectContentFieldComponent';
+import {humanizeEnum} from "../asset-categories";
 
 interface Props {
   onSubmit: SubmitHandler<CredentialInput>;

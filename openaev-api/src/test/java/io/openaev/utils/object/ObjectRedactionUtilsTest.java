@@ -41,41 +41,25 @@ class ObjectRedactionUtilsTest {
     }
 
     @Test
-    @DisplayName("given_azureTenantId_should_beRedacted")
-    void given_azureTenantId_should_beRedacted() {
-      // Act
-      Object redacted = ObjectRedactionUtils.redactFieldValue(SENSITIVE_VALUE, "azure_tenant_id");
-
-      // Assert: stored in clear text, so only the redaction protects the audit log
-      assertThat(redacted).isEqualTo(redactionMarker());
-    }
-
-    @Test
-    @DisplayName("given_azureSubscriptionId_should_beRedacted")
-    void given_azureSubscriptionId_should_beRedacted() {
-      // Act
-      Object redacted =
-          ObjectRedactionUtils.redactFieldValue(SENSITIVE_VALUE, "azure_subscription_id");
-
-      // Assert
-      assertThat(redacted).isEqualTo(redactionMarker());
-    }
-
-    @Test
     @DisplayName("given_azureNonSensitiveFields_should_beKept")
     void given_azureNonSensitiveFields_should_beKept() {
-      // Act & Assert: those two are needed to prefill the edit form
+      // Act & Assert: those are directory identifiers, not credentials, and prefill the edit form
       assertThat(ObjectRedactionUtils.redactFieldValue("AzureCloud", "azure_environment"))
           .isEqualTo("AzureCloud");
       assertThat(ObjectRedactionUtils.redactFieldValue("a-client-id", "azure_client_id"))
           .isEqualTo("a-client-id");
+      assertThat(ObjectRedactionUtils.redactFieldValue("a-tenant-id", "azure_tenant_id"))
+          .isEqualTo("a-tenant-id");
+      assertThat(
+              ObjectRedactionUtils.redactFieldValue("a-subscription-id", "azure_subscription_id"))
+          .isEqualTo("a-subscription-id");
     }
 
     @Test
     @DisplayName("given_nullValue_should_returnNull")
     void given_nullValue_should_returnNull() {
       // Act & Assert
-      assertThat(ObjectRedactionUtils.redactFieldValue(null, "azure_tenant_id")).isNull();
+      assertThat(ObjectRedactionUtils.redactFieldValue(null, "azure_client_secret")).isNull();
     }
   }
 
@@ -90,9 +74,9 @@ class ObjectRedactionUtilsTest {
       ObjectNode payload = MAPPER.createObjectNode();
       payload.put("azure_environment", "AzureCloud");
       payload.put("azure_client_id", "a-client-id");
+      payload.put("azure_tenant_id", "a-tenant-id");
+      payload.put("azure_subscription_id", "a-subscription-id");
       payload.put("azure_client_secret", SENSITIVE_VALUE);
-      payload.put("azure_tenant_id", SENSITIVE_VALUE);
-      payload.put("azure_subscription_id", SENSITIVE_VALUE);
 
       // Act
       JsonNode redacted = ObjectRedactionUtils.redact(payload, ResourceType.CREDENTIAL);
@@ -101,6 +85,8 @@ class ObjectRedactionUtilsTest {
       assertThat(redacted.toString()).doesNotContain(SENSITIVE_VALUE);
       assertThat(redacted.get("azure_environment").asText()).isEqualTo("AzureCloud");
       assertThat(redacted.get("azure_client_id").asText()).isEqualTo("a-client-id");
+      assertThat(redacted.get("azure_tenant_id").asText()).isEqualTo("a-tenant-id");
+      assertThat(redacted.get("azure_subscription_id").asText()).isEqualTo("a-subscription-id");
     }
 
     @Test
@@ -108,13 +94,13 @@ class ObjectRedactionUtilsTest {
     void given_payload_should_notModifyTheOriginalNode() {
       // Arrange
       ObjectNode payload = MAPPER.createObjectNode();
-      payload.put("azure_tenant_id", SENSITIVE_VALUE);
+      payload.put("azure_client_secret", SENSITIVE_VALUE);
 
       // Act
       ObjectRedactionUtils.redact(payload, ResourceType.CREDENTIAL);
 
       // Assert: redaction works on a deep copy
-      assertThat(payload.get("azure_tenant_id").asText()).isEqualTo(SENSITIVE_VALUE);
+      assertThat(payload.get("azure_client_secret").asText()).isEqualTo(SENSITIVE_VALUE);
     }
   }
 }

@@ -4,7 +4,7 @@ import io.openaev.database.model.*;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
-import io.openaev.secrets.provider.impl.validators.AzureCredentialValidator;
+import io.openaev.secrets.provider.impl.validators.AzureCredentialConnectivityCheck;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 public class AzureServicePrincipalHandler implements SecretHandler {
 
   protected final NativeEncryptionService nativeEncryptionService;
-  private final AzureCredentialValidator azureCredentialValidator;
+  private final AzureCredentialConnectivityCheck azureCredentialConnectivityCheck;
 
   @Override
   public boolean supports(Secret secret) {
@@ -75,7 +75,9 @@ public class AzureServicePrincipalHandler implements SecretHandler {
     if (secret instanceof AzureServicePrincipalSecret azureServicePrincipalSecret) {
       return SecretMetadata.forAzureServicePrincipal(
           azureServicePrincipalSecret.getAzureEnvironment(),
-          azureServicePrincipalSecret.getAzureClientId());
+          azureServicePrincipalSecret.getAzureClientId(),
+          azureServicePrincipalSecret.getAzureTenantId(),
+          azureServicePrincipalSecret.getAzureSubscriptionId());
     }
     throw new IllegalArgumentException(
         "Secret type mismatch: expected AZURE_SERVICE_PRINCIPAL secret");
@@ -93,7 +95,7 @@ public class AzureServicePrincipalHandler implements SecretHandler {
       throw new IllegalArgumentException(
           "Secret type mismatch: expected AZURE_SERVICE_PRINCIPAL secret");
     }
-    return azureCredentialValidator.validateServicePrincipal(
+    return azureCredentialConnectivityCheck.validateServicePrincipal(
         azureSecret.getAzureEnvironment(),
         azureSecret.getAzureTenantId(),
         azureSecret.getAzureClientId(),

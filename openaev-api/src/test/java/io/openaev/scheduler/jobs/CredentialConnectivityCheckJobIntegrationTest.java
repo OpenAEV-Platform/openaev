@@ -38,9 +38,9 @@ import org.springframework.test.util.ReflectionTestUtils;
  */
 @TestPropertySource(properties = "openaev.tenant.active-tables=secret_references,secrets")
 @DisplayName("CredentialsStatusValidatorJob tests")
-class CredentialsStatusValidatorJobIntegrationTest extends IntegrationTest {
+class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
 
-  @Autowired private CredentialsStatusValidatorJob job;
+  @Autowired private CredentialConnectivityCheckJob job;
   @Autowired private DataSource dataSource;
 
   private JdbcTemplate jdbc;

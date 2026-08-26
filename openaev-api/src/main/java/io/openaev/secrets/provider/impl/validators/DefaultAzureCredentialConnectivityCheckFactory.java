@@ -6,9 +6,10 @@ import com.azure.identity.ClientSecretCredentialBuilder;
 import com.azure.identity.ManagedIdentityCredentialBuilder;
 import org.springframework.stereotype.Component;
 
-/** Default {@link AzureTokenCredentialFactory}, backed by the Azure Identity SDK. */
+/** Default {@link AzureCredentialConnectivityCheckFactory}, backed by the Azure Identity SDK. */
 @Component
-public class DefaultAzureTokenCredentialFactory implements AzureTokenCredentialFactory {
+public class DefaultAzureCredentialConnectivityCheckFactory
+    implements AzureCredentialConnectivityCheckFactory {
 
   @Override
   public TokenCredential forServicePrincipal(

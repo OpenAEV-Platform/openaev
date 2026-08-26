@@ -35,6 +35,8 @@ public final class CredentialMapper {
         .awsSourceProfileAccessKeyId(secretMetadata.awsSourceProfileAccessKeyId())
         .azureEnvironment(secretMetadata.azureEnvironment())
         .azureClientId(secretMetadata.azureClientId())
+        .azureTenantId(secretMetadata.azureTenantId())
+        .azureSubscriptionId(secretMetadata.azureSubscriptionId())
         .build();
   }
 

@@ -3187,6 +3187,10 @@ export interface CredentialFullOutput {
   credential_azure_client_id?: string;
   /** Azure environment */
   credential_azure_environment?: string;
+  /** Azure subscription id */
+  credential_azure_subscription_id?: string;
+  /** Azure tenant id */
+  credential_azure_tenant_id?: string;
   /**
    * Credential creation timestamp
    * @format date-time

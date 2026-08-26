@@ -411,8 +411,9 @@ class AzureManagedIdentityHandlerTest extends IntegrationTest {
   class ToMetadata {
 
     @Test
-    @DisplayName("Given a user-assigned identity secret, should expose environment and client id")
-    void given_userAssignedSecret_should_exposeEnvironmentAndClientIdOnly() {
+    @DisplayName(
+        "Given a user-assigned identity secret, should expose environment, client id and subscription id")
+    void given_userAssignedSecret_should_exposeNonSensitiveIdentifiers() {
       // Arrange
       AzureManagedIdentitySecret secret =
           (AzureManagedIdentitySecret)
@@ -424,6 +425,8 @@ class AzureManagedIdentityHandlerTest extends IntegrationTest {
       // Assert
       assertThat(metadata.azureEnvironment()).isEqualTo(AZURE_ENVIRONMENT);
       assertThat(metadata.azureClientId()).isEqualTo(AZURE_CLIENT_ID);
+      assertThat(metadata.azureSubscriptionId()).isEqualTo(AZURE_SUBSCRIPTION_ID);
+      assertThat(metadata.azureTenantId()).isNull();
       assertThat(metadata.username()).isNull();
       assertThat(metadata.hashAlgorithm()).isNull();
       assertThat(metadata.awsDefaultRegion()).isNull();
@@ -447,21 +450,6 @@ class AzureManagedIdentityHandlerTest extends IntegrationTest {
       // Assert: the environment still tells the form that a secret is stored
       assertThat(metadata.azureEnvironment()).isEqualTo(AZURE_ENVIRONMENT);
       assertThat(metadata.azureClientId()).isNull();
-    }
-
-    @Test
-    @DisplayName("Given a managed identity secret, should never expose sensitive values")
-    void given_managedIdentitySecret_should_notExposeSensitiveValues() {
-      // Arrange
-      AzureManagedIdentitySecret secret =
-          (AzureManagedIdentitySecret)
-              handler.buildOrUpdate(null, azureUserAssignedManagedIdentityRequest());
-
-      // Act
-      SecretMetadata metadata = handler.toMetadata(secret);
-
-      // Assert
-      assertThat(metadata.toString()).doesNotContain(AZURE_SUBSCRIPTION_ID);
     }
 
     @Test
