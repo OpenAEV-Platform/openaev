@@ -888,6 +888,7 @@ public class InjectImportService {
                           .map(column -> InjectImportUtils.getValueAsString(row, column))
                           .collect(Collectors.joining(","))
                           .split(","))
+                  .map(String::trim)
                   .toList();
         }
         if (columnValues.isEmpty() || columnValues.stream().allMatch(String::isEmpty)) {

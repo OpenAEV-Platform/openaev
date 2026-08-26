@@ -244,11 +244,13 @@ public class TeamApi extends RestBehavior {
   @Transactional
   public void deleteTeam(@PathVariable @Schema(description = "ID of the team") String teamId)
       throws ResourceInUseException {
-    if (!teamRepository.existsByIdAndTenantId(teamId, TenantContext.getCurrentTenant())) {
-      throw new ElementNotFoundException();
-    }
+    Team team =
+        teamRepository
+            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+            .orElseThrow(ElementNotFoundException::new);
     try {
-      teamRepository.deleteById(teamId);
+      team.getInjects().forEach(inject -> inject.getTeams().remove(team));
+      teamRepository.delete(team);
     } catch (InvalidDataAccessApiUsageException | TransientObjectException ex) {
       throw new ResourceInUseException(
           "Cannot delete this team because it is still in use. Please remove its dependencies first.",
