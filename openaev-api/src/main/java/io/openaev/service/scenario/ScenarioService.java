@@ -113,6 +113,7 @@ import org.springframework.validation.annotation.Validated;
 @Slf4j
 @Validated
 public class ScenarioService {
+  private static final ObjectMapper objectMapper = new ObjectMapper();
 
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
@@ -423,7 +424,6 @@ public class ScenarioService {
   }
 
   public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
-    ObjectMapper objectMapper = new ObjectMapper();
     RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
     if (rawScenario == null) {
       throw new ElementNotFoundException("Scenario not found");
