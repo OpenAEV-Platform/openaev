@@ -5,9 +5,10 @@ import {
   ComboboxControls,
   ComboboxField,
   ComboboxInput,
+  ComboboxLabel,
   ComboboxTrigger,
 } from '@filigran/design-system';
-import { Box, FormControl, InputLabel, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -61,12 +62,8 @@ const ExpectationSecurityPlatformsField = () => {
       </Box>
       {scopedTypes.map((type) => {
         const fieldName = `action_expected_security_platforms.${type}`;
-        const labelId = `expected-platforms-${type}`;
         return (
-          <FormControl key={type} fullWidth>
-            <InputLabel id={labelId} shrink>
-              {t(TECHNICAL_EXPECTATION_LABELS[type] ?? type)}
-            </InputLabel>
+          <div key={type}>
             <Controller
               name={fieldName}
               control={control}
@@ -82,6 +79,10 @@ const ExpectationSecurityPlatformsField = () => {
                   renderOption={platform => <ItemSecurityPlatformType type={platform} />}
                   clearable={false}
                 >
+                  {/* The library field reserves no notch for a floating label,
+                      so the label must be the library's own and sit above the
+                      field. A MUI `InputLabel` here landed ON the field. */}
+                  <ComboboxLabel>{t(TECHNICAL_EXPECTATION_LABELS[type] ?? type)}</ComboboxLabel>
                   <ComboboxField>
                     <ComboboxChips />
                     <ComboboxInput
@@ -96,7 +97,7 @@ const ExpectationSecurityPlatformsField = () => {
                 </Combobox>
               )}
             />
-          </FormControl>
+          </div>
         );
       })}
     </Box>

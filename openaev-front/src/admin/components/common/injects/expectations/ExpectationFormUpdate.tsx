@@ -5,6 +5,7 @@ import {
   ComboboxControls,
   ComboboxField,
   ComboboxInput,
+  ComboboxLabel,
   ComboboxTrigger,
   Select,
   SelectContent,
@@ -13,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@filigran/design-system';
-import { Alert, Button, InputLabel, TextField as MuiTextField, TextField, Typography } from '@mui/material';
+import { Alert, Button, TextField as MuiTextField, TextField, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -188,9 +189,6 @@ const ExpectationFormUpdate: FunctionComponent<Props> = ({
       />
       {isTechnicalExpectation(getValues().expectation_type) && (
         <div className={classes.marginTop_2}>
-          <InputLabel id="expected-platforms-label" shrink>
-            {t('Expected security platforms')}
-          </InputLabel>
           <Controller
             name="expectation_expected_security_platform_types"
             control={control}
@@ -205,6 +203,7 @@ const ExpectationFormUpdate: FunctionComponent<Props> = ({
                 renderOption={type => <ItemSecurityPlatformType type={type} />}
                 clearable={false}
               >
+                <ComboboxLabel>{t('Expected security platforms')}</ComboboxLabel>
                 <ComboboxField>
                   <ComboboxChips />
                   {/* An empty selection used to read "Any security platform" in

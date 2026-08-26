@@ -5,6 +5,9 @@ class ThreatArsenalListPage {
   readonly addButton: Locator;
   readonly listContainer: Locator;
   readonly searchContainer: Locator;
+  readonly gridViewButton: Locator;
+  readonly listViewButton: Locator;
+  readonly paginationRow: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -13,6 +16,17 @@ class ThreatArsenalListPage {
     // The redesigned list uses the shared pagination search (SearchFilter),
     // whose default placeholder is "Search these results...".
     this.searchContainer = page.getByPlaceholder('Search these results...');
+    this.gridViewButton = page.getByRole('button', { name: 'Grid view' });
+    this.listViewButton = page.getByRole('button', { name: 'List view' });
+    this.paginationRow = page.locator('.MuiTablePagination-root');
+  }
+
+  async switchToGridView() {
+    await this.gridViewButton.click();
+  }
+
+  async switchToListView() {
+    await this.listViewButton.click();
   }
 
   getItem(lineNumber: number): Locator {

@@ -455,6 +455,21 @@ const ThreatArsenal = () => {
           />
         </Can>
       </ToggleButtonGroup>
+
+      {/* The create button used to ride the pagination row, which the card view
+          makes 180px wider than the list view (it adds the sort select there) —
+          measured at 1400px wide: 47px of the button visible in list view, 0 in
+          card view, with no way to scroll to it. Here it sits beside the import
+          icons, one instance, rendered in both views. */}
+      {/* No margin here: the header's own row already puts 8px between its
+          children — adding one made the gap 16. */}
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
+        <CreateThreatArsenalAction
+          onCreate={(result: ThreatArsenalAction) => {
+            setThreatArsenalActions(prev => [result, ...prev]);
+          }}
+        />
+      </Can>
     </>
   );
 
@@ -524,15 +539,6 @@ const ThreatArsenal = () => {
                       <ThreatArsenalSortSelect sortHelpers={queryableHelpers.sortHelpers} />
                     )
                   : null}
-                topBarButtons={(
-                  <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
-                    <CreateThreatArsenalAction
-                      onCreate={(result: ThreatArsenalAction) => {
-                        setThreatArsenalActions(prev => [result, ...prev]);
-                      }}
-                    />
-                  </Can>
-                )}
                 leftSlot={(
                   <Box sx={{
                     display: 'flex',

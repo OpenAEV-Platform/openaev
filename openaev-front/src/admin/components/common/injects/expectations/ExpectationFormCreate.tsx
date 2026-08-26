@@ -5,14 +5,16 @@ import {
   ComboboxControls,
   ComboboxField,
   ComboboxInput,
+  ComboboxLabel,
   ComboboxTrigger,
   Select,
   SelectContent,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@filigran/design-system';
-import { Alert, Button, InputLabel, TextField as MuiTextField, TextField, Typography } from '@mui/material';
+import { Alert, Button, TextField as MuiTextField, TextField, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -154,7 +156,6 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   return (
     <form id="expectationForm" onSubmit={handleSubmitWithoutPropagation}>
       <div>
-        <InputLabel id="input-type">{t('Type')}</InputLabel>
         <Select
           value={expectationType}
           onValueChange={(next) => {
@@ -164,6 +165,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
           }}
           error={!!errors.expectation_type}
         >
+          <SelectLabel>{t('Type')}</SelectLabel>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -256,9 +258,6 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
       />
       {isTechnicalExpectation(watchType) && (
         <div className={classes.marginTop_2}>
-          <InputLabel id="expected-platforms-label" shrink>
-            {t('Expected security platforms')}
-          </InputLabel>
           <Controller
             name="expectation_expected_security_platform_types"
             control={control}
@@ -273,6 +272,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
                 renderOption={type => <ItemSecurityPlatformType type={type} />}
                 clearable={false}
               >
+                <ComboboxLabel>{t('Expected security platforms')}</ComboboxLabel>
                 <ComboboxField>
                   <ComboboxChips />
                   {/* An empty selection used to read "Any security platform" in

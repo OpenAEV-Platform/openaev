@@ -26,10 +26,14 @@ const useStyles = makeStyles()(() => ({
     marginLeft: 10,
   },
   filters: {
-    float: 'left',
-    margin: '5px 0 0 0',
+    // The chips sit in the same flex row as the search box and this field, which
+    // centres its items. A top margin pushed them 3px below that centre line,
+    // and `float` does nothing to a flex item — both were left over from the
+    // pre-flex layout.
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
   },
-  filter: { marginRight: 10 },
 }));
 
 const TagsFilter = (props) => {
@@ -109,7 +113,6 @@ const TagsFilter = (props) => {
             currentTag => (
               <Chip
                 key={currentTag.id}
-                classes={{ root: classes.filter }}
                 label={currentTag.label}
                 onDelete={() => onRemoveTag(currentTag.id)}
               />

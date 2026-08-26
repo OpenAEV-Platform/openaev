@@ -18,7 +18,7 @@ import {
   GroupsOutlined,
   InfoOutlined,
 } from '@mui/icons-material';
-import { Autocomplete, Box, Button, FormControl, Grid, IconButton, InputLabel, TextField, Tooltip, Typography } from '@mui/material';
+import { Autocomplete, Box, Button, Grid, IconButton, TextField, Tooltip, Typography } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { Component, type ComponentType, type JSX } from 'react';
 import { connect } from 'react-redux';
@@ -262,7 +262,10 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
         value={actionsInputs[i]?.field || ''}
         onValueChange={next => this.handleChangeActionInput(i, 'field', { target: { value: next } })}
       >
-        <SelectTrigger>
+        {/* The library field reserves no notch for a floating label, so the
+            label is the library's own and sits above the field. */}
+        <SelectLabel>{t('Field')}</SelectLabel>
+        <SelectTrigger className="w-full">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -711,10 +714,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
                       </Select>
                     </Grid>
                     <Grid size={{ xs: 3 }}>
-                      <FormControl sx={{ width: '100%' }}>
-                        <InputLabel>{t('Field')}</InputLabel>
-                        {this.renderFieldOptions(i)}
-                      </FormControl>
+                      {this.renderFieldOptions(i)}
                     </Grid>
                     <Grid size={{ xs: 6 }}>
                       {this.renderValuesOptions(i)}
