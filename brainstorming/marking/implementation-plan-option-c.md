@@ -3,7 +3,7 @@
 **Design doc**: [tech-design-option-c.md](./tech-design-option-c.md) — the mechanism and its rationale
 **Parent doc**: [tech-design.md](./tech-design.md) — Option C
 **Decision of record**: [ADR-007](../../adr/ADR-007-Marking-based-access-control.md)
-**Status**: in progress — steps 1.1–1.4 and 2.1 delivered
+**Status**: in progress — steps 1.1–1.4 and 2.1–2.4 delivered; step 3 next
 
 > **Reference convention.** `§N.M` always refers to a section of
 > [tech-design-option-c.md](./tech-design-option-c.md); `Qn` refers to its §6 Decisions table.
@@ -18,9 +18,9 @@ Feature flag: `marking-isolation`. Property `openaev.marking.active-tables` empt
 **Two tracks run in parallel, then converge:**
 
 ```
-Track 1 (inspector)   1.1 ──► 1.2 ──► 1.3 ──────┐
-                      no dependencies            ├──► 3 (activation) ──► 4 ──► 5
-Track 2 (channel)     2.1 ──► 2.2 ──► 2.3 ──────┘
+Track 1 (inspector)   1.1 ──► 1.2 ──► 1.3 ──► 1.4 ─┐
+                      no dependencies              ├──► 3 (activation) ──► 4 ──► 5
+Track 2 (channel)     2.1 ──► 2.2 ──► 2.3 ──► 2.4 ─┘
                       external teams
 ```
 
@@ -33,9 +33,10 @@ Track 2 (channel)     2.1 ──► 2.2 ──► 2.3 ──────┘
 | 1.3 `MarkingDimension` + allowlist | ✅ done, reshaped by 1.4 | |
 | 1.4 schema-shape spike → **Option 2 adopted** | ✅ done | `a0dcbd471c` |
 | 2.1 `marking_definitions` schema + CRUD + UI | ✅ done | `3033c7759b` |
-| 2.2 `MarkingCtx` + resolver + cache | ✅ done (machinery only — no assign/unassign endpoint) | |
-| 2.3 `ScopeCtx` composition + aspect | ⬅️ **next** — must also wire `evict*` (see below) | |
-| 3 activate `assets` | pending | |
+| 2.2 `MarkingCtx` + resolver + cache + eviction wiring | ✅ done | |
+| 2.3 marking scope written on both transaction paths | ✅ done | |
+| 2.4 `groups_markings` write path (assign endpoint + escalation guard) | ✅ done — lifted the step-3 gate | |
+| 3 activate `assets` | ⬅️ **next** | |
 | 4 `activate-marking-table` skill — *the PoC's real deliverable* | pending | |
 | 5 go-live hardening | out of PoC | |
 
@@ -174,29 +175,109 @@ per type → expanded id set. Pure Java, no SQL. *(deps: 2.1)*
      users with warm caches see rows that users with cold caches do not. This applies under **every** schema
      option in §3.2 — it is a property of the GUC channel, not of the join table.
    - *Reusable under Options A/B — the one item that survives a fallback.*
-   - ⚠️ **Landed as machinery only — nothing calls `evict` / `evictAll` yet.** The cache manager exposes
-     both, and `MarkingClearanceCacheManagerCachingTest` proves they work, but no producer of a
-     clearance reduction is wired to them. Given the fail-open property above, that wiring is a **gate
-     on step 3**, not a nice-to-have: it must land in 2.3, alongside the mutation sites that can reduce
-     a clearance (group membership change, marking unassigned from a group, group deleted, marking
-     definition archived/deleted, marking order lowered). Until then the 5-minute TTL is the *only*
-     bound on a stale over-wide clearance — acceptable while nothing reads the GUC, not after step 3.
 
-**2.3 — `ScopeCtx` composition + aspect resolution + the background primitive** — set
+   **Delivered**
+
+   | Artefact | Note |
+   |---|---|
+   | `MarkingCtx` (`openaev-model`) | sealed `None` / `Restricted` / `All`, shaped like `TxCtx`; `all()` throws on `toGuc()` — an unresolved intention must not reach the channel |
+   | `MarkingScopeResolver` | pure function, highest-order-per-type then expand downward; mirrors `TenantScopeResolver` |
+   | `MarkingClearanceCacheManager` | `@AllowRawJdbc`; `findClearance` + `evict` / `evictForUser` / `evictForUsers` / `evictAll` |
+   | eviction wiring | `TenantGroupService` + `PlatformGroupService` (`updateGroupUsers`, `delete`), `MarkingDefinitionService` (`update`, `delete`), and the assign endpoint from 2.4 |
+
+   **Three corrections to the sketch above, each found by checking rather than assuming**
+
+   - 🔴 **`evict(userId, tenantId)` was the wrong API for membership changes.** `Group` implements
+     `DualScopeBase`, so a *platform* group (`tenant_id IS NULL`) grants markings into many tenants at
+     once, and `users_groups` carries no tenant of its own. Evicting one tenant leaves the others
+     stale — fail-open, the exact case eviction exists to prevent. `evictForUser(userId)` walks every
+     tenant the user belongs to. `evict` also drops **both** bypass variants: making the caller name
+     the right one lets a stale *larger* entry survive under the other key.
+   - 🔴 **Asset marking updates need NO eviction** — this was in the list above and is wrong.
+     `is_marking_set_allowed(row_marking_ids)` takes the row's array as a function **argument**; only
+     the *clearance* lives in the GUC, and the row is re-read on every query. An evict on asset save
+     would be a no-op that *looks* like protection, which is worse than none: the next reader assumes
+     coverage. The reductions that genuinely need eviction are the ones that shrink a **clearance** —
+     group membership, group deletion, grant removal, definition delete, **order lowered**.
+   - `MarkingDefinitionService.update` therefore calls `evictAll()`, not a targeted evict: `order` and
+     `type` are resolver *inputs*, not labels. Raising a marking's order pushes it above clearances
+     that previously covered it, and the affected set is "everyone holding a grant of this type".
+
+**2.3 — marking scope written on both transaction paths** — ✅ **DONE** — set
 `app.current_markings` next to `app.current_tenants` on **both** paths. The GUC is written but nothing reads
 it until step 3. *(deps: 2.2)*
    - **HTTP path** — no REST signature changes: the aspect derives the `MarkingCtx` itself (§4.1.1).
-     Implement all three branches — explicit argument, derived, `Missing` — and test each.
    - **Background path** — `TenantScopedTransaction` sets the marking GUC in the same `setScope` call that
-     sets the tenant one, defaulting to all markings of the tenant(s) in scope, and **refuses to open
-     unset**, mirroring the existing `requireScope` guard (§4.1.3). Cover `execute`, `executeNew`
-     (transaction-local ⇒ must re-set) and `forEachTenant` (re-resolved per tenant).
+     sets the tenant one, defaulting to all markings of the tenant(s) in scope.
    - 🔴 **This is the step that makes activation safe for existing jobs.** Skipping the background half does
      not fail a test — it makes every collector, executor and the ES sync silently read a subset once step 3
-     lands. Write the "a background transaction sees marked rows" test *before* activating anything.
-   - **DoD**: integration test asserting both GUCs are set, transaction-local, and gone after commit; one
-     asserting a handler carrying only `TxCtx` still gets a clearance written; one asserting
-     `tenantTx.execute(...)` reads a marked row it would not see with an empty clearance.
+     lands.
+
+   **Delivered**
+
+   | Artefact | Note |
+   |---|---|
+   | `MarkingScopeSupplier` (`openaev-model`) | the seam — `openaev-model` has no dependency on `openaev-api` |
+   | `HttpMarkingScopeSupplier` (`openaev-api`) | derives from the principal + clearance cache; unions per-tenant clearances for a multi-tenant scope |
+   | `TenantScopeTransactionAspect` | writes both GUCs; `markingScopeFor()` fail-closed |
+   | `TenantScopedTransaction.systemClearance(TxCtx)` | resolves `all()` into the tenants' explicit marking ids |
+   | `TenantScopedTransactionMarkingScopeTest` (6, real DB) | mutation-checked: stubbing the clearance fails 2 |
+
+   **The module-direction fork, and why the seam won.** The aspect lives in `openaev-model`; clearance
+   derivation needs `UserService` and the clearance cache, both in `openaev-api`. Three options: a seam
+   interface, a second aspect in `openaev-api`, or resolving in `TxCtxArgumentResolver`. The seam was
+   chosen because the invariant worth protecting is that **one** component owns "what scope may this
+   transaction have": a second aspect makes ordering load-bearing, and the argument resolver splits
+   scope arrival across two routes. `ObjectProvider` keeps the supplier optional so model-only slices
+   still start.
+
+   **Tenant is passed, clearance is derived.** A caller legitimately chooses which tenant to act in;
+   nobody chooses their own clearance. A marking REST parameter would be a forgettable security
+   boundary. This is why there is no `X-Markings` header and never should be.
+
+   🔴 **The asymmetry that is easiest to misread.** `TxCtx.Missing` → zero rows. `MarkingCtx.None` →
+   **unmarked rows still visible** (the empty set is contained in the empty set). Fail-closed for
+   marking means "see less", never "see nothing" and never "see more".
+
+   ⚠️ **Known blast radius for step 3**: a `@Transactional` method with **no `TxCtx` parameter** writes
+   *neither* GUC. Once a table is marking-active, such a transaction sees only unmarked rows — a silent
+   partial narrowing, not an error. Documented in the aspect javadoc; step 3's inventory must account
+   for it.
+
+**2.4 — `groups_markings` write path** — ✅ **DONE** — the assign endpoint, deferred from 2.1 and again
+from 2.2. *(deps: 2.2)*
+
+> **Why this became a gate on step 3 rather than a step-5 nicety.** Until it existed, nothing wrote
+> `groups_markings`, so *every* user resolved to `MarkingCtx.none()` and the clearance path was proven
+> only against a stubbed `JdbcTemplate`. Step 3's DoD is "user cleared `TLP:GREEN` cannot read a
+> `TLP:RED` asset" — undemonstrable with an empty grant table.
+
+   | Artefact | Note |
+   |---|---|
+   | `PUT /api/tenants/{t}/groups/{g}/markings` | replace-the-whole-set; empty list revokes |
+   | `Group.markings` `@ManyToMany` | the *read* path stays raw JDBC (OSIV/Hikari); the *write* path has no such constraint |
+   | `MarkingEscalationValidator` | design **Q7**, pulled forward from 3.3 — it was needed here first |
+   | `TenantGroupMarkingsApiTest` (6) | the three manual flows end-to-end; eviction mutation-checked |
+   | `MarkingEscalationValidatorTest` (6) | incl. "higher implies lower is allowed" |
+   | [`manual-testing-markings.md`](./manual-testing-markings.md) | curl walkthrough + the SQL to read a resolved clearance |
+
+   **Escalation is checked against the resolved clearance, not the raw grants** — so a user holding
+   `TLP:AMBER` *may* grant `TLP:GREEN`. They can already read every GREEN row, so granting it discloses
+   nothing they could not disclose otherwise; forbidding it would be annoying rather than safer.
+
+   🔴 **Finding: tenant isolation cannot be the only guard on a cross-tenant assignment.** The statement
+   inspector rewrites *queries* — it cannot filter a read that is never **issued**, and an entity already
+   in the persistence context is served from Hibernate's first-level cache. The independent guarantee is
+   the escalation guard: a clearance is per tenant, so nobody holds another tenant's marking. **The two
+   are not redundant, and this generalises to every v2 table** — it belongs in the step-4 skill.
+
+   **Testing note carried into step 3**: the clearance read is raw JDBC and joins the test transaction,
+   but Hibernate has not flushed. An isolation test must `entityManager.flush()` before asserting, or it
+   measures the flush rather than the feature.
+
+   **Deliberately still deferred to 5.6**: the `ASSIGN_MARKING` capability chain (Q8) — the endpoint
+   currently reuses the group's own `WRITE` control — and the platform-group equivalent, since a platform
+   group granting tenant markings is a cross-tenant question the PoC should not answer by accident.
 
 ### Step 3 — PoC activation on `assets`, the **first** marking-enabled table *(deps: 1.4, 2.3)*
 
@@ -216,11 +297,17 @@ with `@Type(StringArrayType.class)`, reusing the pattern already used by `asset_
      from a TLP-only-cleared user); two users in different groups see different subsets; a multi-group user
      gets the highest clearance; tenant + marking compose correctly.
 
-**3.3** — `MarkingEscalationValidator` + wire into the Endpoint / Security Platform update paths, with the
-three write layers of §4.3 and the declassification audit event.
-   - **DoD**: unit + API tests for — 403 on over-clearance assignment; the self-lockout invariant; an audit
-     event on every removal/downgrade and on nothing else. *(The capability-based layers of §4.3 land with
-     5.6; until then the clearance check is the only guard.)*
+**3.3** — Wire `MarkingEscalationValidator` (already built in **2.4**) into the asset write paths, plus the
+declassification audit event (§4.3).
+    - **Reduced scope**: the validator and its tests exist; what is missing is the *asset-side* wiring —
+      setting `marking_ids` on an asset must go through the same "you may not assign what you do not hold"
+      check the group endpoint already uses — and the audit event.
+    - 🔴 **Plus the invariant the group path does not need**: self-lockout. Marking an asset above your own
+      clearance makes it invisible **to you**, immediately. Decide explicitly whether to forbid it or allow
+      it with a warning; do not leave it to emerge.
+    - **DoD**: unit + API tests for — 403 on over-clearance assignment; the self-lockout invariant; an audit
+      event on every removal/downgrade and on nothing else. *(The capability-based layers of §4.3 land with
+      5.6; until then the clearance check is the only guard.)*
 
 ### Step 4 — Capture the procedure as an AI skill, then prove it *(deps: 3)*
 
