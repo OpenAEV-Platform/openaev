@@ -1,6 +1,7 @@
 package io.openaev.config.cache;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -43,6 +44,7 @@ class MarkingClearanceCacheManagerCachingTest {
   @Autowired private MarkingClearanceCacheManager clearanceCache;
   @Autowired private CacheManager cacheManager;
   @MockitoBean private JdbcTemplate jdbcTemplate;
+  @MockitoBean private TenantMembershipCacheManager tenantMembershipCacheManager;
 
   @BeforeEach
   void clearCache() {
@@ -187,6 +189,76 @@ class MarkingClearanceCacheManagerCachingTest {
       // -- ASSERT --
       // Two reads before, two after: neither variant survived.
       verify(jdbcTemplate, times(4)).query(anyString(), any(RowMapper.class), eq(TENANT_A));
+    }
+
+    @Test
+    @DisplayName("given a membership change, should drop the user's clearance in EVERY tenant")
+    void given_evictForUser_should_reachEveryTenant() {
+      // -- ARRANGE --
+      // A Group is dual-scope: a platform group grants markings across tenants, and users_groups
+      // carries no tenant. So dropping a user from one reduces their clearance everywhere at once.
+      // evict(user, ONE tenant) would leave the others stale, and stale-larger fails open.
+      givenGrants(TENANT_A, List.of(TLP_GREEN), List.of("tlp-green"));
+      givenGrants(TENANT_B, List.of(TLP_RED), List.of("tlp-red"));
+      when(tenantMembershipCacheManager.findTenantIdsByUserId(USER))
+          .thenReturn(List.of(TENANT_A, TENANT_B));
+      clearanceCache.findClearance(USER, TENANT_A, false);
+      clearanceCache.findClearance(USER, TENANT_B, false);
+
+      // -- ACT --
+      clearanceCache.evictForUser(USER);
+      clearanceCache.findClearance(USER, TENANT_A, false);
+      clearanceCache.findClearance(USER, TENANT_B, false);
+
+      // -- ASSERT --
+      verify(jdbcTemplate, times(2)).query(anyString(), any(RowMapper.class), eq(TENANT_A));
+      verify(jdbcTemplate, times(2)).query(anyString(), any(RowMapper.class), eq(TENANT_B));
+    }
+
+    @Test
+    @DisplayName("given a membership change, should drop the bypass variant in every tenant too")
+    void given_evictForUser_should_dropBothVariantsPerTenant() {
+      // -- ARRANGE --
+      givenGrants(TENANT_A, List.of(TLP_GREEN), List.of("tlp-green"));
+      when(tenantMembershipCacheManager.findTenantIdsByUserId(USER)).thenReturn(List.of(TENANT_A));
+      clearanceCache.findClearance(USER, TENANT_A, false);
+      clearanceCache.findClearance(USER, TENANT_A, true);
+
+      // -- ACT --
+      clearanceCache.evictForUser(USER);
+      clearanceCache.findClearance(USER, TENANT_A, false);
+      clearanceCache.findClearance(USER, TENANT_A, true);
+
+      // -- ASSERT --
+      verify(jdbcTemplate, times(4)).query(anyString(), any(RowMapper.class), eq(TENANT_A));
+    }
+
+    @Test
+    @DisplayName("given a tenant the user cannot reach, should not fail resolving it")
+    void given_evictForUser_should_tolerateAnEmptyTenantList() {
+      // -- ARRANGE --
+      // A user with no tenants is a normal state, not an error: nothing to evict.
+      when(tenantMembershipCacheManager.findTenantIdsByUserId(USER)).thenReturn(List.of());
+
+      // -- ACT & ASSERT --
+      assertDoesNotThrow(() -> clearanceCache.evictForUser(USER));
+    }
+
+    @Test
+    @DisplayName("given evictForUsers, should reach every user named")
+    void given_evictForUsers_should_reachEveryUser() {
+      // -- ARRANGE --
+      // The group paths evict a whole membership list at once.
+      when(tenantMembershipCacheManager.findTenantIdsByUserId(anyString()))
+          .thenReturn(List.of(TENANT_A));
+
+      // -- ACT --
+      clearanceCache.evictForUsers(List.of(USER, "user-2", "user-3"));
+
+      // -- ASSERT --
+      verify(tenantMembershipCacheManager).findTenantIdsByUserId(USER);
+      verify(tenantMembershipCacheManager).findTenantIdsByUserId("user-2");
+      verify(tenantMembershipCacheManager).findTenantIdsByUserId("user-3");
     }
 
     @Test

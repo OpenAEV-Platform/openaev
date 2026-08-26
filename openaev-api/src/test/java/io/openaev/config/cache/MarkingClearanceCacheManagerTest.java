@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -38,11 +39,14 @@ class MarkingClearanceCacheManagerTest {
   private static final String TENANT = "tenant-1";
 
   @Mock private JdbcTemplate jdbcTemplate;
+  @Mock private CacheManager cacheManager;
+  @Mock private TenantMembershipCacheManager tenantMembershipCacheManager;
 
   private final MarkingScopeResolver resolver = new MarkingScopeResolver();
 
   private MarkingClearanceCacheManager manager() {
-    return new MarkingClearanceCacheManager(jdbcTemplate, resolver);
+    return new MarkingClearanceCacheManager(
+        jdbcTemplate, resolver, cacheManager, tenantMembershipCacheManager);
   }
 
   @Nested

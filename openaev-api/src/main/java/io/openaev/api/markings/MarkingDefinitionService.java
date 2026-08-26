@@ -5,6 +5,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import io.openaev.api.markings.form.MarkingDefinitionInput;
 import io.openaev.api.markings.response.MarkingDefinitionOutput;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
@@ -34,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MarkingDefinitionService {
 
   private final MarkingDefinitionRepository markingDefinitionRepository;
+  private final MarkingClearanceCacheManager markingClearanceCacheManager;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -75,10 +77,21 @@ public class MarkingDefinitionService {
 
   // -- UPDATE --
 
+  /**
+   * Evicts every cached clearance, because {@code order} and {@code type} are the inputs the
+   * resolver expands a grant against — not just labels. Raising a marking's order pushes it above
+   * clearances that previously covered it, so a stale entry keeps granting a marking the new data
+   * no longer justifies: fail-open. Blunt because the affected set is "everyone holding a grant of
+   * this type", and computing it is itself a query (see {@link
+   * MarkingClearanceCacheManager#evictAll}).
+   */
   public MarkingDefinition update(@NotBlank String id, @NotNull MarkingDefinitionInput input) {
     MarkingDefinition existing = getOrThrow(id);
     assertNameIsFree(input.name(), id);
-    return markingDefinitionRepository.save(MarkingDefinitionMapper.apply(existing, input));
+    MarkingDefinition saved =
+        markingDefinitionRepository.save(MarkingDefinitionMapper.apply(existing, input));
+    markingClearanceCacheManager.evictAll();
+    return saved;
   }
 
   // -- DELETE --
@@ -92,6 +105,8 @@ public class MarkingDefinitionService {
    */
   public void delete(@NotBlank String id) {
     markingDefinitionRepository.delete(getOrThrow(id));
+    // The cascade removes the grants, but not the clearances already derived from them.
+    markingClearanceCacheManager.evictAll();
   }
 
   // -- PRIVATE --

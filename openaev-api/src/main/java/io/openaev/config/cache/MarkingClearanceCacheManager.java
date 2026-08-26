@@ -4,9 +4,12 @@ import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.config.MarkingScopeResolver;
 import io.openaev.config.MarkingScopeResolver.MarkingRef;
 import io.openaev.context.MarkingCtx;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -69,6 +72,8 @@ public class MarkingClearanceCacheManager {
 
   private final JdbcTemplate jdbcTemplate;
   private final MarkingScopeResolver resolver;
+  private final CacheManager cacheManager;
+  private final TenantMembershipCacheManager tenantMembershipCacheManager;
 
   /**
    * Returns the clearance the user holds in the tenant (cached).
@@ -78,6 +83,8 @@ public class MarkingClearanceCacheManager {
    */
   @Cacheable(value = MARKING_CLEARANCE_CACHE, key = "#userId + ':' + #tenantId + ':' + #bypass")
   public MarkingCtx findClearance(String userId, String tenantId, boolean bypass) {
+    // Intentionally JDBC here: this code runs during argument resolution (before @Transactional),
+    // so ORM reads may hold the pooled connection until request end (open-in-view).
     List<MarkingRef> definitions =
         jdbcTemplate.query(
             TENANT_MARKINGS_SQL,
@@ -113,6 +120,40 @@ public class MarkingClearanceCacheManager {
       })
   public void evict(String userId, String tenantId) {
     // eviction only
+  }
+
+  /**
+   * Evicts every cached clearance the user holds, in every tenant.
+   *
+   * <p>This — not {@link #evict(String, String)} — is what a group membership change needs. A
+   * {@code Group} is dual-scope: a platform group ({@code tenant_id IS NULL}) can grant markings in
+   * many tenants at once, and {@code users_groups} carries no tenant of its own. So dropping a user
+   * from a group reduces their clearance in <i>every</i> tenant that group grants into, and
+   * evicting a single tenant would leave the rest stale — fail-open, which is the case eviction
+   * exists to prevent.
+   *
+   * <p>Tenants are read through {@link TenantMembershipCacheManager#findTenantIdsByUserId} (itself
+   * cached, so this is normally free). A tenant missing from that list cannot be reached by the
+   * user anyway: tenant isolation would deny them a scope there before marking was ever consulted.
+   *
+   * <p>Keys are dropped through {@link CacheManager} rather than by calling {@link #evict} in a
+   * loop, because that would be a self-invocation and would silently skip the cache interceptor —
+   * the same reason {@link TenantMembershipCacheManager#evictForUser} does it this way.
+   */
+  public void evictForUser(String userId) {
+    Cache cache = cacheManager.getCache(MARKING_CLEARANCE_CACHE);
+    if (cache == null) {
+      return;
+    }
+    for (String tenantId : tenantMembershipCacheManager.findTenantIdsByUserId(userId)) {
+      cache.evict(userId + ":" + tenantId + ":false");
+      cache.evict(userId + ":" + tenantId + ":true");
+    }
+  }
+
+  /** Convenience for the group paths, where a single change touches every member at once. */
+  public void evictForUsers(Collection<String> userIds) {
+    userIds.forEach(this::evictForUser);
   }
 
   /**
