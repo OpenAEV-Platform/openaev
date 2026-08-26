@@ -245,12 +245,14 @@ public class UserService {
                 input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
     // Only tenants the user just joined trigger auto-assignment: re-applying it to tenants he
     // already belonged to would restore groups deliberately removed from within those tenants.
+    List<String> currentTenantIds = existing.getTenants().stream().map(Tenant::getId).toList();
     List<String> attachedTenantIds =
-        existing.getTenants().stream()
-            .map(Tenant::getId)
-            .filter(tenantId -> !oldTenantIds.contains(tenantId))
-            .toList();
+        currentTenantIds.stream().filter(tenantId -> !oldTenantIds.contains(tenantId)).toList();
     assignAutoAssignGroups(existing, attachedTenantIds, false);
+    // Symmetrically, a membership must not outlive the tenant attachment that granted it.
+    List<String> detachedTenantIds =
+        oldTenantIds.stream().filter(tenantId -> !currentTenantIds.contains(tenantId)).toList();
+    revokeTenantGroups(existing, detachedTenantIds);
     User savedUser = userRepository.save(existing);
     // Evict cache for old tenants (removed memberships) and new tenants (added memberships)
     List<String> newTenantIds = input.tenantIds() != null ? input.tenantIds() : List.of();
@@ -602,5 +604,34 @@ public class UserService {
       }
     }
     user.setGroups(current);
+  }
+
+  /**
+   * Revokes the groups of the given tenants from an already persisted user. Used when a user leaves
+   * a tenant outside of the update flow, i.e. when detached from a tenant screen.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void revokeTenantGroups(
+      @NotBlank final String userId, @NotNull final Collection<String> tenantIds) {
+    if (tenantIds.isEmpty()) {
+      return;
+    }
+    User user = user(userId);
+    revokeTenantGroups(user, tenantIds);
+    userRepository.save(user);
+  }
+
+  /**
+   * Drops every group scoped to a tenant the user just left: a group grants capabilities inside its
+   * own tenant only, so keeping it would leave access to a tenant the user no longer belongs to.
+   * Platform groups and the groups of the remaining tenants are untouched.
+   */
+  private void revokeTenantGroups(User user, Collection<String> tenantIds) {
+    if (tenantIds.isEmpty()) {
+      return;
+    }
+    user.getUnscopedGroups()
+        .removeIf(
+            group -> group.getTenant() != null && tenantIds.contains(group.getTenant().getId()));
   }
 }

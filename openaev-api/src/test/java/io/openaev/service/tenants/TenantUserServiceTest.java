@@ -247,6 +247,33 @@ class TenantUserServiceTest extends IntegrationTest {
       assertThatThrownBy(() -> tenantUserService.user(user.getId()))
           .isInstanceOf(ElementNotFoundException.class);
     }
+
+    @Test
+    @DisplayName("Given a detached user should lose the groups of that tenant")
+    void given_detachedUser_should_loseTenantGroups() {
+      // -- ARRANGE --
+      Group autoGroup = TenantGroupFixture.getGroup("AutoAssignDetach");
+      autoGroup.setDefaultUserAssignation(true);
+      tenantGroupComposer.forGroup(autoGroup).persist();
+      entityManager.flush();
+      UserOutput created =
+          tenantUserService.createOrAttach(
+              getUserInput("tenant-detach@test.invalid", "Detach", "Tenant"));
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(groupRepository.findById(autoGroup.getId()).orElseThrow().getUsers())
+          .extracting(User::getId)
+          .contains(created.id());
+
+      // -- ACT --
+      tenantUserService.detach(created.id());
+
+      // -- ASSERT --
+      entityManager.flush();
+      entityManager.clear();
+      Group reloaded = groupRepository.findById(autoGroup.getId()).orElseThrow();
+      assertThat(reloaded.getUsers()).extracting(User::getId).doesNotContain(created.id());
+    }
   }
 
   @Nested
