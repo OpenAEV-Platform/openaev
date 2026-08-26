@@ -5,9 +5,10 @@ import {
   ComboboxField,
   ComboboxInput,
   ComboboxTrigger,
+  IconButton,
 } from '@filigran/design-system';
 import { FilterListOffOutlined } from '@mui/icons-material';
-import { IconButton, Tooltip } from '@mui/material';
+import { Tooltip } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -20,11 +21,11 @@ import { buildEmptyFilter } from './FilterUtils';
 const useStyles = makeStyles()(theme => ({
   container: {
     display: 'flex',
-    gap: 10,
-    // Measured at 0: this field sits flush against the search box it follows on
-    // every list toolbar. The gap belongs on the boundary between the two, so it
-    // lives here and reaches every page that mounts this field.
-    marginLeft: theme.spacing(1),
+    // One axis, one gap: the field and the clear button are centred on the same
+    // line as the search box, 8px from it and 8px from each other. Measured
+    // before: 0px to the search box and 20px to the button.
+    alignItems: 'center',
+    gap: theme.spacing(1),
   },
 }));
 
@@ -67,7 +68,9 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
   };
 
   return (
-    <div className={classes.container}>
+    // `style` used to be spread onto the clear button, where it leaked margins
+    // and made the gap to it 20px. It belongs to the row.
+    <div className={classes.container} style={style}>
       <div style={{ width: domains ? '95%' : 200 }}>
         <Combobox
           options={options}
@@ -108,16 +111,12 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
       </div>
       <Tooltip title={t('Clear filters')}>
         <IconButton
-          style={{
-            ...style,
-            maxHeight: 40,
-          }}
-          color="primary"
+          size="md"
+          priority="tertiary"
+          aria-label={t('Clear filters')}
           onClick={handleClearFilters}
-          size="small"
-        >
-          <FilterListOffOutlined fontSize="small" />
-        </IconButton>
+          icon={<FilterListOffOutlined fontSize="small" />}
+        />
       </Tooltip>
     </div>
   );

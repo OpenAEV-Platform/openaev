@@ -71,6 +71,10 @@ const ParametersTab = () => {
                   label={t('Parameter Type')}
                   items={items}
                   required
+                  // The field shrank to its trigger's content — 100px — while the
+                  // label needs 107px of text and wrapped onto a second line.
+                  // Measured at the real render, in the widest locale on screen.
+                  style={{ minWidth: 160 }}
                 />
                 <Tooltip title={t('Delete')}>
                   <IconButton color="error" onClick={() => remove(index)}>

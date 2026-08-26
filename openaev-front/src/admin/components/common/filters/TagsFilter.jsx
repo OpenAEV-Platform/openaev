@@ -38,6 +38,9 @@ const TagsFilter = (props) => {
   // so the field's own transient selection now lives here — it is what the
   // uncontrolled MUI Autocomplete used to keep internally.
   const [selected, setSelected] = useState(null);
+  // The component holds the input's text itself: clearing `value` alone does not
+  // clear the text the library wrote there when the option was picked.
+  const [inputValue, setInputValue] = useState('');
   const { t } = useFormatter();
   const { tags } = useHelper(helper => ({ tags: helper.getTags() }));
   const { onAddTag, onClearTag, onRemoveTag, currentTags, fullWidth } = props;
@@ -52,19 +55,32 @@ const TagsFilter = (props) => {
       <div style={{
         width: fullWidth ? '100%' : 250,
         float: 'left',
-        marginRight: 10,
       }}
       >
         <Combobox
           openOnFocus
           options={tagsOptions}
           value={selected}
+          inputValue={inputValue}
+          onInputChange={(next, meta) => {
+            if (meta.cause === 'type') {
+              setInputValue(next);
+            }
+          }}
           onValueChange={(value) => {
-            setSelected(value);
             // MUI reported a `clear` reason here; in single mode a cleared field
             // is exactly a null value, so the two paths stay distinguishable.
-            if (value !== null) onAddTag(value);
-            else if (fullWidth) onClearTag();
+            if (value !== null) {
+              onAddTag(value);
+            } else if (fullWidth) {
+              onClearTag();
+            }
+            // The chosen tag leaves the field for the chip row below, so the
+            // field holds nothing and shows its placeholder again. It used to
+            // keep the tag as its own value AND the library's own text, so both
+            // are cleared.
+            setSelected(null);
+            setInputValue('');
           }}
           getOptionLabel={option => option.label}
           isOptionEqualToValue={(option, value) => value === undefined || value === '' || option.id === value.id}

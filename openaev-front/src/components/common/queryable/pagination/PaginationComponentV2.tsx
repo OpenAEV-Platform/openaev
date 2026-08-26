@@ -247,7 +247,10 @@ const PaginationComponentV2 = <T extends object>({
               helpers={queryableHelpers.filterHelpers}
               options={options}
               setPristine={setPristine}
-              style={{ marginLeft: (searchEnable || leftSlot) ? 10 : 0 }}
+              // 8px to whatever precedes it, and none when nothing does. This
+              // caller is the only one that knows which, so the gap lives here
+              // rather than in the field's own class.
+              style={{ marginLeft: (searchEnable || leftSlot) ? 8 : 0 }}
               // "Clear filters" also resets the associated text search input.
               onClear={() => queryableHelpers.textSearchHelpers.handleTextSearch('')}
             />

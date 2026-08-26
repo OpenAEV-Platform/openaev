@@ -70,9 +70,13 @@ const ClickableChipPopover: FunctionComponent<Props> = ({
     >
       <div
         style={{
+          // Figma node 7346:48677: the panel stacks its fields with
+          // `--spacing-2` between them inside `--spacing-4` of padding.
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
           width: 250,
-
-          padding: 8,
+          padding: 16,
         }}
       >
         {displayOperatorAndFilter()}

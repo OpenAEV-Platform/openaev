@@ -52,25 +52,29 @@ const FilterFieldBaseEntity: FunctionComponent<Props> = ({
   }
 
   return (
-    <Select
-      value={value ?? ''}
-      onValueChange={next => onChange(next)}
-      error={error}
-      required={true}
-    >
-      <SelectLabel required>{t('Entity type')}</SelectLabel>
-      <SelectTrigger>
-        <SelectValue placeholder={t('Entity type')} />
-      </SelectTrigger>
-      <SelectContent>
-        {entityOptions.map(option => (
-          <SelectItem key={option.id} value={option.id}>
-            {t(option.label)}
-          </SelectItem>
-        ))}
-      </SelectContent>
-      <SelectHelperText>{error ? t('Should at least select one dimension') : ''}</SelectHelperText>
-    </Select>
+    // The library Select renders no wrapper of its own (LIBRARY-FEEDBACK 43), so
+    // in a flex row its label and its trigger would become two separate items.
+    <div style={{ minWidth: 200 }}>
+      <Select
+        value={value ?? ''}
+        onValueChange={next => onChange(next)}
+        error={error}
+        required={true}
+      >
+        <SelectLabel required>{t('Entity type')}</SelectLabel>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder={t('Entity type')} />
+        </SelectTrigger>
+        <SelectContent>
+          {entityOptions.map(option => (
+            <SelectItem key={option.id} value={option.id}>
+              {t(option.label)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+        {error ? <SelectHelperText>{t('Should at least select one dimension')}</SelectHelperText> : null}
+      </Select>
+    </div>
   );
 };
 

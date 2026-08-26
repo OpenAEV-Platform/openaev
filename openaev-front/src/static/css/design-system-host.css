@@ -37,8 +37,28 @@
  *
  * Scoped through explicit hooks rather than `.MuiDrawer-paper` /
  * `.MuiPopover-paper`: this app mounts many other papers that must not move. */
-.fds-drawer-surface,
-.fds-filter-popover {
+.fds-drawer-surface {
   background-color: var(--bg-elevation-default-layer-2);
   background-image: none;
 }
+
+/* The filter popover holds fields, and a field's own ground is
+ * `--bg-input-default` — which resolves to the SAME value as layer-2 (#13213e
+ * measured). A panel painted layer-2 therefore disappeared behind its own
+ * inputs. The Figma node for this panel (7346:48677) reads
+ * `--bg-elevation-default` one layer deeper: #1f3965, i.e. layer-3 here, with
+ * `--radius-sm`, `--spacing-4` of padding, `--spacing-2` between the fields and
+ * the shared drop shadow. */
+.fds-filter-popover {
+  background-color: var(--bg-elevation-default-layer-3);
+  background-image: none;
+  border-radius: var(--radius-sm, 4px);
+  box-shadow: 0 2px 4px 0 rgb(0 0 0 / 40%);
+  /* In LIGHT mode layer-3 (#e4e5e7) is the same value as `--bg-input-default`,
+   * and a library field's own border is transparent until focus — so the fields
+   * would vanish into the panel. Measured: no elevation token keeps the Figma's
+   * direction (panel lighter than its fields) in both modes; layer-3 does it in
+   * dark, layer-2 in light. The border keeps the panel readable meanwhile. */
+  border: 1px solid var(--border-elevation-subtle-layer-3);
+}
+

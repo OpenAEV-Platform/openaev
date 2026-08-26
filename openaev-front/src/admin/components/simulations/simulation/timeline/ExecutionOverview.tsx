@@ -179,11 +179,12 @@ const ExecutionOverview = ({ exerciseId: exerciseIdProp, showMenu = true }: Exec
         />
 
         {/* Scoping toolbar for the timeline and board below */}
+        {/* Same row as every other list toolbar: one axis, 8px between each. */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: theme.spacing(1.5),
+          gap: theme.spacing(1),
         }}
         >
           <SearchFilter

@@ -173,32 +173,39 @@ const WidgetSeriesSelection: FunctionComponent<{
           value={label}
           onChange={e => onChangeLabel(e.target.value)}
         />
+        {/* One row: the entity type and the filter field side by side, the clear
+            button on the same axis. Each 8px apart — `FilterAutocomplete`'s own
+            container carries the left gap and the gap to its button. The chips
+            sit underneath, not in the row. */}
         <div style={{ marginTop: theme.spacing(2) }}>
-          <FilterFieldBaseEntity error={error} value={entity} onChange={onChangeEntity} />
-        </div>
-        {entity
-          && (
-            <div style={{ marginTop: theme.spacing(2) }}>
-              {propertyOptionsLoading ? <Skeleton height={35} /> : (
-                <>
-                  <FilterAutocomplete
-                    filterGroup={searchPaginationInput.filterGroup}
-                    helpers={queryableHelpers.filterHelpers}
-                    options={propertyOptions}
-                    setPristine={setPristine}
-                  />
-                  <FilterContext.Provider value={{ defaultValues: defaultValues }}>
-                    <FilterChips
-                      propertySchemas={properties}
-                      filterGroup={searchPaginationInput.filterGroup}
-                      helpers={queryableHelpers.filterHelpers}
-                      pristine={pristine}
-                    />
-                  </FilterContext.Provider>
-                </>
-              )}
-            </div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            gap: theme.spacing(1),
+          }}
+          >
+            <FilterFieldBaseEntity error={error} value={entity} onChange={onChangeEntity} />
+            {entity && !propertyOptionsLoading && (
+              <FilterAutocomplete
+                filterGroup={searchPaginationInput.filterGroup}
+                helpers={queryableHelpers.filterHelpers}
+                options={propertyOptions}
+                setPristine={setPristine}
+              />
+            )}
+          </div>
+          {entity && propertyOptionsLoading && <Skeleton height={35} />}
+          {entity && !propertyOptionsLoading && (
+            <FilterContext.Provider value={{ defaultValues: defaultValues }}>
+              <FilterChips
+                propertySchemas={properties}
+                filterGroup={searchPaginationInput.filterGroup}
+                helpers={queryableHelpers.filterHelpers}
+                pristine={pristine}
+              />
+            </FilterContext.Provider>
           )}
+        </div>
       </Box>
     </div>
   );

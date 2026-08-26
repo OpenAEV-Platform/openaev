@@ -101,7 +101,7 @@ const SelectFieldController = ({
               error={!!error}
             >
               <SelectLabel required={required}>{label}</SelectLabel>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={label} />
               </SelectTrigger>
               <SelectContent>

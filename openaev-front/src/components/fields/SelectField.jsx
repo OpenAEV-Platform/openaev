@@ -42,7 +42,7 @@ const SelectField = (props) => {
             error={!!error}
           >
             <SelectLabel required={required ?? InputLabelProps?.required}>{label}</SelectLabel>
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               {/* `renderValue` formatted the trigger's text. The library reads it
                   from the chosen item, so a formatter is only consulted when the
                   site actually passes one. */}

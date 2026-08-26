@@ -89,6 +89,10 @@ const SearchInput: FunctionComponent<Props> = ({
         '& .MuiOutlinedInput-root': {
           'borderRadius': '5px',
           'padding': '0 10px',
+          // Measured at 38 against neighbours at 36 on every list toolbar. The
+          // variant selectors below carry higher specificity, so `inDrawer` and
+          // `thin` keep their own 30.
+          'height': 36,
           'backgroundColor': theme.palette.background.paper,
           // OpenCTI-aligned icon-to-text gap: a tight 4px between the leading
           // search icon and the placeholder, instead of MUI's default 8px

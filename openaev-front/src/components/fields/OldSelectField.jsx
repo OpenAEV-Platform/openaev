@@ -95,7 +95,7 @@ const renderSelectField = ({
         error={!!(touched && error)}
       >
         <SelectLabel required={required}>{label}</SelectLabel>
-        <SelectTrigger>
+        <SelectTrigger className="w-full">
           {renderValue
             ? <span>{value ? renderValue(value) : label}</span>
             : <SelectValue placeholder={label} />}
