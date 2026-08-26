@@ -9,6 +9,7 @@ import {
   type KeyboardEventHandler,
   useEffect, useState,
 } from 'react';
+import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchScenarios, searchScenarioAsOption } from '../../actions/scenarios/scenario-actions';
@@ -18,7 +19,6 @@ import type { Scenario } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
 import type { GroupOption, Option } from '../../utils/Option';
-import Autocomplete from '../Autocomplete';
 import { SCENARIOS } from '../common/queryable/filter/constants';
 import useSearchOptions from '../common/queryable/filter/useSearchOptions';
 import AutocompleteField from './AutocompleteField';
@@ -35,6 +35,7 @@ interface Props {
   useForm?: boolean;
   placeholder?: string;
   name?: string;
+  disabled?: boolean;
   style?: CSSProperties;
   onKeyDown?: KeyboardEventHandler;
   values?: Option[];
@@ -66,6 +67,7 @@ const ScenarioField: FunctionComponent<Props> = ({
   useForm = false,
   placeholder = '',
   name,
+  disabled = false,
   style,
   onKeyDown,
   onValuesChange,
@@ -74,6 +76,7 @@ const ScenarioField: FunctionComponent<Props> = ({
   const { options, searchOptions } = useSearchOptions();
   const { classes } = useStyles();
   const theme = useTheme();
+  const formContext = useFormContext();
   const [open, setOpen] = useState(false);
   const [multipleOptions, setMultipleOptions] = useState<Option[]>([]);
   const [loading, setLoading] = useState(false);
@@ -108,26 +111,50 @@ const ScenarioField: FunctionComponent<Props> = ({
 
   if (multiple && useForm) {
     return (
-      <Autocomplete
-        variant="standard"
-        size="small"
-        name={name}
-        fullWidth
-        multiple
-        label={label}
-        placeholder={placeholder}
-        options={scenarioOptions}
-        style={style}
-        onKeyDown={onKeyDown}
-        renderOption={(renderProps: HTMLAttributes<HTMLLIElement>, option: Option) => (
-          <Box component="li" {...renderProps} key={option.id}>
-            <div className={classes.icon}>
-              <Kayaking />
-            </div>
-            <div className={classes.text}>{option.label}</div>
-          </Box>
+      <Controller
+        name={name ?? ''}
+        control={formContext.control}
+        render={({ field: { value: fieldValue, onChange: fieldOnChange }, fieldState: { error: fieldError } }) => (
+          <MuiAutocomplete
+            multiple
+            fullWidth
+            size="small"
+            selectOnFocus
+            autoHighlight
+            clearOnBlur={false}
+            clearOnEscape={false}
+            disableClearable
+            disabled={disabled}
+            onKeyDown={onKeyDown}
+            slotProps={{ paper: { elevation: 2 } }}
+            options={scenarioOptions}
+            value={scenarioOptions.filter(option => ((fieldValue as string[]) ?? []).includes(option.id))}
+            onChange={(_, newValue) => fieldOnChange(newValue.map(option => option.id))}
+            getOptionLabel={option => option.label}
+            isOptionEqualToValue={(option, val) => option.id === val.id}
+            renderOption={(renderProps: HTMLAttributes<HTMLLIElement>, option: Option) => (
+              <Box component="li" {...renderProps} key={option.id}>
+                <div className={classes.icon}>
+                  <Kayaking />
+                </div>
+                <div className={classes.text}>{option.label}</div>
+              </Box>
+            )}
+            renderInput={params => (
+              <TextField
+                {...params}
+                variant="standard"
+                label={label}
+                placeholder={placeholder}
+                fullWidth
+                style={style}
+                error={!!fieldError}
+                helperText={fieldError?.message}
+              />
+            )}
+            classes={{ clearIndicator: classes.autoCompleteIndicator }}
+          />
         )}
-        classes={{ clearIndicator: classes.autoCompleteIndicator }}
       />
     );
   }

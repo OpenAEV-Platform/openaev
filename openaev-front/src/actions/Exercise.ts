@@ -10,6 +10,7 @@ import type {
   ExerciseUpdateStatusInput,
   ExerciseUpdateTagsInput,
   ExpectationUpdateInput,
+  GetExercisesInput,
   LessonsInput,
   SearchPaginationInput,
   UpdateExerciseInput,
@@ -20,7 +21,8 @@ type AppDispatch = Dispatch;
 
 export const fetchExercises = () => (dispatch: AppDispatch) => getReferential(schema.arrayOfExercises, '/api/exercises')(dispatch);
 
-export const fetchExercisesById = (exerciseIds: string[]) => (dispatch: AppDispatch) => postReferential(schema.arrayOfExercises, '/api/exercises/search-by-id', exerciseIds, undefined, false)(dispatch);
+// The endpoint consumes a GetExercisesInput body ({ exercise_ids: [...] }), not a bare id array.
+export const fetchExercisesById = (getExercisesInput: GetExercisesInput) => (dispatch: AppDispatch) => postReferential(schema.arrayOfExercises, '/api/exercises/search-by-id', getExercisesInput, undefined, false)(dispatch);
 
 export const searchExercises = (paginationInput: SearchPaginationInput) => simplePostCall('/api/exercises/search', paginationInput);
 

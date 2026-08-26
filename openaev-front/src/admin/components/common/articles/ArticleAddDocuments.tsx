@@ -9,7 +9,7 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
-import { type Document } from '../../../../utils/api-types';
+import { type Document, type RawDocument } from '../../../../utils/api-types';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../utils/Option';
 import CreateDocument from '../../components/documents/CreateDocument';
@@ -73,8 +73,10 @@ const ArticleAddDocuments = ({ handleAddDocuments, articleDocumentsIds, channelT
     handleClose();
   };
 
-  const onCreate = (result: Document) => {
-    setDocumentsIds(prev => [...prev, result.document_id]);
+  const onCreate = (result: RawDocument) => {
+    if (result.document_id) {
+      setDocumentsIds(prev => [...prev, result.document_id as string]);
+    }
   };
 
   const allowedMimeTypes = useMemo(() => {
@@ -86,7 +88,7 @@ const ArticleAddDocuments = ({ handleAddDocuments, articleDocumentsIds, channelT
     }
   }, [channelType]);
 
-  const filters = allowedMimeTypes.length > 0 ? allowedMimeTypes : null;
+  const filters = allowedMimeTypes.length > 0 ? allowedMimeTypes : undefined;
 
   const finalDocuments = useMemo(() => {
     const allDocuments: Document[] = Object.values(documents);
