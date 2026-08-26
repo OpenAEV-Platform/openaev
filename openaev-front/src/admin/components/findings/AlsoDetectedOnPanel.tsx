@@ -18,10 +18,10 @@ import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { FINDING_BASE_URL } from '../../../constants/BaseUrls';
-import type { AggregatedFindingOutput, FilterGroup, FindingSiblingOutput, SearchPaginationInput, TargetSimple } from '../../../utils/api-types';
+import type { Finding, FilterGroup, FindingSiblingOutput, SearchPaginationInput, TargetSimple } from '../../../utils/api-types';
 import ContractOutputElementType from './ContractOutputElementType';
 
-interface Props { finding: AggregatedFindingOutput }
+interface Props { finding: Pick<Finding, 'finding_id' | 'finding_type' | 'finding_value'> }
 
 /**
  * "Also Detected On" panel (finding_triforce_design.md, Task 1): lists every OTHER Finding sharing
