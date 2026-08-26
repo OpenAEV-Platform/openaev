@@ -6,8 +6,8 @@ import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import FileFieldController from '../../../../components/fields/FileFieldController';
-import ScenarioField from '../../../../components/fields/ScenarioField';
-import SimulationField from '../../../../components/fields/SimulationField';
+import ScenarioFieldController from '../../../../components/fields/ScenarioFieldController';
+import SimulationFieldController from '../../../../components/fields/SimulationFieldController';
 import TagFieldController from '../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
@@ -83,15 +83,11 @@ const DocumentForm: FunctionComponent<Props> = ({
             rows={2}
             label={t('Description')}
           />
-          <SimulationField
-            multiple
-            useForm
+          <SimulationFieldController
             name="document_exercises"
             label={t('Simulations')}
           />
-          <ScenarioField
-            multiple
-            useForm
+          <ScenarioFieldController
             name="document_scenarios"
             label={t('Scenarios')}
           />

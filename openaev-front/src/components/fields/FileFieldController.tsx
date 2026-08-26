@@ -41,6 +41,8 @@ const FileFieldController: FunctionComponent<Props> = ({
           if (selectedFiles.length === 0) {
             return;
           }
+          // Reset value so selecting the same file again triggers onChange.
+          event.target.value = '';
           const acceptedFiles = selectedFiles.filter(file => isAccepted(file, filters));
           setRejectedFile(acceptedFiles.length === 0);
           if (acceptedFiles.length > 0) {
