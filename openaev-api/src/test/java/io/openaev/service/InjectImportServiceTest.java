@@ -235,6 +235,28 @@ public class InjectImportServiceTest {
     assertEquals("Test\nTest", result);
   }
 
+  @DisplayName("Test parse teams cell with spaces and trailing comma")
+  @Test
+  void testParseTeamsCellWithSpacesAndTrailingComma() {
+    // -- PREPARE --
+    cell.setCellValue("Team A,  Team_B,");
+    RuleAttribute ruleAttribute = MockMapperUtils.createRuleAttribute();
+    ruleAttribute.setColumns("A");
+
+    // -- EXECUTE --
+    java.util.List<String> columnValues =
+        java.util.Arrays.stream(
+                java.util.Arrays.stream(ruleAttribute.getColumns().split("\\+"))
+                    .map(column -> InjectImportUtils.getValueAsString(row, column))
+                    .collect(java.util.stream.Collectors.joining(","))
+                    .split(","))
+            .map(String::trim)
+            .toList();
+
+    // -- ASSERT --
+    assertEquals(java.util.List.of("Team A", "Team_B"), columnValues);
+  }
+
   @DisplayName("Test get inject date without pattern but with an ISO_DATE_TIME format")
   @Test
   void testGetInjectDateWithoutPattern() {
