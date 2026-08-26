@@ -1,12 +1,11 @@
-import { LocalPoliceOutlined, LockOutlined } from '@mui/icons-material';
-import { Box, Checkbox, Divider, Tooltip } from '@mui/material';
+import { LocalPoliceOutlined } from '@mui/icons-material';
+import { Box, Checkbox, Divider } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Controller, type FieldValues, type Path, useFormContext, useWatch } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type CapabilityOutput } from '../../../../utils/api-types';
-import useAuth from '../../../../utils/hooks/useAuth';
 
 interface CapabilitiesTabProps<T extends FieldValues> {
   capabilities: CapabilityOutput[];
@@ -18,7 +17,6 @@ interface CapabilitiesTabProps<T extends FieldValues> {
 function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fieldName, depth = 0 }: CapabilitiesTabProps<T>) {
   const { t } = useFormatter();
   const theme = useTheme();
-  const { me } = useAuth();
 
   const { classes } = makeStyles()(() => ({
     capability_name: {
@@ -35,20 +33,12 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
     name: fieldName,
   }) ?? []) as string[];
 
-  const userCapabilities = new Set<string>((me.user_capabilities ?? []) as string[]);
-  const canAssignCapability = (cap: CapabilityOutput): boolean => {
-    if (!cap.capability_checkable || !cap.capability_value) {
-      return true;
-    }
-    return userCapabilities.has(cap.capability_value);
-  };
-
   // Get all children's capabilities
   const getAllChildren = (cap: CapabilityOutput): string[] => {
     const children: string[] = [];
 
     const collectCheckableValues = (c: CapabilityOutput) => {
-      if (c.capability_checkable && c.capability_value && canAssignCapability(c)) {
+      if (c.capability_checkable && c.capability_value) {
         children.push(c.capability_value);
       }
       c.capability_children?.forEach(child => collectCheckableValues(child));
@@ -63,13 +53,13 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
     for (const cap of caps) {
       if (cap.capability_children) {
         const directChild = cap.capability_children.find(child => child.capability_value === targetValue);
-        if (directChild && cap.capability_checkable && cap.capability_value && canAssignCapability(cap)) {
+        if (directChild && cap.capability_checkable && cap.capability_value) {
           return [...parents, cap.capability_value];
         }
 
         const foundParents = getAllParents(targetValue, cap.capability_children,
-          cap.capability_checkable && cap.capability_value && canAssignCapability(cap) ? [...parents, cap.capability_value] : parents);
-        if (foundParents.length > (cap.capability_checkable && cap.capability_value && canAssignCapability(cap) ? parents.length + 1 : parents.length)) {
+          cap.capability_checkable && cap.capability_value ? [...parents, cap.capability_value] : parents);
+        if (foundParents.length > (cap.capability_checkable && cap.capability_value ? parents.length + 1 : parents.length)) {
           return foundParents;
         }
       }
@@ -78,10 +68,6 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
   };
 
   const toggle = (checked: boolean, cap: CapabilityOutput, allCapabilities: CapabilityOutput[]) => {
-    if (!canAssignCapability(cap)) {
-      return selected;
-    }
-
     let newSelected = [...selected];
 
     if (checked) {
@@ -105,9 +91,6 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
     return newSelected;
   };
 
-  const isCapabilityDisabled = capability.capability_checkable && !canAssignCapability(capability);
-  const isSelected = capability.capability_value ? selected.includes(capability.capability_value) : false;
-
   return (
     <>
       <Box
@@ -117,30 +100,15 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
         justifyContent="space-between"
         width="100%"
         sx={{
-          backgroundColor: isSelected
+          backgroundColor: selected.includes(capability.capability_value)
             ? 'action.selected'
             : 'transparent',
           paddingRight: theme.spacing(2),
-          opacity: isCapabilityDisabled ? 0.5 : 1,
         }}
       >
-        <div
-          className={classes.capability_name}
-          style={{ color: isCapabilityDisabled ? theme.palette.text.disabled : undefined }}
-        >
+        <div className={classes.capability_name}>
           <LocalPoliceOutlined sx={{ opacity: capability.capability_checkable ? 1 : 0.5 }} />
           {t(capability.capability_value)}
-          {isCapabilityDisabled && (
-            <Tooltip title={t('the user can not assign or revoke the capability')}>
-              <LockOutlined
-                sx={{
-                  ml: 0.5,
-                  fontSize: 14,
-                  color: 'text.disabled',
-                }}
-              />
-            </Tooltip>
-          )}
         </div>
         {capability.capability_checkable && capability.capability_value
           && (
@@ -153,8 +121,7 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
                     m: 0,
                     p: 0,
                   }}
-                  checked={isSelected}
-                  disabled={isCapabilityDisabled}
+                  checked={selected.includes(capability.capability_value)}
                   onChange={e => field.onChange(toggle(e.target.checked, capability, capabilities))}
                 />
               )}
