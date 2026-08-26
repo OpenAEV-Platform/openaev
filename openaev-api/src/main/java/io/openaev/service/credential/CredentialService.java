@@ -15,15 +15,12 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.specification.SpecificationUtils;
-import io.openaev.integration.ComponentRequest;
-import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.secrets.provider.SecretsProvider;
-import io.openaev.secrets.provider.SecretsProviderType;
-import io.openaev.secrets.provider.impl.LocalSecretsProvider;
+import io.openaev.secrets.provider.SecretsProviderResolver;
 import io.openaev.service.UserService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TxCtxScopeUtils;
@@ -63,7 +60,7 @@ public class CredentialService {
           Map.entry("credential_connector_instance_id", "secret_reference_connector_instance_id"));
 
   private final CredentialSecretReferenceRepository credentialSecretReferenceRepository;
-  private final ManagerFactory managerFactory;
+  private final SecretsProviderResolver secretsProviderResolver;
   private final UserService userService;
   private final TenantScopedTransaction tenantTx;
 
@@ -329,8 +326,8 @@ public class CredentialService {
       @NotBlank final String credentialId) {
     CredentialSecretReference credential = getCredentialById(credentialId);
     SecretsProvider secretProvider =
-        resolveProviderByConnectorInstanceId(
-            credential.getConnectorInstanceId(), credential.getTenant().getId());
+        secretsProviderResolver.resolveByConnectorInstanceId(
+            credential.getTenant().getId(), credential.getConnectorInstanceId());
     SecretMetadata secretMetadata = secretProvider.getSecretMetadata(credential);
     return credentialMapper.toFullOutput(credential, secretMetadata);
   }
@@ -375,7 +372,7 @@ public class CredentialService {
    * @return created credential reference
    */
   public CredentialSecretReference createCredential(CredentialInput input, String tenantId) {
-    LocalSecretsProvider provider = getLocalProvider(tenantId);
+    SecretsProvider provider = secretsProviderResolver.resolveLocalProvider(tenantId);
 
     // Build Credential Reference
     CredentialSecretReference credential = new CredentialSecretReference();
@@ -397,8 +394,8 @@ public class CredentialService {
 
     CredentialSecretReference credential = getCredentialById(credentialId);
     SecretsProvider secretProvider =
-        resolveProviderByConnectorInstanceId(
-            credential.getConnectorInstanceId(), credential.getTenant().getId());
+        secretsProviderResolver.resolveByConnectorInstanceId(
+            credential.getTenant().getId(), credential.getConnectorInstanceId());
 
     applyMetadataInputToCredential(credential, input);
     secretProvider.update(credential, convertCredentialInputToSecretStoreRequest(input));
@@ -461,9 +458,9 @@ public class CredentialService {
    */
   public void deleteCredential(String credentialId) {
     CredentialSecretReference credential = getCredentialById(credentialId);
-    LocalSecretsProvider provider =
-        resolveProviderByConnectorInstanceId(
-            credential.getConnectorInstanceId(), credential.getTenant().getId());
+    SecretsProvider provider =
+        secretsProviderResolver.resolveByConnectorInstanceId(
+            credential.getTenant().getId(), credential.getConnectorInstanceId());
     provider.delete(credential);
   }
 
@@ -521,51 +518,5 @@ public class CredentialService {
             .toList();
     idsToDelete.forEach(this::deleteCredential);
     return idsToDelete;
-  }
-
-  private LocalSecretsProvider getLocalProvider(String tenantId) {
-    try {
-      return (LocalSecretsProvider)
-          managerFactory
-              .getManager(tenantId)
-              .requestManyAllStates(
-                  new ComponentRequest(SecretsProvider.SERVICE_NAME), SecretsProvider.class)
-              .stream()
-              .filter(
-                  provider -> Objects.equals(provider.getType(), SecretsProviderType.LOCAL.type))
-              .findFirst()
-              .orElseThrow(
-                  () ->
-                      new IllegalStateException(
-                          "No secrets provider found for type " + SecretsProviderType.LOCAL));
-    } catch (Exception e) {
-      throw new IllegalStateException(
-          "No secrets provider is available for type "
-              + SecretsProviderType.LOCAL
-              + " in current tenant",
-          e);
-    }
-  }
-
-  private LocalSecretsProvider resolveProviderByConnectorInstanceId(
-      String connectorInstanceId, String tenantId) {
-    try {
-      ConnectorInstanceInMemory instance = new ConnectorInstanceInMemory();
-      instance.setId(connectorInstanceId);
-      SecretsProvider provider =
-          managerFactory.getManager(tenantId).requestForInstance(instance, SecretsProvider.class);
-      if (provider instanceof LocalSecretsProvider localSecretsProvider) {
-        return localSecretsProvider;
-      }
-      throw new IllegalStateException(
-          "Expected LocalSecretsProvider for connector instance "
-              + connectorInstanceId
-              + ", got: "
-              + provider.getClass().getSimpleName());
-    } catch (Exception e) {
-      throw new IllegalStateException(
-          "No local secrets provider is available for connector instance " + connectorInstanceId,
-          e);
-    }
   }
 }

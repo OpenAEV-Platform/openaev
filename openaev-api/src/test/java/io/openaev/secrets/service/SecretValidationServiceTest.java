@@ -2,8 +2,11 @@ package io.openaev.secrets.service;
 
 import static io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD.*;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.*;
+import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
+import static io.openaev.secrets.provider.SecretConnectionDetails.PROVIDER_NOT_FOUND;
 import static io.openaev.secrets.provider.SecretConnectionDetails.SECRET_NOT_FOUND;
 import static io.openaev.secrets.provider.SecretConnectionDetails.UNREACHABLE;
+import static io.openaev.secrets.provider.SecretConnectionDetails.VALIDATOR_ERROR;
 import static io.openaev.secrets.service.SecretValidationService.VALIDATABLE_AUTH_METHODS;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,6 +18,7 @@ import io.openaev.database.model.SecretReference.SECRET_STATUS;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.SecretReferenceRepository;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.secrets.provider.SecretConnectionProbe;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import java.time.Duration;
 import java.time.Instant;
@@ -60,13 +64,23 @@ class SecretValidationServiceTest extends IntegrationTest {
 
   /**
    * Seeds a reference directly through the repository: the location deliberately points at no
-   * secret, so {@code validate} exercises its defensive path without needing a real Azure secret.
+   * secret, so the prepared probe exercises the local provider's defensive path without needing a
+   * real Azure secret. The connector instance is the real local provider, otherwise every probe
+   * would short-circuit on {@code PROVIDER_NOT_FOUND} and the tests would assert the wrong path.
    */
   private CredentialSecretReference seedReference(
       CREDENTIAL_AUTH_METHOD authMethod, SECRET_STATUS status, Instant lastVerifiedAt) {
+    return seedReference(authMethod, status, lastVerifiedAt, LOCAL_SECRETS_PROVIDER_ID);
+  }
+
+  private CredentialSecretReference seedReference(
+      CREDENTIAL_AUTH_METHOD authMethod,
+      SECRET_STATUS status,
+      Instant lastVerifiedAt,
+      String connectorInstanceId) {
     CredentialSecretReference reference = new CredentialSecretReference();
     reference.setName(namePrefix() + UUID.randomUUID());
-    reference.setConnectorInstanceId("local-secrets-provider");
+    reference.setConnectorInstanceId(connectorInstanceId);
     reference.setCredentialType(authMethodToType(authMethod));
     reference.setCredentialAuthMethod(authMethod);
     reference.setStatus(status);
@@ -85,10 +99,20 @@ class SecretValidationServiceTest extends IntegrationTest {
     };
   }
 
+  private List<SecretValidationCandidate> dueCandidates(int maxPerRun) {
+    return secretValidationService.findDueForValidation(
+        tenant.getId(), maxPerRun, REVALIDATE_AFTER);
+  }
+
   private List<String> dueReferenceIds(int maxPerRun) {
-    return secretValidationService.findDueForValidation(maxPerRun, REVALIDATE_AFTER).stream()
-        .map(SecretValidationCandidate::referenceId)
-        .toList();
+    return dueCandidates(maxPerRun).stream().map(SecretValidationCandidate::referenceId).toList();
+  }
+
+  private SecretValidationCandidate candidateFor(CredentialSecretReference reference) {
+    return dueCandidates(LARGE_BUDGET).stream()
+        .filter(candidate -> candidate.referenceId().equals(reference.getId()))
+        .findFirst()
+        .orElseThrow();
   }
 
   @Nested
@@ -181,42 +205,93 @@ class SecretValidationServiceTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Validating one credential")
+  @DisplayName("Preparing the probes")
+  class PrepareProbes {
+
+    @Test
+    @DisplayName("A reference whose secret cannot be loaded still travels through the run")
+    void given_referenceWithoutLocation_should_beReturnedWithAConcludedProbe() {
+      // Arrange — the reference seeded here has no location at all.
+      CredentialSecretReference reference = seedReference(AZURE_SERVICE_PRINCIPAL, ACTIVE, null);
+
+      // Act — present in the batch, so it gets an outcome rather than vanishing.
+      SecretConnectionResult result = secretValidationService.validate(candidateFor(reference));
+
+      // Assert — the local provider concluded at preparation time, no validator ever ran.
+      assertThat(result.detail()).isEqualTo(SECRET_NOT_FOUND);
+      assertThat(result.wasChecked()).isFalse();
+    }
+
+    @Test
+    @DisplayName("A reference pointing at an unknown provider is reported, not dropped")
+    void given_unresolvableProvider_should_yieldProviderNotFound() {
+      // Arrange — a connector instance no integration is spawned for.
+      CredentialSecretReference reference =
+          seedReference(AZURE_SERVICE_PRINCIPAL, ACTIVE, null, "unknown-connector-instance");
+
+      // Act
+      SecretConnectionResult result = secretValidationService.validate(candidateFor(reference));
+
+      // Assert — one unresolvable provider must cost that credential an outcome, not the batch.
+      assertThat(result.detail()).isEqualTo(PROVIDER_NOT_FOUND);
+      assertThat(result.wasChecked()).isFalse();
+      assertThat(result.statusToPersist()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Running one probe")
   class Validate {
 
     @Test
-    @DisplayName("A dangling location yields an inconclusive result instead of failing the run")
-    void given_missingSecret_should_returnUnknown() {
-      // Arrange — the reference seeded here has no location at all.
-      CredentialSecretReference reference = seedReference(AZURE_SERVICE_PRINCIPAL, ACTIVE, null);
-      SecretValidationCandidate candidate = new SecretValidationCandidate(reference.getId(), null);
+    @DisplayName("The prepared probe's outcome is returned as-is")
+    void given_concludingProbe_should_returnItsOutcome() {
+      // Arrange
+      SecretValidationCandidate candidate =
+          new SecretValidationCandidate(
+              UUID.randomUUID().toString(),
+              SecretConnectionProbe.of(SecretConnectionResult.active()));
+
+      // Act
+      SecretConnectionResult result = secretValidationService.validate(candidate);
+
+      // Assert
+      assertThat(result.outcome()).isEqualTo(SecretConnectionResult.OUTCOME.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("A probe that blows up is inconclusive, never a rejection")
+    void given_throwingProbe_should_returnUnknown() {
+      // Arrange — an unexpected validator failure says nothing about the credential itself.
+      SecretValidationCandidate candidate =
+          new SecretValidationCandidate(
+              UUID.randomUUID().toString(),
+              () -> {
+                throw new IllegalStateException("provider exploded");
+              });
 
       // Act
       SecretConnectionResult result = secretValidationService.validate(candidate);
 
       // Assert
       assertThat(result.outcome()).isEqualTo(SecretConnectionResult.OUTCOME.UNKNOWN);
-      assertThat(result.detail()).isEqualTo(SECRET_NOT_FOUND);
+      assertThat(result.detail()).isEqualTo(VALIDATOR_ERROR);
       assertThat(result.statusToPersist()).isEmpty();
-      // No validator ever ran, so the row must not even be stamped as verified.
-      assertThat(result.wasChecked()).isFalse();
     }
 
     @Test
-    @DisplayName("A reference whose secret cannot be loaded still travels through the run")
-    void given_referenceWithoutLocation_should_beReturnedWithNullSecret() {
+    @DisplayName("A probe returning nothing is inconclusive")
+    void given_probeReturningNull_should_returnUnknown() {
       // Arrange
-      CredentialSecretReference reference = seedReference(AZURE_SERVICE_PRINCIPAL, ACTIVE, null);
+      SecretValidationCandidate candidate =
+          new SecretValidationCandidate(UUID.randomUUID().toString(), () -> null);
 
       // Act
-      List<SecretValidationCandidate> candidates =
-          secretValidationService.findDueForValidation(LARGE_BUDGET, REVALIDATE_AFTER);
+      SecretConnectionResult result = secretValidationService.validate(candidate);
 
-      // Assert — present in the batch, with no secret, so it gets an outcome rather than vanishing.
-      assertThat(candidates)
-          .filteredOn(candidate -> candidate.referenceId().equals(reference.getId()))
-          .singleElement()
-          .satisfies(candidate -> assertThat(candidate.secret()).isNull());
+      // Assert
+      assertThat(result.outcome()).isEqualTo(SecretConnectionResult.OUTCOME.UNKNOWN);
+      assertThat(result.detail()).isEqualTo(VALIDATOR_ERROR);
     }
   }
 

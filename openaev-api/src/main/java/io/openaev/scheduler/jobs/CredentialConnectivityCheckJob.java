@@ -78,11 +78,12 @@ public class CredentialConnectivityCheckJob implements Job {
   }
 
   private void validateTenantCredentials(String tenantId, Duration revalidateAfter) {
-    // Phase 1 — transactional read.
+    // Phase 1 — transactional read, and provider-side preparation of every probe.
     List<SecretValidationCandidate> candidates =
         tenantTx.execute(
             TxCtx.forTenant(tenantId),
-            () -> secretValidationService.findDueForValidation(maxPerRun, revalidateAfter));
+            () ->
+                secretValidationService.findDueForValidation(tenantId, maxPerRun, revalidateAfter));
 
     if (candidates.isEmpty()) {
       return;

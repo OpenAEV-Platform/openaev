@@ -12,6 +12,9 @@ public final class SecretConnectionDetails {
   /** The secret referenced by {@code secret_reference_location} could not be loaded. */
   public static final String SECRET_NOT_FOUND = "SECRET_NOT_FOUND";
 
+  /** The provider backing {@code secret_reference_connector_instance_id} could not be resolved. */
+  public static final String PROVIDER_NOT_FOUND = "PROVIDER_NOT_FOUND";
+
   /** No {@code SecretHandler} claims this secret type. */
   public static final String HANDLER_NOT_FOUND = "HANDLER_NOT_FOUND";
 
