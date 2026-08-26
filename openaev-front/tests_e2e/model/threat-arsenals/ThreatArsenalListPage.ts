@@ -26,7 +26,12 @@ class ThreatArsenalListPage {
   }
 
   async addFirstAvailableFilter() {
-    await this.filterField.click();
+    // The filter field does not open its list on focus, only on its trigger —
+    // clicking the input alone leaves the list closed.
+    const shell = this.page
+      .locator('[class*="min-h-9"]')
+      .filter({ has: this.filterField });
+    await shell.getByRole('button').last().click();
     await this.page.getByRole('option').first().click();
   }
 
