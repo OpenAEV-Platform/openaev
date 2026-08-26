@@ -21,10 +21,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ShutdownService;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.FindingComment;
 import io.openaev.database.model.ResourceType;
@@ -208,7 +210,7 @@ class FindingCommentApiTest extends IntegrationTest {
     String originalContent = "sensitive original content that must survive deletion";
     FindingComment comment = createCommentByOtherUser(finding, originalContent);
 
-    ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<AuditEventScope> eventScopeCaptor = ArgumentCaptor.forClass(AuditEventScope.class);
     ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
 
     mvc.perform(delete("/api/findings/comments/{commentId}", comment.getId()).with(csrf()))
@@ -217,16 +219,15 @@ class FindingCommentApiTest extends IntegrationTest {
     verify(auditLogger, timeout(2000))
         .logAccessControlEvent(
             eventScopeCaptor.capture(),
-            anyString(),
+            any(EventStatus.class),
             any(ResourceType.class),
             anyString(),
             any(),
             outputCaptor.capture(),
             any(),
-            any(),
-            anyString());
+            any());
 
-    assertThat(eventScopeCaptor.getValue()).isEqualTo("delete");
+    assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.DELETE);
     assertThat(outputCaptor.getValue().toString()).contains(originalContent);
     assertThat(findingCommentRepository.findById(comment.getId())).isEmpty();
   }
