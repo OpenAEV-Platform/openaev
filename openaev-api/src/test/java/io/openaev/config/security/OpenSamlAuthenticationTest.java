@@ -36,10 +36,6 @@ import org.springframework.security.saml2.provider.service.authentication.Saml2A
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrations;
 
-/**
- * End-to-end login: a signed assertion goes through the production AuthenticationProvider, so
- * signature checking, condition validation and our own user mapping are all exercised.
- */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("SAML2 login")
 class OpenSamlAuthenticationTest {
