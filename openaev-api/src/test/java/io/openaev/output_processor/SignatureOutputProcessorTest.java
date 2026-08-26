@@ -49,6 +49,7 @@ class SignatureOutputProcessorTest {
           assetGroupService,
           injectService,
           injectorContractContentUtils,
+          Optional.empty(),
           new ArrayList<>(List.of()));
   private final SignatureOutputProcessor processor =
       new SignatureOutputProcessor(injectExpectationService);
