@@ -6,10 +6,6 @@ import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static java.time.Instant.now;
 
-import io.openaev.aop.audit_log.AuditEvent;
-import io.openaev.aop.audit_log.AuditEventOrigin;
-import io.openaev.aop.audit_log.AuditEventScope;
-import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.DefaultOpenAEVPrincipal;
@@ -44,7 +40,6 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +47,6 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
@@ -110,7 +104,6 @@ public class UserService {
   private final RandomUtils randomUtils;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
   private final TenantScopedTransaction tenantTx;
-  private final ObjectProvider<AuditLogger> auditLoggerProvider;
 
   /** Cache for admin users to improve lookup performance. */
   private Cache adminCache;
@@ -500,30 +493,7 @@ public class UserService {
     token.setCreated(now());
     token.setDeletedAt(null);
     token.setValue(discreteToken);
-    Token createdToken = tokenRepository.save(token);
-    User actor = currentUserOrNull();
-    AuditLogger auditLogger = auditLoggerProvider.getIfAvailable();
-    if (auditLogger != null) {
-      Map<String, Object> contextData = new LinkedHashMap<>();
-      contextData.put("token_id", createdToken.getId());
-      contextData.put(
-          "token_user_id", createdToken.getUser() != null ? createdToken.getUser().getId() : null);
-      contextData.put("actor_user_id", actor != null ? actor.getId() : null);
-      contextData.put("timestamp", now());
-
-      auditLogger.logEvent(
-          AuditEvent.builder()
-              .eventType(EventType.MUTATION)
-              .eventScope(AuditEventScope.CREATE)
-              .eventStatus(EventStatus.SUCCESS)
-              .resourceType(ResourceType.USER)
-              .resourceId(createdToken.getUser() != null ? createdToken.getUser().getId() : null)
-              .contextData(contextData)
-              .message("User token created")
-              .origin(actor != null ? AuditEventOrigin.REQUEST : AuditEventOrigin.SYSTEM)
-              .build());
-    }
-    return createdToken;
+    return tokenRepository.save(token);
   }
 
   public Optional<User> findByTokenAndTenantId(

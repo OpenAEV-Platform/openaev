@@ -7,16 +7,10 @@ import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.aop.audit_log.AuditEvent;
-import io.openaev.aop.audit_log.AuditEventOrigin;
-import io.openaev.aop.audit_log.AuditEventScope;
-import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.SessionManager;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.EventStatus;
-import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
@@ -36,10 +30,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import java.time.Instant;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -58,7 +49,6 @@ public class MeApi extends RestBehavior {
   private final TokenRepository tokenRepository;
   private final UserRepository userRepository;
   private final UserService userService;
-  private final Optional<AuditLogger> auditLogger;
   private final TenantService tenantService;
 
   @GetMapping("/api/logout")
@@ -158,27 +148,7 @@ public class MeApi extends RestBehavior {
     token.setValue(renewedPlaceholderFor(token));
     tokenRepository.save(token);
 
-    Token renewedToken = userService.createUserToken(user);
-    auditLogger.ifPresent(
-        logger -> {
-          Map<String, Object> contextData = new LinkedHashMap<>();
-          contextData.put("token_id", renewedToken.getId());
-          contextData.put("previous_token_id", token.getId());
-          contextData.put("masked_reference", token.getValue());
-
-          logger.logEvent(
-              AuditEvent.builder()
-                  .eventType(EventType.MUTATION)
-                  .eventScope(AuditEventScope.UPDATE)
-                  .eventStatus(EventStatus.SUCCESS)
-                  .resourceType(ResourceType.TOKEN)
-                  .resourceId(renewedToken.getId())
-                  .contextData(contextData)
-                  .message("User token renewed")
-                  .origin(AuditEventOrigin.REQUEST)
-                  .build());
-        });
-    return renewedToken;
+    return userService.createUserToken(user);
   }
 
   @GetMapping(ME_URI + "/tenants")
