@@ -2,11 +2,14 @@ package io.openaev.scheduler.jobs;
 
 import static io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.UNSET;
+import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.AzureEnvironments;
 import io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD;
 import io.openaev.database.model.CredentialSecretReference.CREDENTIAL_TYPE;
+import io.openaev.database.model.Secret.SECRET_TYPE;
 import io.openaev.database.model.SecretReference.SECRET_REFERENCE_TYPE;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -35,10 +38,29 @@ import org.springframework.test.util.ReflectionTestUtils;
  *
  * <p>{@code secret_references} and {@code secrets} are live in production's {@code active-tables},
  * but the test classpath keeps the allowlist empty, hence the explicit property here.
+ *
+ * <p>{@code CREDENTIAL_ASSET} is required too: the local secrets provider is spawned only when that
+ * preview feature is on ({@code LocalSecretsProviderIntegrationFactory#findRelatedInstances}
+ * returns nothing otherwise), so without it every probe short-circuits on {@code
+ * PROVIDER_NOT_FOUND} and no credential is ever verified.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=secret_references,secrets")
+@TestPropertySource(
+    properties = {
+      "openaev.tenant.active-tables=secret_references,secrets",
+      "openaev.enabled-dev-features=CREDENTIAL_ASSET",
+      // The probe is expected to be inconclusive here (no IMDS outside Azure); the shortest
+      // allowed timeout keeps that inevitable wait from dominating the test's runtime.
+      "openaev.credentials.status-validation.timeout-seconds=1"
+    })
 @DisplayName("CredentialsStatusValidatorJob tests")
 class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
+
+  /**
+   * The public Azure cloud, taken from {@link AzureEnvironments} rather than hardcoded: the handler
+   * rejects any name the SDK does not know, so a cloud retired upstream would silently turn the
+   * probe into an {@code INVALID_CONFIGURATION} outcome.
+   */
+  private static final String AZURE_CLOUD = AzureEnvironments.names().getFirst();
 
   @Autowired private CredentialConnectivityCheckJob job;
   @Autowired private DataSource dataSource;
@@ -63,6 +85,7 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
   @AfterEach
   void cleanup() {
     jdbc.update("DELETE FROM secret_references WHERE tenant_id IN (?, ?)", tenantA, tenantB);
+    jdbc.update("DELETE FROM secrets WHERE tenant_id IN (?, ?)", tenantA, tenantB);
     jdbc.update("DELETE FROM tenants WHERE tenant_id IN (?, ?)", tenantA, tenantB);
   }
 
@@ -237,21 +260,45 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
   }
 
   private String seedCredential(String tenantId, CREDENTIAL_AUTH_METHOD authMethod) {
+    String secretId = seedAzureManagedIdentitySecret(tenantId);
     String id = UUID.randomUUID().toString();
     jdbc.update(
         "INSERT INTO secret_references (secret_reference_id, secret_reference_type,"
             + " secret_reference_name, secret_reference_connector_instance_id,"
+            + " secret_reference_location,"
             + " secret_reference_status, secret_reference_credential_type,"
             + " secret_reference_credential_auth_method, tenant_id)"
-            + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         id,
         SECRET_REFERENCE_TYPE.CREDENTIAL_VALUE,
         "credential-" + id,
-        "local-secrets-provider",
+        LOCAL_SECRETS_PROVIDER_ID,
+        secretId,
         UNSET.name(),
         CREDENTIAL_TYPE.CLOUD_AZURE.name(),
         authMethod.name(),
         tenantId);
     return id;
+  }
+
+  /**
+   * A real stored secret is required, not just a reference: the local provider resolves the secret
+   * at preparation time, and a reference with no location concludes on {@code SECRET_NOT_FOUND}
+   * without a validator ever running — which leaves the row untouched and proves nothing about the
+   * run. No subscription id, so the probe stops right after the token request: outside Azure IMDS
+   * is unreachable, the outcome is inconclusive, and the run stamps the attempt without flipping
+   * the status.
+   */
+  private String seedAzureManagedIdentitySecret(String tenantId) {
+    String secretId = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO secrets (secret_id, secret_type, secret_azure_environment,"
+            + " secret_created_at, secret_updated_at, tenant_id)"
+            + " VALUES (?, ?, ?, now(), now(), ?)",
+        secretId,
+        SECRET_TYPE.AZURE_MANAGED_IDENTITY.name(),
+        AZURE_CLOUD,
+        tenantId);
+    return secretId;
   }
 }

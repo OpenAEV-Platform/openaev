@@ -28,9 +28,18 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Integration tests for the three phases of the credential status validation. */
+/**
+ * Integration tests for the three phases of the credential status validation.
+ *
+ * <p>{@code CREDENTIAL_ASSET} must be on: the local secrets provider is spawned only when that
+ * preview feature is enabled ({@code LocalSecretsProviderIntegrationFactory#findRelatedInstances}
+ * returns nothing otherwise), so without it every probe short-circuits on {@code
+ * PROVIDER_NOT_FOUND} and the tests would assert the wrong path.
+ */
+@TestPropertySource(properties = "openaev.enabled-dev-features=CREDENTIAL_ASSET")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @DisplayName("SecretValidationService tests")
