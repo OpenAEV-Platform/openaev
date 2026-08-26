@@ -8,6 +8,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import io.openaev.api.asset.AssetMarkingsService;
 import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.markings.MarkingDefinitionDependenciesManager;
 import io.openaev.api.markings.MarkingDefinitionService;
@@ -611,7 +612,14 @@ class TenantActiveTableAccessArchTest {
               // guarantee is MarkingEscalationValidator — a clearance is per tenant, so nobody
               // holds another tenant's marking and the assignment is refused regardless. Pinned by
               // TenantGroupMarkingsApiTest:
-              TenantGroupService.class)
+              TenantGroupService.class,
+              // Resolves the markings an asset is being labelled with. Same shape as
+              // TenantGroupService above: HTTP path, inside a @Transactional method taking a TxCtx,
+              // so app.current_tenants is set and the read is rewritten with can_access_tenant —
+              // another tenant's marking id does not come back and the size mismatch becomes a 404.
+              // The escalation guard is again the independent check, for the L1-cache reason
+              // spelled out above. Pinned by AssetMarkingsApiTest:
+              AssetMarkingsService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(MarkingDefinitionRepository.class)
