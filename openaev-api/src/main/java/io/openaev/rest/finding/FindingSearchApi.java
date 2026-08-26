@@ -17,7 +17,9 @@ import io.openaev.database.repository.FindingTriageRepository;
 import io.openaev.database.specification.FindingSpecification;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.rest.finding.form.PageAggregatedFindingOutput;
+import io.openaev.rest.finding.form.PageFindingSiblingOutput;
 import io.openaev.rest.finding.form.PageRelatedFindingOutput;
+import io.openaev.rest.finding.form.FindingSiblingOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -241,5 +243,24 @@ public class FindingSearchApi extends RestBehavior {
     Map<String, FindingTriageStatus> triageStatusByFindingId = triageStatusByFindingId(page);
     return page.map(
         finding -> findingMapper.toRelatedFindingOutput(finding, triageStatusByFindingId));
+  }
+
+  @LogExecutionTime
+  @PostMapping({
+    FINDING_URI + "/{findingId}/also-detected-on/search",
+    TENANT_FINDING_URI + "/{findingId}/also-detected-on/search"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#findingId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.FINDING)
+  @ApiResponse(
+      responseCode = "200",
+      content = @Content(schema = @Schema(implementation = PageFindingSiblingOutput.class)))
+  public Page<FindingSiblingOutput> findingAlsoDetectedOn(
+      @PathVariable @NotNull final String findingId,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return findingDistinctSearchService.findAlsoDetectedOn(findingId, searchPaginationInput);
   }
 }

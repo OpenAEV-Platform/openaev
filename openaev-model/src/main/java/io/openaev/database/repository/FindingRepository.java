@@ -148,18 +148,33 @@ public interface FindingRepository
   // cursor (findForIndexing), so a re-detected finding (same natural key, possibly a new asset
   // link added right after by insertFindingAsset) would otherwise never be re-indexed and its
   // ES document would keep a stale asset list forever.
+  //
+  // Triforce identity, Phase 1 (finding_triforce_design.md, Decision #1): the conflict target is
+  // now (finding_type, finding_value, finding_field, finding_location_asset_id) - the
+  // uq_findings_location_key partial unique index added by
+  // V6_20260819150900000__Add_finding_location_asset - instead of finding_inject_id. Re-detection
+  // of the same check on the same asset now updates the same row regardless of which inject found
+  // it; re-detection on a DIFFERENT asset creates a distinct Finding, which is exactly the
+  // Location-scoped identity Task 1's acceptance criteria require. The sole caller today
+  // (FindingService#saveAgentFinding) always resolves a single asset before calling this, so
+  // findingLocationAssetId is never null here - the callers that legitimately have no resolvable
+  // single Location (FindingService#createFindings' batch/multi-asset path) do not go through
+  // this method at all; see that method's javadoc for why it is out of Phase 1 scope.
 
   @Query(
       value =
           """
         INSERT INTO findings
           (finding_id, finding_field, finding_type, finding_value,
-           finding_labels, finding_inject_id, finding_name, tenant_id)
+           finding_labels, finding_inject_id, finding_location_asset_id, finding_name, tenant_id)
         VALUES
           (gen_random_uuid(), :findingField, :findingType, :findingValue,
-           :findingLabels, :findingInjectId, :findingName, :tenantId)
-        ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)
-        DO UPDATE SET finding_name = EXCLUDED.finding_name, finding_updated_at = now()
+           :findingLabels, :findingInjectId, :findingLocationAssetId, :findingName, :tenantId)
+        ON CONFLICT (finding_type, finding_value, finding_field, finding_location_asset_id)
+            WHERE finding_location_asset_id IS NOT NULL
+        DO UPDATE SET finding_name = EXCLUDED.finding_name,
+                      finding_inject_id = EXCLUDED.finding_inject_id,
+                      finding_updated_at = now()
         RETURNING finding_id
         """,
       nativeQuery = true)
@@ -169,6 +184,7 @@ public interface FindingRepository
       @Param("findingValue") String findingValue,
       @Param("findingLabels") String[] findingLabels,
       @Param("findingInjectId") String injectId,
+      @Param("findingLocationAssetId") String findingLocationAssetId,
       @Param("findingName") String name,
       @Param("tenantId") String tenantId);
 

@@ -6,6 +6,7 @@ import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
+import io.openaev.rest.finding.form.FindingSiblingOutput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
 import io.openaev.utils.SensitiveValueMaskingUtils;
 import io.openaev.utils.TargetType;
@@ -223,6 +224,54 @@ public class FindingMapper {
         .creationDate(finding.getCreationDate())
         .findingTriageStatus(
             triageStatusByFindingId.getOrDefault(finding.getId(), FindingTriageStatus.UNTRIAGED))
+        .build();
+  }
+
+  /**
+   * Maps a sibling Finding for the "Also Detected On" panel (finding_triforce_design.md, Task 1):
+   * unlike {@link #toAggregatedFindingOutput}, this does NOT aggregate assets/asset groups across
+   * every finding sharing the same (type, value) - each row here already represents exactly one
+   * Location (see {@code FindingSpecification#sameTypeValueDifferentLocation}), so only that single
+   * finding's own assets/location are relevant.
+   */
+  public FindingSiblingOutput toFindingSiblingOutput(
+      Finding finding, FindingTriageStatus triageStatus, boolean archived) {
+    return FindingSiblingOutput.builder()
+        .id(finding.getId())
+        .value(finding.getValue())
+        .type(finding.getType())
+        .creationDate(finding.getCreationDate())
+        .updateDate(finding.getUpdateDate())
+        .humanUpdateDate(finding.getHumanUpdateDate())
+        .archivedAt(finding.getArchivedAt())
+        .assets(
+            finding.getAssets().stream()
+                .map(endpointMapper::toEndpointSimple)
+                .collect(Collectors.toSet()))
+        .assetGroups(
+            finding.getAssets().stream()
+                .flatMap(asset -> asset.getAssetGroups().stream())
+                .distinct()
+                .map(assetGroupMapper::toAssetGroupSimple)
+                .collect(Collectors.toSet()))
+        .source(
+            Optional.ofNullable(finding.getInject())
+                .map(Inject::getInjector)
+                .map(injectorMapper::toInjectorSimple)
+                .orElse(null))
+        .findingTriageStatus(triageStatus)
+        .severity(finding.getSeverity())
+        .resource(finding.getResource())
+        .cloudAccount(finding.getCloudAccount())
+        .cloudProvider(finding.getCloudProvider())
+        .cloudRegion(finding.getCloudRegion())
+        .remediation(finding.getRemediation())
+        .compliance(finding.getCompliance())
+        .location(
+            Optional.ofNullable(finding.getLocationAsset())
+                .map(endpointMapper::toEndpointSimple)
+                .orElse(null))
+        .archived(archived)
         .build();
   }
 }

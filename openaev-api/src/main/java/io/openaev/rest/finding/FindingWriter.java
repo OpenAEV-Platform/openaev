@@ -57,7 +57,14 @@ public class FindingWriter {
         };
     String findingId =
         findingRepository.upsertFinding(
-            findingField, findingType, findingValue, findingLabels, injectId, name, tenantId);
+            findingField,
+            findingType,
+            findingValue,
+            findingLabels,
+            injectId,
+            assetId,
+            name,
+            tenantId);
     if (findingId == null) {
       // The tenant statement inspector rewrites the upsert's conflict branch to
       // "DO UPDATE SET ... WHERE can_access_tenant(findings.tenant_id) RETURNING finding_id".

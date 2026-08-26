@@ -251,6 +251,25 @@ public class Finding implements TenantBase {
   @Queryable(filterable = true, dynamicValues = true, path = "assets.id")
   private List<Asset> assets = new ArrayList<>();
 
+  // -- TRIFORCE IDENTITY (Phase 1) --
+  // The "Location" leg of the Type+Value+Location stable identity, for asset-based finding types
+  // only (network/host, credential, file, domain, share, computer - see
+  // finding_triforce_design.md). Nullable: findings with no resolvable single asset (0 or >1
+  // linked assets - see V6_20260819150900000__Add_finding_location_asset javadoc, and cloud/OCSF
+  // findings, whose Location is the (cloudProvider, cloudAccount, resource) triple instead) keep
+  // this null and fall back to today's (type, value)-only distinct grouping. Deliberately a plain
+  // @ManyToOne to a single Asset rather than reusing the `assets` many-to-many above: Location
+  // must be singular by construction (Decision #1 - 1 asset = 1 Location = 1 Finding), whereas
+  // `assets` is a legacy many-to-many that this field is meant to eventually replace for these
+  // types.
+  @Queryable(filterable = true, sortable = true, path = "locationAsset.id", label = "location")
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "finding_location_asset_id")
+  @JsonProperty("finding_location_asset_id")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @Schema(implementation = String.class)
+  private Asset locationAsset;
+
   // UpdatedAt now used to sync with linked object
   public void setAssets(List<Asset> assets) {
     this.updateDate = now();

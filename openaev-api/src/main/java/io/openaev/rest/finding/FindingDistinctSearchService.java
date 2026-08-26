@@ -16,7 +16,9 @@ import io.openaev.database.model.TypeValueKey;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.FindingTriageRepository;
 import io.openaev.database.specification.FindingSpecification;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
+import io.openaev.rest.finding.form.FindingSiblingOutput;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -455,5 +457,51 @@ public class FindingDistinctSearchService {
               lastSeenByKey.getOrDefault(key, finding.getUpdateDate()),
               triageStatusByFindingId);
         });
+  }
+
+  /**
+   * "Also Detected On" panel (finding_triforce_design.md, Task 1): paginated list of sibling
+   * Findings sharing the same (type, value) as {@code findingId} but a different Location, one row
+   * per sibling Location (its most recently updated occurrence - same representative-row rule as
+   * the main list). Archived siblings are always included, never filtered out (Decision #10); each
+   * is flagged via {@code finding_archived} instead, computed against the tenant's configured
+   * archive-days setting exactly like the main list's Active/Archived tabs. Soft-deleted siblings
+   * are excluded, matching every other distinct-search entry point.
+   */
+  public Page<FindingSiblingOutput> findAlsoDetectedOn(
+      String findingId, SearchPaginationInput searchPaginationInput) {
+    Finding referenceFinding =
+        findingRepository
+            .findById(findingId)
+            .orElseThrow(() -> new ElementNotFoundException("Finding not found"));
+
+    Page<Finding> page =
+        buildPaginationJPA(
+            (specification, pageable) ->
+                findingRepository.findAll(
+                    FindingSpecification.distinctTypeValueWithFilter(
+                        FindingSpecification.sameTypeValueDifferentLocation(referenceFinding)
+                            .and(FindingSpecification.withoutSoftDeleted())
+                            .and(specification)),
+                    pageable),
+            searchPaginationInput,
+            Finding.class);
+
+    List<String> findingIds = page.getContent().stream().map(Finding::getId).toList();
+    Map<String, FindingTriageStatus> triageStatusByFindingId =
+        findingTriageRepository.findByFinding_IdIn(findingIds).stream()
+            .collect(
+                Collectors.toMap(triage -> triage.getFinding().getId(), FindingTriage::getStatus));
+
+    int archiveDays =
+        tenantSettingsService.findFindingArchiveDays(TenantContext.getCurrentTenant());
+
+    return page.map(
+        finding ->
+            findingMapper.toFindingSiblingOutput(
+                finding,
+                triageStatusByFindingId.getOrDefault(
+                    finding.getId(), FindingTriageStatus.UNTRIAGED),
+                FindingSpecification.isArchived(finding, archiveDays)));
   }
 }

@@ -93,3 +93,14 @@ export const searchDistinctFindingsForScenarios = (scenarioId: string, searchPag
   const uri = `${FINDING_URI}/scenarios/${scenarioId}/search?distinct=true`;
   return simplePostCall(uri, data);
 };
+
+// -- ALSO DETECTED ON --
+
+// Sibling Findings sharing the same Type + Value as findingId but on a different Location
+// (Triforce identity, Phase 1 - see finding_triforce_design.md). One row per sibling Location,
+// including archived ones (always shown, flagged via finding_archived - never hidden).
+export const searchFindingsAlsoDetectedOn = (findingId: string, searchPaginationInput: SearchPaginationInput) => {
+  const data = searchPaginationInput;
+  const uri = `${FINDING_URI}/${findingId}/also-detected-on/search`;
+  return simplePostCall(uri, data);
+};
