@@ -76,7 +76,7 @@ public class OpenSamlConfig {
                             this.auditLogger.orElse(null), this.sessionManager)));
   }
 
-  // -- PROTECTED --
+  // -- PRIVATE --
 
   OpenSaml5AuthenticationProvider getOpenSaml5AuthenticationProvider() {
     OpenSaml5AuthenticationProvider authenticationProvider = new OpenSaml5AuthenticationProvider();
@@ -90,7 +90,8 @@ public class OpenSamlConfig {
     return authenticationProvider;
   }
 
-  Saml2Authentication saml2UserManagement(@NotNull final Saml2Authentication authentication) {
+  private Saml2Authentication saml2UserManagement(
+      @NotNull final Saml2Authentication authentication) {
     Saml2AuthenticatedPrincipal user = (Saml2AuthenticatedPrincipal) authentication.getPrincipal();
     User loginUser = userSaml2Management(user);
 
@@ -104,7 +105,7 @@ public class OpenSamlConfig {
         new OpenAEVSaml2User(loginUser, roles), authentication.getSaml2Response(), roles);
   }
 
-  User userSaml2Management(@NotNull final Saml2AuthenticatedPrincipal user) {
+  private User userSaml2Management(@NotNull final Saml2AuthenticatedPrincipal user) {
     String emailAttribute = user.getName();
     String registrationId = user.getRelyingPartyRegistrationId();
     List<String> rolesFromUser = userMappingService.extractRolesFromUser(user, registrationId);

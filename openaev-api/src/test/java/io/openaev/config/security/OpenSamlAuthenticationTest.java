@@ -16,9 +16,9 @@ import static org.mockito.Mockito.when;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.OpenAEVSaml2User;
 import io.openaev.config.SessionManager;
-import io.openaev.database.model.User;
 import io.openaev.service.UserMappingService;
 import io.openaev.service.user_events.UserEventService;
+import io.openaev.utils.fixtures.UserFixture;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -96,20 +96,12 @@ class OpenSamlAuthenticationTest {
         .authenticate(new Saml2AuthenticationToken(registration(), response));
   }
 
-  private static User user(boolean admin) {
-    User user = new User();
-    user.setId("user-id");
-    user.setEmail(EMAIL);
-    user.setAdmin(admin);
-    return user;
-  }
-
   @Test
   @DisplayName("authenticates a signed assertion and maps it onto an OpenAEV principal")
   void should_authenticate_signed_assertion() throws Exception {
     when(securityService.userManagement(
             eq(EMAIL), eq("openaev"), any(), any(), eq("Jane"), eq("Doe")))
-        .thenReturn(user(false));
+        .thenReturn(UserFixture.getUser("Jane", "Doe", EMAIL, false));
 
     Authentication result = authenticate(SamlResponseFixture.signedResponse(EMAIL, ATTRIBUTES));
 
@@ -125,7 +117,7 @@ class OpenSamlAuthenticationTest {
   void should_authenticate_admin() throws Exception {
     when(securityService.userManagement(
             eq(EMAIL), eq("openaev"), any(), any(), eq("Jane"), eq("Doe")))
-        .thenReturn(user(true));
+        .thenReturn(UserFixture.getUser("Jane", "Doe", EMAIL, true));
 
     Authentication result = authenticate(SamlResponseFixture.signedResponse(EMAIL, ATTRIBUTES));
 
@@ -167,5 +159,28 @@ class OpenSamlAuthenticationTest {
         .extracting(e -> ((Saml2AuthenticationException) e).getSaml2Error())
         .extracting(Saml2Error::getErrorCode)
         .isEqualTo("invalid_assertion");
+  }
+
+  @Test
+  void should_reject_when_user_management_returns_no_user() throws Exception {
+    when(securityService.userManagement(any(), any(), any(), any(), any(), any())).thenReturn(null);
+
+    assertThatThrownBy(() -> authenticate(SamlResponseFixture.signedResponse(EMAIL, ATTRIBUTES)))
+        .isInstanceOf(Saml2AuthenticationException.class)
+        .extracting(e -> ((Saml2AuthenticationException) e).getSaml2Error())
+        .extracting(Saml2Error::getErrorCode)
+        .isEqualTo("invalid_token");
+  }
+
+  @Test
+  void should_reject_when_user_management_throws() throws Exception {
+    when(securityService.userManagement(any(), any(), any(), any(), any(), any()))
+        .thenThrow(new IllegalStateException("boom"));
+
+    assertThatThrownBy(() -> authenticate(SamlResponseFixture.signedResponse(EMAIL, ATTRIBUTES)))
+        .isInstanceOf(Saml2AuthenticationException.class)
+        .extracting(e -> ((Saml2AuthenticationException) e).getSaml2Error())
+        .extracting(Saml2Error::getErrorCode)
+        .isEqualTo("invalid_token");
   }
 }
