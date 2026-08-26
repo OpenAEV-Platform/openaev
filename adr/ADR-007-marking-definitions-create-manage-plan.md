@@ -32,6 +32,7 @@ Product constraints confirmed in the source document:
 - Order comparison is within a given type only.
 - Menu/actions are hidden when unauthorized (not disabled).
 - BYPASS capability grants access.
+- Feature is gated by feature flag `MARKING`; when disabled, the frontend menu entry is hidden.
 
 ## 2. Decision drivers
 
@@ -89,8 +90,11 @@ Behavior:
 
 ### 3.3 API and UX proposal
 
+- Add feature flag `MARKING` to gate Marking Definitions exposure in frontend.
+- When `MARKING` is disabled, mask the Marking Definitions menu entry in the frontend Security section.
 - Add page route under Security menu: Marking Definitions
 - Add CRUD endpoints for Marking Definitions with DTOs and pagination/search
+- Frontend list uses the classic pagination front list component pattern.
 - Add list columns required by US2: Type, Definition, Color, Order, Creation date
 - List must support sorting on Type, Definition, Color, Order, and Creation date
 - List must support filtering on Type, Definition, Color, Order, and Creation date
@@ -167,12 +171,15 @@ Backend:
 - update capability catalog and parent hierarchy
 - expose new group in capability tree API
 - ensure permission checks include BYPASS behavior
+- add feature flag plumbing for `MARKING` and default rollout value (off by default)
 
 Frontend:
 
 - map capability strings in permission parser
 - ensure role editor renders `MARKING` group and both chains
 - gate Security menu entry and Group/Asset marking actions by new capabilities
+- gate Marking Definitions pages/routes/actions behind the same feature flag
+- mask Marking Definitions menu entry when `MARKING` is disabled
 
 Tests:
 
@@ -219,7 +226,7 @@ Tests:
 Frontend:
 
 - add Marking Definitions page in Settings -> Security
-- add paginated table, search, filters, and sorting
+- add paginated table, search, filters, and sorting using the classic pagination front list component
 - render columns Type, Definition, Color, Order, and Creation date
 - add create/edit dialog with field validation
 - make `type` non-editable in edit form (readonly/disabled field)
@@ -307,6 +314,7 @@ Optional counters (future, if needed):
 - Decision (option 1): protected markings are immutable (no edit, no delete).
 - Decision (option 2): assignment actions for Groups and Assets remain partially stubbed behind capabilities in Task 1.
 - Deferred: import/export behavior is out of current scope and will be defined later.
+- Decision: feature flag key is `MARKING`; frontend behavior is menu masking when disabled.
 
 ## 11. Acceptance mapping checklist
 
@@ -322,5 +330,6 @@ Optional counters (future, if needed):
 - Feature branch with sequential chunks above.
 - Keep migrations idempotent and forward-only.
 - Validate RBAC and tenant v2 isolation first, then UI exposure, then seed behavior.
+- Roll out behind feature flag: merge dark, enable progressively after validation.
 - Prepare release note: "Marking Definitions foundation (RBAC + CRUD + default TLP seeds)".
 
