@@ -39,6 +39,7 @@
         <!-- Override Spring Boot BOM: httpcore5-h2 HTTP/2 HPACK DoS CVE-2026-54428 -->
         <httpcore5.version>5.4.3</httpcore5.version>
         <velocity-engine-core.version>2.4.1</velocity-engine-core.version>
+        <opensaml.version>5.2.3</opensaml.version>
         <logback.version>1.6.3</logback.version>
         <log4j2.version>2.25.5</log4j2.version>
         <httpclient5.version>5.6.4</httpclient5.version>
@@ -139,6 +140,18 @@
                 <groupId>org.apache.velocity</groupId>
                 <artifactId>velocity-engine-core</artifactId>
                 <version>${velocity-engine-core.version}</version>
+            </dependency>
+            <!-- Spring Security 6.5 ships OpenSAML 4.3.2 but supports OpenSAML 5 through its OpenSaml5* classes.
+                 Force the 5.x line: 4.3.2 is unmaintained and Spring Security 7 drops OpenSAML 4 support entirely. -->
+            <dependency>
+                <groupId>org.opensaml</groupId>
+                <artifactId>opensaml-saml-api</artifactId>
+                <version>${opensaml.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.opensaml</groupId>
+                <artifactId>opensaml-saml-impl</artifactId>
+                <version>${opensaml.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.opentelemetry</groupId>
