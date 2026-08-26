@@ -1,3 +1,34 @@
+> # 🛑 THIS FILE IS NOT THE SOURCE OF TRUTH 🛑
+>
+> ## The source of truth for these user stories is **Notion**.
+>
+> **EPIC — Marking based access control:**
+> <https://app.notion.com/p/2c58fce17f2a803081dcf80b5a591db9>
+>
+> | Task | Notion ID | Title |
+> |---|---|---|
+> | Task 1 | **590** | Create & Manage marking definitions |
+> | Task 2 | **591** | Assign markings to users |
+> | Task 3 | **592** | Assign markings to assets |
+>
+> ⚠️ **What this file actually is:** a point-in-time *export* of the above, kept in the repository
+> so the technical design documents next to it can quote acceptance criteria without sending the
+> reader to another tool. It is a convenience copy and nothing more.
+>
+> ⚠️ **It is already known to be stale.** Task 2 appears **twice** below (lines ~317 and ~523), and
+> the two copies are **not identical** — the second carries an "⚠️ Important Flags" section the
+> first lacks. That is the drift you get from a manual copy, and it is exactly why this banner
+> exists.
+>
+> ⚠️ **Do not edit acceptance criteria here.** Edits made in this file are invisible to PM and
+> stakeholders, will not be reviewed, and will be silently overwritten by the next export. **Change
+> Notion, then re-export.**
+>
+> ✅ If a statement here disagrees with Notion, **Notion wins** — treat the difference as a bug in
+> this file, not as a decision.
+
+---
+
 # Task 1 — Create & Manage
 
 ## Properties
