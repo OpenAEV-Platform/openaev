@@ -259,7 +259,9 @@ from 2.2. *(deps: 2.2)*
    | `MarkingEscalationValidator` | design **Q7**, pulled forward from 3.3 — it was needed here first |
    | `TenantGroupMarkingsApiTest` (6) | the three manual flows end-to-end; eviction mutation-checked |
    | `MarkingEscalationValidatorTest` (6) | incl. "higher implies lower is allowed" |
-   | [`manual-testing-markings.md`](./manual-testing-markings.md) | curl walkthrough + the SQL to read a resolved clearance |
+   | [`demo/demo.sh`](./demo/demo.sh) | executable end-to-end demo: 9 assertions, mutation-checked, 7 UI checkpoints |
+   | [`demo/group-markings.sh`](./demo/group-markings.sh) | set what a group grants — the *clearance* side |
+   | [`demo/mark-asset.sh`](./demo/mark-asset.sh) | set what an asset carries — the side clearance is tested against |
 
    **Escalation is checked against the resolved clearance, not the raw grants** — so a user holding
    `TLP:AMBER` *may* grant `TLP:GREEN`. They can already read every GREEN row, so granting it discloses
@@ -345,6 +347,25 @@ exposure review (§5.7). **5.7** Decide and implement derived-data propagation +
 validation (§5.5). **5.6** **Un-skim Task 1 / Task 2**: the two capability chains (Q8), `@AccessControl`
 on the marking CRUD, the assignment UX — and the separate decision on whether to marking-activate
 `groups_markings` itself, now that the resolver's bootstrap order is settled.
+
+🔴 **Finding: reading marking definitions is gated too tightly — the Markings column renders empty
+for every non-admin.** `MARKING_DEFINITION` READ/SEARCH is bundled into `ACCESS_TENANT_SETTINGS`
+(`Capability.java:337-338`), which `Manager` does not hold. A user who can see assets therefore gets
+**403 on `/marking-definitions/search`**, cannot resolve the ids in `asset_markings` into names and
+colours, and sees an empty column.
+
+Markings are reference data: anyone who can see a marked row needs to read them. Tags — the closest
+analogue — get this right, with their own `ACCESS_TAGS` in `CapabilityGroup.TAXONOMY`. **The fix is a
+dedicated `ACCESS_MARKINGS` capability mirroring `ACCESS_TAGS`**, granted wherever `ACCESS_TAGS` is;
+this belongs with 5.6's capability-chain work. Until then `demo/demo.sh` grants `ACCESS_TENANT_SETTINGS`
+through a throwaway role.
+
+Two things make this worth writing down rather than just fixing. It is **not a leak** — the ids are
+already in the `asset_markings` payload, and a row only reaches you if its markings are inside your
+clearance; it is purely a resolution failure. And it **fails silently**: `ItemMarkings` drops
+unresolvable ids deliberately, because there is no FK from `assets.marking_ids` to
+`marking_definitions` and a dangling id must not blank the page. So a 403 on the lookup and a
+genuinely unmarked asset look identical on screen — only the network tab tells them apart.
 ---
 
 ## 2. PoC definition of done
