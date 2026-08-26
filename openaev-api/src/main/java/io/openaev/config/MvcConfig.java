@@ -29,18 +29,10 @@ public class MvcConfig implements WebMvcConfigurer {
   private static final int CACHE_PERIOD = 3600;
 
   /**
-   * Outer bound on async request processing. This is the container-wide default, so it covers every
-   * async return type the platform exposes — the reactive streams ({@code StreamApi#streamFlux},
-   * {@code AiApi#queryAi}) as well as the chatbot SSE streams ({@code XtmOneChatApi#sendMessage}
-   * and {@code XtmOneProxyApi#postAgentStream}, the only {@code StreamingResponseBody} endpoints).
-   * The chatbot streams are merely what forces the value this high; nothing here is scoped to them.
-   *
-   * <p>Must stay <b>above</b> {@code XtmOneClient#CHAT_STREAM_RESPONSE_TIMEOUT} so the upstream
-   * read times out first and unwinds the blocked reader thread itself; if this fires first, Spring
-   * completes the response while that thread is still parked in {@code read()} with no way to
-   * interrupt it. A turn paused for human tool approval is silent for as long as the reviewer
-   * takes, so both values have to clear XTM One's own 30-minute abandonment bound — keep the three
-   * in that order when changing any of them.
+   * Must stay above {@code XtmOneClient#CHAT_STREAM_RESPONSE_TIMEOUT}: the upstream read has to
+   * time out first and unwind its own reader thread, which Spring cannot interrupt once parked in
+   * {@code read()}. Both must clear XTM One's 30-minute abandonment bound, since a turn paused for
+   * tool approval is silent for as long as the reviewer takes.
    */
   private static final int ASYNC_REQUEST_TIMEOUT_MS = 45 * 60 * 1000;
 

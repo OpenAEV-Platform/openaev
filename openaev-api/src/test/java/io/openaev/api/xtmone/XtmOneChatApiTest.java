@@ -451,12 +451,6 @@ class XtmOneChatApiTest extends IntegrationTest {
       verifyNoInteractions(xtmOneClient);
     }
 
-    /**
-     * Upstream rejects a partial set outright, because resuming with an undecided call leaves a
-     * {@code tool_use} block without its {@code tool_result} and the model providers refuse that.
-     * An empty set is the degenerate case of the same rule, so it is stopped here rather than spent
-     * on a round trip.
-     */
     @Test
     @WithMockUser
     @DisplayName("Given an empty decisions array should return 400 without calling XTM One")
@@ -491,11 +485,6 @@ class XtmOneChatApiTest extends IntegrationTest {
       verifyNoInteractions(xtmOneClient);
     }
 
-    /**
-     * {@code tool_call_id} is the key every decision is sent back on, and never the tool name: one
-     * turn can propose the same tool twice with different arguments. A decision that names no call
-     * cannot be applied to one.
-     */
     @Test
     @WithMockUser
     @DisplayName("Given a decision without a tool_call_id should return 400")
@@ -516,10 +505,6 @@ class XtmOneChatApiTest extends IntegrationTest {
       verifyNoInteractions(xtmOneClient);
     }
 
-    /**
-     * On a human-consent control an unrecognised verdict must be refused here, rather than leaving
-     * upstream's leniency as the only thing between an undecided call and an executed one.
-     */
     @Test
     @WithMockUser
     @DisplayName("Given an unknown verdict should return 400 without calling XTM One")
@@ -541,7 +526,6 @@ class XtmOneChatApiTest extends IntegrationTest {
       verifyNoInteractions(xtmOneClient);
     }
 
-    /** Case matters: the verdicts are wire values, not display text. */
     @Test
     @WithMockUser
     @DisplayName("Given a differently-cased verdict should return 400")
@@ -616,11 +600,6 @@ class XtmOneChatApiTest extends IntegrationTest {
       verifyNoInteractions(xtmOneClient);
     }
 
-    /**
-     * The rejection reason is the agent's only correction channel — there is deliberately no "edit
-     * the arguments" verdict — so it has to survive the proxy hop rather than being dropped with
-     * the rest of the unrecognised fields.
-     */
     @Test
     @WithMockUser
     @DisplayName("Given a rejection with a reason should forward the reason upstream")
@@ -658,11 +637,6 @@ class XtmOneChatApiTest extends IntegrationTest {
                   "too broad"));
     }
 
-    /**
-     * A reason means nothing beside an approval, and upstream reads the field only on the reject
-     * path. The decision itself still stands — dropping the field is not grounds to refuse a
-     * consent the reviewer did give.
-     */
     @Test
     @WithMockUser
     @DisplayName("Given an approval carrying a reason should drop the reason and still approve")
@@ -752,12 +726,6 @@ class XtmOneChatApiTest extends IntegrationTest {
       assertThat(captor.getValue().get(1)).containsEntry("tool_call_id", "toolu_2");
     }
 
-    /**
-     * 409 means nothing is awaiting a decision — finished, cancelled, or already answered. It has
-     * to reach the client distinctly so the panel refreshes instead of retrying: a second decision
-     * on a settled call has nothing to apply to, and swallowing it would tell the user they
-     * approved something that never ran.
-     */
     @Test
     @WithMockUser
     @DisplayName("Given upstream answers 409 (nothing awaiting) should propagate 409")
@@ -818,7 +786,6 @@ class XtmOneChatApiTest extends IntegrationTest {
       verifyNoInteractions(xtmOneClient);
     }
 
-    /** An empty list is the ordinary answer — most conversations are not paused. */
     @Test
     @WithMockUser
     @DisplayName("Given no paused turn should return 200 with an empty proposals list")
@@ -837,11 +804,6 @@ class XtmOneChatApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.turn").value("idle"));
     }
 
-    /**
-     * The turn marker is the completion signal for a recovered prompt: the resumed turn writes to
-     * the connection that carried the original prompt, which the reload closed, so the panel polls
-     * this until it reads idle instead of guessing how long to wait. It has to survive the proxy.
-     */
     @Test
     @WithMockUser
     @DisplayName("Given a paused turn should return the proposals and the running turn marker")
@@ -874,11 +836,6 @@ class XtmOneChatApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.turn").value("running"));
     }
 
-    /**
-     * Upstream answers 404 rather than 403 for someone else's conversation, so it never confirms
-     * that one exists. Propagated rather than degraded to an empty list: a masked failure would
-     * read as "nothing is pending" and leave a genuinely paused turn invisible.
-     */
     @Test
     @WithMockUser
     @DisplayName("Given upstream answers 404 should propagate 404 rather than an empty list")

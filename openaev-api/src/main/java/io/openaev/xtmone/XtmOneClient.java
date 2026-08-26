@@ -51,17 +51,11 @@ public class XtmOneClient {
   private static final int AGENT_LIST_TIMEOUT_SECONDS = 10;
 
   /**
-   * Read timeout for the chat SSE stream. A turn paused for human tool approval holds this
-   * connection open and <b>silent</b> for as long as the reviewer takes, so this has to clear XTM
-   * One's own 30-minute abandonment bound (upstream discards a pause after 30 minutes with no sign
-   * of a client) rather than becoming an approval deadline nobody chose.
-   *
-   * <p>Finite rather than {@link Timeout#DISABLED} on purpose: a paused turn produces no bytes, so
-   * nothing makes {@code read()} fail and Spring cannot interrupt the reader thread. This timeout
-   * is the only thing that returns that thread to the fixed pool backing async dispatch (see {@code
-   * MvcConfig#ASYNC_REQUEST_TIMEOUT_MS}, which must stay above this value) if the connection dies
-   * without a FIN — otherwise abandoned pauses leak threads until the pool is exhausted and every
-   * chatbot stream hangs.
+   * Clears XTM One's 30-minute abandonment bound, so a turn paused for tool approval is not cut off
+   * by a deadline nobody chose. Finite rather than {@link Timeout#DISABLED} on purpose: a paused
+   * turn produces no bytes, so this is the only thing that frees the reader thread if the
+   * connection dies without a FIN. Paired with {@code MvcConfig#ASYNC_REQUEST_TIMEOUT_MS}, which
+   * must stay above it.
    */
   private static final Timeout CHAT_STREAM_RESPONSE_TIMEOUT = Timeout.ofMinutes(40);
 
@@ -152,21 +146,8 @@ public class XtmOneClient {
       body.put("enterprise_license_pem", enterpriseLicensePem != null ? enterpriseLicensePem : "");
       body.put("license_type", licenseType != null ? licenseType : "");
       if (businessVertical != null) body.put("business_vertical", businessVertical);
-      // The platform-level twin of the per-message supports_tool_approval, and named
-      // differently on purpose: this says the embedded assistant can ask at all, that one
-      // says a given client will answer a given prompt. Without it XTM One has nobody to
-      // ask about the tools OpenAEV contributes, so it leaves them ungated until an
-      // administrator decides under Settings → Parameters → Approval for connected
-      // platforms. Declaring it here means they gate normally from the next registration.
-      //
-      // Scope worth knowing: this is true of the Ariane panel, which is the only surface
-      // with a human in front of it. The non-interactive callers — XtmOneProxyApi's agent
-      // and agent/stream routes, and the autonomous orchestrator runs — never declare
-      // per-message support, so once an administrator gates OpenAEV's tools a gated call
-      // in those paths degrades to a plain "I could not run that" rather than pausing.
-      // The narrow fix is a standing "Yes, always" from the chat panel, which XTM One
-      // then honours for that user's unattended runs; the alternatives are the tool
-      // whitelist or the per-integration toggle.
+      // Platform-level twin of the per-message supports_tool_approval: this one says the
+      // integration can be gated at all, that one says a given client will answer a prompt.
       body.put("supports_approval_prompts", true);
       body.put("intents", intents != null ? intents : List.of());
       String json = objectMapper.writeValueAsString(body);
@@ -434,16 +415,6 @@ public class XtmOneClient {
   }
 
   /**
-   * Answers a turn that paused on a gated tool call. Twin of {@link #steerChatMessage} and
-   * deliberately the same shape: a POST into a turn that is already running, so the decision
-   * reaches it on the connection already streaming rather than through a new mechanism.
-   *
-   * <p>Upstream status codes are propagated as-is — notably 409 when no turn is awaiting a decision
-   * (finished, cancelled, or already answered), on which the chatbot refreshes rather than
-   * retrying: a second decision on a settled call has nothing to apply to, and accepting it
-   * silently would tell the user they approved something that never ran.
-   *
-   * @param conversationId the conversation whose turn is paused
    * @param decisions one entry per proposed call — {@code {tool_call_id, decision,
    *     rejection_reason}}. Every proposal must be decided: resuming with an undecided call leaves
    *     a {@code tool_use} block without its {@code tool_result}, which the model providers reject.
@@ -471,9 +442,6 @@ public class XtmOneClient {
             if (response.getCode() == 200) {
               return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
             }
-            // Preserve the upstream status: the chatbot distinguishes 409 "nothing
-            // awaiting approval" from other failures, and mapUpstreamError would
-            // collapse it to 503.
             throw mapUpstreamErrorPreservingStatus(response);
           });
     } catch (ResponseStatusException e) {
@@ -489,20 +457,7 @@ public class XtmOneClient {
   }
 
   /**
-   * What a paused turn in this conversation is still waiting on, for the chatbot's reload recovery.
-   *
-   * <p>The approval prompt arrives as a single event on the stream, so a page reload loses it —
-   * including the {@code tool_call_id}s a decision has to name — and the turn is left waiting for
-   * an answer nobody can give, which reads as a chat that simply stopped replying. The panel
-   * therefore asks once per conversation on mount; an empty {@code proposals} list is the ordinary
-   * answer, not an error.
-   *
-   * <p>The response also carries {@code "turn": "running" | "idle"}: a decision answered on a
-   * recovered prompt resumes a turn whose stream the reload closed, so the reply lands in the
-   * conversation with nothing arriving live, and the panel polls this until the turn reads idle.
-   *
-   * <p>Asking is itself proof somebody is there — upstream refreshes its client-seen marker on this
-   * call, which restarts the abandonment clock rather than running it down.
+   * Calling this also refreshes upstream's client-seen marker, restarting the abandonment clock.
    */
   @SuppressWarnings("unchecked")
   public Map<String, Object> getPendingApprovals(String conversationId) {
@@ -525,8 +480,6 @@ public class XtmOneClient {
             if (response.getCode() == 200) {
               return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
             }
-            // Preserved rather than degraded to an empty list: a masked failure would
-            // read as "nothing is pending" and leave a genuinely paused turn invisible.
             throw mapUpstreamErrorPreservingStatus(response);
           });
     } catch (ResponseStatusException e) {
@@ -854,11 +807,8 @@ public class XtmOneClient {
    * @param conversationId optional conversation ID
    * @param agentSlug optional agent slug
    * @param context optional host page/application context (forwarded verbatim)
-   * @param supportsToolApproval whether the calling client can display an approval prompt and
-   *     return a decision. Forwarded as {@code supports_tool_approval}; upstream only pauses a turn
-   *     for a client that declares it, and otherwise degrades to a plain assistant message
-   *     explaining what it could not run. Declaring it is a promise to answer — a turn paused for a
-   *     client that never answers waits indefinitely.
+   * @param supportsToolApproval whether the caller can answer an approval prompt. Declaring it is a
+   *     promise to answer: a turn paused for a client that never answers waits indefinitely.
    * @param streamConsumer callback that receives the SSE {@link InputStream}
    */
   public void streamChatMessage(
