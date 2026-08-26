@@ -90,8 +90,8 @@ public class OpenSamlConfig {
     return authenticationProvider;
   }
 
-  private Saml2Authentication saml2UserManagement(
-      @NotNull final Saml2Authentication authentication) {
+  // package-private for OpenSamlConfigTest
+  Saml2Authentication saml2UserManagement(@NotNull final Saml2Authentication authentication) {
     Saml2AuthenticatedPrincipal user = (Saml2AuthenticatedPrincipal) authentication.getPrincipal();
     User loginUser = userSaml2Management(user);
 
@@ -105,7 +105,7 @@ public class OpenSamlConfig {
         new OpenAEVSaml2User(loginUser, roles), authentication.getSaml2Response(), roles);
   }
 
-  private User userSaml2Management(@NotNull final Saml2AuthenticatedPrincipal user) {
+  User userSaml2Management(@NotNull final Saml2AuthenticatedPrincipal user) {
     String emailAttribute = user.getName();
     String registrationId = user.getRelyingPartyRegistrationId();
     List<String> rolesFromUser = userMappingService.extractRolesFromUser(user, registrationId);
