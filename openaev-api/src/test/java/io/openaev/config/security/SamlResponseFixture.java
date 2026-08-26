@@ -44,10 +44,6 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.saml2.core.OpenSamlInitializationService;
 import org.w3c.dom.Element;
 
-/**
- * Builds a SAML response signed with the test IdP key, so assertions really go through signature
- * and condition validation instead of being stubbed away.
- */
 final class SamlResponseFixture {
 
   static final String IDP_ENTITY_ID = "https://idp.openaev.test/idp";

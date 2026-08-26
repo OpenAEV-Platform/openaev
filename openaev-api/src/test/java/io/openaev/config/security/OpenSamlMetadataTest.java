@@ -3,7 +3,6 @@ package io.openaev.config.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.opensaml.core.Version;
 import org.springframework.security.saml2.Saml2Exception;
@@ -12,7 +11,6 @@ import org.springframework.security.saml2.provider.service.registration.RelyingP
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrations;
 import org.springframework.security.saml2.provider.service.registration.Saml2MessageBinding;
 
-@DisplayName("OpenSAML metadata")
 class OpenSamlMetadataTest {
 
   private static final String ACS = "https://openaev.test/login/saml2/sso/openaev";
@@ -27,15 +25,11 @@ class OpenSamlMetadataTest {
   }
 
   @Test
-  @DisplayName("runs against the OpenSAML 5 line")
   void should_resolve_opensaml_5() {
-    // OpenSAML 4 is unmaintained and dropped by Spring Security 7; the version is forced in the
-    // root pom because spring-security-saml2-service-provider still ships 4.3.2.
     assertThat(Version.getVersion()).startsWith("5.");
   }
 
   @Test
-  @DisplayName("parses IdP metadata the way Saml2RelyingPartyAutoConfiguration does")
   void should_parse_asserting_party_metadata() {
     RelyingPartyRegistration registration = registration();
 
@@ -50,7 +44,6 @@ class OpenSamlMetadataTest {
   }
 
   @Test
-  @DisplayName("rejects metadata carrying no IDPSSODescriptor")
   void should_reject_metadata_without_asserting_party() {
     assertThatThrownBy(
             () ->
@@ -60,7 +53,6 @@ class OpenSamlMetadataTest {
   }
 
   @Test
-  @DisplayName("serves the service provider metadata exposed on /saml2/service-provider-metadata")
   void should_resolve_service_provider_metadata() {
     String metadata = new OpenSaml5MetadataResolver().resolve(registration());
 
