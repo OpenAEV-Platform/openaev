@@ -77,7 +77,7 @@ public interface SecurityPlatformRepository
           + "WHERE a.type = '"
           + AssetType.Values.SECURITY_PLATFORM_TYPE
           + "' AND "
-          + "(:name IS NULL OR lower(a.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))")
+          + "(:name IS NULL OR lower(a.name) LIKE concat('%', lower(cast(coalesce(:name, '') as string)), '%'))")
   List<SecurityPlatform> findAllByName(String name);
 
   @Query(

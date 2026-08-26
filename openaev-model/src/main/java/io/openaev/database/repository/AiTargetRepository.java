@@ -40,7 +40,7 @@ public interface AiTargetRepository
   @Query(
       "SELECT DISTINCT a FROM Asset a "
           + "WHERE a.category = io.openaev.database.model.AssetCategory.AI_TARGET AND "
-          + "(:name IS NULL OR lower(a.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))")
+          + "(:name IS NULL OR lower(a.name) LIKE concat('%', lower(cast(coalesce(:name, '') as string)), '%'))")
   List<Asset> findAllByName(String name);
 
   @Query(
