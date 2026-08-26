@@ -3,6 +3,8 @@ package io.openaev.api.users.dto;
 import static io.openaev.config.AppConfig.EMAIL_FORMAT;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.audit.AuditLogHash;
+import io.openaev.database.audit.AuditLogIgnore;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
@@ -10,12 +12,13 @@ import java.util.Set;
 
 public record UserOutput(
     @JsonProperty(ALIAS_ID) @NotBlank String id,
-    @JsonProperty(ALIAS_EMAIL) @NotBlank @Email(message = EMAIL_FORMAT) String email,
-    @JsonProperty(ALIAS_FIRSTNAME) String firstname,
-    @JsonProperty(ALIAS_LASTNAME) String lastname,
-    @JsonProperty(ALIAS_PGP_KEY) String pgpKey,
-    @JsonProperty(ALIAS_PHONE) String phone,
-    @JsonProperty(ALIAS_PHONE2) String phone2,
+    @AuditLogIgnore @JsonProperty(ALIAS_EMAIL) @NotBlank @Email(message = EMAIL_FORMAT)
+        String email,
+    @AuditLogIgnore @JsonProperty(ALIAS_FIRSTNAME) String firstname,
+    @AuditLogIgnore @JsonProperty(ALIAS_LASTNAME) String lastname,
+    @AuditLogHash @JsonProperty(ALIAS_PGP_KEY) String pgpKey,
+    @AuditLogIgnore @JsonProperty(ALIAS_PHONE) String phone,
+    @AuditLogIgnore @JsonProperty(ALIAS_PHONE2) String phone2,
     @JsonProperty(ALIAS_ORGANIZATION_ID) String organizationId,
     @JsonProperty(ALIAS_ORGANIZATION_NAME) String organizationName,
     @JsonProperty(ALIAS_TAGS) Set<String> tags,

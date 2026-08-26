@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.audit.AuditLogHash;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
@@ -29,6 +30,7 @@ public class TenantXtmHubRegistration implements TenantBase {
 
   @Column(name = "registration_token")
   @JsonProperty("registration_token")
+  @AuditLogHash
   private String token;
 
   @Column(name = "registration_date")

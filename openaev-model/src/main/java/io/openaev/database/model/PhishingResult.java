@@ -5,6 +5,7 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.openaev.database.audit.AuditLogHash;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
@@ -62,6 +63,7 @@ public class PhishingResult implements TenantBase {
   @Column(name = "phishing_result_token", unique = true)
   @JsonProperty("phishing_result_token")
   @NotBlank
+  @AuditLogHash
   private String token;
 
   @ManyToOne(fetch = FetchType.LAZY)
