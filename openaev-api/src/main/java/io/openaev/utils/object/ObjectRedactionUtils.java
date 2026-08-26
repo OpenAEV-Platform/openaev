@@ -66,9 +66,6 @@ public class ObjectRedactionUtils {
   private static final Set<ResourceType> USER_ENTITY_TYPES =
       Set.of(ResourceType.USER, ResourceType.PLATFORM_USER, ResourceType.PLAYER);
 
-  /** Non-sensitive fields removed from audit payloads to avoid noisy diffs. */
-  private static final Set<String> AUDIT_FIELDS_TO_REMOVE = Set.of("asset_status");
-
   /**
    * Redacts sensitive field values in a JSON tree. Operates on a deep copy — the original is never
    * modified.
@@ -140,9 +137,6 @@ public class ObjectRedactionUtils {
   private static void redactProperty(
       ObjectNode result, String key, JsonNode value, boolean isUserEntity) {
     String fieldName = key.toLowerCase(Locale.ROOT);
-    if (shouldDropField(fieldName)) {
-      return;
-    }
     if (isUserEntity && USER_PII_FIELDS_TO_REMOVE.contains(fieldName)) {
       return;
     }
@@ -158,10 +152,6 @@ public class ObjectRedactionUtils {
     }
 
     result.set(key, redactNode(value, isUserEntity));
-  }
-
-  private static boolean shouldDropField(String fieldName) {
-    return AUDIT_FIELDS_TO_REMOVE.contains(fieldName);
   }
 
   private static boolean shouldHash(String fieldName) {
