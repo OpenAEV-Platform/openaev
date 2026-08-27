@@ -62,7 +62,7 @@ public class TenantUserService implements DependenciesManager {
       User reloaded = userRepository.findById(userId).orElseThrow();
       return UserMapper.toOutput(reloaded);
     }
-    User user = userService.createUser(input);
+    User user = userService.createTenantUser(input);
     attachToTenant(user.getId(), tenantId);
     userService.assignAutoAssignGroups(user.getId(), List.of(tenantId));
     // Reload user after @Modifying queries cleared the persistence context

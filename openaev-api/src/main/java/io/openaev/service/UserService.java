@@ -128,6 +128,16 @@ public class UserService {
 
   @Transactional(rollbackFor = Exception.class)
   public User createUser(UserInput input) {
+    return createUser(input, input.tenantIds(), true);
+  }
+
+
+  @Transactional(rollbackFor = Exception.class)
+  public User createTenantUser(UserInput input) {
+    return createUser(input, List.of(), false);
+  }
+
+  private User createUser(UserInput input, List<String> tenantIds, boolean includePlatformScope) {
     if (!StringUtils.hasLength(input.plainPassword())) {
       throw new IllegalArgumentException("Password is required when creating a user");
     }
@@ -143,13 +153,13 @@ public class UserService {
     user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
     user.setTenants(
         new ArrayList<>(
-            referenceResolver.resolve(
-                input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
+            referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
     // The user's id is generated on save (UUID generator), not before: evict only after
     // persisting, using the saved user's id, or evictForUser is called with a null key.
-    User createdUser = createUser(user, input.plainPassword(), UUID.randomUUID().toString());
-    if (!CollectionUtils.isEmpty(input.tenantIds())) {
-      tenantMembershipCacheManager.evictForUser(createdUser.getId(), input.tenantIds());
+    User createdUser =
+        createUser(user, input.plainPassword(), UUID.randomUUID().toString(), includePlatformScope);
+    if (!CollectionUtils.isEmpty(tenantIds)) {
+      tenantMembershipCacheManager.evictForUser(createdUser.getId(), tenantIds);
     }
     return createdUser;
   }
@@ -166,15 +176,17 @@ public class UserService {
     user.setFirstname(firstname);
     user.setLastname(lastname);
     user.setAdmin(isAdmin);
-    return createUser(user, null, token);
+    return createUser(user, null, token, true);
   }
 
-  private User createUser(User user, String password, String token) {
+  private User createUser(User user, String password, String token, boolean includePlatformScope) {
     if (StringUtils.hasLength(password)) {
       user.setPassword(this.encodeUserPassword(password));
     }
-    // Creation enters every scope at once: platform, plus each tenant attached in the input.
-    assignAutoAssignGroups(user, user.getTenants().stream().map(Tenant::getId).toList(), true);
+    // Creation enters every scope at once: the platform when created from the platform screen,
+    // plus each tenant attached in the input.
+    assignAutoAssignGroups(
+        user, user.getTenants().stream().map(Tenant::getId).toList(), includePlatformScope);
     User savedUser = userRepository.save(user);
     this.createUserToken(savedUser, token);
     return savedUser;
