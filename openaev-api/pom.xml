@@ -27,7 +27,7 @@
         <!-- Server-side report rendering (headless Chromium). Apache-2.0. -->
         <playwright.version>1.62.0</playwright.version>
         <!-- Azure credential status validation. Aligned with openaev-model's azure-core-management. MIT. -->
-        <azure-identity.version>1.18.4</azure-identity.version>
+        <azure-identity.version>1.18.5</azure-identity.version>
     </properties>
 
     <profiles>
