@@ -2218,3 +2218,18 @@ was identified.
 **The request.** Give `ComboboxLabel` the same `required` prop with the same
 `aria-hidden` marker, so a required field is named the same way whichever family
 it belongs to.
+
+## 45. `Select` and `Tab` — reported from a measurement made elsewhere
+
+**Not measured on this branch.** The defect was found by another session working
+on OpenCTI and is documented in OpenCTI PR #17884; it is filed here only so the
+OpenAEV side carries a pointer to it rather than rediscovering it. The
+measurement, the reproduction and the analysis belong to that PR — read it there
+before acting on this entry.
+
+Recorded state on the OpenAEV side: accepted for a later pass, not worked around
+in the Combobox/Select adoption wave. No product site here compensates for it.
+
+**The request.** Whatever fix the library takes should be validated against
+OpenCTI #17884's reproduction, not against a fresh OpenAEV one — there is no
+OpenAEV repro to point at.
