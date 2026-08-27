@@ -80,7 +80,7 @@ Two consequences worth stating up front, because the rest of this document depen
   3. Marking clearance check (classification allowed?)
 - A deny at any step denies access.
 
-### Domain model (common to every option)
+### 💡Changes in the Domain model
 
 This is the data model the feature needs. It is the same whichever enforcement mechanism is chosen
 below — what changes between the options is only **where the visibility check runs**, never what a
@@ -88,7 +88,7 @@ marking *is* or how a user comes to hold one.
 
 ```mermaid
 classDiagram
-    class MarkingDefinition {
+    class MarkingDefinition["MarkingDefinition (task1)"] {
       +id
       +type
       +definition
@@ -100,27 +100,69 @@ classDiagram
       +roles
       +users
     }
-    class GroupMarking {
+    class GroupMarking["GroupMarking (task2)"] {
       +groupId
       +markingId
     }
-    class Endpoint
-    class SecurityPlatform
-    class Credential
+    class Endpoint["Endpoint (task3)"]
+    class SecurityPlatform["SecurityPlatform (task3)"]
+    class Credential["Credential (task3)"]
 
     Group "1" --> "*" GroupMarking
     GroupMarking "*" --> "1" MarkingDefinition
-    Endpoint "*" --> "*" MarkingDefinition : object_marking_refs
-    SecurityPlatform "*" --> "*" MarkingDefinition : object_marking_refs
-    Credential "*" --> "*" MarkingDefinition : object_marking_refs
+    Endpoint "*" --> "*" MarkingDefinition : object_marking_refs (task3)
+    SecurityPlatform "*" --> "*" MarkingDefinition : object_marking_refs (task3)
+    Credential "*" --> "*" MarkingDefinition : object_marking_refs (task3)
 ```
 
 Two invariants follow from this model alone, and every option below must satisfy them:
 
 - A user's **clearance** is derived from their groups' markings, never assigned directly — the same
   rule already used for roles and grants.
-- An entity carries **zero or more** markings (STIX `object_marking_refs`), so the visibility test is
-  set containment, not a scalar comparison. See [Marking cardinality](#marking-cardinality).
+- An entity carries **zero or more** markings (STIX `object_marking_refs`), so a user can view it only
+  if the user's allowed markings include **all** markings attached to that entity; this is not a
+  single-level comparison.
+
+### 🔓 RBAC + different options for Marking filtering
+
+RBAC is the first gate. Marking enforcement happens only after RBAC allows the call.
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant API as API method (@AccessControl)
+    participant RBAC as AccessControlAspect
+    participant TX as Transaction interceptor
+    participant SCOPE as TenantScopeTransactionAspect
+    participant SVC as Service
+    participant DB as Repository + SQL
+    participant SI as ScopeStatementInspector
+
+    U->>API: request
+    API->>RBAC: @Before access check
+    RBAC-->>API: authorized
+    API->>SVC: call service
+    Note right of SVC: Option A: filter at service layer
+    SVC->>TX: enter @Transactional
+    TX->>SCOPE: tx is open, set app.current_tenants + app.current_markings
+    SCOPE-->>TX: scope set
+    TX->>DB: execute query
+    Note right of DB: Option B: filter at repository layer explicitly
+    DB->>SI: SQL rewrite hook
+    Note right of SI: Option C: filter at SQL rewrite implicitly
+    SI-->>DB: tenant/marking predicates injected (Option C)
+    DB-->>SVC: rows
+    SVC-->>API: result
+    API-->>U: 200 OK
+```
+
+**AOP order to remember**
+- `@AccessControl` (`AccessControlAspect`) runs at API method entry and can stop the call early with
+  403 (no transaction or query work when denied).
+- `@Transactional` opens the transaction around service/repository work.
+- `TenantScopeTransactionAspect` then writes transaction-local scope (`set_config(..., true)`) inside
+  that open transaction.
+- `ScopeStatementInspector` applies when Hibernate emits SQL, so filtering is enforced at query time.
 
 ### Implementation options (with pros/cons)
 
@@ -129,8 +171,9 @@ Two invariants follow from this model alone, and every option below must satisfy
    - **Pros**: Fastest delivery for this epic, explicit logic, easy to test, low migration risk.
    - **Cons**: Requires discipline to call filter in every read path; potential duplication if not centralized.
 
-   - **What it looks like**: two shared services, and a per-row check on the way out of the service
-     layer.
+   - **What it looks like**: one read-filter service (`MarkingAccessService`) plus one write-side
+     marking CRUD service (`MarkingAssignmentService`), and a per-row check on the way out of the
+     service layer.
 
      ```mermaid
      classDiagram
@@ -152,34 +195,10 @@ Two invariants follow from this model alone, and every option below must satisfy
          MarkingAssignmentService --> Credential
      ```
 
-     ```mermaid
-     sequenceDiagram
-         actor U as Standard user
-         participant API as Asset API (search/read)
-         participant AOP as AccessControlAspect
-         participant SVC as Asset Service
-         participant MAS as MarkingAccessService
-         participant DB as Repository
+     `MarkingAssignmentService` here is write-side (assign/remove), equivalent in intent to Option
+     C's `AssetMarkingsService`; it is not the read-filtering mechanism.
 
-         U->>API: Search assets
-         API->>AOP: Check action capability (READ/SEARCH)
-         alt denied
-             AOP-->>API: 403
-             API-->>U: 403 Forbidden
-         else allowed
-             API->>SVC: search(...)
-             SVC->>DB: load candidate assets
-             loop each asset
-                 SVC->>MAS: canView(user, asset.markings)
-                 Note right of MAS: AND semantics —<br/>user must hold EVERY marking<br/>(unmarked ⇒ visible)
-                 MAS-->>SVC: allow/deny
-             end
-             SVC-->>API: filtered assets
-             API-->>U: 200 OK
-         end
-     ```
-
-     Note what the loop implies: the repository returns rows the user may not see, and correctness
+     Note what the service-side loop implies: the repository returns rows the user may not see, and correctness
      depends on the service remembering to filter them. It also breaks pagination — a page of 50
      rows can come back with 30 after filtering. Both are the core objection to this option.
 
@@ -199,33 +218,68 @@ Two invariants follow from this model alone, and every option below must satisfy
      - **Pros**: Best runtime efficiency for heavy search traffic, simpler read-time query shape than B1.
      - **Cons**: Highest complexity of the explicit options, invalidation/sync risks for the cache, heavier rollout for the current epic.
 
+   ```mermaid
+   sequenceDiagram
+      actor U as User
+      participant API as API method (@AccessControl)
+      participant RBAC as AccessControlAspect
+      participant SVC as Service
+      participant CLR as Clearance resolver/cache
+      participant REPO as Repository query (explicit)
+      participant DB as PostgreSQL
+
+      U->>API: request
+      API->>RBAC: @Before access check
+      RBAC-->>API: authorized
+      API->>SVC: call service
+      SVC->>CLR: resolve effective markings
+      CLR-->>SVC: allowed marking ids
+      SVC->>REPO: search(criteria, allowedMarkings)
+      Note right of REPO: Option B: filter at repository layer explicitly
+      REPO->>DB: SQL with explicit marking predicate/join
+      DB-->>REPO: already-filtered rows
+      REPO-->>SVC: rows
+      SVC-->>API: result
+      API-->>U: 200 OK
+   ```
+
+   In Option B, correctness depends on every read path using a repository method that includes the
+   marking predicate.
+
 3. **Option C — Reuse the tenant-filter transparent rewrite mechanism ("à la" `TenantStatementInspector` / `can_access_tenant`)** — ✅ **chosen**
    - **How**: Extend the existing statement-inspector rewrite (used today for `tenant_id` via `app.current_tenants` + `can_access_tenant(...)`) to also inject a marking predicate on marked tables, driven by a per-transaction session variable (`app.current_markings`) derived from the current user's effective group clearance. Because markings are many-to-many, the injected predicate is a correlated anti-join on the entity's markings join table.
-   - **Pros**: Fully transparent to developers — no per-repository/query changes needed (unlike B1/B2), consistent with the existing tenant isolation pattern, hard to forget (fail-closed by design like tenant filtering), single enforcement point, onboarding a new table costs one migration + one property entry.
-   - **Cons**: Higher upfront complexity (SQL rewrite logic, session variable management), couples marking enforcement to the Hibernate/JDBC layer, harder to reason about/debug than an explicit repository predicate, the M2M anti-join is heavier than tenant's single-column check, and it means modifying the sole enforcement point of multi-tenancy v2 (regression risk), heavier testing surface (matches `TenantStatementInspector`'s own complexity). Does **not** cover Elasticsearch-served reads.
+   - **Pros**: 
+     - Fully transparent to developers — no per-repository/query changes needed (unlike B1/B2), 
+     - consistent with the existing tenant isolation pattern, 
+     - hard to forget (fail-closed by design like tenant filtering), 
+     - single enforcement point, onboarding a new table costs one migration + one property entry.
+   - **Cons**: 
+     - Higher upfront complexity (SQL rewrite logic, session variable management), couples marking enforcement to the Hibernate/JDBC layer, 
+     - harder to reason about/debug than an explicit repository predicate, 
+     - modifying the sole enforcement point of multi-tenancy v2 (regression risk), heavier testing surface (matches `TenantStatementInspector`'s own complexity). Does **not** cover Elasticsearch-served reads.
 
-#### Deep dive — generalizing the tenant mechanism for Option C
+   ```mermaid
+   sequenceDiagram
+       participant C as Client
+       participant R as TxCtx resolver
+       participant H as "@Transactional handler"
+       participant A as TenantScopeTransactionAspect
+       participant M as HttpMarkingScopeSupplier
+       participant K as MarkingClearanceCacheManager
+       participant DB as PostgreSQL
+       C->>R: GET /api/tenants/t1/assets
+       R->>H: TxCtx = [t1]
+       H->>A: transaction opens
+       A->>M: resolve caller effective markings
+       M->>K: findClearance(user, t1)
+       K-->>M: marking ids
+       M-->>A: marking scope (ids)
+       A->>DB: set_config('app.current_tenants', 't1', true)
+       A->>DB: set_config('app.current_markings', 'm1,m2,...', true)
+       H->>DB: queries (rewritten with tenant + marking predicates)
+       DB-->>C: only rows in tenant scope and marking scope
+   ```
 
-Today's tenant isolation (v2, statement-inspector based) is built from three cooperating pieces (all in `openaev-api`/`openaev-model`):
-
-| Component | Current responsibility (tenant-only) |
-|---|---|
-| `TenantFilteringConfig` | Derives `TenantTables` from the DB schema (`tenant_id` column presence + nullability), installs `TenantStatementInspector` as Hibernate's `STATEMENT_INSPECTOR`. |
-| `TenantTables` | Static registry of which tables are scoped and how (`STRICT` vs `DUAL`), keyed off a single column name (`tenant_id`). |
-| `TenantStatementInspector` | Parses every SQL statement and rewrites FROM/JOIN/UPDATE/DELETE/INSERT so each scoped table gets `can_access_tenant(tenant_id, ...)` in its WHERE — this is what makes it *transparent* (no repository code needed). |
-| `TenantScopeTransactionAspect` + `can_access_tenant()` (SQL function) | Writes the per-transaction scope (`app.current_tenants`, sourced from `TxCtx`, i.e. the current user's tenant memberships) into a Postgres session GUC that the SQL function reads. |
-
-To generalize this for marking, each piece would become **scope-kind aware** instead of tenant-specific:
-
-1. **`TenantTables` → `ScopedTables`**: keyed by a `ScopeKind` enum (`TENANT`, `MARKING`, ...), each kind carrying its own metadata — a column name (`tenant_id`) for the tenant kind, and per-table join metadata (PK column, `<table>_markings` join table, FK column) for the marking kind, since markings are many-to-many and are not a column on the filtered row. A table can be registered under multiple kinds at once (e.g. `assets` is both tenant-scoped and marking-scoped) — the inspector would then AND both predicates instead of only one.
-
-2. **`TenantStatementInspector` → generic `ScopeStatementInspector`**: same SQL-rewrite skeleton, but instead of hardcoding `can_access_tenant`, it asks each active scope dimension for a predicate on the table alias and ANDs them, e.g. `can_access_tenant(t.tenant_id) AND <marking predicate>`. Two differences make the marking dimension shaped differently from the tenant one: (a) marking clearance is *ordinal* while tenant scope is *set-membership*, and (b) marking is **many-to-many** (an entity carries zero, one or many markings via a join table), so the predicate cannot read a local column. Both are solvable — see [tech-design-option-c.md](./tech-design-option-c.md), which resolves ordinality in Java (expanding a clearance into a flat set of marking ids, restoring plain set-membership in SQL) and expresses the M2M check as a correlated anti-join.
-
-3. **`can_access_tenant()` → add `is_marking_missing(row_marking_id)`**: a new Postgres function reading a new GUC (`app.current_markings`), fail-closed the same way as the tenant one. It is deliberately **negative** — true means "the caller does not hold this marking" — because markings live in a join table and visibility is decided by a `NOT EXISTS (...)` **anti-join**: "visible if there is no marking on this row that I do not hold". Naming it for the missing half keeps the generated SQL free of a double negative and stops it being mistaken for a row-level visibility test (the positive form leaks — see Option C §4.4). The shape also makes unmarked entities visible for free (Case 2), with no `allow_unmarked` flag needed.
-
-4. **`TenantScopeTransactionAspect` → generalize `TxCtx`**: today `TxCtx` only carries tenant scope. It would need to also carry the current user's effective markings, so the aspect can `set_config('app.current_markings', ..., true)` alongside `app.current_tenants` in the same `@Before` advice — one shared "scope context" object instead of one purely tenant-shaped one.
-
-**Why this is a bigger lift than it first looks**: the tenant mechanism was designed around one invariant (row belongs to exactly one tenant, checked by set membership on a local column). Marking is ordinal, per-type, and many-to-many, so the "generic" mechanism isn't a drop-in reuse — it's a *second, parallel scope dimension* bolted onto the same rewrite skeleton. It is architecturally sound (same fail-closed, transparent philosophy) but is realistically a multi-sprint investment (schema derivation, inspector rewrite logic, new SQL function, GUC/aspect changes, and a full regression pass on `TenantStatementInspector`'s existing test suite so generalizing it doesn't regress tenant isolation). **Detailed design, risks and PoC plan: [tech-design-option-c.md](./tech-design-option-c.md).**
 
 ### Making Options A / B generic and reusable as more entities are onboarded
 
@@ -280,7 +334,9 @@ detailed design, risks and PoC plan in [tech-design-option-c.md](./tech-design-o
 The deciding argument is not cost, and it is not performance — it is that **A and B are opt-in by
 construction**. In both, enforcement happens where a developer remembers to put it, so a new native
 `@Query`, a new custom repository method, or a join added by someone who has never heard of markings
-returns over-clearance rows and nothing complains. Section
+returns over-clearance rows and nothing complains. 
+
+Section
 [Making Options A / B generic](#making-options-a--b-generic-and-reusable-as-more-entities-are-onboarded)
 sets out how far that can be mitigated: a `Markable` contract, one shared specification, a hook in
 the pagination choke point, and an ArchUnit rule that turns a forgotten filter into a build failure.
@@ -296,10 +352,4 @@ What was accepted in exchange, honestly:
 - **Higher upfront complexity** — statement rewriting, a new SQL function, GUC and transaction-scope
   management — and it means touching the single enforcement point of multi-tenancy v2, so the
   existing tenant isolation suite has to stay green throughout.
-- **Does not cover Elasticsearch-served reads.** Out of PoC scope, tracked as step 5.1.
-
-Options A and B are kept above as the alternatives that were evaluated, not as live proposals. The
-`Markable` / shared-specification / ArchUnit material under "Making Options A / B generic" is
-retained deliberately: if Option C were ever abandoned, that section is the fallback design, and it
-also documents *why* the mitigations were judged insufficient rather than leaving that implied.
-
+- **Does not cover Elasticsearch-served reads.** Out of PoC scope

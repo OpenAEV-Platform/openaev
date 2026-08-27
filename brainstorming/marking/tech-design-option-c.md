@@ -1,11 +1,4 @@
-# Option C — Marking isolation "à la" tenant v2 (transparent statement rewrite)
-
-**Parent doc**: [tech-design.md](./tech-design.md) — Option C
-**Decision of record**: [ADR-007](../../adr/ADR-007-Marking-based-access-control.md) — the reviewed summary of this design
-**Type**: Full Stack (backend-heavy)
-**Estimation**: XL (PoC: M)
-**Status**: design proposal / PoC scoping
-**Companion doc**: [implementation-plan-option-c.md](./implementation-plan-option-c.md) — delivery plan, step-by-step status and PoC definition of done
+# Option C — Marking isolation "à la" tenant v2 
 
 **Marking cardinality: many-to-many.** An entity carries **zero, one or many** markings
 (STIX `object_marking_refs` semantics). This is the decision this document is built on, and it drives most
@@ -77,6 +70,129 @@ COALESCE(t.marking_ids, '{}') <@ COALESCE(:my_clearance, '{}')
 NOT EXISTS (SELECT 1 FROM assets_markings am
              WHERE am.asset_id = t.asset_id
                AND is_marking_missing(am.marking_id))
+```
+
+### 2.4 Deep dive — tenant v2 vs tenant+marking v2 diagrams
+
+#### 2.4.1 Existing tenant API v2 mechanism (today)
+
+```mermaid
+classDiagram
+    class TenantFilteringConfig
+    class TenantTables
+    class TenantStatementInspector
+    class TenantScopeTransactionAspect
+    class TxCtx
+    class PostgreSQL["PostgreSQL (app.current_tenants + can_access_tenant())"]
+
+    TenantFilteringConfig --> TenantTables : discover tenant-scoped tables
+    TenantFilteringConfig --> TenantStatementInspector : install as STATEMENT_INSPECTOR
+    TenantStatementInspector --> TenantTables : check covered tables
+    TenantScopeTransactionAspect --> TxCtx : read tenant scope
+    TenantScopeTransactionAspect --> PostgreSQL : set_config('app.current_tenants', ..., true)
+    TenantStatementInspector --> PostgreSQL : inject can_access_tenant(...)
+```
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant API as API (@AccessControl)
+    participant RBAC as AccessControlAspect
+    participant SVC as Service (@Transactional)
+    participant ASP as TenantScopeTransactionAspect
+    participant ORM as Hibernate + TenantStatementInspector
+    participant PG as PostgreSQL
+
+    U->>API: request
+    API->>RBAC: RBAC check
+    RBAC-->>API: authorized
+    API->>SVC: call
+    SVC->>ASP: transaction opened
+    ASP->>PG: set_config('app.current_tenants', ..., true)
+    SVC->>ORM: repository query
+    ORM->>PG: SQL + can_access_tenant(alias.tenant_id)
+    PG-->>SVC: tenant-filtered rows
+    SVC-->>API: result
+    API-->>U: 200 OK
+```
+
+#### 2.4.2 Changed API v2 mechanism (tenant + marking)
+
+```mermaid
+classDiagram
+    class TenantFilteringConfig
+    class TenantTables
+    class TxCtx
+    class ScopeFilteringConfig["ScopeFilteringConfig (refactor)"]
+    class ScopeStatementInspector["ScopeStatementInspector (refactor)"]
+    class ScopeDimension["ScopeDimension (new interface)"]
+    class TenantDimension["TenantDimension (refactor)"]
+    class MarkingDimension["MarkingDimension (new)"]
+    class MarkedTables["MarkedTables (new)"]
+    class TenantStatementInspector["TenantStatementInspector (refactor adapter)"]
+    class TenantScopeTransactionAspect["TenantScopeTransactionAspect (refactor)"]
+    class MarkingScopeSupplier["MarkingScopeSupplier (new interface)"]
+    class HttpMarkingScopeSupplier["HttpMarkingScopeSupplier (new)"]
+    class MarkingClearanceCacheManager["MarkingClearanceCacheManager (new)"]
+    class PostgreSQL2["PostgreSQL (app.current_tenants + app.current_markings + SQL functions)"]
+
+    TenantFilteringConfig --> TenantTables : legacy table-family derivation
+    TenantScopeTransactionAspect --> TxCtx : read tenant scope
+    ScopeFilteringConfig --> ScopeStatementInspector : install inspector
+    ScopeFilteringConfig --> TenantDimension : wire dimension
+    ScopeFilteringConfig --> MarkingDimension : wire dimension
+    MarkingDimension --> MarkedTables : table metadata
+    ScopeStatementInspector --> ScopeDimension : iterate active dimensions
+    TenantDimension ..|> ScopeDimension
+    MarkingDimension ..|> ScopeDimension
+    TenantStatementInspector --|> ScopeStatementInspector
+    TenantScopeTransactionAspect --> MarkingScopeSupplier : derive user clearance
+    HttpMarkingScopeSupplier ..|> MarkingScopeSupplier
+    HttpMarkingScopeSupplier --> MarkingClearanceCacheManager : cached clearance per user+tenant
+    TenantScopeTransactionAspect --> PostgreSQL2 : set tenant + marking GUCs
+    ScopeStatementInspector --> PostgreSQL2 : inject tenant AND marking predicates
+
+    style ScopeDimension fill:#fff59d,stroke:#b28900
+    style TenantDimension fill:#ffcc80,stroke:#b26a00
+    style MarkingDimension fill:#fff59d,stroke:#b28900
+    style MarkedTables fill:#fff59d,stroke:#b28900
+    style MarkingScopeSupplier fill:#fff59d,stroke:#b28900
+    style HttpMarkingScopeSupplier fill:#fff59d,stroke:#b28900
+    style MarkingClearanceCacheManager fill:#fff59d,stroke:#b28900
+    style ScopeFilteringConfig fill:#ffcc80,stroke:#b26a00
+    style ScopeStatementInspector fill:#ffcc80,stroke:#b26a00
+    style TenantStatementInspector fill:#ffcc80,stroke:#b26a00
+    style TenantScopeTransactionAspect fill:#ffcc80,stroke:#b26a00
+```
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant API as API (@AccessControl)
+    participant RBAC as AccessControlAspect
+    participant SVC as Service (@Transactional)
+    participant ASP as TenantScopeTransactionAspect (refactor)
+    participant MSR as HttpMarkingScopeSupplier (new)
+    participant CACHE as MarkingClearanceCacheManager (new)
+    participant ORM as Hibernate + ScopeStatementInspector (refactor)
+    participant PG as PostgreSQL
+
+    U->>API: request
+    API->>RBAC: RBAC check
+    RBAC-->>API: authorized
+    API->>SVC: call
+    SVC->>ASP: transaction opened
+    ASP->>MSR: resolve effective markings
+    MSR->>CACHE: findClearance(user, tenant)
+    CACHE-->>MSR: marking ids
+    MSR-->>ASP: marking clearance
+    ASP->>PG: set_config('app.current_tenants', ..., true)
+    ASP->>PG: set_config('app.current_markings', ..., true)
+    SVC->>ORM: repository query
+    ORM->>PG: SQL + can_access_tenant(...) AND is_marking_set_allowed(...)
+    PG-->>SVC: tenant+marking filtered rows
+    SVC-->>API: result
+    API-->>U: 200 OK
 ```
 
 ---
@@ -371,34 +487,33 @@ classDiagram
 
     class TenantDimension {
       -tables : ScopedTables
-      +predicateFor() String  %% can_access_tenant(alias.tenant_id, allowPlatform)
+      +predicateFor() String  
     }
 
     class MarkingDimension {
       -tables : MarkedTables
-      +predicateFor() String  %% is_marking_set_allowed(alias.marking_ids)
+      +predicateFor() String  
     }
 
-    class MarkedTable {
-      <<record>>
-      +table : String            %% assets
-      +markingColumn : String    %% marking_ids  (text[])
-    }
-
+  class StatementInspector {
+    <<Spring>>
+    +inspect
+  }
     class ScopeStatementInspector {
       -dimensions : List~ScopeDimension~
       +inspect(sql) String
       -predicatesFor(table, alias) String
+      -rewriteUpdate()
     }
 
     class ScopeFilteringConfig {
-      +tenantDimension(DataSource, activeTables) TenantDimension
-      +markingDimension(DataSource, activeTables) MarkingDimension
-      +scopeStatementInspector(List~ScopeDimension~) ScopeStatementInspector
+      <<Configuration bean>>
+      +tenantDimension
+      +markingDimension
+      +scopeStatementInspector
     }
 
     class ScopeCtx {
-      %% assembled by the aspect, not a REST parameter (§4.1.1)
       +tenants() TxCtx
       +markings() MarkingCtx
     }
@@ -417,24 +532,33 @@ classDiagram
       +evictOnGroupOrDefinitionChange()
     }
 
-    class ScopeTransactionAspect {
+    class TenantScopeTransactionAspect {
+        <<@Aspect>>
       +applyScope(JoinPoint)
     }
 
-    class MarkingEscalationValidator {
-      <<static>>
-      +assertCanAssignMarkings(user, markingIds)
-    }
-
+    
+    ScopeFilteringConfig --> ScopeStatementInspector : factory
     ScopeDimension <|.. TenantDimension
     ScopeDimension <|.. MarkingDimension
-    MarkingDimension --> MarkedTable
-    ScopeFilteringConfig --> ScopeDimension
+    StatementInspector <|-- ScopeStatementInspector
     ScopeStatementInspector --> ScopeDimension
-    ScopeTransactionAspect --> ScopeCtx
+
+    TenantScopeTransactionAspect --> ScopeCtx
     ScopeCtx --> MarkingCtx
     MarkingScopeResolver --> MarkingClearanceCache
     MarkingScopeResolver --> MarkingCtx
+
+    note for ScopeStatementInspector "This is the class responsible for all SQL rewrite. \nHanding both dimention Tenant and Marking filtering at READ"
+    style ScopeStatementInspector fill:#fff59d,stroke:#b28900
+    style ScopeDimension fill:#fff59d,stroke:#b28900
+    style TenantDimension fill:#fff59d,stroke:#b28900
+    style MarkingDimension fill:#fff59d,stroke:#b28900
+    style TenantScopeTransactionAspect fill:#fff59d,stroke:#b28900
+    style ScopeCtx fill:#fff59d,stroke:#b28900
+    style MarkingCtx fill:#fff59d,stroke:#b28900
+    style MarkingClearanceCache fill:#fff59d,stroke:#b28900
+    style MarkingScopeResolver fill:#fff59d,stroke:#b28900
 ```
 
 The `ScopeDimension` interface is the whole generalization: the inspector stops knowing *what* a tenant or
