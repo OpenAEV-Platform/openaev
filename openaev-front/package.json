@@ -40,7 +40,7 @@
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@filigran/chatbot": "3.7.4",
-    "@filigran/design-system": "XTM-Foundation/filigran-design-system#commit=cd4b8ee9824c6bdb5baf083be6787a7b1c8f4ec3",
+    "@filigran/design-system": "XTM-Foundation/filigran-design-system#commit=bd076e8f49dfb678469be0638562ea0c85b06a6c",
     "@filigran/rich-text-editor": "npm:1.2.0",
     "@fontsource/geologica": "5.3.0",
     "@fontsource/ibm-plex-sans": "5.3.0",
