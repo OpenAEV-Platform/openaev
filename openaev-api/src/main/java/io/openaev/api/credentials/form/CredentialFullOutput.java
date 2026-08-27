@@ -1,9 +1,7 @@
 package io.openaev.api.credentials.form;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.CredentialSecretReference;
-import io.openaev.database.model.HashSecret;
-import io.openaev.database.model.SecretReference;
+import io.openaev.database.model.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -37,6 +35,21 @@ public record CredentialFullOutput(
         SecretReference.SECRET_STATUS status,
     @Schema(description = "Credential description") @JsonProperty("credential_description")
         String description,
+    // IDENTITY
     @Schema(description = "Secret username") @JsonProperty("credential_username") String username,
-    @Schema(description = "Credential description") @JsonProperty("credential_hash_algorithm")
-        HashSecret.HASH_ALGORITHM hashAlgorithm) {}
+    @Schema(description = "Secret hash algorithm") @JsonProperty("credential_hash_algorithm")
+        HashSecret.HASH_ALGORITHM hashAlgorithm,
+    // AWS
+    @Schema(description = "Secret AWS default region")
+        @JsonProperty("credential_aws_default_region")
+        AwsRegion awsDefaultRegion,
+    @Schema(description = "AWS access key ID") @JsonProperty("credential_aws_access_key_id")
+        String awsAccessKeyId,
+    @Schema(description = "AWS role ARN") @JsonProperty("credential_aws_role_arn")
+        String awsRoleArn,
+    @Schema(description = "AWS source identity type")
+        @JsonProperty("credential_aws_source_identity_type")
+        AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
+    @Schema(description = "AWS source profile access key id")
+        @JsonProperty("credential_aws_source_profile_access_key_id")
+        String awsSourceProfileAccessKeyId) {}

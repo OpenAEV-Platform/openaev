@@ -88,11 +88,19 @@ public class CredentialService {
                     "credential_username",
                     CredentialContractOutput.CredentialContractFieldType.text,
                     true,
+                    null,
+                    null,
+                    null,
+                    null,
                     null),
                 new CredentialContractOutput.CredentialContractField(
                     "credential_password",
                     CredentialContractOutput.CredentialContractFieldType.password,
                     true,
+                    null,
+                    null,
+                    null,
+                    null,
                     null))),
         new CredentialContractOutput(
             CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
@@ -102,6 +110,10 @@ public class CredentialService {
                     "credential_hash",
                     CredentialContractOutput.CredentialContractFieldType.password,
                     true,
+                    null,
+                    null,
+                    null,
+                    null,
                     null),
                 new CredentialContractOutput.CredentialContractField(
                     "credential_hash_algorithm",
@@ -109,7 +121,111 @@ public class CredentialService {
                     true,
                     List.of(
                         HashSecret.HASH_ALGORITHM.SHA.name(),
-                        HashSecret.HASH_ALGORITHM.NTLM.name())))));
+                        HashSecret.HASH_ALGORITHM.NTLM.name()),
+                    null,
+                    null,
+                    null,
+                    null))),
+        new CredentialContractOutput(
+            CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AWS,
+            CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY,
+            List.of(
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_default_region",
+                    CredentialContractOutput.CredentialContractFieldType.select,
+                    true,
+                    AwsRegion.codes(),
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_access_key_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_secret_access_key",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_session_token",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null))),
+        new CredentialContractOutput(
+            CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AWS,
+            CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE,
+            List.of(
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_default_region",
+                    CredentialContractOutput.CredentialContractFieldType.select,
+                    true,
+                    AwsRegion.codes(),
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_role_arn",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_external_id",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_source_identity_type",
+                    CredentialContractOutput.CredentialContractFieldType.select,
+                    true,
+                    List.of(
+                        AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name(),
+                        AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.INSTANCE_DEFAULT.name()),
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_source_profile_access_key_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    false,
+                    null,
+                    "aws_source_identity_type",
+                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name(),
+                    "aws_source_identity_type",
+                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name()),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_source_profile_secret_access_key",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    false,
+                    null,
+                    "aws_source_identity_type",
+                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name(),
+                    "aws_source_identity_type",
+                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name()))));
   }
 
   /**
@@ -241,7 +357,16 @@ public class CredentialService {
         input.credentialUsername(),
         input.credentialPassword(),
         input.credentialHash(),
-        input.credentialHashAlgorithm());
+        input.credentialHashAlgorithm(),
+        input.awsDefaultRegion(),
+        input.awsAccessKeyId(),
+        input.awsSecretAccessKey(),
+        input.awsSessionToken(),
+        input.awsRoleArn(),
+        input.awsExternalId(),
+        input.awsSourceIdentityType(),
+        input.awsSourceProfileAccessKeyId(),
+        input.awsSourceProfileSecretAccessKey());
   }
 
   /**
