@@ -4,6 +4,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.raw.RawUser;
 import io.openaev.database.raw.RawUserAuthFlat;
+import io.openaev.database.raw.RawUserIdentity;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
@@ -94,6 +95,18 @@ public interface UserRepository
       value = "select ut.user_id from users_tenants ut where ut.tenant_id = :tenantId",
       nativeQuery = true)
   List<String> findUserIdsByTenantId(@Param("tenantId") String tenantId);
+
+  /**
+   * Returns a projection rather than {@code User} entities, because loading one user also loads its
+   * groups (EAGER), then each group's grants, roles and other members, and the audit listener
+   * snapshots every Group and Role loaded to JSON. That is a lot of work to display a name.
+   */
+  @Query(
+      value =
+          "select us.user_id, us.user_email, us.user_firstname, us.user_lastname"
+              + " from users us where us.user_id in (:ids)",
+      nativeQuery = true)
+  List<RawUserIdentity> rawIdentities(@Param("ids") Collection<String> ids);
 
   @Query(
       value = "select ut.tenant_id from users_tenants ut where ut.user_id = :userId",

@@ -62,11 +62,11 @@ class CapabilityTreeBuilderTest {
     // -- ASSERT --
     CapabilityOutput assessments =
         tree.stream().filter(n -> ASSESSMENT.name().equals(n.value())).findFirst().orElseThrow();
-    assertThat(assessments.scopes()).containsExactly(TENANT.name());
+    assertThat(assessments.scopes()).containsExactly(TENANT);
 
     CapabilityOutput tenants =
         tree.stream().filter(n -> TENANTS.name().equals(n.value())).findFirst().orElseThrow();
-    assertThat(tenants.scopes()).containsExactly(PLATFORM.name());
+    assertThat(tenants.scopes()).containsExactly(PLATFORM);
   }
 
   @Test
@@ -107,7 +107,7 @@ class CapabilityTreeBuilderTest {
             .findFirst()
             .orElseThrow();
     assertThat(tenantSettingCategory.checkable()).isFalse();
-    assertThat(tenantSettingCategory.scopes()).containsExactly(TENANT.name());
+    assertThat(tenantSettingCategory.scopes()).containsExactly(TENANT);
 
     // ACCESS_TENANT_SETTINGS is a checkable child of the category
     CapabilityOutput accessTenantSettings =
@@ -140,7 +140,7 @@ class CapabilityTreeBuilderTest {
     CapabilityOutput category =
         tree.stream().filter(n -> SECURITY.name().equals(n.value())).findFirst().orElseThrow();
     assertThat(category.checkable()).isFalse();
-    assertThat(category.scopes()).containsExactly(TENANT.name());
+    assertThat(category.scopes()).containsExactly(TENANT);
 
     // Reaching these at all proves they are not hidden: computeTree filters hidden capabilities
     // out.

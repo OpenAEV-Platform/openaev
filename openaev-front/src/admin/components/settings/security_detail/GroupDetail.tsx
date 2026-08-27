@@ -67,7 +67,7 @@ const GroupDetail = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { groupId } = useParams() as { groupId: string };
   const { scope } = useSecurityScope();
-  const isPlatform = scope === 'platform';
+  const isPlatform = scope === 'PLATFORM';
 
   const [group, setGroup] = useState<Group | null>(null);
   const [platformGroup, setPlatformGroup] = useState<PlatformGroupOutput | null>(null);
