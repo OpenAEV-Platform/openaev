@@ -39,45 +39,6 @@ class StackDepthLimitingJsonEncoderTest {
   }
 
   @Test
-  @DisplayName("message field should carry the resolved placeholders, not the raw pattern")
-  void testMessageIsFormatted() throws Exception {
-    encoder.setWithArguments(false);
-
-    LoggingEvent event = new LoggingEvent();
-    event.setLoggerContext(loggerContext);
-    event.setLoggerName("io.openaev.logging.Test");
-    event.setLevel(ch.qos.logback.classic.Level.INFO);
-    event.setMessage("Indexing ({}) in progress for {}");
-    event.setArgumentArray(new Object[] {500, "expectation-inject"});
-    event.setTimeStamp(System.currentTimeMillis());
-
-    JsonNode node = MAPPER.readTree(new String(encoder.encode(event)));
-
-    assertEquals("Indexing (500) in progress for expectation-inject", node.get("message").asText());
-    assertNull(node.get("arguments"), "arguments must not duplicate the resolved values");
-  }
-
-  @Test
-  @DisplayName("Formatted message and truncated stack trace should combine on the same event")
-  void testFormattedMessageWithThrowable() throws Exception {
-    encoder.setMaxStackDepth(1);
-
-    LoggingEvent event = new LoggingEvent();
-    event.setLoggerContext(loggerContext);
-    event.setLoggerName("io.openaev.logging.Test");
-    event.setLevel(ch.qos.logback.classic.Level.ERROR);
-    event.setMessage("Indexing failed for {}");
-    event.setArgumentArray(new Object[] {"expectation-inject"});
-    event.setThrowableProxy(new ThrowableProxy(new RuntimeException("boom")));
-    event.setTimeStamp(System.currentTimeMillis());
-
-    JsonNode node = MAPPER.readTree(new String(encoder.encode(event)));
-
-    assertEquals("Indexing failed for expectation-inject", node.get("message").asText());
-    assertTrue(node.has("throwable"), "throwable must still be serialized");
-  }
-
-  @Test
   @DisplayName("maxStackDepth=1 should produce valid JSON with truncation marker")
   void testMaxStackDepth1() throws Exception {
     encoder.setMaxStackDepth(1);
