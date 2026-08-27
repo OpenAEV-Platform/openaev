@@ -41,7 +41,6 @@ everywhere the platform returns it (list, detail, Simulation, Scenario, Endpoint
 | Sensitive type | Value shape | Redacted as |
 | --- | --- | --- |
 | Credentials | `admin:motdepasse` | `ad******:mo******` |
-| Password policy | `MinimumPasswordLength: 8` | `Mi******:******` |
 
 Every part of the value - the parts being separated by `:` - is masked the same way: only a two
 character fragment is kept, so you can still tell which Finding is which when you already know the

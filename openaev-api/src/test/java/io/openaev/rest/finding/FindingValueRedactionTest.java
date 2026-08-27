@@ -71,8 +71,8 @@ class FindingValueRedactionTest {
     void given_aShortPart_should_maskItEntirely() {
       // -------- Act & Assert --------
       assertThat(FindingService.redact("abcd", true)).isEqualTo(FindingService.MASK);
-      assertThat(FindingService.redact("MinimumPasswordLength: 8", true))
-          .isEqualTo("Mi" + FindingService.MASK + ":" + FindingService.MASK);
+      assertThat(FindingService.redact("administrator:pwd", true))
+          .isEqualTo("ad" + FindingService.MASK + ":" + FindingService.MASK);
     }
 
     @Test
