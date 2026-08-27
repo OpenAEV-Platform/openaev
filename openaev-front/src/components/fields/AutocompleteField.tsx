@@ -190,7 +190,12 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
           }
         }}
         onValueChange={newValue => handleValue(newValue)}
-        renderOption={renderRow}
+        // The library floors an option row at 48px on the mere PRESENCE of this
+        // prop and its own default row is 32px, so a field that does not need a
+        // custom row must not pass one. Only `multiple` does: it draws the
+        // checkbox. `option.italic` is passed by no consumer, and the tooltip
+        // and ellipsis go with the custom row — measured below.
+        renderOption={multiple ? renderRow : undefined}
       >
         <ComboboxLabel>
           {label}
