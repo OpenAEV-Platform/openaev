@@ -42,7 +42,7 @@
   background-image: none;
 }
 
-/* Filter popover, from Sandy's node 7346:48677.
+/* Filter popover, from the design node 7346:48677.
  *
  * The intent is SEPARATION, not an absolute ordering: the panel detaches from
  * the page and its fields read against the panel. The node is authored in dark,
@@ -52,7 +52,7 @@
  * layer-1 (#fff) is the only elevation strictly lighter than every other, so it
  * is detached from the page whatever the page uses.
  *
- * panel: layer-3 dark / layer-1 light, per Sandy's node — separation over
+ * panel: layer-3 dark / layer-1 light, per the design node — separation over
  * absolute ordering.
  *
  * `--radius-sm`, `--spacing-2` between the fields and the node's own

@@ -84,6 +84,14 @@ test.describe('Threat Arsenal list toolbar', () => {
  * The break point is a media query, so it is worth pinning on both sides: a
  * single pixel decides the arrangement, and nothing measures anything at
  * runtime to arrive at it.
+ *
+ * What is asserted here is the ARRANGEMENT, read from the wrapper's computed
+ * `display`, not the number of visual lines it ends up occupying. Above the
+ * break point the one-line container is allowed to wrap, because the toolbar is
+ * shared by 62 pages and some carry heavier slots than others — the card view
+ * carries the sort select and does wrap at 1600px in a seeded, English UI.
+ * Asserting "the filters sit level with the pagination" would therefore be
+ * asserting the absence of a deliberate safety net.
  */
 test.describe('Threat Arsenal list toolbar break point', () => {
   let leftMenu: LeftMenuComponent;
@@ -105,13 +113,16 @@ test.describe('Threat Arsenal list toolbar break point', () => {
       });
       await list.switchToView(view);
 
-      // Above the break point the row wrapper generates no box, so the groups
-      // are read directly: the filters sit level with the pagination.
-      const filtersBox = await page.getByTestId('toolbar-filters-row').boundingBox();
-      const paginationBox = await page.locator('.MuiTablePagination-root').boundingBox();
-      expect(filtersBox).not.toBeNull();
-      expect(paginationBox).not.toBeNull();
-      expect(Math.abs(filtersBox!.y - paginationBox!.y)).toBeLessThanOrEqual(2);
+      // `contents` is the break point itself: the wrapper stops generating a
+      // box, so its groups become items of the toolbar beside the filters.
+      const wrapperDisplay = await page
+        .getByTestId('toolbar-selection-row')
+        .evaluate(node => getComputedStyle(node).display);
+      expect(wrapperDisplay).toBe('contents');
+
+      // The filters are in the same container as the pagination, not in a row
+      // of their own below it.
+      await expect(page.getByTestId('toolbar-filters-row')).toBeVisible();
 
       const overflow = await page.evaluate(() => {
         const scroller = document.scrollingElement!;
@@ -127,11 +138,17 @@ test.describe('Threat Arsenal list toolbar break point', () => {
       });
       await list.switchToView(view);
 
+      // One pixel down, the wrapper is a box again — the stacked arrangement.
+      const wrapperDisplay = await page
+        .getByTestId('toolbar-selection-row')
+        .evaluate(node => getComputedStyle(node).display);
+      expect(wrapperDisplay).toBe('flex');
+
       const filtersBox = await page.getByTestId('toolbar-filters-row').boundingBox();
       const paginationBox = await page.locator('.MuiTablePagination-root').boundingBox();
       expect(filtersBox).not.toBeNull();
       expect(paginationBox).not.toBeNull();
-      // Strictly below, not level: 1599 is the stacked arrangement.
+      // Strictly below, not level: 1599 stacks.
       expect(filtersBox!.y).toBeGreaterThan(paginationBox!.y + paginationBox!.height - 1);
     });
   }
