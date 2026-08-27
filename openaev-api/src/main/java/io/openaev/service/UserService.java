@@ -618,7 +618,8 @@ public class UserService {
     }
     User user = user(userId);
     revokeTenantGroups(user, tenantIds);
-    userRepository.save(user);
+    User savedUser = userRepository.save(user);
+    sessionManager.refreshUserSessions(savedUser);
   }
 
   /**
