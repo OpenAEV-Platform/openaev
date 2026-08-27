@@ -175,6 +175,11 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
       // while the OpenAEV proxy exposes '/messages/steer' relative to
       // its '/api/xtmone/chat' base.
       steer: '/messages/steer',
+      // Setting these is what makes the panel advertise `supports_tool_approval`
+      // upstream; left unset it never claims support and gated tools degrade to
+      // a plain assistant message instead of pausing the turn.
+      approve: '/messages/approve',
+      pendingApprovals: '/conversations',
       sessions: '/sessions',
       upload: '/upload',
       download: '/files',
