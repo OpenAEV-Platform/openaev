@@ -34,6 +34,9 @@ class ThreatArsenalListPage {
       .filter({ has: this.filterField });
     await shell.getByRole('button').last().click();
     await this.page.getByRole('option').first().click();
+    // Picking a filter opens its configuration popover on top of the toolbar,
+    // which leaves the controls underneath unclickable until it is dismissed.
+    await this.page.keyboard.press('Escape');
   }
 
   async clearFilters() {
