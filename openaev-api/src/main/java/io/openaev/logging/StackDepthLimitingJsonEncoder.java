@@ -14,15 +14,11 @@ import org.slf4j.Marker;
 import org.slf4j.event.KeyValuePair;
 
 /**
- * Extends the built-in Logback {@link JsonEncoder} to write the <b>formatted</b> message in the
- * {@code message} field, and to limit the depth of stack traces and cause chains in JSON log
- * output.
+ * Extends the built-in Logback {@link JsonEncoder} to resolve message placeholders and to limit the
+ * depth of stack traces and cause chains in JSON log output.
  *
- * <p>{@link JsonEncoder} writes the raw SLF4J pattern in {@code message} and the values in a
- * separate {@code arguments} array, so log aggregators reading {@code message} display {@code
- * "Indexing ({}) in progress for {}"} instead of the actual values. This encoder resolves the
- * placeholders up front; pair it with {@code <withArguments>false</withArguments>} so the values
- * are not also duplicated in {@code arguments}.
+ * <p>{@link JsonEncoder} puts the raw SLF4J pattern in {@code message} and the values in {@code
+ * arguments}; this encoder resolves the placeholders so {@code message} reads as is.
  *
  * <p>Deep stack traces (e.g. from Spring proxy chains or Hibernate cascades) can produce JSON log
  * lines that exceed Loki's {@code max_line_size}, causing silent mid-JSON truncation and {@code
@@ -196,8 +192,7 @@ public class StackDepthLimitingJsonEncoder extends JsonEncoder {
 
   /**
    * Delegates all {@link ILoggingEvent} methods to the original event, except {@link #getMessage()}
-   * which returns the formatted message, and {@link #getThrowableProxy()} which returns the
-   * truncated proxy.
+   * (formatted message) and {@link #getThrowableProxy()} (truncated proxy).
    */
   static class FormattedMessageEvent implements ILoggingEvent {
     private final ILoggingEvent delegate;
@@ -223,9 +218,6 @@ public class StackDepthLimitingJsonEncoder extends JsonEncoder {
       return delegate.getLevel();
     }
 
-    /**
-     * Resolves the {@code {}} placeholders so the JSON {@code message} field carries the values.
-     */
     @Override
     public String getMessage() {
       return delegate.getFormattedMessage();
