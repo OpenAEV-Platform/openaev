@@ -20,11 +20,23 @@ import { type QueryableHelpers } from '../QueryableHelpers';
 import TextSearchComponent from '../textSearch/TextSearchComponent';
 import TablePaginationComponentV2 from './TablePaginationComponentV2';
 
+// One fixed break point, and nothing else: above it the toolbar is a single
+// line, below it the two-line stack. There is no runtime measurement and no
+// state that depends on the width, so the layout cannot disagree with the
+// decision that produced it.
+const ONE_LINE = '@media (min-width:1600px)';
+
 const useStyles = makeStyles()(theme => ({
   topbar: {
     display: 'flex',
     alignItems: 'center',
     gap: theme.spacing(1),
+    // On one line the pagination is last and sits at the far edge. `order`
+    // moves it past the filters, which keep the DOM order they are read in.
+    [ONE_LINE]: {
+      order: 1,
+      marginLeft: 'auto',
+    },
   },
   // The toolbar stacks: selection + pagination, then the filter controls, then
   // the filter chips. On one line the whole thing ran past the viewport — at
@@ -35,11 +47,27 @@ const useStyles = makeStyles()(theme => ({
     display: 'flex',
     flexDirection: 'column',
     gap: theme.spacing(1),
+    [ONE_LINE]: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      // This toolbar is shared by 62 pages and some carry heavier slots than
+      // the ones measured. Wrapping means a page that cannot fit one line
+      // falls back to two rather than running past its container.
+      flexWrap: 'wrap',
+    },
   },
   parametersWithoutPagination: {
     display: 'flex',
     flexDirection: 'column',
     gap: theme.spacing(1),
+    [ONE_LINE]: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      // This toolbar is shared by 62 pages and some carry heavier slots than
+      // the ones measured. Wrapping means a page that cannot fit one line
+      // falls back to two rather than running past its container.
+      flexWrap: 'wrap',
+    },
   },
   // One row of the toolbar: a single axis, 8px between neighbours.
   row: {
@@ -54,6 +82,10 @@ const useStyles = makeStyles()(theme => ({
     justifyContent: 'space-between',
     gap: theme.spacing(1),
     flexWrap: 'wrap',
+    // Above the break point this wrapper generates no box: its two groups
+    // become items of the toolbar itself, beside the filters. The groups are
+    // untouched — same elements, same classes, either side of the break.
+    [ONE_LINE]: { display: 'contents' },
   },
   TTPMitreContainer: {
     padding: theme.spacing(2),
