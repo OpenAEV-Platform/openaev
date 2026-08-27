@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public class WorkToProcessed implements Mutation {
+  private static final ObjectMapper mapper = new ObjectMapper();
+
   @Getter private final String workId;
   @Getter private final String message;
   @Getter private final Boolean inError;
@@ -28,7 +30,6 @@ public class WorkToProcessed implements Mutation {
 
   @Override
   public JsonNode getVariables() throws JsonProcessingException {
-    ObjectMapper mapper = new ObjectMapper();
     ObjectNode node = mapper.createObjectNode();
     node.set("id", mapper.valueToTree(workId));
     node.set("message", mapper.valueToTree(message));

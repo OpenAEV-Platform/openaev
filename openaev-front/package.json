@@ -1,6 +1,6 @@
 {
   "name": "openaev-front",
-  "version": "3.260821.0",
+  "version": "3.260827.0",
   "type": "module",
   "private": true,
   "license": "Apache-2.0",
@@ -87,7 +87,7 @@
     "react-final-form-arrays": "4.0.0",
     "react-grid-layout": "2.2.4",
     "react-hook-form": "7.86.0",
-    "react-intl": "10.1.22",
+    "react-intl": "10.1.23",
     "react-markdown": "10.1.0",
     "react-redux": "9.3.0",
     "react-router": "7.18.2",

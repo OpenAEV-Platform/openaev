@@ -8,6 +8,7 @@ import { useLocalStorage } from 'usehooks-ts';
 import { fetchSecurityPlatforms } from '../../../actions/assets/securityPlatform-actions';
 import { adHocAverage, adHocCount, adHocEntities, adHocEntitiesRuntime, adHocSeries } from '../../../actions/dashboards/dashboard-action';
 import { useFormatter } from '../../../components/i18n';
+import Loader from '../../../components/Loader';
 import { type CustomDashboard, type EsSeries, type Widget, type WidgetToEntitiesInput } from '../../../utils/api-types';
 import { useBulkOperationsFinishedCount } from '../../../utils/bulkOperations';
 import { useAppDispatch } from '../../../utils/hooks';
@@ -55,11 +56,14 @@ const DefaultHomeDashboard = () => {
   // "Human Response" is situational (manual/article/challenge expectations, e.g.
   // phishing), so - like the command center's human node - the gauge is mounted
   // only when there is data in range, never as a sample-only card. Probe the same
-  // config the gauge queries; default hidden so an empty range never flashes it.
-  // The gauge occupies a RESERVED 4th slot (see defaultHomeWidgets GAUGE_WIDTH):
-  // the three core gauges never move whether or not it is present, so it can arrive
-  // late (after this probe resolves) without reflowing them onto a second row.
-  const [humanResponsePresent, setHumanResponsePresent] = useState(false);
+  // config the gauge queries. Tri-state: null = probe in flight, and the grid is
+  // NOT mounted until it resolves. The gauge row is responsive (3 gauges at w=4,
+  // 4 at w=3, see buildDefaultHomeWidgets) and react-grid-layout only reads a
+  // child's data-grid at first mount, so the grid must mount with its FINAL gauge
+  // count: mounting it eagerly with 3 gauges and key-remounting when the probe
+  // resolved re-rendered (blank flash) and refetched the entire dashboard on
+  // every first load of a platform with human response data (#7599).
+  const [humanResponsePresent, setHumanResponsePresent] = useState<boolean | null>(null);
   useEffect(() => {
     let cancelled = false;
     limitWidgetQueries(() => adHocSeries(buildHumanResponseProbeConfig(timeRange)))
@@ -98,7 +102,7 @@ const DefaultHomeDashboard = () => {
   // context value and refetches all ~20 widgets (same rule as DefaultHomeResults).
   // `locale` is the stable signal that t's output actually changed, so a runtime
   // language switch still recomputes the titles (one refetch, but only then).
-  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t, humanResponsePresent), [timeRange, locale, humanResponsePresent]);
+  const widgets = useMemo(() => buildDefaultHomeWidgets(timeRange, t, humanResponsePresent === true), [timeRange, locale, humanResponsePresent]);
 
   const widgetById = useMemo(() => {
     const map = new Map<string, Widget>();
@@ -235,13 +239,26 @@ const DefaultHomeDashboard = () => {
         </Tooltip>
       </div>
       {/*
-        Remount the grid when the gauge count changes. react-grid-layout keeps the
-        internal layout of already-mounted children and ignores width changes, so
-        flipping 3 gauges (w=4) <-> 4 gauges (w=3) in place would leave the core
-        gauges at their old width and strand Human Response on a second row. A fresh
-        mount re-reads every gauge's width, so each state fills the row evenly.
+        Mounted only once the Human Response probe has resolved - with the grid
+        not mounted yet the probe is the only query in the concurrency limiter,
+        so it resolves as fast as the platform can answer one aggregation. The
+        grid then mounts directly with its final geometry (3 gauges at w=4, or 4
+        gauges at w=3 on the SAME line) and every widget fetches exactly once per
+        load (#7599). The key still remounts the grid if the flag flips later
+        (time range switch or refresh changing the probe result): react-grid-layout
+        keeps the internal layout of already-mounted children and ignores width
+        changes, so an in-place flip would leave the core gauges at their old
+        width and strand Human Response on a second row.
       */}
-      <CustomDashboardReactLayout key={`default-grid-hr-${humanResponsePresent}`} readOnly />
+      {humanResponsePresent === null
+        ? (
+            // Fixed height so the inElement loader centers roughly where the
+            // command center hero will mount, instead of hugging the header.
+            <div style={{ height: 420 }}>
+              <Loader variant="inElement" />
+            </div>
+          )
+        : <CustomDashboardReactLayout key={`default-grid-hr-${humanResponsePresent}`} readOnly />}
     </CustomDashboardContext.Provider>
   );
 };

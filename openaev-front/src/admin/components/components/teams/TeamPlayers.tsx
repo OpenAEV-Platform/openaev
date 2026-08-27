@@ -256,7 +256,6 @@ const TeamPlayers: FunctionComponent<Props> = ({ teamId, handleClose, canManage,
                 setTags(tags.filter((t: Option) => t.id !== value));
               }}
               currentTags={tags}
-              thin={true}
             />
           </Box>
           {canManage && (

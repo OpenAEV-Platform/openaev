@@ -55,6 +55,7 @@ public class PlatformTriggers {
   }
 
   @Bean
+  @Profile("!test")
   public Trigger scenarioExecutionTrigger() {
     return newTrigger()
         .forJob(this.platformJobs.getScenarioExecution())

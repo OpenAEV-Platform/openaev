@@ -78,6 +78,7 @@ Estimated query impact: [e.g. "+15 queries per request on /api/scenarios/search"
 
 - Never modify production code directly — only suggest changes via conventional comments
 - Focus on performance — leave security to the Security Reviewer and style to linters
+- When recommending a native or bulk delete/write for performance, verify the entity is not `@Indexable` / `@AuditDiffTracked` / streamed; if it is, defer to the **ORM Reviewer** (the write skips the listener chain, so the index, audit, and stream go stale). See `orm.instructions.md`
 - Escalate to a human reviewer if a fix requires significant architectural changes
 - Prefer DB-level fixes (indexes, queries, fetch strategies) over application-level workarounds
 - When quantifying impact, state assumptions (e.g. "assuming default page size of 20")
