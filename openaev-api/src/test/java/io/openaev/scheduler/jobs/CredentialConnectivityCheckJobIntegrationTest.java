@@ -5,12 +5,16 @@ import static io.openaev.database.model.SecretReference.SECRET_STATUS.UNSET;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.azure.core.credential.TokenCredential;
+import com.azure.core.management.AzureEnvironment;
+import com.azure.identity.CredentialUnavailableException;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.AzureEnvironments;
 import io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD;
 import io.openaev.database.model.CredentialSecretReference.CREDENTIAL_TYPE;
 import io.openaev.database.model.Secret.SECRET_TYPE;
 import io.openaev.database.model.SecretReference.SECRET_REFERENCE_TYPE;
+import io.openaev.secrets.provider.impl.validators.AzureCredentialConnectivityCheckFactory;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -18,9 +22,14 @@ import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
+import reactor.core.publisher.Mono;
 
 /**
  * End-to-end proof of the credential status validation job, including its tenant isolation.
@@ -43,17 +52,57 @@ import org.springframework.test.util.ReflectionTestUtils;
  * preview feature is on ({@code LocalSecretsProviderIntegrationFactory#findRelatedInstances}
  * returns nothing otherwise), so without it every probe short-circuits on {@code
  * PROVIDER_NOT_FOUND} and no credential is ever verified.
+ *
+ * <p>The Azure SDK is stubbed, deliberately (see {@link OutsideAzureConfiguration}): the real
+ * factory dials IMDS, whose failure mode is NOT stable — a refused socket surfaces as {@code
+ * CredentialUnavailableException} (inconclusive) while a hanging one surfaces as a bare {@code
+ * ClientAuthenticationException} with no HTTP response, which {@code
+ * AzureCredentialConnectivityCheck} reads as an outright rejection. Both are legitimate readings of
+ * the SDK, so leaving the choice to the machine made this class pass alone and flip to {@code
+ * INACTIVE} under the load of a full suite run. What is under test here is the job's plumbing, not
+ * the SDK's networking, so the "outside Azure" condition is injected rather than provoked.
  */
 @TestPropertySource(
     properties = {
       "openaev.tenant.active-tables=secret_references,secrets",
-      "openaev.enabled-dev-features=CREDENTIAL_ASSET",
-      // The probe is expected to be inconclusive here (no IMDS outside Azure); the shortest
-      // allowed timeout keeps that inevitable wait from dominating the test's runtime.
-      "openaev.credentials.status-validation.timeout-seconds=1"
+      "openaev.enabled-dev-features=CREDENTIAL_ASSET"
     })
+@Import(CredentialConnectivityCheckJobIntegrationTest.OutsideAzureConfiguration.class)
 @DisplayName("CredentialsStatusValidatorJob tests")
 class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
+
+  /**
+   * Pins every Azure probe to the one outcome a deployment running outside Azure gets: the identity
+   * endpoint cannot be reached, so the credential is inconclusive and its status must be preserved.
+   *
+   * <p>{@code @Primary} rather than a mock bean: the stub is pure behaviour with no verification on
+   * it, and a plain bean keeps the context definition explicit and shareable across the class.
+   */
+  @TestConfiguration
+  static class OutsideAzureConfiguration {
+
+    @Bean
+    @Primary
+    AzureCredentialConnectivityCheckFactory unreachableAzureFactory() {
+      TokenCredential unreachable =
+          request ->
+              Mono.error(
+                  new CredentialUnavailableException(
+                      "ManagedIdentityCredential is unavailable in tests"));
+      return new AzureCredentialConnectivityCheckFactory() {
+        @Override
+        public TokenCredential forServicePrincipal(
+            AzureEnvironment environment, String tenantId, String clientId, String clientSecret) {
+          return unreachable;
+        }
+
+        @Override
+        public TokenCredential forManagedIdentity(String clientId) {
+          return unreachable;
+        }
+      };
+    }
+  }
 
   /**
    * The public Azure cloud, taken from {@link AzureEnvironments} rather than hardcoded: the handler
@@ -101,9 +150,9 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
       // Act
       job.execute(null);
 
-      // Assert — the platform runs outside Azure, so the managed identity probe is inconclusive:
-      // the status stays UNSET while the attempt IS stamped. That combination is precisely the
-      // "transient failure must not flip a credential" contract, observed end to end.
+      // Assert — the identity endpoint is unreachable, so the managed identity probe is
+      // inconclusive: the status stays UNSET while the attempt IS stamped. That combination is
+      // precisely the "transient failure must not flip a credential" contract, observed end to end.
       assertNotNull(lastVerifiedAt(referenceA), "tenant A's credential was verified");
       assertNotNull(lastVerifiedAt(referenceB), "tenant B's credential was verified");
       assertEquals(UNSET.name(), status(referenceA), "an inconclusive probe keeps the status");

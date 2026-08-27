@@ -1,6 +1,6 @@
 package io.openaev.scheduler;
 
-import static io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.CREDENTIALS_STATUS_VALIDATOR_JOB;
+import static io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.CREDENTIAL_CONNECTIVITY_CHECK_JOB;
 import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_JOB;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_JOB;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_JOB;
@@ -174,9 +174,9 @@ public class PlatformJobDefinitions {
   }
 
   @Bean
-  public JobDetail credentialsStatusValidatorJobDetail() {
+  public JobDetail credentialsConnectivityCheckJobDetail() {
     return JobBuilder.newJob(CredentialConnectivityCheckJob.class)
-        .withIdentity(CREDENTIALS_STATUS_VALIDATOR_JOB)
+        .withIdentity(CREDENTIAL_CONNECTIVITY_CHECK_JOB)
         .storeDurably()
         .build();
   }

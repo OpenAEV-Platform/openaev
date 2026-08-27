@@ -5,32 +5,10 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Outcome of a credential liveness check, as returned by {@code
- * SecretHandler#validateConnection(Secret)}.
- *
- * <p>The platform's {@link SECRET_STATUS} enum only knows {@code ACTIVE}, {@code INACTIVE} and
- * {@code UNSET}, which is deliberately narrower than what a validation run can conclude. This
- * record therefore carries its own {@link OUTCOME} and exposes {@link #statusToPersist()} as the
- * single place deciding what — if anything — reaches the database:
- *
- * <ul>
- *   <li>{@code ACTIVE} / {@code INACTIVE}: a definitive answer from the provider, persisted.
- *   <li>{@code UNKNOWN}: the check could not conclude (timeout, throttling, network, 5xx). Nothing
- *       is persisted, so a transient outage never flips a valid credential to {@code INACTIVE}.
- *   <li>{@code UNSUPPORTED}: no validator exists for this secret type. Nothing is persisted, and
- *       the reference is not even considered "verified".
- * </ul>
- *
- * <p>{@code checked} is deliberately NOT derived from the outcome: an {@code UNKNOWN} covers two
- * situations that must be persisted differently. A provider that answered badly (timeout, 5xx) WAS
- * checked, and stamping {@code lastVerifiedAt} is what stops a permanently unreachable provider
- * from pinning the same rows at the head of every run. A dangling secret or a missing handler, on
- * the other hand, never reached a validator at all — stamping those would mark as "verified" a row
- * nothing ever looked at. Use {@link #notChecked(String)} for the latter.
- *
- * <p>{@code detail} is a short, NON-SENSITIVE, normalized reason code (e.g. {@code AUTH_REJECTED},
- * {@code TIMEOUT}). It must never carry a client secret, a token, or a raw provider error payload:
- * those messages routinely embed tenant and application identifiers.
+ * Outcome of a credential check. {@link #statusToPersist()} only writes ACTIVE/INACTIVE;
+ * UNKNOWN/UNSUPPORTED preserve the existing status. {@code checked} tracks whether a validator
+ * actually ran (independent of the outcome), so unreachable-but-probed secrets get re-timestamped
+ * while never-probed ones aren't falsely marked verified. {@code detail} must stay non-sensitive.
  */
 public record SecretConnectionResult(OUTCOME outcome, String detail, boolean checked) {
 

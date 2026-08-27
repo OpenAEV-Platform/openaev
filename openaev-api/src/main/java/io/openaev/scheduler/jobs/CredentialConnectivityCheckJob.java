@@ -29,9 +29,9 @@ import org.springframework.stereotype.Component;
 @DisallowConcurrentExecution
 public class CredentialConnectivityCheckJob implements Job {
 
-  public static final String CREDENTIALS_STATUS_VALIDATOR_JOB = "credentialsStatusValidatorJob";
-  public static final String CREDENTIALS_STATUS_VALIDATOR_TRIGGER =
-      "credentialsStatusValidatorTrigger";
+  public static final String CREDENTIAL_CONNECTIVITY_CHECK_JOB = "credentialConnectivityCheckJob";
+  public static final String CREDENTIAL_CONNECTIVITY_CHECK_TRIGGER =
+      "credentialConnectivityCheckTrigger";
 
   private final TenantService tenantService;
   private final TenantScopedTransaction tenantTx;
@@ -40,7 +40,7 @@ public class CredentialConnectivityCheckJob implements Job {
   @Value("${openaev.credentials.status-validation.enabled:true}")
   private boolean enabled;
 
-  @Value("${openaev.credentials.status-validation.revalidate-after-days:7}")
+  @Value("${openaev.credentials.status-validation.revalidate-after-days:1}")
   private int revalidateAfterDays;
 
   @Value("${openaev.credentials.status-validation.max-per-run:500}")
@@ -51,7 +51,7 @@ public class CredentialConnectivityCheckJob implements Job {
     if (!enabled) {
       return;
     }
-    Duration revalidateAfter = Duration.ofDays(revalidateAfterDays);
+    Duration revalidateAfter = Duration.ofDays(revalidateAfterDays < 0 ? 1 : revalidateAfterDays);
 
     // Read outside any tenant scope: `tenants` carries no tenant_id and is never rewritten by the
     // inspector, so there is no chicken-and-egg between listing tenants and scoping to one.

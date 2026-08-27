@@ -1,6 +1,6 @@
 package io.openaev.scheduler;
 
-import static io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.CREDENTIALS_STATUS_VALIDATOR_TRIGGER;
+import static io.openaev.scheduler.jobs.CredentialConnectivityCheckJob.CREDENTIAL_CONNECTIVITY_CHECK_TRIGGER;
 import static io.openaev.scheduler.jobs.EngineDeletionReplayJob.ENGINE_DELETION_REPLAY_TRIGGER;
 import static io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.EXECUTION_TRACE_RETENTION_TRIGGER;
 import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_TRIGGER;
@@ -32,8 +32,8 @@ public class PlatformTriggers {
   @Value("${openaev.cron.config.steps.delay.queue.polling.interval:10000}")
   private int stepDelayQueue;
 
-  @Value("${openaev.credentials.status-validation.cron:0 0 3 * * ?}")
-  private String credentialsStatusValidationCron;
+  @Value("${openaev.credentials.status-validation.cron:0 */6 * * * ?}")
+  private String credentialsConnectivityCheckCron;
 
   @Autowired
   public void setPlatformJobs(PlatformJobDefinitions platformJobs) {
@@ -240,9 +240,9 @@ public class PlatformTriggers {
     // Off-peak by default: a run makes one outbound call per stale credential, and the providers
     // it talks to (Azure AD, ARM) are the same ones simulations depend on during the day.
     return newTrigger()
-        .forJob(this.platformJobs.credentialsStatusValidatorJobDetail())
-        .withIdentity(CREDENTIALS_STATUS_VALIDATOR_TRIGGER)
-        .withSchedule(cronSchedule(credentialsStatusValidationCron))
+        .forJob(this.platformJobs.credentialsConnectivityCheckJobDetail())
+        .withIdentity(CREDENTIAL_CONNECTIVITY_CHECK_TRIGGER)
+        .withSchedule(cronSchedule(credentialsConnectivityCheckCron))
         .build();
   }
 
