@@ -40,4 +40,12 @@ public class XlsFixture {
     xlsFile.toFile().deleteOnExit();
     return importId;
   }
+
+  public Workbook createXlsFileWithTeams(String teamsCellValue) {
+    Workbook wb = new XSSFWorkbook();
+    Sheet sheet = wb.createSheet(DEFAULT_SHEET_NAME);
+    Row dataRow = sheet.createRow(0);
+    dataRow.createCell(0).setCellValue(teamsCellValue);
+    return wb;
+  }
 }

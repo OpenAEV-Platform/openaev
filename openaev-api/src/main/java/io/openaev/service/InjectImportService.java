@@ -889,6 +889,7 @@ public class InjectImportService {
                           .collect(Collectors.joining(","))
                           .split(","))
                   .map(String::trim)
+                  .filter(value -> !value.isBlank())
                   .toList();
         }
         if (columnValues.isEmpty() || columnValues.stream().allMatch(String::isEmpty)) {

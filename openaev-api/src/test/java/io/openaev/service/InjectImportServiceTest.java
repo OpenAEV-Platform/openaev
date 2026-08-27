@@ -13,6 +13,7 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.InjectImportUtils;
+import io.openaev.utils.fixtures.XlsFixture;
 import io.openaev.utils.mockMapper.MockMapperUtils;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -20,9 +21,8 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.Temporal;
-import java.util.Date;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -239,22 +239,27 @@ public class InjectImportServiceTest {
   @Test
   void testParseTeamsCellWithSpacesAndTrailingComma() {
     // -- PREPARE --
-    cell.setCellValue("Team A,  Team_B,");
+    XlsFixture lsFixture = new XlsFixture();
+    workbook = lsFixture.createXlsFileWithTeams("Team A,\n Team A , Team_B,");
+    Sheet sheet = workbook.getSheetAt(0);
+    row = sheet.getRow(0);
     RuleAttribute ruleAttribute = MockMapperUtils.createRuleAttribute();
     ruleAttribute.setColumns("A");
 
     // -- EXECUTE --
-    java.util.List<String> columnValues =
-        java.util.Arrays.stream(
-                java.util.Arrays.stream(ruleAttribute.getColumns().split("\\+"))
+    List<String> columnValues =
+        Arrays.stream(
+                Arrays.stream(ruleAttribute.getColumns().split("\\+"))
                     .map(column -> InjectImportUtils.getValueAsString(row, column))
-                    .collect(java.util.stream.Collectors.joining(","))
+                    .collect(Collectors.joining(","))
                     .split(","))
             .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .distinct()
             .toList();
 
     // -- ASSERT --
-    assertEquals(java.util.List.of("Team A", "Team_B"), columnValues);
+    assertEquals(List.of("Team A", "Team_B"), columnValues);
   }
 
   @DisplayName("Test get inject date without pattern but with an ISO_DATE_TIME format")
