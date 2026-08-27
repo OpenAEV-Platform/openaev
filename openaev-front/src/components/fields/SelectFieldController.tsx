@@ -28,6 +28,9 @@ interface Props {
   label: string;
   items: Item[];
   style?: CSSProperties;
+  /** Kept from the MUI signature: the library trigger sizes to its content, so
+   *  the width lands on the wrapper below rather than on the control. */
+  fullWidth?: boolean;
   required?: boolean;
   disabled?: boolean;
   multiple?: boolean;
@@ -45,6 +48,7 @@ const SelectFieldController = ({
   label,
   items,
   style,
+  fullWidth,
   multiple = false,
   required,
   disabled,
@@ -56,13 +60,21 @@ const SelectFieldController = ({
       name={name}
       control={control}
       render={({ field, fieldState: { error } }) => {
+        // `w-full` on the trigger resolves against this wrapper, so a wrapper
+        // that shrink-wraps its child makes the 100% circular.
+        const wrapperStyle = fullWidth
+          ? {
+              width: '100%',
+              ...style,
+            }
+          : style;
         // The library Select carries a single string value. A multiple field is
         // therefore a Combobox — the nearest component that holds a set — which
         // adds a text filter and loses nothing the MUI field did.
         if (multiple) {
           const selected = items.filter(item => (field.value ?? []).includes(item.value));
           return (
-            <div style={style}>
+            <div style={wrapperStyle}>
               <Combobox<Item>
                 multiple
                 options={items}
@@ -91,7 +103,7 @@ const SelectFieldController = ({
           );
         }
         return (
-          <div style={style}>
+          <div style={wrapperStyle}>
             <Select
               value={field.value ?? ''}
               onValueChange={field.onChange}

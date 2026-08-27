@@ -25,9 +25,20 @@ const SelectField = (props) => {
     required,
     renderValue,
     placeholder,
+    fullWidth,
   } = props;
+  // `fullWidth` used to reach MUI, which applied it to the control itself. The
+  // library trigger sizes to its content and its `w-full` resolves against THIS
+  // wrapper, so the width has to land here or the 100% is circular: the wrapper
+  // shrink-wraps the trigger and the trigger fills the wrapper.
+  const wrapperStyle = fullWidth
+    ? {
+        width: '100%',
+        ...style,
+      }
+    : style;
   return (
-    <div style={style}>
+    <div style={wrapperStyle}>
       <Controller
         name={name}
         defaultValue={defaultValue}

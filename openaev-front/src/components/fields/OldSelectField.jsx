@@ -32,9 +32,17 @@ const renderSelectField = ({
   multiple = false,
   disabled = false,
   renderValue,
+  fullWidth,
 }) => {
   const message = touched && (error || submitError) ? (error || submitError) : helperText;
   const required = InputLabelProps?.required;
+  // See SelectField: the width has to land on the wrapper, not on the trigger.
+  const wrapperStyle = fullWidth
+    ? {
+        width: '100%',
+        ...style,
+      }
+    : style;
 
   // The library Select holds one string. A multiple field becomes a Combobox —
   // the nearest component that holds a set — which adds a text filter and takes
@@ -44,7 +52,7 @@ const renderSelectField = ({
     const options = toOptions(children);
     const selected = options.filter(o => (Array.isArray(value) ? value : []).includes(o.value));
     return (
-      <div style={style}>
+      <div style={wrapperStyle}>
         <Combobox
           multiple
           options={options}
@@ -80,7 +88,7 @@ const renderSelectField = ({
   }
 
   return (
-    <div style={style}>
+    <div style={wrapperStyle}>
       <Select
         value={value ?? ''}
         onValueChange={(next) => {
