@@ -66,11 +66,15 @@ public class Secret implements TenantBase {
     USERNAME_PASSWORD,
     HASH,
     AWS_ACCESS_KEY,
-    AWS_ASSUME_ROLE;
+    AWS_ASSUME_ROLE,
+    AZURE_SERVICE_PRINCIPAL,
+    AZURE_MANAGED_IDENTITY;
 
     public static final String USERNAME_PASSWORD_VALUE = "USERNAME_PASSWORD";
     public static final String HASH_VALUE = "HASH";
     public static final String AWS_ACCESS_KEY_VALUE = "AWS_ACCESS_KEY";
     public static final String AWS_ASSUME_ROLE_VALUE = "AWS_ASSUME_ROLE";
+    public static final String AZURE_SERVICE_PRINCIPAL_VALUE = "AZURE_SERVICE_PRINCIPAL";
+    public static final String AZURE_MANAGED_IDENTITY_VALUE = "AZURE_MANAGED_IDENTITY";
   }
 }

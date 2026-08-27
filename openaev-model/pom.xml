@@ -15,6 +15,8 @@
     <properties>
         <elasticsearch.version>8.19.20</elasticsearch.version>
         <opensearch.version>3.9.0</opensearch.version>
+        <amqp-client.version>5.34.0</amqp-client.version>
+        <azure-core-management.version>1.19.6</azure-core-management.version>
     </properties>
 
     <dependencyManagement>
@@ -132,6 +134,11 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sts</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-core-management</artifactId>
+            <version>${azure-core-management.version}</version>
         </dependency>
         <dependency>
             <groupId>io.swagger.core.v3</groupId>
