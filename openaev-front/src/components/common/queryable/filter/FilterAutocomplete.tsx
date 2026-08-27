@@ -113,6 +113,7 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
         <IconButton
           size="md"
           priority="tertiary"
+          data-testid="clear-filters"
           aria-label={t('Clear filters')}
           onClick={handleClearFilters}
           icon={<FilterListOffOutlined fontSize="small" />}

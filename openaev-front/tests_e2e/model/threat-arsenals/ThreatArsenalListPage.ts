@@ -22,7 +22,8 @@ class ThreatArsenalListPage {
     this.listViewButton = page.getByRole('button', { name: 'List view' });
     this.paginationRow = page.locator('.MuiTablePagination-root');
     this.filterField = page.getByPlaceholder('Add filter');
-    this.clearFiltersButton = page.getByRole('button', { name: 'Clear filters' });
+    // Anchored rather than named: the accessible name follows the UI language.
+    this.clearFiltersButton = page.getByTestId('clear-filters');
   }
 
   async addFirstAvailableFilter() {
