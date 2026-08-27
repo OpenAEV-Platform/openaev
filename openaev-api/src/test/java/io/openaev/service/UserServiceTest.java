@@ -200,6 +200,79 @@ class UserServiceTest extends IntegrationTest {
         .doesNotContain(lateGroup.getId());
   }
 
+  @Test
+  @DisplayName("given_platformUpdateDetachingTenant_should_revokeThatTenantGroups")
+  void given_platformUpdateDetachingTenant_should_revokeTenantGroups() {
+    // -- ARRANGE --
+    Tenant kept = tenantComposer.forTenant(TenantFixture.getTenant("detach-kept")).persist().get();
+    Tenant left = tenantComposer.forTenant(TenantFixture.getTenant("detach-left")).persist().get();
+    Group keptGroup = autoAssignGroup("tenant-auto-assign-kept", kept);
+    Group leftGroup = autoAssignGroup("tenant-auto-assign-left", left);
+    Group platformGroup = autoAssignGroup("platform-auto-assign-detach", null);
+    User created =
+        userService.createUser(
+            getUserInputWithTenants(
+                "detach-tenant@test.invalid",
+                "Detach",
+                "Tenant",
+                "secureP@ss1",
+                List.of(kept.getId(), left.getId())));
+    entityManager.flush();
+    entityManager.clear();
+
+    // -- ACT --
+    // The platform screen drops one of the two tenants.
+    userService.updateUser(
+        created.getId(),
+        getUserInputWithTenants(
+            "detach-tenant@test.invalid",
+            "Detach",
+            "Tenant",
+            "secureP@ss1",
+            List.of(kept.getId())));
+
+    // -- ASSERT --
+    entityManager.flush();
+    entityManager.clear();
+    User reloaded = userService.user(created.getId());
+    assertThat(reloaded.getUnscopedGroups())
+        .extracting(Group::getId)
+        .doesNotContain(leftGroup.getId())
+        .contains(keptGroup.getId(), platformGroup.getId());
+  }
+
+  @Test
+  @DisplayName("given_detachedTenant_should_keepGroupsOfTheOtherScopes")
+  void given_revokeTenantGroups_should_onlyDropTheGivenTenantGroups() {
+    // -- ARRANGE --
+    Tenant tenant =
+        tenantComposer.forTenant(TenantFixture.getTenant("revoke-scoped")).persist().get();
+    Group tenantGroup = autoAssignGroup("tenant-auto-assign-revoke", tenant);
+    Group platformGroup = autoAssignGroup("platform-auto-assign-revoke", null);
+    User created =
+        userService.createUser(
+            getUserInputWithTenants(
+                "revoke-scoped@test.invalid",
+                "Revoke",
+                "Scoped",
+                "secureP@ss1",
+                List.of(tenant.getId())));
+    entityManager.flush();
+    entityManager.clear();
+
+    // -- ACT --
+    userService.revokeTenantGroups(created.getId(), List.of(tenant.getId()));
+
+    // -- ASSERT --
+    entityManager.flush();
+    entityManager.clear();
+    User reloaded = userService.user(created.getId());
+    assertThat(reloaded.getUnscopedGroups())
+        .extracting(Group::getId)
+        .doesNotContain(tenantGroup.getId())
+        .contains(platformGroup.getId());
+  }
+
   private Group autoAssignGroup(String name, Tenant tenant) {
     Group group = new Group();
     group.setName(name);

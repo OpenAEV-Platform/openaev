@@ -150,6 +150,8 @@ public class TenantUserService implements DependenciesManager {
   public void detach(String userId) {
     User user = userService.user(userId);
     ReservedKeyValidator.validateUserEmailPattern(user.getEmail());
+    // Before the membership row goes away, so the groups it granted go with it.
+    userService.revokeTenantGroups(userId, List.of(tenantId()));
     tenantRepository.removeUserFromTenant(userId, tenantId());
     tenantMembershipCacheManager.evict(userId, tenantId());
   }
