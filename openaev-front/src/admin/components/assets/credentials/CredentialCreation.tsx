@@ -16,8 +16,8 @@ const CredentialCreation: FunctionComponent<Props> = ({ onCreate }) => {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const onSubmit = (input: CredentialInput) => {
-    return createCredential(input).then((result: { data: CredentialOutput }) => {
+  const onSubmit = (formData: FormData) => {
+    return createCredential(formData).then((result: { data: CredentialOutput }) => {
       onCreate?.(result.data);
       handleClose();
       return result;

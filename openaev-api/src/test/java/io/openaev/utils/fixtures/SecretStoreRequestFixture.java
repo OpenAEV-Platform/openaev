@@ -3,6 +3,7 @@ package io.openaev.utils.fixtures;
 import io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE;
 import io.openaev.database.model.AwsRegion;
 import io.openaev.secrets.provider.SecretStoreRequest;
+import java.nio.charset.StandardCharsets;
 
 /** Fixtures for {@link SecretStoreRequest} payloads used by the secret handlers. */
 public class SecretStoreRequestFixture {
@@ -34,13 +35,32 @@ public class SecretStoreRequestFixture {
   public static final String AZURE_OTHER_TENANT_ID = "55555555-5555-5555-5555-555555555555";
   public static final String AZURE_SUBSCRIPTION_ID = "44444444-4444-4444-4444-444444444444";
 
+  public static final String GCP_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
+  public static final String GCP_OTHER_SCOPE = "https://www.googleapis.com/auth/compute";
+  public static final String GCP_PROJECT_ID = "openaev-simulation";
+  public static final String GCP_OTHER_PROJECT_ID = "openaev-audit";
+  public static final String GCP_PRIVATE_KEY_JSON =
+      "{\"type\":\"service_account\",\"project_id\":\"openaev-simulation\","
+          + "\"private_key\":\"-----BEGIN PRIVATE KEY-----EXAMPLE-----END PRIVATE KEY-----\"}";
+  public static final String GCP_OTHER_PRIVATE_KEY_JSON =
+      "{\"type\":\"service_account\",\"project_id\":\"openaev-audit\","
+          + "\"private_key\":\"-----BEGIN PRIVATE KEY-----OTHER-----END PRIVATE KEY-----\"}";
+  public static final String GCP_OAUTH_CLIENT_ID = "1234567890-example.apps.googleusercontent.com";
+  public static final String GCP_OAUTH_CLIENT_SECRET = "GOCSPX-gcpClientSecretEXAMPLE";
+  public static final String GCP_OAUTH_REFRESH_TOKEN = "1//03gcpRefreshTokenEXAMPLE";
+
   private SecretStoreRequestFixture() {}
+
+  /** The raw bytes of the reference service account key file. */
+  public static byte[] gcpPrivateKeyJsonBytes() {
+    return GCP_PRIVATE_KEY_JSON.getBytes(StandardCharsets.UTF_8);
+  }
 
   /** A request carrying no value at all — every optional field is {@code null}. */
   public static SecretStoreRequest emptyRequest() {
     return new SecretStoreRequest(
         null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-        null, null, null);
+        null, null, null, null, null, null, null, null, null);
   }
 
   // -- AWS_ACCESS_KEY --
@@ -70,6 +90,12 @@ public class SecretStoreRequestFixture {
         awsAccessKeyId,
         awsSecretAccessKey,
         awsSessionToken,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
         null,
         null,
         null,
@@ -131,6 +157,12 @@ public class SecretStoreRequestFixture {
         null,
         null,
         null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
         null);
   }
 
@@ -176,7 +208,13 @@ public class SecretStoreRequestFixture {
         azureClientId,
         azureClientSecret,
         azureTenantId,
-        azureSubscriptionId);
+        azureSubscriptionId,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
   }
 
   // -- AZURE_MANAGED_IDENTITY --
@@ -211,6 +249,104 @@ public class SecretStoreRequestFixture {
         azureClientId,
         null,
         null,
-        azureSubscriptionId);
+        azureSubscriptionId,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
+  }
+
+  // -- GCP_SERVICE_ACCOUNT --
+
+  /** A complete, valid GCP_SERVICE_ACCOUNT request (without project). */
+  public static SecretStoreRequest gcpServiceAccountRequest() {
+    return gcpServiceAccountRequest(GCP_SCOPE, null, gcpPrivateKeyJsonBytes());
+  }
+
+  /** A complete, valid GCP_SERVICE_ACCOUNT request including a project. */
+  public static SecretStoreRequest gcpServiceAccountRequestWithProject() {
+    return gcpServiceAccountRequest(GCP_SCOPE, GCP_PROJECT_ID, gcpPrivateKeyJsonBytes());
+  }
+
+  public static SecretStoreRequest gcpServiceAccountRequest(
+      String gcpScope, String gcpProjectId, byte[] gcpPrivateKeyJson) {
+    return new SecretStoreRequest(
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        gcpScope,
+        gcpProjectId,
+        gcpPrivateKeyJson,
+        null,
+        null,
+        null);
+  }
+
+  // -- GCP_OAUTH2 --
+
+  /** A complete, valid GCP_OAUTH2 request (without project). */
+  public static SecretStoreRequest gcpOAuth2Request() {
+    return gcpOAuth2Request(
+        GCP_SCOPE, null, GCP_OAUTH_CLIENT_ID, GCP_OAUTH_CLIENT_SECRET, GCP_OAUTH_REFRESH_TOKEN);
+  }
+
+  /** A complete, valid GCP_OAUTH2 request including a project. */
+  public static SecretStoreRequest gcpOAuth2RequestWithProject() {
+    return gcpOAuth2Request(
+        GCP_SCOPE,
+        GCP_PROJECT_ID,
+        GCP_OAUTH_CLIENT_ID,
+        GCP_OAUTH_CLIENT_SECRET,
+        GCP_OAUTH_REFRESH_TOKEN);
+  }
+
+  public static SecretStoreRequest gcpOAuth2Request(
+      String gcpScope,
+      String gcpProjectId,
+      String gcpOauthClientId,
+      String gcpOauthClientSecret,
+      String gcpOauthRefreshToken) {
+    return new SecretStoreRequest(
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        gcpScope,
+        gcpProjectId,
+        null,
+        gcpOauthClientId,
+        gcpOauthClientSecret,
+        gcpOauthRefreshToken);
   }
 }
