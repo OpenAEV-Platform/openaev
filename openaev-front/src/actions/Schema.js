@@ -276,6 +276,13 @@ export const notification = new schema.Entity(
 );
 export const arrayOfNotifications = new schema.Array(notification);
 
+export const markingDefinition = new schema.Entity(
+  'marking_definitions',
+  {},
+  { idAttribute: 'marking_definition_id' },
+);
+export const arrayOfMarkingDefinitions = new schema.Array(markingDefinition);
+
 token.define({ token_user: user });
 user.define({ user_organization: organization });
 
@@ -355,6 +362,10 @@ export const storeHelper = state => ({
   getTag: id => entity(id, 'tags', state),
   getTags: () => entities('tags', state),
   getTagsMap: () => maps('tags', state),
+  // marking definitions
+  getMarkingDefinition: id => entity(id, 'marking_definitions', state),
+  getMarkingDefinitions: () => entities('marking_definitions', state),
+  getMarkingDefinitionsMap: () => maps('marking_definitions', state),
 
   // injects
   getInject: id => entity(id, 'injects', state),

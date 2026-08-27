@@ -266,10 +266,10 @@ Tests:
 
 Base path (tenant API style):
 
-- `POST /api/{tenant}/marking-definitions/search` -> `Page<MarkingDefinitionOutput>`
-- `POST /api/{tenant}/marking-definitions` -> create
-- `PUT /api/{tenant}/marking-definitions/{id}` -> update
-- `DELETE /api/{tenant}/marking-definitions/{id}` -> delete
+- `POST /api/{tenant}/marking_definitions/search` -> `Page<MarkingDefinitionOutput>`
+- `POST /api/{tenant}/marking_definitions` -> create
+- `PUT /api/{tenant}/marking_definitions/{id}` -> update
+- `DELETE /api/{tenant}/marking_definitions/{id}` -> delete
 
 Output fields:
 

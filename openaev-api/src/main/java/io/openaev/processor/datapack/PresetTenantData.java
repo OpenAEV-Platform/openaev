@@ -17,6 +17,17 @@ public class PresetTenantData {
 
   public record VulnerabilityCwe(Vulnerability vulnerability, Cwe cwe) {}
 
+  public record MarkingSeed(String type, String definition, String color, int order) {}
+
+  public static List<MarkingSeed> createDefaultMarkings() {
+    return List.of(
+        new MarkingSeed("TLP", "TLP:CLEAR", "#E6E7E8", 1),
+        new MarkingSeed("TLP", "TLP:GREEN", "#4CAF50", 2),
+        new MarkingSeed("TLP", "TLP:AMBER", "#FFB300", 3),
+        new MarkingSeed("TLP", "TLP:AMBER+STRICT", "#FF8F00", 4),
+        new MarkingSeed("TLP", "TLP:RED", "#E53935", 5));
+  }
+
   /**
    * Creates fresh {@link VulnerabilityCwe} instances for each call. Must not be a static field
    * because JPA-managed entities retain persistence state (version, managed status) after the first
@@ -182,6 +193,7 @@ public class PresetTenantData {
               Capability.ACCESS_ASSESSMENT,
               Capability.ACCESS_ASSETS,
               Capability.ACCESS_CREDENTIALS,
+              Capability.ACCESS_MARKING_DEFINITION,
               Capability.ACCESS_THREAT_ARSENALS,
               Capability.ACCESS_DASHBOARDS,
               Capability.ACCESS_REPORTINGS,
@@ -205,6 +217,12 @@ public class PresetTenantData {
               Capability.DELETE_ASSETS,
               Capability.MANAGE_CREDENTIALS,
               Capability.DELETE_CREDENTIALS,
+              Capability.ACCESS_MARKING_DEFINITION,
+              Capability.MANAGE_MARKING_DEFINITION,
+              Capability.DELETE_MARKING_DEFINITION,
+              Capability.ACCESS_MARKING_ASSIGNMENT,
+              Capability.ASSIGN_MARKING,
+              Capability.DELETE_MARKING_ASSIGNMENT,
               Capability.ACCESS_THREAT_ARSENALS,
               Capability.MANAGE_THREAT_ARSENALS,
               Capability.DELETE_THREAT_ARSENALS,
