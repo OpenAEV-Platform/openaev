@@ -487,3 +487,39 @@ in filigran-design-system).
   value" hint for the filter's name, a placeholder holding only one of the two.
 - LIBRARY-FEEDBACK 42 opened: `min-h-8` as the single option-row floor. 12 sites
   render one glyph plus one line and pay 48px; no product compensation, arbitrated.
+
+## 2026-08-27 — Select family converted, and the list toolbar given one break point
+
+- Branch: fds/combobox-adoption
+- The `Select` family was converted across the remaining product sites, over 11
+  commits grouped by what made each group awkward rather than by directory. Not
+  in the original scope: a page mixing the two families reads as two different
+  form languages, so the review asked for the whole field surface at once.
+- Three library gaps filed from this wave: **#42** the option-row floor should be
+  `min-h-8`; **#43** `Select` renders no wrapper, so its label and trigger become
+  siblings of whatever contains them — the most serious; **#44**
+  `ComboboxLabel` has no `required`, so the two families expose different
+  accessible names.
+- Visual review findings, each traced to a cause rather than compensated:
+  - 5 sites kept a MUI `InputLabel` after conversion. It is a floating label
+    (`position:absolute; transform:scale(.75)`), so it rendered at a different
+    size and offset from the library's. All five now use the library label.
+  - `TagsFilter` laid its chip row out with `float:left` and a 5px top margin,
+    offsetting the chips 3px from their neighbours. Now a centred flex row.
+  - The toolbar's top row measured 52px. Two causes, each fixed where it is set:
+    MUI's `TablePagination` wraps its content in a `Toolbar` with its own
+    `minHeight`, and its captions are `<p>` carrying the browser's 1em vertical
+    margins; separately the select-all `Checkbox` carries its own padding. Row
+    now 36px, click targets 36x36 and 32x32 — above the 24x24 minimum.
+- The list toolbar (62 pages) now has one fixed break point at 1600px: stacked
+  below, one line at or above, chips on their own line either way. **Five
+  adaptive attempts were built and discarded first**, each failing the same way —
+  a measurement whose result depended on the layout it produced. The friction
+  worth carrying forward: a layout decision taken from a measurement of that same
+  layout has no fixed point. A media query has nothing to measure.
+- Above the break point the container wraps rather than overflowing. Measured in
+  CI: the card view carries the sort select the list view does not, so at 1600px
+  it wraps to two rows while the list view sits on one. No overflow either way.
+  An E2E assertion that read the line count instead of the arrangement failed on
+  exactly this and was corrected, not the layout.
+- Friction / process feedback: none upstream.
