@@ -16,7 +16,6 @@ import XlsMappers from './data_ingestion/XlsMappers';
 import Experience from './experience/Experience';
 import Groups from './groups/Groups';
 import KillChainPhases from './kill_chain_phases/KillChainPhases';
-import MarkingDefinitions from './marking_definitions/MarkingDefinitions';
 import Notifiers from './notifiers/Notifiers';
 import Organizations from './organizations/Organizations';
 import Policies from './policies/Policies';
@@ -175,15 +174,6 @@ const Index = () => {
         )}
       />
       <Route path="security/policies" element={errorWrapper(Policies)()} />
-      <Route
-        path="security/marking_definitions"
-        element={(
-          <ProtectedRoute
-            checks={TENANT_SETTINGS_CHECKS}
-            Component={errorWrapper(MarkingDefinitions)()}
-          />
-        )}
-      />
       <Route path="taxonomies" element={<Navigate to="tags" replace={true} />} />
       <Route path="taxonomies/tags" element={errorWrapper(Tags)()} />
       <Route path="taxonomies/attack_patterns" element={errorWrapper(AttackPatterns)()} />

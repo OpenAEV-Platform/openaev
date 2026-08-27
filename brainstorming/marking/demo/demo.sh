@@ -30,7 +30,7 @@ set -euo pipefail
 
 OPENAEV_URL="${OPENAEV_URL:-http://localhost:8080}"
 TOKEN="${TOKEN:-5ccddea0-613c-4a91-a602-6a4eb243d21c}"
-TENANT="${TENANT:-2cffad3a-0001-4078-b0e2-ef74274022c3}"
+TENANT="${TENANT:-801b2e9e-9407-405f-9c61-21200c500311}"
 # The vite dev server (`yarn start` in openaev-front, port 3001) is the default
 # because it always matches the working tree. :8080 also serves a UI, but only
 # whatever was last copied into openaev-front/builder/prod/build - which can be

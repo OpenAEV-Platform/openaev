@@ -3,7 +3,6 @@ import {
   GroupsOutlined,
   HomeWorkOutlined,
   KeyOutlined,
-  LabelOutlined,
   LocalPoliceOutlined,
   PermIdentityOutlined,
   PublicOutlined,
@@ -124,11 +123,6 @@ const SecurityMenuComponent: FunctionComponent = () => {
                 path: `${SECURITY_BASE}/policies`,
                 icon: () => (<LocalPoliceOutlined />),
                 label: 'Policies',
-              },
-              {
-                path: `${SECURITY_BASE}/marking_definitions`,
-                icon: () => (<LabelOutlined />),
-                label: 'Marking definitions',
               },
             ]
           : []),
