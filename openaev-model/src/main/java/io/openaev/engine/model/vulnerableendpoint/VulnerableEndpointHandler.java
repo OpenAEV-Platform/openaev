@@ -7,9 +7,7 @@ import io.openaev.database.raw.RawVulnerableEndpointIndexing;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.VulnerableEndpointRepository;
 import io.openaev.engine.Handler;
-import io.openaev.helper.AgentHelper;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -59,24 +57,13 @@ public class VulnerableEndpointHandler implements Handler<EsVulnerableEndpoint> 
                   endpoint.getVulnerable_endpoint_agents_privileges());
 
               // endpoint status
-              if (endpoint.getVulnerable_endpoint_agents_last_seen() == null
-                  || endpoint.getVulnerable_endpoint_agents_last_seen().isEmpty()) {
+              if (endpoint.getVulnerable_endpoint_agents_statuses() == null
+                  || endpoint.getVulnerable_endpoint_agents_statuses().isEmpty()) {
                 esVulnerableEndpoint.setVulnerable_endpoint_agents_active_status(List.of());
               } else {
-                AgentHelper agentHelper = new AgentHelper();
                 esVulnerableEndpoint.setVulnerable_endpoint_agents_active_status(
-                    endpoint.getVulnerable_endpoint_agents_last_seen().stream()
-                        .map(
-                            status ->
-                                agentHelper.isAgentActiveFromLastSeen(
-                                    /*
-                                      timestamp in database has no timezone but was recorded as UTC
-                                      first convert to a LocalDateTime (which has no timezone) and
-                                      then assign a UTC timezone without changing the numbers.
-                                      The .toInstant() method wasn't suitable as it assumed the numbers
-                                      were of the local timezone and was doing an offset to convert to UTC.
-                                    */
-                                    status.toLocalDateTime().toInstant(ZoneOffset.UTC)))
+                    endpoint.getVulnerable_endpoint_agents_statuses().stream()
+                        .map("ACTIVE"::equals)
                         .toList());
               }
 

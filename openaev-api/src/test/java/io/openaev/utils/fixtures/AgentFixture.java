@@ -2,6 +2,7 @@ package io.openaev.utils.fixtures;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.AgentStatus;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.Executor;
 import io.openaev.database.model.Tenant;
@@ -44,6 +45,7 @@ public class AgentFixture {
   public static Agent createInactiveAgent() {
     Agent agent = createDefaultAgentService();
     agent.setLastSeen(Instant.now().minusSeconds(3600 * 24 * 30));
+    agent.setStatus(AgentStatus.INACTIVE);
     return agent;
   }
 }

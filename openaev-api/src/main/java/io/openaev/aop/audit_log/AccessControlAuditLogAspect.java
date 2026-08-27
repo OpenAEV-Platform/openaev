@@ -70,6 +70,7 @@ public class AccessControlAuditLogAspect {
   private final AuditLogger auditLogger;
 
   private final ObjectMapper objectMapper;
+  private final AuditObjectMapper auditObjectMapper;
   private final ExpressionParser parser = new SpelExpressionParser();
   @PersistenceContext private EntityManager entityManager;
 
@@ -249,12 +250,12 @@ public class AccessControlAuditLogAspect {
     }
 
     Object requestBody = joinPoint.getArgs()[payloadIndex];
-    return requestBody != null ? objectMapper.valueToTree(requestBody) : null;
+    return requestBody != null ? auditObjectMapper.valueToTree(requestBody) : null;
   }
 
   private JsonNode getOutputNode(Object output) {
     try {
-      return output != null ? objectMapper.valueToTree(output) : null;
+      return output != null ? auditObjectMapper.valueToTree(output) : null;
     } catch (Exception e) {
       log.warn("[AUDIT] Failed to serialize output: {}", e.getMessage(), e);
     }
@@ -362,7 +363,7 @@ public class AccessControlAuditLogAspect {
       return;
     }
     try {
-      params.set(paramName, objectMapper.valueToTree(value));
+      params.set(paramName, auditObjectMapper.valueToTree(value));
     } catch (Exception ex) {
       params.put(paramName, value != null ? value.toString() : "null");
     }

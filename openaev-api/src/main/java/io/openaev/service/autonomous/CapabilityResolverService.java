@@ -7,6 +7,7 @@ import io.openaev.api.autonomous.dto.CapabilityReport.InstalledInjector;
 import io.openaev.api.autonomous.dto.CapabilityResolution;
 import io.openaev.api.autonomous.dto.CapabilityResolution.ResolvedContract;
 import io.openaev.api.autonomous.dto.CapabilityResolution.SuggestedConnector;
+import io.openaev.database.model.AgentStatus;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ContractOutputType;
@@ -17,7 +18,6 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
-import io.openaev.helper.AgentHelper;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -162,10 +162,7 @@ public class CapabilityResolverService {
       }
     }
 
-    int activeAgents =
-        (int)
-            agentRepository.countByLastSeenAfter(
-                Instant.ofEpochMilli(now - AgentHelper.ACTIVE_THRESHOLD));
+    int activeAgents = (int) agentRepository.countByStatus(AgentStatus.ACTIVE);
     boolean commandDelivery = activeAgents > 0;
 
     return new ArsenalInventory(
