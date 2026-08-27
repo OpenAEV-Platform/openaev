@@ -33,12 +33,12 @@ const TablePaginationComponentV2: FunctionComponent<Props> = ({
       // than being clipped by it.
       sx={{
         '& .MuiToolbar-root': {
-          minHeight: 40,
+          minHeight: 36,
           paddingLeft: 0,
         },
         // The two captions are paragraphs, so they carry the browser's own
         // 1em vertical margins — 12.8px each side of a 19px line, which is what
-        // made the row 45 tall rather than the 40 its Toolbar asks for.
+        // made the row 45 tall rather than the height its Toolbar asks for.
         '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
           marginTop: 0,
           marginBottom: 0,

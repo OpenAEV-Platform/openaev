@@ -567,6 +567,11 @@ const ThreatArsenal = () => {
                       control={(
                         <Checkbox
                           size="small"
+                          // MUI's own padding makes this control 38 tall, which
+                          // was the second thing holding the row above 36. The
+                          // click target stays 36x36 — well above the 24x24
+                          // minimum, so nothing is traded for the height.
+                          sx={{ padding: 1 }}
                           checked={selectAll}
                           indeterminate={
                             (!selectAll && numberOfSelectedElements > 0)
