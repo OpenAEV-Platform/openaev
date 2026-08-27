@@ -2093,7 +2093,7 @@ export interface CapabilityOutput {
    * Scopes where this capability applies (PLATFORM, TENANT)
    * @uniqueItems true
    */
-  capability_scopes: ("PLATFORM" | "TENANT")[];
+  capability_scopes: string[];
   /**
    * Enum key of the capability or group
    * @minLength 1
@@ -7894,8 +7894,7 @@ export interface NotificationTriggerInput {
     | "CONDITION"
     | "SESSION"
     | "SKIP_RBAC"
-    | "TOKEN"
-    | "SKIP_RBAC";
+    | "TOKEN";
   /** Digest firing time (UTC): DAY=HH:mm, WEEK=<1-7>-HH:mm, MONTH=<1-31>-HH:mm */
   notification_trigger_time?: string;
   /** Type of the trigger (LIVE or DIGEST) */
@@ -7999,7 +7998,8 @@ export interface NotificationTriggerOutput {
     | "STEP"
     | "CONDITION"
     | "SESSION"
-    | "SKIP_RBAC";
+    | "SKIP_RBAC"
+    | "TOKEN";
   /** Digest firing time (UTC) */
   notification_trigger_time?: string;
   /** Type of the trigger (LIVE or DIGEST) */
@@ -9621,10 +9621,9 @@ export interface PlatformRoleInput {
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_SESSIONS"
-    | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
+    | "MANAGE_SESSIONS"
   )[];
   platform_role_description?: string;
   /** @minLength 1 */
@@ -10451,10 +10450,9 @@ export interface RoleInput {
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_SESSIONS"
-    | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
+    | "MANAGE_SESSIONS"
   )[];
   role_description?: string;
   /** @minLength 1 */
@@ -11281,8 +11279,6 @@ export interface SessionOutput {
   session_last_access_at?: string;
   /** Identifier of the user owning the session */
   session_user_id?: string;
-  /** Display name of the user owning the session, or their email */
-  session_user_name?: string;
 }
 
 export interface SettingsChatbotAiCguUpdateInput {
@@ -12589,10 +12585,9 @@ export interface User {
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_SESSIONS"
-    | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
+    | "MANAGE_SESSIONS"
   )[];
   /** City of the user */
   user_city?: string;
