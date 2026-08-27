@@ -52,11 +52,13 @@ const FilterChips: FunctionComponent<Props> = ({
     <Box
       data-testid="toolbar-chips-row"
       sx={{
-        // The toolbar above already puts 8px between its rows, so this one adds
-        // no padding of its own — it only spaces its own chips by the same 8px.
+        // This row is a SIBLING of the toolbar, not one of its children, so the
+        // toolbar's own 8px row gap does not reach it — measured at 0. The same
+        // 8px is declared here, and the chips space each other by it too.
         display: 'flex',
         flexWrap: 'wrap',
         gap: 1,
+        marginTop: 1,
       }}
     >
       {renderableFilters.map(({ filter, property }, idx) => (

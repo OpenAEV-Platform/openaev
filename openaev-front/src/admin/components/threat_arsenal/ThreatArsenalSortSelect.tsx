@@ -52,7 +52,10 @@ const ThreatArsenalSortSelect: FunctionComponent<Props> = ({ sortHelpers }) => {
         value={value}
         onValueChange={next => handleFieldChange(next)}
       >
-        <SelectLabel>{t('Sort by')}</SelectLabel>
+        {/* The library label carries `mb-2` because it is designed to sit ABOVE its
+            field. Here it sits beside it, and in a centred flex row that bottom
+            margin lifts the text 4px above its neighbours — measured. */}
+        <SelectLabel className="mb-0">{t('Sort by')}</SelectLabel>
         <SelectTrigger>
           <SelectValue placeholder={t('Sort by')} />
         </SelectTrigger>
