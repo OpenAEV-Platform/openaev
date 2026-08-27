@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Injection;
 import io.openaev.database.model.Tenant;
@@ -31,8 +32,10 @@ import io.openaev.service.chaining.WorkflowService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
@@ -145,6 +148,14 @@ class InjectsExecutionJobTenantScopeTest {
 
   /** An atomic inject (no exercise) so the run needs no dependency or exercise bookkeeping. */
   private static ExecutableInject atomicInjectOfTenant(String tenantId) {
+    return injectOfTenant(tenantId, null);
+  }
+
+  /**
+   * An inject of the given tenant, optionally attached to an exercise. When {@code exercise} is
+   * null the inject is atomic (no exercise bookkeeping needed).
+   */
+  private static ExecutableInject injectOfTenant(String tenantId, Exercise exercise) {
     Inject inject = new Inject();
     inject.setId(UUID.randomUUID().toString());
     inject.setTitle("Nuclei - CVE scan");
@@ -153,11 +164,15 @@ class InjectsExecutionJobTenantScopeTest {
     Injection injection = mock(Injection.class);
     when(injection.getInject()).thenReturn(inject);
     when(injection.getId()).thenReturn(inject.getId());
-    when(injection.getExercise()).thenReturn(null);
+    when(injection.getExercise()).thenReturn(exercise);
 
     ExecutableInject executableInject = mock(ExecutableInject.class);
     when(executableInject.getInjection()).thenReturn(injection);
-    when(executableInject.getExerciseId()).thenReturn(null);
+    // Computed before the when(): calling exercise.getId() (itself a mock) inside a when(...)
+    // argument nests a stub inside another's finishing call and trips Mockito's unfinished-
+    // stubbing detection.
+    String exerciseId = exercise == null ? null : exercise.getId();
+    when(executableInject.getExerciseId()).thenReturn(exerciseId);
     return executableInject;
   }
 
@@ -218,5 +233,54 @@ class InjectsExecutionJobTenantScopeTest {
 
     verify(injectStatusService).failInjectStatus(anyString(), anyString());
     assertThat(tenantDuringFailStatus.get()).isEqualTo(INJECT_TENANT);
+  }
+
+  @Test
+  @DisplayName(
+      "an exercise inject and two atomic injects of different tenants in the same sweep each"
+          + " execute under their own tenant, never a sibling's")
+  void mixedBatchExecutesEachInjectUnderItsOwnTenant() throws Exception {
+    // Regression for the "atomic" constant batch key: before the fix, every exercise-less inject
+    // shared one synthetic batch key regardless of tenant, so the batch's tenant was resolved
+    // once (from whichever inject happened to be first) and reused for every atomic inject in it
+    // - a customer's atomic inject could silently execute (and resolve its injector) under
+    // another tenant's scope.
+    String exerciseTenant = "22222222-2222-2222-2222-222222222222";
+    String atomicTenantA = "33333333-3333-3333-3333-333333333333";
+    String atomicTenantB = "44444444-4444-4444-4444-444444444444";
+
+    Exercise exercise = mock(Exercise.class);
+    when(exercise.getId()).thenReturn("exercise-1");
+
+    ExecutableInject exerciseInject = injectOfTenant(exerciseTenant, exercise);
+    ExecutableInject atomicInjectA = injectOfTenant(atomicTenantA, null);
+    ExecutableInject atomicInjectB = injectOfTenant(atomicTenantB, null);
+
+    when(injectHelper.getInjectsToRun())
+        .thenReturn(List.of(exerciseInject, atomicInjectA, atomicInjectB));
+
+    // Exercise batch bookkeeping (updateExercise), reached only for the exercise-linked inject.
+    when(exerciseRepository.findById(exercise.getId())).thenReturn(Optional.of(exercise));
+    when(exerciseRepository.save(any(Exercise.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    // Record the tenant scope actually active while each inject executes, keyed by inject id.
+    Map<String, String> tenantSeenPerInject = new ConcurrentHashMap<>();
+    when(executor.execute(any(ExecutableInject.class), any()))
+        .thenAnswer(
+            invocation -> {
+              ExecutableInject arg = invocation.getArgument(0);
+              String injectId = arg.getInjection().getInject().getId();
+              tenantSeenPerInject.put(injectId, TenantContext.getCurrentTenant());
+              return null;
+            });
+
+    job.execute(null);
+
+    assertThat(tenantSeenPerInject)
+        .as("each inject must resolve/execute under its own tenant scope, never a sibling's")
+        .containsEntry(exerciseInject.getInjection().getInject().getId(), exerciseTenant)
+        .containsEntry(atomicInjectA.getInjection().getInject().getId(), atomicTenantA)
+        .containsEntry(atomicInjectB.getInjection().getInject().getId(), atomicTenantB);
   }
 }

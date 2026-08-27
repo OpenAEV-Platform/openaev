@@ -1926,7 +1926,12 @@ public class V1_DataImporter implements Importer {
     if (result.injectorContract() != null) {
       return result.injectorContract();
     } else {
-      log.warn("An error has occurred when importing the payload: {}", result.payload().getName());
+      log.warn(
+          "Payload '{}' (id={}) was created but no injector contract could be synchronised for it:"
+              + " no payload-capable injector is registered in tenant {}",
+          result.payload().getName(),
+          result.payload().getId(),
+          TenantContext.getCurrentTenant());
       InjectorContract injectorContract = new InjectorContract();
       injectorContract.setPayload(result.payload());
       return injectorContract;
@@ -3172,6 +3177,13 @@ public class V1_DataImporter implements Importer {
     // target, so surface it as a missing step (same type/name convention as
     // evaluateChainingStepResolvability) instead of persisting a step pointing to a broken id.
     if (resolvedStepContract != null) {
+      log.warn(
+          "Payload recreation for missing injector contract {} returned a transient contract"
+              + " (payload='{}'): the step cannot reference it and is skipped",
+          injectorContractId,
+          resolvedStepContract.getPayload() != null
+              ? resolvedStepContract.getPayload().getName()
+              : null);
       return StepDataResolution.failed(
           missingContractSkip(dataJson, injectContractNode, injectorContractId));
     }
@@ -3336,6 +3348,7 @@ public class V1_DataImporter implements Importer {
       rewriteInjectorContractDomains(injectContractObject, baseIds);
       rewriteInjectorContractAttackPatterns(injectContractObject, baseIds);
     }
+    buildStepTtpFromInjectorContract(dataObject);
     if (workflow.getSimulation() != null) {
       dataObject.put("inject_exercise", workflow.getSimulation().getId());
       dataObject.putNull("inject_scenario");
@@ -3543,6 +3556,43 @@ public class V1_DataImporter implements Importer {
     if (payloadNode instanceof ObjectNode payloadObject) {
       rewriteAttackPatternArray(payloadObject, "payload_", baseIds);
     }
+  }
+
+  /**
+   * Rebuilds {@code inject_attack_patterns} and {@code inject_kill_chain_phases} of a step_data
+   * from the target injector contract, which owns these fields at run time (#7577).
+   */
+  private void buildStepTtpFromInjectorContract(ObjectNode dataObject) {
+    String injectorContractId =
+        extractInjectorContractId(dataObject.get("inject_injector_contract"));
+    InjectorContract contract =
+        hasText(injectorContractId)
+            ? injectorContractRepository
+                .findByContractIdAndTenant(injectorContractId, TenantContext.getCurrentTenant())
+                .orElse(null)
+            : null;
+    if (contract == null) {
+      return;
+    }
+
+    ArrayNode attackPatternsNode = mapper.createArrayNode();
+    ArrayNode killChainPhasesNode = mapper.createArrayNode();
+    Set<String> seenKillChainPhaseIds = new LinkedHashSet<>();
+    for (AttackPattern attackPattern : contract.getAttackPatterns()) {
+      if (attackPattern == null || attackPattern.getId() == null) {
+        continue;
+      }
+      attackPatternsNode.add(mapper.valueToTree(attackPattern));
+      for (KillChainPhase killChainPhase : attackPattern.getKillChainPhases()) {
+        if (killChainPhase != null
+            && killChainPhase.getId() != null
+            && seenKillChainPhaseIds.add(killChainPhase.getId())) {
+          killChainPhasesNode.add(mapper.valueToTree(killChainPhase));
+        }
+      }
+    }
+    dataObject.set("inject_attack_patterns", attackPatternsNode);
+    dataObject.set("inject_kill_chain_phases", killChainPhasesNode);
   }
 
   private void rewriteAttackPatternArray(

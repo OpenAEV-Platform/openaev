@@ -28,6 +28,11 @@ public final class CredentialMapper {
         .description(credentialSecretReference.getDescription())
         .username(secretMetadata.username())
         .hashAlgorithm(secretMetadata.hashAlgorithm())
+        .awsDefaultRegion(secretMetadata.awsDefaultRegion())
+        .awsAccessKeyId(secretMetadata.awsAccessKeyId())
+        .awsRoleArn(secretMetadata.awsRoleArn())
+        .awsSourceIdentityType(secretMetadata.awsSourceIdentityType())
+        .awsSourceProfileAccessKeyId(secretMetadata.awsSourceProfileAccessKeyId())
         .build();
   }
 

@@ -3103,14 +3103,22 @@ export interface CredentialBulkProcessingInput {
 
 export interface CredentialContractField {
   choices?: string[];
-  field_name?: string;
+  field_name: string;
   field_type?: "text" | "password" | "select" | "number" | "checkbox";
+  mandatory_condition_field?: string;
+  mandatory_condition_value?: string;
   required?: boolean;
+  visible_condition_field?: string;
+  visible_condition_value?: string;
 }
 
 export interface CredentialContractOutput {
-  credential_auth_method: "USERNAME_PASSWORD" | "HASH";
-  credential_type: "IDENTITY";
+  credential_auth_method:
+    | "USERNAME_PASSWORD"
+    | "HASH"
+    | "AWS_ACCESS_KEY"
+    | "AWS_ASSUME_ROLE";
+  credential_type: "IDENTITY" | "CLOUD_AWS";
   fields?: CredentialContractField[];
 }
 
@@ -3123,7 +3131,59 @@ export interface CredentialCreatedByOutput {
 
 export interface CredentialFullOutput {
   /** Credential authentication method */
-  credential_auth_method: "USERNAME_PASSWORD" | "HASH";
+  credential_auth_method:
+    | "USERNAME_PASSWORD"
+    | "HASH"
+    | "AWS_ACCESS_KEY"
+    | "AWS_ASSUME_ROLE";
+  /** AWS access key ID */
+  credential_aws_access_key_id?: string;
+  /** Secret AWS default region */
+  credential_aws_default_region?:
+    | "us-east-2"
+    | "us-east-1"
+    | "us-west-1"
+    | "us-west-2"
+    | "af-south-1"
+    | "ap-east-1"
+    | "ap-south-2"
+    | "ap-southeast-3"
+    | "ap-southeast-5"
+    | "ap-southeast-4"
+    | "ap-south-1"
+    | "ap-southeast-6"
+    | "ap-northeast-3"
+    | "ap-northeast-2"
+    | "ap-southeast-1"
+    | "ap-southeast-2"
+    | "ap-east-2"
+    | "ap-southeast-7"
+    | "ap-northeast-1"
+    | "ca-central-1"
+    | "ca-west-1"
+    | "eu-central-1"
+    | "eu-west-1"
+    | "eu-west-2"
+    | "eu-south-1"
+    | "eu-west-3"
+    | "eu-south-2"
+    | "eu-north-1"
+    | "eu-central-2"
+    | "il-central-1"
+    | "mx-central-1"
+    | "me-south-1"
+    | "me-central-1"
+    | "sa-east-1"
+    | "us-gov-east-1"
+    | "us-gov-west-1";
+  /** AWS role ARN */
+  credential_aws_role_arn?: string;
+  /** AWS source identity type */
+  credential_aws_source_identity_type?:
+    | "STATIC_ACCESS_KEY"
+    | "INSTANCE_DEFAULT";
+  /** AWS source profile access key id */
+  credential_aws_source_profile_access_key_id?: string;
   /**
    * Credential creation timestamp
    * @format date-time
@@ -3133,7 +3193,7 @@ export interface CredentialFullOutput {
   credential_created_by: CredentialCreatedByOutput;
   /** Credential description */
   credential_description?: string;
-  /** Credential description */
+  /** Secret hash algorithm */
   credential_hash_algorithm?: "SHA" | "NTLM";
   /** Credential ID */
   credential_id: string;
@@ -3152,13 +3212,62 @@ export interface CredentialFullOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type: "IDENTITY";
+  credential_type: "IDENTITY" | "CLOUD_AWS";
   /** Secret username */
   credential_username?: string;
 }
 
 export interface CredentialInput {
-  credential_auth_method: "USERNAME_PASSWORD" | "HASH";
+  aws_access_key_id?: string;
+  aws_default_region?:
+    | "us-east-2"
+    | "us-east-1"
+    | "us-west-1"
+    | "us-west-2"
+    | "af-south-1"
+    | "ap-east-1"
+    | "ap-south-2"
+    | "ap-southeast-3"
+    | "ap-southeast-5"
+    | "ap-southeast-4"
+    | "ap-south-1"
+    | "ap-southeast-6"
+    | "ap-northeast-3"
+    | "ap-northeast-2"
+    | "ap-southeast-1"
+    | "ap-southeast-2"
+    | "ap-east-2"
+    | "ap-southeast-7"
+    | "ap-northeast-1"
+    | "ca-central-1"
+    | "ca-west-1"
+    | "eu-central-1"
+    | "eu-west-1"
+    | "eu-west-2"
+    | "eu-south-1"
+    | "eu-west-3"
+    | "eu-south-2"
+    | "eu-north-1"
+    | "eu-central-2"
+    | "il-central-1"
+    | "mx-central-1"
+    | "me-south-1"
+    | "me-central-1"
+    | "sa-east-1"
+    | "us-gov-east-1"
+    | "us-gov-west-1";
+  aws_external_id?: string;
+  aws_role_arn?: string;
+  aws_secret_access_key?: string;
+  aws_session_token?: string;
+  aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
+  aws_source_profile_access_key_id?: string;
+  aws_source_profile_secret_access_key?: string;
+  credential_auth_method:
+    | "USERNAME_PASSWORD"
+    | "HASH"
+    | "AWS_ACCESS_KEY"
+    | "AWS_ASSUME_ROLE";
   credential_description?: string;
   credential_hash?: string;
   credential_hash_algorithm?: "SHA" | "NTLM";
@@ -3166,13 +3275,17 @@ export interface CredentialInput {
   credential_name: string;
   credential_password?: string;
   credential_tags?: string[];
-  credential_type: "IDENTITY";
+  credential_type: "IDENTITY" | "CLOUD_AWS";
   credential_username?: string;
 }
 
 export interface CredentialOutput {
   /** Credential authentication method */
-  credential_auth_method?: "USERNAME_PASSWORD" | "HASH";
+  credential_auth_method?:
+    | "USERNAME_PASSWORD"
+    | "HASH"
+    | "AWS_ACCESS_KEY"
+    | "AWS_ASSUME_ROLE";
   /**
    * Credential creation timestamp
    * @format date-time
@@ -3197,7 +3310,7 @@ export interface CredentialOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type?: "IDENTITY";
+  credential_type?: "IDENTITY" | "CLOUD_AWS";
 }
 
 export interface CustomDashboard {
@@ -9584,7 +9697,6 @@ export interface PlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
-    | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -9880,7 +9992,6 @@ export interface PublicPlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
-    | "SIGNATURE_OUTPUT_PROCESSOR"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
