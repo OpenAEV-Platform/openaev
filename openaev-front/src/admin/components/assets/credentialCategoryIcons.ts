@@ -7,6 +7,7 @@ const CREDENTIAL_CATEGORY_ICONS: Record<string, ComponentType<SvgIconProps>> = {
   IDENTITY: VpnKeyOutlined,
   CLOUD_AWS: Aws,
   CLOUD_AZURE: MicrosoftAzure,
+  CLOUD_GCP: GoogleCloud,
 };
 
 export default CREDENTIAL_CATEGORY_ICONS;
