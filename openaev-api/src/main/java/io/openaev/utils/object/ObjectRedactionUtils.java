@@ -9,6 +9,8 @@ import io.openaev.database.model.ResourceType;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ObjectRedactionUtils {
 
@@ -50,7 +52,10 @@ public class ObjectRedactionUtils {
 
   /** Sensitive-like fields that are explicitly allowed and therefore not Hashed. */
   private static final Set<Pattern> ALLOWED_SENSITIVE_FIELDS_REGEX_TO_HASH =
-      ALLOWED_SENSITIVE_FIELDS_REGEX_TO_REDACT;
+      Stream.concat(
+              ALLOWED_SENSITIVE_FIELDS_REGEX_TO_REDACT.stream(),
+              Set.of(Pattern.compile("^token_id$"), Pattern.compile("^token_user$")).stream())
+          .collect(Collectors.toSet());
 
   /** Fields to remove only when the entity type is USER_ENTITY_TYPES (PII protection). */
   private static final Set<String> USER_PII_FIELDS_TO_REMOVE =
