@@ -120,6 +120,11 @@ const inlineStyles: Record<string, CSSProperties> = {
   },
 };
 
+const EMPTY_FLAG = {
+  flag_type: 'VALUE',
+  flag_value: '',
+};
+
 interface Props {
   onSubmit: SubmitHandler<ChallengeInput>;
   handleClose: () => void;
@@ -199,8 +204,8 @@ const ChallengeForm: FunctionComponent<Props> = ({
       challenge_content: '',
       challenge_tags: [],
       challenge_documents: [],
-      challenge_flags: [],
       ...initialValues,
+      challenge_flags: initialValues.challenge_flags?.length ? initialValues.challenge_flags : [EMPTY_FLAG],
     },
   });
 
@@ -412,10 +417,7 @@ const ChallengeForm: FunctionComponent<Props> = ({
             {t('Flags')}
           </Typography>
           <IconButton
-            onClick={() => appendFlag({
-              flag_type: 'VALUE',
-              flag_value: '',
-            })}
+            onClick={() => appendFlag(EMPTY_FLAG)}
             size="small"
             color="primary"
             style={{
@@ -444,22 +446,19 @@ const ChallengeForm: FunctionComponent<Props> = ({
                   label={t('Value')}
                   style={{ marginRight: theme.spacing(2.5) }}
                 />
-                <IconButton
-                  onClick={() => removeFlag(index)}
-                  aria-haspopup="true"
-                  size="small"
-                  color="primary"
-                >
-                  <DeleteOutlined />
-                </IconButton>
+                {flagFields.length > 1 && (
+                  <IconButton
+                    onClick={() => removeFlag(index)}
+                    aria-haspopup="true"
+                    size="small"
+                    color="primary"
+                  >
+                    <DeleteOutlined />
+                  </IconButton>
+                )}
               </ListItem>
             ))}
           </List>
-          {flagFields.length === 0 && (
-            <Typography variant="body2">
-              {t('At least one flag is required for a challenge.')}
-            </Typography>
-          )}
         </div>
         <div style={{
           float: 'right',
