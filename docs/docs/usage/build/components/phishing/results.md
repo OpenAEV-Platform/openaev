@@ -1,22 +1,26 @@
 # Results and scoring
 
-A phishing exercise measures how each recipient behaved at every step of the lure. This page explains the three expectations a phishing Inject carries, why their colors are the opposite of what you may expect, and how to read the evidence attached to each step.
+A phishing exercise measures how each recipient behaved at every step of the lure. This page explains the expectations a phishing Inject carries, why the colors of the human-response steps are the opposite of what you may expect, and how to read the evidence attached to each step.
 
-## The three expectations
+## The expectations
 
-Every phishing action declares three predefined expectations, all enabled by default.
+Every phishing action declares five predefined expectations, all enabled by default: three human-response steps and the two standard security-control expectations.
 
 | Expectation | Family | Scored by |
 |---|---|---|
 | `Email not opened` | Human response | The recipient's tracking pixel loading. |
 | `Link not clicked` | Human response | The recipient's Landing Page loading. |
 | `Credentials not submitted` | Human response | The recipient submitting the form. |
+| `Detection` | Security control | An email-security platform reporting that the lure was detected. |
+| `Prevention` | Security control | An email-security platform reporting that the lure was blocked. |
 
-The three human-response steps are ordered 1, 2, 3 in the results, following the kill chain: email, then link, then submission.
+The three human-response steps are ordered 1, 2, 3 in the results, following the kill chain: email, then link, then submission. They are the ones the built-in Injector scores by itself, and the rest of this page describes them.
+
+*Detection* and *Prevention* work like on any other Inject: they are restricted to Security Platforms of type **Email security**, the control that actually inspects inbound mail, and they carry no inverted polarity. They are only filled if such a platform reports a verdict.
 
 ## Green means resisted
 
-Phishing expectations are **inverted** compared to the rest of the platform. They measure whether the recipient *resisted* a step, and resisting is the desired outcome:
+The three human-response steps are **inverted** compared to the rest of the platform. They measure whether the recipient *resisted* a step, and resisting is the desired outcome:
 
 - **Green** -- The recipient has not performed the step. The row reads *Email not opened*, *Link not clicked*, or *Credentials not submitted*, and that statement is true.
 - **Red** -- The recipient performed the step: they fell for that part of the lure.

@@ -4,7 +4,7 @@ A phishing exercise is a regular Inject built on the Threat Arsenal action that 
 
 ## Create the Inject
 
-In the Injects list of your Scenario or Simulation, search the Threat Arsenal for **Phishing: \<your landing page name\>**. Every Landing Page generates one action under that name. Select it, then fill in the Inject content:
+In your Scenario or Simulation, open the **Injects** tab. From the Injects list, click **Create** to open the Threat Arsenal picker and search for **Phishing: \<your landing page name\>**; every Landing Page generates one action under that name. Select it to add it as an Inject, then fill in the Inject content:
 
 | Field | Required | Description |
 |---|---|---|
@@ -14,7 +14,7 @@ In the Injects list of your Scenario or Simulation, search the Threat Arsenal fo
 | Sender name override | No | Replaces the sender display name for this Inject only. |
 | Sender email override | No | Replaces the sender address for this Inject only. |
 
-The three phishing expectations are predefined and enabled by default. See [Results and scoring](results.md). Saving and scheduling work like any other Inject.
+Five expectations are predefined and enabled by default: the three human-response steps, plus the standard **Detection** and **Prevention** expectations. See [Results and scoring](results.md). Saving and scheduling work like any other Inject.
 
 !!! note
 

@@ -19,7 +19,7 @@ The built-in Injector reuses the platform's global SMTP (Simple Mail Transfer Pr
 
 A phishing exercise is a regular Inject. The only unusual part is where the action comes from: instead of picking a shared static action, you pick the action that your Landing Page generated.
 
-1. You create a **Landing Page**, the page the recipient sees after clicking the link. It appears as an action in the [Threat Arsenal](../../threat-arsenals/threat-arsenals.md), tagged with the *Email infiltration* [domain](../../threat-arsenals/domains.md) and the MITRE ATT&CK techniques `T1566.002` (Spearphishing Link) and `T1598.003` (Spearphishing Link, reconnaissance).
+1. You create a **Landing Page**, the page the recipient sees after clicking the link. It appears as an action in the [Threat Arsenal](../../threat-arsenals/threat-arsenals.md), tagged with the *Email infiltration* [domain](../../threat-arsenals/domains.md) and the MITRE ATT&CK techniques `T1566.002` (*Phishing: Spearphishing Link*) and `T1598.003` (*Phishing for Information: Spearphishing Link*).
 2. You create one or more **Email Templates**, the lure emails. Every Email Template is offered as a choice on every Landing Page action.
 3. You create an **Inject** on that action, target Teams, and pick the Email Template.
 4. On execution, each recipient receives their own lure email carrying a unique, opaque tracking link.
