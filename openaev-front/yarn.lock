@@ -195,13 +195,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@casl/react@npm:5.0.1":
-  version: 5.0.1
-  resolution: "@casl/react@npm:5.0.1"
+"@casl/react@npm:7.0.1":
+  version: 7.0.1
+  resolution: "@casl/react@npm:7.0.1"
   peerDependencies:
-    "@casl/ability": ^4.0.0 || ^5.1.0 || ^6.0.0
-    react: ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: 10c0/d66877b3c3c651f4bb1f9cc08db53d468483c52a2c0da4cea3b6b9dcfebbc815986e274cbfabd6238731f9af8950191fe382b3a1a59f02ffc9cd6504d3f599d0
+    "@casl/ability": ^4.0.0 || ^5.1.0 || ^6.0.0 || ^7.0.0
+    react: ^18.0.0 || ^19.0.0
+  checksum: 10c0/75136813f136b5c2f5989d156724950033f0c3187e53b4449c332410b094bbe9deaa17ffb3910735d5e2784e00519b79eefba4bc5e0a51788874e7d17cc9530a
   languageName: node
   linkType: hard
 
@@ -8573,7 +8573,7 @@ __metadata:
   resolution: "openaev-front@workspace:."
   dependencies:
     "@casl/ability": "npm:7.0.1"
-    "@casl/react": "npm:5.0.1"
+    "@casl/react": "npm:7.0.1"
     "@emotion/react": "npm:11.14.0"
     "@emotion/styled": "npm:11.14.1"
     "@eslint/js": "npm:9.39.5"
