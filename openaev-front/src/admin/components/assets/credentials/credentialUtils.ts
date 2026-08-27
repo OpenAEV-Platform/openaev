@@ -28,6 +28,8 @@ const convertCredentialFullOutputToCredentialInput = (credential: CredentialFull
     azure_client_secret: credential.credential_azure_environment ? DOTS : '',
     azure_tenant_id: credential.credential_azure_tenant_id,
     azure_subscription_id: credential.credential_azure_subscription_id,
+    // GCP prefill is added with the GCP secret metadata (see the GCP handler chunks): the
+    // write-only fields stay empty here, which already means "left untouched".
   };
 };
 

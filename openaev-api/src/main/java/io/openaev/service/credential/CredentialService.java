@@ -38,6 +38,9 @@ import org.springframework.util.CollectionUtils;
 @Transactional(rollbackFor = Exception.class)
 public class CredentialService {
 
+  /** Scope granted by default to a GCP credential: the whole cloud platform. */
+  public static final String GCP_DEFAULT_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
+
   private final CredentialMapper credentialMapper;
   private final TagRepository tagRepository;
 
@@ -297,6 +300,88 @@ public class CredentialService {
                     null,
                     null,
                     null,
+                    null))),
+        new CredentialContractOutput(
+            CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_GCP,
+            CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_SERVICE_ACCOUNT,
+            List.of(
+                new CredentialContractOutput.CredentialContractField(
+                    "gcp_scope",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    GCP_DEFAULT_SCOPE),
+                new CredentialContractOutput.CredentialContractField(
+                    "gcp_private_key_json",
+                    CredentialContractOutput.CredentialContractFieldType.file,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "gcp_project_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null))),
+        new CredentialContractOutput(
+            CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_GCP,
+            CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_OAUTH2,
+            List.of(
+                new CredentialContractOutput.CredentialContractField(
+                    "gcp_scope",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    GCP_DEFAULT_SCOPE),
+                new CredentialContractOutput.CredentialContractField(
+                    "gcp_oauth_client_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "gcp_oauth_client_secret",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "gcp_oauth_refresh_token",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "gcp_project_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
                     null))));
   }
 
@@ -365,10 +450,12 @@ public class CredentialService {
    *
    * @param input credential input payload
    * @param tenantId tenant identifier
+   * @param gcpPrivateKeyJson raw bytes of the uploaded GCP service account key file, null when the
+   *     request carries no such part
    * @return created credential reference
    */
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
-  public CredentialOutput createCredential(CredentialInput input, String tenantId) {
+  public CredentialOutput createCredential(CredentialInput input, String tenantId, byte[] gcpPrivateKeyJson) {
     SecretsProvider provider = secretsProviderResolver.resolveLocalProvider(tenantId);
 
     // Build Credential Reference
@@ -381,7 +468,7 @@ public class CredentialService {
             TxCtx.forTenant(tenantId),
             () ->
                 (CredentialSecretReference)
-                    provider.store(credential, convertCredentialInputToSecretStoreRequest(input)));
+                    provider.store(credential, convertCredentialInputToSecretStoreRequest(input), gcpPrivateKeyJson));
 
     // Phase 2 — validate connectivity after write, in a separate transaction to avoid any rollback
     // of the credential creation
@@ -399,11 +486,13 @@ public class CredentialService {
    *
    * @param credentialId credential identifier
    * @param input credential update payload
+   * @param gcpPrivateKeyJson raw bytes of the uploaded GCP service account key file; null means
+   *     "key left untouched", so the stored one is kept
    * @return updated credential full output
    */
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public CredentialFullOutput updateCredential(
-      String credentialId, CredentialInput input, String tenantId) {
+      String credentialId, CredentialInput input, String tenantId, byte[] gcpPrivateKeyJson) {
     // Phase 1 — transactional update of credential reference and its secret through the provider.
     UpdatedCredentialContext updateContext =
         tenantTx.execute(
@@ -421,7 +510,7 @@ public class CredentialService {
               CredentialSecretReference updatedCredential =
                   (CredentialSecretReference)
                       secretProvider.update(
-                          credential, convertCredentialInputToSecretStoreRequest(input));
+                          credential, convertCredentialInputToSecretStoreRequest(input, gcpPrivateKeyJson));
               return new UpdatedCredentialContext(updatedCredential, secretProvider);
             });
 
@@ -464,7 +553,8 @@ public class CredentialService {
     credential.setCredentialType(input.credentialType());
   }
 
-  private SecretStoreRequest convertCredentialInputToSecretStoreRequest(CredentialInput input) {
+  private SecretStoreRequest convertCredentialInputToSecretStoreRequest(
+      CredentialInput input, byte[] gcpPrivateKeyJson) {
     return new SecretStoreRequest(
         input.credentialUsername(),
         input.credentialPassword(),
@@ -483,7 +573,13 @@ public class CredentialService {
         input.azureClientId(),
         input.azureClientSecret(),
         input.azureTenantId(),
-        input.azureSubscriptionId());
+        input.azureSubscriptionId(),
+        input.gcpScope(),
+        input.gcpProjectId(),
+        gcpPrivateKeyJson,
+        input.gcpOauthClientId(),
+        input.gcpOauthClientSecret(),
+        input.gcpOauthRefreshToken());
   }
 
   /**

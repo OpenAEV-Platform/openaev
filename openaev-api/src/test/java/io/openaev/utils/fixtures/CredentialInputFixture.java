@@ -5,6 +5,11 @@ import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_CLIENT_S
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_ENVIRONMENT;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_SUBSCRIPTION_ID;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_TENANT_ID;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_OAUTH_CLIENT_ID;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_OAUTH_CLIENT_SECRET;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_OAUTH_REFRESH_TOKEN;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_PROJECT_ID;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_SCOPE;
 
 import io.openaev.api.credentials.form.CredentialInput;
 import io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD;
@@ -92,6 +97,79 @@ public class CredentialInputFixture {
         azureClientSecret,
         azureTenantId,
         azureSubscriptionId,
+        // GCP
+        null,
+        null,
+        null,
+        null,
+        null,
+        List.of());
+  }
+
+  /** A complete, valid GCP_SERVICE_ACCOUNT input — the key file travels as its own part. */
+  public static CredentialInput gcpServiceAccountInput(String name) {
+    return gcpInput(
+        name,
+        CREDENTIAL_AUTH_METHOD.GCP_SERVICE_ACCOUNT,
+        GCP_SCOPE,
+        GCP_PROJECT_ID,
+        null,
+        null,
+        null);
+  }
+
+  /** A complete, valid GCP_OAUTH2 input. */
+  public static CredentialInput gcpOAuth2Input(String name) {
+    return gcpInput(
+        name,
+        CREDENTIAL_AUTH_METHOD.GCP_OAUTH2,
+        GCP_SCOPE,
+        GCP_PROJECT_ID,
+        GCP_OAUTH_CLIENT_ID,
+        GCP_OAUTH_CLIENT_SECRET,
+        GCP_OAUTH_REFRESH_TOKEN);
+  }
+
+  public static CredentialInput gcpInput(
+      String name,
+      CREDENTIAL_AUTH_METHOD authMethod,
+      String gcpScope,
+      String gcpProjectId,
+      String gcpOauthClientId,
+      String gcpOauthClientSecret,
+      String gcpOauthRefreshToken) {
+    return new CredentialInput(
+        name,
+        CREDENTIAL_TYPE.CLOUD_GCP,
+        authMethod,
+        "description-" + name,
+        // IDENTITY
+        null,
+        null,
+        null,
+        null,
+        // AWS
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        // AZURE
+        null,
+        null,
+        null,
+        null,
+        null,
+        // GCP
+        gcpScope,
+        gcpProjectId,
+        gcpOauthClientId,
+        gcpOauthClientSecret,
+        gcpOauthRefreshToken,
         List.of());
   }
 }

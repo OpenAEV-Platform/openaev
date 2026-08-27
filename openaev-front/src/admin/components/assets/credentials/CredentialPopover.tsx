@@ -62,8 +62,8 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
       .finally(() => setIsLoadingEditValues(false));
   };
 
-  const submitEdit = (input: CredentialInput) => {
-    return updateCredential(credentialId, input)
+  const submitEdit = (formData: FormData) => {
+    return updateCredential(credentialId, formData)
       .then((result: { data: CredentialOutput }) => {
         onUpdate?.(result.data);
         handleCloseEdit();
