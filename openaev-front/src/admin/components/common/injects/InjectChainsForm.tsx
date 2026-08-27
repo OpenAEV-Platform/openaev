@@ -886,7 +886,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 onValueChange={value => handleChangeParent(index, value)}
               >
                 <SelectLabel>{t('Inject')}</SelectLabel>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder={t('Inject')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -998,7 +998,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 onValueChange={value => handleChangeChildren(index, value)}
               >
                 <SelectLabel>{t('Inject')}</SelectLabel>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder={t('Inject')} />
                 </SelectTrigger>
                 <SelectContent>

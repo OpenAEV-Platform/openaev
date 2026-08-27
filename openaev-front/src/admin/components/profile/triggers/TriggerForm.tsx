@@ -151,7 +151,7 @@ const TriggerForm: FunctionComponent<Props> = ({
               disabled={!!initialValues?.notification_trigger_instance_id}
             >
               <SelectLabel>{t('Resource type')}</SelectLabel>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('Resource type')} />
               </SelectTrigger>
               <SelectContent>
@@ -231,7 +231,7 @@ const TriggerForm: FunctionComponent<Props> = ({
               onValueChange={next => setPeriod(next as typeof period)}
             >
               <SelectLabel>{t('Period')}</SelectLabel>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('Period')} />
               </SelectTrigger>
               <SelectContent>
@@ -250,7 +250,7 @@ const TriggerForm: FunctionComponent<Props> = ({
                 onValueChange={next => setDay(next)}
               >
                 <SelectLabel>{t('Day of week')}</SelectLabel>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder={t('Day of week')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -270,7 +270,7 @@ const TriggerForm: FunctionComponent<Props> = ({
                 onValueChange={next => setDay(next)}
               >
                 <SelectLabel>{t('Day of month')}</SelectLabel>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder={t('Day of month')} />
                 </SelectTrigger>
                 <SelectContent>

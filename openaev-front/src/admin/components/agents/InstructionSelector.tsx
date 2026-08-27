@@ -243,7 +243,7 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
           }
         }}
       >
-        <SelectTrigger>
+        <SelectTrigger className="w-full">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

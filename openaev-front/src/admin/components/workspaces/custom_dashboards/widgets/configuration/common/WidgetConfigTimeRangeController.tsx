@@ -41,7 +41,7 @@ const WidgetConfigTimeRangeController = () => {
               name={field.name}
             >
               <SelectLabel required>{t('Time range')}</SelectLabel>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('Time range')} />
               </SelectTrigger>
               <SelectContent>

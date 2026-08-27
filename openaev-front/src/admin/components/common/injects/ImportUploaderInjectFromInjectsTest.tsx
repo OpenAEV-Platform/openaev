@@ -156,7 +156,7 @@ const ImportUploaderInjectFromInjectsTest: FunctionComponent<Props> = ({
               error={!!errors.timezone}
             >
               <SelectLabel>{t('Timezone')}</SelectLabel>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('Timezone')} />
               </SelectTrigger>
               <SelectContent>

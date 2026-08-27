@@ -175,7 +175,7 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
                   name={field.name}
                 >
                   <SelectLabel required>{t('Mode')}</SelectLabel>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder={t('Mode')} />
                   </SelectTrigger>
                   <SelectContent>
@@ -256,7 +256,7 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
                 name={field.name}
               >
                 <SelectLabel required>{t('Interval')}</SelectLabel>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder={t('Interval')} />
                 </SelectTrigger>
                 <SelectContent>

@@ -160,7 +160,7 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
                 onValueChange={next => setValue('expectation_score', next === 'Success' ? 100 : 0)}
                 disabled={isDisabled}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

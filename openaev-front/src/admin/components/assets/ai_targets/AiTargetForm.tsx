@@ -137,7 +137,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
               required
             >
               <SelectLabel required>{t('Provider')}</SelectLabel>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('Provider')} />
               </SelectTrigger>
               <SelectContent>
@@ -162,7 +162,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
               error={!!errors.ai_target_modality}
             >
               <SelectLabel>{t('Modality')}</SelectLabel>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('Modality')} />
               </SelectTrigger>
               <SelectContent>
@@ -187,7 +187,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
               error={!!errors.asset_criticality}
             >
               <SelectLabel>{t('Criticality')}</SelectLabel>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('Criticality')} />
               </SelectTrigger>
               <SelectContent>

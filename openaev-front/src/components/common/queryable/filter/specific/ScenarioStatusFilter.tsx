@@ -56,7 +56,7 @@ const ScenarioStatusFilter: FunctionComponent<{
     <>
       <div style={{ marginBottom: 15 }}>
         <Select value={operators[0]}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

@@ -115,7 +115,7 @@ const NotifierForm: FunctionComponent<Props> = ({
           disabled={editing}
         >
           <SelectLabel>{t('Type')}</SelectLabel>
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue placeholder={t('Type')} />
           </SelectTrigger>
           <SelectContent>
@@ -175,7 +175,7 @@ const NotifierForm: FunctionComponent<Props> = ({
               onValueChange={next => setVerb(next)}
             >
               <SelectLabel>{t('Verb')}</SelectLabel>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('Verb')} />
               </SelectTrigger>
               <SelectContent>

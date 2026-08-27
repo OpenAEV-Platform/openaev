@@ -147,7 +147,7 @@ const ListWidgetParameters = (props: Props) => {
               name={field.name}
             >
               <SelectLabel required>{t('Direction')}</SelectLabel>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('Direction')} />
               </SelectTrigger>
               <SelectContent>

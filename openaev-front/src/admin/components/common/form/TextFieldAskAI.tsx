@@ -358,7 +358,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               value={messageTone}
               onValueChange={next => setMessageTone(next as unknown as 'informal' | 'formal' | 'assertive' | 'sarcastic' | 'authoritative' | 'bitter' | 'critical' | 'arrogant' | 'aggressive')}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -453,7 +453,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               value={messageTone}
               onValueChange={next => setMessageTone(next as unknown as 'informal' | 'formal' | 'assertive' | 'sarcastic' | 'authoritative' | 'bitter' | 'critical' | 'arrogant' | 'aggressive')}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -536,7 +536,7 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               value={messageTone}
               onValueChange={next => setMessageTone(next as unknown as 'informal' | 'formal' | 'assertive' | 'sarcastic' | 'authoritative' | 'bitter' | 'critical' | 'arrogant' | 'aggressive')}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

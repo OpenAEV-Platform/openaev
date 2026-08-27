@@ -59,7 +59,7 @@ const FilterChipPopover: FunctionComponent<Props> = ({
             value={filter.operator ?? operators[0]}
             onValueChange={handleChangeOperator}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

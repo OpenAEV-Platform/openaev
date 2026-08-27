@@ -37,7 +37,7 @@ const ClickableChipPopover: FunctionComponent<Props> = ({
             value={element || availableValues[0]}
             onValueChange={handleChangeValue}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
