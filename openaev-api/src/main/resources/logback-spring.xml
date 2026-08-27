@@ -37,6 +37,8 @@
         <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
         <appender name="jsonEncoder" class="ch.qos.logback.core.ConsoleAppender">
             <encoder class="io.openaev.logging.StackDepthLimitingJsonEncoder">
+                <!-- placeholders are resolved into "message", so "arguments" would only duplicate them -->
+                <withArguments>false</withArguments>
                 <withThrowable>true</withThrowable>
                 <maxStackDepth>80</maxStackDepth>
             </encoder>
@@ -51,6 +53,8 @@
                 <totalSizeCap>1GB</totalSizeCap>
             </rollingPolicy>
             <encoder class="io.openaev.logging.StackDepthLimitingJsonEncoder">
+                <!-- placeholders are resolved into "message", so "arguments" would only duplicate them -->
+                <withArguments>false</withArguments>
                 <withThrowable>true</withThrowable>
                 <maxStackDepth>80</maxStackDepth>
             </encoder>
