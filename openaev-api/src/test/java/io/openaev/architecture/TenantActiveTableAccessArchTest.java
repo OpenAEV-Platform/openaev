@@ -595,7 +595,8 @@ class TenantActiveTableAccessArchTest {
               // from TxCtx-carrying HTTP entrypoints (ExpectationApi#deleteInjectExpectationResult,
               // ChallengeApi#tryChallenge, SimulationChallengeApi#validateChallenge,
               // InjectApi#injectExecutionCallback) and from already-scoped background jobs
-              // (SecurityCoverageJob, InjectsExecutionJob#handleAutoClosingSimulations), all pinned
+              // (SecurityCoverageJob, InjectsFinalizationJob#handleAutoClosingSimulations), all
+              // pinned
               // by SecurityCoverageTenantScopeTest#SendJobCreationGateRequiresScope:
               SecurityCoverageSendJobService.class)
           .should()

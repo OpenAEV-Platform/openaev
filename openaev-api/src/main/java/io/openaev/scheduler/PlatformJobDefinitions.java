@@ -32,6 +32,14 @@ public class PlatformJobDefinitions {
   }
 
   @Bean
+  public JobDetail getInjectsFinalization() {
+    return JobBuilder.newJob(InjectsFinalizationJob.class)
+        .storeDurably()
+        .withIdentity(jobKey("InjectsFinalizationJob"))
+        .build();
+  }
+
+  @Bean
   public JobDetail getComchecksExecution() {
     return JobBuilder.newJob(ComchecksExecutionJob.class)
         .storeDurably()
