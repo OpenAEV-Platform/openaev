@@ -1,4 +1,6 @@
 import {
+  ButtonGroup,
+  ButtonGroupItem,
   Select,
   SelectContent,
   SelectItem,
@@ -7,7 +9,7 @@ import {
   SelectValue,
 } from '@filigran/design-system';
 import { GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
-import { ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import { Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -99,27 +101,23 @@ const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange,
           return t('{count} results', { count: resultCount });
         })()}
       </span>
-      <ToggleButtonGroup
+      <ButtonGroup
         value={view}
-        exclusive
-        size="small"
-        onChange={(_, value: MarketplaceView | null) => {
+        size="sm"
+        onValueChange={(next) => {
+          const value = next as MarketplaceView;
           if (value) onViewChange(value);
         }}
         aria-label={t('View mode')}
-        sx={{ backgroundColor: theme.palette.background.paper }}
+        style={{ backgroundColor: theme.palette.background.paper }}
       >
-        <ToggleButton value="cards" aria-label={t('Cards view')} data-testid="marketplace-view-cards">
-          <Tooltip title={t('Cards view')}>
-            <GridViewOutlined fontSize="small" />
-          </Tooltip>
-        </ToggleButton>
-        <ToggleButton value="list" aria-label={t('List view')} data-testid="marketplace-view-list">
-          <Tooltip title={t('List view')}>
-            <ViewListOutlined fontSize="small" />
-          </Tooltip>
-        </ToggleButton>
-      </ToggleButtonGroup>
+        <Tooltip title={t('Cards view')}>
+          <ButtonGroupItem value="cards" aria-label={t('Cards view')} data-testid="marketplace-view-cards" icon={<GridViewOutlined fontSize="small" />} />
+        </Tooltip>
+        <Tooltip title={t('List view')}>
+          <ButtonGroupItem value="list" aria-label={t('List view')} data-testid="marketplace-view-list" icon={<ViewListOutlined fontSize="small" />} />
+        </Tooltip>
+      </ButtonGroup>
     </div>
   );
 };

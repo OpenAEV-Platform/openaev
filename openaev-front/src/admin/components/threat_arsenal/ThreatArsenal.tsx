@@ -1,3 +1,4 @@
+import { ButtonGroup, ButtonGroupItem } from '@filigran/design-system';
 import {
   GridViewOutlined,
   LinkOffOutlined,
@@ -13,7 +14,6 @@ import {
   ListItemIcon,
   ListItemText,
   Skeleton,
-  ToggleButton,
   ToggleButtonGroup,
   Tooltip,
   Typography,
@@ -84,8 +84,8 @@ const ThreatArsenal = () => {
   const [threatArsenalActions, setThreatArsenalActions] = useState<ThreatArsenalAction[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>(readViewMode);
 
-  const handleViewModeChange = (_: unknown, value: ViewMode | null) => {
-    if (!value) return;
+  const handleViewModeChange = (next: string) => {
+    const value = next as ViewMode;
     setViewMode(value);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, value);
@@ -423,25 +423,19 @@ const ThreatArsenal = () => {
 
   const headerRightSlot = (
     <>
-      <ToggleButtonGroup
+      <ButtonGroup
         value={viewMode}
-        exclusive
-        size="small"
-        onChange={handleViewModeChange}
+        size="sm"
+        onValueChange={handleViewModeChange}
         aria-label={t('View mode')}
-        sx={{ '& .MuiToggleButton-root.Mui-selected .MuiSvgIcon-root': { color: 'primary.main' } }}
       >
-        <ToggleButton value="grid" aria-label={t('Grid view')}>
-          <Tooltip title={t('Grid view')}>
-            <GridViewOutlined fontSize="small" />
-          </Tooltip>
-        </ToggleButton>
-        <ToggleButton value="list" aria-label={t('List view')}>
-          <Tooltip title={t('List view')}>
-            <ViewListOutlined fontSize="small" />
-          </Tooltip>
-        </ToggleButton>
-      </ToggleButtonGroup>
+        <Tooltip title={t('Grid view')}>
+          <ButtonGroupItem value="grid" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
+        </Tooltip>
+        <Tooltip title={t('List view')}>
+          <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+        </Tooltip>
+      </ButtonGroup>
 
       <ToggleButtonGroup value="fake" exclusive>
         <ExportButton

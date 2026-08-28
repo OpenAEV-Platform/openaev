@@ -1,5 +1,9 @@
+import { ButtonGroup, ButtonGroupItem } from '@filigran/design-system';
 import { TimelineOutlined, ViewListOutlined } from '@mui/icons-material';
-import { Box, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import {
+  Box,
+  Tooltip,
+} from '@mui/material';
 import { useState } from 'react';
 
 import { SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
@@ -50,24 +54,19 @@ const FindingOccurrences = ({ searchFindings, finding, contextId }: Props) => {
           <SectionLabel>{t('Finding timeline')}</SectionLabel>
         </Box>
         <div style={{ flex: 1 }} />
-        <ToggleButtonGroup
-          size="small"
-          exclusive
+        <ButtonGroup
+          size="sm"
           value={viewMode}
-          onChange={(_, mode: ViewMode | null) => handleViewMode(mode)}
+          onValueChange={mode => handleViewMode(mode as ViewMode)}
           aria-label={t('Occurrences view mode')}
         >
-          <ToggleButton value="list" aria-label={t('List view')}>
-            <Tooltip title={t('List view')}>
-              <ViewListOutlined fontSize="small" />
-            </Tooltip>
-          </ToggleButton>
-          <ToggleButton value="timeline" aria-label={t('Timeline view')}>
-            <Tooltip title={t('Timeline view')}>
-              <TimelineOutlined fontSize="small" />
-            </Tooltip>
-          </ToggleButton>
-        </ToggleButtonGroup>
+          <Tooltip title={t('List view')}>
+            <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+          </Tooltip>
+          <Tooltip title={t('Timeline view')}>
+            <ButtonGroupItem value="timeline" aria-label={t('Timeline view')} icon={<TimelineOutlined fontSize="small" />} />
+          </Tooltip>
+        </ButtonGroup>
       </Box>
       {viewMode === 'list'
         ? (

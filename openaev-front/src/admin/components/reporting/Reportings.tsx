@@ -1,7 +1,19 @@
+import { ButtonGroup, ButtonGroupItem } from '@filigran/design-system';
 import { FileDownloadOutlined, GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
-import { Box, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import {
+  Box,
+  Chip,
+  IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Skeleton,
+  Tooltip,
+} from '@mui/material';
 import { FileChartOutline } from 'mdi-material-ui';
-import { type CSSProperties, type SyntheticEvent, useMemo, useState } from 'react';
+import { type CSSProperties, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -120,8 +132,8 @@ const Reportings = () => {
   ], [t, fldt]);
 
   const [viewMode, setViewMode] = useState<ViewMode>(readViewMode);
-  const handleViewModeChange = (_: SyntheticEvent, value: ViewMode | null) => {
-    if (!value) return;
+  const handleViewModeChange = (next: string) => {
+    const value = next as ViewMode;
     setViewMode(value);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, value);
@@ -129,25 +141,19 @@ const Reportings = () => {
   };
 
   const viewSwitcher = (
-    <ToggleButtonGroup
+    <ButtonGroup
       value={viewMode}
-      exclusive
-      size="small"
-      onChange={handleViewModeChange}
+      size="sm"
+      onValueChange={handleViewModeChange}
       aria-label={t('View mode')}
-      sx={{ '& .MuiToggleButton-root.Mui-selected .MuiSvgIcon-root': { color: 'primary.main' } }}
     >
-      <ToggleButton value="cards" aria-label={t('Cards view')}>
-        <Tooltip title={t('Cards view')}>
-          <GridViewOutlined fontSize="small" />
-        </Tooltip>
-      </ToggleButton>
-      <ToggleButton value="list" aria-label={t('List view')}>
-        <Tooltip title={t('List view')}>
-          <ViewListOutlined fontSize="small" />
-        </Tooltip>
-      </ToggleButton>
-    </ToggleButtonGroup>
+      <Tooltip title={t('Cards view')}>
+        <ButtonGroupItem value="cards" aria-label={t('Cards view')} icon={<GridViewOutlined fontSize="small" />} />
+      </Tooltip>
+      <Tooltip title={t('List view')}>
+        <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+      </Tooltip>
+    </ButtonGroup>
   );
 
   const renderCards = () => {

@@ -1,4 +1,6 @@
 import {
+  ButtonGroup,
+  ButtonGroupItem,
   Combobox,
   ComboboxContent,
   ComboboxControls,
@@ -8,7 +10,17 @@ import {
   ComboboxTrigger,
 } from '@filigran/design-system';
 import { AccountTreeOutlined, ArrowBackOutlined, FilterAltOffOutlined, FullscreenExitOutlined, FullscreenOutlined, HelpOutline, LocalFireDepartment, MoreHorizOutlined, SearchOutlined, TableRowsOutlined } from '@mui/icons-material';
-import { Box, Button, ButtonBase, ListItemButton, Paper, Popover, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  ButtonBase,
+  ListItemButton,
+  Paper,
+  Popover,
+  ToggleButton,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, type ReactNode, useState } from 'react';
 
@@ -617,21 +629,19 @@ const AttackPathHeader: FunctionComponent<Props> = ({
           <ComboboxContent emptyMessage={t('No results found')} />
         </Combobox>
       </div>
-      <ToggleButtonGroup
-        size="small"
-        exclusive
+      <ButtonGroup
+        size="sm"
         value={view}
-        onChange={(_, v) => v && onViewChange(v)}
+        onValueChange={v => onViewChange(v as 'graph' | 'table')}
         aria-label={t('View')}
-        sx={{ '& .MuiToggleButton-root': { height: CONTROL_HEIGHT } }}
       >
-        <ToggleButton value="graph" aria-label={t('Graph')}>
-          <Tooltip title={t('Graph')}><AccountTreeOutlined fontSize="small" /></Tooltip>
-        </ToggleButton>
-        <ToggleButton value="table" aria-label={t('Table')}>
-          <Tooltip title={t('Table')}><TableRowsOutlined fontSize="small" /></Tooltip>
-        </ToggleButton>
-      </ToggleButtonGroup>
+        <Tooltip title={t('Graph')}>
+          <ButtonGroupItem value="graph" aria-label={t('Graph')} icon={<AccountTreeOutlined fontSize="small" />} />
+        </Tooltip>
+        <Tooltip title={t('Table')}>
+          <ButtonGroupItem value="table" aria-label={t('Table')} icon={<TableRowsOutlined fontSize="small" />} />
+        </Tooltip>
+      </ButtonGroup>
       {/* Standalone ToggleButton so fullscreen reads as part of the same segmented family. */}
       <ToggleButton
         size="small"

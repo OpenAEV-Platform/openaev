@@ -1,5 +1,6 @@
+import { ButtonGroup, ButtonGroupItem } from '@filigran/design-system';
 import { BarChartOutlined, ReorderOutlined, ViewTimelineOutlined } from '@mui/icons-material';
-import { ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import { Tooltip } from '@mui/material';
 import { type FunctionComponent, useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -40,52 +41,44 @@ const InjectsListButtons: FunctionComponent<Props> = ({
     <div className={classes.container}>
       {hasImportModesEnabled()
         && permissions.canManage && <InjectImportMenu onImportedInjects={onImportedInjects} />}
-      <ToggleButtonGroup
-        size="small"
-        exclusive
+      <ButtonGroup
+        size="sm"
         style={{ float: 'right' }}
         aria-label="Change view mode"
+        value={viewModeContext}
+        onValueChange={next => setViewMode?.(next as typeof viewModeContext)}
       >
         {(!!setViewMode && availableButtons.includes('list'))
           && (
             <Tooltip title={t('List view')}>
-              <ToggleButton
+              <ButtonGroupItem
                 value="list"
-                onClick={() => setViewMode('list')}
-                selected={viewModeContext === 'list'}
                 aria-label="List view mode"
-              >
-                <ReorderOutlined fontSize="small" color={viewModeContext === 'list' ? 'inherit' : 'primary'} />
-              </ToggleButton>
+                icon={<ReorderOutlined fontSize="small" />}
+              />
             </Tooltip>
           )}
         {(!!setViewMode && availableButtons.includes('chain'))
           && (
             <Tooltip title={t('Interactive view')}>
-              <ToggleButton
+              <ButtonGroupItem
                 value="chain"
-                onClick={() => setViewMode('chain')}
-                selected={viewModeContext === 'chain'}
                 aria-label="Interactive view mode"
-              >
-                <ViewTimelineOutlined fontSize="small" color={viewModeContext === 'chain' ? 'inherit' : 'primary'} />
-              </ToggleButton>
+                icon={<ViewTimelineOutlined fontSize="small" />}
+              />
             </Tooltip>
           )}
         {(!!setViewMode && availableButtons.includes('distribution'))
           && (
             <Tooltip title={t('Distribution view')}>
-              <ToggleButton
+              <ButtonGroupItem
                 value="distribution"
-                onClick={() => setViewMode('distribution')}
-                selected={viewModeContext === 'distribution'}
                 aria-label="Distribution view mode"
-              >
-                <BarChartOutlined fontSize="small" color={viewModeContext === 'distribution' ? 'inherit' : 'primary'} />
-              </ToggleButton>
+                icon={<BarChartOutlined fontSize="small" />}
+              />
             </Tooltip>
           )}
-      </ToggleButtonGroup>
+      </ButtonGroup>
     </div>
   );
 };

@@ -1,6 +1,14 @@
-import { Paper } from '@filigran/design-system';
+import {
+  ButtonGroup,
+  ButtonGroupItem,
+  Paper,
+} from '@filigran/design-system';
 import { DarkModeOutlined, ImageOutlined, LightModeOutlined } from '@mui/icons-material';
-import { Box, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import {
+  Box,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ReactNode, useCallback, useContext, useState } from 'react';
 import { useParams } from 'react-router';
@@ -9,7 +17,7 @@ import { fetchDocumentsChannels, updateChannel, updateChannelLogos } from '../..
 import { type ChannelsHelper } from '../../../../actions/channels/channel-helper';
 import { type DocumentHelper } from '../../../../actions/helper';
 import { DetailSections, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
-import LibHeaderRow, { LIB_HEADER_ROW_HEIGHT } from '../../../../components/common/LibHeaderRow';
+import LibHeaderRow, {} from '../../../../components/common/LibHeaderRow';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type Channel as ChannelType, type ChannelUpdateInput, type Document } from '../../../../utils/api-types';
@@ -234,34 +242,22 @@ const Channel = () => {
               </span>
             )}
             action={(
-              <ToggleButtonGroup
-                size="small"
-                exclusive
+              <ButtonGroup
+                size="sm"
                 value={previewMode}
-                onChange={(_, value: 'dark' | 'light' | null) => value && setPreviewMode(value)}
+                onValueChange={value => setPreviewMode(value as 'dark' | 'light')}
                 // The global MuiToggleButtonGroup override pins the group to
                 // 36px. The library header row is a constant 24px, so the group
                 // and its buttons are capped to it: a taller control overflows
                 // the row and eats into the 8px gap below.
-                sx={{
-                  'height': LIB_HEADER_ROW_HEIGHT,
-                  '& .MuiToggleButton-root': {
-                    width: LIB_HEADER_ROW_HEIGHT,
-                    height: LIB_HEADER_ROW_HEIGHT,
-                  },
-                }}
               >
-                <ToggleButton value="dark" aria-label={t('Dark theme')}>
-                  <Tooltip title={t('Dark theme')}>
-                    <DarkModeOutlined fontSize="small" />
-                  </Tooltip>
-                </ToggleButton>
-                <ToggleButton value="light" aria-label={t('Light theme')}>
-                  <Tooltip title={t('Light theme')}>
-                    <LightModeOutlined fontSize="small" />
-                  </Tooltip>
-                </ToggleButton>
-              </ToggleButtonGroup>
+                <Tooltip title={t('Dark theme')}>
+                  <ButtonGroupItem value="dark" aria-label={t('Dark theme')} icon={<DarkModeOutlined fontSize="small" />} />
+                </Tooltip>
+                <Tooltip title={t('Light theme')}>
+                  <ButtonGroupItem value="light" aria-label={t('Light theme')} icon={<LightModeOutlined fontSize="small" />} />
+                </Tooltip>
+              </ButtonGroup>
             )}
           >
             <Paper padding={8} style={{ flex: 1 }}>
