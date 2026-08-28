@@ -407,16 +407,8 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
-    input
-        .getPlayersIds()
-        .forEach(
-            playerId -> {
-              ExerciseTeamUserId exerciseTeamUserId = new ExerciseTeamUserId();
-              exerciseTeamUserId.setExerciseId(exerciseId);
-              exerciseTeamUserId.setTeamId(teamId);
-              exerciseTeamUserId.setUserId(playerId);
-              exerciseTeamUserRepository.deleteById(exerciseTeamUserId);
-            });
+    exerciseTeamUserRepository.deleteByExerciseIdAndTeamIdAndUserIds(
+        exerciseId, teamId, input.getPlayersIds());
     return exerciseService.exercise(exerciseId);
   }
 
@@ -467,16 +459,8 @@ public class ExerciseApi extends RestBehavior {
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
     team.getUsers().removeAll(fromIterable(teamUsers));
     teamRepository.save(team);
-    input
-        .getPlayersIds()
-        .forEach(
-            playerId -> {
-              ExerciseTeamUserId exerciseTeamUserId = new ExerciseTeamUserId();
-              exerciseTeamUserId.setExerciseId(exerciseId);
-              exerciseTeamUserId.setTeamId(teamId);
-              exerciseTeamUserId.setUserId(playerId);
-              exerciseTeamUserRepository.deleteById(exerciseTeamUserId);
-            });
+    exerciseTeamUserRepository.deleteByExerciseIdAndTeamIdAndUserIds(
+        exerciseId, teamId, input.getPlayersIds());
     return exerciseService.exercise(exerciseId);
   }
 

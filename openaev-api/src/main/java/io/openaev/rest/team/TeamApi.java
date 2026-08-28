@@ -47,6 +47,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -306,15 +307,22 @@ public class TeamApi extends RestBehavior {
   public Team updateTeamUsers(
       @PathVariable @Schema(description = "ID of the team") String teamId,
       @Valid @RequestBody UpdateUsersTeamInput input) {
+    String tenantId = TenantContext.getCurrentTenant();
     Team team =
         teamRepository
-            .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+            .findByIdAndTenantId(teamId, tenantId)
             .orElseThrow(ElementNotFoundException::new);
-    Iterable<User> teamUsers = userRepository.findAllById(input.getUserIds());
+    Set<String> previousUserIds =
+        team.getUsers().stream().map(User::getId).collect(java.util.stream.Collectors.toSet());
+    Iterable<User> teamUsers =
+        userRepository.findAllByIdInAndTenantId(input.getUserIds(), tenantId);
     // Reserved service/connector accounts are system users, never players: silently drop them so
     // team membership stays consistent with the player lists that hide them.
     team.setUsers(ReservedKeyValidator.excludeReservedUsers(teamUsers));
-    return teamRepository.save(team);
+    Team savedTeam = teamRepository.save(team);
+    teamService.synchronizeExerciseTeamUsers(savedTeam, previousUserIds);
+    teamService.synchronizeScenarioTeamUsers(savedTeam, previousUserIds);
+    return savedTeam;
   }
 
   // -- OPTION --
