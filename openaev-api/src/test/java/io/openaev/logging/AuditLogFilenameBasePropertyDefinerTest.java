@@ -51,20 +51,20 @@ class AuditLogFilenameBasePropertyDefinerTest {
     }
 
     @Test
-    @DisplayName("given_propertiesCustomFilename_should_useIt_forRotationFilename")
-    void given_propertiesCustomFilename_should_useIt_forRotationFilename() {
+    @DisplayName("given_bothSourcesSet_should_prioritizeEnvVariable_forRotationFilename")
+    void given_bothSourcesSet_should_prioritizeEnvVariable_forRotationFilename() {
       // Arrange
       AuditLogFilenameBasePropertyDefiner definer = new AuditLogFilenameBasePropertyDefiner();
       definer.setFromProperties("security-audit");
-      definer.setFromEnvVariable("audit.log");
+      definer.setFromEnvVariable("legacy-audit.log");
 
       // Act
       String baseFilename = definer.getPropertyValue();
       String rotationFilename = buildRotationFilename(baseFilename);
 
       // Assert
-      assertThat(baseFilename).isEqualTo("security-audit");
-      assertThat(rotationFilename).isEqualTo("logs/security-audit.2026-08-28.0.log");
+      assertThat(baseFilename).isEqualTo("legacy-audit");
+      assertThat(rotationFilename).isEqualTo("logs/legacy-audit.2026-08-28.0.log");
     }
   }
 

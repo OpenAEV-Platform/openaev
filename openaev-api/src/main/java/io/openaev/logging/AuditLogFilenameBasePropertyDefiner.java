@@ -5,7 +5,8 @@ import org.apache.commons.lang3.StringUtils;
 
 /**
  * Normalizes audit log filename input into a basename without ".log" so both legacy values
- * ("audit.log") and new values ("audit") resolve to the same rollover naming.
+ * ("audit.log") and new values ("audit") resolve to the same rollover naming. Legacy
+ * AUDIT_LOG_FILENAME env variable takes precedence when both sources are provided.
  */
 public class AuditLogFilenameBasePropertyDefiner extends PropertyDefinerBase {
 
@@ -30,7 +31,7 @@ public class AuditLogFilenameBasePropertyDefiner extends PropertyDefinerBase {
   @Override
   public String getPropertyValue() {
     String normalized =
-        StringUtils.firstNonBlank(fromProperties, fromEnvVariable, value, DEFAULT_BASENAME).trim();
+        StringUtils.firstNonBlank(fromEnvVariable, fromProperties, value, DEFAULT_BASENAME).trim();
     if (normalized.toLowerCase().endsWith(".log")) {
       normalized = normalized.substring(0, normalized.length() - 4);
     }

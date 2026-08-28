@@ -90,8 +90,8 @@ Audit logging will allow you to have a trace of the actions performed using API 
 | logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |                  | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                          |
 | openaev.audit-logs.file.dir        | OPENAEV_AUDIT-LOGS_FILE_DIR        | logs             | Preferred setting for the audit log directory when `file` transport is enabled.                                                                          |
 | openaev.audit-logs.file.filename   | OPENAEV_AUDIT-LOGS_FILE_FILENAME   | audit            | Preferred setting for the audit log basename (without extension) when `file` transport is enabled.                                                       |
-|                                    | AUDIT_LOG_DIR                      | logs             | Legacy fallback environment variable for audit log directory (kept for backward compatibility).                                                          |
-|                                    | AUDIT_LOG_FILENAME                 | audit            | Legacy fallback environment variable kept for backward compatibility (`audit` and `audit.log` are both accepted).                                          |
+|                                    | AUDIT_LOG_DIR                      | logs             | Legacy compatibility env var for the audit log directory. When set, it overrides `openaev.audit-logs.file.dir`.                                          |
+|                                    | AUDIT_LOG_FILENAME                 | audit            | Legacy compatibility env var for the audit log basename. When set, it overrides `openaev.audit-logs.file.filename`; `audit` and `audit.log` are accepted. |
 
 #### Credential status validation
 
