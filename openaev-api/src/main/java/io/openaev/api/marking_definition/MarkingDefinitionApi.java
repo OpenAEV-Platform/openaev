@@ -50,7 +50,9 @@ public class MarkingDefinitionApi extends RestBehavior {
   @GetMapping
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
-  @Operation(summary = "Get marking definitions", description = "Get the list of marking definitions")
+  @Operation(
+      summary = "Get marking definitions",
+      description = "Get the list of marking definitions")
   public List<MarkingDefinitionOutput> list(TxCtx ctx) {
     return service.list(ctx).stream().map(MarkingDefinitionMapper::toOutput).toList();
   }
