@@ -5,6 +5,7 @@ import {
   updateMarkingDefinition,
 } from '../../../../actions/marking_definitions/marking-definition-actions';
 import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
+import DialogConfirmation from '../../../../components/common/DialogConfirmation';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
@@ -40,6 +41,8 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
 
   const [openUpdate, setOpenUpdate] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
+  const [openOrderConfirm, setOpenOrderConfirm] = useState(false);
+  const [pendingUpdateInput, setPendingUpdateInput] = useState<MarkingDefinitionInput | null>(null);
 
   const isProtected = markingDefinition.marking_definition_protected;
 
@@ -51,13 +54,7 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
       marking_definition_order: value.marking_definition_order,
     });
 
-  const submitUpdate = (input: MarkingDefinitionInput) => {
-    if (input.marking_definition_order !== markingDefinition.marking_definition_order) {
-      const confirmed = window.confirm(t('Changing order can impact precedence. Do you want to continue?'));
-      if (!confirmed) {
-        return Promise.resolve();
-      }
-    }
+  const performUpdate = (input: MarkingDefinitionInput) => {
     return dispatch(updateMarkingDefinition(markingDefinition.marking_definition_id, input))
       .then((result: MarkingDefinitionStoreResult) => {
         const updatedMarkingDefinition = extractMarkingDefinitionFromStoreResult(result);
@@ -68,6 +65,26 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
         return result;
       })
       .catch((error: unknown) => error);
+  };
+
+  const submitUpdate = (input: MarkingDefinitionInput) => {
+    if (input.marking_definition_order !== markingDefinition.marking_definition_order) {
+      setPendingUpdateInput(input);
+      setOpenOrderConfirm(true);
+      return Promise.resolve();
+    }
+    return performUpdate(input);
+  };
+
+  const confirmOrderUpdate = () => {
+    if (!pendingUpdateInput) {
+      setOpenOrderConfirm(false);
+      return Promise.resolve();
+    }
+    return performUpdate(pendingUpdateInput).finally(() => {
+      setOpenOrderConfirm(false);
+      setPendingUpdateInput(null);
+    });
   };
 
   const submitDelete = () => {
@@ -107,6 +124,16 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
         handleClose={() => setOpenDelete(false)}
         handleSubmit={submitDelete}
         text={t('Do you want to delete this marking definition?')}
+      />
+      <DialogConfirmation
+        open={openOrderConfirm}
+        handleClose={() => {
+          setOpenOrderConfirm(false);
+          setPendingUpdateInput(null);
+        }}
+        handleSubmit={confirmOrderUpdate}
+        text={t('Changing order can impact precedence. Do you want to continue?')}
+        submitLabel={t('Update')}
       />
     </>
   );
