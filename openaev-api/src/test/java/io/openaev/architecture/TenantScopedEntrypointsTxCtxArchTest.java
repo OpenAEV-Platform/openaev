@@ -295,6 +295,22 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.atomic_testing.AtomicTestingApi#collectorsFromAtomicTesting",
           // inject: updateInject calls injectService.runChecks -> securityPlatformCollectors
           "io.openaev.rest.inject.InjectApi#updateInject",
+          // inject listings and single-inject mutations: every one of them serializes inject_type,
+          // resolved through the contract's injector link on the v2-scoped injectors table. Losing
+          // the scope does not fail loudly - inject_type just comes back null and the frontend
+          // draws the generic "unknown" icon on the execution screens (#7605, #7621).
+          "io.openaev.rest.inject.SimulationInjectApi#exerciseInjects",
+          "io.openaev.rest.inject.SimulationInjectApi#exerciseInjectsSimple",
+          "io.openaev.rest.inject.SimulationInjectApi#searchExerciseInjects",
+          "io.openaev.rest.inject.SimulationInjectApi#exerciseInjectsResults",
+          "io.openaev.rest.inject.SimulationInjectApi#updateInjectActivationForExercise",
+          "io.openaev.rest.inject.SimulationInjectApi#updateInjectTrigger",
+          "io.openaev.rest.inject.SimulationInjectApi#setInjectStatus",
+          "io.openaev.rest.inject.SimulationInjectApi#updateInjectTeams",
+          "io.openaev.rest.inject.ScenarioInjectApi#scenarioInjects",
+          "io.openaev.rest.inject.ScenarioInjectApi#scenarioInjectsSimple",
+          "io.openaev.rest.inject.ScenarioInjectApi#scenarioInject",
+          "io.openaev.rest.inject.ScenarioInjectApi#updateInjectActivationForScenario",
           // simulation injects: runChecks path
           "io.openaev.rest.inject.SimulationInjectApi#exerciseInject",
           "io.openaev.rest.inject.SimulationInjectApi#createInjectForExercise",

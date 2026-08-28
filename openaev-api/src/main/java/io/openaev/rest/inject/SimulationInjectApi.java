@@ -98,7 +98,11 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(readOnly = true)
   public Iterable<InjectOutput> exerciseInjectsSimple(
-      @PathVariable @NotBlank final String exerciseId) {
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
+      // tenant scope in the DB session. Every inject read resolves its injector on the v2-scoped
+      // injectors table: without the scope the join fails closed and inject_type comes back null,
+      // which the frontend renders as the generic "unknown" icon (#7605, #7621).
+      TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
     return injectSearchService.injects(fromSimulation(exerciseId));
   }
 
@@ -112,6 +116,7 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(readOnly = true)
   public Iterable<InjectOutput> exerciseInjectsSimple(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
@@ -139,7 +144,8 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public Iterable<Inject> exerciseInjects(@PathVariable @NotBlank final String exerciseId) {
+  public Iterable<Inject> exerciseInjects(
+      TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
     return injectRepository.findByExerciseId(exerciseId).stream()
         .sorted(Inject.executionComparator)
         .toList();
@@ -156,6 +162,7 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(readOnly = true)
   public Page<InjectResultOutput> searchExerciseInjects(
+      TxCtx ctx,
       @PathVariable final String exerciseId,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return injectSearchService.getPageOfInjectResults(exerciseId, searchPaginationInput);
@@ -171,7 +178,8 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   @Transactional(readOnly = true)
-  public List<InjectResultOutput> exerciseInjectsResults(@PathVariable final String exerciseId) {
+  public List<InjectResultOutput> exerciseInjectsResults(
+      TxCtx ctx, @PathVariable final String exerciseId) {
     return injectSearchService.getListOfInjectResults(exerciseId);
   }
 
@@ -354,6 +362,9 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject updateInjectActivationForExercise(
+      // Same as the reads above: the returned Inject serializes inject_type, so the response
+      // needs the tenant scope too or it blanks the field in the frontend store.
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
@@ -370,7 +381,7 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject updateInjectTrigger(
-      @PathVariable String exerciseId, @PathVariable String injectId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
     return simulationInjectService.triggerInjectForSimulation(exerciseId, injectId);
   }
 
@@ -384,6 +395,7 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject setInjectStatus(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateStatusInput input) {
@@ -400,6 +412,7 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject updateInjectTeams(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectTeamsInput input) {
