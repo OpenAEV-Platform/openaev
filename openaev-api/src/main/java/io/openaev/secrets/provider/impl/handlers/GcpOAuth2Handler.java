@@ -5,8 +5,10 @@ import io.openaev.database.model.GcpOAuth2Secret;
 import io.openaev.database.model.GcpScopes;
 import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
+import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
+import io.openaev.secrets.provider.impl.validators.GcpCredentialConnectivityCheck;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -31,6 +33,7 @@ public class GcpOAuth2Handler implements SecretHandler {
   static final String TYPE_MISMATCH_MESSAGE = "Secret type mismatch: expected GCP_OAUTH2 secret";
 
   protected final NativeEncryptionService nativeEncryptionService;
+  private final GcpCredentialConnectivityCheck gcpCredentialConnectivityCheck;
 
   @Override
   public boolean supports(Secret secret) {
@@ -107,5 +110,27 @@ public class GcpOAuth2Handler implements SecretHandler {
           gcpSecret.getOauthRefreshToken() != null);
     }
     throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
+  }
+
+  /**
+   * Decrypts the stored client secret and refresh token and probes Google with them.
+   *
+   * <p>The plaintexts are built here and handed straight to the validator: they are never logged,
+   * never stored back on the entity, and never travel back in the result.
+   *
+   * <p>No lazy association is touched: this runs in the validation job's phase 2, outside any
+   * transaction and outside any tenant scope, so only already-loaded basic columns may be read.
+   */
+  @Override
+  public SecretConnectionResult validateConnection(Secret secret) {
+    if (!(secret instanceof GcpOAuth2Secret gcpSecret)) {
+      throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
+    }
+    return gcpCredentialConnectivityCheck.validateOAuth2(
+        gcpSecret.getOauthClientId(),
+        nativeEncryptionService.decrypt(gcpSecret.getOauthClientSecret()),
+        nativeEncryptionService.decrypt(gcpSecret.getOauthRefreshToken()),
+        gcpSecret.getScope(),
+        gcpSecret.getProjectId());
   }
 }

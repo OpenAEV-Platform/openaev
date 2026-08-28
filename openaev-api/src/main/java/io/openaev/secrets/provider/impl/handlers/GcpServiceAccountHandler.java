@@ -5,8 +5,10 @@ import io.openaev.database.model.GcpScopes;
 import io.openaev.database.model.GcpServiceAccountSecret;
 import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
+import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
+import io.openaev.secrets.provider.impl.validators.GcpCredentialConnectivityCheck;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -31,6 +33,7 @@ public class GcpServiceAccountHandler implements SecretHandler {
       "Secret type mismatch: expected GCP_SERVICE_ACCOUNT secret";
 
   protected final NativeEncryptionService nativeEncryptionService;
+  private final GcpCredentialConnectivityCheck gcpCredentialConnectivityCheck;
 
   @Override
   public boolean supports(Secret secret) {
@@ -90,5 +93,25 @@ public class GcpServiceAccountHandler implements SecretHandler {
           gcpSecret.getScope(), gcpSecret.getProjectId(), gcpSecret.getPrivateKeyJson() != null);
     }
     throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
+  }
+
+  /**
+   * Decrypts the stored key file and probes Google with it.
+   *
+   * <p>The plaintext is built here and handed straight to the validator: it is never logged, never
+   * stored back on the entity, and never travels back in the result.
+   *
+   * <p>No lazy association is touched: this runs in the validation job's phase 2, outside any
+   * transaction and outside any tenant scope, so only already-loaded basic columns may be read.
+   */
+  @Override
+  public SecretConnectionResult validateConnection(Secret secret) {
+    if (!(secret instanceof GcpServiceAccountSecret gcpSecret)) {
+      throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
+    }
+    return gcpCredentialConnectivityCheck.validateServiceAccount(
+        nativeEncryptionService.decrypt(gcpSecret.getPrivateKeyJson()),
+        gcpSecret.getScope(),
+        gcpSecret.getProjectId());
   }
 }

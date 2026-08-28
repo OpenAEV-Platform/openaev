@@ -1,5 +1,6 @@
 package io.openaev.secrets.provider.impl.handlers;
 
+import static io.openaev.secrets.provider.SecretConnectionDetails.INVALID_CONFIGURATION;
 import static io.openaev.secrets.provider.impl.handlers.GcpServiceAccountHandler.MANDATORY_FIELDS_MESSAGE;
 import static io.openaev.secrets.provider.impl.handlers.GcpServiceAccountHandler.TYPE_MISMATCH_MESSAGE;
 import static io.openaev.utils.fixtures.CredentialSecretReferenceFixture.getAwsAccessKeyReference;
@@ -487,9 +488,12 @@ class GcpServiceAccountHandlerTest extends IntegrationTest {
   class ValidateConnection {
 
     @Test
-    @DisplayName("given_gcpServiceAccountSecret_should_beUnsupportedUntilProbeLands")
-    void given_gcpServiceAccountSecret_should_beUnsupportedUntilProbeLands() {
-      // Arrange
+    @DisplayName("given_secretWithUnparsableKey_should_returnUnknownInvalidConfiguration")
+    void given_secretWithUnparsableKey_should_returnUnknownInvalidConfiguration() {
+      // Arrange: the fixture key is not a real service account file, so the probe stops on a
+      // stored-configuration problem before any network call. The full mapping is covered by
+      // GcpCredentialConnectivityCheckTest, and the delegation by
+      // SecretHandlerValidateConnectionTest.
       GcpServiceAccountSecret secret =
           (GcpServiceAccountSecret)
               handler.buildOrUpdate(null, gcpServiceAccountRequestWithProject());
@@ -497,8 +501,18 @@ class GcpServiceAccountHandlerTest extends IntegrationTest {
       // Act
       SecretConnectionResult result = handler.validateConnection(secret);
 
-      // Assert: the interface default applies, the GCP probe is a later chunk
-      assertThat(result).isEqualTo(SecretConnectionResult.unsupported());
+      // Assert
+      assertThat(result.outcome()).isEqualTo(SecretConnectionResult.OUTCOME.UNKNOWN);
+      assertThat(result.detail()).isEqualTo(INVALID_CONFIGURATION);
+    }
+
+    @Test
+    @DisplayName("given_secretOfAnotherType_should_throw")
+    void given_validateConnectionWithAnotherType_should_throw() {
+      // Arrange & Act & Assert
+      assertThatThrownBy(() -> handler.validateConnection(new GcpOAuth2Secret()))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining(TYPE_MISMATCH_MESSAGE);
     }
   }
 }

@@ -54,8 +54,11 @@ public class SecretValidationService {
       EnumSet.of(
           CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL,
           CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY,
+          CREDENTIAL_AUTH_METHOD.GCP_OAUTH2,
           CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY,
-          CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE);
+          CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE,
+          CREDENTIAL_AUTH_METHOD.GCP_SERVICE_ACCOUNT,
+          CREDENTIAL_AUTH_METHOD.GCP_OAUTH2);
 
   /**
    * Oldest first, id as tie-breaker. Without the id the order of equal {@code lastVerifiedAt} rows

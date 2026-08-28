@@ -28,6 +28,10 @@
         <playwright.version>1.62.0</playwright.version>
         <!-- Azure credential status validation. Aligned with openaev-model's azure-core-management. MIT. -->
         <azure-identity.version>1.18.5</azure-identity.version>
+        <!-- GCP credential status validation: signs the service account RS256 JWT and exchanges
+             the OAuth2 refresh token. Same trade-off as Azure — SDK for the token, plain
+             HttpClient for the resource probe. BSD-3-Clause. -->
+        <google-auth-library.version>1.30.1</google-auth-library.version>
         <!-- AWS STS client for temporary credential handling. Apache-2.0. -->
         <aws-sts.version>2.54.4</aws-sts.version>
     </properties>
@@ -81,6 +85,11 @@
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
             <version>${azure-identity.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>${google-auth-library.version}</version>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
@@ -276,15 +285,7 @@
         <dependency>
             <groupId>org.mock-server</groupId>
             <artifactId>mockserver-netty</artifactId>
-            <version>7.6.0</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- MockServer exposes Prometheus metrics and reaches for SpanContextSupplier on every
-             request. micrometer-registry-prometheus only brings tracer-common, so the class is
-             missing and the Netty pipeline dies on each control plane call. -->
-        <dependency>
-            <groupId>io.prometheus</groupId>
-            <artifactId>prometheus-metrics-tracer-initializer</artifactId>
+            <version>5.15.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
