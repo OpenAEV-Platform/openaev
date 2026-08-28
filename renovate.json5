@@ -35,6 +35,7 @@
             matchStrings: ['<jackson-bom\.version>(?<currentValue>.*?)</jackson-bom\.version>'],
             depNameTemplate: 'com.fasterxml.jackson:jackson-bom',
             datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
         },
         {
             customType: 'regex',
@@ -42,6 +43,7 @@
             matchStrings: ['<tomcat\.version>(?<currentValue>.*?)</tomcat\.version>'],
             depNameTemplate: 'org.apache.tomcat.embed:tomcat-embed-core',
             datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
         },
         {
             customType: 'regex',
@@ -49,6 +51,7 @@
             matchStrings: ['<log4j2\.version>(?<currentValue>.*?)</log4j2\.version>'],
             depNameTemplate: 'org.apache.logging.log4j:log4j-bom',
             datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
         },
         {
             customType: 'regex',
@@ -56,6 +59,7 @@
             matchStrings: ['<logback\.version>(?<currentValue>.*?)</logback\.version>'],
             depNameTemplate: 'ch.qos.logback:logback-classic',
             datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
         },
         {
             customType: 'regex',
@@ -63,6 +67,7 @@
             matchStrings: ['<httpcore5\.version>(?<currentValue>.*?)</httpcore5\.version>'],
             depNameTemplate: 'org.apache.httpcomponents.core5:httpcore5',
             datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
         },
         {
             customType: 'regex',
@@ -70,6 +75,7 @@
             matchStrings: ['<hikaricp\.version>(?<currentValue>.*?)</hikaricp\.version>'],
             depNameTemplate: 'com.zaxxer:HikariCP',
             datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
         },
         {
             customType: 'regex',
@@ -77,6 +83,7 @@
             matchStrings: ['<micrometer\.version>(?<currentValue>.*?)</micrometer\.version>'],
             depNameTemplate: 'io.micrometer:micrometer-bom',
             datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
         },
         {
             customType: 'regex',
@@ -84,6 +91,7 @@
             matchStrings: ['<micrometer-tracing\.version>(?<currentValue>.*?)</micrometer-tracing\.version>'],
             depNameTemplate: 'io.micrometer:micrometer-tracing-bom',
             datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
         },
     ],
     packageRules: [
