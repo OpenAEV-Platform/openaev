@@ -34,7 +34,8 @@ class AuditLogFilenameBasePropertyDefinerTest {
     }
 
     @Test
-    @DisplayName("given_envVariableAuditDotLog_should_normalizeBase_and_keepSingleFinalLogExtension")
+    @DisplayName(
+        "given_envVariableAuditDotLog_should_normalizeBase_and_keepSingleFinalLogExtension")
     void given_envVariableAuditDotLog_should_normalizeBase_and_keepSingleFinalLogExtension() {
       // Arrange
       AuditLogFilenameBasePropertyDefiner definer = new AuditLogFilenameBasePropertyDefiner();
