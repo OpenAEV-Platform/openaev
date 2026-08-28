@@ -675,6 +675,72 @@ Do not defer this phase to "later regression pass" — an association missed
 here degrades silently (200 OK, empty array) exactly like #7026, so nothing
 in Phase 8's regression run will catch it unless the new test from 3b.3 exists.
 
+**3b.4 — computed getters and DTO mappers that resolve the activated table
+(the #7605 / #7621 shape).** An association accessor is not the only silent
+reader. A COMPUTED getter on an unrelated entity — a `@JsonProperty` method
+with no column of its own that walks a relation to `{Entity}` to derive a
+scalar — reads the activated table on every serialization, and it is invisible
+to all three greps above: it names neither `{EntityRepository}` nor `{table}`,
+and it is not an `@OneToMany`/`@ManyToOne` field. `Inject#getType()` is the
+reference: `@JsonProperty("inject_type")` resolving
+`injectorContract.getFirstInjector().getType()` on the v2-scoped `injectors`
+table. Its callers are three DTO mappers (`InjectMapper#toInjectOutput`,
+`InjectMapper#toInjectResultOverviewOutput`,
+`InjectStatusMapper#toInjectTestStatusOutput`) plus direct entity
+serialization, so EVERY endpoint returning `Inject`, `InjectOutput`,
+`InjectResultOverviewOutput`, `InjectResultOutput` or `InjectTestStatusOutput`
+reads `injectors`. The activation wired the obvious inject endpoints and
+missed the rest; they shipped 200 OK with `inject_type: null`, which the
+frontend renders as the generic "unknown" icon on the whole Execution screen
+(time-based AND chaining) — a silent regression found in production, not in
+CI.
+
+Walk it in two directions, and treat BOTH as part of the closure:
+
+```bash
+# 3b.4.a - computed @JsonProperty getters anywhere in the model that resolve
+# {Entity} without naming {table} or {EntityRepository}
+grep -rn -B3 "get{Entity}()\|get{Entities}()\|getFirst{Entity}()" \
+  openaev-model/src/main/java/io/openaev/database/model --include="*.java" | grep -n "@JsonProperty" -B3
+
+# 3b.4.b - every caller of each computed getter found (mappers included)
+grep -rn "\.{computedGetter}()" openaev-api/src/main/java openaev-model/src/main/java --include="*.java"
+
+# 3b.4.c - THE SINK SWEEP: once a DTO/entity is known to carry the computed
+# value, enumerate EVERY endpoint whose return type is that DTO/entity, and
+# check TxCtx on each one. This is the step that was skipped in #7605.
+grep -rn "public .*\b{SinkType}\b\|Page<{SinkType}>\|List<{SinkType}>\|Iterable<{SinkType}>" \
+  openaev-api/src/main/java --include="*Api.java"
+```
+
+Rules for this sub-phase:
+
+- The unit of enumeration is the RESPONSE TYPE, not the API package. A
+  computed getter leaks through `TeamApi`, `PlayerApi`, `OrganizationApi`,
+  `AssetGroupApi`, `EndpointApi`, ... simply because they return the same DTO;
+  none of them mentions the activated table anywhere. Sweep by sink type
+  across all controllers, then diff that list against `TX_SCOPED_ENTRYPOINTS`:
+  every endpoint returning a sink type must appear in one of the two lists
+  (wired, or explicitly justified as never serializing the computed value).
+- A criteria/JPA projection that SELECTs the derived column
+  (`injectorJoin.get("type").alias("inject_type")`) is the same sink: it joins
+  the activated table inside the query, so its endpoints need `TxCtx` exactly
+  like the lazy-getter path.
+- `@Transactional(propagation = Propagation.SUPPORTS)` handlers (bulk
+  update/delete, massive-operation wrappers) are a trap: with no inbound
+  transaction the aspect has nothing to scope, so adding `TxCtx` alone does
+  NOT fix them. Either the service opens the scoped transaction, or the
+  handler is switched to a real `@Transactional` boundary — decide and write
+  it down, do not leave a `TxCtx` parameter that silently does nothing.
+- Deprecated endpoints returning the sink type count (they still ship): the
+  `/api/exercise/{id}/injects/test` variant is as live as its
+  `/injects/test/search` successor.
+- Pin the sweep: for each sink type, add one production-like test
+  (`@TestPropertySource(properties = "openaev.tenant.active-tables={table}")`)
+  asserting the computed field is NON-NULL on a representative endpoint per
+  controller family, not just on the table's own API. A null-valued scalar is
+  the failure mode; an empty-array assertion will not catch it.
+
 ### Phase 4 — RED then GREEN: write attribution
 
 The inspector cannot attribute `INSERT ... VALUES`. Attribution is application
@@ -1209,6 +1275,22 @@ Before marking the issue done, write down:
 - [ ] association-accessor scan run for every entity holding a reference to
       the activated entity, regardless of whether the activated table has its
       own API (eager/lazy loads bypass the repository grep either way)
+- [ ] computed-getter scan run (Phase 3b.4): every `@JsonProperty` getter that
+      derives a scalar from the activated table (model: `Inject#getType()` →
+      `injectors`) found, its DTO mappers and JPA projections listed, and the
+      SINK SWEEP done — every endpoint returning one of those sink types
+      (entity or DTO), in ANY controller, diffed against
+      `TX_SCOPED_ENTRYPOINTS` so none is left unwired (#7605/#7621: the inject
+      endpoints were wired, the `InjectResultOutput` /
+      `InjectTestStatusOutput` / `InjectResultOverviewOutput` endpoints on
+      team, player, organization, asset-group and atomic-testing were not, and
+      shipped `inject_type: null`)
+- [ ] every `@Transactional(propagation = SUPPORTS)` handler returning a sink
+      type is explicitly resolved: either the service opens the scoped
+      transaction or the handler gets a real transaction boundary — no
+      `TxCtx` parameter left on a SUPPORTS handler where the aspect cannot fire
+- [ ] one production-like test per sink type asserts the computed field is
+      NON-NULL (a null scalar, not an empty array, is this regression's shape)
 - [ ] isolation test written first and seen red for the mechanism, then green;
       raw red/green outputs captured in the report
 - [ ] reads: own row visible, cross-tenant 404, path and header selectors
