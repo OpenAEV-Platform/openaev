@@ -1,0 +1,7524 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation about OpenAEV, the next-generation Open Adversary Exposure Validation Platform.">
+      
+      
+        <meta name="author" content="Filigran">
+      
+      
+        <link rel="canonical" href="https://docs.openaev.io/latest/deployment/ecosystem/executors/">
+      
+      
+        <link rel="prev" href="../../upgrade/">
+      
+      
+        <link rel="next" href="../injectors/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Executors - OpenAEV Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"IBM Plex Sans";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../css/timeago.css">
+    
+      <link rel="stylesheet" href="../../../assets/css/custom.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+  
+  
+
+<script id="__analytics">function __md_analytics(){function e(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],e("js",new Date),e("config","G-D12HQ64D7C"),document.addEventListener("DOMContentLoaded",(function(){document.forms.search&&document.forms.search.query.addEventListener("blur",(function(){this.value&&e("event","search",{search_term:this.value})}));document$.subscribe((function(){var t=document.forms.feedback;if(void 0!==t)for(var a of t.querySelectorAll("[type=submit]"))a.addEventListener("click",(function(a){a.preventDefault();var n=document.location.pathname,d=this.getAttribute("data-md-value");e("event","feedback",{page:n,data:d}),t.firstElementChild.disabled=!0;var r=t.querySelector(".md-feedback__note [data-md-value='"+d+"']");r&&(r.hidden=!1)})),t.hidden=!1})),location$.subscribe((function(t){e("config","G-D12HQ64D7C",{page_path:t.pathname})}))}));var t=document.createElement("script");t.async=!0,t.src="https://www.googletagmanager.com/gtag/js?id=G-D12HQ64D7C",document.getElementById("__analytics").insertAdjacentElement("afterEnd",t)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+  <link href="../../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="filigran" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#executors" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden="">
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You're not viewing the latest version.
+  <a href="../../../..">
+    <strong>Click here to go to latest.</strong>
+  </a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+
+<!-- Header -->
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+
+    <!-- Link to home -->
+    <a href="../../.." title="OpenAEV Documentation" class="md-header__button md-logo" aria-label="OpenAEV Documentation" data-md-component="logo">
+      
+  <img src="../../../assets/logo.png" alt="logo">
+
+    </a>
+
+    <!-- Button to open drawer -->
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+
+    <!-- Header title -->
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Color palette -->
+    
+      
+    
+
+    <!-- Site language selector -->
+    
+
+    <!-- Button to open search modal -->
+    
+      <label class="md-header__button md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+      </label>
+
+      <!-- Search interface -->
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+
+    <!-- Repository information -->
+    
+      <div class="md-header__source">
+        <a href="https://github.com/OpenAEV-Platform/openaev" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+
+  <!-- Navigation tabs (sticky) -->
+  
+
+  <script type="text/javascript"> !function(){var e,t,n;e="58d967e3f3ca784",t=function(){Reo.init({clientID:"58d967e3f3ca784"})},(n=document.createElement("script")).src="https://static.reo.dev/"+e+"/reo.js",n.async=!0,n.onload=t,document.head.appendChild(n)}(); </script>
+  <script src="https://copilot.filigran.ai/api/v1/public/widget.js" data-token="jNJu1JTbbPwNqk1tqEOw-WjsKU4dEcgn" data-context="{&quot;page&quot;:&quot;docs&quot;,&quot;product&quot;:&quot;OpenAEV&quot;}"></script>
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../platform/overview/" class="md-tabs__link">
+          
+  
+  
+  Deployment &amp; Setup
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../usage/getting-started/" class="md-tabs__link">
+          
+  
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../administration/introduction/" class="md-tabs__link">
+          
+  
+  
+  Administration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../reference/apis/filters/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../development/environment-ubuntu/" class="md-tabs__link">
+          
+  
+  
+  Development
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="OpenAEV Documentation" class="md-nav__button md-logo" aria-label="OpenAEV Documentation" data-md-component="logo">
+      
+  <img src="../../../assets/logo.png" alt="logo">
+
+    </a>
+    OpenAEV Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/OpenAEV-Platform/openaev" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked="">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment &amp; Setup
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deployment &amp; Setup
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_1">
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../platform/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../platform/run-modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run modes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../certificate-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Certificate validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../url-access-token/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    URL access token
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../upgrade/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upgrade
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" checked="">
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ecosystem
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Ecosystem
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Executors
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Executors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#introduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Introduction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#openaev-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenAEV Agent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tanium-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tanium Agent
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tanium Agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-tanium-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the Tanium platform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-openaev-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OpenAEV platform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#crowdstrike-falcon-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CrowdStrike Falcon Agent
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CrowdStrike Falcon Agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-crowdstrike-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the CrowdStrike platform
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configure the CrowdStrike platform">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upload-openaev-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upload OpenAEV scripts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-a-host-group-with-your-targeted-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a host group with your targeted assets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#createupdate-response-policies-for-your-targeted-platforms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create/update response policies for your targeted platforms
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-openaev-platform_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OpenAEV platform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checks_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#palo-alto-cortex-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Palo Alto Cortex Agent
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Palo Alto Cortex Agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-palo-alto-cortex-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the Palo Alto Cortex platform
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configure the Palo Alto Cortex platform">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upload-openaev-scripts_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upload OpenAEV scripts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-a-group-with-your-targeted-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a group with your targeted assets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-openaev-platform_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OpenAEV platform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checks_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sentinelone-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SentinelOne Agent
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SentinelOne Agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-sentinelone-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the SentinelOne platform
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configure the SentinelOne platform">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upload-openaev-scripts_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upload OpenAEV scripts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-a-wrapper-with-your-targeted-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a wrapper with your targeted assets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-openaev-platform_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OpenAEV platform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checks_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#microsoft-defender-for-endpoint-mde-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Microsoft Defender for Endpoint (MDE) Agent
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Microsoft Defender for Endpoint (MDE) Agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-microsoft-defender-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the Microsoft Defender platform
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configure the Microsoft Defender platform">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-register-an-azure-entra-id-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Register an Azure (Entra ID) application
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-enable-live-response-in-microsoft-defender" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Enable Live Response in Microsoft Defender
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-upload-the-openaev-subprocessor-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Upload the OpenAEV subprocessor scripts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-optional-scope-to-a-device-group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. (Optional) Scope to a device group
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-openaev-platform_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OpenAEV platform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checks_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Checks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#microsoft-defender-for-endpoint-troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Microsoft Defender for Endpoint — troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#caldera-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caldera Agent
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Caldera Agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deploy-caldera" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deploy Caldera
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#openaev-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenAEV configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agents
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Agents">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deploy-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deploy agents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checks_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uninstallation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uninstallation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implant-directories-and-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implant directories and cleanup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implant directories and cleanup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implant-directories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implant directories
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cleanup
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-run-the-inject-from-openaev" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1 — Run the inject from OpenAEV
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-check-the-executor-for-an-execution-trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 — Check the executor for an execution trace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-retrieve-the-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3 — Retrieve the command
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-decode-and-inspect-the-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4 — Decode and inspect the command
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-execute-the-command-directly-on-the-endpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 — Execute the command directly on the endpoint
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../injectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Injectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../collectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Collectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP server (via XTM One)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_2_5">
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_5" id="__nav_2_2_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration Manager
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Integration Manager
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-manager/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-manager/quick-start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-manager/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_2_5_4">
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_5_4" id="__nav_2_2_5_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_2_5_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_5_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Configuration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-manager/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-manager/proxy-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proxy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-manager/registry-authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Private registry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-manager/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_3">
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../managers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform managers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_4">
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Breaking changes
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Breaking changes
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../breaking-changes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_4_2">
+        
+          
+          <label class="md-nav__link" for="__nav_2_4_2" id="__nav_2_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Migration guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../breaking-changes/2.0.0-openaev-renaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenAEV renaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../breaking-changes/2.1.0-encrypting-password/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenAEV encryption
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../breaking-changes/2.2.0-opencti-security-coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenario Generation from OpenCTI Security Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../breaking-changes/2.3.4-csrf-token-enforcement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CSRF token enforcement for frontend API calls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../breaking-changes/2.260622.0-url-access-token-enforcement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    URL access token enforcement for email links
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../breaking-changes/MigrationVersion-injector-contract-expectation-format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Injector contract expectation format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tenant users, groups and roles capabilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2">
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Foundations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Foundations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/foundations/scenarios-and-simulations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenario and Simulations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/foundations/injects-and-expectations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Injects and Expectations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluate your Security posture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Evaluate your Security posture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/evaluate/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/evaluate/simulation/simulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/evaluate/atomic-testing/atomic-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atomic testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3_4">
+        
+          
+          <label class="md-nav__link" for="__nav_3_3_4" id="__nav_3_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Injects
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Injects
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/evaluate/injects/inject-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/evaluate/injects/inject-tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inject tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/evaluate/injects/inject-status/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inject status
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/evaluate/injects/inject-result/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inject result
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/evaluate/expectations/expectations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Expectations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/evaluate/findings/findings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Findings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3_7">
+        
+          
+          <label class="md-nav__link" for="__nav_3_3_7" id="__nav_3_3_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dashboards
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_3_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Dashboards
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/evaluate/dashboards/custom-dashboards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom Dashboards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/evaluate/dashboards/widgets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Widgets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/evaluate/reporting/reporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reporting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/evaluate/xtm-suite-connector/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security Coverage enrichment (XTM Suite)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4">
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Attack Chaining
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Attack Chaining
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/attack-chaining/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/attack-chaining/scope-definition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scope Definition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/attack-chaining/action-selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Action Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/attack-chaining/logic-creation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Logic Creation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/attack-chaining/attack-path-map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Attack Path Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_5">
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Autonomous Attack Chaining (AI Penetration Testing)
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Autonomous Attack Chaining (AI Penetration Testing)
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/autonomous-attack-chaining/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/autonomous-attack-chaining/scenario-creation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenario Creation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/autonomous-attack-chaining/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_6">
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Build your own Threat Scenario
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Build your own Threat Scenario
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/scenario/scenario/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenario
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/scenario/security-coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scenario Generation from OpenCTI Security Coverage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/scenario/scenario-import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Importing injects into a Scenario
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/assets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/people/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    People
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_6_6">
+        
+          
+          <label class="md-nav__link" for="__nav_3_6_6" id="__nav_3_6_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/components/documents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/components/variables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom variables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/components/channels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Channels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/components/media-pressure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Media pressure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_6_6_5">
+        
+          
+          <label class="md-nav__link" for="__nav_3_6_6_5" id="__nav_3_6_6_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phishing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_3_6_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Phishing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/components/phishing/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/components/phishing/landing-pages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Landing pages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/components/phishing/email-templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Email templates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/components/phishing/run-a-campaign/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Run a phishing exercise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/components/phishing/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Results and scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/components/phishing/custom-domains/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom domains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/components/challenges/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Challenges
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/components/lessons/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lessons
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_6_7">
+        
+          
+          <label class="md-nav__link" for="__nav_3_6_7" id="__nav_3_6_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Threat Arsenal
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Threat Arsenal
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/threat-arsenals/threat-arsenals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Actions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/threat-arsenals/action-properties/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Action properties
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/threat-arsenals/output-parsers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output parsers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/build/threat-arsenals/domains/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Domains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_8">
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interact with your environment
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Interact with your environment
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_8_1">
+        
+          
+          <label class="md-nav__link" for="__nav_3_8_1" id="__nav_3_8_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Injectors
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_8_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Injectors
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/environment/injectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/environment/injects-builtin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-In Injector
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/environment/collectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Collectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/environment/openaev-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rest API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Administration
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Administration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/introduction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/enterprise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enterprise edition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/multi-tenancy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-tenancy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/debug-mode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debug mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_5">
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform settings
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Platform settings
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/parameters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parameters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_5_2">
+        
+          
+          <label class="md-nav__link" for="__nav_4_5_2" id="__nav_4_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/policies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Policies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/users-and-rbac/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users and RBAC
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/taxonomies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Taxonomies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/default-asset-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Default Asset Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../administration/hub/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    XTM Hub
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1">
+        
+          
+          <label class="md-nav__link" for="__nav_5_1" id="__nav_5_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    APIs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    APIs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/apis/filters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Filters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2">
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment and stack
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deployment and stack
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/deployment/telemetry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Telemetry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1">
+        
+          
+          <label class="md-nav__link" for="__nav_6_1" id="__nav_6_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prerequisites
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Prerequisites
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/environment-ubuntu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ubuntu
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/environment-windows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Windows
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/build-from-source/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building and running from source
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/database-migrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Database migrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/tenant-isolation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tenant isolation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/collectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Collectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/injectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Injectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/attack-path/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Attack path
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/api-usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../development/translations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Best Practices
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#introduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Introduction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#openaev-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenAEV Agent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tanium-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tanium Agent
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tanium Agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-tanium-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the Tanium platform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-openaev-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OpenAEV platform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#crowdstrike-falcon-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CrowdStrike Falcon Agent
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CrowdStrike Falcon Agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-crowdstrike-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the CrowdStrike platform
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configure the CrowdStrike platform">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upload-openaev-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upload OpenAEV scripts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-a-host-group-with-your-targeted-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a host group with your targeted assets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#createupdate-response-policies-for-your-targeted-platforms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create/update response policies for your targeted platforms
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-openaev-platform_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OpenAEV platform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checks_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#palo-alto-cortex-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Palo Alto Cortex Agent
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Palo Alto Cortex Agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-palo-alto-cortex-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the Palo Alto Cortex platform
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configure the Palo Alto Cortex platform">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upload-openaev-scripts_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upload OpenAEV scripts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-a-group-with-your-targeted-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a group with your targeted assets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-openaev-platform_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OpenAEV platform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checks_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sentinelone-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SentinelOne Agent
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SentinelOne Agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-sentinelone-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the SentinelOne platform
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configure the SentinelOne platform">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upload-openaev-scripts_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upload OpenAEV scripts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-a-wrapper-with-your-targeted-assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create a wrapper with your targeted assets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-openaev-platform_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OpenAEV platform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checks_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#microsoft-defender-for-endpoint-mde-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Microsoft Defender for Endpoint (MDE) Agent
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Microsoft Defender for Endpoint (MDE) Agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-microsoft-defender-platform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the Microsoft Defender platform
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configure the Microsoft Defender platform">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-register-an-azure-entra-id-application" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Register an Azure (Entra ID) application
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-enable-live-response-in-microsoft-defender" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Enable Live Response in Microsoft Defender
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-upload-the-openaev-subprocessor-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Upload the OpenAEV subprocessor scripts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-optional-scope-to-a-device-group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. (Optional) Scope to a device group
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configure-the-openaev-platform_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure the OpenAEV platform
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checks_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Checks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#microsoft-defender-for-endpoint-troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Microsoft Defender for Endpoint — troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#caldera-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Caldera Agent
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Caldera Agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deploy-caldera" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deploy Caldera
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#openaev-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenAEV configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agents
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Agents">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deploy-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deploy agents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checks_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uninstallation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uninstallation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implant-directories-and-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implant directories and cleanup
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implant directories and cleanup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implant-directories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implant directories
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cleanup
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-run-the-inject-from-openaev" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1 — Run the inject from OpenAEV
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-check-the-executor-for-an-execution-trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 — Check the executor for an execution trace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-retrieve-the-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3 — Retrieve the command
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-decode-and-inspect-the-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4 — Decode and inspect the command
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-execute-the-command-directly-on-the-endpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5 — Execute the command directly on the endpoint
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation">
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../../platform/overview/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Deployment &amp; Setup
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="./" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Ecosystem
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/OpenAEV-Platform/openaev/blob/main/docs/docs/deployment/ecosystem/executors.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"></path></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/OpenAEV-Platform/openaev/raw/main/docs/docs/deployment/ecosystem/executors.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 18c.56 0 1 .44 1 1s-.44 1-1 1-1-.44-1-1 .44-1 1-1m0-3c-2.73 0-5.06 1.66-6 4 .94 2.34 3.27 4 6 4s5.06-1.66 6-4c-.94-2.34-3.27-4-6-4m0 6.5a2.5 2.5 0 0 1-2.5-2.5 2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5M9.27 20H6V4h7v5h5v4.07c.7.08 1.36.25 2 .49V8l-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4.5a8.2 8.2 0 0 1-1.23-2"></path></svg>
+    </a>
+  
+
+
+<h1 id="executors">Executors</h1>
+<h2 id="introduction">Introduction</h2>
+<p>To be able to use the power of the OpenAEV platform on endpoints, you need at least one <strong>neutral executor</strong> that will
+be in charge of executing implants as detached processes. Implants will then execute Threat Arsenal Actions.</p>
+<p>The platform manages different executors which can be installed on Windows, Linux and MacOS using x86_64 or arm64
+architectures. This table below summarizes the information about each agent.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Executor</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Installation mode</th>
+<th style="text-align: left;">Installation type</th>
+<th style="text-align: left;">Run As</th>
+<th style="text-align: left;">Threat arsenal action execution</th>
+<th style="text-align: left;">Multi agents for an endpoint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>OpenAEV Agent (native/default)</strong></td>
+<td style="text-align: left;">Open source</td>
+<td style="text-align: left;">Windows/Linux: user session, user service or system service<br>macOS (temporary): system service only</td>
+<td style="text-align: left;">Script</td>
+<td style="text-align: left;">A standard or admin background process</td>
+<td style="text-align: left;">As a user standard, user admin or system admin</td>
+<td style="text-align: left;">Yes, depending on the user and installation mode</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Tanium Agent</strong></td>
+<td style="text-align: left;">Under license</td>
+<td style="text-align: left;">As a system service</td>
+<td style="text-align: left;">Executable</td>
+<td style="text-align: left;">An admin background process</td>
+<td style="text-align: left;">As a system admin</td>
+<td style="text-align: left;">No, always the same agent</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>CrowdStrike Falcon Agent</strong></td>
+<td style="text-align: left;">Under license</td>
+<td style="text-align: left;">As a system service</td>
+<td style="text-align: left;">Executable</td>
+<td style="text-align: left;">An admin background process</td>
+<td style="text-align: left;">As a system admin</td>
+<td style="text-align: left;">No, always the same agent</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SentinelOne Agent</strong></td>
+<td style="text-align: left;">Under license</td>
+<td style="text-align: left;">As a system service</td>
+<td style="text-align: left;">Executable</td>
+<td style="text-align: left;">An admin background process</td>
+<td style="text-align: left;">As a system admin</td>
+<td style="text-align: left;">No, always the same agent</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Palo Alto Cortex Agent</strong></td>
+<td style="text-align: left;">Under license</td>
+<td style="text-align: left;">As a system service</td>
+<td style="text-align: left;">Executable</td>
+<td style="text-align: left;">An admin background process</td>
+<td style="text-align: left;">As a system admin</td>
+<td style="text-align: left;">No, always the same agent</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Microsoft Defender for Endpoint (MDE) Agent</strong></td>
+<td style="text-align: left;">Under license</td>
+<td style="text-align: left;">Leverages the existing MDE sensor (Live Response)</td>
+<td style="text-align: left;">Executable</td>
+<td style="text-align: left;">An admin background process (SYSTEM)</td>
+<td style="text-align: left;">As a system admin</td>
+<td style="text-align: left;">No, always the same agent</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Caldera Agent</strong></td>
+<td style="text-align: left;">Open source</td>
+<td style="text-align: left;">As a user session</td>
+<td style="text-align: left;">Script</td>
+<td style="text-align: left;">An admin background process</td>
+<td style="text-align: left;">As a user admin</td>
+<td style="text-align: left;">Yes, depending on the user</td>
+</tr>
+</tbody>
+</table>
+<h2 id="openaev-agent">OpenAEV Agent</h2>
+<p>The OpenAEV agent is available for Windows, Linux and MacOS, it is the native / default way to execute implants and
+Threat Arsenal Actions on endpoints.</p>
+<p><a href="../../../usage/environment/openaev-agent/">Learn More</a></p>
+<p><a id="tanium-agent"></a></p>
+<h2 id="tanium-agent">Tanium Agent</h2>
+<p>The Tanium agent can be leveraged to execute implants as detached processes that will then execute threat arsenal
+actions, according
+to the <a href="https://docs.openaev.io/latest/deployment/platform/overview/">OpenAEV architecture</a>.</p>
+<h3 id="configure-the-tanium-platform">Configure the Tanium platform</h3>
+<p>We
+provide <a href="https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-tanium-packages.json">two Tanium packages</a>
+to be imported into the Tanium platform.</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/tanium-packages.png" data-desc-position="bottom"><img alt="Tanium Packages" src="../../assets/tanium-packages.png"></a></p>
+<div class="admonition warning">
+<p class="admonition-title">Tanium package configuration</p>
+<p>Because OpenAEV should run implants as detached processes, you must uncheck<br>
+<strong>"Launch this package command in a process group"</strong> in the package configuration:</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/tanium-package.png" data-desc-position="bottom"><img alt="Tanium Package" src="../../assets/tanium-package.png"></a></p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Tanium Threat Response usage</p>
+<p>If your environment uses <strong>Tanium Threat Response (TTR)</strong> together with the Tanium agent, you should rely on the <strong>dedicated TTR package</strong>.<br>
+This package technically works in all cases, but it is <strong>only recommended</strong> when OpenAEV runs on endpoints with TTR enabled.<br>
+Reason: this package performs more extensive operations on the machine and can generate <strong>more noise and alerts</strong>.<br>
+If you do <strong>not</strong> use Tanium Threat Response, prefer the <strong>standard Tanium package</strong>.</p>
+<p><strong>Packages to import:</strong></p>
+<ul>
+<li><a href="https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-tanium-packages-TTR.json">OpenAEV Tanium Windows &amp; Unix package (TTR)</a></li>
+</ul>
+<p><strong>Scripts to attach in the package configuration into files section:</strong></p>
+<ul>
+<li><a href="https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-ttr.ps1">Windows TTR script</a></li>
+<li><a href="https://github.com/OpenAEV-Platform/openaev/blob/master/openaev-api/src/main/java/io/openaev/executors/tanium/openaev-ttr.sh">Linux &amp; macOS TTR script</a></li>
+</ul>
+</div>
+<table>
+<thead>
+<tr>
+<th>Package type</th>
+<th>Recommended use case</th>
+<th>Characteristics</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Standard Tanium package</strong></td>
+<td>Default use with Tanium agent only</td>
+<td>Lightweight, minimal impact, recommended in most scenarios</td>
+</tr>
+<tr>
+<td><strong>TTR package</strong></td>
+<td>Tanium agent + Tanium Threat Response</td>
+<td>Enables additional operations, may generate more noise</td>
+</tr>
+</tbody>
+</table>
+<p>Once configured and imported, retrieve the package IDs from the URL:<br>
+<code>ui/console/packages/XXXXX/preview</code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Common group IDs in Tanium</p>
+<ul>
+<li><strong>Computer Group ID</strong>: identifies which endpoints will be queried.</li>
+<li><strong>Action Group ID</strong>: identifies where actions (like package execution) are allowed.</li>
+</ul>
+</div>
+<h3 id="configure-the-openaev-platform">Configure the OpenAEV platform</h3>
+<p>To configure the Tanium executor, navigate to the <strong>Integrations &gt; Executors</strong> section in the OpenAEV menu and fill in the Tanium integration settings directly from the UI.</p>
+<div class="admonition note">
+<p class="admonition-title">Tanium API Key</p>
+<p>The Tanium API key must have permissions to:<br>
+- Retrieve the endpoint list from the Tanium GraphQL API<br>
+- Launch packages on endpoints  </p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Migrating from environment variables</p>
+<p>If you previously configured this executor using environment variables or platform properties, these values have been <strong>automatically migrated</strong> to the database on first startup. After migration, changes to environment variables or properties are no longer taken into account — all configuration is now managed through the UI.</p>
+</div>
+<h3 id="checks">Checks</h3>
+<p>Once enabled, you should see <strong>Tanium</strong> available in the <code>Install agents</code> section:</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/agents.png" data-desc-position="bottom"><img alt="Agents" src="../../assets/agents.png"></a></p>
+<p>Endpoints from the selected computer groups should now appear in the <strong>OpenAEV Endpoints</strong> section:</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/tanium-endpoints.png" data-desc-position="bottom"><img alt="Endpoints" src="../../assets/tanium-endpoints.png"></a></p>
+<div class="admonition note">
+<p class="admonition-title">Agent uniqueness</p>
+<p>An endpoint can only have <strong>one Tanium agent</strong> registered due to MAC (Media Access Control) address uniqueness.
+Installing a new agent will overwrite the existing one, and you will always see a single endpoint in the OpenAEV console.</p>
+</div>
+<div class="admonition success">
+<p class="admonition-title">Installation done</p>
+<p>You are now ready to leverage your Tanium platform to run OpenAEV Threat Arsenal Actions!</p>
+</div>
+<p><a id="crowdstrike-falcon-agent"></a></p>
+<h2 id="crowdstrike-falcon-agent">CrowdStrike Falcon Agent</h2>
+<p>The CrowdStrike Falcon agent can be leveraged to execute implants as detached processes that will then execute threat
+arsenal actions
+according to the <a href="https://docs.openaev.io/latest/deployment/platform/overview/">OpenAEV architecture</a>.</p>
+<h3 id="configure-the-crowdstrike-platform">Configure the CrowdStrike platform</h3>
+<h4 id="upload-openaev-scripts">Upload OpenAEV scripts</h4>
+<p>First of all, you need to create two custom scripts, one for Windows and one for Unix, covering both Linux and MacOS
+systems.</p>
+<p>To create it, go to <code>Host setup and management</code> &gt; <code>Response and containment</code> &gt; <code>Response scripts and files</code>. The names
+of the scripts can be changed if necessary, they will be put in the OpenAEV configuration.</p>
+<p><em>Unix Script</em></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Attribute</th>
+<th style="text-align: left;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">name</td>
+<td style="text-align: left;">OpenAEV Subprocessor (Unix)</td>
+</tr>
+<tr>
+<td style="text-align: left;">shell type</td>
+<td style="text-align: left;">bash</td>
+</tr>
+<tr>
+<td style="text-align: left;">script access</td>
+<td style="text-align: left;">Users with the role of RTR (Real Time Response) Administrator or RTR Active Responder</td>
+</tr>
+<tr>
+<td style="text-align: left;">shared with workflows</td>
+<td style="text-align: left;">yes</td>
+</tr>
+</tbody>
+</table>
+<p>Put the following script:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">command</span><span class="o">=</span><span class="sb">`</span><span class="nb">echo</span><span class="w"> </span><span class="nv">$1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-o<span class="w"> </span><span class="s1">'"command":"[^"]*'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-o<span class="w"> </span><span class="s1">'[^"]*$'</span><span class="sb">`</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">echo</span><span class="w"> </span><span class="nv">$command</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>base64<span class="w"> </span>-d<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh
+</span></code></pre></div>
+<p>Put the following Input schema:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"$schema"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://json-schema.org/draft/2020-12/schema"</span><span class="p">,</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="s2">"command"</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span><span class="p">],</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span><span class="p">,</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">  </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"This generated schema may need tweaking. In particular format fields are attempts at matching workflow field types but may not be correct."</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/crowdstrike-unix-script.png" data-desc-position="bottom"><img alt="CrowdStrike unix script" src="../../assets/crowdstrike-unix-script.png"></a></p>
+<p><em>Windows script</em></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Attribute</th>
+<th style="text-align: left;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">name</td>
+<td style="text-align: left;">OpenAEV Subprocessor (Windows)</td>
+</tr>
+<tr>
+<td style="text-align: left;">shell type</td>
+<td style="text-align: left;">PowerShell</td>
+</tr>
+<tr>
+<td style="text-align: left;">script access</td>
+<td style="text-align: left;">Users with the role of RTR Administrator or RTR Active Responder</td>
+</tr>
+<tr>
+<td style="text-align: left;">shared with workflows</td>
+<td style="text-align: left;">yes</td>
+</tr>
+</tbody>
+</table>
+<p>Put the following script:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">$command</span> <span class="p">=</span> <span class="nv">$args</span><span class="p">[</span><span class="n">0</span><span class="p">]</span> <span class="p">|</span> <span class="nb">ConvertFrom-Json</span> <span class="p">|</span> <span class="nb">Select </span><span class="n">-ExpandProperty</span> <span class="s1">'command'</span><span class="p">;</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">cmd</span><span class="p">.</span><span class="n">exe</span> <span class="p">/</span><span class="n">d</span> <span class="p">/</span><span class="n">c</span> <span class="n">powershell</span><span class="p">.</span><span class="n">exe</span> <span class="n">-ExecutionPolicy</span> <span class="n">Bypass</span> <span class="n">-WindowStyle</span> <span class="n">Hidden</span> <span class="n">-NonInteractive</span> <span class="n">-NoProfile</span> <span class="n">-encodedCommand</span> <span class="nv">$command</span>
+</span></code></pre></div>
+<p>Put the following Input schema:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">"$schema"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://json-schema.org/draft/2020-12/schema"</span><span class="p">,</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="nt">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="s2">"command"</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">  </span><span class="p">],</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span><span class="p">,</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">  </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"This generated schema may need tweaking. In particular format fields are attempts at matching workflow field types but may not be correct."</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/crowdstrike-windows-script.png" data-desc-position="bottom"><img alt="CrowdStrike windows script" src="../../assets/crowdstrike-windows-script.png"></a></p>
+<p>Once created, your RTR scripts should have something like this:</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/crowdstrike-scripts.png" data-desc-position="bottom"><img alt="CrowdStrike RTR script" src="../../assets/crowdstrike-scripts.png"></a></p>
+<h4 id="create-a-host-group-with-your-targeted-assets">Create a host group with your targeted assets</h4>
+<p>To create a host group, go to <code>Host setup and management</code> &gt; <code>Host groups</code>.</p>
+<h4 id="createupdate-response-policies-for-your-targeted-platforms">Create/update response policies for your targeted platforms</h4>
+<p>As OpenAEV will ask CrowdStrike to create implants in order to execute Threat Arsenal Actions as scripts, you need to
+allow the
+execution of custom scripts on your assets. To do so, you need to create a new response policy or update an existing one
+for your assets' platforms.</p>
+<p>To create or update a response policy, go to <code>Host setup and management</code> &gt; <code>Response policies</code>.</p>
+<p>There, choose a platform in the top left selector, then click on <code>Create policy</code> or click on the name of an existing
+one.
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/crowdstrike-windows-policies.png" data-desc-position="bottom"><img alt="CrowdStrike Response Policies" src="../../assets/crowdstrike-windows-policies.png"></a></p>
+<p>The CrowdStrike UI should present you with a screen like this:
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/crowdstrike-windows-policy.png" data-desc-position="bottom"><img alt="CrowdStrike Response Policies Details" src="../../assets/crowdstrike-windows-policy.png"></a></p>
+<p>On this screen, click to allow <code>Custom Scripts</code> execution.
+If an option named <code>Falcon Scripts</code> exists, allow it as well.
+For the other options, you can choose to allow or deny them according to your security policy and what you want to test.
+Click on <code>Save</code> to save your changes.</p>
+<p>Finally, click on the <code>Assigned host groups</code> tab to add your previously created group to this policy.
+Once done, the policy may take a few minutes to be applied to your assets.
+You can go back to the policies list screen and check that there is a 0 in the <code>Pending</code> column to know that it has been
+applied.</p>
+<h3 id="configure-the-openaev-platform_1">Configure the OpenAEV platform</h3>
+<div class="admonition warning">
+<p class="admonition-title">CrowdStrike API Key</p>
+<p>Please note that the CrowdStrike API key should have the following permissions: API integrations, Hosts, Host groups, Real time response.</p>
+</div>
+<p>To configure the CrowdStrike executor, navigate to the <strong>Integrations &gt; Executors</strong> section in the OpenAEV menu and fill in the CrowdStrike integration settings directly from the UI.</p>
+<div class="admonition info">
+<p class="admonition-title">Migrating from environment variables</p>
+<p>If you previously configured this executor using environment variables or platform properties, these values have been <strong>automatically migrated</strong> to the database on first startup. After migration, changes to environment variables or properties are no longer taken into account — all configuration is now managed through the UI.</p>
+</div>
+<h3 id="checks_1">Checks</h3>
+<p>Once enabled, you should see CrowdStrike available in your <code>Install agents</code> section</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/agents.png" data-desc-position="bottom"><img alt="CrowdStrike available agent" src="../../assets/agents.png"></a></p>
+<p>Also, the assets and the asset groups in the selected computer groups should now be available in the endpoints and asset
+groups sections in OpenAEV:</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/crowdstrike-endpoints.png" data-desc-position="bottom"><img alt="CrowdStrike Endpoints" src="../../assets/crowdstrike-endpoints.png"></a></p>
+<p>NB : An Asset can only have one CrowdStrike agent installed due to the uniqueness of the MAC address parameters. If you
+try to install again a CrowdStrike agent on a platform, it will overwrite the actual one and you will always see one
+Endpoint on the OpenAEV endpoint page.</p>
+<div class="admonition success">
+<p class="admonition-title">Installation done</p>
+<p>You are now ready to leverage your CrowdStrike platform to run OpenAEV Threat Arsenal Actions!</p>
+</div>
+<p><a id="paloaltocortex-agent"></a></p>
+<h2 id="palo-alto-cortex-agent">Palo Alto Cortex Agent</h2>
+<p>The Palo Alto Cortex agent can be leveraged to execute implants as detached processes that will then execute threat
+arsenal actions
+according to the <a href="https://docs.openaev.io/latest/deployment/platform/overview/">OpenAEV architecture</a>.</p>
+<p>On Windows, because Palo Alto Cortex whitelists its own process tree, OpenAEV creates a scheduled task to detach the
+process that will execute the Threat Arsenal Actions.</p>
+<h3 id="configure-the-palo-alto-cortex-platform">Configure the Palo Alto Cortex platform</h3>
+<h4 id="upload-openaev-scripts_1">Upload OpenAEV scripts</h4>
+<p>First of all, you need to create one custom script for Unix, covering both Linux and MacOS systems and another one for
+Windows.</p>
+<p>To create these scripts, go to <code>Investigation &amp; responses</code> &gt; <code>Action Center</code> &gt; <code>Agent Script Library</code> &gt; <code>+ New Script</code>.
+The names
+of the scripts can be changed if necessary, the ids will be put in the OpenAEV configuration.
+To get the scripts IDs, it may be necessary to add the Script UID column to the scripts list view.</p>
+<p><em>Unix Script</em></p>
+<p>Upload the following Python script:</p>
+<p><a href="../../assets/paloaltocortex_subprocessor_unix.py">Download</a></p>
+<p>Put the following Input schema:</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/paloaltocortex-unix-script-general.png" data-desc-position="bottom"><img alt="Palo Alto Cortex unix script1" src="../../assets/paloaltocortex-unix-script-general.png"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/paloaltocortex-unix-script-inputs-outputs.png" data-desc-position="bottom"><img alt="Palo Alto Cortex unix script2" src="../../assets/paloaltocortex-unix-script-inputs-outputs.png"></a></p>
+<p><em>Windows script</em></p>
+<p>Upload the following Python script:</p>
+<p><a href="../../assets/paloaltocortex_subprocessor_windows.py">Download</a></p>
+<p>Put the following Input schema:</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/paloaltocortex-windows-script-general.png" data-desc-position="bottom"><img alt="Palo Alto Cortex windows script1" src="../../assets/paloaltocortex-windows-script-general.png"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/paloaltocortex-windows-script-inputs-outputs.png" data-desc-position="bottom"><img alt="Palo Alto Cortex windows script2" src="../../assets/paloaltocortex-windows-script-inputs-outputs.png"></a></p>
+<h4 id="create-a-group-with-your-targeted-assets">Create a group with your targeted assets</h4>
+<p>To create a group, go to <code>Inventory</code> &gt; <code>Endpoints</code> &gt; <code>Groups</code>.</p>
+<h3 id="configure-the-openaev-platform_2">Configure the OpenAEV platform</h3>
+<div class="admonition warning">
+<p class="admonition-title">Palo Alto Cortex API Key</p>
+<p>Please note that the Palo Alto Cortex API key created in <strong>Settings &gt; Configurations &gt; API Keys</strong> should have the following minimum role: "Instance Administrator" and security level: "Standard".</p>
+</div>
+<p>To configure the Palo Alto Cortex executor, navigate to the <strong>Integrations &gt; Executors</strong> section in the OpenAEV menu and fill in the Palo Alto Cortex integration settings directly from the UI.</p>
+<h3 id="checks_2">Checks</h3>
+<p>Once enabled, you should see Palo Alto Cortex available in your <code>Install agents</code> section</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/paloaltocortex-agents.png" data-desc-position="bottom"><img alt="Palo Alto Cortex available agent" src="../../assets/paloaltocortex-agents.png"></a></p>
+<p>Also, the assets and the asset groups in the selected groups should now be available in the endpoints and asset
+groups sections in OpenAEV:</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/paloaltocortex-endpoints.png" data-desc-position="bottom"><img alt="Palo Alto Cortex Endpoints" src="../../assets/paloaltocortex-endpoints.png"></a></p>
+<p>NB : An Asset can only have one Palo Alto Cortex agent installed due to the uniqueness of the MAC address parameters. If
+you
+try to install again a Palo Alto Cortex agent on a platform, it will overwrite the actual one and you will always see
+one
+Endpoint on the OpenAEV endpoint page.</p>
+<div class="admonition success">
+<p class="admonition-title">Installation done</p>
+<p>You are now ready to leverage your Palo Alto Cortex platform to run OpenAEV Threat Arsenal Actions!</p>
+</div>
+<p><a id="sentinelone-agent"></a></p>
+<h2 id="sentinelone-agent">SentinelOne Agent</h2>
+<p>The SentinelOne agent can be leveraged to execute implants as detached processes that will then execute threat arsenal
+actions
+according to the <a href="https://docs.openaev.io/latest/deployment/platform/overview/">OpenAEV architecture</a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">SentinelOne</p>
+<p>Please note that the SentinelOne license with add-on "remote script orchestration" is required to launch SentinelOne scripts with OpenAEV. See <strong>SentinelOne &gt; Settings &gt; Configuration &gt; Add-ons</strong>.</p>
+</div>
+<h3 id="configure-the-sentinelone-platform">Configure the SentinelOne platform</h3>
+<h4 id="upload-openaev-scripts_2">Upload OpenAEV scripts</h4>
+<p>First of all, you need to create two custom scripts, one for Windows and one for Unix, covering both Linux and MacOS
+systems.</p>
+<p>To create it, go to <code>Automation</code> &gt; <code>Remote Ops</code> &gt; <code>Create new</code>. The names
+of the scripts can be changed if necessary, the ids will be put in the OpenAEV configuration.</p>
+<p><em>Unix Script</em></p>
+<p>Upload the following script (encoded for Unix):</p>
+<p><a href="../../assets/sentinelone_subprocessor_unix.sh">Download</a></p>
+<p>Put the following Input schema:</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/sentinelone-unix-script1.png" data-desc-position="bottom"><img alt="SentinelOne unix script1" src="../../assets/sentinelone-unix-script1.png"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/sentinelone-unix-script2.png" data-desc-position="bottom"><img alt="SentinelOne unix script2" src="../../assets/sentinelone-unix-script2.png"></a></p>
+<p><em>Windows script</em></p>
+<p>Upload the following script (encoded for Windows):</p>
+<p><a href="../../assets/sentinelone_subprocessor_windows.ps1">Download</a></p>
+<p>Put the following Input schema:</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/sentinelone-windows-script1.png" data-desc-position="bottom"><img alt="SentinelOne windows script1" src="../../assets/sentinelone-windows-script1.png"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/sentinelone-windows-script2.png" data-desc-position="bottom"><img alt="SentinelOne windows script2" src="../../assets/sentinelone-windows-script2.png"></a></p>
+<p>Once created, your Remote Ops scripts should have something like this:</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/sentinelone-scripts.png" data-desc-position="bottom"><img alt="SentinelOne RTR script" src="../../assets/sentinelone-scripts.png"></a></p>
+<h4 id="create-a-wrapper-with-your-targeted-assets">Create a wrapper with your targeted assets</h4>
+<p>To create a wrapper (account/site/group), go to <code>Settings</code> &gt; <code>Accounts/Sites</code>.</p>
+<h3 id="configure-the-openaev-platform_3">Configure the OpenAEV platform</h3>
+<div class="admonition warning">
+<p class="admonition-title">SentinelOne API Key</p>
+<p>Please note that the SentinelOne API key created in <strong>Settings &gt; Users &gt; Service Users</strong> should have the following minimum role: "IR Team". The API key and the scripts must be created for and with the same user and the required account/site.</p>
+</div>
+<p>To configure the SentinelOne executor, navigate to the <strong>Integrations &gt; Executors</strong> section in the OpenAEV menu and fill in the SentinelOne integration settings directly from the UI.</p>
+<div class="admonition info">
+<p class="admonition-title">Migrating from environment variables</p>
+<p>If you previously configured this executor using environment variables or platform properties, these values have been <strong>automatically migrated</strong> to the database on first startup. After migration, changes to environment variables or properties are no longer taken into account — all configuration is now managed through the UI.</p>
+</div>
+<h3 id="checks_3">Checks</h3>
+<p>Once enabled, you should see SentinelOne available in your <code>Install agents</code> section</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/sentinelone-agents.png" data-desc-position="bottom"><img alt="SentinelOne available agent" src="../../assets/sentinelone-agents.png"></a></p>
+<p>Also, the assets and the asset groups in the selected accounts/sites/groups should now be available in the endpoints and
+asset
+groups sections in OpenAEV:</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/sentinelone-endpoints.png" data-desc-position="bottom"><img alt="Sentinel Endpoints" src="../../assets/sentinelone-endpoints.png"></a></p>
+<p>NB : An Asset can only have one SentinelOne agent installed due to the uniqueness of the MAC address parameters. If you
+try to install again a SentinelOne agent on a platform, it will overwrite the actual one and you will always see one
+Endpoint on the OpenAEV endpoint page.</p>
+<div class="admonition success">
+<p class="admonition-title">Installation done</p>
+<p>You are now ready to leverage your SentinelOne platform to run OpenAEV Threat Arsenal Actions!</p>
+</div>
+<p><a id="mde-agent"></a></p>
+<h2 id="microsoft-defender-for-endpoint-mde-agent">Microsoft Defender for Endpoint (MDE) Agent</h2>
+<p>Microsoft Defender for Endpoint (MDE) can be leveraged to execute implants as detached processes that will then execute
+Threat Arsenal Actions according to
+the <a href="https://docs.openaev.io/latest/deployment/platform/overview/">OpenAEV architecture</a>.</p>
+<p>OpenAEV does <strong>not</strong> install a new agent: it reuses the <strong>MDE sensor already deployed</strong> on your endpoints and drives it
+through the <strong>Live Response</strong> API. For each inject, OpenAEV runs a small subprocessor script from the MDE Live Response
+Library, which downloads and starts the OpenAEV implant.</p>
+<div class="admonition info">
+<p class="admonition-title">Enterprise Edition</p>
+<p>The Microsoft Defender for Endpoint executor is an <strong>Enterprise Edition</strong> feature. A valid EE license is required to
+enable it.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Windows: detached scheduled task</p>
+<p>On Windows, the MDE Live Response session terminates the whole process tree when the session ends. To let the implant
+survive and report its execution traces, OpenAEV launches it from a <strong>detached SYSTEM scheduled task</strong>
+(<code>OpenAEV-Inject-&lt;inject&gt;-Agent-&lt;agent&gt;</code>). This task <strong>self-deletes</strong> right after the implant finishes — you should
+not see leftover tasks in Task Scheduler.</p>
+</div>
+<h3 id="configure-the-microsoft-defender-platform">Configure the Microsoft Defender platform</h3>
+<h4 id="1-register-an-azure-entra-id-application">1. Register an Azure (Entra ID) application</h4>
+<p>OpenAEV authenticates to the MDE API with the OAuth2 <strong>client credentials</strong> flow. Create an app registration in
+<strong>Microsoft Entra ID &gt; App registrations &gt; New registration</strong>, then collect:</p>
+<ul>
+<li><strong>Directory (tenant) ID</strong> → <code>Azure tenant ID</code> in OpenAEV</li>
+<li><strong>Application (client) ID</strong> → <code>Client ID</code> in OpenAEV</li>
+<li>A <strong>client secret</strong> (<code>Certificates &amp; secrets &gt; New client secret</code>) → <code>Client secret</code> in OpenAEV</li>
+</ul>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/mde-app-registration.png" data-desc-position="bottom"><img alt="MDE app registration" src="../../assets/mde-app-registration.png"></a></p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/mde-client-secret.png" data-desc-position="bottom"><img alt="MDE client secret" src="../../assets/mde-client-secret.png"></a></p>
+<div class="admonition warning">
+<p class="admonition-title">Required API permissions</p>
+<p>Under <strong>API permissions</strong>, add the following <strong>Application permissions</strong> for <em>WindowsDefenderATP</em>, then click
+<strong>Grant admin consent</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Permission</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Machine.Read.All</code></td>
+<td>List devices (and read their device-group name/id) and sync them into OpenAEV</td>
+</tr>
+<tr>
+<td><code>Machine.LiveResponse.All</code></td>
+<td>Run the Live Response script that launches the implant</td>
+</tr>
+<tr>
+<td><code>AdvancedQuery.Read.All</code></td>
+<td>Read near real-time device activity (Advanced Hunting) so only genuinely-reachable machines are marked active — the device inventory <code>lastSeen</code> lags by up to a day</td>
+</tr>
+</tbody>
+</table>
+<p>Application permissions (not delegated) are mandatory because OpenAEV runs without a signed-in user.</p>
+</div>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/mde-api-permissions.png" data-desc-position="bottom"><img alt="MDE API permissions" src="../../assets/mde-api-permissions.png"></a></p>
+<h4 id="2-enable-live-response-in-microsoft-defender">2. Enable Live Response in Microsoft Defender</h4>
+<p>In the <strong>Microsoft Defender portal &gt; Settings &gt; Endpoints &gt; Advanced features</strong>, enable:</p>
+<ul>
+<li><strong>Live Response</strong> (required)</li>
+<li><strong>Live Response for servers</strong> (only if you target Windows Server / Linux server endpoints)</li>
+<li><strong>Live Response unsigned script execution</strong> (<strong>required</strong> — the OpenAEV subprocessor scripts are not code-signed)</li>
+</ul>
+<div class="admonition danger">
+<p class="admonition-title">Unsigned script execution</p>
+<p>If <em>Live Response unsigned script execution</em> is <strong>disabled</strong>, every inject fails at the Live Response step because
+MDE refuses to run the OpenAEV subprocessor script. This is the single most common misconfiguration.</p>
+</div>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/mde-live-response-features.png" data-desc-position="bottom"><img alt="MDE Live Response advanced features" src="../../assets/mde-live-response-features.png"></a></p>
+<h4 id="3-upload-the-openaev-subprocessor-scripts">3. Upload the OpenAEV subprocessor scripts</h4>
+<p>Upload the two subprocessor scripts to the <strong>MDE Live Response Library</strong> (they decode the Base64 command sent by OpenAEV
+and execute it). The file names must match what you configure in OpenAEV (defaults below).</p>
+<p><em>Windows script</em> (<code>openaev-subprocessor.ps1</code>):</p>
+<p><a href="../../assets/mde_subprocessor_windows.ps1">Download</a></p>
+<p><em>Unix script</em> (<code>openaev-subprocessor.sh</code>, covers Linux and macOS):</p>
+<p><a href="../../assets/mde_subprocessor_unix.sh">Download</a></p>
+<div class="admonition note">
+<p class="admonition-title">How the scripts work</p>
+<p>OpenAEV passes the full command as a <strong>single Base64 argument</strong>. The Windows script decodes it and runs it with
+<code>Invoke-Expression</code>; the Unix script decodes it and pipes it to <code>sh</code>. Keep them as-is — reserved parameter names such
+as <code>param([string]$Args)</code> will break argument passing on PowerShell (<code>$args[0]</code> must be used).</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Tick <em>Has parameters</em> when uploading each script</p>
+<p>In the upload dialog, <strong>enable the "parameters" option</strong> for both scripts. OpenAEV always invokes the subprocessor
+with the Base64 command as an argument; if parameters are not enabled, MDE runs the script without it and every inject
+fails. Both scripts must show <strong>Has parameters: Yes</strong> in the library.</p>
+</div>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/mde-scripts-library.png" data-desc-position="bottom"><img alt="MDE Live Response Library" src="../../assets/mde-scripts-library.png"></a></p>
+<h4 id="4-optional-scope-to-a-device-group">4. (Optional) Scope to a device group</h4>
+<p>To sync only a subset of devices, set the <strong>device group ID</strong> (<code>rbacGroupId</code>) in OpenAEV. Leave the field empty to
+sync <strong>all</strong> devices.</p>
+<div class="admonition warning">
+<p class="admonition-title">The numeric <code>rbacGroupId</code> is not shown in the Microsoft Defender UI</p>
+<p>The Defender portal (<strong>Settings &gt; Endpoints &gt; Permissions &gt; Device groups</strong>) shows device group <strong>names</strong>, not the
+numeric <code>rbacGroupId</code> that OpenAEV needs. The MDE API also exposes no "list device groups" endpoint. The reliable way
+to map a group <strong>name</strong> to its <strong>id</strong> is to read it from the machines inventory, which returns both <code>rbacGroupName</code>
+and <code>rbacGroupId</code> for every device.</p>
+</div>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/mde-device-groups.png" data-desc-position="bottom"><img alt="MDE device groups" src="../../assets/mde-device-groups.png"></a></p>
+<p>Run the following (PowerShell) against your tenant — it authenticates with the same Entra app registration and prints
+the <code>name → id</code> mapping for every device group that has at least one machine:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nv">$tenant</span> <span class="p">=</span> <span class="s1">'&lt;TENANT_ID&gt;'</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nv">$client</span> <span class="p">=</span> <span class="s1">'&lt;CLIENT_ID&gt;'</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nv">$secret</span> <span class="p">=</span> <span class="s1">'&lt;CLIENT_SECRET&gt;'</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="nv">$token</span> <span class="p">=</span> <span class="p">(</span><span class="nb">Invoke-RestMethod</span> <span class="n">-Method</span> <span class="n">Post</span> <span class="p">`</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>  <span class="n">-Uri</span> <span class="s2">"https://login.microsoftonline.com/$tenant/oauth2/v2.0/token"</span> <span class="p">`</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>  <span class="n">-Body</span> <span class="p">@{</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="n">grant_type</span>    <span class="p">=</span> <span class="s1">'client_credentials'</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="n">client_id</span>     <span class="p">=</span> <span class="nv">$client</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    <span class="n">client_secret</span> <span class="p">=</span> <span class="nv">$secret</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>    <span class="n">scope</span>         <span class="p">=</span> <span class="s1">'https://api.securitycenter.microsoft.com/.default'</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>  <span class="p">}).</span><span class="n">access_token</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="nv">$machines</span> <span class="p">=</span> <span class="nb">Invoke-RestMethod</span> <span class="p">`</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>  <span class="n">-Uri</span> <span class="s1">'https://api.securitycenter.microsoft.com/api/machines?$select=rbacGroupId,rbacGroupName'</span> <span class="p">`</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>  <span class="n">-Headers</span> <span class="p">@{</span> <span class="n">Authorization</span> <span class="p">=</span> <span class="s2">"Bearer $token"</span> <span class="p">}</span>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="nv">$machines</span><span class="p">.</span><span class="n">value</span> <span class="p">|</span>
+</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>  <span class="nb">Select-Object</span> <span class="n">rbacGroupName</span><span class="p">,</span> <span class="n">rbacGroupId</span> <span class="n">-Unique</span> <span class="p">|</span>
+</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>  <span class="nb">Sort-Object</span> <span class="n">rbacGroupName</span> <span class="p">|</span>
+</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>  <span class="nb">Format-Table</span> <span class="n">-AutoSize</span>
+</span></code></pre></div>
+<p>Example output:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>rbacGroupName   rbacGroupId
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>-------------   -----------
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>DEMO                    367
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>UnassignedGroup         366
+</span></code></pre></div>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/mde-rbacgroupid-result.png" data-desc-position="bottom"><img alt="MDE rbacGroupId lookup result" src="../../assets/mde-rbacgroupid-result.png"></a></p>
+<p>Here, syncing only the <strong>DEMO</strong> group means setting the OpenAEV <strong>Device group</strong> field to <code>367</code>. Separate multiple IDs
+with commas (for example <code>367,366</code>). <code>UnassignedGroup</code> is the default group for machines not assigned to any custom
+group.</p>
+<div class="admonition note">
+<p class="admonition-title">The <code>$select</code> query above requires quoting</p>
+<p>Keep the URI in <strong>single quotes</strong> so PowerShell does not interpret <code>$select</code> as a variable. The app registration
+needs <code>Machine.Read.All</code> (already granted in step 1). A group appears only once it contains at least one machine that
+MDE has seen.</p>
+</div>
+<h3 id="configure-the-openaev-platform_4">Configure the OpenAEV platform</h3>
+<p>To configure the MDE executor, navigate to the <strong>Integrations &gt; Executors</strong> section in the OpenAEV menu and fill in the
+Microsoft Defender for Endpoint integration settings directly from the UI.</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/mde-executor-config.png" data-desc-position="bottom"><img alt="MDE executor configuration in OpenAEV" src="../../assets/mde-executor-config.png"></a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Azure tenant ID</strong></td>
+<td>✅</td>
+<td>Directory (tenant) ID of the Entra app registration</td>
+</tr>
+<tr>
+<td><strong>Client ID</strong></td>
+<td>✅</td>
+<td>Application (client) ID</td>
+</tr>
+<tr>
+<td><strong>Client secret</strong></td>
+<td>✅</td>
+<td>Client secret value</td>
+</tr>
+<tr>
+<td><strong>Device group</strong></td>
+<td>❌</td>
+<td>One or more <code>rbacGroupId</code> separated by commas. Empty = all devices</td>
+</tr>
+<tr>
+<td><strong>Windows script name</strong></td>
+<td>✅</td>
+<td>Must match the uploaded Windows script (default <code>openaev-subprocessor.ps1</code>)</td>
+</tr>
+<tr>
+<td><strong>Unix script name</strong></td>
+<td>✅</td>
+<td>Must match the uploaded Unix script (default <code>openaev-subprocessor.sh</code>)</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Advanced settings</p>
+<p>Defaults rarely need changing: the API base URL (<code>https://api.securitycenter.microsoft.com/api</code>), the auth URL
+(<code>https://login.microsoftonline.com</code>), the register interval (device/agent sync, default <strong>1200s</strong>) and the Live
+Response batch pagination (<strong>10 machines / 5s</strong>, the MDE rate limit is stricter than CrowdStrike).</p>
+</div>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/mde-executor-advanced.png" data-desc-position="bottom"><img alt="MDE executor advanced options" src="../../assets/mde-executor-advanced.png"></a></p>
+<h3 id="checks_4">Checks</h3>
+<p>Once enabled, you should see Microsoft Defender for Endpoint available in your <code>Install agents</code> section.</p>
+<p>The devices in the selected device group(s) should now appear in the endpoints and asset groups sections in OpenAEV
+after the first sync (up to the register interval).</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/mde-assets.png" data-desc-position="bottom"><img alt="MDE assets in OpenAEV" src="../../assets/mde-assets.png"></a></p>
+<div class="admonition note">
+<p class="admonition-title">Where to see executions on the Microsoft side</p>
+<p>Each inject is an MDE <strong>Live Response</strong> action. You can review them in the Microsoft Defender portal:</p>
+<ul>
+<li><strong>Assets &gt; Devices &gt; <em>device</em> &gt; Timeline</strong> and the device <strong>Live response</strong> session log</li>
+<li><strong>Action center &gt; History</strong>, filtered on <em>Action type = Live response</em> / <em>Source = API</em></li>
+<li><strong>Advanced hunting</strong> (KQL (Kusto Query Language) on <code>DeviceProcessEvents</code>) to see the scheduled task, the implant and the payload commands</li>
+</ul>
+</div>
+<div class="admonition success">
+<p class="admonition-title">Installation done</p>
+<p>You are now ready to leverage your Microsoft Defender for Endpoint platform to run OpenAEV Threat Arsenal Actions!</p>
+</div>
+<h4 id="microsoft-defender-for-endpoint-troubleshooting">Microsoft Defender for Endpoint — troubleshooting</h4>
+<div class="admonition tip">
+<p class="admonition-title">Inject is ERROR but I have execution traces (stdout/stderr)</p>
+<p>This is expected: the inject status reflects the <strong>payload's own exit code / stderr</strong>, not an executor failure. If the
+payload command returns a non-zero exit code or writes to <code>stderr</code> (e.g. running <code>net localgroup "Administrators"</code> on a
+non-English Windows, or a test designed to fail off-domain), the trace is marked ERROR even though the executor
+delivered and ran it correctly. Check the <code>stdout</code>/<code>stderr</code>/<code>exit_code</code> in the execution trace to confirm.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Inject stays PENDING then TIMEOUT (no trace)</p>
+<p>The implant was likely killed when the Live Response session ended. Ensure you are running a recent OpenAEV version
+(the implant runs from a <strong>self-deleting SYSTEM scheduled task</strong> on Windows). Check Task Scheduler while an inject runs:
+a task <code>OpenAEV-Inject-...</code> should appear briefly, then disappear.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">\"Agent not found\" / \"Element not found\" on callback</p>
+<p>OpenAEV resolves the calling agent by its <strong>MDE Device ID</strong>. A device that was re-provisioned or manually deleted can
+leave a stale agent whose primary key no longer matches the Device ID. Let a sync cycle run (or restart the platform)
+so the device is re-registered with the correct Device ID before relaunching.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Live Response fails immediately for every device</p>
+<p>Verify <strong>Live Response unsigned script execution</strong> is enabled (see step 2), that both subprocessor scripts are in the
+Live Response Library with the <strong>exact names</strong> configured in OpenAEV, and that the app registration has
+<code>Machine.LiveResponse.All</code> with <strong>admin consent granted</strong>.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Devices are missing or show as inactive</p>
+<p>OpenAEV filters devices by the configured <strong>device group</strong> and marks an agent active from <strong>near
+real-time Advanced Hunting activity</strong> (the device inventory <code>lastSeen</code> lags by up to a day and is
+not reliable). If the app registration lacks <code>AdvancedQuery.Read.All</code>, OpenAEV falls back to the
+sensor <code>healthStatus</code> and logs a warning. Confirm the device group ID, that the machines are
+onboarded and reporting to MDE, and that <code>AdvancedQuery.Read.All</code> is granted.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">An inject times out on a device that looks active</p>
+<p>Live Response only runs while the Defender sensor is <strong>actively connected</strong>. A device can be
+onboarded and healthy yet asleep/offline right now: the <code>runliveresponse</code> action is then created
+but stays <strong>Pending</strong> until the machine reconnects, so the inject times out. This is an inherent
+MDE constraint (one Live Response session per machine, no execution while offline), not an OpenAEV
+error. Stale Pending actions are cancelled automatically before the next dispatch so they never
+block future injects.</p>
+</div>
+<h2 id="caldera-agent">Caldera Agent</h2>
+<p>The Caldera agent can be leveraged to execute implants as detached processes that will then execute threat arsenal
+actions according to
+the <a href="https://docs.openaev.io/latest/deployment/platform/overview/">OpenAEV architecture</a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Caldera already installed</p>
+<p>If you already have a working Caldera installation, just go directly to <a href="#openaev-configuration">OpenAEV configuration section</a>.</p>
+</div>
+<h3 id="deploy-caldera">Deploy Caldera</h3>
+<p>To deploy Caldera, you can just add Caldera to the OpenAEV stack, we advise you to modify your <code>docker-compose.yml</code> and
+add a <a href="https://github.com/OpenAEV-Platform/caldera/blob/filigran/docker/docker-compose.yml">Caldera service</a>:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>services:
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>  caldera:
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    image: openaev/caldera-server:5.1.0
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    restart: always
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    ports:
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>      - "8888:8888"
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    environment:
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>      CALDERA_URL: http://localhost:8888
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    volumes:
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>      - type: bind
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>        source: caldera.yml
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>        target: /usr/src/app/conf/local.yml
+</span></code></pre></div>
+<p>As you can see in the configuration, you will also need a configuration
+file <a href="https://github.com/OpenAEV-Platform/caldera/blob/filigran/docker/caldera.yml">caldera.yml</a> because Caldera does
+not support well environment variables for configuration.</p>
+<p>Download <a href="https://github.com/OpenAEV-Platform/caldera/blob/filigran/docker/caldera.yml">caldera.yml</a> and put it
+alongside your <code>docker-compose.yml</code> file. This file must be modified prior launching, only change what is marked as *
+<em>Change this</em>*, listed below.</p>
+<div class="highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">users</span><span class="p">:</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nt">red</span><span class="p">:</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="nt">red</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ChangeMe</span><span class="w">                                                                     </span><span class="c1"># Change this</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span><span class="nt">blue</span><span class="p">:</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="nt">blue</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ChangeMe</span><span class="w">                                                                    </span><span class="c1"># Change this</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="nt">api_key_red</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ChangeMe</span><span class="w">                                                                 </span><span class="c1"># Change this</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="nt">api_key_blue</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ChangeMe</span><span class="w">                                                                </span><span class="c1"># Change this</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="nt">api_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ChangeMe</span><span class="w">                                                                     </span><span class="c1"># Change this</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="nt">crypt_salt</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ChangeMe</span><span class="w">                                                                  </span><span class="c1"># Change this</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="nt">encryption_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ChangeMe</span><span class="w">                                                              </span><span class="c1"># Change this</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="nt">app.contact.http</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://caldera.myopenaev.myorganization.com:8888</span><span class="w">                    </span><span class="c1"># Change this</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="nt">app.contact.tunnel.ssh.user_password</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ChangeMe</span><span class="w">                                        </span><span class="c1"># Change this</span>
+</span></code></pre></div>
+<p>Just update your stack and check Caldera is running:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+</span></code></pre></div>
+<h3 id="openaev-configuration">OpenAEV configuration</h3>
+<p>To configure the Caldera executor, navigate to the <strong>Integrations &gt; Executors</strong> section in the OpenAEV menu and fill in the Caldera integration settings directly from the UI.</p>
+<div class="admonition info">
+<p class="admonition-title">Migrating from environment variables</p>
+<p>If you previously configured this executor using environment variables or platform properties, these values have been <strong>automatically migrated</strong> to the database on first startup. After migration, changes to environment variables or properties are no longer taken into account — all configuration is now managed through the UI.</p>
+</div>
+<h3 id="agents">Agents</h3>
+<h4 id="deploy-agents">Deploy agents</h4>
+<p>Once enabled, you should see Caldera available in your <code>Install agents</code> section:</p>
+<p>OpenAEV has built-in instruction if you want command line examples to deploy the agent on one endpoint.</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/caldera-deploy-agent.png" data-desc-position="bottom"><img alt="Caldera deploy agents" src="../../assets/caldera-deploy-agent.png"></a></p>
+<div class="admonition warning">
+<p class="admonition-title">Caldera AV (antivirus) detection</p>
+<p>By default, the Caldera agent "Sandcat" is detected and blocked by antivirus. Here, we are using Caldera as a neutral executor that will execute implants that will execute Threat Arsenal Actions, so you need to add the proper AV exclusions as instructed in the OpenAEV screen.</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/caldera-av.png" data-desc-position="bottom"><img alt="Caldera AV exclusion" src="../../assets/caldera-av.png"></a></p>
+</div>
+<h4 id="checks_5">Checks</h4>
+<p>All assets with a proper Caldera agent installed using the OpenAEV provided command line (then persistent) should now be
+available in the OpenAEV endpoints list.</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/caldera-endpoints.png" data-desc-position="bottom"><img alt="Endpoints" src="../../assets/caldera-endpoints.png"></a></p>
+<h4 id="uninstallation">Uninstallation</h4>
+<p>Run the following commands with an administrator Powershell in order to uninstall your Caldera agent:<br>
+<code>schtasks /delete /tn OpenAEVCaldera</code><br>
+<code>Stop-Process -Name oaev-agent-caldera</code><br>
+<code>rm -force -Recurse "C:\Program Files (x86)\Filigran\OAEV Caldera"</code></p>
+<h2 id="implant-directories-and-cleanup">Implant directories and cleanup</h2>
+<p>For all executors (except Caldera and OpenAEV Agent) :</p>
+<h3 id="implant-directories">Implant directories</h3>
+<p>Implants are downloaded into a <code>runtimes/implant-XXXXX</code> subdirectory relative to the agent's installation directory, where <code>XXXXX</code> is a unique UUID generated for each inject execution.</p>
+<p>Each implant directory is unique per inject.</p>
+<p>The installation directory path varies depending on the agent type and installation mode. Refer to <a href="../../../usage/environment/openaev-agent/#privileges-security_1">installation mode</a> for the exact paths.</p>
+<h3 id="cleanup">Cleanup</h3>
+<p>Old implant directories are periodically cleaned up by the platform. At the interval defined by <code>clean-implant-interval</code> (default: <strong>8 hours</strong>), the platform sends a cleanup command to each endpoint agent to remove directories in <code>runtimes/</code> and <code>payloads/</code> that are older than <strong>24 hours</strong>.</p>
+<div class="admonition note">
+<p class="admonition-title">OpenAEV Agent</p>
+<p>The OpenAEV Agent has its own built-in garbage collector with different thresholds. See the <a href="../../../usage/environment/openaev-agent/">OpenAEV Agent documentation</a> for details.</p>
+</div>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<p>When an inject fails to execute on an endpoint, follow this 5-step diagnostic process.
+This procedure applies to all EDR (Endpoint Detection and Response)-based executors (CrowdStrike, Palo Alto Cortex, etc.).</p>
+<h3 id="step-1-run-the-inject-from-openaev">Step 1 — Run the inject from OpenAEV</h3>
+<p>Trigger the inject normally from the OpenAEV platform and wait for it to reach a <strong>failed</strong> or <strong>timeout</strong> state.</p>
+<h3 id="step-2-check-the-executor-for-an-execution-trace">Step 2 — Check the executor for an execution trace</h3>
+<p>Navigate to the executor console and look for a trace of the execution attempt.</p>
+<div class="admonition note">
+<p class="admonition-title">Executor-dependent</p>
+<p>The availability of an execution trace depends on the executor. See the <a href="#per-executor-how-to-find-the-execution-trace">per-executor sections below</a>.</p>
+</div>
+<ul>
+<li>✅ <strong>Trace found</strong> → proceed to Step 3</li>
+<li>❌ <strong>No trace</strong> → the issue is upstream: check connectivity, API credentials, whether the endpoint agent is properly registered in the executor platform, whether the script/payload pushed to the executor is correct, or whether the executor itself is misconfigured</li>
+</ul>
+<h3 id="step-3-retrieve-the-command">Step 3 — Retrieve the command</h3>
+<p>In the executor console, locate and copy the exact command that was pushed by OpenAEV.</p>
+<h3 id="step-4-decode-and-inspect-the-command">Step 4 — Decode and inspect the command</h3>
+<div class="admonition warning">
+<p class="admonition-title">First potential failure point</p>
+<p>The command may appear valid in the executor but fail silently due to encoding issues invisible at the platform level.</p>
+</div>
+<p>EDR-based executors use a Base64-encoded payload. Decode it before inspecting.</p>
+<p>Once decoded, verify:</p>
+<ul>
+<li>Paths are correct for the target OS</li>
+<li>Parameters are well-formed</li>
+<li>No escaping or encoding issues are present</li>
+</ul>
+<h3 id="step-5-execute-the-command-directly-on-the-endpoint">Step 5 — Execute the command directly on the endpoint</h3>
+<div class="admonition warning">
+<p class="admonition-title">Second potential failure point</p>
+<p>Running the command manually on the endpoint isolates whether the failure is in the delivery layer or the command itself.</p>
+</div>
+<p>Connect to the target endpoint via CLI and run the decoded command directly. Capture the <strong>full CLI output</strong> — this is the most actionable error information for diagnosis.</p>
+
+
+
+
+
+
+
+  
+    
+  
+  
+    
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="August 6, 2026 10:08:08 UTC"><span class="timeago" datetime="2026-08-06T10:08:08+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="August 6, 2026 10:08:08 UTC">2026-08-06</span>
+  </span>
+
+    
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Created">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="September 17, 2024 07:36:23 UTC"><span class="timeago" datetime="2024-09-17T07:36:23+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="September 17, 2024 07:36:23 UTC">2024-09-17</span>
+  </span>
+
+    
+    
+    
+  </aside>
+
+
+  
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer">
+        
+          
+          <a href="../../upgrade/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Upgrade">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Upgrade
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../injectors/" class="md-footer__link md-footer__link--next" aria-label="Next: Injectors">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Injectors
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      © 2026 Filigran. All rights reserved
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/OpenAEV-Platform" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://blog.filigran.io" target="_blank" rel="noopener" title="blog.filigran.io" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M384 512H96c-53 0-96-43-96-96V96C0 43 43 0 96 0h304c26.5 0 48 21.5 48 48v288c0 20.9-13.4 38.7-32 45.3V448c17.7 0 32 14.3 32 32s-14.3 32-32 32zM96 384c-17.7 0-32 14.3-32 32s14.3 32 32 32h256v-64zm32-232c0 13.3 10.7 24 24 24h176c13.3 0 24-10.7 24-24s-10.7-24-24-24H152c-13.3 0-24 10.7-24 24m24 72c-13.3 0-24 10.7-24 24s10.7 24 24 24h176c13.3 0 24-10.7 24-24s-10.7-24-24-24z"></path></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://community.filigran.io" target="_blank" rel="noopener" title="community.filigran.io" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M94.1 315.1c0 25.9-21.2 47.1-47.1 47.1S0 341 0 315.1 21.2 268 47.1 268h47.1v47.1zm23.7 0c0-25.9 21.2-47.1 47.1-47.1s47.1 21.2 47.1 47.1v117.8c0 25.9-21.2 47.1-47.1 47.1s-47.1-21.2-47.1-47.1zm47.1-189c-25.9 0-47.1-21.2-47.1-47.1s21.2-47 47.1-47S212 53.2 212 79.1v47.1h-47.1zm0 23.7c25.9 0 47.1 21.2 47.1 47.1S190.8 244 164.9 244H47.1C21.2 244 0 222.8 0 196.9s21.2-47.1 47.1-47.1zm189 47.1c0-25.9 21.2-47.1 47.1-47.1s47 21.2 47 47.1-21.2 47.1-47.1 47.1h-47.1v-47.1zm-23.7 0c0 25.9-21.2 47.1-47.1 47.1S236 222.8 236 196.9V79.1c0-25.9 21.2-47.1 47.1-47.1s47.1 21.2 47.1 47.1zm-47.1 189c25.9 0 47.1 21.2 47.1 47.1s-21.2 47-47.1 47-47.1-21.2-47.1-47.1v-47.1h47.1zm0-23.7c-25.9 0-47.1-21.2-47.1-47.1s21.2-47.1 47.1-47.1h117.8c25.9 0 47.1 21.2 47.1 47.1s-21.2 47.1-47.1 47.1z"></path></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://linkedin.com/company/filigran" target="_blank" rel="noopener" title="linkedin.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3M135.4 416H69V202.2h66.5V416zM102.2 96a38.5 38.5 0 1 1 0 77 38.5 38.5 0 1 1 0-77m282.1 320h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9z"></path></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://twitter.com/FiligranHQ" target="_blank" rel="noopener" title="twitter.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M357.2 48h70.6L273.6 224.2 455 464H313L201.7 318.6 74.5 464H3.8l164.9-188.5L-5.2 48h145.6l100.5 132.9zm-24.8 373.8h39.1L119.1 88h-42z"></path></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://facebook.com/FiligranHQ" target="_blank" rel="noopener" title="facebook.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M512 256C512 114.6 397.4 0 256 0S0 114.6 0 256c0 120 82.7 220.8 194.2 248.5V334.2h-52.8V256h52.8v-33.7c0-87.1 39.4-127.5 125-127.5 16.2 0 44.2 3.2 55.7 6.4V172c-6-.6-16.5-1-29.6-1-42 0-58.2 15.9-58.2 57.2V256h83.6l-14.4 78.2H287v175.9C413.8 494.8 512 386.9 512 256"></path></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.path", "navigation.footer", "navigation.expand", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "search.highlight"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../../js/timeago.min.js"></script>
+      
+        <script src="../../../js/timeago_mkdocs_material.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
