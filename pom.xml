@@ -28,6 +28,7 @@
         <commons-validator.version>1.11.0</commons-validator.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
+        <elasticsearch.version>9.5.1</elasticsearch.version>
         <jjwt.version>0.13.0</jjwt.version>
         <postgresql.version>42.7.13</postgresql.version>
         <pyroscope.version>2.9.1</pyroscope.version>
@@ -98,6 +99,11 @@
     </repositories>
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>co.elastic.clients</groupId>
+                <artifactId>elasticsearch-java</artifactId>
+                <version>${elasticsearch.version}</version>
+            </dependency>
             <dependency>
                 <groupId>io.jsonwebtoken</groupId>
                 <artifactId>jjwt-api</artifactId>

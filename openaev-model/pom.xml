@@ -13,7 +13,6 @@
     <description>OpenAEV model</description>
 
     <properties>
-        <elasticsearch.version>9.5.1</elasticsearch.version>
         <opensearch.version>3.9.0</opensearch.version>
         <amqp-client.version>5.35.0</amqp-client.version>
         <azure-core-management.version>1.19.6</azure-core-management.version>
@@ -112,7 +111,6 @@
         <dependency>
             <groupId>co.elastic.clients</groupId>
             <artifactId>elasticsearch-java</artifactId>
-            <version>${elasticsearch.version}</version>
         </dependency>
         <dependency>
             <groupId>org.opensearch.client</groupId>
