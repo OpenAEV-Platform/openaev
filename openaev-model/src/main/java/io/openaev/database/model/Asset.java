@@ -12,6 +12,7 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.DomainConstraint;
 import io.openaev.annotation.Ipv4OrIpv6Constraint;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.AuditLogHash;
 import io.openaev.database.audit.AuditLogIgnore;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
@@ -230,6 +231,7 @@ public class Asset implements TenantBase {
   @Type(StringArrayType.class)
   @Column(name = "asset_mac_addresses")
   @JsonProperty("asset_mac_addresses")
+  @AuditLogHash
   private String[] macAddresses;
 
   public void setHostname(String hostname) {
@@ -284,6 +286,7 @@ public class Asset implements TenantBase {
    */
   @Column(name = "ai_target_token")
   @JsonProperty("ai_target_token")
+  @AuditLogHash
   private String aiTargetToken;
 
   /**

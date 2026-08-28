@@ -5,6 +5,8 @@ import static io.openaev.config.AppConfig.PHONE_FORMAT;
 import static io.openaev.config.AppConfig.PHONE_REGEXP;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.audit.AuditLogHash;
+import io.openaev.database.audit.AuditLogIgnore;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -20,18 +22,22 @@ public class PlayerInput {
   @Email(message = EMAIL_FORMAT)
   @NotBlank
   @JsonProperty("user_email")
+  @AuditLogIgnore
   private String email;
 
   @JsonProperty("user_firstname")
+  @AuditLogIgnore
   private String firstname;
 
   @JsonProperty("user_lastname")
+  @AuditLogIgnore
   private String lastname;
 
   @JsonProperty("user_organization")
   private String organizationId;
 
   @JsonProperty("user_country")
+  @AuditLogIgnore
   private String country;
 
   @JsonProperty("user_tags")
@@ -42,12 +48,15 @@ public class PlayerInput {
 
   @JsonProperty("user_phone")
   @Pattern(regexp = PHONE_REGEXP, message = PHONE_FORMAT)
+  @AuditLogIgnore
   private String phone;
 
   @JsonProperty("user_phone2")
   @Pattern(regexp = PHONE_REGEXP, message = PHONE_FORMAT)
+  @AuditLogIgnore
   private String phone2;
 
   @JsonProperty("user_pgp_key")
+  @AuditLogHash
   private String pgpKey;
 }

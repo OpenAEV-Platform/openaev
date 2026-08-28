@@ -294,7 +294,7 @@ class LogServiceTest {
   @DisplayName("logRequestEvent — redaction of entity_diffs and signature")
   class LogRequestEventRedaction {
 
-    private static final String REDACTED = "*** Redacted ***";
+    private static final String REDACTED = "[REDACTED]";
 
     @BeforeEach
     void enableAudit() {

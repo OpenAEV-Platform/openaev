@@ -9,6 +9,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.context.TenantContext;
+import io.openaev.database.audit.AuditLogHash;
+import io.openaev.database.audit.AuditLogIgnore;
+import io.openaev.database.audit.AuditLogRedact;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.*;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -61,6 +64,7 @@ public class User implements Base {
   @JsonProperty("user_firstname")
   @Queryable(filterable = true, searchable = true, sortable = true)
   @Schema(description = "First name of the user")
+  @AuditLogIgnore
   private String firstname;
 
   @Setter
@@ -68,6 +72,7 @@ public class User implements Base {
   @JsonProperty("user_lastname")
   @Queryable(filterable = true, searchable = true, sortable = true)
   @Schema(description = "Last name of the user")
+  @AuditLogIgnore
   private String lastname;
 
   @Getter(NONE)
@@ -75,6 +80,7 @@ public class User implements Base {
   @Column(name = "user_lang")
   @JsonProperty("user_lang")
   @Schema(description = "Language of the user")
+  @AuditLogIgnore
   private String lang = LANG_AUTO;
 
   public String getLang() {
@@ -113,6 +119,7 @@ public class User implements Base {
   @Queryable(filterable = true, searchable = true, sortable = true)
   @NotBlank
   @Schema(description = "Email of the user")
+  @AuditLogIgnore
   private String email;
 
   public void setEmail(final String email) {
@@ -130,18 +137,21 @@ public class User implements Base {
   @Column(name = "user_phone")
   @JsonProperty("user_phone")
   @Schema(description = "Phone number of the user")
+  @AuditLogIgnore
   private String phone;
 
   @Setter
   @Column(name = "user_phone2")
   @JsonProperty("user_phone2")
   @Schema(description = "Secondary phone number of the user")
+  @AuditLogIgnore
   private String phone2;
 
   @Setter
   @Column(name = "user_pgp_key")
   @JsonProperty("user_pgp_key")
   @Schema(description = "PGP key of the user")
+  @AuditLogHash
   private String pgpKey;
 
   @Setter
@@ -154,6 +164,7 @@ public class User implements Base {
   @Setter
   @Column(name = "user_password")
   @JsonIgnore
+  @AuditLogRedact
   private String password;
 
   @Setter
@@ -190,12 +201,14 @@ public class User implements Base {
   @Column(name = "user_country")
   @JsonProperty("user_country")
   @Schema(description = "Country of the user")
+  @AuditLogIgnore
   private String country;
 
   @Setter
   @Column(name = "user_city")
   @JsonProperty("user_city")
   @Schema(description = "City of the user")
+  @AuditLogIgnore
   private String city;
 
   // -- RELATIONS --
@@ -268,6 +281,7 @@ public class User implements Base {
       inverseJoinColumns = @JoinColumn(name = "communication_id"))
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("user_communications")
+  @AuditLogIgnore
   private List<Communication> communications = new ArrayList<>();
 
   @ArraySchema(
