@@ -43,11 +43,40 @@ This is the single most important architectural consequence of choosing Option C
 
 The naive reading of Option C says: tenant is a *set-membership* check
 (`row_tenant_id = ANY(app.current_tenants)`) while marking is an *ordinal* check
-(`row_marking_order <= my_clearance`), so the generic mechanism must support two comparison styles
-(this is the concern raised in the parent doc's deep dive).
+(`row_marking_order <= my_clearance`), so the generic mechanism must support two comparison styles.
 
-> 💡💡 **It does not have to.** Ordinality is resolved **once per request, in Java**, where the user's groups and
-clearances are already loaded. In java we have a logic that flatten set of marking ids and resolve => `app.current_markings = "id1,id2,id3"` where for ex: `id1:TPL:clear, id2: TPL:green, id3: CUSTOM1:green`
+> 💡💡 **It does not have to.** Ordinality is collapsed **in Java**, by `MarkingScopeResolver`: take the
+> **highest order granted per type**, then expand it back into every id of that type at or below it. What
+> reaches the database is a flat set of ids, so the SQL predicate stays a plain containment test —
+> `app.current_markings = "id1,id2,id3"` where e.g. `id1: TLP:CLEAR, id2: TLP:GREEN, id3: CUSTOM1:GREEN`.
+
+**What `<@` is for.** `<@` is Postgres's array operator for *"is contained by"*: `A <@ B` is true when **every**
+element of `A` is also in `B`. The predicate `row.marking_ids <@ my_clearance` therefore reads *"is every
+marking on this row inside my clearance?"*. With clearance `{green, amber}`:
+
+| Row's `marking_ids` | `<@ {green,amber}` | Visible? | Why |
+|---|---|---|---|
+| `{}` (unmarked) | true | ✅ | the empty set is contained in everything — unmarked rows are visible for free |
+| `{green}` | true | ✅ | held |
+| `{green, amber}` | true | ✅ | both held |
+| `{green, red}` | **false** | ❌ | `red` is not held — **one miss denies the whole row** |
+| `{red}` | false | ❌ | not held |
+
+That fourth row is the point: `<@` gives **AND semantics** for free — you need *all* of a row's markings, not
+any of them. Using `&&` (overlap, "any") instead would make `{green, red}` visible to someone holding only
+green: a leak. And with no clearance the right side is `{}`, so every marked row is denied while unmarked
+rows still pass — fail-closed with no extra flag.
+
+Three details the implementation adds to that sentence:
+
+- **Per type, independently.** Types are separate scales: holding `TLP:RED` says nothing about `PAP`, and a
+  type the caller was granted nothing on contributes nothing (it does not silently grant that type's lowest
+  level).
+- **Resolved per (user, tenant, bypass) and cached**, not recomputed on every request —
+  `MarkingClearanceCacheManager` caches it with a 5-minute TTL. Eviction is therefore a **correctness**
+  requirement: a stale clearance that is larger than current data fails **open**.
+- **Bypass resolves to the whole tenant scale**, expanded into an explicit id list rather than a wildcard, so
+  no wildcard ever enters the GUC channel on the HTTP path.
 
 ### 2.3 What many-to-many changes
 
@@ -58,6 +87,13 @@ set. That single difference — not the choice of schema — is what drives the 
 tenant  :  row's tenant_id   ∈  my tenants          membership
 marking :  row's marking set ⊆  my clearance set    containment
 ```
+
+**Flattening (§2.2) does not make marking scalar.** It removes *ordinality* from the clearance side, not
+*cardinality* from the row side: a row can still carry `{TLP:GREEN, PAP:AMBER}` — two markings from two
+scales — so there is no single value to compare. Both sides stay sets, which is why the predicate is `<@`
+(containment) and not `= ANY(...)` (membership). What flattening buys is that the SQL never has to know
+about `order` or `type`.
+
 ## 3. Data model
 
 ### 3.1 Choosing the many-to-many shape — two options, one decision
@@ -381,29 +417,7 @@ unset, and every marked row is hidden — fail-closed, but silently. This is ide
 negotiable.
 
 **Why no `MarkingCtx` parameter is needed.** `TxCtx` is a parameter because a tenant scope is a *caller
-choice*: a user who belongs to three tenants must say which one they are acting in (`X-Tenant-Ids`, a path
-variable, or a job passing one explicitly). It is not derivable from the authenticated principal, and v2's
-whole correction over v1 was to stop smuggling that choice through a thread-local.
-
-A **clearance is not a choice**. There is no "act at TLP:GREEN today" selector: it is a pure function of
-*(authenticated user, selected tenant)* → groups → markings → expanded id set. Everything that function
-needs is already at hand when the aspect runs — the principal in the security context, the tenant in the
-`TxCtx` argument that is *already there*. So the aspect resolves it itself:
-
-```
-ScopeTransactionAspect#applyScope(joinPoint):
-  1. an explicit MarkingCtx argument, if the method has one   → run-as / impersonation, tests
-  2. otherwise MarkingScopeResolver.resolve(principal, txCtx) → every HTTP handler, no signature change
-  3. otherwise MarkingCtx.Missing                             → empty GUC, fail-closed
-```
-
-The practical consequence for step 3: **activating `assets` on marking changes no controller signature.**
-The endpoints already carry `TxCtx` and `@Transactional` from tenant v2, and that is enough.
-
-Note what this list does **not** cover. The aspect triggers on `@Transactional`, and background code is
-forbidden from using `@Transactional` — it opens transactions through the `TenantScopedTransaction`
-primitive instead. So none of the three branches ever runs off the request thread, and branch 3 is not the
-background story. §4.1.3 is.
+choice* wheereas a **clearance is not a choice**. The practical consequence: **activating `assets` on marking changes no controller signature.**
 
 #### 4.1.2 The two dimensions are independent, not layered
 
@@ -421,15 +435,6 @@ independent, and all four combinations are legal:
 | ❌ | ✅ | **marking alone** — the table keeps tenant v1 `@Filter`, or is not tenant-scoped at all |
 | ❌ | ❌ | inert |
 
-Row 3 is the one worth stating explicitly, because it is not obvious and it is load-bearing for the rollout:
-**a table can be marking-activated while its tenant isolation is still v1 `@Filter`, or while it has no
-tenant dimension at all.** Marking does not wait for the v2 tenant migration to reach a table. The v1
-coexistence case holds specifically — the marking predicate adds **zero bind parameters**, so it
-cannot disturb the positional placeholders a Hibernate `@Filter` relies on.
-
-The one place the dimensions *do* meet is the resolver, not the inspector: which markings a user holds
-depends on their groups **in the selected tenant**, so `MarkingScopeResolver` reads the tenant from `TxCtx`.
-That is a dependency of the clearance *computation*, not of the SQL rewrite.
 
 #### 4.1.3 Background jobs — worked example: `InjectsExecutionJob`
 
@@ -438,22 +443,8 @@ is a **marked asset**. Does the job see that asset?
 
 **There is no user, so there is no clearance to derive.**
 
-**The answer: the job runs at system clearance, assigned by the primitive.** With the change specified in
-[step 2.3 of the plan](./implementation-plan-option-c.md) — `setScope` writing `app.current_markings`
-alongside `app.current_tenants`, defaulting to all markings of the tenant in scope and refusing to open
-unset — `tenantTx.execute(TxCtx.forTenant(t), …)` also writes *every marking of tenant `t`* into
-`app.current_markings`. `ARRAY['tlp-red'] <@ ARRAY['tlp-clear','tlp-green','tlp-amber','tlp-red',…]` → true.
+**The answer: the job runs at system clearance, assigned by the primitive.** 
 The job sees every asset of its tenant, exactly as it does today, and **activating `assets` is a no-op for it**.
-
-> ⚠️ Note the asymmetry with tenant: the job is *narrowed* to one tenant because that is a real boundary it must
-> respect, but it is *widened* to all markings because marking is a boundary between **users**, and a
-> scheduler is not a user. It is the `isAdminOrBypass()` equivalent, expressed in the primitive.
-
-A second reason to **assign** rather than derive here: `InjectsExecutionJob` runs on the shared
-`ForkJoinPool.commonPool`, which borrows the calling thread (see the javadoc on `executeInTenant`). Any
-principal-derived clearance would be a thread-local, and a borrowed thread could hand the job whatever
-clearance the borrower happened to have — non-deterministic, and occasionally *less* than the job needs.
-Explicit assignment removes the question.
 
 > ⚠️ [OUT OF SCOPE of this POC] **But the job also writes.** It creates `InjectExpectation` rows against those
 > marked assets, and those rows are later read by real users on the HTTP path. Seeing every asset obliges it
@@ -494,198 +485,3 @@ sequenceDiagram
     PG-->>API: rows in tenant AND fully within clearance
     API-->>U: 200 (over-clearance rows do not exist → 404 on direct GET)
 ```
-
-### 4.3 Sequence — write path (explicit guard)
-
-**Reads are filtered structurally; writes are guarded explicitly.** The rewrite answers *"which row am I
-touching?"*. It cannot answer *"which value am I writing?"* — the predicate tests the row's **pre-image**,
-and the markings being written are in the `SET`/`VALUES` clause, which no `WHERE` can see.
-
-The attack this leaves open, in one line: a `TLP:GREEN` user loads a `TLP:GREEN` asset (✅ visible), sets it
-to `TLP:RED`, and the `UPDATE … WHERE is_marking_set_allowed(marking_ids)` still passes — because the row is
-*still GREEN at that instant*. After commit it is invisible to them and to every colleague at their level,
-and they cannot undo it.
-
-> This is not a gap peculiar to marking. Tenant v2 has the same one and resolves it the same way: the
-> inspector guards `INSERT … SELECT` only, and explicitly leaves ordinary ORM writes to the application
-> (*"VALUES inserts cannot be distinguished from ORM-generated ones at the SQL level, so their scope
-> assignment stays an application concern"* — `ScopeStatementInspector#rewriteInsert`). The marking guard
-> therefore belongs in the service layer, on the write path below.
-
-Three independent layers apply on write:
-
-| Layer | Question | Mechanism | Failure |
-|---|---|---|---|
-| 1 | May I modify this entity type? | `@AccessControl(ENDPOINT, WRITE)` | 403 |
-| 2 | May I manage marking assignments at all? | `ASSIGN_MARKING` capability — `DELETE_MARKING_ASSIGNMENT` for removals | 403 |
-| 3 | May I write *these* markings? | `MarkingEscalationValidator` clearance check | 403 |
-
-Layer 2 comes from the **"Assign marking"** capability chain (Task 1/US1 AC1) — `Access marking assignment`
-→ `Assign marking` → `Delete marking assignment` — independent from the "Marking definitions" chain. Per
-AC4, `BYPASS` overrides layers 2 and 3.
-
-The check itself is one containment test, the same one the read uses: **every marking being written must be
-one the user holds.** Two properties fall out of that single rule, with no special cases:
-
-- **No self-lockout.** A user can never raise a row above their own clearance, so they can never make a row
-  invisible to themselves. Worth an explicit test.
-- **Declassification is allowed.** Lowering or removing a marking yields a subset of the clearance, so it
-  passes. That is correct — a `TLP:GREEN` user may mark a `TLP:GREEN` asset `TLP:CLEAR` — but it *widens*
-  visibility, so it is gated by the separate `DELETE_MARKING_ASSIGNMENT` capability and audited.
-
-```mermaid
-sequenceDiagram
-    actor U as User
-    participant API as Endpoint API
-    participant AOP as AccessControlAspect
-    participant SVC as EndpointService
-    participant V as MarkingEscalationValidator
-    participant DB as Repository
-
-    U->>API: PUT /api/endpoints/{id} (marking_ids = [TLP:RED, PAP:AMBER])
-    API->>AOP: @AccessControl(ENDPOINT, WRITE)
-    AOP-->>API: allow / 403
-    API->>SVC: update(id, input)
-    Note over SVC: the row was already clearance-filtered<br/>on load — over-clearance ⇒ 404
-    SVC->>V: assertCanAssignMarkings(user, added, removed)
-    alt lacks ASSIGN_MARKING (or DELETE_MARKING_ASSIGNMENT for removals)
-        V-->>SVC: 403 MISSING_CAPABILITY
-    else an added marking is above the user's clearance
-        V-->>SVC: 403 UNHELD_MARKING
-    else allowed (or BYPASS)
-        opt marking removed or lowered
-            SVC->>SVC: audit declassification (actor, entity, before → after)
-        end
-        SVC->>DB: write marking_ids
-        DB-->>SVC: 200 OK
-    end
-```
-
-
-### 4.4 SQL function and the generated predicate
-
-Both schema shapes of §3.1 implement the **same** invariant — *a row is visible when every marking it
-carries is one I hold* — and both must reproduce this truth table, which is shape-independent. It is the
-acceptance criterion for either implementation.
-
-Clearance **TLP:WARM** (order 2, between GREEN and RED), expanded in Java to `m_clear,m_green,m_warm`:
-
-| asset | markings | visible | why |
-|---|---|---|---|
-| `a1` | `m_green` | ✅ | GREEN ≤ WARM |
-| `a2` | `m_red` | ❌ | RED > WARM |
-| `a3` | `m_green` + `p_red` | ❌ | GREEN held, but `p_red` is not — **AND**, not OR |
-| `a4` | *(none)* | ✅ | nothing to lack ⇒ visible for free |
-
-`a3` and `a4` are the two rows that separate a correct implementation from a plausible-looking one. The
-naive positive form — *"keep rows carrying a marking I hold"* — gets **both** wrong: it shows `a3` (one held
-marking was enough ⇒ a PAP:RED asset leaks to a TLP:WARM user) and hides `a4` (an unmarked asset becomes
-invisible to everyone). Every predicate below is built around that.
-
-> **Step 1 happens in Java, before any SQL runs.** "WARM ≥ GREEN" is expanded once per request into
-> `m_clear,m_green,m_warm` and written to `set_config('app.current_markings', …, true)`. After that,
-> ordinality no longer exists: SQL only ever does set membership (§2.2).
-
----
-
-#### 4.4.1 Option 2 — `marking_ids text[]` column *(chosen, implemented)*
-
-```sql
-CREATE OR REPLACE FUNCTION is_marking_set_allowed(row_marking_ids text[])
-RETURNS boolean
-LANGUAGE sql STABLE PARALLEL SAFE AS $$
-  SELECT COALESCE(row_marking_ids, '{}'::text[])
-         <@ COALESCE(
-              string_to_array(NULLIF(current_setting('app.current_markings', true), ''), ','),
-              '{}'::text[])
-$$;
-```
-
-Generated by `MarkingDimension#readPredicate("assets", "t")`:
-
-```sql
-is_marking_set_allowed(t.marking_ids)
-```
-
-That is the entire predicate. Postgres's `<@` ("is contained by") **is** the AND semantics, so all four rows
-of the truth table fall out of one operator with no special cases.
-
-**Both `COALESCE`s are load-bearing**, and each guards a different row of the table:
-- `NULL <@ x` is `NULL`, which a `WHERE` drops — without the left one, an **unmarked row would vanish**
-  (`a4`).
-- `x <@ NULL` is also `NULL` — without the right one, a user with **no clearance would see nothing at all**,
-  including unmarked rows. Fail-closed here means "no marked row", not "no row".
-
-> 🔴 **Do not "optimise" this to `NOT (marking_ids && :lacked)`.** It is GIN-friendly and tempting, but
-> `:lacked` is *"all markings minus mine"*, computed when the clearance was resolved. A marking definition
-> created **after** that moment is in neither set, so rows carrying it match neither side and become
-> visible — it **fails open**. Pinned by a regression test (`FailOpenTrap`).
-
-**Measured, not assumed** (200k rows, real `EXPLAIN (ANALYZE)`, step 1.4):
-
-```
-is_marking_set_allowed(marking_ids)   →  94.9 ms   Parallel Seq Scan
-  Filter: (COALESCE(marking_ids,'{}') <@ COALESCE(string_to_array(NULLIF(current_setting(…),''),','),'{}'))
-marking_ids <@ '{tlp_green}'::text[]  →  43.6 ms   Seq Scan
-```
-
-The `Filter:` line is the finding: the function is a single-statement SQL function, so the planner
-**inlines** it and sees a real `<@` operator rather than a black box. Residual cost ≈ **0.25 µs/row**, all of
-it GUC parsing — the same price tenant v2 already pays.
-
-#### 4.4.2 Option 1 — join table + anti-join *(fallback of record)*
-
-Retained because it is the shape to fall back to if Option 2's missing FK (§3.2) proves unacceptable. It was
-implemented and green before the flip (commit `7056fd6a32`), so this is a description of working code, not a
-sketch.
-
-```sql
-CREATE OR REPLACE FUNCTION is_marking_missing(row_marking_id text)
-RETURNS boolean
-LANGUAGE sql STABLE PARALLEL SAFE AS $$
-  SELECT CASE
-    -- no clearance ⇒ every marking is missing ⇒ every MARKED row denied (unmarked rows unaffected)
-    WHEN current_setting('app.current_markings', true) IS NULL
-      OR current_setting('app.current_markings', true) = '' THEN true
-    ELSE COALESCE(
-           NOT (row_marking_id = ANY (
-             string_to_array(current_setting('app.current_markings', true), ','))),
-           true)
-  END
-$$;
-```
-
-```sql
-NOT EXISTS (SELECT 1
-              FROM assets_markings t_mk
-             WHERE t_mk.asset_id = t.asset_id
-               AND is_marking_missing(t_mk.marking_id))
-```
-
-**The function is named — and returns — negatively, on purpose.** `is_marking_missing(m)` is true when the
-caller does *not* hold `m`. A positively named `can_access_marking()` reads like a row-level visibility test,
-which invites `EXISTS (… AND can_access_marking(…))` — precisely the positive form that breaks `a3` and
-`a4`. Named this way it cannot be mistaken for one, and the generated SQL loses a double negative.
-Fail-closed therefore means returning `true`, and `COALESCE(…, true)` is load-bearing: `NULL = ANY(…)` is
-`NULL`, which would drop the row from the inner `WHERE`, make `EXISTS` false, and expose the marked row.
-
-**Why "anti-join".** The inner query hunts for *problems*, not permissions: it keeps only the markings on the
-row that the caller **lacks**. Zero left over ⇒ `NOT EXISTS` ⇒ visible. Postgres names the node literally and
-does not run it as a per-row loop — it scans the join table once, keeps the missing rows, hashes them, and
-subtracts them from `assets` in a single pass:
-
-```
- Hash Right Anti Join
-   Hash Cond: (a_mk.asset_id = a.asset_id)
-   ->  Seq Scan on assets_markings a_mk
-         Filter: CASE WHEN (current_setting('app.current_markings', true) IS NULL OR … = '')
-                      THEN true ELSE COALESCE((marking_id <> ALL (string_to_array(…, ','))), true) END
-   ->  Hash
-         ->  Seq Scan on assets a
-```
-
-Two costs Option 2 does not have: the predicate must know the marked table's **primary key** (so a
-composite-key relationship table needs a special case, §3.1), and the join table is itself a table the
-inspector must be told to filter — otherwise reading a row's markings leaks the markings of rows the caller
-cannot see.
-
