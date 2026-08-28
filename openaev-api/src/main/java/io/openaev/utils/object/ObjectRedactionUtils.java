@@ -54,7 +54,11 @@ public class ObjectRedactionUtils {
   private static final Set<Pattern> ALLOWED_SENSITIVE_FIELDS_REGEX_TO_HASH =
       Stream.concat(
               ALLOWED_SENSITIVE_FIELDS_REGEX_TO_REDACT.stream(),
-              Set.of(Pattern.compile("^token_id$"), Pattern.compile("^token_user$")).stream())
+              Set.of(
+                  Pattern.compile("^token_id$"),
+                  Pattern.compile("^token_user$"),
+                  Pattern.compile("^token_user_id$"))
+                  .stream())
           .collect(Collectors.toSet());
 
   /** Fields to remove only when the entity type is USER_ENTITY_TYPES (PII protection). */
