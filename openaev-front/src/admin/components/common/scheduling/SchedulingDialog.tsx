@@ -1,3 +1,11 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { UpdateOutlined } from '@mui/icons-material';
 import {
@@ -8,11 +16,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
   FormControlLabel,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
   Switch,
   ToggleButton,
@@ -396,21 +400,22 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                         control={control}
                         name="weekOfMonth"
                         render={({ field }) => (
-                          <FormControl fullWidth>
-                            <InputLabel variant="standard">{t('Week of month')}</InputLabel>
-                            <Select
-                              value={field.value}
-                              label={t('Week of month')}
-                              variant="standard"
-                              onChange={field.onChange}
-                            >
-                              <MenuItem value={1}>{t('First')}</MenuItem>
-                              <MenuItem value={2}>{t('Second')}</MenuItem>
-                              <MenuItem value={3}>{t('Third')}</MenuItem>
-                              <MenuItem value={4}>{t('Fourth')}</MenuItem>
-                              <MenuItem value={5}>{t('recurrence_Last')}</MenuItem>
-                            </Select>
-                          </FormControl>
+                          <Select
+                            value={String(field.value ?? '')}
+                            onValueChange={next => (field.onChange)(Number(next))}
+                          >
+                            <SelectLabel>{t('Week of month')}</SelectLabel>
+                            <SelectTrigger>
+                              <SelectValue placeholder={t('Week of month')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">{t('First')}</SelectItem>
+                              <SelectItem value="2">{t('Second')}</SelectItem>
+                              <SelectItem value="3">{t('Third')}</SelectItem>
+                              <SelectItem value="4">{t('Fourth')}</SelectItem>
+                              <SelectItem value="5">{t('recurrence_Last')}</SelectItem>
+                            </SelectContent>
+                          </Select>
                         )}
                       />
                     )}
@@ -418,23 +423,24 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                       control={control}
                       name="dayOfWeek"
                       render={({ field }) => (
-                        <FormControl fullWidth>
-                          <InputLabel variant="standard">{t('Day of week')}</InputLabel>
-                          <Select
-                            value={field.value}
-                            label={t('Day of week')}
-                            variant="standard"
-                            onChange={field.onChange}
-                          >
-                            <MenuItem value={1}>{t('Monday')}</MenuItem>
-                            <MenuItem value={2}>{t('Tuesday')}</MenuItem>
-                            <MenuItem value={3}>{t('Wednesday')}</MenuItem>
-                            <MenuItem value={4}>{t('Thursday')}</MenuItem>
-                            <MenuItem value={5}>{t('Friday')}</MenuItem>
-                            <MenuItem value={6}>{t('Saturday')}</MenuItem>
-                            <MenuItem value={7}>{t('Sunday')}</MenuItem>
-                          </Select>
-                        </FormControl>
+                        <Select
+                          value={String(field.value ?? '')}
+                          onValueChange={next => (field.onChange)(Number(next))}
+                        >
+                          <SelectLabel>{t('Day of week')}</SelectLabel>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('Day of week')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">{t('Monday')}</SelectItem>
+                            <SelectItem value="2">{t('Tuesday')}</SelectItem>
+                            <SelectItem value="3">{t('Wednesday')}</SelectItem>
+                            <SelectItem value="4">{t('Thursday')}</SelectItem>
+                            <SelectItem value="5">{t('Friday')}</SelectItem>
+                            <SelectItem value="6">{t('Saturday')}</SelectItem>
+                            <SelectItem value="7">{t('Sunday')}</SelectItem>
+                          </SelectContent>
+                        </Select>
                       )}
                     />
                   </Stack>

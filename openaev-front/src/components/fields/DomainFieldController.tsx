@@ -1,4 +1,3 @@
-import { Box } from '@mui/material';
 import type { CSSProperties } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -49,7 +48,6 @@ const DomainFieldController = ({
           <AutocompleteField
             style={style}
             label={label}
-            variant="standard"
             multiple
             required={required}
             disabled={disabled}
@@ -58,22 +56,7 @@ const DomainFieldController = ({
             error={!!error}
             onInputChange={() => {}}
             onChange={onChange}
-            renderOption={(props, option) => {
-              if (option.label === TO_CLASSIFY) return null;
-              return (
-                <Box
-                  component="li"
-                  {...props}
-                  key={option.id}
-                  sx={{
-                    px: 2,
-                    py: 1,
-                  }}
-                >
-                  {option.label}
-                </Box>
-              );
-            }}
+            hideOption={option => option.label === TO_CLASSIFY}
           />
         );
       }}

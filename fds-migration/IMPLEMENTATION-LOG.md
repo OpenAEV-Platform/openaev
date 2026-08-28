@@ -371,3 +371,155 @@ in filigran-design-system).
   makes `bridge-freshness` meaningful; its branch ref (`sandyghs-miniature-enigma`
   @ `8ab126d`) is untouched.
 - Friction / process feedback: see the two points above.
+
+### 2026-08-20 — Combobox wave: 23 sites adopt the library field
+- Branch: fds/combobox-adoption
+- Pin: f86e76e -> da333e7. Proven on the bytes the product serves, not on a local
+  rebuild: `transparency-50` gone from `dist/index.css` (was 8 occurrences),
+  `transparency-55` present 10 times, `--border-elevation-disabled` present,
+  `yarn.lock` resolution on da333e7, and the regenerated bridge records
+  `themeCssHash: 3c0ef256…`, which is the git hash of `theme.css` at that commit.
+- The bridge was regenerated from a lib checkout DETACHED at da333e7, with its
+  on-disk `theme.css` hash checked against git first. Generating from a stale
+  sibling returns the previous values, which look perfectly plausible.
+- Beyond the Combobox: the pin carries the disabled-token wave. Two tokens this
+  product wires into its MUI theme move value —
+  `--text-default-disabled` (dark #a0b4e3 -> #95969d, light #2b4f8d -> #62636a)
+  and `--bg-elevation-disabled` (dark #0c1527 -> #313235, light #c8d6ee ->
+  #cacbce). `palette.text.disabled` has 74 references in this front, so the shift
+  from a blue-tinted to a neutral gray ramp is product-wide. Disabled controls are
+  exempt from WCAG 1.4.3, so this is legibility, not conformance.
+  `--color-filigran-brand-primary-transparency-50` was renamed to `-55`; no
+  product code reads it, only the generated bridge, so the rename is inert here.
+- Census, by TypeScript compiler API over 1537 files, negative controls passed in
+  both directions: 44 authored MUI `<Autocomplete>` sites in 39 files, plus 33
+  mount sites of 8 wrappers. The 15 files the earlier map missed all import
+  `Autocomplete as X` — a renamed import, which the previous extractor did not
+  resolve. Clean 2x2 split, no exception.
+- Converted: 23 sites. Left on MUI: 21, each with its reason, the biggest bucket
+  being the missing change cause (8 sites, 15 screens — see LIBRARY-FEEDBACK 39).
+- Visual validation, both modes, three screens (creation form field, filter,
+  multiple field with chips), measured at the DOM in this product's environment:
+  field background, radius, label and text colours all match
+  `Combobox.figma.json`; the single-row field is 37px against 36px declared, and
+  the chip field 63px. Both deltas are library defects, filed as 40 and 41.
+- Friction / process feedback:
+  1. Three false results caught by controls rather than by luck. A `PUSH_EXIT=0`
+     that was `tail`'s status, not `git push`'s — read the state, never a
+     pipeline's exit code. A "the bump did not take" reading taken while yarn was
+     still linking, because the wrapper had backgrounded yarn inside an already
+     backgrounded command. And an "ArrowDown does nothing" verdict that was the
+     key name: `Down` is not `ArrowDown`, found by a negative control on a second
+     field.
+  2. Two bench defects that looked like product defects: a field rendering dark on
+     a light page (the bench bypassed `AppThemeProvider`, which sets the theme
+     class on `documentElement`) and system-font typography (the bench did not
+     import `@fontsource/*`). Both were mine. The third anomaly in the same
+     capture was real — see 41.
+  3. `mr-2` is NOT emitted in the served `dist/index.css`. A spacing utility taken
+     from the library would have rendered 0 with no error anywhere; product-side
+     spacing went through `theme.spacing()`.
+
+### 2026-08-23 — Combobox wave: re-pin to 114854d, the three native-reset defects close
+- Branch: fds/combobox-adoption
+- Pin: da333e7 -> 114854d. Byte-proven on the installed package, and the first
+  grep was against the wrong file: the class strings live in `dist/chunk-*.mjs`,
+  not `dist/index.mjs`, which returned 0 for all three and looked like a bump that
+  had not landed. In the chunk: `border-0 m-0 p-0 box-border`, `list-none`,
+  `box-border`. And emitted in the SERVED stylesheet, which is the part that
+  decides anything: `.border-0{border-width:0}`, `.list-none{list-style-type:none}`,
+  `.box-border{box-sizing:border-box}`, `.m-0{margin:0}`, `.p-0{padding:0}`.
+- No token moved: `theme.css` carries the SAME hash at both pins
+  (`3c0ef256…`), so #145's token-family work was a gate, not a value change, and
+  the regenerated bridge is byte-identical to the previous one. Verified by diff
+  rather than assumed.
+- Re-measured, both modes, the same three screens: single-row field, filter and
+  chip field all **36px** — the declared value, down from 37/37/63. The input
+  reports `border-width: 0` and `padding: 0`; the chip row reports
+  `list-style-type: none`, `padding-inline-start: 0`, `margin-block: 0`. The grey
+  rectangle and the bullet are gone from the render.
+- LIBRARY-FEEDBACK 40 and 41 withdrawn, kept as a stub carrying the numbers.
+  39 (the missing change cause, 8 sites / 15 screens) stays open.
+- Friction / process feedback: `bridge-freshness` still SKIPS here. The library
+  fixed it in #145 (`scripts/lib/fds-conformity-bridge-freshness.test.ts`), but
+  this product runs its own generated copy of `check-fds-conformity.mjs`, which
+  has not been regenerated. The fix does not reach the product until
+  `pnpm generate:fds-migration --product openaev --write-to-product` runs —
+  deliberately out of scope for this branch, which would otherwise churn the
+  generated migration docs mid-review.
+
+## 2026-08-25 — Combobox adoption closed at 41 of 44, pin `cd4b8ee` (library #155)
+
+- Re-pinned on `cd4b8ee`. Proved on the SERVED dep chunk, not on the lockfile:
+  `data-combobox-adornment` ×2, `empty:hidden` ×1, `combobox-start-icon` ×1,
+  `onOpenChange` ×63 — and `leadingIcon` **×0**, the negative control for the
+  rename the library made before merging.
+- 13 sites converted: the 7 on controlled `open`, the row-interaction site, the
+  leading-icon search, and the 4 create ornaments. Remaining: 3 `ToolBar`, settled.
+- #155 answered three open questions in its own contract, so none needed a
+  product guess: `open={false}` with no `onOpenChange` mounts no panel at all and
+  leaves the keys their native meaning; `startIcon` lives on `ComboboxField`;
+  `adornment` is `empty:hidden`, so a permissions gate that renders nothing costs
+  neither width nor the shell's gap.
+- `AutocompleteField`'s `renderOption` only ever tested its result for `null` — a
+  caller's node was discarded. It is now `hideOption`. Its `variant` prop went
+  with it (the library field has one style), across 5 typed callers.
+- Chips-only inputs measured at the real pointer, not asserted: click → focus,
+  `aria-expanded` stays `false`, no `aria-controls`, **0 listbox and 0 Radix
+  popper**, `ArrowDown` inert, `Enter` commits a chip. The first pass showed the
+  input keeping its text after committing — MUI cleared it through its `reset`
+  cause, which the `cause === 'type'` filter drops. Fixed on all five and replayed.
+- Three faults CI caught that local gates did not: three ornaments all named
+  "Create" (ambiguous for a screen reader, and Playwright's `getByRole(name)` is
+  a SUBSTRING match, so distinct names still collided — the locator became
+  `exact`); `No result` existed in no locale (`No results found` does); and a
+  required-field helper text invented here, removed rather than translated.
+- Correction to the previous round's report: the two `arsenals` E2E jobs were
+  already red on `3314a216e`, not green as reported. They asserted
+  `.MuiFormHelperText-root.Mui-error` under a `MuiFormControl-root` ancestor
+  around a field converted in the earlier wave. `MuiFormHelpers.getFieldError`
+  now matches either shape. CI closed at **37/37**.
+- V1 label pattern applied to the 4 chip-feeding fields: the name moves from
+  `ComboboxLabel` to the input's placeholder, freeing ~24px of height each. Two
+  measured consequences: `FilterAutocomplete`'s domains variant carries a 122-char
+  guidance sentence, of which **24 characters** fit its 146px input; and
+  `FilterChipPopoverInput`'s free-value input traded its "Press Enter to add a
+  value" hint for the filter's name, a placeholder holding only one of the two.
+- LIBRARY-FEEDBACK 42 opened: `min-h-8` as the single option-row floor. 12 sites
+  render one glyph plus one line and pay 48px; no product compensation, arbitrated.
+
+## 2026-08-27 — Select family converted, and the list toolbar given one break point
+
+- Branch: fds/combobox-adoption
+- The `Select` family was converted across the remaining product sites, over 11
+  commits grouped by what made each group awkward rather than by directory. Not
+  in the original scope: a page mixing the two families reads as two different
+  form languages, so the review asked for the whole field surface at once.
+- Three library gaps filed from this wave: **#42** the option-row floor should be
+  `min-h-8`; **#43** `Select` renders no wrapper, so its label and trigger become
+  siblings of whatever contains them — the most serious; **#44**
+  `ComboboxLabel` has no `required`, so the two families expose different
+  accessible names.
+- Visual review findings, each traced to a cause rather than compensated:
+  - 5 sites kept a MUI `InputLabel` after conversion. It is a floating label
+    (`position:absolute; transform:scale(.75)`), so it rendered at a different
+    size and offset from the library's. All five now use the library label.
+  - `TagsFilter` laid its chip row out with `float:left` and a 5px top margin,
+    offsetting the chips 3px from their neighbours. Now a centred flex row.
+  - The toolbar's top row measured 52px. Two causes, each fixed where it is set:
+    MUI's `TablePagination` wraps its content in a `Toolbar` with its own
+    `minHeight`, and its captions are `<p>` carrying the browser's 1em vertical
+    margins; separately the select-all `Checkbox` carries its own padding. Row
+    now 36px, click targets 36x36 and 32x32 — above the 24x24 minimum.
+- The list toolbar (62 pages) now has one fixed break point at 1600px: stacked
+  below, one line at or above, chips on their own line either way. **Five
+  adaptive attempts were built and discarded first**, each failing the same way —
+  a measurement whose result depended on the layout it produced. The friction
+  worth carrying forward: a layout decision taken from a measurement of that same
+  layout has no fixed point. A media query has nothing to measure.
+- Above the break point the container wraps rather than overflowing. Measured in
+  CI: the card view carries the sort select the list view does not, so at 1600px
+  it wraps to two rows while the list view sits on one. No overflow either way.
+  An E2E assertion that read the line count instead of the arrangement failed on
+  exactly this and was corrected, not the layout.
+- Friction / process feedback: none upstream.

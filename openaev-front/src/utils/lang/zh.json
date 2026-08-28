@@ -6,6 +6,8 @@
   " is not available for current payload type": "当前有效载荷类型不可用",
   " is not available for this security platform": " 不适用于此安全平台",
   " is only available for empty content": " 仅适用于空内容",
+  "Installation mode": "安装模式",
+  "Response choices": "回答选项",
   "_": "_",
   "-": "-",
   ",": ",",

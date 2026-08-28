@@ -1,5 +1,18 @@
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+  IconButton,
+} from '@filigran/design-system';
 import { AddOutlined, RouteOutlined } from '@mui/icons-material';
-import { Autocomplete, Box, Dialog, DialogContent, DialogTitle, IconButton, TextField } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
@@ -104,66 +117,54 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
       control={control}
       render={({ field: { onChange, value }, fieldState: { error } }) => (
         <>
-          <Autocomplete
-            size="small"
+          <Combobox<Option>
             multiple
             options={attackPatternsOptions}
             openOnFocus
-            autoHighlight
-            noOptionsText={t('No available options')}
-            disableClearable
-            renderInput={
-              params => (
-                <TextField
-                  {...params}
-                  label={label}
-                  fullWidth
-                  required={required}
-                  variant="standard"
-                  size="small"
-                  error={!!error}
-                  helperText={error ? error.message : null}
-                  slotProps={{
-                    input: {
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS) && !hideAddButton && (
-                            <IconButton
-                              style={{
-                                position: 'absolute',
-                                right: '35px',
-                              }}
-                              onClick={() => openCreate()}
-                            >
-                              <AddOutlined />
-                            </IconButton>
-                          )}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    },
-                  }}
-                />
-              )
-            }
-            value={attackPatternsOptions.filter((a: {
-              id: string;
-              label: string;
-            }) => (value ?? [])?.includes(a.id)) ?? null}
-            onChange={(_event, pattern) => {
-              onChange(pattern.map(p => p.id));
+            value={attackPatternsOptions.filter((a: Option) => (value ?? [])?.includes(a.id)) ?? []}
+            onValueChange={(pattern) => {
+              onChange((pattern as Option[]).map(p => p.id));
             }}
-            renderOption={(props, option) => (
-              <Box component="li" {...props} key={option.id}>
+            getOptionLabel={option => option.label}
+            isOptionEqualToValue={(a, b) => a.id === b.id}
+            clearable={false}
+            error={!!error}
+            renderOption={option => (
+              <>
                 <div className={classes.icon}>
                   <RouteOutlined />
                 </div>
                 <div className={classes.text}>{option.label}</div>
-              </Box>
+              </>
             )}
-            classes={{ clearIndicator: classes.autoCompleteIndicator }}
-          />
+          >
+            <ComboboxLabel>
+              {label}
+              {required ? ' *' : ''}
+            </ComboboxLabel>
+            <ComboboxField
+              adornment={ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS) && !hideAddButton
+                ? (
+                    <IconButton
+                      size="sm"
+                      priority="tertiary"
+                      onClick={() => openCreate()}
+                      aria-label={t('Create a new attack pattern')}
+                      icon={<AddOutlined fontSize="small" />}
+                    />
+                  )
+                : undefined}
+            >
+              <ComboboxChips />
+              <ComboboxInput />
+              <ComboboxControls>
+                <ComboboxClear />
+                <ComboboxTrigger />
+              </ComboboxControls>
+            </ComboboxField>
+            <ComboboxContent emptyMessage={t('No available options')} />
+            {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+          </Combobox>
           <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
             <Dialog
               open={attackPatternCreation}

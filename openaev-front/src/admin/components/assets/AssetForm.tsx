@@ -1,5 +1,15 @@
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete, Button, TextField } from '@mui/material';
+import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type SyntheticEvent } from 'react';
 import {
@@ -99,23 +109,32 @@ const CloudNativeTypeField: FunctionComponent = () => {
       name="asset_cloud_native_type"
       control={control}
       render={({ field, fieldState: { error } }) => (
-        <Autocomplete
-          freeSolo
+        <Combobox<string>
+          allowCustomValue
+          createValueFromInput={input => input}
           options={suggestions}
           value={field.value ?? ''}
-          onChange={(_, value) => field.onChange(value ?? '')}
-          onInputChange={(_, value) => field.onChange(value ?? '')}
-          renderInput={params => (
-            <TextField
-              {...params}
-              variant="standard"
-              required
-              label={t('Native type')}
-              error={!!error}
-              helperText={error ? error.message : t('e.g. ec2_instance, s3_bucket, lambda_function')}
-            />
-          )}
-        />
+          onValueChange={value => field.onChange((value as string | null) ?? '')}
+          onInputChange={(value, meta) => {
+            // MUI fed every keystroke straight into the form; the cause keeps a
+            // programmatic reset from doing the same.
+            if (meta.cause === 'type') field.onChange(value ?? '');
+          }}
+          required
+          error={!!error}
+        >
+          <ComboboxLabel>{t('Native type')}</ComboboxLabel>
+          <ComboboxField>
+            <ComboboxInput />
+            <ComboboxControls>
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+          <ComboboxHelperText>
+            {error ? error.message : t('e.g. ec2_instance, s3_bucket, lambda_function')}
+          </ComboboxHelperText>
+        </Combobox>
       )}
     />
   );

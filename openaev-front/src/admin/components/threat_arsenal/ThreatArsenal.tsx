@@ -1,3 +1,4 @@
+import { ButtonGroup, ButtonGroupItem } from '@filigran/design-system';
 import {
   GridViewOutlined,
   LinkOffOutlined,
@@ -13,7 +14,6 @@ import {
   ListItemIcon,
   ListItemText,
   Skeleton,
-  ToggleButton,
   ToggleButtonGroup,
   Tooltip,
   Typography,
@@ -84,8 +84,8 @@ const ThreatArsenal = () => {
   const [threatArsenalActions, setThreatArsenalActions] = useState<ThreatArsenalAction[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>(readViewMode);
 
-  const handleViewModeChange = (_: unknown, value: ViewMode | null) => {
-    if (!value) return;
+  const handleViewModeChange = (next: string) => {
+    const value = next as ViewMode;
     setViewMode(value);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, value);
@@ -423,25 +423,19 @@ const ThreatArsenal = () => {
 
   const headerRightSlot = (
     <>
-      <ToggleButtonGroup
+      <ButtonGroup
         value={viewMode}
-        exclusive
-        size="small"
-        onChange={handleViewModeChange}
+        size="sm"
+        onValueChange={handleViewModeChange}
         aria-label={t('View mode')}
-        sx={{ '& .MuiToggleButton-root.Mui-selected .MuiSvgIcon-root': { color: 'primary.main' } }}
       >
-        <ToggleButton value="grid" aria-label={t('Grid view')}>
-          <Tooltip title={t('Grid view')}>
-            <GridViewOutlined fontSize="small" />
-          </Tooltip>
-        </ToggleButton>
-        <ToggleButton value="list" aria-label={t('List view')}>
-          <Tooltip title={t('List view')}>
-            <ViewListOutlined fontSize="small" />
-          </Tooltip>
-        </ToggleButton>
-      </ToggleButtonGroup>
+        <Tooltip title={t('Grid view')}>
+          <ButtonGroupItem value="grid" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
+        </Tooltip>
+        <Tooltip title={t('List view')}>
+          <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+        </Tooltip>
+      </ButtonGroup>
 
       <ToggleButtonGroup value="fake" exclusive>
         <ExportButton
@@ -455,6 +449,21 @@ const ThreatArsenal = () => {
           />
         </Can>
       </ToggleButtonGroup>
+
+      {/* The create button used to ride the pagination row, which the card view
+          makes 180px wider than the list view (it adds the sort select there) —
+          measured at 1400px wide: 47px of the button visible in list view, 0 in
+          card view, with no way to scroll to it. Here it sits beside the import
+          icons, one instance, rendered in both views. */}
+      {/* No margin here: the header's own row already puts 8px between its
+          children — adding one made the gap 16. */}
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
+        <CreateThreatArsenalAction
+          onCreate={(result: ThreatArsenalAction) => {
+            setThreatArsenalActions(prev => [result, ...prev]);
+          }}
+        />
+      </Can>
     </>
   );
 
@@ -524,21 +533,11 @@ const ThreatArsenal = () => {
                       <ThreatArsenalSortSelect sortHelpers={queryableHelpers.sortHelpers} />
                     )
                   : null}
-                topBarButtons={(
-                  <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
-                    <CreateThreatArsenalAction
-                      onCreate={(result: ThreatArsenalAction) => {
-                        setThreatArsenalActions(prev => [result, ...prev]);
-                      }}
-                    />
-                  </Can>
-                )}
                 leftSlot={(
                   <Box sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 0.5,
-                    marginRight: 2,
+                    gap: 1,
                   }}
                   >
                     <FormControlLabel
@@ -562,6 +561,11 @@ const ThreatArsenal = () => {
                       control={(
                         <Checkbox
                           size="small"
+                          // MUI's own padding makes this control 38 tall, which
+                          // was the second thing holding the row above 36. The
+                          // click target stays 36x36 — well above the 24x24
+                          // minimum, so nothing is traded for the height.
+                          sx={{ padding: 1 }}
                           checked={selectAll}
                           indeterminate={
                             (!selectAll && numberOfSelectedElements > 0)

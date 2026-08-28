@@ -1,4 +1,11 @@
-import { FormControl, InputLabel, MenuItem, Select, type SelectChangeEvent } from '@mui/material';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent } from 'react';
 
@@ -22,28 +29,31 @@ const TimeRangeFilters: FunctionComponent<Props> = ({ handleTimeRange, handleSta
 
   return (
     <>
-      <FormControl
-        size="small"
-        sx={{ minWidth: 120 }}
-      >
-        <InputLabel id="customDashboardTimeRangeSelectLabel" variant="outlined">{t('Time range')}</InputLabel>
+      {/* The library Select renders NO wrapper of its own — unlike Combobox,
+          which wraps its parts in a flex column. Its label and its trigger are
+          therefore siblings of whatever holds them, and in the grid this row
+          uses they landed in two different cells, one beside the other. The
+          wrapper keeps them together. */}
+      <div>
         <Select
-          labelId="customDashboardTimeRangeSelectLabel"
-          label={t('Time range')}
-          id="customDashboardTimeRangeSelect"
-          variant="outlined"
           value={timeRangeValue}
-          onChange={(event: SelectChangeEvent) => {
-            handleTimeRange(event.target.value);
+          onValueChange={(next) => {
+            handleTimeRange(next);
           }}
         >
-          {timeRangeItems.map(item => (
-            <MenuItem key={item.value} value={item.value}>
-              {t(item.label_key)}
-            </MenuItem>
-          ))}
+          <SelectLabel>{t('Time range')}</SelectLabel>
+          <SelectTrigger>
+            <SelectValue placeholder={t('Time range')} />
+          </SelectTrigger>
+          <SelectContent>
+            {timeRangeItems.map(item => (
+              <SelectItem key={item.value} value={item.value}>
+                {t(item.label_key)}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
-      </FormControl>
+      </div>
       {
         timeRangeValue === CUSTOM_TIME_RANGE && (
           <>

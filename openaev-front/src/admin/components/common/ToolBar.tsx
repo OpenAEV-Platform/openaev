@@ -1,4 +1,12 @@
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
+import {
   AddOutlined,
   BrushOutlined,
   CancelOutlined,
@@ -10,20 +18,7 @@ import {
   GroupsOutlined,
   InfoOutlined,
 } from '@mui/icons-material';
-import {
-  Autocomplete,
-  Box,
-  Button,
-  FormControl,
-  Grid,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Autocomplete, Box, Button, Grid, IconButton, TextField, Tooltip, Typography } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { Component, type ComponentType, type JSX } from 'react';
 import { connect } from 'react-redux';
@@ -263,20 +258,27 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
     }
     return (
       <Select
-        variant="standard"
         disabled={disabled}
         value={actionsInputs[i]?.field || ''}
-        onChange={event => this.handleChangeActionInput(i, 'field', event as { target: { value: string } })}
+        onValueChange={next => this.handleChangeActionInput(i, 'field', { target: { value: next } })}
       >
-        {options.length > 0 ? (
-          options.map(n => (
-            <MenuItem key={n.value} value={n.value}>
-              {n.label}
-            </MenuItem>
-          ))
-        ) : (
-          <MenuItem value="none">{t('None')}</MenuItem>
-        )}
+        {/* The library field reserves no notch for a floating label, so the
+            label is the library's own and sits above the field. */}
+        <SelectLabel>{t('Field')}</SelectLabel>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.length > 0 ? (
+            options.map(n => (
+              <SelectItem key={n.value} value={n.value}>
+                {n.label}
+              </SelectItem>
+            ))
+          ) : (
+            <SelectItem value="none">{t('None')}</SelectItem>
+          )}
+        </SelectContent>
       </Select>
     );
   }
@@ -696,26 +698,23 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
                   </IconButton>
                   <Grid container spacing={3} sx={{ width: '100%' }}>
                     <Grid size={{ xs: 3 }}>
-                      <FormControl sx={{ width: '100%' }}>
-                        <InputLabel>{t('Action type')}</InputLabel>
-                        <Select
-                          variant="standard"
-                          value={actionsInputs[i]?.type || ''}
-                          onChange={event => this.handleChangeActionInput(i, 'type', event as { target: { value: string } })}
-                        >
-                          <MenuItem value="ADD">{t('Add')}</MenuItem>
-                          <MenuItem value="REPLACE">
-                            {t('Replace')}
-                          </MenuItem>
-                          <MenuItem value="REMOVE">{t('Remove')}</MenuItem>
-                        </Select>
-                      </FormControl>
+                      <Select
+                        value={actionsInputs[i]?.type || ''}
+                        onValueChange={next => this.handleChangeActionInput(i, 'type', { target: { value: next } })}
+                      >
+                        <SelectLabel>{t('Action type')}</SelectLabel>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t('Action type')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ADD">{t('Add')}</SelectItem>
+                          <SelectItem value="REPLACE">{t('Replace')}</SelectItem>
+                          <SelectItem value="REMOVE">{t('Remove')}</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </Grid>
                     <Grid size={{ xs: 3 }}>
-                      <FormControl sx={{ width: '100%' }}>
-                        <InputLabel>{t('Field')}</InputLabel>
-                        {this.renderFieldOptions(i)}
-                      </FormControl>
+                      {this.renderFieldOptions(i)}
                     </Grid>
                     <Grid size={{ xs: 6 }}>
                       {this.renderValuesOptions(i)}

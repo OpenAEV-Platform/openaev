@@ -1,4 +1,12 @@
-import { Autocomplete as MuiAutocomplete, Chip, TextField as MuiTextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+} from '@filigran/design-system';
+import { TextField as MuiTextField } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -158,53 +166,47 @@ const ReportingScheduleFields: FunctionComponent<Props> = ({ showEnabledSwitch =
         control={control}
         name="schedule_recipient_emails"
         render={({ field, fieldState: { error } }) => {
-          const addEmail = () => {
-            const email = emailInput.trim();
-            if (email && EMAIL_REGEX.test(email) && !(field.value ?? []).includes(email)) {
-              field.onChange([...(field.value ?? []), email]);
-              setEmailInput('');
-            }
-          };
           return (
-            <MuiAutocomplete
+            <Combobox<string>
               multiple
-              freeSolo
+              // No `onOpenChange` beside it: nothing can move the panel, so none is
+              // mounted and Enter/ArrowDown keep their native meaning in the input.
               open={false}
               options={[]}
               value={field.value ?? []}
-              onChange={() => addEmail()}
-              onBlur={() => {
-                addEmail();
-                field.onBlur();
-              }}
+              allowCustomValue
+              createValueFromInput={input => input.trim()}
+              getOptionLabel={email => email}
+              isOptionEqualToValue={(a, b) => a === b}
               inputValue={emailInput}
-              onInputChange={(_event, newInputValue) => setEmailInput(newInputValue)}
-              disableClearable
-              renderTags={(emails: string[], getTagProps) => emails.map((email: string, index: number) => (
-                <Chip
-                  variant="outlined"
-                  label={email}
-                  {...getTagProps({ index })}
-                  key={email}
-                  style={{ borderRadius: 4 }}
-                  onDelete={() => {
-                    const next = [...(field.value ?? [])];
-                    next.splice(index, 1);
-                    field.onChange(next);
-                  }}
-                />
-              ))}
-              renderInput={params => (
-                <MuiTextField
-                  {...params}
-                  variant="standard"
-                  label={t('Recipient emails')}
+              onInputChange={(newInputValue, meta) => {
+                if (meta.cause === 'type') {
+                  setEmailInput(newInputValue);
+                }
+              }}
+              onValueChange={(next) => {
+                // Same guard as the former `addEmail`: shape checked, duplicates dropped.
+                const emails = (next as string[])
+                  .map(email => email.trim())
+                  .filter(email => EMAIL_REGEX.test(email));
+                field.onChange(Array.from(new Set(emails)));
+                // MUI cleared the text itself through its `reset` cause; the
+                // library reports causes instead, so the commit clears it here.
+                setEmailInput('');
+              }}
+              clearable={false}
+              error={!!error}
+            >
+              <ComboboxLabel>{t('Recipient emails')}</ComboboxLabel>
+              <ComboboxField>
+                <ComboboxChips />
+                <ComboboxInput
                   placeholder={t('Type an email and press Enter')}
-                  error={!!error}
-                  helperText={error?.message}
+                  onBlur={() => field.onBlur()}
                 />
-              )}
-            />
+              </ComboboxField>
+              {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+            </Combobox>
           );
         }}
       />

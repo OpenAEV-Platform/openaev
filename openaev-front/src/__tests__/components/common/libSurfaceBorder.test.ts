@@ -47,8 +47,13 @@ describe('libSurfaceBorder against the installed design system', () => {
   });
 
   it('reads the same property the library Paper paints its own border with', () => {
+    // The library publishes one module per source module, so the entry is a
+    // barrel of re-exports and the class lives in Paper's own module.
     const libJs = readFileSync(
-      path.join(path.dirname(require.resolve('@filigran/design-system')), 'index.js'),
+      path.join(
+        path.dirname(require.resolve('@filigran/design-system')),
+        'components/paper/Paper.js',
+      ),
       'utf8',
     );
     // The Paper carries the property name, minus the leading dashes, as its

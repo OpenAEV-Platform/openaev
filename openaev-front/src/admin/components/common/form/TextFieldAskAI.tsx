@@ -1,16 +1,20 @@
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
+import {
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
   IconButton,
   InputAdornment,
-  InputLabel,
   Menu,
   MenuItem,
-  Select,
   SvgIcon,
   TextField,
   Tooltip,
@@ -350,29 +354,25 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               value={messageInput}
               onChange={(value: string) => setMessageInput(value)}
             />
-            <FormControl style={{
-              width: '100%',
-              marginTop: 20,
-            }}
+            <Select
+              value={messageTone}
+              onValueChange={next => setMessageTone(next as unknown as 'informal' | 'formal' | 'assertive' | 'sarcastic' | 'authoritative' | 'bitter' | 'critical' | 'arrogant' | 'aggressive')}
             >
-              <InputLabel id="messageTone">{t('Tone')}</InputLabel>
-              <Select
-                labelId="messageTone"
-                value={messageTone}
-                onChange={event => setMessageTone(event.target.value as unknown as 'informal' | 'formal' | 'assertive' | 'sarcastic' | 'authoritative' | 'bitter' | 'critical' | 'arrogant' | 'aggressive')}
-                fullWidth={true}
-              >
-                <MenuItem value="formal">{t('Formal')}</MenuItem>
-                <MenuItem value="informal">{t('Informal')}</MenuItem>
-                <MenuItem value="authoritative">{t('Authoritative')}</MenuItem>
-                <MenuItem value="assertive">{t('Assertive')}</MenuItem>
-                <MenuItem value="bitter">{t('Bitter')}</MenuItem>
-                <MenuItem value="critical">{t('Critical')}</MenuItem>
-                <MenuItem value="arrogant">{t('Arrogant')}</MenuItem>
-                <MenuItem value="aggressive">{t('Aggressive')}</MenuItem>
-                <MenuItem value="sarcastic">{t('Sarcastic')}</MenuItem>
-              </Select>
-            </FormControl>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="formal">{t('Formal')}</SelectItem>
+                <SelectItem value="informal">{t('Informal')}</SelectItem>
+                <SelectItem value="authoritative">{t('Authoritative')}</SelectItem>
+                <SelectItem value="assertive">{t('Assertive')}</SelectItem>
+                <SelectItem value="bitter">{t('Bitter')}</SelectItem>
+                <SelectItem value="critical">{t('Critical')}</SelectItem>
+                <SelectItem value="arrogant">{t('Arrogant')}</SelectItem>
+                <SelectItem value="aggressive">{t('Aggressive')}</SelectItem>
+                <SelectItem value="sarcastic">{t('Sarcastic')}</SelectItem>
+              </SelectContent>
+            </Select>
             <TextField
               label={t('Who is sending?')}
               fullWidth={true}
@@ -449,29 +449,25 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               value={messageInput}
               onChange={(value: string) => setMessageInput(value)}
             />
-            <FormControl style={{
-              width: '100%',
-              marginTop: 20,
-            }}
+            <Select
+              value={messageTone}
+              onValueChange={next => setMessageTone(next as unknown as 'informal' | 'formal' | 'assertive' | 'sarcastic' | 'authoritative' | 'bitter' | 'critical' | 'arrogant' | 'aggressive')}
             >
-              <InputLabel id="messageTone">{t('Tone')}</InputLabel>
-              <Select
-                labelId="messageTone"
-                value={messageTone}
-                onChange={event => setMessageTone(event.target.value as unknown as 'informal' | 'formal' | 'assertive' | 'sarcastic' | 'authoritative' | 'bitter' | 'critical' | 'arrogant' | 'aggressive')}
-                fullWidth={true}
-              >
-                <MenuItem value="formal">{t('Formal')}</MenuItem>
-                <MenuItem value="informal">{t('Informal')}</MenuItem>
-                <MenuItem value="authoritative">{t('Authoritative')}</MenuItem>
-                <MenuItem value="assertive">{t('Assertive')}</MenuItem>
-                <MenuItem value="bitter">{t('Bitter')}</MenuItem>
-                <MenuItem value="critical">{t('Critical')}</MenuItem>
-                <MenuItem value="arrogant">{t('Arrogant')}</MenuItem>
-                <MenuItem value="aggressive">{t('Aggressive')}</MenuItem>
-                <MenuItem value="sarcastic">{t('Sarcastic')}</MenuItem>
-              </Select>
-            </FormControl>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="formal">{t('Formal')}</SelectItem>
+                <SelectItem value="informal">{t('Informal')}</SelectItem>
+                <SelectItem value="authoritative">{t('Authoritative')}</SelectItem>
+                <SelectItem value="assertive">{t('Assertive')}</SelectItem>
+                <SelectItem value="bitter">{t('Bitter')}</SelectItem>
+                <SelectItem value="critical">{t('Critical')}</SelectItem>
+                <SelectItem value="arrogant">{t('Arrogant')}</SelectItem>
+                <SelectItem value="aggressive">{t('Aggressive')}</SelectItem>
+                <SelectItem value="sarcastic">{t('Sarcastic')}</SelectItem>
+              </SelectContent>
+            </Select>
             <TextField
               label={t('Author')}
               fullWidth={true}
@@ -536,25 +532,25 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
         >
           <DialogTitle>{t('Select options')}</DialogTitle>
           <DialogContent>
-            <FormControl style={{ width: '100%' }}>
-              <InputLabel id="tone">{t('Tone')}</InputLabel>
-              <Select
-                labelId="tone"
-                value={messageTone}
-                onChange={event => setMessageTone(event.target.value as unknown as 'informal' | 'formal' | 'assertive' | 'sarcastic' | 'authoritative' | 'bitter' | 'critical' | 'arrogant' | 'aggressive')}
-                fullWidth={true}
-              >
-                <MenuItem value="informal">{t('Informal')}</MenuItem>
-                <MenuItem value="formal">{t('Formal')}</MenuItem>
-                <MenuItem value="assertive">{t('Assertive')}</MenuItem>
-                <MenuItem value="sarcastic">{t('Sarcastic')}</MenuItem>
-                <MenuItem value="authoritative">{t('Authoritative')}</MenuItem>
-                <MenuItem value="bitter">{t('Bitter')}</MenuItem>
-                <MenuItem value="critical">{t('Critical')}</MenuItem>
-                <MenuItem value="arrogant">{t('Arrogant')}</MenuItem>
-                <MenuItem value="aggressive">{t('Aggressive')}</MenuItem>
-              </Select>
-            </FormControl>
+            <Select
+              value={messageTone}
+              onValueChange={next => setMessageTone(next as unknown as 'informal' | 'formal' | 'assertive' | 'sarcastic' | 'authoritative' | 'bitter' | 'critical' | 'arrogant' | 'aggressive')}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="informal">{t('Informal')}</SelectItem>
+                <SelectItem value="formal">{t('Formal')}</SelectItem>
+                <SelectItem value="assertive">{t('Assertive')}</SelectItem>
+                <SelectItem value="sarcastic">{t('Sarcastic')}</SelectItem>
+                <SelectItem value="authoritative">{t('Authoritative')}</SelectItem>
+                <SelectItem value="bitter">{t('Bitter')}</SelectItem>
+                <SelectItem value="critical">{t('Critical')}</SelectItem>
+                <SelectItem value="arrogant">{t('Arrogant')}</SelectItem>
+                <SelectItem value="aggressive">{t('Aggressive')}</SelectItem>
+              </SelectContent>
+            </Select>
           </DialogContent>
           <DialogActions>
             <Button variant="outlined" color="primary" onClick={handleCloseToneOptions}>

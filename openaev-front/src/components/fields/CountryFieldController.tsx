@@ -1,5 +1,14 @@
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { FlagOutlined } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, Box, TextField } from '@mui/material';
 import type { FunctionComponent } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -16,13 +25,14 @@ const useStyles = makeStyles()(theme => ({
     flexGrow: 1,
     marginLeft: theme.spacing(1),
   },
-  autoCompleteIndicator: { display: 'none' },
 }));
 
 interface Props {
   name: string;
   label: string;
 }
+
+type CountryOption = ReturnType<typeof countryOptions>[number];
 
 const CountryFieldController: FunctionComponent<Props> = ({ name, label }) => {
   const { classes } = useStyles();
@@ -33,34 +43,34 @@ const CountryFieldController: FunctionComponent<Props> = ({ name, label }) => {
       control={control}
       name={name}
       render={({ field, fieldState: { error } }) => (
-        <MuiAutocomplete
-          {...field}
-          value={countryOptions().find(o => o.id === field.value) || null}
-          fullWidth
-          multiple={false}
+        <Combobox<CountryOption>
           options={countryOptions()}
-          onChange={(_, value) => field.onChange(value?.id || '')}
+          value={countryOptions().find(o => o.id === field.value) ?? null}
+          onValueChange={value => field.onChange((value as CountryOption | null)?.id ?? '')}
           getOptionLabel={option => option.label}
           isOptionEqualToValue={(option, value) => option.id === value.id}
-          renderOption={(props, option) => (
-            <Box component="li"{...props} key={option.id}>
+          // The MUI field hid its clear control via a `classes` override.
+          clearable={false}
+          error={!!error}
+          renderOption={option => (
+            <>
               <div className={classes.icon}>
                 <FlagOutlined />
               </div>
               <div className={classes.text}>{option.label}</div>
-            </Box>
+            </>
           )}
-          renderInput={params => (
-            <TextField
-              {...params}
-              label={label}
-              variant="standard"
-              error={!!error}
-              helperText={error?.message}
-            />
-          )}
-          classes={{ clearIndicator: classes.autoCompleteIndicator }}
-        />
+        >
+          <ComboboxLabel>{label}</ComboboxLabel>
+          <ComboboxField>
+            <ComboboxInput onBlur={field.onBlur} name={field.name} ref={field.ref} />
+            <ComboboxControls>
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+          {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+        </Combobox>
       )}
     />
   );

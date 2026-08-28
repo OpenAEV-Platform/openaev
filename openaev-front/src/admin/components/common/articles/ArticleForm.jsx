@@ -1,5 +1,5 @@
 import { ArrowDropDownOutlined, ArrowDropUpOutlined, AttachmentOutlined } from '@mui/icons-material';
-import { Box, Button, GridLegacy, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, Typography } from '@mui/material';
+import { Button, GridLegacy, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, Typography } from '@mui/material';
 import * as R from 'ramda';
 import { useContext, useState } from 'react';
 import { Form } from 'react-final-form';
@@ -34,7 +34,6 @@ const useStyles = makeStyles()(() => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
   itemHead: {
     paddingLeft: 10,
     textTransform: 'uppercase',
@@ -232,15 +231,14 @@ const ArticleForm = ({
               fullWidth
               multiple={false}
               options={sortedChannels}
-              renderOption={(renderProps, option) => (
-                <Box component="li" {...renderProps} key={option.id}>
+              renderOption={option => (
+                <>
                   <div className={classes.icon}>
                     <ChannelIcon type={option.type} />
                   </div>
                   <div className={classes.text}>{t(option.label)}</div>
-                </Box>
+                </>
               )}
-              classes={{ clearIndicator: classes.autoCompleteIndicator }}
             />
             <OldTextField
               name="article_name"

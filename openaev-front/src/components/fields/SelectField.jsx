@@ -1,53 +1,74 @@
-import { FormControl, FormHelperText, InputLabel, Select as MUISelect } from '@mui/material';
+import {
+  Select,
+  SelectContent,
+  SelectHelperText,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { Controller } from 'react-hook-form';
+
+import { toSelectItems } from './selectChildren';
 
 const SelectField = (props) => {
   const {
     name,
     label,
     children,
-    fullWidth,
     style,
     helperText,
     control,
     defaultValue,
     InputLabelProps,
     error,
-    ...others
+    disabled,
+    required,
+    renderValue,
+    placeholder,
+    fullWidth,
   } = props;
+  // `fullWidth` used to reach MUI, which applied it to the control itself. The
+  // library trigger sizes to its content and its `w-full` resolves against THIS
+  // wrapper, so the width has to land here or the 100% is circular: the wrapper
+  // shrink-wraps the trigger and the trigger fills the wrapper.
+  const wrapperStyle = fullWidth
+    ? {
+        width: '100%',
+        ...style,
+      }
+    : style;
   return (
-    <FormControl fullWidth={fullWidth} style={style} error={error}>
-      {others.displayEmpty ? (
-        <InputLabel
-          shrink={true}
-          htmlFor={name}
-          variant={others.variant || 'standard'}
-          required={InputLabelProps?.required}
-        >
-          {label}
-        </InputLabel>
-      ) : (
-        <InputLabel htmlFor={name} variant={others.variant || 'standard'} required={InputLabelProps?.required}>
-          {label}
-        </InputLabel>
-      )}
+    <div style={wrapperStyle}>
       <Controller
         name={name}
-        id={name}
         defaultValue={defaultValue}
         control={control}
         render={({ field }) => (
-          <MUISelect {...field} {...others} value={field.value ?? ''}>
-            {children}
-          </MUISelect>
+          <Select
+            value={field.value ?? ''}
+            onValueChange={field.onChange}
+            name={field.name}
+            disabled={disabled}
+            required={required ?? InputLabelProps?.required}
+            error={!!error}
+          >
+            <SelectLabel required={required ?? InputLabelProps?.required}>{label}</SelectLabel>
+            <SelectTrigger className="w-full">
+              {/* `renderValue` formatted the trigger's text. The library reads it
+                  from the chosen item, so a formatter is only consulted when the
+                  site actually passes one. */}
+              {renderValue
+                ? <span>{field.value ? renderValue(field.value) : (placeholder ?? label)}</span>
+                : <SelectValue placeholder={placeholder ?? label} />}
+            </SelectTrigger>
+            <SelectContent>{toSelectItems(children)}</SelectContent>
+            {error || helperText
+              ? <SelectHelperText>{helperText ?? error?.message}</SelectHelperText>
+              : null}
+          </Select>
         )}
       />
-      {!!error && (
-        <FormHelperText variant={others.variant} error={!!error}>
-          {helperText ?? error?.message}
-        </FormHelperText>
-      )}
-    </FormControl>
+    </div>
   );
 };
 

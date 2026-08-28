@@ -1,11 +1,15 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { ArrowDownwardOutlined, ArrowUpwardOutlined } from '@mui/icons-material';
 import {
   Box,
-  FormControl,
   IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
   Tooltip,
 } from '@mui/material';
 import { type FunctionComponent } from 'react';
@@ -36,28 +40,33 @@ const ThreatArsenalSortSelect: FunctionComponent<Props> = ({ sortHelpers }) => {
   };
 
   return (
+    // The toolbar row it sits in already puts 8px between its children, and the
+    // same 8px between this control's own parts.
     <Box sx={{
       display: 'flex',
       alignItems: 'center',
-      gap: 0.5,
-      marginLeft: 1.25,
+      gap: 1,
     }}
     >
-      <FormControl size="small" sx={{ minWidth: 140 }}>
-        <InputLabel id="threat-arsenal-sort-by-label">{t('Sort by')}</InputLabel>
-        <Select
-          labelId="threat-arsenal-sort-by-label"
-          label={t('Sort by')}
-          value={value}
-          onChange={event => handleFieldChange(event.target.value)}
-        >
+      <Select
+        value={value}
+        onValueChange={next => handleFieldChange(next)}
+      >
+        {/* The library label carries `mb-2` because it is designed to sit ABOVE its
+            field. Here it sits beside it, and in a centred flex row that bottom
+            margin lifts the text 4px above its neighbours — measured. */}
+        <SelectLabel className="mb-0">{t('Sort by')}</SelectLabel>
+        <SelectTrigger>
+          <SelectValue placeholder={t('Sort by')} />
+        </SelectTrigger>
+        <SelectContent>
           {THREAT_ARSENAL_SORT_OPTIONS.map(option => (
-            <MenuItem key={option.field} value={option.field}>
+            <SelectItem key={option.field} value={option.field}>
               {t(option.label)}
-            </MenuItem>
+            </SelectItem>
           ))}
-        </Select>
-      </FormControl>
+        </SelectContent>
+      </Select>
       <Tooltip title={sortAsc ? t('Sort ascending') : t('Sort descending')}>
         <span>
           <IconButton

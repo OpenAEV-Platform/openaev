@@ -1,22 +1,15 @@
-import { Add, DeleteOutlined, ExpandMore } from '@mui/icons-material';
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Alert,
-  Box,
-  Button,
-  FormControl,
-  IconButton,
-  InputLabel,
-  MenuItem,
   Select,
-  type SelectChangeEvent,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
+import { Add, DeleteOutlined, ExpandMore } from '@mui/icons-material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, FormControl, IconButton, Tooltip, Typography } from '@mui/material';
 import { type FormApi } from 'final-form';
-import { type FunctionComponent, type ReactElement, type ReactNode, useEffect, useState } from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { type ConditionElement, type ConditionType, type Content, type ConvertedContentType, type Dependency, type InjectOutputType } from '../../../../actions/injects/Inject';
@@ -188,24 +181,15 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
    * @param _event the event
    * @param parent the parent key
    */
-  const handleChangeParent = (_event: SelectChangeEvent<string>, parent: ReactNode) => {
-    const rx = /\.\$select-parent-(.*)-inject-(.*)/g;
-    if (!parent) return;
-    let key = '';
-    const parentElement = parent as ReactElement;
-    if ('key' in parentElement && parentElement.key !== null) {
-      key = parentElement.key;
-    }
-    if (key === null) {
-      return;
-    }
-    const arr = rx.exec(key);
-
-    if (parents === undefined || arr === null || injects === undefined) return;
-    const newInject = injects.find(currentInject => currentInject.inject_id === arr[2]);
+  // MUI handed the selected node over and the row index was recovered by parsing
+  // its React key. Both values are in scope where the field is mounted, so they
+  // are passed straight in and no key is parsed.
+  const handleChangeParent = (rowIndex: number, injectId: string) => {
+    if (parents === undefined || injects === undefined) return;
+    const newInject = injects.find(currentInject => currentInject.inject_id === injectId);
     const newParents = parents
       .map((element) => {
-        if (element.index === parseInt(arr[1], 10)) {
+        if (element.index === rowIndex) {
           const previousInject = injects.find(value => value.inject_id === element.inject?.inject_id);
           if (previousInject?.inject_depends_on !== undefined) {
             previousInject!.inject_depends_on = previousInject!.inject_depends_on?.filter(
@@ -260,24 +244,12 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
    * @param _event
    * @param child
    */
-  const handleChangeChildren = (_event: SelectChangeEvent<string>, child: ReactNode) => {
-    const rx = /\.\$select-children-(.*)-inject-(.*)/g;
-    if (!child) return;
-    let key = '';
-    const childElement = child as ReactElement;
-    if ('key' in (childElement as ReactElement) && childElement.key !== null) {
-      key = childElement.key;
-    }
-    if (key === null) {
-      return;
-    }
-    const arr = rx.exec(key);
-
-    if (childrenList === undefined || arr === null || injects === undefined) return;
-    const newInject = injects.find(currentInject => currentInject.inject_id === arr[2]);
+  const handleChangeChildren = (rowIndex: number, injectId: string) => {
+    if (childrenList === undefined || injects === undefined) return;
+    const newInject = injects.find(currentInject => currentInject.inject_id === injectId);
     const newChildren = childrenList
       .map((element) => {
-        if (element.index === parseInt(arr[1], 10)) {
+        if (element.index === rowIndex) {
           const baseInjectDependency: InjectDependency = {
             dependency_relationship: {
               inject_parent_id: values.inject_id,
@@ -909,29 +881,30 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
               </div>
             </AccordionSummary>
             <AccordionDetails>
-              <FormControl style={{ width: '100%' }}>
-                <InputLabel id="inject_id">{t('Inject')}</InputLabel>
-                <Select
-                  labelId="condition"
-                  fullWidth={true}
-                  value={parents[parent.index].inject ? parents[parent.index].inject?.inject_id : ''}
-                  onChange={handleChangeParent}
-                >
+              <Select
+                value={parents[parent.index].inject ? parents[parent.index].inject?.inject_id : ''}
+                onValueChange={value => handleChangeParent(index, value)}
+              >
+                <SelectLabel>{t('Inject')}</SelectLabel>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t('Inject')} />
+                </SelectTrigger>
+                <SelectContent>
                   {injects?.filter(currentInject => currentInject.inject_depends_duration < values.inject_depends_duration
                     && (parents.find(parentSearch => currentInject.inject_id === parentSearch.inject?.inject_id) === undefined
                       || parents[parent.index].inject?.inject_id === currentInject.inject_id))
                     .map((currentInject) => {
                       return (
-                        <MenuItem
+                        <SelectItem
                           key={`select-parent-${index}-inject-${currentInject.inject_id}`}
                           value={currentInject.inject_id}
                         >
                           {currentInject.inject_title}
-                        </MenuItem>
+                        </SelectItem>
                       );
                     })}
-                </Select>
-              </FormControl>
+                </SelectContent>
+              </Select>
               <FormControl style={{
                 width: '100%',
                 marginTop: '15px',
@@ -1019,30 +992,31 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
               </div>
             </AccordionSummary>
             <AccordionDetails>
-              <FormControl style={{ width: '100%' }}>
-                <InputLabel id="inject_id">{t('Inject')}</InputLabel>
-                <Select
-                  labelId="condition"
-                  fullWidth={true}
-                  value={childrenList.find(childrenSearch => children.index === childrenSearch.index)?.inject
-                    ? childrenList.find(childrenSearch => children.index === childrenSearch.index)?.inject?.inject_id : ''}
-                  onChange={handleChangeChildren}
-                >
+              <Select
+                value={childrenList.find(childrenSearch => children.index === childrenSearch.index)?.inject
+                  ? childrenList.find(childrenSearch => children.index === childrenSearch.index)?.inject?.inject_id : ''}
+                onValueChange={value => handleChangeChildren(index, value)}
+              >
+                <SelectLabel>{t('Inject')}</SelectLabel>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t('Inject')} />
+                </SelectTrigger>
+                <SelectContent>
                   {injects?.filter(currentInject => currentInject.inject_depends_duration > values.inject_depends_duration
                     && (childrenList.find(childrenSearch => currentInject.inject_id === childrenSearch.inject?.inject_id) === undefined
                       || childrenList.find(childrenSearch => children.index === childrenSearch.index)?.inject?.inject_id === currentInject.inject_id))
                     .map((currentInject) => {
                       return (
-                        <MenuItem
+                        <SelectItem
                           key={`select-children-${children.index}-inject-${currentInject.inject_id}`}
                           value={currentInject.inject_id}
                         >
                           {currentInject.inject_title}
-                        </MenuItem>
+                        </SelectItem>
                       );
                     })}
-                </Select>
-              </FormControl>
+                </SelectContent>
+              </Select>
               <FormControl style={{
                 width: '100%',
                 marginTop: '15px',

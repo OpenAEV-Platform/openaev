@@ -1,5 +1,5 @@
 import { LabelOutlined } from '@mui/icons-material';
-import { Box, Dialog, DialogContent, DialogTitle } from '@mui/material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import * as R from 'ramda';
 import { Component } from 'react';
 import { connect } from 'react-redux';
@@ -23,7 +23,6 @@ const styles = () => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
 });
 
 class TagFieldComponent extends Component {
@@ -99,15 +98,14 @@ class TagFieldComponent extends Component {
           style={style}
           openCreate={!disabled ? this.handleOpenTagCreation.bind(this) : null}
           onKeyDown={onKeyDown}
-          renderOption={(props, option) => (
-            <Box component="li" {...props} key={option.id}>
+          renderOption={option => (
+            <>
               <div className={classes.icon} style={{ color: option.color }}>
                 <LabelOutlined />
               </div>
               <div className={classes.text}>{option.label}</div>
-            </Box>
+            </>
           )}
-          classes={{ clearIndicator: classes.autoCompleteIndicator }}
         />
         <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
           <Dialog

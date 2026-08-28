@@ -1,5 +1,4 @@
 import { Kayaking } from '@mui/icons-material';
-import { Box } from '@mui/material';
 import { useDispatch } from 'react-redux';
 import { makeStyles } from 'tss-react/mui';
 
@@ -18,7 +17,6 @@ const useStyles = makeStyles()(() => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
 }));
 
 /**
@@ -48,15 +46,14 @@ const ExerciseField = (props) => {
       options={exerciseOptions}
       style={style}
       onKeyDown={onKeyDown}
-      renderOption={(renderProps, option) => (
-        <Box component="li" {...renderProps} key={option.id}>
+      renderOption={option => (
+        <>
           <div className={classes.icon}>
             <Kayaking />
           </div>
           <div className={classes.text}>{option.label}</div>
-        </Box>
+        </>
       )}
-      classes={{ clearIndicator: classes.autoCompleteIndicator }}
     />
   );
 };

@@ -1,5 +1,26 @@
+import {
+  ButtonGroup,
+  ButtonGroupItem,
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { AccountTreeOutlined, ArrowBackOutlined, FilterAltOffOutlined, FullscreenExitOutlined, FullscreenOutlined, HelpOutline, LocalFireDepartment, MoreHorizOutlined, SearchOutlined, TableRowsOutlined } from '@mui/icons-material';
-import { Autocomplete, Box, Button, ButtonBase, ListItemButton, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  ButtonBase,
+  ListItemButton,
+  Paper,
+  Popover,
+  ToggleButton,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, type ReactNode, useState } from 'react';
 
@@ -262,29 +283,23 @@ const AttackPathHeader: FunctionComponent<Props> = ({
       }}
     >
       {showPicker && (
-        <Autocomplete
-          size="small"
-          options={pickerOptions}
-          value={selectedRow}
-          isOptionEqualToValue={(o, v) => o.simulationId === v.simulationId}
-          getOptionLabel={o => labelFor(o.simulationId)}
-          onChange={(_, v) => {
-            if (v?.simulationId) {
-              onSimulationChange(v.simulationId);
-            }
-          }}
-          renderOption={(props, o) => {
-            const { key, ...rest } = props as { key: string } & Record<string, unknown>;
-            return (
-              <Box
-                component="li"
-                key={key}
-                {...rest}
-                sx={{
-                  display: 'flex',
-                  gap: 1,
-                }}
-              >
+        // The panel is allowed to outgrow this width by the library itself
+        // (min-w = trigger width, max-w-82), so the old slotProps override that
+        // widened the MUI paper is no longer needed.
+        <div style={{ width: 200 }}>
+          <Combobox
+            options={pickerOptions}
+            value={selectedRow}
+            onValueChange={(v) => {
+              const next = v as typeof pickerOptions[number] | null;
+              if (next?.simulationId) {
+                onSimulationChange(next.simulationId);
+              }
+            }}
+            isOptionEqualToValue={(o, v) => o.simulationId === v.simulationId}
+            getOptionLabel={o => labelFor(o.simulationId)}
+            renderOption={o => (
+              <>
                 <span>{labelFor(o.simulationId)}</span>
                 <Typography
                   component="span"
@@ -294,30 +309,19 @@ const AttackPathHeader: FunctionComponent<Props> = ({
                 >
                   {`${o.endpointCount ?? 0} ${t('endpoints')} · ${o.executionCount ?? 0} ${t('exec.')}`}
                 </Typography>
-              </Box>
-            );
-          }}
-          renderInput={params => <TextField {...params} label={t('Simulation')} />}
-          // The closed field only ever shows a compact date (08/05/26, 04:06 PM), so it is sized for
-          // that instead of the old 300px that also had to fit the simulation name. The dropdown is
-          // let out of that width: its rows carry the date AND the endpoint/exec counts, which would
-          // otherwise be crushed into the narrower field.
-          slotProps={{
-            paper: {
-              sx: {
-                width: 'max-content',
-                minWidth: '100%',
-              },
-            },
-          }}
-          sx={{
-            'width': 200,
-            '& .MuiOutlinedInput-root': {
-              height: CONTROL_HEIGHT,
-              paddingBlock: 0,
-            },
-          }}
-        />
+              </>
+            )}
+          >
+            <ComboboxLabel>{t('Simulation')}</ComboboxLabel>
+            <ComboboxField>
+              <ComboboxInput />
+              <ComboboxControls>
+                <ComboboxTrigger />
+              </ComboboxControls>
+            </ComboboxField>
+            <ComboboxContent />
+          </Combobox>
+        </div>
       )}
 
       {/* Focus escapes read as actions (buttons with a directional icon), not deletable chips. */}
@@ -563,80 +567,81 @@ const AttackPathHeader: FunctionComponent<Props> = ({
         ))}
       </Popover>
 
-      <Autocomplete<SearchOption>
-        size="small"
-        options={searchOptions}
-        value={null}
-        inputValue={searchInput}
-        onInputChange={(_, v) => onSearchInputChange(v)}
-        onChange={(_, v) => {
-          onSearchSelect(v);
-          onSearchInputChange('');
-        }}
-        blurOnSelect
-        clearOnBlur
-        groupBy={o => searchGroupLabel(o.kind)}
-        getOptionLabel={o => o.label}
-        isOptionEqualToValue={(o, v) => o.nodeId === v.nodeId && o.label === v.label}
-        filterOptions={(opts, state) => {
-          const q = state.inputValue.trim().toLowerCase();
-          if (!q) {
-            return opts;
-          }
-          return opts.filter(o => o.label.toLowerCase().includes(q) || (o.sub ?? '').toLowerCase().includes(q));
-        }}
-        renderOption={(props, o) => {
-          const { key, ...rest } = props as { key: string } & Record<string, unknown>;
-          return (
-            <li key={key} {...rest}>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" noWrap>{o.label}</Typography>
-                {o.sub && <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{o.sub}</Typography>}
-              </Box>
-            </li>
-          );
-        }}
-        renderInput={params => (
-          <TextField
-            {...params}
-            placeholder={t('Search endpoint, injector, finding…')}
-            InputProps={{
-              ...params.InputProps,
-              startAdornment: (
-                <SearchOutlined
-                  fontSize="small"
-                  sx={{
-                    mr: 0.5,
-                    color: 'text.secondary',
-                  }}
-                />
-              ),
-            }}
-          />
-        )}
-        sx={{
-          'width': 240,
-          '& .MuiOutlinedInput-root': {
-            height: CONTROL_HEIGHT,
-            paddingBlock: 0,
-          },
-        }}
-      />
-      <ToggleButtonGroup
-        size="small"
-        exclusive
+      <div style={{ width: 240 }}>
+        <Combobox<SearchOption>
+          options={searchOptions}
+          value={null}
+          inputValue={searchInput}
+          onInputChange={(v, meta) => {
+            if (meta.cause === 'type') {
+              onSearchInputChange(v);
+            }
+          }}
+          onValueChange={(v) => {
+            onSearchSelect(v as SearchOption | null);
+            onSearchInputChange('');
+          }}
+          keepInputOnBlur={false}
+          groupBy={o => searchGroupLabel(o.kind)}
+          getOptionLabel={o => o.label}
+          isOptionEqualToValue={(o, v) => o.nodeId === v.nodeId && o.label === v.label}
+          filterOptions={(opts, inputValue) => {
+            const q = inputValue.trim().toLowerCase();
+            if (!q) {
+              return opts;
+            }
+            return opts.filter(o => o.label.toLowerCase().includes(q) || (o.sub ?? '').toLowerCase().includes(q));
+          }}
+          renderOption={o => (
+            <div style={{ minWidth: 0 }}>
+              <div style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              >
+                {o.label}
+              </div>
+              {o.sub
+                ? (
+                    <div
+                      className="content-caption text-default-secondary"
+                      style={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {o.sub}
+                    </div>
+                  )
+                : null}
+            </div>
+          )}
+          clearable={false}
+        >
+          <ComboboxField startIcon={<SearchOutlined fontSize="small" />}>
+            <ComboboxInput placeholder={t('Search endpoint, injector, finding…')} />
+            <ComboboxControls>
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent emptyMessage={t('No results found')} />
+        </Combobox>
+      </div>
+      <ButtonGroup
+        size="sm"
         value={view}
-        onChange={(_, v) => v && onViewChange(v)}
+        onValueChange={v => onViewChange(v as 'graph' | 'table')}
         aria-label={t('View')}
-        sx={{ '& .MuiToggleButton-root': { height: CONTROL_HEIGHT } }}
       >
-        <ToggleButton value="graph" aria-label={t('Graph')}>
-          <Tooltip title={t('Graph')}><AccountTreeOutlined fontSize="small" /></Tooltip>
-        </ToggleButton>
-        <ToggleButton value="table" aria-label={t('Table')}>
-          <Tooltip title={t('Table')}><TableRowsOutlined fontSize="small" /></Tooltip>
-        </ToggleButton>
-      </ToggleButtonGroup>
+        <Tooltip title={t('Graph')}>
+          <ButtonGroupItem value="graph" aria-label={t('Graph')} icon={<AccountTreeOutlined fontSize="small" />} />
+        </Tooltip>
+        <Tooltip title={t('Table')}>
+          <ButtonGroupItem value="table" aria-label={t('Table')} icon={<TableRowsOutlined fontSize="small" />} />
+        </Tooltip>
+      </ButtonGroup>
       {/* Standalone ToggleButton so fullscreen reads as part of the same segmented family. */}
       <ToggleButton
         size="small"

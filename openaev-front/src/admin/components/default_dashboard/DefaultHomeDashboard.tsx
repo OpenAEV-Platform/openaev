@@ -1,5 +1,12 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { RefreshOutlined } from '@mui/icons-material';
-import { Box, IconButton, MenuItem, Select, Tooltip, Typography } from '@mui/material';
+import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -185,19 +192,21 @@ const DefaultHomeDashboard = () => {
         </Typography>
         <div style={{ flex: 1 }} />
         <Select
-          variant="standard"
-          size="small"
           value={timeRange}
-          onChange={e => setTimeRange(e.target.value as DefaultTimeRange)}
-          sx={{ minWidth: 160 }}
+          onValueChange={next => setTimeRange(next as DefaultTimeRange)}
         >
-          {getTimeRangeItems()
-            .filter(item => item.value !== 'CUSTOM')
-            .map(item => (
-              <MenuItem key={item.value} value={item.value}>
-                {t(item.label_key)}
-              </MenuItem>
-            ))}
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {getTimeRangeItems()
+              .filter(item => item.value !== 'CUSTOM')
+              .map(item => (
+                <SelectItem key={item.value} value={item.value}>
+                  {t(item.label_key)}
+                </SelectItem>
+              ))}
+          </SelectContent>
         </Select>
         <Tooltip title={t('Refresh')}>
           <IconButton

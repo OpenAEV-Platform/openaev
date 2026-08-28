@@ -44,22 +44,51 @@ class ThreatArsenalFormComponent {
     this.attackPatternsField = page.getByRole('combobox', { name: 'Attack patterns' });
     this.tagsField = page.getByRole('combobox', { name: 'Tags' });
     this.domainsField = page.getByRole('combobox', { name: 'Domains' });
-    this.expectationsField = page.getByRole('combobox', { name: 'Expectations *' });
+    this.expectationsField = page.getByRole('combobox', {
+      // A Combobox-based field, not a Select: `ComboboxLabel` has no `required`
+      // prop, so the site appends the asterisk as text and it stays in the
+      // accessible name. `SelectLabel` renders it `aria-hidden` instead.
+      name: 'Expectations *',
+      exact: true,
+    });
 
     // Commands fields
-    this.typeField = page.getByRole('combobox', { name: 'Type *' });
-    this.architectureField = page.getByRole('combobox', { name: 'Architecture *' });
+    // The library marks a required field with an `aria-hidden` asterisk, so the
+    // accessible name is the label alone — MUI used to fold the marker into it.
+    this.typeField = page.getByRole('combobox', {
+      name: 'Type',
+      exact: true,
+    });
+    this.architectureField = page.getByRole('combobox', {
+      name: 'Architecture',
+      exact: true,
+    });
     this.platformsField = page.getByRole('combobox', { name: 'Platforms' });
     this.argumentBtn = page.getByRole('button', { name: 'New argument' });
     this.prerequisiteBtn = page.getByRole('button', { name: 'New prerequisite' });
-    this.executorField = page.getByRole('combobox', { name: 'Executor *' });
+    this.executorField = page
+      .getByRole('combobox', {
+        name: 'Executor',
+        exact: true,
+      })
+      // The asterisk used to disambiguate this field from another carrying the
+      // same label; the library hides it from the accessible name, so the
+      // requirement itself does the narrowing.
+      .and(page.locator('[aria-required="true"]'));
     this.commandField = page.locator('textarea[name="command_content"]');
     this.documentsAddBtn = page.getByText('Add document');
     this.hostnameField = page.getByRole('textbox', { name: 'Hostname*' });
 
     // Actions
     // Scoped to the action form: the list header hosts a "Create" button too.
-    this.saveButton = page.locator('#actionForm').getByRole('button', { name: 'Create' });
+    // `exact` matters: the form's create-a-related-object ornaments are named
+    // "Create a new tag" and the like, which a substring match also selects.
+    this.saveButton = page
+      .locator('#actionForm')
+      .getByRole('button', {
+        name: 'Create',
+        exact: true,
+      });
   }
 
   // -- Get Locator methods
@@ -133,7 +162,12 @@ class ThreatArsenalFormComponent {
     }
 
     if (data.type) {
-      const typeCombobox = this.page.getByRole('combobox', { name: 'Type *' }).nth(index + 1);
+      const typeCombobox = this.page
+        .getByRole('combobox', {
+          name: 'Type',
+          exact: true,
+        })
+        .nth(index + 1);
       const typeValue = data.type.toLowerCase().replace(/\s+/g, '-');
 
       // Wait for the combobox to be visible and enabled

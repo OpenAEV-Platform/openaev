@@ -1,5 +1,14 @@
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxTrigger,
+  IconButton,
+} from '@filigran/design-system';
 import { FilterListOffOutlined } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, IconButton, TextField, Tooltip } from '@mui/material';
+import { Tooltip } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -9,10 +18,14 @@ import { useFormatter } from '../../../i18n';
 import { type FilterHelpers } from './FilterHelpers';
 import { buildEmptyFilter } from './FilterUtils';
 
-const useStyles = makeStyles()(() => ({
+const useStyles = makeStyles()(theme => ({
   container: {
     display: 'flex',
-    gap: 10,
+    // One axis, one gap: the field and the clear button are centred on the same
+    // line as the search box, 8px from it and 8px from each other. Measured
+    // before: 0px to the search box and 20px to the button.
+    alignItems: 'center',
+    gap: theme.spacing(1),
   },
 }));
 
@@ -55,46 +68,56 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
   };
 
   return (
-    <div className={classes.container}>
-      <MuiAutocomplete
-        options={options}
-        sx={{ width: domains ? '95%' : 200 }}
-        value={null}
-        onChange={(_, selectOptionValue) => {
-          if (selectOptionValue) {
-            handleChange(selectOptionValue.id, selectOptionValue.operator);
-          }
-        }}
-        inputValue={inputValue}
-        onInputChange={(_, newValue, reason) => {
-          if (reason === 'reset') {
-            return;
-          }
-          setInputValue(newValue);
-        }}
-        renderInput={params => (
-          <TextField
-            {...params}
-            variant="outlined"
-            size="small"
-            label={domains ? t('Please choose a scenario or simulation, or leave this field blank to include all scenarios and atomic tests') : t('Add filter')}
-            style={style}
-          />
-        )}
-        renderOption={(props, option) => <li {...props} key={props.key}>{option.label}</li>}
-      />
+    // `style` used to be spread onto the clear button, where it leaked margins
+    // and made the gap to it 20px. It belongs to the row.
+    <div className={classes.container} style={style}>
+      <div style={{ width: domains ? '95%' : 200 }}>
+        <Combobox
+          options={options}
+          value={null}
+          onValueChange={(selectOptionValue) => {
+            const next = selectOptionValue as typeof options[number] | null;
+            if (next) {
+              handleChange(next.id, next.operator);
+              // The filter is added elsewhere and this field holds no value, so
+              // the text must go with it. MUI cleared it through its own `reset`
+              // cause, which the `type`-only guard below drops.
+              setInputValue('');
+            }
+          }}
+          inputValue={inputValue}
+          onInputChange={(newValue, meta) => {
+            // MUI reported `reason === 'reset'` here to protect the typed text
+            // from a programmatic reset; the library states the same cause.
+            if (meta.cause !== 'type') {
+              return;
+            }
+            setInputValue(newValue);
+          }}
+          getOptionLabel={option => option.label}
+        >
+          <ComboboxField>
+            <ComboboxInput
+              placeholder={domains
+                ? t('Please choose a scenario or simulation, or leave this field blank to include all scenarios and atomic tests')
+                : t('Add filter')}
+            />
+            <ComboboxControls>
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+        </Combobox>
+      </div>
       <Tooltip title={t('Clear filters')}>
         <IconButton
-          style={{
-            ...style,
-            maxHeight: 40,
-          }}
-          color="primary"
+          size="md"
+          priority="tertiary"
+          data-testid="clear-filters"
+          aria-label={t('Clear filters')}
           onClick={handleClearFilters}
-          size="small"
-        >
-          <FilterListOffOutlined fontSize="small" />
-        </IconButton>
+          icon={<FilterListOffOutlined fontSize="small" />}
+        />
       </Tooltip>
     </div>
   );

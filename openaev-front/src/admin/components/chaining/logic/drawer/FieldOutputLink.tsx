@@ -203,7 +203,6 @@ const FieldOutputLink: FunctionComponent<Props> = ({
               <AutocompleteField
                 autoFocus
                 label={t('Primitive types')}
-                variant="standard"
                 multiple
                 disableCloseOnSelect
                 disableOptionTooltip

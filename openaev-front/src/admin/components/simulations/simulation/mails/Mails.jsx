@@ -1,4 +1,8 @@
-import { Paper } from '@filigran/design-system';
+import {
+  ButtonGroup,
+  ButtonGroupItem,
+  Paper,
+} from '@filigran/design-system';
 import { BarChartOutlined, KeyboardArrowRight, MailOutlined, ReorderOutlined } from '@mui/icons-material';
 import {
   Box,
@@ -9,8 +13,6 @@ import {
   ListItemIcon,
   ListItemSecondaryAction,
   ListItemText,
-  ToggleButton,
-  ToggleButtonGroup,
   Tooltip,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -205,25 +207,19 @@ const Mails = () => {
               <CreateQuickInject exercise={exercise} />
             </TeamContext.Provider>
           )}
-          <ToggleButtonGroup
+          <ButtonGroup
             value={viewMode}
-            exclusive
-            size="small"
-            onChange={handleViewModeChange}
+            size="sm"
+            onValueChange={handleViewModeChange}
             aria-label={t('View mode')}
-            sx={{ '& .MuiToggleButton-root.Mui-selected .MuiSvgIcon-root': { color: 'primary.main' } }}
           >
-            <ToggleButton value="list" aria-label={t('List view')}>
-              <Tooltip title={t('List view')}>
-                <ReorderOutlined fontSize="small" />
-              </Tooltip>
-            </ToggleButton>
-            <ToggleButton value="distribution" aria-label={t('Distribution view')}>
-              <Tooltip title={t('Distribution view')}>
-                <BarChartOutlined fontSize="small" />
-              </Tooltip>
-            </ToggleButton>
-          </ToggleButtonGroup>
+            <Tooltip title={t('List view')}>
+              <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ReorderOutlined fontSize="small" />} />
+            </Tooltip>
+            <Tooltip title={t('Distribution view')}>
+              <ButtonGroupItem value="distribution" aria-label={t('Distribution view')} icon={<BarChartOutlined fontSize="small" />} />
+            </Tooltip>
+          </ButtonGroup>
         </div>
         {viewMode === 'distribution' && (
           <>

@@ -1,7 +1,15 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { RichTextEditor } from '@filigran/rich-text-editor';
 import { RefreshOutlined } from '@mui/icons-material';
 import { LoadingButton } from '@mui/lab';
-import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, TextField } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, TextField } from '@mui/material';
 // As we can ask AI after and follow up, there is a dependency lifecycle here that can be accepted
 // TODO: Cleanup a bit in upcoming version
 // eslint-disable-next-line import/no-cycle
@@ -321,23 +329,23 @@ const ResponseDialog: FunctionComponent<ResponseDialogProps> = ({
         {/* Agent mode: tone selector */}
         {agentMode?.action === 'tone' && (
           <Box sx={{ mb: 2 }}>
-            <FormControl size="small" fullWidth>
-              <InputLabel id="tone-label">{t('Tone')}</InputLabel>
-              <Select
-                labelId="tone-label"
-                label={t('Tone')}
-                value={tone}
-                onChange={event => setTone(event.target.value)}
-                size="small"
-                disabled={effectiveDisabled}
-              >
-                <MenuItem value="formal">{t('Formal')}</MenuItem>
-                <MenuItem value="informal">{t('Informal')}</MenuItem>
-                <MenuItem value="authoritative">{t('Authoritative')}</MenuItem>
-                <MenuItem value="assertive">{t('Assertive')}</MenuItem>
-                <MenuItem value="critical">{t('Critical')}</MenuItem>
-              </Select>
-            </FormControl>
+            <Select
+              value={tone}
+              onValueChange={next => setTone(next)}
+              disabled={effectiveDisabled}
+            >
+              <SelectLabel>{t('Tone')}</SelectLabel>
+              <SelectTrigger>
+                <SelectValue placeholder={t('Tone')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="formal">{t('Formal')}</SelectItem>
+                <SelectItem value="informal">{t('Informal')}</SelectItem>
+                <SelectItem value="authoritative">{t('Authoritative')}</SelectItem>
+                <SelectItem value="assertive">{t('Assertive')}</SelectItem>
+                <SelectItem value="critical">{t('Critical')}</SelectItem>
+              </SelectContent>
+            </Select>
           </Box>
         )}
 

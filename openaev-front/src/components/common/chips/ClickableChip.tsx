@@ -1,4 +1,4 @@
-import { Box, Chip, type SelectChangeEvent, Tooltip } from '@mui/material';
+import { Box, Chip, Tooltip } from '@mui/material';
 import { type FunctionComponent, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -72,19 +72,19 @@ const ClickableChip: FunctionComponent<Props> = ({
     if (onDelete) onDelete();
   };
 
-  const handleChange = (event: SelectChangeEvent) => {
+  const handleChange = (value: string) => {
     const newValue = selectedElement;
     switch (propertyToChange) {
       case 'key': {
-        newValue.key = event.target.value;
+        newValue.key = value;
         break;
       }
       case 'operator': {
-        newValue.operator = event.target.value;
+        newValue.operator = value;
         break;
       }
       case 'value': {
-        newValue.value = event.target.value;
+        newValue.value = value;
         break;
       }
       default:

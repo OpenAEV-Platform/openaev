@@ -1,71 +1,121 @@
-import { FormControl, FormHelperText, InputLabel, Select as MUISelect } from '@mui/material';
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+  Select,
+  SelectContent,
+  SelectHelperText,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { Field } from 'react-final-form';
 
-const renderHelper = ({ touched, error, submitError, helperText, variant }) => {
-  if (!(touched && error)) {
-    return helperText;
-  }
-  return (
-    <FormHelperText variant={variant}>
-      {touched && (error || submitError)}
-    </FormHelperText>
-  );
-};
+import { toOptions, toSelectItems } from './selectChildren';
 
 const renderSelectField = ({
   name,
-  input: { onChange, ...inputProps },
+  input: { onChange, value, onBlur },
   label,
   meta: { touched, error, submitError },
   children,
-  fullWidth,
   style,
   onChange: onChangePassed,
   helperText,
   InputLabelProps,
-  ...others
-}) => (
-  <FormControl error={touched && error} fullWidth={fullWidth} style={style}>
-    {others.displayEmpty ? (
-      <InputLabel
-        required={InputLabelProps?.required}
-        shrink={true}
-        htmlFor={name}
-        variant={others.variant || 'standard'}
+  multiple = false,
+  disabled = false,
+  renderValue,
+  fullWidth,
+}) => {
+  const message = touched && (error || submitError) ? (error || submitError) : helperText;
+  const required = InputLabelProps?.required;
+  // See SelectField: the width has to land on the wrapper, not on the trigger.
+  const wrapperStyle = fullWidth
+    ? {
+        width: '100%',
+        ...style,
+      }
+    : style;
+
+  // The library Select holds one string. A multiple field becomes a Combobox —
+  // the nearest component that holds a set — which adds a text filter and takes
+  // nothing away. The option list is read from the same `<MenuItem>` children
+  // the call sites already pass.
+  if (multiple) {
+    const options = toOptions(children);
+    const selected = options.filter(o => (Array.isArray(value) ? value : []).includes(o.value));
+    return (
+      <div style={wrapperStyle}>
+        <Combobox
+          multiple
+          options={options}
+          value={selected}
+          onValueChange={(next) => {
+            const values = next.map(o => o.value);
+            onChange(values);
+            if (typeof onChangePassed === 'function') {
+              onChangePassed({ target: { value: values } });
+            }
+          }}
+          getOptionLabel={option => option.label}
+          isOptionEqualToValue={(a, b) => a.value === b.value}
+          disabled={disabled}
+          error={!!(touched && error)}
+        >
+          <ComboboxLabel>
+            {label}
+            {required ? ' *' : ''}
+          </ComboboxLabel>
+          <ComboboxField>
+            <ComboboxChips />
+            <ComboboxInput name={name} onBlur={onBlur} />
+            <ComboboxControls>
+              <ComboboxClear />
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+          {message ? <ComboboxHelperText>{message}</ComboboxHelperText> : null}
+        </Combobox>
+      </div>
+    );
+  }
+
+  return (
+    <div style={wrapperStyle}>
+      <Select
+        value={value ?? ''}
+        onValueChange={(next) => {
+          onChange(next);
+          if (typeof onChangePassed === 'function') {
+            onChangePassed({ target: { value: next } });
+          }
+        }}
+        name={name}
+        disabled={disabled}
+        required={required}
+        error={!!(touched && error)}
       >
-        {label}
-      </InputLabel>
-    ) : (
-      <InputLabel required={InputLabelProps?.required} htmlFor={name} variant={others.variant || 'standard'}>
-        {label}
-      </InputLabel>
-    )}
-    <MUISelect
-      onChange={(event) => {
-        onChange(event.target.value);
-        if (typeof onChangePassed === 'function') {
-          onChangePassed(event);
-        }
-      }}
-      {...inputProps}
-      {...others}
-      inputProps={{
-        name,
-        id: name,
-      }}
-      style={{ height: 30 }}
-    >
-      {children}
-    </MUISelect>
-    {renderHelper({
-      touched,
-      error,
-      submitError,
-      helperText,
-      variant: others.variant || 'standard',
-    })}
-  </FormControl>
-);
+        <SelectLabel required={required}>{label}</SelectLabel>
+        <SelectTrigger className="w-full">
+          {renderValue
+            ? <span>{value ? renderValue(value) : label}</span>
+            : <SelectValue placeholder={label} />}
+        </SelectTrigger>
+        <SelectContent>{toSelectItems(children)}</SelectContent>
+        {message ? <SelectHelperText>{message}</SelectHelperText> : null}
+      </Select>
+    </div>
+  );
+};
 
 /**
  * @deprecated The component use old form library react-final-form

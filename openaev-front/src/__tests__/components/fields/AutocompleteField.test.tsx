@@ -90,7 +90,10 @@ describe('AutocompleteField', () => {
       renderField({ open: true });
 
       // Act
-      fireEvent.mouseOver(screen.getAllByRole('option')[0]);
+      // The library owns the option row, so the tooltip anchors INSIDE it. The
+      // event is fired on a descendant and bubbles up to that anchor — firing on
+      // the row itself would travel away from it.
+      fireEvent.mouseOver(screen.getByText(OPTIONS[0].label));
 
       // Assert
       const tooltip = await screen.findByRole('tooltip');

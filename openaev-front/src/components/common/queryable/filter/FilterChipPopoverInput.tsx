@@ -1,4 +1,13 @@
-import { Autocomplete, Checkbox, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useCallback, useContext, useEffect, useState } from 'react';
 
@@ -36,26 +45,26 @@ export const BasicTextInput: FunctionComponent<Props> = ({
     );
   };
   return (
-    <Autocomplete
+    <Combobox<string>
       multiple
-      freeSolo
-      fullWidth
-      size="small"
+      allowCustomValue
+      createValueFromInput={input => input}
       options={[]}
       value={values}
       inputValue={inputValue}
-      onInputChange={(_, search) => setInputValue(search)}
-      onChange={(_, newValues) => {
+      onInputChange={(search, meta) => {
+        if (meta.cause === 'type') setInputValue(search);
+      }}
+      onValueChange={(newValues) => {
         commit(newValues as string[]);
         setInputValue('');
       }}
-      renderInput={paramsInput => (
-        <TextField
-          {...paramsInput}
-          variant="outlined"
-          size="small"
-          label={t(filter.key)}
-          placeholder={t('Press Enter to add a value')}
+      keepInputOnBlur
+    >
+      <ComboboxField>
+        <ComboboxChips />
+        <ComboboxInput
+          placeholder={t(filter.key)}
           autoFocus
           onBlur={() => {
             // Clicking away with pending text must still register the value
@@ -66,8 +75,13 @@ export const BasicTextInput: FunctionComponent<Props> = ({
             }
           }}
         />
-      )}
-    />
+        <ComboboxControls>
+          <ComboboxClear />
+          <ComboboxTrigger />
+        </ComboboxControls>
+      </ComboboxField>
+      <ComboboxContent />
+    </Combobox>
   );
 };
 
@@ -150,61 +164,51 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
   };
 
   return (
-    <Autocomplete
+    <Combobox<GroupOption | Option>
+      multiple
       selectOnFocus
       openOnFocus
-      autoHighlight
-      multiple
-      noOptionsText={t('No available options')}
       options={mergedOptions}
       value={selectedOptions}
       inputValue={inputValue}
-      renderValue={() => null}
+      loading={loading}
       isOptionEqualToValue={(option, value) => option.id === value.id}
       groupBy={(option: GroupOption | Option) => 'group' in option ? option.group : ''}
       getOptionLabel={option => option.label ?? ''}
-      onInputChange={(_, search, reason) => {
-        if (reason === 'reset') {
+      onInputChange={(search, meta) => {
+        if (meta.cause !== 'type') {
           return;
         }
         setInputValue(search);
         debouncedSearchOptions(search);
       }}
-      renderInput={paramsInput => (
-        <TextField
-          {...paramsInput}
-          label={t(propertySchema.schema_property_name)}
-          variant="outlined"
-          size="small"
-        />
-      )}
-      loading={loading}
-      renderOption={(props, option) => {
-        const checked = filter.values?.includes(option.id);
-        return (
-          <li
-            {...props}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.stopPropagation();
-              }
-            }}
-            key={option.id}
-            onClick={() => onClick(option.id)}
-            style={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              padding: 0,
-              margin: 0,
-            }}
-          >
-            <Checkbox checked={checked} />
-            <span style={{ padding: '0 4px 0 4px' }}>{option.label}</span>
-          </li>
-        );
+      onValueChange={(next) => {
+        // Was: every row owned its own click and called `onClick(option.id)`. The
+        // library owns the row, so the new selection is diffed against the old one
+        // and the same helper is replayed for whatever moved.
+        const before = new Set(filter.values ?? []);
+        const after = new Set((next as (GroupOption | Option)[]).map(o => o.id));
+        for (const id of after) {
+          if (!before.has(id)) {
+            onClick(id);
+          }
+        }
+        for (const id of before) {
+          if (!after.has(id)) {
+            onClick(id);
+          }
+        }
       }}
-    />
+    >
+      <ComboboxField>
+        <ComboboxInput placeholder={t(propertySchema.schema_property_name)} />
+        <ComboboxControls>
+          <ComboboxClear />
+          <ComboboxTrigger />
+        </ComboboxControls>
+      </ComboboxField>
+      <ComboboxContent emptyMessage={t('No available options')} />
+    </Combobox>
   );
 };
 

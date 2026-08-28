@@ -1,5 +1,14 @@
+import {
+  Select,
+  SelectContent,
+  SelectHelperText,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, MenuItem, TextField } from '@mui/material';
+import { Button, TextField } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -73,29 +82,33 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
         control={control}
         name="security_platform_type"
         render={({ field: { ref, ...fieldProps } }) => (
-          <TextField
-            select
-            variant="standard"
-            fullWidth
-            {...fieldProps}
-            inputRef={ref}
-            label={t('Platform')}
-            style={{ marginTop: 20 }}
-            error={!!errors.security_platform_type}
-            helperText={errors.security_platform_type?.message}
-            required
-          >
-            <MenuItem value="EDR">{t('EDR')}</MenuItem>
-            <MenuItem value="XDR">{t('XDR')}</MenuItem>
-            <MenuItem value="SIEM">{t('SIEM')}</MenuItem>
-            <MenuItem value="SOAR">{t('SOAR')}</MenuItem>
-            <MenuItem value="NDR">{t('NDR')}</MenuItem>
-            <MenuItem value="ISPM">{t('ISPM')}</MenuItem>
-            <MenuItem value="EMAIL_SECURITY">{t('Email Security')}</MenuItem>
-            <MenuItem value="LLM_FIREWALL">{t('LLM Firewall')}</MenuItem>
-            <MenuItem value="AI_GATEWAY">{t('AI Gateway')}</MenuItem>
-            <MenuItem value="VULNERABILITY_SCANNER">{t('Vulnerability Scanner')}</MenuItem>
-          </TextField>
+          <div style={{ marginTop: 20 }}>
+            <Select
+              value={fieldProps.value ?? ''}
+              onValueChange={fieldProps.onChange}
+              name={fieldProps.name}
+              error={!!errors.security_platform_type}
+              required
+            >
+              <SelectLabel required>{t('Platform')}</SelectLabel>
+              <SelectTrigger ref={ref}>
+                <SelectValue placeholder={t('Platform')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="EDR">{t('EDR')}</SelectItem>
+                <SelectItem value="XDR">{t('XDR')}</SelectItem>
+                <SelectItem value="SIEM">{t('SIEM')}</SelectItem>
+                <SelectItem value="SOAR">{t('SOAR')}</SelectItem>
+                <SelectItem value="NDR">{t('NDR')}</SelectItem>
+                <SelectItem value="ISPM">{t('ISPM')}</SelectItem>
+                <SelectItem value="EMAIL_SECURITY">{t('Email Security')}</SelectItem>
+                <SelectItem value="LLM_FIREWALL">{t('LLM Firewall')}</SelectItem>
+                <SelectItem value="AI_GATEWAY">{t('AI Gateway')}</SelectItem>
+                <SelectItem value="VULNERABILITY_SCANNER">{t('Vulnerability Scanner')}</SelectItem>
+              </SelectContent>
+              {errors.security_platform_type?.message ? <SelectHelperText>{errors.security_platform_type?.message}</SelectHelperText> : null}
+            </Select>
+          </div>
         )}
       />
       <TextField

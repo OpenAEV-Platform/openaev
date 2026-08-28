@@ -6,6 +6,8 @@
   " is not available for current payload type": " n'est pas disponible pour le type de payload actuel",
   " is not available for this security platform": " n'est pas disponible pour cette plateforme de sécurité",
   " is only available for empty content": " n'est disponible que pour un contenu vide",
+  "Installation mode": "Mode d'installation",
+  "Response choices": "Choix de réponse",
   "_": "_",
   "-": "Aucun",
   ",": ",",

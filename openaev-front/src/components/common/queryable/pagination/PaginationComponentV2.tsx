@@ -20,22 +20,72 @@ import { type QueryableHelpers } from '../QueryableHelpers';
 import TextSearchComponent from '../textSearch/TextSearchComponent';
 import TablePaginationComponentV2 from './TablePaginationComponentV2';
 
-const useStyles = makeStyles<{ topPagination?: boolean }>()((theme, props) => ({
+// One fixed break point, and nothing else: above it the toolbar is a single
+// line, below it the two-line stack. There is no runtime measurement and no
+// state that depends on the width, so the layout cannot disagree with the
+// decision that produced it.
+const ONE_LINE = '@media (min-width:1600px)';
+
+const useStyles = makeStyles()(theme => ({
   topbar: {
     display: 'flex',
     alignItems: 'center',
+    gap: theme.spacing(1),
+    // On one line the pagination is last and sits at the far edge. `order`
+    // moves it past the filters, which keep the DOM order they are read in.
+    [ONE_LINE]: {
+      order: 1,
+      marginLeft: 'auto',
+    },
   },
-  topPagination: { display: 'block' },
+  // The toolbar stacks: selection + pagination, then the filter controls, then
+  // the filter chips. On one line the whole thing ran past the viewport — at
+  // 1400px the pagination arrows sat at x=1471 with no horizontal scroll to
+  // reach them.
   parameters: {
     marginTop: -10,
-    display: props.topPagination ? 'block' : 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(1),
+    [ONE_LINE]: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      // This toolbar is shared by 62 pages and some carry heavier slots than
+      // the ones measured. Wrapping means a page that cannot fit one line
+      // falls back to two rather than running past its container.
+      flexWrap: 'wrap',
+    },
   },
   parametersWithoutPagination: {
     display: 'flex',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    gap: theme.spacing(1),
+    [ONE_LINE]: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      // This toolbar is shared by 62 pages and some carry heavier slots than
+      // the ones measured. Wrapping means a page that cannot fit one line
+      // falls back to two rather than running past its container.
+      flexWrap: 'wrap',
+    },
+  },
+  // One row of the toolbar: a single axis, 8px between neighbours.
+  row: {
+    display: 'flex',
     alignItems: 'center',
+    gap: theme.spacing(1),
+    flexWrap: 'wrap',
+  },
+  rowSpread: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing(1),
+    flexWrap: 'wrap',
+    // Above the break point this wrapper generates no box: its two groups
+    // become items of the toolbar itself, beside the filters. The groups are
+    // untouched — same elements, same classes, either side of the break.
+    [ONE_LINE]: { display: 'contents' },
   },
   TTPMitreContainer: {
     padding: theme.spacing(2),
@@ -68,7 +118,6 @@ interface Props<T> {
   attackPatterns?: AttackPattern[];
   reloadContentCount?: number;
   contextId?: string;
-  topPagination?: boolean;
 }
 
 const PaginationComponentV2 = <T extends object>({
@@ -89,10 +138,9 @@ const PaginationComponentV2 = <T extends object>({
   filtersEndSlot,
   reloadContentCount = 0,
   contextId,
-  topPagination = false,
 }: Props<T>) => {
   // Standard hooks
-  const { classes } = useStyles({ topPagination });
+  const { classes } = useStyles();
   const { t } = useFormatter();
 
   const [properties, setProperties] = useState<PropertySchemaDTO[]>([]);
@@ -216,25 +264,23 @@ const PaginationComponentV2 = <T extends object>({
   return (
     <>
       <div className={disablePagination ? classes.parametersWithoutPagination : classes.parameters}>
-        {topPagination
-          && (
-            <div className={classes.topPagination}>
-              {!disablePagination && (
-                <TablePaginationComponentV2
-                  page={searchPaginationInput.page}
-                  size={searchPaginationInput.size}
-                  paginationHelpers={queryableHelpers.paginationHelpers}
-                />
-              )}
-              {!!topBarButtonComponent && topBarButtonComponent}
-            </div>
-          )}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-        }}
-        >
-          {leftSlot}
+        {/* Line 1 — what acts on the whole list: the selection controls on the
+            left, how much of it is shown on the right. */}
+        <div className={classes.rowSpread} data-testid="toolbar-selection-row">
+          <div className={classes.row}>{leftSlot}</div>
+          <div className={classes.topbar}>
+            {!disablePagination && (
+              <TablePaginationComponentV2
+                page={searchPaginationInput.page}
+                size={searchPaginationInput.size}
+                paginationHelpers={queryableHelpers.paginationHelpers}
+              />
+            )}
+            {!!topBarButtonComponent && topBarButtonComponent}
+          </div>
+        </div>
+        {/* Line 2 — what narrows the list: search, filters, sort. */}
+        <div className={classes.row} data-testid="toolbar-filters-row">
           {searchEnable && (
             <TextSearchComponent
               textSearch={searchPaginationInput.textSearch}
@@ -247,7 +293,6 @@ const PaginationComponentV2 = <T extends object>({
               helpers={queryableHelpers.filterHelpers}
               options={options}
               setPristine={setPristine}
-              style={{ marginLeft: (searchEnable || leftSlot) ? 10 : 0 }}
               // "Clear filters" also resets the associated text search input.
               onClear={() => queryableHelpers.textSearchHelpers.handleTextSearch('')}
             />
@@ -262,7 +307,6 @@ const PaginationComponentV2 = <T extends object>({
                 startIcon={<GridViewOutlined fontSize="small" />}
                 onClick={() => setOpenMitreFilter(true)}
                 sx={{
-                  marginLeft: (searchEnable || leftSlot) ? 1.25 : 0,
                   borderColor: 'divider',
                   lineHeight: 'initial',
                   whiteSpace: 'nowrap',
@@ -298,19 +342,6 @@ const PaginationComponentV2 = <T extends object>({
           )}
           {filtersEndSlot}
         </div>
-        {!topPagination
-          && (
-            <div className={classes.topbar}>
-              {!disablePagination && (
-                <TablePaginationComponentV2
-                  page={searchPaginationInput.page}
-                  size={searchPaginationInput.size}
-                  paginationHelpers={queryableHelpers.paginationHelpers}
-                />
-              )}
-              {!!topBarButtonComponent && topBarButtonComponent}
-            </div>
-          )}
       </div>
       {/* Handle Mitre Filter */}
       {queryableHelpers.filterHelpers && searchPaginationInput.filterGroup && (

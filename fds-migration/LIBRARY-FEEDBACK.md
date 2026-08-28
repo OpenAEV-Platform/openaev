@@ -2053,3 +2053,165 @@ recorded here only so the two are not confused when the padding work is scoped.
 **Not urgent, but it caps the wave.** Seventeen surfaces out of the 130 in the
 OpenAEV container perimeter — 13%, and they are the only ones with no path
 forward. Everything else either converts or is out of scope by design.
+
+---
+
+Raised during: the Combobox adoption wave, library pin
+`da333e701d3073568159eabed00716c8e222a621`. Geometry and colour measured at the
+DOM in this product's own environment — real `ThemeLight()`/`ThemeDark()`, real
+`static/css/design-system-host.css`, `@fontsource/ibm-plex-sans` and
+`@fontsource/geologica` loaded as `src/index.tsx` loads them, and the theme class
+on `documentElement` as `AppThemeProvider` sets it. Three screens, both modes.
+
+## 39. `Combobox` needs a CAUSE on every one of its callbacks — and one product site expresses that cause as an event's PRESENCE
+
+**This is the wave's first blocker: 8 sites, 15 screens.** More than free value,
+more than the size axis.
+
+Six sites read MUI's change `reason`, across three different callbacks, and a
+seventh guards on something the library also does not provide:
+
+| callback | sites | what they read |
+|---|---|---|
+| `onInputChange` | `ReportingAutocompleteField.tsx:52`, `FilterAutocomplete.tsx:59`, `FilterChipPopoverInput.tsx:153`, `AutocompleteField.tsx:146` | `'input'` ×2, `'reset'` ×2 |
+| `onClose` | `ScenarioField.tsx:137` | `'selectOption'` |
+| `onChange` | `TagsFilter.jsx`, `ChannelsFilter.tsx` | `'clear'` — **converted**, see below |
+
+**The two `onChange` sites did not need the library to change.** In single mode a
+cleared field is exactly a null value; in multiple mode both handlers at the only
+call site reduce to the same state update. Both mappings were verified by reading
+the call sites, and both shipped. They are listed so the next reader does not
+re-open them.
+
+**The four `onInputChange` sites cannot be mapped, and they fail in opposite
+directions.** The library calls `onInputChange` from `setInputValue`, which
+`toggle()` and `clearAll()` also call, so a programmatic reset is
+indistinguishable from a keystroke. The two reading `'input'` drive a server
+search, so they would fire a query on every selection and every clear. The two
+reading `'reset'` ignore resets precisely to protect the text the user typed,
+which would now be overwritten.
+
+**The fourth form, and the reason this entry exists as written.** `ToolBar.tsx`
+(3 sites) never mentions `reason`. It writes:
+
+```js
+handleSearch(i, event, newValue) {
+  if (!event) return;          // MUI passes null on a programmatic reset
+  …
+}
+```
+
+That `if (!event) return` **is** `if (reason === 'input')`, expressed through the
+presence of the event object rather than a cause string. A fix that only adds a
+`reason` string to `onInputChange` would still leave these three sites
+unconvertible, because what they need is the same distinction under another name.
+A grep for `reason` does not find them — this one was found by opening the file.
+
+**Ask.** Give every callback that can fire from more than one cause a stated
+cause, with a named vocabulary, and cover the keystroke-vs-programmatic
+distinction explicitly rather than only the close-vs-select one. MUI's own set
+(`input`, `reset`, `clear`, `selectOption`, `removeOption`, `escape`, `blur`,
+`toggleInput`) is what this product already codes against.
+
+**Not worked around.** A local guard — "ignore an input change whose value equals
+the selected option's label" — would be exactly the local workaround the
+migration contract forbids. The 8 sites are left on MUI, listed, with the reason
+stated at each.
+
+## 40 & 41 — withdrawn, fixed upstream before this branch merged
+
+Two defects raised on pin `da333e7` and closed on pin `114854d` by library #145,
+which added `box-border` to the field shell, `m-0 list-none p-0` to the chip row
+and `border-0 m-0 p-0 box-border` to the input, and locked all three with
+`scripts/lib/form-control-ua-reset.test.ts`:
+
+- the chip row's bare `<ul>` kept the browser's `list-style: disc`, 40px
+  `padding-inline-start` and 14.4px `margin-block`, costing a visible bullet and
+  **26px of height** on every multiple field;
+- the bare `<input>` kept the browser's `border: 2px inset` and `1px` padding, so
+  the field sat **1px** over spec and painted a grey rectangle inside itself.
+
+Re-measured at the new pin, in this product's environment, both modes: the
+single-row field, the filter and the chip field all render **36px**, the declared
+value; the input reports `border-width: 0` and `padding: 0`; the chip row reports
+`list-style-type: none`, `padding-inline-start: 0` and `margin-block: 0`. Kept as
+a stub rather than deleted so the numbers survive for whoever meets the same
+no-preflight interaction on the next component.
+
+## 42. The option row's floor read the wrong signal — fixed upstream
+
+**Superseded framing.** This entry first said the product could not avoid the
+48px option row without dropping its glyph. That was wrong, and the node says so.
+
+Node 6899:15536 draws `Select Field Item` at 32px, `Multi Select Field Item` —
+the row that carries a CHECKBOX — also at 32px, and the two-line `Option
+Complex` at 48px. So the floor follows how many LINES a row renders; an ornament
+is not a second line.
+
+The component keyed the floor on the PRESENCE of `renderOption`, which answers a
+different question: that prop is how a caller draws a row, not how tall it is.
+Twenty-seven product sites — seventeen through `AutocompleteField`, ten field
+wrappers drawing a flag, a platform icon, a domain glyph or a 25px image — were
+therefore rendering at 48px where the node says 32px.
+
+Fixed in filigran-design-system #176: `isOptionTwoLine?: (option: T) => boolean`
+declares the two-line row instead of inferring it. Content growth was not used
+as the signal — it measures 41px in a real browser, matching neither height the
+node draws, which is why the floor was made explicit in the first place.
+
+Measured on this branch after the pin bump: a plain field, a `multiple` field
+with its checkbox, and an ornamented field all render `min-h-8`. No product site
+draws a two-line row, so none needs to declare one.
+
+## 43. `Select` renders no wrapper of its own, so its label and trigger separate
+
+Measured at pin `cd4b8ee`, on the scenario statistics row.
+
+`Combobox` wraps its parts: `<div className={cn("flex w-full flex-col", …)}>`.
+`Select` does not — `SelectPrimitive.Root` emits no DOM node, so `SelectLabel`
+and `SelectTrigger` become **siblings of whatever holds the Select**.
+
+In a flex or grid parent that is not a stacked column, they are laid out as two
+independent items. Measured on a `grid-template-columns: 330px 330px 330px` row:
+the parameter field, the label "Plage horaire" and the trigger "3 derniers mois"
+all reported `top: 342` — the label had been placed in its own grid cell, beside
+the trigger instead of above it. Reported by the review as a misalignment
+between the two filters, and it is exactly this.
+
+Every product site must therefore add a wrapper element the component could have
+provided. That is a silent trap: the composition looks right, typechecks, and
+renders correctly in any parent that happens to be a block.
+
+**The request.** Give `Select` the same wrapper `Combobox` already has, so the
+two components compose the same way and neither depends on its parent's display.
+
+## 44. `ComboboxLabel` has no `required`, so the two field families expose the marker differently
+
+`SelectLabel` takes `required` and renders the asterisk as
+`<span aria-hidden="true">*</span>` — deliberately out of the accessible name.
+`ComboboxLabel` has no such prop, so every site fakes it with literal text
+(`{label}{required ? ' *' : ''}`), which lands **inside** the accessible name.
+
+Measured on the arsenal action form: the Select-based "Type" is named `Type`,
+the Combobox-based "Expectations" is named `Expectations *`. Four E2E locators
+broke on this during the sweep, in three different ways, before the asymmetry
+was identified.
+
+**The request.** Give `ComboboxLabel` the same `required` prop with the same
+`aria-hidden` marker, so a required field is named the same way whichever family
+it belongs to.
+
+## 45. `Select` and `Tab` — reported from a measurement made elsewhere
+
+**Not measured on this branch.** The defect was found by another session working
+on OpenCTI and is documented in OpenCTI PR #17884; it is filed here only so the
+OpenAEV side carries a pointer to it rather than rediscovering it. The
+measurement, the reproduction and the analysis belong to that PR — read it there
+before acting on this entry.
+
+Recorded state on the OpenAEV side: accepted for a later pass, not worked around
+in the Combobox/Select adoption wave. No product site here compensates for it.
+
+**The request.** Whatever fix the library takes should be validated against
+OpenCTI #17884's reproduction, not against a fresh OpenAEV one — there is no
+OpenAEV repro to point at.

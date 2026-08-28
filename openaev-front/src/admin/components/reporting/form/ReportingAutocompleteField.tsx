@@ -1,4 +1,15 @@
-import { Autocomplete as MuiAutocomplete, Box, Chip, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { type FunctionComponent, useMemo } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -49,53 +60,42 @@ const ReportingAutocompleteField: FunctionComponent<Props> = (props) => {
   }, [props.multiple, props.value, options]);
 
   return (
-    <MuiAutocomplete<Option, boolean>
-      fullWidth
+    <Combobox<Option>
       openOnFocus
-      autoHighlight
       multiple={props.multiple === true}
-      noOptionsText={t('No available options')}
       options={options}
       value={selected}
       getOptionLabel={option => option.label ?? ''}
       isOptionEqualToValue={(option, value) => option.id === value.id}
-      onInputChange={(_, search, reason) => {
-        if (reason === 'input') {
+      onInputChange={(search, meta) => {
+        // MUI reported `reason === 'input'` to keep a programmatic reset from
+        // firing the server search; the library states the same cause.
+        if (meta.cause === 'type') {
           onInputChange(search);
         }
       }}
-      onChange={(_, newValue) => {
+      onValueChange={(newValue) => {
         if (props.multiple) {
           props.onChange(((newValue ?? []) as Option[]).map(option => option.id));
         } else {
           props.onChange((newValue as Option | null)?.id);
         }
       }}
-      renderOption={(liProps, option) => (
-        <Box component="li" {...liProps} key={option.id}>
-          {option.label}
-        </Box>
-      )}
-      renderTags={(tagValue, getTagProps) => tagValue.map((option, index) => (
-        <Chip
-          label={option.label}
-          {...getTagProps({ index })}
-          key={option.id}
-          size="small"
-          style={{ borderRadius: 4 }}
-        />
-      ))}
-      renderInput={params => (
-        <TextField
-          {...params}
-          label={label}
-          variant="standard"
-          required={required}
-          error={error}
-          helperText={helperText}
-        />
-      )}
-    />
+      required={required}
+      error={error}
+    >
+      <ComboboxLabel>{label}</ComboboxLabel>
+      <ComboboxField>
+        {props.multiple === true ? <ComboboxChips /> : null}
+        <ComboboxInput />
+        <ComboboxControls>
+          <ComboboxClear />
+          <ComboboxTrigger />
+        </ComboboxControls>
+      </ComboboxField>
+      <ComboboxContent emptyMessage={t('No available options')} />
+      {helperText ? <ComboboxHelperText>{helperText}</ComboboxHelperText> : null}
+    </Combobox>
   );
 };
 

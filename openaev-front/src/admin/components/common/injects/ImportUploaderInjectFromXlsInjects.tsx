@@ -1,14 +1,23 @@
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+  Select,
+  SelectContent,
+  SelectHelperText,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { TableViewOutlined } from '@mui/icons-material';
-import {
-  Alert, Autocomplete as MuiAutocomplete,
-  Box,
-  Button,
-  createFilterOptions,
-  MenuItem,
-  TextField,
-  Tooltip,
-} from '@mui/material';
+import { Alert, Box, Button, Tooltip } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { InformationOutline } from 'mdi-material-ui';
 import moment from 'moment-timezone';
@@ -53,6 +62,13 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
+// These two field labels were already untranslated before the Combobox
+// adoption (they were `label="Sheet"` / `label="Mapper"` on a MUI
+// TextField). They are kept untranslated rather than given invented
+// translations in nine locales; adding real keys is a separate task.
+const SHEET_LABEL = 'Sheet';
+const MAPPER_LABEL = 'Mapper';
+
 interface FormProps {
   sheetName: string;
   importMapperId: string;
@@ -93,7 +109,6 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
 
   // Form
   const {
-    register,
     control,
     handleSubmit: handleSubmitForm,
     formState: { errors, isDirty, isSubmitting },
@@ -116,8 +131,11 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
 
   // Mapper
   const [mapperOptions, setMapperOptions] = useState<MapperOption[]>([]);
+  // The MUI fields were uncontrolled; the library Combobox is always controlled,
+  // so each field's own selection now lives here.
+  const [sheet, setSheet] = useState<string | null>(null);
+  const [mapper, setMapper] = useState<MapperOption | null>(null);
   const [hintOptions, setHintOptions] = useState<MapperOption[]>([]);
-  const createFilterOptionsCustom = createFilterOptions<MapperOption>();
 
   const onChangeSearchInput = (value: string) => {
     searchMappers(buildSearchPagination({
@@ -243,105 +261,88 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
           control={control}
           name="sheetName"
           render={({ field: { onChange } }) => (
-            <MuiAutocomplete
-              size="small"
-              selectOnFocus
-              autoHighlight
-              clearOnBlur={false}
-              clearOnEscape={false}
+            <Combobox<string>
               options={sheets}
-              onChange={(_, v) => {
+              value={sheet}
+              onValueChange={(v) => {
+                setSheet(v as string | null);
                 onChange(v);
                 checkNeedLaunchDate();
               }}
-              renderInput={params => (
-                <TextField
-                  {...params}
-                  label="Sheet"
-                  variant="standard"
-                  fullWidth
-                  error={!!errors.sheetName}
-                  helperText={errors.sheetName?.message}
-                  InputLabelProps={{ required: true }}
-                />
-              )}
-            />
+              required
+              error={!!errors.sheetName}
+            >
+              <ComboboxLabel>{SHEET_LABEL}</ComboboxLabel>
+              <ComboboxField>
+                <ComboboxInput />
+                <ComboboxControls>
+                  <ComboboxTrigger />
+                </ComboboxControls>
+              </ComboboxField>
+              <ComboboxContent />
+              {errors.sheetName?.message
+                ? <ComboboxHelperText>{errors.sheetName.message}</ComboboxHelperText>
+                : null}
+            </Combobox>
           )}
         />
         <Controller
           control={control}
           name="importMapperId"
           render={({ field: { onChange } }) => (
-            <MuiAutocomplete
-              size="small"
-              selectOnFocus
-              autoHighlight
-              clearOnBlur={false}
-              clearOnEscape={false}
+            <Combobox<MapperOption>
               options={mapperOptions}
-              onChange={(_, v) => {
-                onChange(v?.id);
+              value={mapper}
+              onValueChange={(v) => {
+                const next = v as MapperOption | null;
+                setMapper(next);
+                onChange(next?.id);
                 checkNeedLaunchDate();
               }}
-              onInputChange={(event, value) => {
-                onChangeSearchInput(value);
-              }}
-
-              filterOptions={(options, state) => {
-                const filtered = createFilterOptionsCustom(options, state);
+              onInputChange={value => onChangeSearchInput(value)}
+              getOptionLabel={option => option.label}
+              isOptionEqualToValue={(option, v) => option.id === v.id}
+              // A hint row is informative, never selectable. MUI expressed that
+              // with pointer-events: none, which left it reachable by keyboard;
+              // the library marks it aria-disabled and unselectable.
+              isOptionDisabled={option => option.isHint}
+              // The same case-insensitive "contains" MUI's createFilterOptions
+              // performed, plus the hint rows, which must survive the filter.
+              filterOptions={(options, inputValue) => {
+                const q = inputValue.trim().toLowerCase();
+                const filtered = q
+                  ? options.filter(o => o.label.toLowerCase().includes(q))
+                  : [...options];
                 hintOptions.forEach((hint) => {
-                  const alreadyIn = filtered.some(o => o.id === hint.id);
-                  if (!alreadyIn) {
-                    filtered.push(hint);
-                  }
+                  if (!filtered.some(o => o.id === hint.id)) filtered.push(hint);
                 });
-
                 return filtered;
               }}
-
-              renderOption={(props, option) => {
-                if (option.isHint) {
-                  return (
-                    <Box
-                      component="li"
-                      {...props}
-                      key={option.id}
-                      sx={{
-                        fontStyle: 'italic',
-                        color: 'text.secondary',
-                        pointerEvents: 'none',
-                        padding: '8px 16px',
-                      }}
-                    >
-                      {option.label}
-                    </Box>
-                  );
-                } else {
-                  return (
-                    <Box component="li" {...props} key={option.id}>
+              required
+              error={!!errors.importMapperId}
+              renderOption={option => (option.isHint
+                ? <em>{option.label}</em>
+                : (
+                    <>
                       <div className={classes.icon}>
                         <TableViewOutlined color="primary" />
                       </div>
                       <div className={classes.text}>{option.label}</div>
-                    </Box>
-                  );
-                }
-              }}
-
-              getOptionLabel={option => option.label}
-              isOptionEqualToValue={(option, v) => option.id === v.id}
-              renderInput={params => (
-                <TextField
-                  {...params}
-                  label="Mapper"
-                  variant="standard"
-                  fullWidth
-                  error={!!errors.importMapperId}
-                  helperText={errors.importMapperId?.message}
-                  InputLabelProps={{ required: true }}
-                />
-              )}
-            />
+                    </>
+                  ))}
+            >
+              <ComboboxLabel>{MAPPER_LABEL}</ComboboxLabel>
+              <ComboboxField>
+                <ComboboxInput />
+                <ComboboxControls>
+                  <ComboboxTrigger />
+                </ComboboxControls>
+              </ComboboxField>
+              <ComboboxContent />
+              {errors.importMapperId?.message
+                ? <ComboboxHelperText>{errors.importMapperId.message}</ComboboxHelperText>
+                : null}
+            </Combobox>
           )}
         />
         {needLaunchDate
@@ -385,20 +386,23 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
           control={control}
           name="timezone"
           render={({ field }) => (
-            <TextField
-              select
-              variant="standard"
-              fullWidth
-              value={field.value}
-              label={t('Timezone')}
+            <Select
+              value={field.value ?? ''}
+              onValueChange={field.onChange}
+              name={field.name}
               error={!!errors.timezone}
-              helperText={errors.timezone?.message}
-              inputProps={register('timezone')}
             >
-              {timezones.map(tz => (
-                <MenuItem key={tz} value={tz}>{t(tz)}</MenuItem>
-              ))}
-            </TextField>
+              <SelectLabel>{t('Timezone')}</SelectLabel>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('Timezone')} />
+              </SelectTrigger>
+              <SelectContent>
+                {timezones.map(tz => (
+                  <SelectItem key={tz} value={tz}>{t(tz)}</SelectItem>
+                ))}
+              </SelectContent>
+              {errors.timezone?.message ? <SelectHelperText>{errors.timezone?.message}</SelectHelperText> : null}
+            </Select>
           )}
         />
       </div>

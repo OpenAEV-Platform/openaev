@@ -1,4 +1,11 @@
-import { Autocomplete, CircularProgress, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../components/i18n';
@@ -29,36 +36,26 @@ const AgentSelector: FunctionComponent<AgentSelectorProps> = ({
   const noAgents = !loading && options.length === 0;
 
   return (
-    <Autocomplete<AgentOption>
-      sx={{ width }}
-      size="small"
-      options={options}
-      getOptionLabel={option => option.name}
-      value={value}
-      onChange={(_event, newValue) => onChange(newValue)}
-      loading={loading}
-      disabled={disabled || noAgents}
-      noOptionsText={t('No agent available')}
-      renderInput={params => (
-        <TextField
-          {...params}
-          variant="outlined"
-          size="small"
-          placeholder={noAgents ? t('No agent available') : t('Select agent')}
-          InputProps={{
-            ...params.InputProps,
-            endAdornment: (
-              <>
-                {loading ? <CircularProgress color="inherit" size={16} /> : null}
-                {params.InputProps.endAdornment}
-              </>
-            ),
-          }}
-        />
-      )}
-      isOptionEqualToValue={(option, optValue) => option.id === optValue.id}
-      clearIcon={null}
-    />
+    <div style={{ width }}>
+      <Combobox<AgentOption>
+        options={options}
+        value={value}
+        onValueChange={newValue => onChange(newValue as AgentOption | null)}
+        getOptionLabel={option => option.name}
+        isOptionEqualToValue={(option, optValue) => option.id === optValue.id}
+        loading={loading}
+        disabled={disabled || noAgents}
+        clearable={false}
+      >
+        <ComboboxField>
+          <ComboboxInput placeholder={noAgents ? t('No agent available') : t('Select agent')} />
+          <ComboboxControls>
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent emptyMessage={t('No agent available')} />
+      </Combobox>
+    </div>
   );
 };
 
