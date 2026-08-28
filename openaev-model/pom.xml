@@ -13,7 +13,7 @@
     <description>OpenAEV model</description>
 
     <properties>
-        <elasticsearch.version>8.19.20</elasticsearch.version>
+        <elasticsearch.version>8.19.21</elasticsearch.version>
         <opensearch.version>3.9.0</opensearch.version>
         <amqp-client.version>5.35.0</amqp-client.version>
         <azure-core-management.version>1.19.6</azure-core-management.version>
