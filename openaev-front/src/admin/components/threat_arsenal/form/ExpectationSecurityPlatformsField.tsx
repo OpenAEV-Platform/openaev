@@ -1,6 +1,7 @@
 import {
   Combobox,
   ComboboxChips,
+  ComboboxClear,
   ComboboxContent,
   ComboboxControls,
   ComboboxField,
@@ -90,6 +91,7 @@ const ExpectationSecurityPlatformsField = () => {
                       placeholder={t('Any security platform')}
                     />
                     <ComboboxControls>
+                      <ComboboxClear />
                       <ComboboxTrigger />
                     </ComboboxControls>
                   </ComboboxField>

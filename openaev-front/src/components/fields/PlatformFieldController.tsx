@@ -1,6 +1,7 @@
 import {
   Combobox,
   ComboboxChips,
+  ComboboxClear,
   ComboboxContent,
   ComboboxControls,
   ComboboxField,
@@ -92,6 +93,7 @@ const PlatformFieldController: FunctionComponent<Props> = ({
             <ComboboxChips />
             <ComboboxInput />
             <ComboboxControls>
+              <ComboboxClear />
               <ComboboxTrigger />
             </ComboboxControls>
           </ComboboxField>

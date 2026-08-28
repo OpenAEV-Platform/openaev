@@ -1,6 +1,7 @@
 import {
   Combobox,
   ComboboxChips,
+  ComboboxClear,
   ComboboxContent,
   ComboboxControls,
   ComboboxField,
@@ -214,6 +215,7 @@ const ExpectationFormUpdate: FunctionComponent<Props> = ({
                     placeholder={t('Any security platform')}
                   />
                   <ComboboxControls>
+                    <ComboboxClear />
                     <ComboboxTrigger />
                   </ComboboxControls>
                 </ComboboxField>

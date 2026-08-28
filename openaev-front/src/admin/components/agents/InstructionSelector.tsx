@@ -1,4 +1,6 @@
 import {
+  Radio,
+  RadioGroup,
   Select,
   SelectContent,
   SelectItem,
@@ -6,7 +8,11 @@ import {
   SelectValue,
 } from '@filigran/design-system';
 import { ContentCopyOutlined, TerminalOutlined } from '@mui/icons-material';
-import { Alert, Button, FormControlLabel, Radio, RadioGroup, Typography } from '@mui/material';
+import {
+  Alert,
+  Button,
+  Typography,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Bash, DownloadCircleOutline, Powershell } from 'mdi-material-ui';
 import { useEffect, useState } from 'react';
@@ -73,8 +79,8 @@ const InstructionSelector: React.FC<InstructionSelectorProps> = ({ platform, sel
   const { settings, currentUserTenant } = useAuth();
   const tenantPrefix = `/api/tenants/${currentUserTenant?.tenant_id ?? DEFAULT_TENANT_UUID}`;
 
-  const handleOptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedOption(platform === MACOS ? SYSTEM : event.target.value);
+  const handleOptionChange = (value: string) => {
+    setSelectedOption(platform === MACOS ? SYSTEM : value);
   };
 
   useEffect(() => {
@@ -396,18 +402,15 @@ nohup ${agentFolder ?? '/opt/openaev-caldera-agent'}/openaev-caldera-agent -serv
         )}
         <div>
           <RadioGroup
+            aria-label={t('Installation mode')}
+            orientation="horizontal"
             value={selectedOption}
-            onChange={handleOptionChange}
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: '20px',
-            }}
+            onValueChange={handleOptionChange}
           >
             {platform !== MACOS && (
-              <FormControlLabel value={USER} control={<Radio />} label={t('Install Agent as User')} />
+              <Radio value={USER} label={t('Install Agent as User')} />
             )}
-            <FormControlLabel value={SYSTEM} control={<Radio />} label={t('Install Agent as System')} />
+            <Radio value={SYSTEM} label={t('Install Agent as System')} />
           </RadioGroup>
         </div>
         {

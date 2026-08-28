@@ -1,6 +1,7 @@
 import {
   Combobox,
   ComboboxChips,
+  ComboboxClear,
   ComboboxContent,
   ComboboxControls,
   ComboboxField,
@@ -77,6 +78,7 @@ const renderSelectField = ({
             <ComboboxChips />
             <ComboboxInput name={name} onBlur={onBlur} />
             <ComboboxControls>
+              <ComboboxClear />
               <ComboboxTrigger />
             </ComboboxControls>
           </ComboboxField>

@@ -1,6 +1,7 @@
 import {
   Combobox,
   ComboboxChips,
+  ComboboxClear,
   ComboboxContent,
   ComboboxControls,
   ComboboxField,
@@ -75,6 +76,7 @@ export const BasicTextInput: FunctionComponent<Props> = ({
           }}
         />
         <ComboboxControls>
+          <ComboboxClear />
           <ComboboxTrigger />
         </ComboboxControls>
       </ComboboxField>
@@ -201,6 +203,7 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
       <ComboboxField>
         <ComboboxInput placeholder={t(propertySchema.schema_property_name)} />
         <ComboboxControls>
+          <ComboboxClear />
           <ComboboxTrigger />
         </ComboboxControls>
       </ComboboxField>

@@ -6,6 +6,8 @@
   " is not available for current payload type": "현재 페이로드 유형에 사용할 수 없습니다",
   " is not available for this security platform": " 은(는) 이 보안 플랫폼에서 사용할 수 없습니다",
   " is only available for empty content": "는 빈 콘텐츠에만 사용할 수 있습니다",
+  "Installation mode": "설치 모드",
+  "Response choices": "응답 선택",
   "_": "_",
   "-": "없음",
   ",": ",",

@@ -1,6 +1,7 @@
 import {
   Combobox,
   ComboboxChips,
+  ComboboxClear,
   ComboboxContent,
   ComboboxControls,
   ComboboxField,
@@ -85,6 +86,7 @@ const ScenarioTypeFilter: FunctionComponent<{
           <ComboboxChips />
           <ComboboxInput />
           <ComboboxControls>
+            <ComboboxClear />
             <ComboboxTrigger />
           </ComboboxControls>
         </ComboboxField>

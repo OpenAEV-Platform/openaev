@@ -1,13 +1,23 @@
+import { Radio, RadioGroup } from '@filigran/design-system';
 import {
   AutoAwesome,
   HelpOutline,
   HourglassEmpty,
   SendOutlined,
 } from '@mui/icons-material';
-import { Box, Chip, CircularProgress, FormControlLabel, IconButton, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material';
+import {
+  Box,
+  Chip,
+  CircularProgress,
+  IconButton,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import type { Theme } from '@mui/material/styles';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useEffect, useRef, useState } from 'react';
+import { makeStyles } from 'tss-react/mui';
 
 import {
   addAutonomousDirective,
@@ -335,6 +345,19 @@ interface AutonomousReasoningPanelProps {
  * (pause / resume / stop) live in the hero, not here, so operators keep the same control surface as
  * a normal run.
  */
+// The choice rows keep the accent border and fill the MUI control drew. The
+// accent is a runtime colour, so the hover shade travels as a CSS variable.
+const useStyles = makeStyles()(theme => ({
+  choices: { gap: theme.spacing(0.75) },
+  choice: {
+    'borderRadius': theme.spacing(1.5),
+    'border': '1px solid transparent',
+    'padding': theme.spacing(0.5, 1, 0.5, 0.5),
+    'transition': theme.transitions.create(['border-color', 'background-color']),
+    '&:hover': { borderColor: 'var(--choice-hover)' },
+  },
+}));
+
 const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps> = ({
   run: initialRun,
   onRunUpdate,
@@ -343,6 +366,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   readOnly = false,
 }) => {
   const theme = useTheme();
+  const { classes } = useStyles();
   const { t, nsdt } = useFormatter();
   const { settings } = useAuth();
   // Slide the panel left by exactly the width the Ask Ariane sidebar pushes the main content, so the
@@ -1021,41 +1045,25 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
         >
           {hasChoices && (
             <RadioGroup
+              aria-label={t('Response choices')}
               value={selectedChoice ?? ''}
-              onChange={event => setSelectedChoice(event.target.value)}
-              sx={{ gap: 0.75 }}
+              onValueChange={setSelectedChoice}
+              className={classes.choices}
             >
               {questionChoices.map((choice) => {
                 const isSelected = selectedChoice === choice.id;
                 return (
-                  <FormControlLabel
+                  <div
                     key={choice.id}
-                    value={choice.id}
-                    control={(
-                      <Radio
-                        size="small"
-                        sx={{
-                          'color': accent,
-                          '&.Mui-checked': { color: accent },
-                        }}
-                      />
-                    )}
-                    label={choice.label}
-                    sx={{
-                      'margin': 0,
-                      'alignItems': 'flex-start',
-                      'borderRadius': 1.5,
-                      'border': `1px solid ${isSelected ? accent : theme.palette.divider}`,
-                      'backgroundColor': isSelected ? alpha(accent, 0.08) : 'transparent',
-                      'padding': theme.spacing(0.5, 1, 0.5, 0.5),
-                      'transition': theme.transitions.create(['border-color', 'background-color']),
-                      '&:hover': { borderColor: alpha(accent, 0.6) },
-                      '& .MuiFormControlLabel-label': {
-                        fontSize: '0.8125rem',
-                        paddingTop: '5px',
-                      },
+                    className={classes.choice}
+                    style={{
+                      borderColor: isSelected ? accent : theme.palette.divider,
+                      backgroundColor: isSelected ? alpha(accent, 0.08) : 'transparent',
+                      ['--choice-hover' as string]: alpha(accent, 0.6),
                     }}
-                  />
+                  >
+                    <Radio value={choice.id} label={choice.label} />
+                  </div>
                 );
               })}
             </RadioGroup>

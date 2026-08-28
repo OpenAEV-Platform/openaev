@@ -1,6 +1,7 @@
 import {
   Combobox,
   ComboboxChips,
+  ComboboxClear,
   ComboboxContent,
   ComboboxControls,
   ComboboxField,
@@ -73,6 +74,7 @@ const TenantFieldController: FunctionComponent<Props> = ({ name, label, disabled
             <ComboboxChips />
             <ComboboxInput />
             <ComboboxControls>
+              <ComboboxClear />
               <ComboboxTrigger />
             </ComboboxControls>
           </ComboboxField>

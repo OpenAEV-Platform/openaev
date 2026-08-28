@@ -1,6 +1,7 @@
 import {
   Combobox,
   ComboboxChips,
+  ComboboxClear,
   ComboboxContent,
   ComboboxControls,
   ComboboxField,
@@ -118,6 +119,7 @@ const ChannelsFilter: FunctionComponent<Props> = (props) => {
             <ComboboxChips />
             <ComboboxInput placeholder={t('Channels')} />
             <ComboboxControls>
+              <ComboboxClear />
               <ComboboxTrigger />
             </ComboboxControls>
           </ComboboxField>
