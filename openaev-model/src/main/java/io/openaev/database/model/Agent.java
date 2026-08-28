@@ -33,7 +33,7 @@ import org.hibernate.annotations.JoinFormula;
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Agent implements TenantBase, AuditStateCapturable {
 
-  public static final long ACTIVE_THRESHOLD_MILLIS = 6_000L;
+  public static final long ACTIVE_THRESHOLD_MILLIS = 3_600_000L;
   public static final String ADMIN_SYSTEM_WINDOWS = "nt authority\\system";
   public static final String ADMIN_SYSTEM_UNIX = "root";
 

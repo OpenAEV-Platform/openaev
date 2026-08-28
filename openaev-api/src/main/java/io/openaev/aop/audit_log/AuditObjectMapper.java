@@ -18,6 +18,8 @@ import io.openaev.database.audit.AuditLogHash;
 import io.openaev.database.audit.AuditLogIgnore;
 import io.openaev.database.audit.AuditLogRedact;
 import java.io.IOException;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -74,6 +76,7 @@ public class AuditObjectMapper {
   private static class AuditHashSerializer extends StdSerializer<Object> {
 
     private static final AuditHashSerializer INSTANCE = new AuditHashSerializer();
+    private static final ObjectMapper HASH_INPUT_MAPPER = new ObjectMapper();
 
     private AuditHashSerializer() {
       super(TypeFactory.defaultInstance().constructType(Object.class));
@@ -87,7 +90,36 @@ public class AuditObjectMapper {
         provider.defaultSerializeNull(gen);
         return;
       }
-      gen.writeString(hashWithSHA256(String.valueOf(value)));
+      gen.writeString(hashWithSHA256(toHashInput(value)));
+    }
+
+    private static String toHashInput(Object value) throws IOException {
+      if (value.getClass().isArray() || value instanceof List<?>) {
+        return HASH_INPUT_MAPPER.writeValueAsString(normalizeStructuredValue(value));
+      }
+      return String.valueOf(value);
+    }
+
+    private static Object normalizeStructuredValue(Object value) {
+      if (value == null) {
+        return null;
+      }
+      if (value.getClass().isArray()) {
+        int length = Array.getLength(value);
+        List<Object> normalized = new ArrayList<>(length);
+        for (int index = 0; index < length; index++) {
+          normalized.add(normalizeStructuredValue(Array.get(value, index)));
+        }
+        return normalized;
+      }
+      if (value instanceof List<?> listValue) {
+        List<Object> normalized = new ArrayList<>(listValue.size());
+        for (Object element : listValue) {
+          normalized.add(normalizeStructuredValue(element));
+        }
+        return normalized;
+      }
+      return value;
     }
   }
 

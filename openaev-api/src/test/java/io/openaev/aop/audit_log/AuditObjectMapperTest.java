@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.audit.AuditLogHash;
 import io.openaev.database.audit.AuditLogIgnore;
 import io.openaev.database.audit.AuditLogRedact;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class AuditObjectMapperTest {
@@ -64,6 +65,45 @@ class AuditObjectMapperTest {
     assertThat(auditJson.path("public_value").asText()).isEqualTo("visible");
   }
 
+  @Test
+  void given_auditHashArrayField_should_hashDeterministicallyFromArrayContent() throws Exception {
+    // Arrange
+    ObjectMapper httpMapper = new ObjectMapper();
+    AuditObjectMapper auditMapper = new AuditObjectMapper(httpMapper);
+    SampleArrayHashedPayload payload1 =
+        new SampleArrayHashedPayload("id-4", new String[] {"aa", "bb"});
+    SampleArrayHashedPayload payload2 =
+        new SampleArrayHashedPayload("id-5", new String[] {"aa", "bb"});
+
+    // Act
+    var auditJson1 = auditMapper.valueToTree(payload1);
+    var auditJson2 = auditMapper.valueToTree(payload2);
+
+    // Assert
+    String expectedHash = hashWithSHA256(httpMapper.writeValueAsString(List.of("aa", "bb")));
+    assertThat(auditJson1.path("mac_addresses").asText()).isEqualTo(expectedHash);
+    assertThat(auditJson2.path("mac_addresses").asText()).isEqualTo(expectedHash);
+    assertThat(auditJson1.path("mac_addresses").asText()).doesNotContain("[L");
+  }
+
+  @Test
+  void given_auditHashListField_should_hashDeterministicallyFromListContent() throws Exception {
+    // Arrange
+    ObjectMapper httpMapper = new ObjectMapper();
+    AuditObjectMapper auditMapper = new AuditObjectMapper(httpMapper);
+    SampleListHashedPayload payload1 = new SampleListHashedPayload("id-6", List.of("aa", "bb"));
+    SampleListHashedPayload payload2 = new SampleListHashedPayload("id-7", List.of("aa", "bb"));
+
+    // Act
+    var auditJson1 = auditMapper.valueToTree(payload1);
+    var auditJson2 = auditMapper.valueToTree(payload2);
+
+    // Assert
+    String expectedHash = hashWithSHA256(httpMapper.writeValueAsString(List.of("aa", "bb")));
+    assertThat(auditJson1.path("tags").asText()).isEqualTo(expectedHash);
+    assertThat(auditJson2.path("tags").asText()).isEqualTo(expectedHash);
+  }
+
   private record SamplePayload(
       @JsonProperty("payload_id") String id,
       @JsonProperty("public_value") String publicValue,
@@ -78,4 +118,12 @@ class AuditObjectMapperTest {
       @JsonProperty("payload_id") String id,
       @AuditLogIgnore @JsonProperty("user_email") String email,
       @JsonProperty("public_value") String publicValue) {}
+
+  private record SampleArrayHashedPayload(
+      @JsonProperty("payload_id") String id,
+      @AuditLogHash @JsonProperty("mac_addresses") String[] macAddresses) {}
+
+  private record SampleListHashedPayload(
+      @JsonProperty("payload_id") String id,
+      @AuditLogHash @JsonProperty("tags") List<String> tags) {}
 }
