@@ -784,6 +784,45 @@ class CredentialApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_gcpOAuth2Input_should_createGcpOAuth2Secret")
+    void given_gcpOAuth2Input_should_createGcpOAuth2Secret() throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-oauth");
+      CredentialInput input = CredentialInputFixture.gcpOAuth2Input("gcp-oauth");
+
+      // Act: no file part here, every OAuth field travels as plain text in the input part
+      String response =
+          mvc.perform(
+                  multipartCreate(tenantCredentialsUri(tenant.getId()), input)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      CredentialSecretReference credential =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      assertThat(credential.getCredentialType())
+          .isEqualTo(CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_GCP);
+      assertThat(credential.getCredentialAuthMethod())
+          .isEqualTo(CredentialSecretReference.CREDENTIAL_AUTH_METHOD.GCP_OAUTH2);
+
+      Secret secret = secretRepository.findById(credential.getLocation()).orElseThrow();
+      assertThat(secret).isInstanceOf(GcpOAuth2Secret.class);
+      assertThat(secret.getTenant().getId()).isEqualTo(tenant.getId());
+      GcpOAuth2Secret gcpSecret = (GcpOAuth2Secret) secret;
+      assertThat(gcpSecret.getScope()).isEqualTo(GCP_SCOPE);
+      assertThat(gcpSecret.getProjectId()).isEqualTo(GCP_PROJECT_ID);
+      assertThat(gcpSecret.getOauthClientId()).isEqualTo(GCP_OAUTH_CLIENT_ID);
+      // Both the client secret and the refresh token are stored encrypted
+      assertThat(gcpSecret.getOauthClientSecret()).isNotEqualTo(GCP_OAUTH_CLIENT_SECRET);
+      assertThat(gcpSecret.getOauthRefreshToken()).isNotEqualTo(GCP_OAUTH_REFRESH_TOKEN);
+    }
+
+    @Test
     @DisplayName("given_gcpTypeWithAzureAuthMethod_should_failCreation")
     void given_gcpTypeWithAzureAuthMethod_should_failCreation() throws Exception {
       // Arrange
@@ -941,6 +980,48 @@ class CredentialApiTest extends IntegrationTest {
       // A boolean is all the form gets about the key: enough for the placeholder, nothing more
       assertThatJson(response).node("credential_gcp_private_key_defined").isEqualTo(true);
       assertThat(response).doesNotContain(GCP_PRIVATE_KEY_JSON).doesNotContain("private_key");
+    }
+
+    @Test
+    @DisplayName("given_gcpOAuth2Credential_should_returnNonSensitiveFieldsOnly")
+    void given_gcpOAuth2Credential_should_returnNonSensitiveFieldsOnly() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-oauth-get");
+      String credentialId =
+          JsonPath.read(
+              mvc.perform(
+                      multipartCreate(
+                              tenantCredentialsUri(tenant.getId()),
+                              CredentialInputFixture.gcpOAuth2Input("gcp-oauth-get"))
+                          .accept(MediaType.APPLICATION_JSON))
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString(),
+              "$.credential_id");
+
+      // Act
+      String response =
+          mvc.perform(get(tenantCredentialsUri(tenant.getId()) + "/" + credentialId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert: the client id is a public application identifier, the form needs it to prefill
+      assertThatJson(response).node("credential_gcp_scope").isEqualTo(GCP_SCOPE);
+      assertThatJson(response).node("credential_gcp_project_id").isEqualTo(GCP_PROJECT_ID);
+      assertThatJson(response)
+          .node("credential_gcp_oauth_client_id")
+          .isEqualTo(GCP_OAUTH_CLIENT_ID);
+      // Booleans are all the form gets about the write-only values
+      assertThatJson(response).node("credential_gcp_oauth_client_secret_defined").isEqualTo(true);
+      assertThatJson(response).node("credential_gcp_oauth_refresh_token_defined").isEqualTo(true);
+      // A refresh token is a long-lived bearer credential: it must never travel back
+      assertThat(response)
+          .doesNotContain(GCP_OAUTH_CLIENT_SECRET)
+          .doesNotContain(GCP_OAUTH_REFRESH_TOKEN);
     }
   }
 

@@ -41,6 +41,9 @@ public final class CredentialMapper {
         .gcpScope(secretMetadata.gcpScope())
         .gcpProjectId(secretMetadata.gcpProjectId())
         .gcpPrivateKeyDefined(secretMetadata.gcpPrivateKeyDefined())
+        .gcpOauthClientId(secretMetadata.gcpOauthClientId())
+        .gcpOauthClientSecretDefined(secretMetadata.gcpOauthClientSecretDefined())
+        .gcpOauthRefreshTokenDefined(secretMetadata.gcpOauthRefreshTokenDefined())
         .build();
   }
 

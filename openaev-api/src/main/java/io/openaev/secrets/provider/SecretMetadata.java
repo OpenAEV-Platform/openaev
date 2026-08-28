@@ -27,21 +27,43 @@ public record SecretMetadata(
     String azureSubscriptionId,
     String gcpScope,
     String gcpProjectId,
-    boolean gcpPrivateKeyDefined) {
+    boolean gcpPrivateKeyDefined,
+    String gcpOauthClientId,
+    boolean gcpOauthClientSecretDefined,
+    boolean gcpOauthRefreshTokenDefined) {
 
   public static SecretMetadata empty() {
     return new SecretMetadata(
-        null, null, null, null, false, null, null, null, null, null, null, null, null, null, false);
+        null, null, null, null, false, null, null, null, null, null, null, null, null, null, false, null,
+        false, false);
   }
 
   public static SecretMetadata forUsername(String username) {
     return new SecretMetadata(
-        username, null, null, null, false, null, null, null, null, null, null, null,null, null, false);
+        username, null, null, null, false, null,null, null, null, null, null, null, null, null, false,
+        null, false, false);
   }
 
   public static SecretMetadata forHashAlgorithm(HashSecret.HASH_ALGORITHM hashAlgorithm) {
     return new SecretMetadata(
-        null, hashAlgorithm, null, null, false, null, null, null, null, null, null, null,null, null, false);
+        null,
+        hashAlgorithm,
+        null,
+        null,
+        false,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        false,
+        null,
+        false,
+        false);
   }
 
   public static SecretMetadata forAwsAccessKey(
@@ -60,7 +82,9 @@ public record SecretMetadata(
         null,
         null,
         null,
+        false,
         null,
+        false,
         false);
   }
 
@@ -84,6 +108,9 @@ public record SecretMetadata(
         null,
         null,
         null,
+        false,
+        null,
+        false,
         false);
   }
 
@@ -120,6 +147,9 @@ public record SecretMetadata(
         azureSubscriptionId,
         null,
         null,
+        false,
+        null,
+        false,
         false);
   }
 
@@ -151,6 +181,9 @@ public record SecretMetadata(
         azureSubscriptionId,
         null,
         null,
+        false,
+        null,
+        false,
         false);
   }
 
@@ -183,6 +216,54 @@ public record SecretMetadata(
         null,
         gcpScope,
         gcpProjectId,
-        gcpPrivateKeyDefined);
+        gcpPrivateKeyDefined,
+        null,
+        false,
+        false);
+  }
+
+  /**
+   * Non-sensitive metadata of a GCP OAuth 2.0 secret.
+   *
+   * <p>The client id is a public application identifier, echoed back to prefill the edit form —
+   * this mirrors {@link #forAzureServicePrincipal}, which returns the client id and deliberately
+   * leaves the client secret out. The OAuth client secret and the refresh token ARE the credential
+   * and never leave the backend, not even encrypted: a refresh token is a long-lived bearer
+   * credential, and leaking it is equivalent to leaking the account. Only booleans tell the form
+   * that both are stored, so it can render their write-only placeholders and treat an absent value
+   * as "keep the stored one".
+   *
+   * @param gcpScope the OAuth scope the credential is stored for
+   * @param gcpProjectId targeted project id, may be null
+   * @param gcpOauthClientId OAuth client id of the application
+   * @param gcpOauthClientSecretDefined whether an OAuth client secret is currently stored
+   * @param gcpOauthRefreshTokenDefined whether an OAuth refresh token is currently stored
+   * @return matching metadata
+   */
+  public static SecretMetadata forGcpOAuth2(
+      String gcpScope,
+      String gcpProjectId,
+      String gcpOauthClientId,
+      boolean gcpOauthClientSecretDefined,
+      boolean gcpOauthRefreshTokenDefined) {
+    return new SecretMetadata(
+        null,
+        null,
+        null,
+        null,
+        false,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        gcpScope,
+        gcpProjectId,
+        false,
+        gcpOauthClientId,
+        gcpOauthClientSecretDefined,
+        gcpOauthRefreshTokenDefined);
   }
 }

@@ -73,4 +73,16 @@ public record CredentialFullOutput(
             description =
                 "Whether a GCP service account key file is stored; the key itself is never returned")
         @JsonProperty("credential_gcp_private_key_defined")
-        boolean gcpPrivateKeyDefined) {}
+        boolean gcpPrivateKeyDefined,
+    @Schema(description = "GCP OAuth client id") @JsonProperty("credential_gcp_oauth_client_id")
+        String gcpOauthClientId,
+    @Schema(
+            description =
+                "Whether a GCP OAuth client secret is stored; the secret itself is never returned")
+        @JsonProperty("credential_gcp_oauth_client_secret_defined")
+        boolean gcpOauthClientSecretDefined,
+    @Schema(
+            description =
+                "Whether a GCP OAuth refresh token is stored; the token itself is never returned")
+        @JsonProperty("credential_gcp_oauth_refresh_token_defined")
+        boolean gcpOauthRefreshTokenDefined) {}

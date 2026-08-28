@@ -46,8 +46,12 @@ public class SecretStoreRequestFixture {
       "{\"type\":\"service_account\",\"project_id\":\"openaev-audit\","
           + "\"private_key\":\"-----BEGIN PRIVATE KEY-----OTHER-----END PRIVATE KEY-----\"}";
   public static final String GCP_OAUTH_CLIENT_ID = "1234567890-example.apps.googleusercontent.com";
+  public static final String GCP_OTHER_OAUTH_CLIENT_ID =
+      "0987654321-other.apps.googleusercontent.com";
   public static final String GCP_OAUTH_CLIENT_SECRET = "GOCSPX-gcpClientSecretEXAMPLE";
+  public static final String GCP_OTHER_OAUTH_CLIENT_SECRET = "GOCSPX-gcpOtherClientSecretEXAMPLE";
   public static final String GCP_OAUTH_REFRESH_TOKEN = "1//03gcpRefreshTokenEXAMPLE";
+  public static final String GCP_OTHER_OAUTH_REFRESH_TOKEN = "1//03gcpOtherRefreshTokenEXAMPLE";
 
   private SecretStoreRequestFixture() {}
 
