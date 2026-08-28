@@ -18,8 +18,8 @@ class ThreatArsenalListPage {
     // The redesigned list uses the shared pagination search (SearchFilter),
     // whose default placeholder is "Search these results...".
     this.searchContainer = page.getByPlaceholder('Search these results...');
-    this.gridViewButton = page.getByRole('button', { name: 'Grid view' });
-    this.listViewButton = page.getByRole('button', { name: 'List view' });
+    this.gridViewButton = page.getByRole('radio', { name: 'Grid view' });
+    this.listViewButton = page.getByRole('radio', { name: 'List view' });
     this.paginationRow = page.locator('.MuiTablePagination-root');
     this.filterField = page.getByPlaceholder('Add filter');
     // Anchored rather than named: the accessible name follows the UI language.
