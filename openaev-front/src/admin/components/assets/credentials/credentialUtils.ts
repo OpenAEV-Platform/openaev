@@ -42,6 +42,12 @@ const convertCredentialFullOutputToCredentialInput = (credential: CredentialFull
     gcp_scope: credential.credential_gcp_scope,
     gcp_project_id: credential.credential_gcp_project_id,
     gcp_private_key_json: credential.credential_gcp_private_key_defined ? DOTS : '',
+    // GCP OAuth2: the client id is a public identifier and comes back as is, while the client
+    // secret and the refresh token never travel back — only a boolean tells us one is stored, so
+    // the field shows a placeholder and an untouched form leaves the stored value alone.
+    gcp_oauth_client_id: credential.credential_gcp_oauth_client_id,
+    gcp_oauth_client_secret: credential.credential_gcp_oauth_client_secret_defined ? DOTS : '',
+    gcp_oauth_refresh_token: credential.credential_gcp_oauth_refresh_token_defined ? DOTS : '',
   };
 };
 

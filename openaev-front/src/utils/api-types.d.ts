@@ -3207,10 +3207,16 @@ export interface CredentialFullOutput {
   credential_created_by: CredentialCreatedByOutput;
   /** Credential description */
   credential_description?: string;
-  /** GCP project id */
-  credential_gcp_project_id?: string;
+  /** GCP OAuth client id */
+  credential_gcp_oauth_client_id?: string;
+  /** Whether a GCP OAuth client secret is stored; the secret itself is never returned */
+  credential_gcp_oauth_client_secret_defined?: boolean;
+  /** Whether a GCP OAuth refresh token is stored; the token itself is never returned */
+  credential_gcp_oauth_refresh_token_defined?: boolean;
   /** Whether a GCP service account key file is stored; the key itself is never returned */
   credential_gcp_private_key_defined?: boolean;
+  /** GCP project id */
+  credential_gcp_project_id?: string;
   /** GCP OAuth scope */
   credential_gcp_scope?: string;
   /** Secret hash algorithm */
