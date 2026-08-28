@@ -65,6 +65,7 @@ export const entitiesInitializer = Map({
     notifications: Map({}),
     phishinglandingpages: Map({}),
     phishingemailtemplates: Map({}),
+    marking_definitions: Map({}),
   }),
 });
 

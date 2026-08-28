@@ -9,6 +9,7 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import io.openaev.api.chaining.InjectExecutionStep;
+import io.openaev.api.marking_definition.MarkingDefinitionApi;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
@@ -24,6 +25,7 @@ import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
+import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.database.repository.MitigationRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
@@ -100,6 +102,7 @@ import io.openaev.service.autonomous.CapabilityResolverService;
 import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
+import io.openaev.service.marking_definition.MarkingDefinitionService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
@@ -157,7 +160,8 @@ class TenantActiveTableAccessArchTest {
           "autonomous_runs",
           "autonomous_events",
           "autonomous_directives",
-          "security_coverages");
+          "security_coverages",
+          "marking_definitions");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -257,6 +261,24 @@ class TenantActiveTableAccessArchTest {
           .areAssignableTo(MitigationRepository.class)
           .because(
               "mitigations is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule marking_definitions_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoint, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              MarkingDefinitionApi.class,
+              // Service behind the handler; every caller is a wired handler:
+              MarkingDefinitionService.class,
+              // Provisioning datapack: seeds protected defaults during tenant creation.
+              V20260330_Default_tenant_data.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(MarkingDefinitionRepository.class)
+          .because(
+              "marking_definitions is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
