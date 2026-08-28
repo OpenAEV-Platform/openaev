@@ -56,6 +56,11 @@ public class SecretStoreRequestFixture {
     return GCP_PRIVATE_KEY_JSON.getBytes(StandardCharsets.UTF_8);
   }
 
+  /** The raw bytes of a second service account key file, used to assert key rotation. */
+  public static byte[] gcpOtherPrivateKeyJsonBytes() {
+    return GCP_OTHER_PRIVATE_KEY_JSON.getBytes(StandardCharsets.UTF_8);
+  }
+
   /** A request carrying no value at all — every optional field is {@code null}. */
   public static SecretStoreRequest emptyRequest() {
     return new SecretStoreRequest(

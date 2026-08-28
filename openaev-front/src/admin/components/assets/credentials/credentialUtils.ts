@@ -1,7 +1,16 @@
 import DOTS from '../../../../constants/Strings';
 import type { CredentialFullOutput, CredentialInput } from '../../../../utils/api-types';
 
-const convertCredentialFullOutputToCredentialInput = (credential: CredentialFullOutput): CredentialInput => {
+/**
+ * Values used to prefill the credential form.
+ *
+ * <p>Wider than `CredentialInput` on purpose: file-backed contract fields (the GCP service account
+ * key) never belong to the JSON payload — they travel as their own multipart part — yet the form
+ * still needs a value for them to render the write-only placeholder.
+ */
+export type CredentialFormInitialValues = CredentialInput & Record<string, unknown>;
+
+const convertCredentialFullOutputToCredentialInput = (credential: CredentialFullOutput): CredentialFormInitialValues => {
   return {
     credential_name: credential.credential_name ?? '',
     credential_description: credential.credential_description ?? '',
@@ -28,8 +37,11 @@ const convertCredentialFullOutputToCredentialInput = (credential: CredentialFull
     azure_client_secret: credential.credential_azure_environment ? DOTS : '',
     azure_tenant_id: credential.credential_azure_tenant_id,
     azure_subscription_id: credential.credential_azure_subscription_id,
-    // GCP prefill is added with the GCP secret metadata (see the GCP handler chunks): the
-    // write-only fields stay empty here, which already means "left untouched".
+    // GCP: the key file never travels back, the backend only tells us whether one is stored so the
+    // upload field can show a placeholder and an untouched form sends no file part at all.
+    gcp_scope: credential.credential_gcp_scope,
+    gcp_project_id: credential.credential_gcp_project_id,
+    gcp_private_key_json: credential.credential_gcp_private_key_defined ? DOTS : '',
   };
 };
 

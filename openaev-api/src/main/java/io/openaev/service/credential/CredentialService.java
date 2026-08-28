@@ -38,9 +38,6 @@ import org.springframework.util.CollectionUtils;
 @Transactional(rollbackFor = Exception.class)
 public class CredentialService {
 
-  /** Scope granted by default to a GCP credential: the whole cloud platform. */
-  public static final String GCP_DEFAULT_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
-
   private final CredentialMapper credentialMapper;
   private final TagRepository tagRepository;
 
@@ -314,7 +311,7 @@ public class CredentialService {
                     null,
                     null,
                     null,
-                    GCP_DEFAULT_SCOPE),
+                    GcpScopes.DEFAULT_CLOUD_PLATFORM),
                 new CredentialContractOutput.CredentialContractField(
                     "gcp_private_key_json",
                     CredentialContractOutput.CredentialContractFieldType.file,
@@ -346,7 +343,7 @@ public class CredentialService {
                     null,
                     null,
                     null,
-                    GCP_DEFAULT_SCOPE),
+                    GcpScopes.DEFAULT_CLOUD_PLATFORM),
                 new CredentialContractOutput.CredentialContractField(
                     "gcp_oauth_client_id",
                     CredentialContractOutput.CredentialContractFieldType.text,

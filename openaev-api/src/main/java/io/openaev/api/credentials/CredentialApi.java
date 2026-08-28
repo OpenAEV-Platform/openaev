@@ -110,17 +110,29 @@ public class CredentialApi extends RestBehavior {
   }
 
   /**
-   * Reads the optional key file part.
+   * Reads and validates the optional key file part.
    *
-   * <p>An absent or empty part yields {@code null}, which the handlers read as "left untouched by
-   * the client" — exactly like a null text field. The size is bounded before anything is read into
-   * memory: a service account key file weighs about 2 KB, so anything past {@link
-   * #MAX_GCP_PRIVATE_KEY_SIZE_BYTES} is an abuse attempt, not a credential.
+   * <p>Validation lives here rather than in the handler, which only ever sees {@code byte[]} and
+   * cannot tell an absent upload from a rejected one. The two outcomes are deliberately different:
+   *
+   * <ul>
+   *   <li>an ABSENT part yields {@code null}, which the handlers read as "left untouched by the
+   *       client" — exactly like a null text field, and what makes key rotation optional on PUT;
+   *   <li>a PRESENT but empty part is a client error, never a silent no-op: it would otherwise look
+   *       like a successful rotation while the old key is still in place.
+   * </ul>
+   *
+   * <p>The size is bounded before the payload is read into memory: a service account key file
+   * weighs about 2 KB, so anything past {@link #MAX_GCP_PRIVATE_KEY_SIZE_BYTES} is an abuse
+   * attempt, not a credential.
    */
   private byte[] readKeyFile(Optional<MultipartFile> keyFile) {
-    MultipartFile file = keyFile.filter(part -> !part.isEmpty()).orElse(null);
+    MultipartFile file = keyFile.orElse(null);
     if (file == null) {
       return null;
+    }
+    if (file.isEmpty()) {
+      throw new BadRequestException("The GCP service account key file must not be empty");
     }
     if (file.getSize() > MAX_GCP_PRIVATE_KEY_SIZE_BYTES) {
       throw new BadRequestException(
@@ -128,11 +140,23 @@ public class CredentialApi extends RestBehavior {
               + MAX_GCP_PRIVATE_KEY_SIZE_BYTES
               + " bytes");
     }
+    byte[] content;
     try {
-      return file.getBytes();
+      content = file.getBytes();
     } catch (IOException e) {
       throw new BadRequestException("Unable to read the GCP service account key file");
     }
+    // Belt and braces: getSize() is reported by the client, the actual payload is what counts.
+    if (content.length == 0) {
+      throw new BadRequestException("The GCP service account key file must not be empty");
+    }
+    if (content.length > MAX_GCP_PRIVATE_KEY_SIZE_BYTES) {
+      throw new BadRequestException(
+          "The GCP service account key file must not exceed "
+              + MAX_GCP_PRIVATE_KEY_SIZE_BYTES
+              + " bytes");
+    }
+    return content;
   }
 
   @DeleteMapping("/{credentialId}")
