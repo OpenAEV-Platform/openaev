@@ -8,8 +8,11 @@
     <springProperty scope="context" name="AUDIT_LOG_RETENTION_DAYS" source="openaev.audit-logs.file.retention-days" defaultValue="90" />
     <springProperty scope="context" name="AUDIT_LOG_ROLLOVER_TOTAL_SIZE_CAP" source="openaev.audit-logs.file.rollover-total-size-cap" defaultValue="20GB" />
     <property name="AUDIT_LOG_DIR" value="${AUDIT_LOG_DIR_PROPERTIES:-${AUDIT_LOG_DIR_ENV_VARIABLE:-logs}}" />
-    <property name="AUDIT_LOG_FILENAME" value="${AUDIT_LOG_FILENAME_PROPERTIES:-${AUDIT_LOG_FILENAME_ENV_VARIABLE:-audit.log}}" />
-    <property name="AUDIT_LOG_FILE" value="${AUDIT_LOG_DIR}/${AUDIT_LOG_FILENAME}" />
+    <define name="AUDIT_LOG_FILENAME_BASE" class="io.openaev.logging.AuditLogFilenameBasePropertyDefiner">
+        <fromProperties>${AUDIT_LOG_FILENAME_PROPERTIES:-}</fromProperties>
+        <fromEnvVariable>${AUDIT_LOG_FILENAME_ENV_VARIABLE:-}</fromEnvVariable>
+    </define>
+    <property name="AUDIT_LOG_FILE" value="${AUDIT_LOG_DIR}/${AUDIT_LOG_FILENAME_BASE}.log" />
 
     <springProfile name="dev | test">
         <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
@@ -23,7 +26,7 @@
         <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>${AUDIT_LOG_FILE}</file>
             <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                <fileNamePattern>${AUDIT_LOG_DIR}/${AUDIT_LOG_FILENAME}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <fileNamePattern>${AUDIT_LOG_DIR}/${AUDIT_LOG_FILENAME_BASE}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
                 <maxFileSize>${AUDIT_LOG_ROLLOVER_MAX_SIZE}</maxFileSize>
                 <maxHistory>${AUDIT_LOG_RETENTION_DAYS}</maxHistory>
                 <totalSizeCap>${AUDIT_LOG_ROLLOVER_TOTAL_SIZE_CAP}</totalSizeCap>
@@ -57,7 +60,7 @@
         <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>${AUDIT_LOG_FILE}</file>
             <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                <fileNamePattern>${AUDIT_LOG_DIR}/${AUDIT_LOG_FILENAME}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <fileNamePattern>${AUDIT_LOG_DIR}/${AUDIT_LOG_FILENAME_BASE}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
                 <maxFileSize>${AUDIT_LOG_ROLLOVER_MAX_SIZE}</maxFileSize>
                 <maxHistory>${AUDIT_LOG_RETENTION_DAYS}</maxHistory>
                 <totalSizeCap>${AUDIT_LOG_ROLLOVER_TOTAL_SIZE_CAP}</totalSizeCap>

@@ -89,9 +89,9 @@ Audit logging will allow you to have a trace of the actions performed using API 
 | openaev.audit-logs.halt-on-failure | OPENAEV_AUDIT-LOGS_HALT-ON-FAILURE | false            | Parameter to stop the platform if audit logging is failing.                                                                                              |
 | logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |                  | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                          |
 | openaev.audit-logs.file.dir        | OPENAEV_AUDIT-LOGS_FILE_DIR        | logs             | Preferred setting for the audit log directory when `file` transport is enabled.                                                                          |
-| openaev.audit-logs.file.filename   | OPENAEV_AUDIT-LOGS_FILE_FILENAME   | audit.log        | Preferred setting for the audit log filename when `file` transport is enabled.                                                                           |
+| openaev.audit-logs.file.filename   | OPENAEV_AUDIT-LOGS_FILE_FILENAME   | audit            | Preferred setting for the audit log basename (without extension) when `file` transport is enabled.                                                       |
 |                                    | AUDIT_LOG_DIR                      | logs             | Legacy fallback environment variable for audit log directory (kept for backward compatibility).                                                          |
-|                                    | AUDIT_LOG_FILENAME                 | audit.log        | Legacy fallback environment variable for audit log filename (kept for backward compatibility).                                                           |
+|                                    | AUDIT_LOG_FILENAME                 | audit            | Legacy fallback environment variable kept for backward compatibility (`audit` and `audit.log` are both accepted).                                          |
 
 #### Credential status validation
 
