@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Static IdP metadata fixture: exercises the OpenSAML metadata parsing path used by
+     Spring Boot's Saml2RelyingPartyAutoConfiguration. Certificate reused from src/test/resources/tls. -->
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
+                     entityID="https://idp.openaev.test/idp">
+  <md:IDPSSODescriptor WantAuthnRequestsSigned="false"
+                       protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:KeyDescriptor use="signing">
+      <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+        <ds:X509Data>
+          <ds:X509Certificate>MIIDWDCCAkCgAwIBAgIUNY0eplNt7JwDc38Jkqm6kfhoTKowDQYJKoZIhvcNAQELBQAwHDEaMBgGA1UEAwwRT0JBUyBDQSBmb3IgVGVzdHMwHhcNMjYwODI3MTA0MTUzWhcNMzYwODI0MTA0MTUzWjAUMRIwEAYDVQQDDAlsb2NhbGhvc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCmQdOe4qenOjfd7O+YgSc6yTbs3l3BP7fQqBl2UPzF3ysszhwp7q4C0QYUR4uNQNvrWqZK4r22o7yLMkwYkjFQVtC5hK8ArT7jj8iJ/lexr0FVDsPm7fMYfq0HBW3J3v/1x2sbbrOPhYmtYe6m0NMo9f2zRqONFqMTIjW72PeahvuQvN7EboVL5RuIWsCoeJ25pkSf3PJEgqsDHeGa4q+5H1eDyfOs5hzbXlFhruO8DL0nYUTLW2rOOLoBUa23Ce3DwnA8UixoGzcYYlibnsqAa45NkWhyKGaTkoxjvjZhTALWVHR9ULeoVOe9VQ7hqOyy1pIHN34mz7Ckj3AP92UDAgMBAAGjgZkwgZYwGgYDVR0RBBMwEYIJbG9jYWxob3N0hwR/AAABMAkGA1UdEwQCMAAwDgYDVR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAdBgNVHQ4EFgQUlyy5R10tAhUZp+3KTGsk8zATy5YwHwYDVR0jBBgwFoAUQsP5sIUZyQ4iqtKjwzAjLPTMK6cwDQYJKoZIhvcNAQELBQADggEBAC7VVwqwhxQFi+i1N8ZW0EBULYGsGk11VFtePK61wpURk/+zQQ95N3HSxnitZ3IKa9/yjZw7WNALTjf63EuacN2AV0NIZzKUxA5gyfnYenPg7hUEQ0f0EIKdhmuK48yyYSkUQL+s038Bq0+IUAbxrwFlS38X5RjvcZ3Jl+AlFZKwHq6j1XBAClKGJj76EOiYEzU5nfL++7NArjBIro3mdfvNpC5CJ+DIs7GLY6kLGDfexCdnkt7JP7+ZtxvBzEHdoLsdOZhmbhuB/jbHF7/gAemzNEZ2MDRpp1U+DW53nHcgI3lzKIylU27E4voILw/Wb52GDPX1oCd7Q1uAveMZCvc=</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </md:KeyDescriptor>
+    <md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</md:NameIDFormat>
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
+                            Location="https://idp.openaev.test/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>

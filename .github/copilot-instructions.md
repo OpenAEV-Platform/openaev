@@ -106,6 +106,7 @@ Conventions are defined in dedicated instruction files that activate automatical
 | Tests (integration/unit/fixtures)    | [testing.instructions.md](.github/instructions/testing.instructions.md)                   |
 | Security (RBAC/@AccessControl)       | [security.instructions.md](.github/instructions/security.instructions.md)                 |
 | Performance (N+1/pagination/fetch)   | [performance.instructions.md](.github/instructions/performance.instructions.md)           |
+| ORM (write correctness/native/tests) | [orm.instructions.md](.github/instructions/orm.instructions.md)                           |
 | Code Review                          | [code-review.instructions.md](.github/instructions/code-review.instructions.md)           |
 
 ### Available Agents
@@ -115,6 +116,7 @@ Conventions are defined in dedicated instruction files that activate automatical
 | `code-reviewer`          | General-purpose reviewer: architecture, conventions, readability, delegation |
 | `security-reviewer`      | Reviews code for RBAC, tenant isolation, data exposure, auth bypasses    |
 | `performance-reviewer`   | Reviews code for N+1, fetch strategy, pagination, indexing, memory      |
+| `orm-reviewer`           | Reviews ORM doctrine: write correctness (listener chain), native-query justification, composite keys, test methodology |
 | `multi-tenancy-reviewer` | Reviews code for tenant isolation, cross-tenant leaks, filter bypasses |
 | `frontend-reviewer`      | Reviews frontend for component patterns, forms, permissions, MUI, i18n   |
 | `test-specialist`        | Creates and maintains tests following project patterns                   |

@@ -331,7 +331,7 @@ class TeamServiceTest {
     private Specification<Team> createSpecification(Predicate predicate) {
       Specification<Team> spec = mock(Specification.class);
       Specification<Team> combined = mock(Specification.class);
-      when(spec.and(any())).thenReturn(combined);
+      when(spec.and(any(Specification.class))).thenReturn(combined);
       when(combined.toPredicate(any(), any(), any())).thenReturn(predicate);
       return spec;
     }

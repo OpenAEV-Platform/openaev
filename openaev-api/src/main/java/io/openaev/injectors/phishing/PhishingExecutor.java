@@ -18,11 +18,11 @@ import io.openaev.database.repository.PhishingEmailTemplateRepository;
 import io.openaev.database.repository.PhishingLandingPageRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
-import io.openaev.execution.ProtectUser;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
 import io.openaev.expectation.Expectation;
 import io.openaev.expectation.ManualExpectation;
+import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.injectors.phishing.api.HostedPublicApi;
 import io.openaev.injectors.phishing.model.PhishingContent;
@@ -147,7 +147,7 @@ public class PhishingExecutor extends Injector {
 
     for (ExecutionContext userContext : users) {
       try {
-        ProtectUser targetUser = userContext.getUser();
+        UserContract targetUser = userContext.getUser();
         String teamName =
             userContext.getTeams() != null && !userContext.getTeams().isEmpty()
                 ? userContext.getTeams().getFirst()

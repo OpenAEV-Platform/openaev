@@ -11,14 +11,11 @@ import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
-import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawUser;
-import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.database.specification.GroupSpecification;
 import io.openaev.database.specification.UserSpecification;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -46,7 +43,6 @@ public class TenantUserService implements DependenciesManager {
   private final UserService userService;
   private final UserRepository userRepository;
   private final TenantRepository tenantRepository;
-  private final GroupRepository groupRepository;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
   @PersistenceContext private EntityManager entityManager;
 
@@ -61,14 +57,14 @@ public class TenantUserService implements DependenciesManager {
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
       attachToTenant(userId, tenantId);
-      assignDefaultTenantGroups(userId, tenantId);
+      userService.assignAutoAssignGroups(userId, List.of(tenantId));
       // Reload user after @Modifying queries cleared the persistence context
       User reloaded = userRepository.findById(userId).orElseThrow();
       return UserMapper.toOutput(reloaded);
     }
     User user = userService.createUser(input);
     attachToTenant(user.getId(), tenantId);
-    assignDefaultTenantGroups(user.getId(), tenantId);
+    userService.assignAutoAssignGroups(user.getId(), List.of(tenantId));
     // Reload user after @Modifying queries cleared the persistence context
     User reloaded = userRepository.findById(user.getId()).orElseThrow();
     return UserMapper.toOutput(reloaded);
@@ -154,6 +150,8 @@ public class TenantUserService implements DependenciesManager {
   public void detach(String userId) {
     User user = userService.user(userId);
     ReservedKeyValidator.validateUserEmailPattern(user.getEmail());
+    // Before the membership row goes away, so the groups it granted go with it.
+    userService.revokeTenantGroups(userId, List.of(tenantId()));
     tenantRepository.removeUserFromTenant(userId, tenantId());
     tenantMembershipCacheManager.evict(userId, tenantId());
   }
@@ -179,23 +177,5 @@ public class TenantUserService implements DependenciesManager {
       throw new IllegalStateException("TenantUserService requires a tenant context");
     }
     return tenantId;
-  }
-
-  private void assignDefaultTenantGroups(String userId, String tenantId) {
-    List<Group> defaultGroups =
-        groupRepository.findAll(GroupSpecification.defaultUserAssignableTenant(tenantId));
-    if (defaultGroups.isEmpty()) {
-      return;
-    }
-    User user =
-        userRepository
-            .findById(userId)
-            .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
-    for (Group group : defaultGroups) {
-      if (!group.getUsers().contains(user)) {
-        group.getUsers().add(user);
-        groupRepository.save(group);
-      }
-    }
   }
 }

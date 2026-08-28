@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>3.260821.0</version>
+        <version>3.260827.0</version>
     </parent>
 
     <artifactId>openaev-api</artifactId>
@@ -26,6 +26,8 @@
         <datasource-proxy.version>1.11.0</datasource-proxy.version>
         <!-- Server-side report rendering (headless Chromium). Apache-2.0. -->
         <playwright.version>1.62.0</playwright.version>
+        <!-- Azure credential status validation. Aligned with openaev-model's azure-core-management. MIT. -->
+        <azure-identity.version>1.18.5</azure-identity.version>
     </properties>
 
     <profiles>
@@ -38,12 +40,17 @@
         <dependency>
             <groupId>io.openaev</groupId>
             <artifactId>openaev-framework</artifactId>
-            <version>3.260821.0</version>
+            <version>3.260827.0</version>
         </dependency>
         <dependency>
             <groupId>co.elastic.clients</groupId>
             <artifactId>elasticsearch-java</artifactId>
             <version>${elasticsearch.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-identity</artifactId>
+            <version>${azure-identity.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

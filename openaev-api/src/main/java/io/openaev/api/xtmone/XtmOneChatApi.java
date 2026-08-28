@@ -7,8 +7,10 @@ import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +42,13 @@ public class XtmOneChatApi extends RestBehavior {
       Pattern.compile(
           "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
   private static final Pattern CONVERSATION_ID_PATTERN = FILE_ID_PATTERN;
+
+  private static final String REJECT_VERDICT = "reject";
+  private static final Set<String> ALLOWED_VERDICTS =
+      Set.of("approve", "approve_always", REJECT_VERDICT);
+  private static final int MAX_DECISIONS_PER_REQUEST = 50;
+  private static final int MAX_REJECTION_REASON_LENGTH = 2000;
+
   private final XtmOneClient client;
   private final XtmOneConfig config;
   private final AiMetricCollector aiMetricCollector;
@@ -130,6 +139,73 @@ public class XtmOneChatApi extends RestBehavior {
     return ResponseEntity.ok(client.steerChatMessage(content, conversationId));
   }
 
+  @PostMapping(XTM_ONE_URI + "/chat/messages/approve")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Map<String, Object>> approveToolCalls(
+      @RequestBody Map<String, Object> body) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    String conversationId =
+        body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
+    if (conversationId == null || !CONVERSATION_ID_PATTERN.matcher(conversationId).matches()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (!(body.get("decisions") instanceof List<?> rawDecisions) || rawDecisions.isEmpty()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (rawDecisions.size() > MAX_DECISIONS_PER_REQUEST) {
+      return ResponseEntity.badRequest().build();
+    }
+    List<Map<String, Object>> decisions = new ArrayList<>();
+    for (Object raw : rawDecisions) {
+      if (!(raw instanceof Map<?, ?> decision)) {
+        return ResponseEntity.badRequest().build();
+      }
+      Object toolCallId = decision.get("tool_call_id");
+      Object verdict = decision.get("decision");
+      if (toolCallId == null || verdict == null) {
+        return ResponseEntity.badRequest().build();
+      }
+      if (!ALLOWED_VERDICTS.contains(verdict.toString())) {
+        return ResponseEntity.badRequest().build();
+      }
+      Map<String, Object> forwarded = new HashMap<>();
+      forwarded.put("tool_call_id", toolCallId.toString());
+      forwarded.put("decision", verdict.toString());
+      Object reason = decision.get("rejection_reason");
+      if (reason != null) {
+        String reasonText = reason.toString();
+        if (reasonText.length() > MAX_REJECTION_REASON_LENGTH) {
+          return ResponseEntity.badRequest().build();
+        }
+        // Dropped rather than rejected: a stray reason beside an approval is still a valid
+        // decision, and a 400 would lose a consent the reviewer did give.
+        if (REJECT_VERDICT.equals(verdict.toString())) {
+          forwarded.put("rejection_reason", reasonText);
+        }
+      }
+      decisions.add(forwarded);
+    }
+    return ResponseEntity.ok(client.approveToolCalls(conversationId, decisions));
+  }
+
+  @GetMapping(XTM_ONE_URI + "/chat/conversations/{conversationId}/pending-approvals")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<Map<String, Object>> pendingApprovals(@PathVariable String conversationId) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (conversationId == null || !CONVERSATION_ID_PATTERN.matcher(conversationId).matches()) {
+      return ResponseEntity.badRequest().build();
+    }
+    return ResponseEntity.ok(client.getPendingApprovals(conversationId));
+  }
+
   @PostMapping(path = XTM_ONE_URI + "/chat/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @Transactional(propagation = Propagation.NEVER)
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
@@ -150,6 +226,7 @@ public class XtmOneChatApi extends RestBehavior {
     @SuppressWarnings("unchecked")
     Map<String, Object> context =
         body.get("context") instanceof Map ? (Map<String, Object>) body.get("context") : null;
+    boolean supportsToolApproval = Boolean.TRUE.equals(body.get("supports_tool_approval"));
 
     StreamingResponseBody responseBody =
         outputStream -> {
@@ -159,6 +236,7 @@ public class XtmOneChatApi extends RestBehavior {
                 conversationId,
                 agentSlug,
                 context,
+                supportsToolApproval,
                 sseStream -> {
                   byte[] buf = new byte[4096];
                   int n;

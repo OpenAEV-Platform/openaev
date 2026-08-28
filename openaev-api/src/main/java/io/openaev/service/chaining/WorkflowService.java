@@ -60,6 +60,7 @@ public class WorkflowService {
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
   private final AssetRepository assetRepository;
+  private final AssetAgentJobRepository assetAgentJobRepository;
   private final AssetGroupRepository assetGroupRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
@@ -958,6 +959,47 @@ public class WorkflowService {
     return copy;
   }
 
+  @Transactional(rollbackFor = Exception.class)
+  public void cancelSimulationEndWorkflowRun(List<Workflow> workflows) {
+    List<Step> stepsToUpdate = new ArrayList<>();
+    List<String> injectsIds = new ArrayList<>();
+    workflows.forEach(
+        workflow -> {
+          // Workflow -> END transition (also freezes the end scope snapshot - ADR-006):
+          endWorkflow(workflow, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+
+          // Step delay queue -> DELETE
+          stepDelayQueueService.deleteAllByWorkflowRun(workflow);
+
+          // Steps active -> END  active and get inject ids for remove asset agent jobs
+          List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
+          steps.forEach(
+              step -> {
+                String injectId =
+                    step.getData() != null
+                        ? StepService.getField(step.getData(), "inject_id")
+                        : null;
+                if (injectId != null) injectsIds.add(injectId);
+                step.setStatus(StepStatus.END);
+              });
+
+          stepsToUpdate.addAll(steps);
+
+          // Workflow States -> DELETE  (only use for execution)
+          deleteWorkflowStatesBySimulationId(workflow.getSimulation().getId());
+        });
+
+    // Asset agent jobs -> DELETE all by inject id
+    deleteAllAssetAgentJobs(injectsIds, TenantContext.getCurrentTenant());
+
+    stepService.saveSteps(stepsToUpdate);
+  }
+
+  private void deleteAllAssetAgentJobs(List<String> injectsIds, String tenantId) {
+    if (CollectionUtils.isEmpty(injectsIds)) return;
+    assetAgentJobRepository.deleteAllByInjectIdsAndTenantId(injectsIds, tenantId);
+  }
+
   /**
    * Deletes all workflow states associated with workflows of the given simulation.
    *
@@ -1500,7 +1542,6 @@ public class WorkflowService {
    *
    * @param workflowRun the running workflow to end
    */
-  @Transactional(rollbackFor = Exception.class)
   public void endWorkflow(Workflow workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
     workflowEndService.endWorkflow(workflowRun, cause);
   }

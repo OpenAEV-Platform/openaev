@@ -39,6 +39,7 @@ public class SessionApi extends RestBehavior {
 
   private final SessionManager sessionManager;
   private final UserRepository userRepository;
+  private final SessionMapper sessionMapper;
 
   @GetMapping({SESSION_URI, TENANT_SESSION_URI})
   @Transactional(readOnly = true)
@@ -52,9 +53,7 @@ public class SessionApi extends RestBehavior {
     // Sessions are platform-global (keyed only by user id); scope them to the
     // current tenant by intersecting with the tenant's user ids. The platform-wide
     // listing lives in PlatformSessionApi (/api/platform-sessions).
-    return sessionManager.findSessionsForUsers(tenantUserIds()).stream()
-        .map(SessionOutput::from)
-        .toList();
+    return sessionMapper.toSessionOutputs(sessionManager.findSessionsForUsers(tenantUserIds()));
   }
 
   private List<String> tenantUserIds() {
@@ -74,7 +73,7 @@ public class SessionApi extends RestBehavior {
     if (!tenantUserIds().contains(userId)) {
       return List.of();
     }
-    return sessionManager.findUserSessions(userId).stream().map(SessionOutput::from).toList();
+    return sessionMapper.toSessionOutputs(sessionManager.findUserSessions(userId));
   }
 
   @DeleteMapping({SESSION_URI + "/{sessionId}", TENANT_SESSION_URI + "/{sessionId}"})

@@ -61,12 +61,21 @@ satisfied, it triggers the Action(s) it is linked to. Nothing runs until its ups
 
             ![Editing an Event's trigger conditions: two AND condition groups — "Share name is not null" AND "Group name equals" in one, "Password is not null" AND "Kerberoastable account is not null" in the other](assets/logic-creation-event-conditions-groups.png)
 
-          - **Operator**: `Equals`, `Not equals`, `Is null`, `Is not null`, `Greater than`, `Greater than or equals`,
-            `Less than`, `Less than or equals`, `Contains`, `Not contains`. Despite the name, `Contains`/`Not
-            contains` performs a set-style match against the field's value rather than a literal list-membership
-            check — use it to test whether a field matches one of several expected values.
+          - **Operator**: `Equals`, `Not equals`, `Is null`, `Is not null`, `Contains`, `Not contains` — plus
+            `Greater than`, `Greater than or equals`, `Less than`, `Less than or equals` on numeric fields only
+            (`Number`, `Port`, `Severity`). Those four compare numerically, so they are hidden on text-like fields
+            (a hostname or a CVE id can't be ordered). Changing the **Field to Check** to a non-numeric field
+            resets an ordering operator back to `Equals`. Despite the name, `Contains`/`Not contains` performs a
+            set-style match against the field's value rather than a literal list-membership check — use it to test
+            whether a field matches one of several expected values.
           - **Expected value** (not required for `Is null` / `Is not null`), with an optional case-sensitive toggle,
-            available only for `Equals`, `Not equals`, `Contains`, and `Not contains`.
+            available only for `Equals`, `Not equals`, `Contains`, and `Not contains` on non-numeric fields.
+
+            The value must be a number when the inspected field only holds numbers (`Number`, `Port`) or when the
+            operator is a numeric comparison (`Greater than`, `Greater than or equals`, `Less than`, `Less than or
+            equals`) — those operators compare numerically, so a text value could never match. Anything else shows
+            *"The value should be a number"* and blocks saving. The case-sensitive toggle is also hidden on numeric
+            fields, since it is meaningless on numbers.
 4. Save, then connect the Event to the Action(s) it should trigger.
 
 !!! note

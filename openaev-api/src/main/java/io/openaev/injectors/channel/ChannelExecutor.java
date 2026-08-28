@@ -9,12 +9,12 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
-import io.openaev.execution.ProtectUser;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
 import io.openaev.expectation.ChannelExpectation;
 import io.openaev.expectation.Expectation;
 import io.openaev.expectation.ManualExpectation;
+import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.injectors.channel.model.ArticleVariable;
 import io.openaev.injectors.channel.model.ChannelContent;
 import io.openaev.injectors.email.service.EmailService;
@@ -51,7 +51,7 @@ public class ChannelExecutor extends Injector {
 
   private String buildArticleUri(
       ExecutionContext executionContext, Article article, Exercise exercise, String tenantId) {
-    ProtectUser user = executionContext.getUser();
+    UserContract user = executionContext.getUser();
     String channelId = article.getChannel().getId();
     String queryOptions = "article=" + article.getId();
     String url =

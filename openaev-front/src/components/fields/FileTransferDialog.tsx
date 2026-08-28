@@ -7,6 +7,7 @@ import TagsFilter from '../../admin/components/common/filters/TagsFilter';
 import CreateDocument from '../../admin/components/components/documents/CreateDocument';
 import { useHelper } from '../../store';
 import { type RawDocument } from '../../utils/api-types';
+import { type Option } from '../../utils/Option';
 import { Can } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import SelectListPicker, { type SelectListPickerElements } from '../common/SelectListPicker';
@@ -44,11 +45,7 @@ const FileTransferDialog: FunctionComponent<Props> = ({
   const { t } = useFormatter();
 
   const [keyword, setKeyword] = useState<string>('');
-  const [tags, setTags] = useState<{
-    id: string;
-    label: string;
-    color: string;
-  }[]>([]);
+  const [tags, setTags] = useState<Option[]>([]);
   const [selectedDocuments, setSelectedDocuments] = useState<RawDocument[]>([]);
 
   // Fetching data
@@ -69,11 +66,7 @@ const FileTransferDialog: FunctionComponent<Props> = ({
     );
   }, [initialDocumentIds]);
 
-  const handleAddTag = (value: {
-    id: string;
-    label: string;
-    color: string;
-  }) => {
+  const handleAddTag = (value: Option) => {
     if (!tags.includes(value)) {
       setTags([...tags, value]);
     }

@@ -73,8 +73,8 @@ const RoleDetail = () => {
   const navigate = useNavigate();
   const { roleId } = useParams() as { roleId: string };
   const { scope } = useSecurityScope();
-  const isPlatform = scope === 'platform';
-  const { capabilities: capabilityTree } = useCapabilities(isPlatform ? 'PLATFORM' : 'TENANT');
+  const isPlatform = scope === 'PLATFORM';
+  const { capabilities: capabilityTree } = useCapabilities(scope);
 
   const [role, setRole] = useState<RoleOutput | null>(null);
   const [platformRole, setPlatformRole] = useState<PlatformRoleOutput | null>(null);

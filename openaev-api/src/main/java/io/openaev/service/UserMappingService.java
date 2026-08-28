@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 @AllArgsConstructor
 @Service
 public class UserMappingService {
+  private static final ObjectMapper mapper = new ObjectMapper();
 
   private final GroupRepository groupRepository;
   private final TenantRepository tenantRepository;
@@ -100,7 +101,6 @@ public class UserMappingService {
     if (json == null || json.isBlank()) {
       return List.of();
     }
-    ObjectMapper mapper = new ObjectMapper();
     try {
       return mapper.readValue(json, new TypeReference<>() {});
     } catch (IOException e) {

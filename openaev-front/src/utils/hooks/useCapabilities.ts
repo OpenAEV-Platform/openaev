@@ -3,9 +3,10 @@ import type { CapabilityHelper } from '../../actions/capabilities/capability-hel
 import { useHelper } from '../../store';
 import type { CapabilityOutput } from '../api-types';
 import { useAppDispatch } from '../hooks';
+import { type CapabilityScope } from '../permissions/types';
 import useDataLoader from './useDataLoader';
 
-const useCapabilities = (scope: 'PLATFORM' | 'TENANT') => {
+const useCapabilities = (scope: CapabilityScope) => {
   const dispatch = useAppDispatch();
 
   const { capabilities } = useHelper((helper: CapabilityHelper) => ({
