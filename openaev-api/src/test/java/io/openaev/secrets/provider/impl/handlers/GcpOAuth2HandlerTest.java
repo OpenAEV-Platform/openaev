@@ -1,5 +1,6 @@
 package io.openaev.secrets.provider.impl.handlers;
 
+import static io.openaev.secrets.provider.SecretConnectionDetails.INVALID_CONFIGURATION;
 import static io.openaev.secrets.provider.impl.handlers.GcpOAuth2Handler.MANDATORY_FIELDS_MESSAGE;
 import static io.openaev.secrets.provider.impl.handlers.GcpOAuth2Handler.TYPE_MISMATCH_MESSAGE;
 import static io.openaev.utils.fixtures.CredentialSecretReferenceFixture.getAwsAccessKeyReference;
@@ -552,16 +553,30 @@ class GcpOAuth2HandlerTest extends IntegrationTest {
   class ValidateConnection {
 
     @Test
-    @DisplayName("given_gcpOAuth2Secret_should_beUnsupportedUntilProbeLands")
-    void given_gcpOAuth2Secret_should_beUnsupportedUntilProbeLands() {
-      // Arrange
+    @DisplayName("given_secretWithoutScope_should_returnUnknownInvalidConfiguration")
+    void given_secretWithoutScope_should_returnUnknownInvalidConfiguration() {
+      // Arrange: a broken stored configuration is caught before any network call, so this test
+      // exercises the real wiring without reaching Google. The full mapping is covered by
+      // GcpCredentialConnectivityCheckTest, and the delegation by
+      // SecretHandlerValidateConnectionTest.
       GcpOAuth2Secret secret = completeSecret();
+      secret.setScope(null);
 
       // Act
       SecretConnectionResult result = handler.validateConnection(secret);
 
-      // Assert: the interface default applies, the GCP probe is a later chunk
-      assertThat(result).isEqualTo(SecretConnectionResult.unsupported());
+      // Assert
+      assertThat(result.outcome()).isEqualTo(SecretConnectionResult.OUTCOME.UNKNOWN);
+      assertThat(result.detail()).isEqualTo(INVALID_CONFIGURATION);
+    }
+
+    @Test
+    @DisplayName("given_secretOfAnotherType_should_throw")
+    void given_secretOfAnotherType_should_throw() {
+      // Arrange & Act & Assert
+      assertThatThrownBy(() -> handler.validateConnection(new GcpServiceAccountSecret()))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining(TYPE_MISMATCH_MESSAGE);
     }
   }
 }

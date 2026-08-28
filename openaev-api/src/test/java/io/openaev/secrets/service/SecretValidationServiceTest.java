@@ -158,6 +158,35 @@ class SecretValidationServiceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("A GCP service account credential enters the run")
+    void given_gcpServiceAccountCredential_should_beDue() {
+      // Arrange: adding the method to VALIDATABLE_AUTH_METHODS is the single switch that puts a
+      // validator in the run — without it both handlers are wired and never selected.
+      CredentialSecretReference reference = seedReference(GCP_SERVICE_ACCOUNT, UNSET, null);
+
+      // Act
+      List<String> dueIds = dueReferenceIds(LARGE_BUDGET);
+
+      // Assert
+      assertThat(dueIds).contains(reference.getId());
+      assertThat(VALIDATABLE_AUTH_METHODS).contains(GCP_SERVICE_ACCOUNT);
+    }
+
+    @Test
+    @DisplayName("A GCP OAuth2 credential enters the run")
+    void given_gcpOAuth2Credential_should_beDue() {
+      // Arrange
+      CredentialSecretReference reference = seedReference(GCP_OAUTH2, UNSET, null);
+
+      // Act
+      List<String> dueIds = dueReferenceIds(LARGE_BUDGET);
+
+      // Assert
+      assertThat(dueIds).contains(reference.getId());
+      assertThat(VALIDATABLE_AUTH_METHODS).contains(GCP_OAUTH2);
+    }
+
+    @Test
     @DisplayName("A credential with no validator never enters the run")
     void given_nonValidatableAuthMethod_should_neverBeDue() {
       // Arrange — these would otherwise burn the run's budget for nothing.
