@@ -31,17 +31,17 @@
         <pyroscope.version>2.9.1</pyroscope.version>
         <spring-security-crypto.version>6.5.11</spring-security-crypto.version>
         <bouncycastle.version>1.85.2</bouncycastle.version>
-        <jackson-bom.version>2.21.5</jackson-bom.version>
+        <jackson-bom.version>2.22.2</jackson-bom.version>
         <netty.version>4.2.17.Final</netty.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <tools-jackson-core.version>3.2.2</tools-jackson-core.version>
-        <tomcat.version>10.1.56</tomcat.version>
+        <tomcat.version>10.1.59</tomcat.version>
         <!-- Override Spring Boot BOM: httpcore5-h2 HTTP/2 HPACK DoS CVE-2026-54428 -->
         <httpcore5.version>5.4.3</httpcore5.version>
         <velocity-engine-core.version>2.4.1</velocity-engine-core.version>
         <opensaml.version>5.2.3</opensaml.version>
         <logback.version>1.6.3</logback.version>
-        <log4j2.version>2.25.5</log4j2.version>
+        <log4j2.version>2.26.1</log4j2.version>
         <httpclient5.version>5.6.4</httpclient5.version>
         <kotlin.version>2.1.21</kotlin.version>
         <hikaricp.version>7.0.2</hikaricp.version>
