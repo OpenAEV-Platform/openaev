@@ -295,10 +295,14 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.atomic_testing.AtomicTestingApi#collectorsFromAtomicTesting",
           // inject: updateInject calls injectService.runChecks -> securityPlatformCollectors
           "io.openaev.rest.inject.InjectApi#updateInject",
-          // inject listings and single-inject mutations: every one of them serializes inject_type,
-          // resolved through the contract's injector link on the v2-scoped injectors table. Losing
-          // the scope does not fail loudly - inject_type just comes back null and the frontend
-          // draws the generic "unknown" icon on the execution screens (#7605, #7621).
+          // simulation injects: runChecks path
+          "io.openaev.rest.inject.SimulationInjectApi#exerciseInject",
+          "io.openaev.rest.inject.SimulationInjectApi#createInjectForExercise",
+          "io.openaev.rest.inject.SimulationInjectApi#duplicateInjectForExercise",
+          // scenario injects: runChecks path
+          "io.openaev.rest.inject.ScenarioInjectApi#createInjectForScenario",
+          "io.openaev.rest.inject.ScenarioInjectApi#duplicateInjectForScenario",
+          "io.openaev.rest.inject.ScenarioInjectApi#updateInjectForScenario",
           "io.openaev.rest.inject.SimulationInjectApi#exerciseInjects",
           "io.openaev.rest.inject.SimulationInjectApi#exerciseInjectsSimple",
           "io.openaev.rest.inject.SimulationInjectApi#searchExerciseInjects",
@@ -311,14 +315,6 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.inject.ScenarioInjectApi#scenarioInjectsSimple",
           "io.openaev.rest.inject.ScenarioInjectApi#scenarioInject",
           "io.openaev.rest.inject.ScenarioInjectApi#updateInjectActivationForScenario",
-          // simulation injects: runChecks path
-          "io.openaev.rest.inject.SimulationInjectApi#exerciseInject",
-          "io.openaev.rest.inject.SimulationInjectApi#createInjectForExercise",
-          "io.openaev.rest.inject.SimulationInjectApi#duplicateInjectForExercise",
-          // scenario injects: runChecks path
-          "io.openaev.rest.inject.ScenarioInjectApi#createInjectForScenario",
-          "io.openaev.rest.inject.ScenarioInjectApi#duplicateInjectForScenario",
-          "io.openaev.rest.inject.ScenarioInjectApi#updateInjectForScenario",
           // health-check streams: runChecks -> securityPlatformCollectors
           "io.openaev.rest.scenario.ScenarioApi#streamHealthChecks",
           "io.openaev.rest.exercise.ExerciseApi#streamHealthChecks",

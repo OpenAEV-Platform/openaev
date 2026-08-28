@@ -61,10 +61,6 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(readOnly = true)
   public Iterable<InjectOutput> scenarioInjectsSimple(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope in the DB session. Every inject read resolves its injector on the v2-scoped
-      // injectors table: without the scope the join fails closed and inject_type comes back null,
-      // which the frontend renders as the generic "unknown" icon (#7605, #7621).
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     return injectSearchService.injects(fromScenario(scenarioId));
   }
@@ -249,8 +245,6 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject updateInjectActivationForScenario(
-      // Same as the reads above: the returned Inject serializes inject_type, so the response
-      // needs the tenant scope too or it blanks the field in the frontend store.
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
