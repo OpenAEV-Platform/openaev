@@ -72,6 +72,17 @@ Classify each touched table as one of:
   - a native `@Query` that `JOIN`s a v2-active table anywhere in the codebase
     (not just its own repository) is pulled into the fail-closed rewrite —
     check its FROM/JOIN shape against `TenantStatementInspectorTest` (#7007)
+  - a new endpoint (in ANY controller) whose response type serializes a
+    computed value derived from a v2-active table needs `TxCtx` too, even
+    though nothing in the file names the table: `Inject#getType()`
+    (`@JsonProperty("inject_type")`) resolves `injectors`, so every endpoint
+    returning `Inject`, `InjectOutput`, `InjectResultOutput`,
+    `InjectResultOverviewOutput` or `InjectTestStatusOutput` reads it. Missing
+    `TxCtx` here is 🔴 CRITICAL and completely silent: 200 OK with the scalar
+    `null` (#7605/#7621 — missing injector icons across the Execution screen).
+    Sweep by RESPONSE TYPE, not by API package.
+  - `@Transactional(propagation = SUPPORTS)` + `TxCtx` is a false fix: with no
+    inbound transaction the aspect never fires. Flag it 🟠 HIGH.
 - **v1 (still `@Filter`-based)** — not in `active-tables`. Isolation is
   Hibernate `@Filter` + `TenantBaseListener`, ambient via
   `TenantContext.getCurrentTenant()`. For these tables, Steps 2-7 below
