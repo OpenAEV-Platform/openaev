@@ -23,7 +23,7 @@
         <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>${AUDIT_LOG_FILE}</file>
             <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                <fileNamePattern>${AUDIT_LOG_DIR}/${AUDIT_LOG_FILENAME}.%d{yyyy-MM-dd}.%i</fileNamePattern>
+                <fileNamePattern>${AUDIT_LOG_DIR}/${AUDIT_LOG_FILENAME}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
                 <maxFileSize>${AUDIT_LOG_ROLLOVER_MAX_SIZE}</maxFileSize>
                 <maxHistory>${AUDIT_LOG_RETENTION_DAYS}</maxHistory>
                 <totalSizeCap>${AUDIT_LOG_ROLLOVER_TOTAL_SIZE_CAP}</totalSizeCap>
@@ -57,7 +57,7 @@
         <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>${AUDIT_LOG_FILE}</file>
             <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                <fileNamePattern>${AUDIT_LOG_DIR}/${AUDIT_LOG_FILENAME}.%d{yyyy-MM-dd}.%i</fileNamePattern>
+                <fileNamePattern>${AUDIT_LOG_DIR}/${AUDIT_LOG_FILENAME}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
                 <maxFileSize>${AUDIT_LOG_ROLLOVER_MAX_SIZE}</maxFileSize>
                 <maxHistory>${AUDIT_LOG_RETENTION_DAYS}</maxHistory>
                 <totalSizeCap>${AUDIT_LOG_ROLLOVER_TOTAL_SIZE_CAP}</totalSizeCap>
