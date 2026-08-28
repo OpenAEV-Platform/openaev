@@ -126,17 +126,12 @@ public class UserService {
 
   // -- CREATE --
 
+  /**
+   * Creates a user. The {@link UserCreationScope} decides which auto-assign groups are granted, and
+   * whether the tenants carried by the input are honoured.
+   */
   @Transactional(rollbackFor = Exception.class)
-  public User createUser(UserInput input) {
-    return createUser(input, input.tenantIds(), true);
-  }
-
-  @Transactional(rollbackFor = Exception.class)
-  public User createTenantUser(UserInput input) {
-    return createUser(input, List.of(), false);
-  }
-
-  private User createUser(UserInput input, List<String> tenantIds, boolean includePlatformScope) {
+  public User createUser(UserInput input, UserCreationScope scope) {
     if (!StringUtils.hasLength(input.plainPassword())) {
       throw new IllegalArgumentException("Password is required when creating a user");
     }
@@ -146,6 +141,9 @@ public class UserService {
           "User with email " + input.email() + " already exists");
     }
     PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), false);
+    // A tenant creator has no authority over other tenants: it never attaches any, the caller
+    // attaches its own right after.
+    List<String> tenantIds = scope == UserCreationScope.PLATFORM ? input.tenantIds() : List.of();
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
@@ -155,15 +153,20 @@ public class UserService {
             referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
     // The user's id is generated on save (UUID generator), not before: evict only after
     // persisting, using the saved user's id, or evictForUser is called with a null key.
-    User createdUser =
-        createUser(user, input.plainPassword(), UUID.randomUUID().toString(), includePlatformScope);
+    User createdUser = createUser(user, input.plainPassword(), UUID.randomUUID().toString(), scope);
     if (!CollectionUtils.isEmpty(tenantIds)) {
       tenantMembershipCacheManager.evictForUser(createdUser.getId(), tenantIds);
     }
     return createdUser;
   }
 
-  /** Creates a user for internal/technical purposes (SSO login, connector provisioning). */
+  /**
+   * Creates a user for internal/technical purposes (SSO login, connector provisioning, service
+   * accounts). Such a user always lands in a tenant, attached by the caller right after: the
+   * platform auto-assign groups are therefore never granted. Callers own the group assignment —
+   * either explicitly (technical accounts) or through {@link #assignAutoAssignGroups(String,
+   * Collection)} once the tenant is attached (SSO).
+   */
   @Transactional(rollbackFor = Exception.class)
   public User createInternalUser(
       String email, String firstname, String lastname, boolean isAdmin, String token) {
@@ -175,17 +178,19 @@ public class UserService {
     user.setFirstname(firstname);
     user.setLastname(lastname);
     user.setAdmin(isAdmin);
-    return createUser(user, null, token, true);
+    return createUser(user, null, token, UserCreationScope.TENANT);
   }
 
-  private User createUser(User user, String password, String token, boolean includePlatformScope) {
+  private User createUser(User user, String password, String token, UserCreationScope scope) {
     if (StringUtils.hasLength(password)) {
       user.setPassword(this.encodeUserPassword(password));
     }
     // Creation enters every scope at once: the platform when created from the platform screen,
     // plus each tenant attached in the input.
     assignAutoAssignGroups(
-        user, user.getTenants().stream().map(Tenant::getId).toList(), includePlatformScope);
+        user,
+        user.getTenants().stream().map(Tenant::getId).toList(),
+        scope == UserCreationScope.PLATFORM);
     User savedUser = userRepository.save(user);
     this.createUserToken(savedUser, token);
     return savedUser;

@@ -16,6 +16,7 @@ import io.openaev.utils.fixtures.tenants.TenantFixture;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -40,7 +41,7 @@ class UserServiceTest extends IntegrationTest {
     UserInput input =
         getUserInputWithPasswordAndPhone(
             "create@test.invalid", "John", "Doe", "secureP@ss1", "+33612345678");
-    User created = userService.createUser(input);
+    User created = userService.createUser(input, UserCreationScope.PLATFORM);
 
     // -- ASSERT --
     assertThat(created.getId()).isNotNull();
@@ -69,7 +70,7 @@ class UserServiceTest extends IntegrationTest {
             List.of(tenant.getId()));
 
     // -- ACT --
-    User created = userService.createUser(input);
+    User created = userService.createUser(input, UserCreationScope.PLATFORM);
 
     // -- ASSERT --
     assertThat(created.getId()).isNotNull();
@@ -93,7 +94,8 @@ class UserServiceTest extends IntegrationTest {
                 "Auto",
                 "Assign",
                 "secureP@ss1",
-                List.of(tenant.getId())));
+                List.of(tenant.getId())),
+            UserCreationScope.PLATFORM);
 
     // -- ASSERT --
     entityManager.flush();
@@ -102,6 +104,32 @@ class UserServiceTest extends IntegrationTest {
     assertThat(reloaded.getUnscopedGroups())
         .extracting(Group::getId)
         .contains(platformGroup.getId(), tenantGroup.getId());
+  }
+
+  @Test
+  @DisplayName("given_internalUserCreation_should_notAssignPlatformAutoAssignGroups")
+  void given_internalUserCreation_should_notAssignPlatformAutoAssignGroups() {
+    // -- ARRANGE --
+    // Internal accounts (SSO, connectors, service accounts) always land in a tenant attached by
+    // the caller: they must never inherit the platform-wide auto-assign groups.
+    Group platformGroup = autoAssignGroup("platform-auto-assign-internal", null);
+
+    // -- ACT --
+    User created =
+        userService.createInternalUser(
+            "internal-auto-assign@test.invalid",
+            "Internal",
+            "Account",
+            false,
+            UUID.randomUUID().toString());
+
+    // -- ASSERT --
+    entityManager.flush();
+    entityManager.clear();
+    User reloaded = userService.user(created.getId());
+    assertThat(reloaded.getUnscopedGroups())
+        .extracting(Group::getId)
+        .doesNotContain(platformGroup.getId());
   }
 
   @Test
@@ -148,7 +176,7 @@ class UserServiceTest extends IntegrationTest {
             "Removed",
             "secureP@ss1",
             List.of(tenant.getId()));
-    User created = userService.createUser(input);
+    User created = userService.createUser(input, UserCreationScope.PLATFORM);
     // The tenant admin removes the auto-assign group from the user, from within the tenant.
     created.getUnscopedGroups().remove(tenantGroup);
     userService.saveUser(created);
@@ -181,7 +209,7 @@ class UserServiceTest extends IntegrationTest {
             "Unchanged",
             "secureP@ss1",
             List.of(tenant.getId()));
-    User created = userService.createUser(input);
+    User created = userService.createUser(input, UserCreationScope.PLATFORM);
     entityManager.flush();
     entityManager.clear();
     // The auto-assign group only appears after the user already belongs to the tenant.
@@ -216,7 +244,8 @@ class UserServiceTest extends IntegrationTest {
                 "Detach",
                 "Tenant",
                 "secureP@ss1",
-                List.of(kept.getId(), left.getId())));
+                List.of(kept.getId(), left.getId())),
+            UserCreationScope.PLATFORM);
     entityManager.flush();
     entityManager.clear();
 
@@ -256,7 +285,8 @@ class UserServiceTest extends IntegrationTest {
                 "Revoke",
                 "Scoped",
                 "secureP@ss1",
-                List.of(tenant.getId())));
+                List.of(tenant.getId())),
+            UserCreationScope.PLATFORM);
     entityManager.flush();
     entityManager.clear();
 

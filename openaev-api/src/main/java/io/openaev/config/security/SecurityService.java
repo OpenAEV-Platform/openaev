@@ -69,7 +69,9 @@ public class SecurityService {
                 String.class,
                 "");
         userMappingService.mapCurrentUserWithGroup(groupsManagementObject, user, groups);
-        attachTenant(registrationId, user);
+        attachTenant(registrationId, user)
+            .ifPresent(
+                tenantId -> userService.assignAutoAssignGroups(user.getId(), List.of(tenantId)));
         return this.userService.saveUser(user);
       } else {
         // If user exists, update it
@@ -86,7 +88,10 @@ public class SecurityService {
                 String.class,
                 "");
         userMappingService.mapCurrentUserWithGroup(groupsManagementObject, currentUser, groups);
-        attachTenant(registrationId, currentUser);
+        attachTenant(registrationId, currentUser)
+            .ifPresent(
+                tenantId ->
+                    userService.assignAutoAssignGroups(currentUser.getId(), List.of(tenantId)));
         return this.userService.saveUser(currentUser);
       }
     }
@@ -103,21 +108,27 @@ public class SecurityService {
   // -- PRIVATE --
 
   /** Attaches the user to the tenant configured for the given SSO provider registration. */
-  private void attachTenant(String registrationId, User user) {
+  /**
+   * Attaches the user to the tenant configured for this identity provider, and returns that tenant
+   * ID when the user just entered it. Returns empty when nothing was attached, so a group
+   * deliberately removed from the user is never re-granted on a later login.
+   */
+  private Optional<String> attachTenant(String registrationId, User user) {
     String configuredTenantId =
         env.getProperty(
             OPENAEV_PROVIDER_PATH_PREFIX + registrationId + TENANT_ID_SUFFIX, String.class, "");
     String tenantId = hasText(configuredTenantId) ? configuredTenantId : Tenant.DEFAULT_TENANT_UUID;
     boolean alreadyAttached = user.getTenants().stream().anyMatch(t -> t.getId().equals(tenantId));
     if (alreadyAttached) {
-      return;
+      return Optional.empty();
     }
     if (!tenantRepository.existsById(tenantId)) {
       log.warn("SSO tenant ID '{}' configured but not found in database", tenantId);
-      return;
+      return Optional.empty();
     }
     Tenant tenant = tenantRepository.getReferenceById(tenantId);
     user.getTenants().add(tenant);
+    return Optional.of(tenantId);
   }
 
   private List<String> getAdminRoles(@NotBlank final String registrationId) {
