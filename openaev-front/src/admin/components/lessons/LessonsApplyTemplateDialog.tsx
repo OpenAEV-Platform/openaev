@@ -1,6 +1,8 @@
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, FormControlLabel, Radio, RadioGroup, Typography } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
-import { type ChangeEvent, useState } from 'react';
+import { Radio, RadioGroup } from '@filigran/design-system';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl } from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import { useId, useState } from 'react';
+import { makeStyles } from 'tss-react/mui';
 
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
@@ -19,14 +21,20 @@ interface Props {
 }
 
 // Shared "apply a lessons learned template" dialog (simulation + scenario).
+// The template rows keep the separator the MUI list drew between them.
+const useStyles = makeStyles()(theme => ({
+  templateRow: {
+    width: '100%',
+    borderBottom: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+    padding: `${theme.spacing(1.5)} 0`,
+  },
+}));
+
 const LessonsApplyTemplateDialog = ({ open, onClose, onApply, lessonsTemplates, variant }: Props) => {
-  const theme = useTheme();
+  const { classes } = useStyles();
+  const titleId = useId();
   const { t } = useFormatter();
   const [templateValue, setTemplateValue] = useState<string | null>(null);
-
-  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setTemplateValue(event.target.value);
-  };
 
   const applyTemplate = async () => {
     if (templateValue !== null) {
@@ -45,7 +53,7 @@ const LessonsApplyTemplateDialog = ({ open, onClose, onApply, lessonsTemplates, 
       maxWidth="md"
       PaperProps={{ elevation: 1 }}
     >
-      <DialogTitle>{t('Apply a lessons learned template')}</DialogTitle>
+      <DialogTitle id={titleId}>{t('Apply a lessons learned template')}</DialogTitle>
       <DialogContent>
         <Alert severity="info">
           {variant === 'scenario'
@@ -58,36 +66,17 @@ const LessonsApplyTemplateDialog = ({ open, onClose, onApply, lessonsTemplates, 
         }}
         >
           <RadioGroup
-            sx={{ width: '100%' }}
-            aria-labelledby="controlled-radio-buttons-group"
-            name="template"
+            aria-labelledby={titleId}
             value={templateValue}
-            onChange={handleChange}
+            onValueChange={setTemplateValue}
           >
             {lessonsTemplates.map((template: LessonsTemplate) => (
-              <FormControlLabel
+              <Radio
                 key={template.lessonstemplate_id}
-                sx={{
-                  width: '100%',
-                  margin: 0,
-                  borderBottom: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-                }}
                 value={template.lessonstemplate_id}
-                control={<Radio />}
-                label={(
-                  <div style={{ margin: `${theme.spacing(1.5)} 0 ${theme.spacing(1.5)} ${theme.spacing(1)}` }}>
-                    <Typography sx={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                    }}
-                    >
-                      {template.lessons_template_name}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      {template.lessons_template_description || t('No description')}
-                    </Typography>
-                  </div>
-                )}
+                className={classes.templateRow}
+                label={template.lessons_template_name}
+                description={template.lessons_template_description || t('No description')}
               />
             ))}
           </RadioGroup>

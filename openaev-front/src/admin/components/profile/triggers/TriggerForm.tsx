@@ -1,4 +1,5 @@
 import {
+  Checkbox,
   Combobox,
   ComboboxChips,
   ComboboxClear,
@@ -16,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@filigran/design-system';
-import { Button, Checkbox, FormControlLabel, FormGroup, TextField } from '@mui/material';
+import { Button, TextField } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
 
 import { searchNotificationTriggers } from '../../../../actions/notifications/notification-trigger-actions';
@@ -163,24 +164,26 @@ const TriggerForm: FunctionComponent<Props> = ({
               </SelectContent>
             </Select>
           </div>
-          <FormGroup row style={{ marginTop: 20 }}>
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 16,
+            marginTop: 20,
+          }}
+          >
             {[
               ...TRIGGER_EVENT_TYPES,
               // Score degradation is a scenario-only semantic event
               ...(resourceType === 'SCENARIO' ? SCENARIO_ONLY_EVENT_TYPES : []),
             ].map(eventType => (
-              <FormControlLabel
+              <Checkbox
                 key={eventType}
-                control={(
-                  <Checkbox
-                    checked={eventTypes.includes(eventType)}
-                    onChange={() => toggleEventType(eventType)}
-                  />
-                )}
+                checked={eventTypes.includes(eventType)}
+                onCheckedChange={() => toggleEventType(eventType)}
                 label={t(eventTypeLabel(eventType))}
               />
             ))}
-          </FormGroup>
+          </div>
           {eventTypesError && (
             <div style={{
               color: '#f44336',

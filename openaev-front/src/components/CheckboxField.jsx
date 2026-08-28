@@ -1,4 +1,5 @@
-import { Checkbox as MuiCheckbox, FormControl, FormControlLabel, FormGroup, FormHelperText } from '@mui/material';
+import { Checkbox } from '@filigran/design-system';
+import { FormControl, FormHelperText } from '@mui/material';
 import { Field } from 'react-final-form';
 
 const renderCheckbox = ({
@@ -10,27 +11,19 @@ const renderCheckbox = ({
   ...others
 }) => (
   <FormControl error={touched && invalid}>
-    <FormGroup
-      row={true}
-      style={{
-        ...style,
-        marginLeft: 5,
-      }}
+    <div style={{
+      ...style,
+      marginLeft: 5,
+    }}
     >
-      <FormControlLabel
-        control={(
-          <MuiCheckbox
-            checked={!!input.value}
-            onChange={(event) => {
-              input.onChange(event.target.checked);
-            }}
-            {...others}
-          />
-        )}
+      <Checkbox
+        checked={!!input.value}
+        onCheckedChange={checked => input.onChange(checked === true)}
         disabled={disabled}
         label={label}
+        {...others}
       />
-    </FormGroup>
+    </div>
     <FormHelperText>{touched && (error || submitError)}</FormHelperText>
   </FormControl>
 );
