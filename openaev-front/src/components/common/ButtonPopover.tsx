@@ -1,6 +1,6 @@
 import { MoreVert } from '@mui/icons-material';
-import { IconButton, Menu, MenuItem, ToggleButton, Tooltip } from '@mui/material';
-import { type CSSProperties, type Dispatch, type FunctionComponent, type SetStateAction, useState } from 'react';
+import { Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip } from '@mui/material';
+import { type CSSProperties, type Dispatch, type FunctionComponent, type ReactNode, type SetStateAction, useState } from 'react';
 
 import { useFormatter } from '../i18n';
 
@@ -10,6 +10,10 @@ export interface PopoverEntry {
   disabled?: boolean;
   disabledMessage?: string;
   userRight: boolean;
+  /** Optional leading icon rendered before the label (for grouped action menus). */
+  icon?: ReactNode;
+  /** Draw a separator above this entry (ignored when it is the first visible entry). */
+  dividerBefore?: boolean;
 }
 
 export type VariantButtonPopover = 'toggle' | 'icon';
@@ -17,58 +21,56 @@ export type VariantButtonPopover = 'toggle' | 'icon';
 interface Props {
   entries: PopoverEntry[];
   style?: CSSProperties;
+  /** @deprecated kept for API compatibility; every kebab renders the same OpenCTI-style compact squared button now. */
   variant?: VariantButtonPopover;
   disabled?: boolean;
   className?: string;
+  /** @deprecated kept for API compatibility; the icon kebab is always compact now. */
   size?: 'small' | 'medium' | 'large';
 }
 
 const ButtonPopover: FunctionComponent<Props> = ({
   entries,
   style,
-  variant = 'toggle',
   disabled = false,
   className,
-  size = 'large',
 }) => {
   // Standard hooks
   const { t } = useFormatter();
 
   const [anchorEl, setAnchorEl] = useState<Element | null>(null);
 
+  const visibleEntries = entries.filter(entry => entry.userRight);
+  const allDisabled = disabled || visibleEntries.every(entry => entry.disabled);
+
   return (
     <>
-      {variant === 'toggle' && !entries.every(entry => !entry.userRight)
+      {/* The ONE kebab trigger, aligned with OpenCTI and identical everywhere
+          (list rows, detail heroes, drawers): a small squared (4px radius)
+          transparent primary button - never a large round IconButton, never a
+          bordered ToggleButton. */}
+      {visibleEntries.length > 0
         && (
-          <ToggleButton
+          <IconButton
             className={className}
             value="popover"
             size="small"
             color="primary"
+            aria-label={t('More actions')}
             onClick={(ev) => {
+              // The kebab may live inside a real link (card / row wrapped in a
+              // router <Link> for ctrl+click support): stopPropagation() alone
+              // does not cancel the browser's native anchor navigation, so
+              // preventDefault() is mandatory here.
+              ev.preventDefault();
               ev.stopPropagation();
               setAnchorEl(ev.currentTarget);
             }}
             style={{ ...style }}
-            disabled={disabled}
+            disabled={allDisabled}
+            sx={{ borderRadius: 1 }}
           >
-            <MoreVert fontSize="small" color={disabled ? 'disabled' : 'primary'} />
-          </ToggleButton>
-        )}
-      {variant === 'icon' && !entries.every(entry => !entry.userRight)
-        && (
-          <IconButton
-            value="popover"
-            size={size}
-            color="primary"
-            onClick={(ev) => {
-              ev.stopPropagation();
-              setAnchorEl(ev.currentTarget);
-            }}
-            style={{ ...style }}
-            disabled={disabled}
-          >
-            <MoreVert fontSize={size === 'small' ? 'small' : 'medium'} color={disabled ? 'disabled' : 'primary'} />
+            <MoreVert fontSize="small" color={allDisabled ? 'disabled' : 'primary'} />
           </IconButton>
         )}
       <Menu
@@ -76,7 +78,7 @@ const ButtonPopover: FunctionComponent<Props> = ({
         open={Boolean(anchorEl)}
         onClose={() => setAnchorEl(null)}
       >
-        {entries.filter(entry => entry.userRight).map((entry) => {
+        {entries.filter(entry => entry.userRight).map((entry, index) => {
           const menuItem = (
             <MenuItem
               key={entry.label}
@@ -86,17 +88,22 @@ const ButtonPopover: FunctionComponent<Props> = ({
                 setAnchorEl(null);
               }}
             >
-              {t(entry.label)}
+              {entry.icon && <ListItemIcon>{entry.icon}</ListItemIcon>}
+              <ListItemText>{t(entry.label)}</ListItemText>
             </MenuItem>
           );
-          if (entry.disabled && entry.disabledMessage) {
-            return (
-              <Tooltip key={entry.label} title={t(entry.disabledMessage)}>
-                <span>{menuItem}</span>
-              </Tooltip>
-            );
+          const item = (entry.disabled && entry.disabledMessage)
+            ? (
+                <Tooltip key={entry.label} title={t(entry.disabledMessage)}>
+                  <span>{menuItem}</span>
+                </Tooltip>
+              )
+            : menuItem;
+          // A separator only makes sense between entries, never at the very top.
+          if (entry.dividerBefore && index > 0) {
+            return [<Divider key={`${entry.label}-divider`} component="li" />, item];
           }
-          return menuItem;
+          return item;
         })}
       </Menu>
     </>

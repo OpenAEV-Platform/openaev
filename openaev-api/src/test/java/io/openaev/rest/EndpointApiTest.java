@@ -1,5 +1,6 @@
 package io.openaev.rest;
 
+import static io.openaev.rest.asset.endpoint.EndpointApi.ASSET_URI;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.AgentFixture.createAgent;
@@ -23,13 +24,17 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
+import io.openaev.rest.asset.form.AssetBulkProcessingInput;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.EndpointService;
@@ -38,6 +43,7 @@ import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
@@ -58,6 +64,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,6 +75,7 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TagRepository tagRepository;
   @Autowired private EndpointRepository endpointRepository;
+  @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private ExerciseService exerciseService;
   @Autowired private ExecutorComposer executorComposer;
@@ -80,10 +88,16 @@ class EndpointApiTest extends IntegrationTest {
   @MockitoSpyBean private AssetAgentJobRepository assetAgentJobRepository;
   @MockitoSpyBean private InjectStatusService injectStatusService;
   @Autowired private AssetGroupRepository assetGroupRepository;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private io.openaev.utils.mockUser.TestUserHolder testUserHolder;
 
   @BeforeEach
   public void setup() {
     executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+    // Link mock user to the default tenant so TxCtx resolves a valid write scope
+    if (testUserHolder.get() != null) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
   }
 
   @DisplayName("Given valid input, should create an endpoint agentless successfully")
@@ -109,13 +123,114 @@ class EndpointApiTest extends IntegrationTest {
     // --ASSERT
     assertThatJson(response).node("asset_name").isEqualTo(endpointInput.getName());
     assertThatJson(response).node("asset_description").isEqualTo(endpointInput.getDescription());
-    assertThatJson(response).node("endpoint_hostname").isEqualTo(endpointInput.getHostname());
+    assertThatJson(response).node("asset_hostname").isEqualTo(endpointInput.getHostname());
     assertThatJson(response).node("endpoint_platform").isEqualTo(endpointInput.getPlatform());
     assertThatJson(response).node("endpoint_arch").isEqualTo(endpointInput.getArch());
-    assertThatJson(response).node("endpoint_ips").isEqualTo(endpointInput.getIps());
-    assertThatJson(response).node("endpoint_ips").isEqualTo(endpointInput.getIps());
+    assertThatJson(response).node("asset_ips").isEqualTo(endpointInput.getIps());
     assertThatJson(response).node("asset_tags").isEqualTo(endpointInput.getTags());
     assertThatJson(response).node("asset_agents").isEqualTo(endpointInput.getAgents());
+  }
+
+  @DisplayName(
+      "Given a web application input without platform/arch, should create it as WEB_APPLICATION")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_webApplicationInput_should_createWithCategory() throws Exception {
+    // --PREPARE--
+    EndpointInput input = new EndpointInput();
+    input.setName("Filigran website");
+    input.setCategory(AssetCategory.WEB_APPLICATION);
+    input.setSubcategory(AssetSubCategory.WEBSITE);
+    input.setUrl("https://filigran.io");
+    input.setInternetFacing(true);
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(ENDPOINT_URI + "/agentless")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertThatJson(response).node("asset_category").isEqualTo("WEB_APPLICATION");
+    assertThatJson(response).node("asset_subcategory").isEqualTo("WEBSITE");
+    assertThatJson(response).node("asset_url").isEqualTo("https://filigran.io");
+    assertThatJson(response).node("asset_internet_facing").isEqualTo(true);
+    // platform / arch default to Unknown server-side when omitted
+    assertThatJson(response).node("endpoint_platform").isEqualTo("Unknown");
+    assertThatJson(response).node("endpoint_arch").isEqualTo("Unknown");
+  }
+
+  @DisplayName("Given a cloud resource input, should persist provider and native type")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_cloudResourceInput_should_persistCloudFields() throws Exception {
+    // --PREPARE--
+    EndpointInput input = new EndpointInput();
+    input.setName("prod-data-bucket");
+    input.setCategory(AssetCategory.CLOUD_RESOURCE);
+    input.setSubcategory(AssetSubCategory.STORAGE);
+    input.setCloudProvider(CloudProvider.AWS);
+    input.setCloudNativeType("s3_bucket");
+    input.setCloudRegion("eu-west-1");
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(ENDPOINT_URI + "/agentless")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertThatJson(response).node("asset_category").isEqualTo("CLOUD_RESOURCE");
+    assertThatJson(response).node("asset_subcategory").isEqualTo("STORAGE");
+    assertThatJson(response).node("asset_cloud_provider").isEqualTo("AWS");
+    assertThatJson(response).node("asset_cloud_native_type").isEqualTo("s3_bucket");
+    assertThatJson(response).node("asset_cloud_region").isEqualTo("eu-west-1");
+  }
+
+  @DisplayName(
+      "Given an identity input with a blank linked person, should not violate the person FK")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_identityInputWithBlankLinkedPerson_should_createWithoutFkViolation() throws Exception {
+    // --PREPARE--
+    // A cleared person picker submits an empty string; it must be normalized to null so the
+    // asset_linked_person -> users(user_id) foreign key is never violated.
+    EndpointInput input = new EndpointInput();
+    input.setName("svc-account");
+    input.setCategory(AssetCategory.IDENTITY);
+    input.setSubcategory(AssetSubCategory.SERVICE_ACCOUNT);
+    input.setLinkedPerson("");
+
+    // --EXECUTE--
+    String response =
+        mvc.perform(
+                post(ENDPOINT_URI + "/agentless")
+                    .content(asJsonString(input))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // --ASSERT--
+    assertThatJson(response).node("asset_category").isEqualTo("IDENTITY");
+    assertThatJson(response).node("asset_subcategory").isEqualTo("SERVICE_ACCOUNT");
   }
 
   @DisplayName("Given wrong input, can't create an endpoint agentless successfully")
@@ -158,7 +273,7 @@ class EndpointApiTest extends IntegrationTest {
         });
     endpointRepository.save(endpoint);
 
-    String newName = "New hostname";
+    String newName = "New-hostname";
     registerInput.setHostname(newName);
 
     Mockito.doReturn("command")
@@ -184,7 +299,7 @@ class EndpointApiTest extends IntegrationTest {
             .getContentAsString();
 
     // --ASSERT--
-    assertEquals(newName.toLowerCase(), JsonPath.read(response, "$.endpoint_hostname"));
+    assertEquals(newName.toLowerCase(), JsonPath.read(response, "$.asset_hostname"));
   }
 
   @DisplayName(
@@ -253,7 +368,7 @@ class EndpointApiTest extends IntegrationTest {
     Endpoint endpointCreated = endpointRepository.save(endpoint);
 
     EndpointInput updateInput = new EndpointInput();
-    String newName = "New hostname";
+    String newName = "New-hostname";
     updateInput.setName(newName);
     updateInput.setHostname(newName);
     updateInput.setIps(endpointInput.getIps());
@@ -275,9 +390,9 @@ class EndpointApiTest extends IntegrationTest {
 
     // --ASSERT
     assertThatJson(response).node("asset_name").isEqualTo(newName);
-    assertThatJson(response).node("endpoint_hostname").isEqualTo(newName.toLowerCase());
+    assertThatJson(response).node("asset_hostname").isEqualTo(newName.toLowerCase());
     assertThatJson(response).node("endpoint_platform").isEqualTo(endpointCreated.getPlatform());
-    assertThatJson(response).node("endpoint_ips").isEqualTo(endpointCreated.getIps());
+    assertThatJson(response).node("asset_ips").isEqualTo(endpointCreated.getIps());
   }
 
   @DisplayName("Given valid input, should delete an endpoint successfully")
@@ -450,6 +565,63 @@ class EndpointApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.numberOfElements").value(1))
           .andExpect(jsonPath("$.content.[0].asset_id").value(windowEndpoint2.getId()));
     }
+
+    @Test
+    @DisplayName("Should return endpoints when filterGroup is omitted (regression #6927)")
+    void given_missingFilterGroup_should_returnEndpointsWithoutError() throws Exception {
+      // GIVEN - the body shape posted by injectors that omit filterGroup entirely,
+      // which used to 500 with an NPE in searchManagedEndpoints (#6927)
+      endpointRepository.save(EndpointFixture.createEndpoint());
+
+      // WHEN / THEN - falls back to an empty filter group and returns managed endpoints
+      mvc.perform(
+              post(ENDPOINT_URI + "/targets")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"page\": 0, \"size\": 20}")
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.content").isArray());
+    }
+
+    @Test
+    @DisplayName("Should tolerate uppercase filter enums from older injectors (regression #6927)")
+    void given_uppercaseFilterEnums_should_returnEndpointsWithoutError() throws Exception {
+      // GIVEN - an asset group targeted with the drifted vocabulary ("CONTAINS", "OR") that an
+      // older injector image may post, which used to fail with a bare 400 (#6927)
+      Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
+      AssetGroup assetGroup =
+          assetGroupRepository.save(createAssetGroupWithAssets("All windows", List.of(endpoint)));
+      String body =
+          """
+          {
+            "page": 0,
+            "size": 20,
+            "filterGroup": {
+              "mode": "OR",
+              "filters": [
+                {
+                  "id": "drifted-filter",
+                  "key": "assetGroups",
+                  "mode": "OR",
+                  "operator": "CONTAINS",
+                  "values": ["%s"]
+                }
+              ]
+            }
+          }
+          """
+              .formatted(assetGroup.getId());
+
+      // WHEN / THEN - deserializes case-insensitively and resolves the target
+      mvc.perform(
+              post(ENDPOINT_URI + "/targets")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.numberOfElements").value(1))
+          .andExpect(jsonPath("$.content.[0].asset_id").value(endpoint.getId()));
+    }
   }
 
   private Inject prepareOptionsEndpointTestData() {
@@ -597,10 +769,36 @@ class EndpointApiTest extends IntegrationTest {
     @WithMockUser
     class EndpointCrudIsolation {
 
+      private final List<String> committedTenantIds = new ArrayList<>();
+
+      @AfterEach
+      void cleanupCommittedTenants() {
+        if (!committedTenantIds.isEmpty()) {
+          tenantHelper.deleteCommittedTenants(committedTenantIds.toArray(new String[0]));
+          committedTenantIds.clear();
+        }
+      }
+
+      /**
+       * Commits everything created so far (tenants + the seeded endpoint, both still living inside
+       * the test's single physical transaction) and opens a fresh one for the cross-tenant Act
+       * call. Two different tenant scopes cannot coexist in one physical transaction -
+       * TenantScopeTransactionAspect's nesting guard refuses to redefine an already-set scope, and
+       * the arrange step (seeding via the tenant-X path) already sets one. Rows committed here are
+       * cleaned up by cleanupCommittedTenants() via cascading tenant delete.
+       */
+      private void commitArrangeAndStartFreshTransaction() {
+        entityManager.flush();
+        entityManager.clear();
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+        TestTransaction.start();
+      }
+
       private Endpoint createTenantEndpoint(String tenantId, String name) throws Exception {
         Endpoint endpointInput = createEndpoint();
         endpointInput.setName(name);
-        endpointInput.setHostname(name);
+        endpointInput.setHostname(name.replaceAll("[^A-Za-z0-9\\-.]", ""));
 
         String createResponse =
             mvc.perform(
@@ -629,8 +827,9 @@ class EndpointApiTest extends IntegrationTest {
             tenantHelper.createTenantWithCapabilities("Tenant Y", Set.of(Capability.ACCESS_ASSETS));
 
         Endpoint endpointX = createTenantEndpoint(tenantX.getId(), "Isolation Read Endpoint");
-        entityManager.flush();
-        entityManager.clear();
+        committedTenantIds.add(tenantX.getId());
+        committedTenantIds.add(tenantY.getId());
+        commitArrangeAndStartFreshTransaction();
 
         // -------- Act --------
         int responseStatus =
@@ -681,8 +880,9 @@ class EndpointApiTest extends IntegrationTest {
             tenantHelper.createTenantWithCapabilities("Tenant Y", Set.of(Capability.ACCESS_ASSETS));
 
         createTenantEndpoint(tenantX.getId(), "CrossTenantSearchEndpoint");
-        entityManager.flush();
-        entityManager.clear();
+        committedTenantIds.add(tenantX.getId());
+        committedTenantIds.add(tenantY.getId());
+        commitArrangeAndStartFreshTransaction();
 
         SearchPaginationInput searchInput =
             PaginationFixture.simpleTextSearch("CrossTenantSearchEndpoint");
@@ -716,8 +916,9 @@ class EndpointApiTest extends IntegrationTest {
                 "Tenant Y", Set.of(Capability.MANAGE_ASSETS, Capability.ACCESS_ASSETS));
 
         Endpoint endpointX = createTenantEndpoint(tenantX.getId(), "Update Isolation Endpoint");
-        entityManager.flush();
-        entityManager.clear();
+        committedTenantIds.add(tenantX.getId());
+        committedTenantIds.add(tenantY.getId());
+        commitArrangeAndStartFreshTransaction();
 
         EndpointInput updateInput = createWindowsEndpointInput(List.of());
         updateInput.setName("Hijacked Endpoint");
@@ -889,6 +1090,145 @@ class EndpointApiTest extends IntegrationTest {
       Mockito.verify(injectStatusService, Mockito.never())
           .addJobRetrievalTraces(Mockito.any(AssetAgentJob.class));
       Mockito.verify(assetAgentJobRepository, Mockito.never()).deleteById(assetAgentJobId);
+    }
+  }
+
+  @Nested
+  @DisplayName("DELETE /api/assets - bulk delete")
+  class BulkDeleteAssets {
+
+    private Endpoint createPersistedEndpoint(String name, String hostname, String ip) {
+      return endpointComposer
+          .forEndpoint(
+              EndpointFixture.createEndpoint(
+                  name,
+                  Endpoint.PLATFORM_TYPE.Windows,
+                  Endpoint.PLATFORM_ARCH.x86_64,
+                  hostname,
+                  new String[] {ip}))
+          .persist()
+          .get();
+    }
+
+    @Test
+    @DisplayName("Given explicit asset ids, should delete only those assets")
+    @WithMockUser(isAdmin = true)
+    void given_explicitAssetIds_should_deleteOnlyThoseAssets() throws Exception {
+      // -- PREPARE --
+      Endpoint toDelete1 = createPersistedEndpoint("bulk-delete-1", "bulk-host-01", "10.1.0.1");
+      Endpoint toDelete2 = createPersistedEndpoint("bulk-delete-2", "bulk-host-02", "10.1.0.2");
+      Endpoint toKeep = createPersistedEndpoint("bulk-keep", "bulk-host-03", "10.1.0.3");
+
+      AssetBulkProcessingInput input = new AssetBulkProcessingInput();
+      input.setAssetIdsToProcess(List.of(toDelete1.getId(), toDelete2.getId()));
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  delete(ASSET_URI)
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ASSERT --
+      JSONArray deletedIds = new JSONArray(response);
+      assertEquals(2, deletedIds.length());
+      assertThat(endpointRepository.findById(toDelete1.getId())).isEmpty();
+      assertThat(endpointRepository.findById(toDelete2.getId())).isEmpty();
+      assertThat(endpointRepository.findById(toKeep.getId())).isPresent();
+    }
+
+    @Test
+    @DisplayName(
+        "Given a search input with ignored ids, should delete matching assets except the ignored ones")
+    @WithMockUser(isAdmin = true)
+    void given_searchInputWithIgnoredIds_should_deleteMatchingAssetsExceptIgnored()
+        throws Exception {
+      // -- PREPARE --
+      Endpoint toDelete = createPersistedEndpoint("bulkwipe-one", "bulk-host-04", "10.1.0.4");
+      Endpoint toIgnore = createPersistedEndpoint("bulkwipe-two", "bulk-host-05", "10.1.0.5");
+      Endpoint unrelated = createPersistedEndpoint("unrelated", "bulk-host-06", "10.1.0.6");
+
+      AssetBulkProcessingInput input = new AssetBulkProcessingInput();
+      input.setSearchPaginationInput(PaginationFixture.simpleTextSearch("bulkwipe"));
+      input.setAssetIdsToIgnore(List.of(toIgnore.getId()));
+
+      // -- EXECUTE --
+      mvc.perform(
+              delete(ASSET_URI)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ASSERT --
+      assertThat(endpointRepository.findById(toDelete.getId())).isEmpty();
+      assertThat(endpointRepository.findById(toIgnore.getId())).isPresent();
+      assertThat(endpointRepository.findById(unrelated.getId())).isPresent();
+    }
+
+    @Test
+    @DisplayName("Given both explicit ids and a search input, should return a bad request")
+    @WithMockUser(isAdmin = true)
+    void given_bothIdsAndSearchInput_should_returnBadRequest() throws Exception {
+      // -- PREPARE --
+      AssetBulkProcessingInput input = new AssetBulkProcessingInput();
+      input.setAssetIdsToProcess(List.of("some-id"));
+      input.setSearchPaginationInput(PaginationFixture.simpleTextSearch("some text"));
+
+      // -- EXECUTE & ASSERT --
+      mvc.perform(
+              delete(ASSET_URI)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    @DisplayName("Given a security platform id, should never delete it through the bulk endpoint")
+    @WithMockUser(isAdmin = true)
+    void given_securityPlatformId_should_neverDeleteIt() throws Exception {
+      // -- PREPARE --
+      SecurityPlatform securityPlatform =
+          securityPlatformRepository.save(SecurityPlatformFixture.createDefault("Bulk EDR", "EDR"));
+
+      AssetBulkProcessingInput input = new AssetBulkProcessingInput();
+      input.setAssetIdsToProcess(List.of(securityPlatform.getId()));
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  delete(ASSET_URI)
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ASSERT --
+      JSONArray deletedIds = new JSONArray(response);
+      assertEquals(0, deletedIds.length());
+      assertThat(securityPlatformRepository.findById(securityPlatform.getId())).isPresent();
     }
   }
 }

@@ -9,12 +9,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public interface FindingRepository
@@ -24,8 +23,80 @@ public interface FindingRepository
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  // -- GROUP-WIDE SUMMARY (findings deduplicated by (type, value) within a tenant) --
+
+  /**
+   * First/last seen and occurrence count for a (type, value) finding group. A single {@code
+   * Finding} row is one occurrence per inject, so the true "first seen" is the MIN of the group's
+   * creation dates and "last seen" the MAX of the group's update dates - not the dates of an
+   * arbitrary representative row.
+   */
+  @Query(
+      "SELECT MIN(f.creationDate) AS firstSeen, MAX(f.updateDate) AS lastSeen,"
+          + " COUNT(f) AS occurrences FROM Finding f"
+          + " WHERE f.type = :type AND f.value = :value AND f.tenant.id = :tenantId")
+  FindingSeenAggregate findSeenAggregate(
+      @Param("type") ContractOutputType type,
+      @Param("value") String value,
+      @Param("tenantId") String tenantId);
+
+  @Query(
+      "SELECT COUNT(DISTINCT a.id) FROM Finding f JOIN f.assets a"
+          + " WHERE f.type = :type AND f.value = :value AND f.tenant.id = :tenantId")
+  long countDistinctAssets(
+      @Param("type") ContractOutputType type,
+      @Param("value") String value,
+      @Param("tenantId") String tenantId);
+
+  @Query(
+      "SELECT COUNT(DISTINCT t.id) FROM Finding f JOIN f.teams t"
+          + " WHERE f.type = :type AND f.value = :value AND f.tenant.id = :tenantId")
+  long countDistinctTeams(
+      @Param("type") ContractOutputType type,
+      @Param("value") String value,
+      @Param("tenantId") String tenantId);
+
+  @Query(
+      "SELECT COUNT(DISTINCT u.id) FROM Finding f JOIN f.users u"
+          + " WHERE f.type = :type AND f.value = :value AND f.tenant.id = :tenantId")
+  long countDistinctUsers(
+      @Param("type") ContractOutputType type,
+      @Param("value") String value,
+      @Param("tenantId") String tenantId);
+
+  @Query(
+      "SELECT COUNT(DISTINCT ag.id) FROM Finding f JOIN f.inject i JOIN i.assetGroups ag"
+          + " WHERE f.type = :type AND f.value = :value AND f.tenant.id = :tenantId")
+  long countDistinctAssetGroups(
+      @Param("type") ContractOutputType type,
+      @Param("value") String value,
+      @Param("tenantId") String tenantId);
+
+  /** Projection for {@link #findSeenAggregate}. */
+  interface FindingSeenAggregate {
+    Instant getFirstSeen();
+
+    Instant getLastSeen();
+
+    long getOccurrences();
+  }
+
   // For testing purposes only
   List<Finding> findAllByInjectId(@NotNull final String injectId);
+
+  /**
+   * An inject's findings, scoped explicitly to a tenant, with their assets fetch-joined. Used off
+   * the request thread (the attack-path findings copy): the scope is a query predicate rather than
+   * the incidental uniqueness of the inject id (the ambient {@code @Filter tenantFilter} is not
+   * enabled there), and the fetch-join preloads {@code assets} so the copy's per-finding {@code
+   * getAssets()} does not trigger an N+1 read on a large run. {@code DISTINCT} collapses the join
+   * fan-out.
+   */
+  @Query(
+      "SELECT DISTINCT f FROM Finding f LEFT JOIN FETCH f.assets"
+          + " WHERE f.inject.id = :injectId AND f.tenant.id = :tenantId")
+  List<Finding> findAllByInjectIdAndTenantId(
+      @NotBlank @Param("injectId") String injectId, @NotBlank @Param("tenantId") String tenantId);
 
   // For testing purposes only
   @Query(
@@ -39,57 +110,73 @@ public interface FindingRepository
 
   // -- INDEXING --
 
+  // One row PER FINDING: assets are aggregated. The previous per-(finding, asset) rows shared the
+  // same base_id, so multi-asset findings kept only one arbitrary asset in the search index (each
+  // bulk upsert overwrote the previous row) and the LIMIT applied to joined rows, not findings.
   @Query(
       value =
           "SELECT f.finding_id, f.finding_value, f.finding_type, f.finding_field,"
-              + " f.finding_inject_id, i.inject_exercise, se.scenario_id, fa.asset_id, f.finding_created_at, f.finding_updated_at, f.tenant_id "
+              + " f.finding_inject_id, i.inject_exercise, MAX(se.scenario_id) AS scenario_id,"
+              + " array_agg(DISTINCT fa.asset_id) FILTER ( WHERE fa.asset_id IS NOT NULL ) AS asset_ids,"
+              + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "FROM findings f "
               + "LEFT JOIN injects i ON i.inject_id = f.finding_inject_id "
               + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
               + "LEFT JOIN findings_assets fa ON f.finding_id = fa.finding_id "
-              + "WHERE f.finding_updated_at > :from ORDER BY f.finding_updated_at LIMIT :limit;",
+              + "WHERE f.finding_updated_at > :from "
+              + "GROUP BY f.finding_id, i.inject_exercise "
+              + "ORDER BY f.finding_updated_at LIMIT :limit;",
       nativeQuery = true)
   List<RawFindingIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
+
+  // The finding upsert, its asset link and its tag links used to be one modifying CTE
+  // (WITH ... INSERT ... RETURNING), which JSQLParser cannot parse, so the tenant inspector would
+  // fail-close on it. They are split into three parseable statements run together in one
+  // transaction by FindingWriter (REQUIRES_NEW). The transaction boundary lives in the API layer,
+  // not here.
+  //
+  // The conflict branch MUST bump finding_updated_at: search indexing is driven by an updated_at
+  // cursor (findForIndexing), so a re-detected finding (same natural key, possibly a new asset
+  // link added right after by insertFindingAsset) would otherwise never be re-indexed and its
+  // ES document would keep a stale asset list forever.
 
   @Query(
       value =
           """
-        WITH inserted_finding AS (
-          INSERT INTO findings
-            (finding_id, finding_field, finding_type, finding_value,
-             finding_labels, finding_inject_id, finding_name, tenant_id)
-          VALUES
-            (gen_random_uuid(), :findingField, :findingType, :findingValue,
-             :findingLabels, :findingInjectId, :findingName, :tenantId)
-          ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)
-          DO UPDATE SET finding_name = EXCLUDED.finding_name
-          RETURNING finding_id
-        ),
-        inserted_asset AS (
-          INSERT INTO findings_assets (finding_id, asset_id)
-          SELECT finding_id, :assetId
-          FROM inserted_finding
-          ON CONFLICT DO NOTHING
-        ),
-        inserted_tags AS (
-          INSERT INTO findings_tags (finding_id, tag_id)
-          SELECT finding_id, tag_id
-          FROM inserted_finding
-          CROSS JOIN unnest(CAST(:tagIds AS varchar[])) AS tag_id
-          ON CONFLICT DO NOTHING
-        )
-        SELECT finding_id FROM inserted_finding
+        INSERT INTO findings
+          (finding_id, finding_field, finding_type, finding_value,
+           finding_labels, finding_inject_id, finding_name, tenant_id)
+        VALUES
+          (gen_random_uuid(), :findingField, :findingType, :findingValue,
+           :findingLabels, :findingInjectId, :findingName, :tenantId)
+        ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)
+        DO UPDATE SET finding_name = EXCLUDED.finding_name, finding_updated_at = now()
+        RETURNING finding_id
         """,
       nativeQuery = true)
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  String saveCompleteFinding(
+  String upsertFinding(
       @Param("findingField") String findingField,
       @Param("findingType") String findingType,
       @Param("findingValue") String findingValue,
       @Param("findingLabels") String[] findingLabels,
       @Param("findingInjectId") String injectId,
       @Param("findingName") String name,
-      @Param("assetId") String assetId,
-      @Param("tagIds") String[] tagIds,
       @Param("tenantId") String tenantId);
+
+  @Modifying
+  @Query(
+      value =
+          "INSERT INTO findings_assets (finding_id, asset_id) VALUES (:findingId, :assetId)"
+              + " ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void insertFindingAsset(@Param("findingId") String findingId, @Param("assetId") String assetId);
+
+  @Modifying
+  @Query(
+      value =
+          "INSERT INTO findings_tags (finding_id, tag_id)"
+              + " SELECT :findingId, tag_id FROM unnest(CAST(:tagIds AS varchar[])) AS tag_id"
+              + " ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void insertFindingTags(@Param("findingId") String findingId, @Param("tagIds") String[] tagIds);
 }

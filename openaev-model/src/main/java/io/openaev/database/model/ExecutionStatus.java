@@ -1,5 +1,6 @@
 package io.openaev.database.model;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import java.util.Set;
 
 public enum ExecutionStatus {
@@ -9,8 +10,11 @@ public enum ExecutionStatus {
   ERROR,
 
   // -- Deprecated (kept for backward compatibility with existing DB data) --
+  // @Hidden keeps them out of the filter value pickers (SchemaUtils.getEnumNames)
+  @Hidden
   @Deprecated
   MAYBE_PREVENTED,
+  @Hidden
   @Deprecated
   MAYBE_PARTIAL_PREVENTED,
 

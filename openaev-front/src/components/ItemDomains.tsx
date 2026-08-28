@@ -6,6 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 import { type DomainHelper } from '../actions/domains/domain-helper';
 import { useHelper } from '../store';
 import { type Domain } from '../utils/api-types';
+import { getIconByDomain } from '../utils/domains/domainIcons';
 import { TO_CLASSIFY } from '../utils/domains/domainUtils';
 import { getLabelOfRemainingItems, truncate } from '../utils/String';
 
@@ -75,6 +76,10 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
           <Chip
             variant="outlined"
             classes={{ root: style }}
+            icon={getIconByDomain(domain.domain_name, {
+              fontSize: 14,
+              color: domain.domain_color,
+            })}
             label={truncate(domain.domain_name, truncateLimit)}
             style={{
               color: domain.domain_color,
@@ -97,6 +102,10 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
           <Chip
             variant="outlined"
             classes={{ root: style }}
+            icon={getIconByDomain(primaryDomain.domain_name, {
+              fontSize: 14,
+              color: primaryDomain.domain_color,
+            })}
             label={truncate(primaryDomain.domain_name, truncateLimit)}
             style={{
               color: primaryDomain.domain_color,

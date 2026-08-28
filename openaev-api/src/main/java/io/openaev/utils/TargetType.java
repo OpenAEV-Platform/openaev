@@ -23,6 +23,9 @@ public enum TargetType {
   /** Groups of assets organized for collective targeting. */
   ASSETS_GROUPS,
 
+  /** AI targets (LLM endpoints / AI agents) referenced from the inject content. */
+  AI_TARGETS,
+
   /** Individual players participating in exercises. */
   PLAYERS,
 
@@ -31,4 +34,7 @@ public enum TargetType {
 
   /** Endpoint devices in the infrastructure. */
   ENDPOINTS,
+
+  /** A raw manual target (IP address, subnet, or hostname) set via inject content. */
+  MANUAL,
 }

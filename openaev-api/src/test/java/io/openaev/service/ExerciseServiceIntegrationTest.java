@@ -13,19 +13,24 @@ import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.exercise.service.PauseExerciseService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
@@ -37,6 +42,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,7 +56,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Mock EnterpriseEditionService enterpriseEditionService;
   @Mock InjectDuplicateService injectDuplicateService;
   @Mock VariableService variableService;
-  @Mock private PreviewFeatureService previewFeatureService;
   @Autowired private TeamService teamService;
   @Autowired private TagRuleService tagRuleService;
   @Autowired private DocumentService documentService;
@@ -88,7 +93,12 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private UrlAccessTokenService urlAccessTokenService;
 
   @Autowired private WorkflowService workflowService;
+  @Autowired private WorkflowRepository workflowRepository;
   @Autowired private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
+  @Autowired private ApplicationEventPublisher eventPublisher;
+  @Autowired private AttackPathExecutionIngestionService attackPathExecutionService;
+  @Autowired private AutonomousRunRepository autonomousRunRepository;
+  @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -121,6 +131,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             injectExpectationRepository,
             articleRepository,
             exerciseRepository,
+            bulkDeleteExecutor,
             injectStatusRepository,
             pauseRepository,
             lessonsQuestionRepository,
@@ -135,11 +146,13 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,
-            previewFeatureService,
             pauseExerciseService,
             fileService,
             stepService,
-            healthCheckUtils);
+            healthCheckUtils,
+            eventPublisher,
+            attackPathExecutionService,
+            autonomousRunRepository);
   }
 
   @AfterAll
@@ -181,6 +194,43 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
                 assertEquals(noContextualTeam.getId(), team.getId());
               }
             });
+  }
+
+  @DisplayName("Stopping a chained simulation keeps its injects")
+  @Test
+  @Transactional(rollbackFor = Exception.class)
+  void given_runningChainedSimulation_should_keepInjectsOnStop() throws ChainingException {
+    // -- PREPARE --
+    // Stopping used to delete every inject of a manual chained simulation, which emptied the
+    // Execution screen while the attack path (cleared only on reset) still showed the same run.
+    Exercise exercise = ExerciseFixture.getExercise();
+    exercise.setFrom("test@test.com");
+    exercise.setStatus(ExerciseStatus.RUNNING);
+    Exercise exerciseSaved = this.exerciseRepository.save(exercise);
+
+    // The cancel path only touches injects when the simulation has a RUN workflow.
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    workflowRun.setSimulation(exerciseSaved);
+    this.workflowRepository.save(workflowRun);
+
+    // The inject has no status yet (pending): stop must keep it too - only Reset clears the
+    // record, and the autonomous-only carve-out is exactly about pending injects like this one.
+    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
+    Inject pendingInject = getInjectForEmailContract(injectorContract);
+    pendingInject.setExercise(exerciseSaved);
+    Inject pendingInjectSaved = this.injectRepository.save(pendingInject);
+    entityManager.flush();
+
+    // -- EXECUTE --
+    this.exerciseService.changeExerciseStatus(ExerciseStatus.CANCELED, exerciseSaved.getId());
+    entityManager.flush();
+
+    // -- ASSERT --
+    assertEquals(
+        List.of(pendingInjectSaved.getId()),
+        this.injectRepository.findByExerciseId(exerciseSaved.getId()).stream()
+            .map(Inject::getId)
+            .toList());
   }
 
   @DisplayName("Should remove team from exercise")

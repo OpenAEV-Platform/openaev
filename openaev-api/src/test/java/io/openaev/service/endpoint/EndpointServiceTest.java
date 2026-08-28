@@ -34,6 +34,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -53,6 +54,7 @@ class EndpointServiceTest {
   @Mock private AssetService assetService;
   @Mock private EndpointMapper endpointMapper;
   @Mock private ServiceAccountPrivilegeService privilegeService;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks private EndpointService endpointService;
 
@@ -105,6 +107,7 @@ class EndpointServiceTest {
       // -------- Assert --------
       assertNotNull(result);
       assertTrue(result.isEoL());
+      assertThat(result.getSeenIp()).isEqualTo("10.0.0.1");
       verify(tagRepository).findAllById(List.of("tag-1"));
       verify(endpointRepository).save(any(Endpoint.class));
     }
@@ -398,6 +401,7 @@ class EndpointServiceTest {
       input.setPlatform(Endpoint.PLATFORM_TYPE.Linux);
       input.setArch(Endpoint.PLATFORM_ARCH.x86_64);
       input.setHostname("host-updated");
+      input.setIps(new String[] {"10.0.0.1"});
       input.setEol(false);
       input.setTagIds(List.of());
       when(tagRepository.findAllById(List.of())).thenReturn(Collections.emptyList());
@@ -410,6 +414,7 @@ class EndpointServiceTest {
       // -------- Assert --------
       assertNotNull(result);
       assertFalse(result.isEoL());
+      assertThat(result.getSeenIp()).isEqualTo("10.0.0.1");
       verify(endpointRepository).save(any(Endpoint.class));
     }
   }

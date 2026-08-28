@@ -75,7 +75,7 @@ class EngineServiceIntegrationTest extends IntegrationTest {
   // -----------------------------------------------------------------------
 
   private EsEntities queryEndpoints() {
-    ListConfiguration config = engineService.createListConfiguration("endpoint", Map.of());
+    ListConfiguration config = engineService.createListConfiguration("asset", Map.of());
     // ALL_TIME avoids the DEFAULT branch that requires a dashboard timeRange parameter
     config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
     ListRuntime runtime = new ListRuntime(config, Map.of(), Map.of(), new Pagination(0, 100));

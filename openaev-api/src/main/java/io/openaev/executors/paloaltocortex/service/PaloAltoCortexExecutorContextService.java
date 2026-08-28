@@ -4,6 +4,7 @@ import static io.openaev.executors.ExecutorHelper.*;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -38,6 +39,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
+  private final OpenAEVConfig openAEVConfig;
 
   ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
@@ -168,7 +170,11 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
               inject.getId(),
               agent.getId(),
               inject.getTenant().getId(),
-              token);
+              token,
+              openAEVConfig.getBaseUrlForAgent(),
+              Integer.toString(openAEVConfig.getLogsMaxSize()),
+              Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
+              Boolean.toString(openAEVConfig.isWithProxy()));
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;\\[Environment]::CurrentDirectory",
@@ -213,7 +219,16 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
       command = UNIX_ARCH + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE);
       command =
           replaceArgs(
-              platform, command, inject.getId(), agent.getId(), inject.getTenant().getId(), token);
+              platform,
+              command,
+              inject.getId(),
+              agent.getId(),
+              inject.getTenant().getId(),
+              token,
+              openAEVConfig.getBaseUrlForAgent(),
+              Integer.toString(openAEVConfig.getLogsMaxSize()),
+              Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
+              Boolean.toString(openAEVConfig.isWithProxy()));
       command =
           command.replaceFirst(
               "\\$?x=.+location=.+;filename=", Matcher.quoteReplacement(implantLocation));

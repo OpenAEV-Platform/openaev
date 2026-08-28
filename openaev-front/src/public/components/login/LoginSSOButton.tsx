@@ -15,14 +15,15 @@ const LoginSSOButton: FunctionComponent<LoginSSOButtonProperties> = ({
 }) => {
   const { t } = useFormatter();
 
+  // Aligned with OpenCTI's ExternalAuthButton: outlined primary button with a
+  // key icon, rendered as a plain link to the SSO provider.
   return (
     <Button
       component="a"
       href={providerUri}
       variant="outlined"
-      color="secondary"
-      size="small"
-      startIcon={<VpnKeyOutlined />}
+      color="primary"
+      startIcon={<VpnKeyOutlined fontSize="small" />}
     >
       <span>{t(providerName)}</span>
     </Button>

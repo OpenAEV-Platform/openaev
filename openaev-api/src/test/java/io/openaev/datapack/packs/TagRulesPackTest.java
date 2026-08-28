@@ -6,6 +6,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.processor.datapack.V20260107_Tags_and_tagrules_and_assetgroups;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.DataPackService;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -49,6 +51,9 @@ public class TagRulesPackTest extends IntegrationTest {
     V20260107_Tags_and_tagrules_and_assetgroups datapack =
         new V20260107_Tags_and_tagrules_and_assetgroups(
             dataPackService, tagService, tagRuleService, assetGroupService);
+    // Manually constructed (not a Spring bean): inject the EntityManager that
+    // DataPack#enableV1TenantFilter needs, which @PersistenceContext would normally provide.
+    ReflectionTestUtils.setField(datapack, "entityManager", entityManager);
 
     // act
     datapack.process(new Tenant(TenantContext.getCurrentTenant()));

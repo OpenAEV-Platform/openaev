@@ -2,16 +2,15 @@ import { type FunctionComponent, useCallback } from 'react';
 
 import { deletePlatformUser, updatePlatformUser } from '../../../../../actions/platform/users/platform-user-action';
 import { PLATFORM_USER_SCHEMA_KEY } from '../../../../../actions/platform/users/platform-user-schema';
-import { updateUserPassword } from '../../../../../actions/users/User';
 import { useFormatter } from '../../../../../components/i18n';
-import { type ChangePasswordInput, type UserInput, type UserOutput } from '../../../../../utils/api-types';
+import { type UserInput, type UserOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import UserPopover from '../tenant_users/UserPopover';
 
 interface Props {
   platformUser: UserOutput;
-  actions?: ('Update' | 'Update password' | 'Delete')[];
+  actions?: ('Update' | 'Delete')[];
   onUpdate?: (result: UserOutput) => void;
   onDelete?: (result: string) => void;
   inList?: boolean;
@@ -19,7 +18,7 @@ interface Props {
 
 const PlatformUserPopover: FunctionComponent<Props> = ({
   platformUser,
-  actions = ['Update', 'Update password', 'Delete'],
+  actions = ['Update', 'Delete'],
   onUpdate,
   onDelete,
   inList = false,
@@ -48,17 +47,12 @@ const PlatformUserPopover: FunctionComponent<Props> = ({
     });
   }, [dispatch, platformUser.user_id, onDelete]);
 
-  const handlePassword = useCallback((data: ChangePasswordInput) => {
-    dispatch(updateUserPassword(platformUser.user_id, data));
-  }, [dispatch, platformUser.user_id]);
-
   return (
     <UserPopover
       user={platformUser}
       actions={actions}
       onSubmitUpdate={handleUpdate}
       onSubmitDelete={handleDelete}
-      onSubmitPassword={handlePassword}
       deleteMessage={t('Do you want to delete this platform user?')}
       type="PLATFORM"
       permissions={{

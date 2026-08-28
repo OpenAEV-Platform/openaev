@@ -7,10 +7,10 @@ import io.openaev.database.model.*;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
+import io.openaev.expectation.Expectation;
+import io.openaev.expectation.ManualExpectation;
 import io.openaev.injectors.opencti.model.CaseContent;
 import io.openaev.model.ExecutionProcess;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.opencti.service.OpenCTIService;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
@@ -62,7 +62,7 @@ public class OpenCTIExecutor extends Injector {
       @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
-    CaseContent content = contentConvert(injection, CaseContent.class);
+    CaseContent content = injectExpectationService.contentConvert(injection, CaseContent.class);
     List<Document> documents =
         inject.getDocuments().stream()
             .filter(InjectDocument::isAttached)

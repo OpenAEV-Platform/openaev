@@ -1,6 +1,6 @@
-import { CloudUploadOutlined, HelpOutlineOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButton, Tooltip } from '@mui/material';
-import { type CSSProperties, type FunctionComponent, useMemo, useState } from 'react';
+import { CloudUploadOutlined, HelpOutlineOutlined, TrackChangesOutlined } from '@mui/icons-material';
+import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButton, Tooltip } from '@mui/material';
+import { type CSSProperties, type FunctionComponent, type ReactElement, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -14,6 +14,7 @@ import { type Header } from '../../../components/common/SortHeadersList';
 import Empty from '../../../components/Empty';
 import { useFormatter } from '../../../components/i18n';
 import ItemDomains from '../../../components/ItemDomains';
+import ItemStatus from '../../../components/ItemStatus';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import {
@@ -21,6 +22,7 @@ import {
   type InjectStatus as InjectStatusType,
   type SearchPaginationInput,
 } from '../../../utils/api-types';
+import useEntityToggle from '../../../utils/hooks/useEntityToggle';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isNotEmptyField } from '../../../utils/utils';
@@ -28,6 +30,8 @@ import InjectIcon from '../common/injects/InjectIcon';
 import InjectImportJsonDialog from '../common/injects/InjectImportJsonDialog';
 import InjectorContract from '../common/injects/InjectorContract';
 import InjectStatus from '../common/injects/status/InjectStatus';
+import ToolBar from '../common/ToolBar';
+import PayloadDeprecatedChip from '../payloads/PayloadDeprecatedChip';
 import AtomicTestingPopover from './atomic_testing/AtomicTestingPopover';
 import AtomicTestingResult from './atomic_testing/AtomicTestingResult';
 
@@ -50,11 +54,33 @@ const inlineStyles: Record<string, CSSProperties> = {
 interface Props {
   showActions?: boolean;
   fetchInjects: (input: SearchPaginationInput) => Promise<{ data: Page<InjectResultOutput> }>;
-  goTo: (injectId: string) => string;
+  // The full row is passed as second argument so cross-scope lists (e.g. the injects played on an
+  // asset) can route simulation injects and atomic testings to their respective detail pages.
+  goTo: (injectId: string, inject: InjectResultOutput) => string;
   queryableHelpers: QueryableHelpers;
   searchPaginationInput: SearchPaginationInput;
   availableFilterNames?: string[];
   contextId?: string;
+  // Optional creation button rendered at the top right of the list header
+  // (OpenCTI-aligned placement), next to the import action.
+  createButton?: ReactElement | null;
+  // Optional bulk delete support (checkboxes + toolbar replacing the sort headers).
+  // The handler receives the current selection and must return the deleted inject ids.
+  onBulkDelete?: (params: {
+    selectAll: boolean;
+    selectedIds: string[];
+    deSelectedIds: string[];
+  }) => Promise<string[]>;
+  // Already-translated delete confirmation text builder (count-aware)
+  deleteConfirmation?: (count: number) => string;
+  // Display-only mapping: injects without a status are serialized as DRAFT by the
+  // backend. In a launched simulation they are actually waiting for dispatch, so
+  // callers in that context can display them as PENDING instead. Disabled injects
+  // always display as "Disabled" regardless of this flag.
+  displayDraftAsPending?: boolean;
+  // External trigger to refresh the paginated list when data changes outside
+  // the list controls (e.g. live execution updates).
+  reloadContentCount?: number;
 }
 
 const InjectResultList: FunctionComponent<Props> = ({
@@ -64,6 +90,11 @@ const InjectResultList: FunctionComponent<Props> = ({
   queryableHelpers,
   searchPaginationInput,
   contextId,
+  createButton,
+  onBulkDelete,
+  deleteConfirmation,
+  displayDraftAsPending,
+  reloadContentCount = 0,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
@@ -109,7 +140,28 @@ const InjectResultList: FunctionComponent<Props> = ({
       label: 'Name',
       isSortable: true,
       value: (injectResultOutput: InjectResultOutput) => {
-        return <>{injectResultOutput.inject_title}</>;
+        return (
+          <span style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            maxWidth: '100%',
+          }}
+          >
+            {/* minWidth: 0 lets the flex item shrink below its content width so the
+                ellipsis can kick in instead of pushing the chip out of the cell */}
+            <span style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              minWidth: 0,
+            }}
+            >
+              {injectResultOutput.inject_title}
+            </span>
+            <PayloadDeprecatedChip status={injectResultOutput.inject_injector_contract?.injector_contract_payload?.payload_status} />
+          </span>
+        );
       },
     },
     {
@@ -126,7 +178,7 @@ const InjectResultList: FunctionComponent<Props> = ({
     },
     {
       field: 'inject_status.tracking_sent_date',
-      label: 'Execution Date',
+      label: 'Start time',
       isSortable: false,
       value: (injectResultOutput: InjectResultOutput) => {
         const trackingDate = injectResultOutput.inject_status?.tracking_sent_date;
@@ -138,7 +190,22 @@ const InjectResultList: FunctionComponent<Props> = ({
       label: 'Execution status',
       isSortable: false,
       value: (injectResultOutput: InjectResultOutput) => {
-        return (<InjectStatus status={injectResultOutput.inject_status?.status_name as InjectStatusType['status_name']} />);
+        // Disabled injects are never picked up by the scheduler, so they never get a
+        // status row (which the backend serializes as DRAFT): name the real cause.
+        if (injectResultOutput.inject_enabled === false) {
+          return (
+            <ItemStatus
+              status="DISABLED"
+              label={t('Disabled')}
+              tooltipLabel={t('This inject is disabled and will not be executed.')}
+            />
+          );
+        }
+        const statusName = injectResultOutput.inject_status?.status_name;
+        const displayStatus = displayDraftAsPending && (!statusName || statusName === 'DRAFT')
+          ? 'PENDING'
+          : statusName;
+        return (<InjectStatus status={displayStatus as InjectStatusType['status_name']} />);
       },
     },
     {
@@ -167,11 +234,36 @@ const InjectResultList: FunctionComponent<Props> = ({
         return <>{nsdt(injectResultOutput.inject_updated_at)}</>;
       },
     },
-  ], []);
+  ], [displayDraftAsPending]);
 
   const search = (input: SearchPaginationInput) => {
     setLoading(true);
     return fetchInjects(input).finally(() => setLoading(false));
+  };
+
+  // Bulk selection
+  const bulkDeleteEnabled = Boolean(onBulkDelete);
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<InjectResultOutput>('inject', injects, queryableHelpers.paginationHelpers.getTotalElements());
+
+  const bulkDelete = () => {
+    onBulkDelete?.({
+      selectAll,
+      selectedIds: Object.keys(selectedElements),
+      deSelectedIds: Object.keys(deSelectedElements),
+    }).then((deletedIds) => {
+      const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
+      setInjects(injects.filter(inject => !deletedIds.includes(inject.inject_id)));
+      queryableHelpers.paginationHelpers.handleChangeTotalElements(newTotal);
+      handleClearSelectedElements();
+    });
   };
 
   const handleOpenJsonImportDialog = () => {
@@ -197,23 +289,26 @@ const InjectResultList: FunctionComponent<Props> = ({
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         contextId={contextId}
-        reloadContentCount={reloadCount}
+        reloadContentCount={reloadContentCount + reloadCount}
         topBarButtons={showActions ? (
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-            <Tooltip title={t('inject_import_json_action')}>
-              <ToggleButton
-                value="import"
-                aria-label="import"
-                size="small"
-                onClick={handleOpenJsonImportDialog}
-              >
-                <CloudUploadOutlined
-                  color="primary"
-                  fontSize="small"
-                />
-              </ToggleButton>
-            </Tooltip>
-          </Can>
+          <Box display="flex" gap={1} alignItems="center">
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+              <Tooltip title={t('inject_import_json_action')}>
+                <ToggleButton
+                  value="import"
+                  aria-label="import"
+                  size="small"
+                  onClick={handleOpenJsonImportDialog}
+                >
+                  <CloudUploadOutlined
+                    color="primary"
+                    fontSize="small"
+                  />
+                </ToggleButton>
+              </Tooltip>
+            </Can>
+            {createButton}
+          </Box>
         ) : null}
       />
       <InjectImportJsonDialog open={openJsonImportDialog} handleClose={handleCloseJsonImportDialog} handleSubmit={handleSubmitJsonImportFile} />
@@ -221,23 +316,57 @@ const InjectResultList: FunctionComponent<Props> = ({
         <ListItem
           classes={{ root: classes.itemHead }}
           divider={false}
-          style={{ paddingTop: 0 }}
-          secondaryAction={showActions ? <>&nbsp;</> : null}
+          sx={numberOfSelectedElements > 0
+            ? {
+                // Massive-operations toolbar: symmetric vertical padding keeps the
+                // checkbox and actions vertically centered in the accent band.
+                backgroundColor: 'background.accent',
+                paddingBlock: 0.5,
+              }
+            : { paddingTop: 0 }}
+          secondaryAction={showActions && numberOfSelectedElements === 0 ? <>&nbsp;</> : null}
         >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
+          {bulkDeleteEnabled && (
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={selectAll}
+                disableRipple
+                onChange={handleToggleSelectAll}
               />
-            )}
-          />
+            </ListItemIcon>
+          )}
+          {bulkDeleteEnabled && numberOfSelectedElements > 0 ? (
+            <ListItemText
+              primary={(
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  handleBulkDelete={bulkDelete}
+                  canManage
+                  deleteConfirmationSingular={deleteConfirmation?.(1)}
+                  deleteConfirmationPlural={deleteConfirmation?.(numberOfSelectedElements)}
+                />
+              )}
+            />
+          ) : (
+            <>
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponentV2
+                    headers={headers}
+                    inlineStylesHeaders={inlineStyles}
+                    sortHelpers={queryableHelpers.sortHelpers}
+                  />
+                )}
+              />
+            </>
+          )}
         </ListItem>
         {
           loading
-            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={bulkDeleteEnabled} />
             : injects.map((injectResultOutput) => {
                 return (
                   <ListItem
@@ -256,8 +385,23 @@ const InjectResultList: FunctionComponent<Props> = ({
                     <ListItemButton
                       component={Link}
                       classes={{ root: classes.item }}
-                      to={goTo(injectResultOutput.inject_id)}
+                      to={goTo(injectResultOutput.inject_id, injectResultOutput)}
                     >
+                      {bulkDeleteEnabled && (
+                        <ListItemIcon
+                          style={{ minWidth: 40 }}
+                          onClick={event => onToggleEntity(injectResultOutput, event)}
+                        >
+                          <Checkbox
+                            edge="start"
+                            checked={
+                              (selectAll && !(injectResultOutput.inject_id in (deSelectedElements || {})))
+                              || injectResultOutput.inject_id in (selectedElements || {})
+                            }
+                            disableRipple
+                          />
+                        </ListItemIcon>
+                      )}
                       <ListItemIcon>
                         <InjectIcon
                           isPayload={isNotEmptyField(injectResultOutput.inject_injector_contract?.injector_contract_payload?.payload_id)}
@@ -292,7 +436,13 @@ const InjectResultList: FunctionComponent<Props> = ({
                 );
               })
         }
-        {!injects ? (<Empty message={t('No data available')} />) : null}
+        {!loading && injects.length === 0 && (
+          <Empty
+            icon={TrackChangesOutlined}
+            message={t('No inject found.')}
+            hint={t('Injects will appear here once they have been played.')}
+          />
+        )}
       </List>
     </>
   );

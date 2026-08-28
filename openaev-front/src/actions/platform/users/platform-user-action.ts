@@ -1,6 +1,6 @@
 import type { Dispatch } from 'redux';
 
-import { delReferential, postReferential, putReferential, simplePostCall } from '../../../utils/Action';
+import { delReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../../utils/Action';
 import { type SearchPaginationInput, type UserInput, type UserOutput } from '../../../utils/api-types';
 import { PLATFORM_USER_SCHEMA_KEY, platformUser } from './platform-user-schema';
 
@@ -10,6 +10,12 @@ export const PLATFORM_USERS_URI = '/api/platform-users';
 
 export const addPlatformUser = (data: UserInput) => (dispatch: Dispatch) => {
   return postReferential(platformUser, PLATFORM_USERS_URI, data)(dispatch);
+};
+
+// -- READ --
+
+export const fetchPlatformUserById = (userId: UserOutput['user_id']) => {
+  return simpleCall(`${PLATFORM_USERS_URI}/${userId}`);
 };
 
 // -- SEARCH --

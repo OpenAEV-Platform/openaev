@@ -1,6 +1,10 @@
 package io.openaev.execution;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.InjectStatusRepository;
@@ -12,8 +16,10 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -32,8 +38,11 @@ public class ExecutionExecutorService {
   private final InjectStatusRepository injectStatusRepository;
   private final InjectService injectService;
   private final ExecutorUtils executorUtils;
+  private final EndpointService endpointService;
   private final ConnectorInstanceService connectorInstanceService;
   private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  private final ActionMetricCollector actionMetricCollector;
+  private final Optional<AuditLogger> auditLogger;
 
   public void launchExecutorContext(Inject inject) {
     InjectStatus injectStatus =
@@ -52,6 +61,8 @@ public class ExecutionExecutorService {
     // Filter inactive and executor-less agents
     Set<Agent> inactiveAgents = executorUtils.findInactiveAgents(agents);
     agents.removeAll(inactiveAgents);
+    // When an executor becomes inactive, remove its source tag from endpoints
+    endpointService.removeSourceTagsFromAgentEndpoints(inactiveAgents);
     Set<Agent> agentsWithoutExecutor = executorUtils.findAgentsWithoutExecutor(agents);
     agents.removeAll(agentsWithoutExecutor);
     Set<Agent> overloadedAgents = executorUtils.findOverloadedAgents(agents);
@@ -71,10 +82,16 @@ public class ExecutionExecutorService {
     Map<io.openaev.database.model.Executor, Set<Agent>> agentsByExecutor =
         agents.stream().collect(Collectors.groupingBy(Agent::getExecutor, Collectors.toSet()));
 
+    // Inject-level (global) trace so the "Execution details" tab is not empty for payload/executor
+    // injects: the detailed command output is recorded per agent, but the global timeline needs a
+    // summary showing the platform distributing the payload to the resolved agents.
+    saveDistributionTrace(agents, injectStatus);
+
     for (Map.Entry<io.openaev.database.model.Executor, Set<Agent>> entry :
         agentsByExecutor.entrySet()) {
       io.openaev.database.model.Executor executor = entry.getKey();
       Set<Agent> executorAgents = entry.getValue();
+      logInjectExecutingEvent(inject, executor, executorAgents);
       launchBatchExecutorContextForAgent(
           executorAgents, executor, inject, injectStatus, atLeastOneExecution);
     }
@@ -95,9 +112,10 @@ public class ExecutionExecutorService {
         Manager manager = managerFactory.getManager(inject.getTenant().getId());
         ExecutorContextService executorContextService;
         if (executor.isExternal()) {
-          // Resolve the ConnectorInstance that owns this executor
+          // Resolve the ConnectorInstance that owns this executor, scoped to the inject's tenant
           ConnectorInstancePersisted instance =
-              connectorInstanceService.findByExecutorId(executor.getId());
+              connectorInstanceService.findByExecutorId(
+                  executor.getId(), inject.getTenant().getId());
           executorContextService =
               manager.requestForInstance(instance, ExecutorContextService.class);
         } else {
@@ -122,15 +140,52 @@ public class ExecutionExecutorService {
           executorContextService.launchExecutorSubprocess(inject, assetEndpoint, agent, token);
         }
         atLeastOneExecution.set(true);
+        actionMetricCollector.addExecutorUsedCount(executor.getType());
       } catch (Exception e) {
         log.error(
             "{} (id={}) launchBatchExecutorSubprocess error: {}",
             executor.getName(),
             executor.getId(),
-            e.getMessage());
+            e.getMessage(),
+            e);
         saveAgentsErrorTraces(e, agents, injectStatus);
       }
     }
+  }
+
+  /**
+   * Writes a single inject-level (global) INFO trace summarising the distribution of a
+   * payload/executor inject to its resolved agents. Global traces carry no agent and no context
+   * identifiers, so they surface in the "Execution details" tab (which previously showed nothing
+   * for executor injects, whose per-agent traces are only visible on each endpoint).
+   */
+  @VisibleForTesting
+  public void saveDistributionTrace(Set<Agent> agents, InjectStatus injectStatus) {
+    if (agents.isEmpty()) {
+      return;
+    }
+    long endpointCount =
+        agents.stream()
+            .map(Agent::getAsset)
+            .filter(Objects::nonNull)
+            .map(Asset::getId)
+            .distinct()
+            .count();
+    String message =
+        "Distributing inject to "
+            + agents.size()
+            + " agent(s) across "
+            + endpointCount
+            + " endpoint(s)";
+    executionTraceRepository.save(
+        new ExecutionTrace(
+            injectStatus,
+            ExecutionTraceStatus.INFO,
+            List.of(),
+            message,
+            ExecutionTraceAction.START,
+            null,
+            null));
   }
 
   @VisibleForTesting
@@ -248,5 +303,44 @@ public class ExecutionExecutorService {
                           null))
               .toList());
     }
+  }
+
+  // -- AUDIT LOGGING --
+
+  private void logInjectExecutingEvent(
+      Inject inject, Executor executor, Set<Agent> executorAgents) {
+    if (executorAgents.isEmpty()) {
+      return;
+    }
+    auditLogger.ifPresent(
+        logger ->
+            logger.logEvent(
+                AuditEvent.builder()
+                    .eventType(EventType.EXECUTION)
+                    .eventScope(AuditEventScope.INJECT_QUEUED)
+                    .eventStatus(EventStatus.SUCCESS)
+                    .resourceType(ResourceType.INJECT)
+                    .resourceId(inject.getId())
+                    .message(
+                        "Inject '%s' executing on '%s' agent(s)"
+                            .formatted(inject.getTitle(), executor.getName()))
+                    .contextData(buildInjectQueuedContextData(inject, executor, executorAgents))
+                    .origin(AuditEventOrigin.SYSTEM)
+                    .build()));
+  }
+
+  private Map<String, Object> buildInjectQueuedContextData(
+      Inject inject, Executor executor, Set<Agent> executorAgents) {
+    Map<String, Object> contextData = new LinkedHashMap<>();
+    contextData.put("inject_id", inject.getId());
+    contextData.put("inject_name", inject.getTitle());
+    contextData.put("executor_id", executor.getId());
+    contextData.put("executor_type", executor.getType());
+    contextData.put(
+        "agent_ids", executorAgents.stream().map(Agent::getId).filter(Objects::nonNull).toList());
+    if (inject.getExercise() != null) {
+      contextData.put("simulation_id", inject.getExercise().getId());
+    }
+    return contextData;
   }
 }

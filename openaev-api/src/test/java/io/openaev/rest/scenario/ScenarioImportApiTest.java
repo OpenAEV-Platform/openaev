@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.rest.inject.service.InjectService;
@@ -14,6 +15,7 @@ import io.openaev.rest.scenario.form.InjectsImportInput;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.TxCtxTestArgumentResolver;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.Optional;
 import java.util.UUID;
@@ -56,7 +58,11 @@ public class ScenarioImportApiTest extends IntegrationTest {
 
     SCENARIO_ID = UUID.randomUUID().toString();
 
-    mvc = MockMvcBuilders.standaloneSetup(scenarioImportApi).build();
+    mvc =
+        MockMvcBuilders.standaloneSetup(scenarioImportApi)
+            .setCustomArgumentResolvers(
+                new TxCtxTestArgumentResolver(TxCtx.forTenant("tenant-test")))
+            .build();
   }
 
   @DisplayName("Test dry run import xls")

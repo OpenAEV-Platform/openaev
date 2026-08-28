@@ -1,26 +1,22 @@
 import { Tooltip } from '@mui/material';
 
-import { fetchExecutors } from '../../../../../actions/executors/executor-action';
 import type { ExecutorHelper } from '../../../../../actions/executors/executor-helper';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type EndpointOutput } from '../../../../../utils/api-types';
 import { getExecutorsCount } from '../../../../../utils/endpoints/utils';
-import { useAppDispatch } from '../../../../../utils/hooks';
-import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 
 type Props = { endpoint: EndpointOutput };
 
 const EndpointActiveFragment = (props: Props) => {
-  const dispatch = useAppDispatch();
-  // Fetching data
+  // Executors are loaded once by the parent list/detail page and read from the
+  // store here - this fragment renders per row, so it must not fetch them itself
+  // (that fired GET /api/executors once per endpoint, and again on every SSE
+  // reconnect).
   const { executorsMap } = useHelper((helper: ExecutorHelper) => ({ executorsMap: helper.getExecutorsMap() }));
-  useDataLoader(() => {
-    dispatch(fetchExecutors());
-  });
   const { t } = useFormatter();
-  if (props.endpoint.asset_agents.length <= 0) {
+  if ((props.endpoint.asset_agents ?? []).length <= 0) {
     return <span>-</span>;
   }
 

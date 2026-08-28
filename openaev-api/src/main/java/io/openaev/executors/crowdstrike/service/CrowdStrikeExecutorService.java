@@ -3,6 +3,9 @@ package io.openaev.executors.crowdstrike.service;
 import static io.openaev.utils.time.TimeUtils.toInstant;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
@@ -28,6 +31,7 @@ public class CrowdStrikeExecutorService implements Runnable {
   private final EndpointService endpointService;
   private final AgentService agentService;
   private final AssetGroupService assetGroupService;
+  private final TenantScopedTransaction tenantTx;
   private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
@@ -53,17 +57,38 @@ public class CrowdStrikeExecutorService implements Runnable {
       CrowdStrikeExecutorConfig config,
       EndpointService endpointService,
       AgentService agentService,
-      AssetGroupService assetGroupService) {
+      AssetGroupService assetGroupService,
+      TenantScopedTransaction tenantTx) {
     this.client = client;
     this.config = config;
     this.endpointService = endpointService;
     this.agentService = agentService;
     this.assetGroupService = assetGroupService;
+    this.tenantTx = tenantTx;
     this.executor = executor;
   }
 
   @Override
   public void run() {
+    try {
+      tenantTx.execute(
+          TxCtx.forTenant(executor.getTenantId()),
+          () -> {
+            // Bridge for v1 tables (Tag, Asset, Agent, AssetGroup) still relying on
+            // TenantContext via HibernateFilterTransactionAspect: this Runnable executes on the
+            // shared scheduler thread pool outside any HTTP request, so TenantContext is never
+            // set here otherwise and falls back to the default tenant, silently scoping the v1
+            // Hibernate filter to the wrong tenant.
+            TenantContext.setCurrentTenant(executor.getTenantId());
+            doRun();
+            return null;
+          });
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  private void doRun() {
     try {
       log.info(
           "Running CrowdStrike executor endpoints gathering... executorId={}, hostGroup={}",
@@ -83,14 +108,14 @@ public class CrowdStrikeExecutorService implements Runnable {
         List<CrowdStrikeDevice> devices = this.client.devices(hostGroup);
         if (!devices.isEmpty()) {
           Optional<AssetGroup> existingAssetGroup =
-              assetGroupService.findByExternalReference(hostGroup, executor.getTenant().getId());
+              assetGroupService.findByExternalReference(hostGroup, executor.getTenantId());
           AssetGroup assetGroup;
           if (existingAssetGroup.isPresent()) {
             assetGroup = existingAssetGroup.get();
           } else {
             assetGroup = new AssetGroup();
             assetGroup.setExternalReference(hostGroup);
-            assetGroup.setTenant(executor.getTenant());
+            assetGroup.setTenant(new Tenant(executor.getTenantId()));
           }
           crowdStrikeHostGroup = crowdStrikeResourceGroup.getResources().getFirst();
           assetGroup.setName(crowdStrikeHostGroup.getName());
@@ -104,9 +129,12 @@ public class CrowdStrikeExecutorService implements Runnable {
               endpointService.syncAgentsEndpoints(
                   toAgentEndpoint(devices),
                   agentService.getAgentsByExecutorIdAndTenantId(
-                      executor.getId(), executor.getTenant().getId()),
-                  executor.getTenant().getId());
-          assetGroup.setAssets(agents.stream().map(Agent::getAsset).toList());
+                      executor.getId(), executor.getTenantId()),
+                  executor.getTenantId());
+          assetGroup.setAssets(
+              agents.stream()
+                  .map(Agent::getAsset)
+                  .collect(Collectors.toCollection(ArrayList::new)));
           assetGroupService.createOrUpdateAssetGroupWithoutDynamicAssets(assetGroup);
         }
       }

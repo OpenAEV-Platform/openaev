@@ -55,7 +55,7 @@ public class HealthCheckService {
     MinioClient minioClient = minioDriver.getMinioClient();
     minioClient.setTimeout(2000L, 2000L, 2000L);
     try {
-      minioService.isTenantPathExists();
+      minioService.isTenantPathExists(minioClient);
     } catch (Exception e) {
       throw new HealthCheckFailureException("FileStorage check failure", e);
     }

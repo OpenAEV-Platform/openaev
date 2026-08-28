@@ -1,25 +1,37 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.service.chaining.WorkflowService.DUPLICATE_SCOPE_VARIABLE_MESSAGE;
+import static io.openaev.service.chaining.WorkflowService.UK_SCOPE_VARIABLE_KEY_TYPE_WORKFLOW;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.rest.exception.AlreadyExistingException;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.service.PreviewFeatureService;
+import io.openaev.rest.exception.WorkflowNotEditableException;
+import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.fixtures.WorkflowFixture;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.sql.SQLException;
+import java.util.*;
 import java.util.stream.Stream;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -30,9 +42,10 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("WorkflowService Tests")
@@ -41,14 +54,61 @@ class WorkflowServiceTest {
   @Mock private WorkflowRepository workflowRepository;
   @Mock private WorkflowScopeRuleRepository workflowScopeRuleRepository;
   @Mock private ScopeVariableRepository scopeVariableRepository;
-  @Mock private PreviewFeatureService previewFeatureService;
+  @Mock private io.openaev.database.repository.AssetRepository assetRepository;
+  @Mock private io.openaev.database.repository.AssetAgentJobRepository assetAgentJobRepository;
+  @Mock private io.openaev.database.repository.AssetGroupRepository assetGroupRepository;
+  @Mock private io.openaev.database.repository.TeamRepository teamRepository;
+  @Mock private io.openaev.database.repository.UserRepository userRepository;
   @Mock private StepService stepService;
+  @Mock private ConditionService conditionService;
   @Mock private StepDelayQueueService stepDelayQueueService;
+  @Mock private ScopeSnapshotService scopeSnapshotService;
+  @Mock private ScopeService scopeService;
   @Mock private WorkflowStateService workflowStateService;
   @Mock private ScopeMetricCollector scopeMetricCollector;
   @Mock private ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
+  @Mock private ResultsMetricCollector resultsMetricCollector;
+  @Mock private ExerciseRepository exerciseRepository;
+  @Mock private InjectService injectService;
+  @Mock private InjectStatusService injectStatusService;
 
-  @InjectMocks private WorkflowService workflowService;
+  private WorkflowService workflowService;
+  private WorkflowEndService workflowEndService;
+
+  @BeforeEach
+  void setUpWorkflowService() {
+    workflowEndService =
+        new WorkflowEndService(
+            stepService,
+            stepDelayQueueService,
+            exerciseRepository,
+            injectService,
+            injectStatusService,
+            resultsMetricCollector,
+            workflowRepository,
+            scopeSnapshotService);
+
+    workflowService =
+        new WorkflowService(
+            stepService,
+            conditionService,
+            workflowStateService,
+            stepDelayQueueService,
+            scopeSnapshotService,
+            scopeService,
+            workflowRepository,
+            workflowScopeRuleRepository,
+            scopeVariableRepository,
+            assetRepository,
+            assetAgentJobRepository,
+            assetGroupRepository,
+            teamRepository,
+            userRepository,
+            workflowEndService,
+            scopeMetricCollector,
+            chainingSafetyPolicyMetricCollector,
+            resultsMetricCollector);
+  }
 
   // ========================================================================
   // getWorkflowById Tests
@@ -127,7 +187,7 @@ class WorkflowServiceTest {
       assertEquals(exercise, savedWorkflow.getSimulation());
       // Configuration defaults stored inline on the workflow row
       assertFalse(savedWorkflow.isRateLimitEnabled());
-      assertFalse(savedWorkflow.isTimeoutEnabled());
+      assertTrue(savedWorkflow.isTimeoutEnabled());
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           savedWorkflow.getTimeoutSeconds(),
@@ -151,7 +211,7 @@ class WorkflowServiceTest {
       assertEquals(WorkflowStatus.TEMPLATE, savedWorkflow.getStatus());
       assertEquals(scenario, savedWorkflow.getScenario());
       assertFalse(savedWorkflow.isRateLimitEnabled());
-      assertFalse(savedWorkflow.isTimeoutEnabled());
+      assertTrue(savedWorkflow.isTimeoutEnabled());
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           savedWorkflow.getTimeoutSeconds(),
@@ -339,7 +399,7 @@ class WorkflowServiceTest {
       // Act
       Workflow result = workflowService.launchWorkflowSimulation(template);
 
-      // Assert — one save: for the run (no version bump since template is not edited)
+      // Assert - one save: for the run (no version bump since template is not edited)
       verify(workflowRepository, times(1)).save(any(Workflow.class));
 
       List<WorkflowScopeRule> copiedRules = result.getWorkflowScopeRules();
@@ -500,6 +560,7 @@ class WorkflowServiceTest {
       when(workflowScopeRuleRepository.findAllByWorkflowId("template"))
           .thenReturn(Collections.emptyList());
       when(workflowRepository.save(any(Workflow.class))).thenReturn(run);
+      when(workflowRepository.findById(any(String.class))).thenReturn(Optional.ofNullable(run));
 
       workflowService.startWorkflowBySimulationId(simulationId);
 
@@ -537,12 +598,138 @@ class WorkflowServiceTest {
       when(workflowRepository.save(any(Workflow.class)))
           .thenReturn(simulationTemplate)
           .thenReturn(run);
+      when(workflowRepository.findById(any(String.class))).thenReturn(Optional.ofNullable(run));
 
       workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
 
       verify(stepService).copyStepTemplate(scenarioTemplate, simulationTemplate);
       verify(workflowStateService).syncState(any(), any(), eq(run));
       verify(stepService).findAllStepTemplateByWorkflow("simulation-template");
+    }
+
+    @Test
+    @DisplayName("should seed scope values and mapped output types")
+    void shouldSeedScopeValuesAndMappedOutputTypes() throws Exception {
+      Workflow workflowTemplate =
+          Workflow.builder().id("template").status(WorkflowStatus.TEMPLATE).build();
+      Workflow run =
+          Workflow.builder()
+              .id("run")
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .workflowScopeRules(
+                  new java.util.ArrayList<>(
+                      List.of(
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.IP)
+                              .ruleValue("192.168.10.10")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.DOMAIN)
+                              .ruleValue("example.org")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.IP_SUBNET)
+                              .ruleValue("10.0.0.0/24")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.IP_SUBNET)
+                              .ruleValue("2001:db8::/126")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.ASSET_ID)
+                              .ruleValue("asset-123")
+                              .build(),
+                          WorkflowScopeRule.builder()
+                              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                              .valueType(ScopeRuleValueType.ASSET_GROUP_ID)
+                              .ruleValue("group-456")
+                              .build())))
+              .build();
+
+      when(stepService.findAllStepTemplateByWorkflow("template"))
+          .thenReturn(Collections.emptyList());
+      when(workflowRepository.findById(any(String.class))).thenReturn(Optional.ofNullable(run));
+
+      workflowService.startWorkflow(run);
+
+      ArgumentCaptor<JsonElement> dataCaptor = ArgumentCaptor.forClass(JsonElement.class);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<Map<String, ChainingMappedType>> scopeTypeCaptor =
+          ArgumentCaptor.forClass(Map.class);
+      verify(workflowStateService)
+          .syncState(dataCaptor.capture(), scopeTypeCaptor.capture(), eq(run));
+
+      JsonObject mappedScopeData = dataCaptor.getValue().getAsJsonObject();
+      assertEquals(
+          "192.168.10.10",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.IP.name()).get(0).getAsString());
+      assertEquals(
+          "example.org",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.DOMAIN.name()).get(0).getAsString());
+      assertEquals(
+          "10.0.0.0/24",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.IP_SUBNET.name()).get(0).getAsString());
+      assertEquals(
+          "2001:db8::/126",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.IP_SUBNET.name()).get(1).getAsString());
+      assertEquals(
+          "asset-123",
+          mappedScopeData.getAsJsonArray(ScopeRuleValueType.ASSET_ID.name()).get(0).getAsString());
+      assertEquals(
+          "group-456",
+          mappedScopeData
+              .getAsJsonArray(ScopeRuleValueType.ASSET_GROUP_ID.name())
+              .get(0)
+              .getAsString());
+
+      assertEquals(
+          ChainingTypeKind.PRIMITIVE,
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.IP.name()).kind());
+      assertEquals(
+          List.of(PrimitiveType.IPv4, PrimitiveType.IPv6),
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.IP.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.Domain),
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.DOMAIN.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.IpSubnet),
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.IP_SUBNET.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.AssetId),
+          scopeTypeCaptor.getValue().get(ScopeRuleValueType.ASSET_ID.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.AssetGroupId),
+          scopeTypeCaptor
+              .getValue()
+              .get(ScopeRuleValueType.ASSET_GROUP_ID.name())
+              .primitiveTypes());
+
+      assertTrue(mappedScopeData.has(PrimitiveType.IPv4.name()));
+      assertEquals(254, mappedScopeData.getAsJsonArray(PrimitiveType.IPv4.name()).size());
+      assertEquals(
+          "10.0.0.1",
+          mappedScopeData.getAsJsonArray(PrimitiveType.IPv4.name()).get(0).getAsString());
+      assertEquals(
+          "10.0.0.254",
+          mappedScopeData
+              .getAsJsonArray(PrimitiveType.IPv4.name())
+              .get(mappedScopeData.getAsJsonArray(PrimitiveType.IPv4.name()).size() - 1)
+              .getAsString());
+
+      assertTrue(mappedScopeData.has(PrimitiveType.IPv6.name()));
+      assertEquals(4, mappedScopeData.getAsJsonArray(PrimitiveType.IPv6.name()).size());
+      assertEquals(
+          List.of(PrimitiveType.IPv4),
+          scopeTypeCaptor.getValue().get(PrimitiveType.IPv4.name()).primitiveTypes());
+      assertEquals(
+          List.of(PrimitiveType.IPv6),
+          scopeTypeCaptor.getValue().get(PrimitiveType.IPv6.name()).primitiveTypes());
     }
   }
 
@@ -559,7 +746,7 @@ class WorkflowServiceTest {
       String workflowId = UUID.randomUUID().toString();
       Workflow workflow = mock(Workflow.class);
 
-      // rateLimitEnabled differs from mock default (false) → change detected
+      // rateLimitEnabled differs from mock default (false) -> change detected
       WorkflowConfigurationInput input = new WorkflowConfigurationInput();
       input.setRateLimitEnabled(true);
 
@@ -570,7 +757,7 @@ class WorkflowServiceTest {
       // Act
       Workflow result = workflowService.updateWorkflowConfiguration(workflowId, input);
 
-      // Assert — service loads the entity, applies the input, saves, and returns the original
+      // Assert - service loads the entity, applies the input, saves, and returns the original
       // entity
       verify(workflowRepository, times(1)).findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE);
       verify(workflowRepository).save(workflowCaptor.capture());
@@ -608,7 +795,7 @@ class WorkflowServiceTest {
       WorkflowConfigurationInput input = new WorkflowConfigurationInput();
       input.setSafeModeEnabled(true);
       input.setWorkflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList());
-      // Service now owns the apply logic — no manual mapper call needed
+      // Service now owns the apply logic - no manual mapper call needed
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
@@ -655,6 +842,185 @@ class WorkflowServiceTest {
               .findFirst()
               .orElseThrow();
       assertEquals(ScopeRuleValueType.ASSET_GROUP_ID, mappedAssetGroupRule.getValueType());
+    }
+
+    @Test
+    @DisplayName("should realign step templates on the new scope when scope rules changed")
+    void given_changedScopeRules_should_realignStepTemplatesOnNewScope() {
+      // Arrange - an action was authored before the asset was added to the allowlist
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList());
+      Asset asset = new Asset();
+      asset.setId("asset-123");
+
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidAssets(workflowId)).thenReturn(List.of(asset));
+
+      // Act
+      workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      // Assert - the scope is pushed onto the already-authored step templates
+      verify(workflowRepository, times(2)).flush();
+      verify(stepService).syncScopeAssetsOnStepTemplates(workflow, List.of("asset-123"));
+    }
+
+    @Test
+    @DisplayName("should not realign step templates when no scope rule changed")
+    void given_unchangedScopeRules_should_notRealignStepTemplates() {
+      // Arrange - only a rate-limit field changes
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder().id(workflowId).status(WorkflowStatus.TEMPLATE).version(0).build();
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setRateLimitEnabled(true);
+
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+
+      // Act
+      workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      // Assert
+      verify(stepService, never()).syncScopeAssetsOnStepTemplates(any(), any());
+      verify(scopeService, never()).getValidAssets(any());
+    }
+  }
+
+  @Nested
+  @DisplayName("template scope writes should realign action targets")
+  class TemplateScopeRealignmentTests {
+
+    @Test
+    @DisplayName("writeAllowlistScope should realign scenario template when rules changed")
+    void writeAllowlistScope_should_realignScenarioTemplate_whenRulesChanged() {
+      // Arrange
+      Workflow template =
+          Workflow.builder().id("wf-template").status(WorkflowStatus.TEMPLATE).version(0).build();
+      WorkflowScopeRuleInput rule =
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-1")
+              .build();
+      Asset asset = new Asset();
+      asset.setId("asset-1");
+
+      when(workflowRepository.findByScenario_IdAndStatus("scenario-1", WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(template));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidAssets("wf-template")).thenReturn(List.of(asset));
+
+      // Act
+      workflowService.writeAllowlistScope("scenario-1", null, List.of(rule), false);
+
+      // Assert
+      verify(workflowRepository).flush();
+      verify(stepService).syncScopeAssetsOnStepTemplates(template, List.of("asset-1"));
+    }
+
+    @Test
+    @DisplayName("writeScopeRules should realign scenario template when rules changed")
+    void writeScopeRules_should_realignScenarioTemplate_whenRulesChanged() {
+      // Arrange
+      Workflow template =
+          Workflow.builder().id("wf-template").status(WorkflowStatus.TEMPLATE).version(0).build();
+      WorkflowScopeRuleInput rule =
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET_GROUP)
+              .ruleValue("group-1")
+              .build();
+      Asset asset = new Asset();
+      asset.setId("asset-2");
+
+      when(workflowRepository.findByScenario_IdAndStatus("scenario-1", WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(template));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidAssets("wf-template")).thenReturn(List.of(asset));
+
+      // Act
+      workflowService.writeScopeRules("scenario-1", null, List.of(rule));
+
+      // Assert
+      verify(workflowRepository).flush();
+      verify(stepService).syncScopeAssetsOnStepTemplates(template, List.of("asset-2"));
+    }
+
+    @Test
+    @DisplayName("writeScopeRules should not realign when nothing changed")
+    void writeScopeRules_should_notRealign_whenNoRuleChanged() {
+      // Arrange
+      Workflow template =
+          Workflow.builder().id("wf-template").status(WorkflowStatus.TEMPLATE).version(0).build();
+      WorkflowScopeRule existing =
+          WorkflowScopeRule.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-1")
+              .workflow(template)
+              .build();
+      template.getWorkflowScopeRules().add(existing);
+
+      WorkflowScopeRuleInput sameRule =
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-1")
+              .build();
+
+      when(workflowRepository.findByScenario_IdAndStatus("scenario-1", WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(template));
+
+      // Act
+      workflowService.writeScopeRules("scenario-1", null, List.of(sameRule));
+
+      // Assert
+      verify(stepService, never()).syncScopeAssetsOnStepTemplates(any(), any());
+      verify(scopeService, never()).getValidAssets(any());
+      verify(workflowRepository, never()).flush();
+    }
+
+    @Test
+    @DisplayName("cleanScopeRulesSimulation should realign when ghost rules are removed")
+    void cleanScopeRulesSimulation_should_realign_whenGhostRulesRemoved() {
+      // Arrange
+      Workflow template =
+          Workflow.builder()
+              .id("wf-template")
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .simulation(new Exercise())
+              .build();
+      WorkflowScopeRule ghostRule =
+          WorkflowScopeRule.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-ghost")
+              .workflow(template)
+              .build();
+      template.getWorkflowScopeRules().add(ghostRule);
+
+      Asset asset = new Asset();
+      asset.setId("asset-1");
+
+      when(workflowRepository.findBySimulation_IdAndStatus("sim-1", WorkflowStatus.TEMPLATE))
+          .thenReturn(template);
+      when(scopeSnapshotService.buildCurrentSnapshot(ghostRule)).thenReturn(null);
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidAssets("wf-template")).thenReturn(List.of(asset));
+
+      // Act
+      workflowService.cleanScopeRulesSimulation("sim-1");
+
+      // Assert
+      verify(workflowRepository).flush();
+      verify(stepService).syncScopeAssetsOnStepTemplates(template, List.of("asset-1"));
     }
   }
 
@@ -717,10 +1083,112 @@ class WorkflowServiceTest {
   }
 
   // ========================================================================
-  // Scope Variables Tests
+  // updateWorkflowConfiguration - logic-map freeze (ADR-005)
   // ========================================================================
   @Nested
-  @DisplayName("updateWorkflowConfiguration – scope variables")
+  @DisplayName("updateWorkflowConfiguration - logic-map freeze (ADR-005)")
+  class LogicMapFreezeTests {
+
+    private Workflow buildTemplateWithSimulation(ExerciseStatus status) {
+      String workflowId = UUID.randomUUID().toString();
+      Exercise simulation = new Exercise();
+      simulation.setStatus(status);
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .simulation(simulation)
+              .timeoutSeconds(WorkflowService.DEFAULT_TIMEOUT_SECONDS)
+              .build();
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      return workflow;
+    }
+
+    @Test
+    @DisplayName("given a SCHEDULED simulation should allow updating the configuration")
+    void given_scheduledSimulation_should_allowUpdate() {
+      // Arrange
+      Workflow workflow = buildTemplateWithSimulation(ExerciseStatus.SCHEDULED);
+
+      // Act & Assert
+      assertDoesNotThrow(
+          () ->
+              workflowService.updateWorkflowConfiguration(
+                  workflow.getId(), new WorkflowConfigurationInput()));
+    }
+
+    @Test
+    @DisplayName("given a RUNNING simulation should reject updating the configuration")
+    void given_runningSimulation_should_rejectUpdate() {
+      // Arrange
+      Workflow workflow = buildTemplateWithSimulation(ExerciseStatus.RUNNING);
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () ->
+              workflowService.updateWorkflowConfiguration(
+                  workflow.getId(), new WorkflowConfigurationInput()));
+    }
+
+    @Test
+    @DisplayName("given a FINISHED simulation should reject updating the configuration")
+    void given_finishedSimulation_should_rejectUpdate() {
+      // Arrange
+      Workflow workflow = buildTemplateWithSimulation(ExerciseStatus.FINISHED);
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () ->
+              workflowService.updateWorkflowConfiguration(
+                  workflow.getId(), new WorkflowConfigurationInput()));
+    }
+
+    @Test
+    @DisplayName("given a CANCELED simulation should reject updating the configuration")
+    void given_canceledSimulation_should_rejectUpdate() {
+      // Arrange
+      Workflow workflow = buildTemplateWithSimulation(ExerciseStatus.CANCELED);
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () ->
+              workflowService.updateWorkflowConfiguration(
+                  workflow.getId(), new WorkflowConfigurationInput()));
+    }
+
+    @Test
+    @DisplayName("given a scenario-owned workflow (no simulation) should allow updating")
+    void given_scenarioWorkflow_should_allowUpdate() {
+      // Arrange
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .timeoutSeconds(WorkflowService.DEFAULT_TIMEOUT_SECONDS)
+              .build();
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+
+      // Act & Assert
+      assertDoesNotThrow(
+          () ->
+              workflowService.updateWorkflowConfiguration(
+                  workflow.getId(), new WorkflowConfigurationInput()));
+    }
+  }
+
+  // ========================================================================
+  // updateWorkflowConfiguration - scope variables
+  // ========================================================================
+  @Nested
+  @DisplayName("updateWorkflowConfiguration - scope variables")
   class ScopeVariablesTests {
 
     private WorkflowService service;
@@ -730,14 +1198,23 @@ class WorkflowServiceTest {
       service =
           new WorkflowService(
               stepService,
-              previewFeatureService,
+              conditionService,
               workflowStateService,
               stepDelayQueueService,
+              scopeSnapshotService,
+              scopeService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
+              assetRepository,
+              assetAgentJobRepository,
+              assetGroupRepository,
+              teamRepository,
+              userRepository,
+              workflowEndService,
               scopeMetricCollector,
-              chainingSafetyPolicyMetricCollector);
+              chainingSafetyPolicyMetricCollector,
+              resultsMetricCollector);
     }
 
     private Workflow buildTemplate() {
@@ -767,7 +1244,7 @@ class WorkflowServiceTest {
       // Arrange
       Workflow workflow = buildTemplate(false);
       ScopeVariableInput input =
-          new ScopeVariableInput(null, "company_name", ArgumentType.Text, "Acme", "Company name");
+          new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", "Company name");
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of(input));
 
@@ -778,7 +1255,7 @@ class WorkflowServiceTest {
       assertEquals(1, result.getWorkflowScopeVariables().size());
       ScopeVariable created = result.getWorkflowScopeVariables().getFirst();
       assertEquals("company_name", created.getKey());
-      assertEquals(ArgumentType.Text, created.getType());
+      assertEquals(PrimitiveType.Text, created.getType());
       assertEquals("Acme", created.getValue());
       assertEquals("Company name", created.getDescription());
       assertSame(workflow, created.getWorkflow());
@@ -792,7 +1269,7 @@ class WorkflowServiceTest {
       Workflow workflow = buildTemplate(false);
       ScopeVariable existing = new ScopeVariable();
       existing.setKey("old_key");
-      existing.setType(ArgumentType.Text);
+      existing.setType(PrimitiveType.Text);
       existing.setValue("old_value");
       existing.setDescription("old desc");
       existing.setWorkflow(workflow);
@@ -802,19 +1279,19 @@ class WorkflowServiceTest {
       workflow.getWorkflowScopeVariables().add(existing);
 
       ScopeVariableInput input =
-          new ScopeVariableInput(varId, "new_key", ArgumentType.IPv4, "10.0.0.1", "new desc");
+          new ScopeVariableInput(varId, "new_key", PrimitiveType.IPv4, "10.0.0.1", "new desc");
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of(input));
 
       // Act
       Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
 
-      // Assert — same instance mutated in-place
+      // Assert - same instance mutated in-place
       assertEquals(1, result.getWorkflowScopeVariables().size());
       ScopeVariable updated = result.getWorkflowScopeVariables().getFirst();
       assertSame(existing, updated);
       assertEquals("new_key", updated.getKey());
-      assertEquals(ArgumentType.IPv4, updated.getType());
+      assertEquals(PrimitiveType.IPv4, updated.getType());
       assertEquals("10.0.0.1", updated.getValue());
       assertEquals("new desc", updated.getDescription());
       verify(workflowRepository).save(workflow);
@@ -827,13 +1304,13 @@ class WorkflowServiceTest {
       Workflow workflow = buildTemplate();
       ScopeVariable existing = new ScopeVariable();
       existing.setKey("to_remove");
-      existing.setType(ArgumentType.Text);
+      existing.setType(PrimitiveType.Text);
       existing.setWorkflow(workflow);
       String varId = UUID.randomUUID().toString();
       org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
       workflow.getWorkflowScopeVariables().add(existing);
 
-      // Input omits the existing variable → it should be removed
+      // Input omits the existing variable -> it should be removed
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of());
 
@@ -853,7 +1330,7 @@ class WorkflowServiceTest {
       ScopeVariable existing = new ScopeVariable();
       String varId = UUID.randomUUID().toString();
       existing.setKey("my_key");
-      existing.setType(ArgumentType.Text);
+      existing.setType(PrimitiveType.Text);
       existing.setValue("val");
       existing.setDescription("desc");
       existing.setWorkflow(workflow);
@@ -862,14 +1339,14 @@ class WorkflowServiceTest {
 
       // Input is identical to existing variable
       ScopeVariableInput input =
-          new ScopeVariableInput(varId, "my_key", ArgumentType.Text, "val", "desc");
+          new ScopeVariableInput(varId, "my_key", PrimitiveType.Text, "val", "desc");
       WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
       configInput.setWorkflowScopeVariables(List.of(input));
 
       // Act
       Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
 
-      // Assert — no change detected, save must not be called
+      // Assert - no change detected, save must not be called
       assertSame(workflow, result);
       verify(workflowRepository, never()).save(any());
     }
@@ -891,6 +1368,134 @@ class WorkflowServiceTest {
     }
 
     @Test
+    @DisplayName("should preserve raw sensitive value when update input sends masked echo")
+    void given_maskedEchoForSensitiveVariable_should_preserveRawValue() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      ScopeVariable existing = new ScopeVariable();
+      String varId = UUID.randomUUID().toString();
+      existing.setKey("password_var");
+      existing.setType(PrimitiveType.Password);
+      existing.setValue("TopSecret");
+      existing.setDescription("desc");
+      existing.setWorkflow(workflow);
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      ScopeVariableInput input =
+          new ScopeVariableInput(
+              varId, "password_var", PrimitiveType.Password, "T*******t", "desc");
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(List.of(input));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertSame(workflow, result);
+      assertEquals("TopSecret", result.getWorkflowScopeVariables().getFirst().getValue());
+      verify(workflowRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("should preserve raw sensitive value when type changes and input is masked echo")
+    void given_typeChangeAndMaskedEcho_should_preserveRawValue() {
+      // Arrange
+      Workflow workflow = buildTemplate(false);
+      ScopeVariable existing = new ScopeVariable();
+      String varId = UUID.randomUUID().toString();
+      existing.setKey("password_var");
+      existing.setType(PrimitiveType.Password);
+      existing.setValue("TopSecret");
+      existing.setDescription("desc");
+      existing.setWorkflow(workflow);
+      org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", varId);
+      workflow.getWorkflowScopeVariables().add(existing);
+
+      ScopeVariableInput input =
+          new ScopeVariableInput(varId, "password_var", PrimitiveType.Text, "T*******t", "desc");
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(List.of(input));
+
+      // Act
+      Workflow result = service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      assertSame(workflow, result);
+      ScopeVariable updated = result.getWorkflowScopeVariables().getFirst();
+      assertEquals(PrimitiveType.Text, updated.getType());
+      assertEquals("TopSecret", updated.getValue());
+      verify(workflowRepository).save(workflow);
+    }
+
+    @Test
+    @DisplayName("should translate the database uniqueness violation into a business message")
+    void given_databaseDuplicateKeyViolation_should_throwAlreadyExistingException() {
+      // Arrange - the duplicate is reported by the database on flush
+      Workflow workflow = buildTemplate(false);
+      doThrow(uniqueViolation(UK_SCOPE_VARIABLE_KEY_TYPE_WORKFLOW))
+          .when(workflowRepository)
+          .flush();
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", null)));
+
+      // Act
+      AlreadyExistingException exception =
+          assertThrows(
+              AlreadyExistingException.class,
+              () -> service.updateWorkflowConfiguration(workflow.getId(), configInput));
+
+      // Assert - the raw constraint name never reaches the caller
+      assertEquals(DUPLICATE_SCOPE_VARIABLE_MESSAGE, exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("should rethrow an integrity violation raised by another constraint")
+    void given_unrelatedConstraintViolation_should_rethrowAsIs() {
+      // Arrange - only the scope-variable uniqueness gets a dedicated business message
+      Workflow workflow = buildTemplate(false);
+      DataIntegrityViolationException unrelated = uniqueViolation("uk_workflow_template");
+      doThrow(unrelated).when(workflowRepository).flush();
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", null)));
+
+      // Act & Assert
+      assertSame(
+          unrelated,
+          assertThrows(
+              DataIntegrityViolationException.class,
+              () -> service.updateWorkflowConfiguration(workflow.getId(), configInput)));
+    }
+
+    @Test
+    @DisplayName("should flush the configuration so the database reports the duplicate in time")
+    void given_changedConfiguration_should_flushWithinTheServiceCall() {
+      // Arrange - a deferred flush would raise the violation at commit, past any translation
+      Workflow workflow = buildTemplate(false);
+      WorkflowConfigurationInput configInput = new WorkflowConfigurationInput();
+      configInput.setWorkflowScopeVariables(
+          List.of(new ScopeVariableInput(null, "company_name", PrimitiveType.Text, "Acme", null)));
+
+      // Act
+      service.updateWorkflowConfiguration(workflow.getId(), configInput);
+
+      // Assert
+      verify(workflowRepository).save(workflow);
+      verify(workflowRepository).flush();
+    }
+
+    private DataIntegrityViolationException uniqueViolation(String constraintName) {
+      return new DataIntegrityViolationException(
+          "could not execute statement",
+          new ConstraintViolationException(
+              "duplicate key value violates unique constraint",
+              new SQLException(),
+              constraintName));
+    }
+
+    @Test
     @DisplayName("should copy scope variables when launching a workflow simulation")
     void given_templateWithScopeVariables_should_copyThemToRun() {
       // Arrange
@@ -907,7 +1512,7 @@ class WorkflowServiceTest {
 
       ScopeVariable sourceVar = new ScopeVariable();
       sourceVar.setKey("env");
-      sourceVar.setType(ArgumentType.Text);
+      sourceVar.setType(PrimitiveType.Text);
       sourceVar.setValue("production");
       sourceVar.setDescription("Environment name");
       sourceVar.setWorkflow(template);
@@ -924,7 +1529,7 @@ class WorkflowServiceTest {
       ScopeVariable copiedVar = run.getWorkflowScopeVariables().getFirst();
       assertNotSame(sourceVar, copiedVar);
       assertEquals("env", copiedVar.getKey());
-      assertEquals(ArgumentType.Text, copiedVar.getType());
+      assertEquals(PrimitiveType.Text, copiedVar.getType());
       assertEquals("production", copiedVar.getValue());
       assertSame(run, copiedVar.getWorkflow());
     }
@@ -934,7 +1539,7 @@ class WorkflowServiceTest {
   // Scope Metrics Tests
   // ========================================================================
   @Nested
-  @DisplayName("updateWorkflowConfiguration – scope metrics")
+  @DisplayName("updateWorkflowConfiguration - scope metrics")
   class ScopeMetricsTests {
 
     private WorkflowService service;
@@ -944,14 +1549,23 @@ class WorkflowServiceTest {
       service =
           new WorkflowService(
               stepService,
-              previewFeatureService,
+              conditionService,
               workflowStateService,
               stepDelayQueueService,
+              scopeSnapshotService,
+              scopeService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
+              assetRepository,
+              assetAgentJobRepository,
+              assetGroupRepository,
+              teamRepository,
+              userRepository,
+              workflowEndService,
               scopeMetricCollector,
-              chainingSafetyPolicyMetricCollector);
+              chainingSafetyPolicyMetricCollector,
+              resultsMetricCollector);
     }
 
     private Workflow buildTemplate() {
@@ -984,18 +1598,18 @@ class WorkflowServiceTest {
       // Act
       service.updateWorkflowConfiguration(workflow.getId(), input);
 
-      // Assert — creation metrics recorded per mode
+      // Assert - creation metrics recorded per mode
       verify(scopeMetricCollector).recordScopeCreated("ALLOWLIST", 3);
       verify(scopeMetricCollector).recordScopeCreated("DENYLIST", 2);
 
-      // Assert — entry-added metrics recorded per type|source
+      // Assert - entry-added metrics recorded per type|source
       verify(scopeMetricCollector).recordEntryAdded("IP", "MANUAL", 1);
       verify(scopeMetricCollector).recordEntryAdded("DOMAIN", "MANUAL", 1);
       verify(scopeMetricCollector).recordEntryAdded("ASSET_ID", "ASSET", 1);
       verify(scopeMetricCollector).recordEntryAdded("IP_SUBNET", "MANUAL", 1);
       verify(scopeMetricCollector).recordEntryAdded("ASSET_GROUP_ID", "ASSET_GROUP", 1);
 
-      // Assert — usage recorded only for CSV/MANUAL, not ASSET/ASSET_GROUP
+      // Assert - usage recorded only for CSV/MANUAL, not ASSET/ASSET_GROUP
       verify(scopeMetricCollector).recordUsage(workflow.getId(), "MANUAL");
       verify(scopeMetricCollector, never()).recordUsage(anyString(), eq("ASSET"));
       verify(scopeMetricCollector, never()).recordUsage(anyString(), eq("ASSET_GROUP"));
@@ -1022,7 +1636,7 @@ class WorkflowServiceTest {
       workflow.getWorkflowScopeRules().getFirst().setId(UUID.randomUUID().toString());
       reset(scopeMetricCollector);
 
-      // Second call: same rules (now have IDs) — no new rules
+      // Second call: same rules (now have IDs) - no new rules
       WorkflowScopeRule existingRule = workflow.getWorkflowScopeRules().getFirst();
       WorkflowScopeRuleInput retainedInput =
           WorkflowScopeRuleInput.builder()
@@ -1037,7 +1651,7 @@ class WorkflowServiceTest {
       // Act
       service.updateWorkflowConfiguration(workflow.getId(), secondInput);
 
-      // Assert — no metric calls since no new (ID-less) rules were added
+      // Assert - no metric calls since no new (ID-less) rules were added
       verifyNoInteractions(scopeMetricCollector);
     }
 
@@ -1085,7 +1699,7 @@ class WorkflowServiceTest {
       // Act
       service.updateWorkflowConfiguration(workflow.getId(), secondInput);
 
-      // Assert — metrics only for the one new CSV rule
+      // Assert - metrics only for the one new CSV rule
       verify(scopeMetricCollector).recordScopeCreated(ScopeRuleSelectedMode.DENYLIST.name(), 1);
       verify(scopeMetricCollector)
           .recordEntryAdded(ScopeRuleValueType.DOMAIN.name(), ScopeRuleSource.CSV.name(), 1);
@@ -1110,10 +1724,282 @@ class WorkflowServiceTest {
   }
 
   // ========================================================================
+  // Scope rule value-label snapshot Tests (#7164)
+  // ========================================================================
+  @Nested
+  @DisplayName("updateWorkflowConfiguration - scope rule value label snapshot")
+  class ScopeRuleValueLabelTests {
+
+    private static final String TENANT = "tenant-1";
+
+    private WorkflowService service;
+
+    @BeforeEach
+    void setUp() {
+      service =
+          new WorkflowService(
+              stepService,
+              conditionService,
+              workflowStateService,
+              stepDelayQueueService,
+              scopeSnapshotService,
+              scopeService,
+              workflowRepository,
+              workflowScopeRuleRepository,
+              scopeVariableRepository,
+              assetRepository,
+              assetAgentJobRepository,
+              assetGroupRepository,
+              teamRepository,
+              userRepository,
+              workflowEndService,
+              scopeMetricCollector,
+              chainingSafetyPolicyMetricCollector,
+              resultsMetricCollector);
+    }
+
+    private Workflow buildTemplate() {
+      String workflowId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .timeoutSeconds(WorkflowService.DEFAULT_TIMEOUT_SECONDS)
+              .build();
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      lenient()
+          .when(workflowRepository.save(any(Workflow.class)))
+          .thenAnswer(i -> i.getArgument(0));
+      return workflow;
+    }
+
+    private WorkflowConfigurationInput ruleInput(ScopeRuleSource source, String value) {
+      return WorkflowConfigurationInput.builder()
+          .workflowScopeRules(
+              List.of(
+                  WorkflowScopeRuleInput.builder()
+                      .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+                      .ruleSource(source)
+                      .ruleValue(value)
+                      .build()))
+          .build();
+    }
+
+    @Test
+    @DisplayName("should snapshot the tenant-scoped asset name on an ASSET rule")
+    void given_assetRule_should_snapshotAssetName() {
+      Workflow workflow = buildTemplate();
+      Asset asset = mock(Asset.class);
+      when(asset.getName()).thenReturn("Prod DB");
+      when(assetRepository.findByIdAndTenantId("asset-1", TENANT)).thenReturn(Optional.of(asset));
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result =
+            service.updateWorkflowConfiguration(
+                workflow.getId(), ruleInput(ScopeRuleSource.ASSET, "asset-1"));
+
+        assertEquals(1, result.getAllowlist().size());
+        assertEquals("Prod DB", result.getAllowlist().getFirst().getRuleValueLabel());
+      }
+    }
+
+    @Test
+    @DisplayName("should snapshot the tenant-scoped asset-group name on an ASSET_GROUP rule")
+    void given_assetGroupRule_should_snapshotAssetGroupName() {
+      Workflow workflow = buildTemplate();
+      AssetGroup group = mock(AssetGroup.class);
+      when(group.getName()).thenReturn("Crown jewels");
+      when(assetGroupRepository.findByIdAndTenantId("group-1", TENANT))
+          .thenReturn(Optional.of(group));
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result =
+            service.updateWorkflowConfiguration(
+                workflow.getId(), ruleInput(ScopeRuleSource.ASSET_GROUP, "group-1"));
+
+        assertEquals(1, result.getAllowlist().size());
+        assertEquals("Crown jewels", result.getAllowlist().getFirst().getRuleValueLabel());
+      }
+    }
+
+    @Test
+    @DisplayName("should snapshot the tenant-scoped team name on a TEAM rule")
+    void given_teamRule_should_snapshotTeamName() {
+      Workflow workflow = buildTemplate();
+      Team team = new Team();
+      team.setId("team-1");
+      team.setName("It team");
+      when(teamRepository.findByIdAndTenantId("team-1", TENANT)).thenReturn(Optional.of(team));
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result =
+            service.updateWorkflowConfiguration(
+                workflow.getId(), ruleInput(ScopeRuleSource.TEAM, "team-1"));
+
+        assertEquals(1, result.getAllowlist().size());
+        assertEquals("It team", result.getAllowlist().getFirst().getRuleValueLabel());
+      }
+    }
+
+    @Test
+    @DisplayName("should snapshot the tenant-scoped player name-or-email on a PLAYER rule")
+    void given_playerRule_should_snapshotPlayerName() {
+      Workflow workflow = buildTemplate();
+      User user = new User();
+      user.setId("player-1");
+      user.setFirstname("John");
+      user.setLastname("Doe");
+      user.setEmail("john.doe@filigran.io");
+      when(userRepository.findAllByIdInAndTenantId(List.of("player-1"), TENANT))
+          .thenReturn(List.of(user));
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result =
+            service.updateWorkflowConfiguration(
+                workflow.getId(), ruleInput(ScopeRuleSource.PLAYER, "player-1"));
+
+        assertEquals(1, result.getAllowlist().size());
+        assertEquals("John Doe", result.getAllowlist().getFirst().getRuleValueLabel());
+      }
+    }
+
+    @Test
+    @DisplayName("should leave the label null for a MANUAL rule")
+    void given_manualRule_should_notSnapshotLabel() {
+      Workflow workflow = buildTemplate();
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result =
+            service.updateWorkflowConfiguration(
+                workflow.getId(), ruleInput(ScopeRuleSource.MANUAL, "10.0.0.1"));
+
+        assertEquals(1, result.getAllowlist().size());
+        assertNull(result.getAllowlist().getFirst().getRuleValueLabel());
+      }
+      verifyNoInteractions(assetRepository, assetGroupRepository);
+    }
+
+    @Test
+    @DisplayName("should leave the label null when the asset id does not resolve within the tenant")
+    void given_crossTenantOrDeletedAsset_should_notSnapshotLabel() {
+      Workflow workflow = buildTemplate();
+      when(assetRepository.findByIdAndTenantId("asset-x", TENANT)).thenReturn(Optional.empty());
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result =
+            service.updateWorkflowConfiguration(
+                workflow.getId(), ruleInput(ScopeRuleSource.ASSET, "asset-x"));
+
+        assertEquals(1, result.getAllowlist().size());
+        assertNull(result.getAllowlist().getFirst().getRuleValueLabel());
+      }
+    }
+
+    @Test
+    @DisplayName("should refresh the label on update when the asset still resolves")
+    void given_ruleUpdateWithLiveAsset_should_refreshLabel() {
+      Workflow workflow = buildTemplate();
+      WorkflowScopeRule existing =
+          WorkflowScopeRule.builder()
+              .id(UUID.randomUUID().toString())
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-1")
+              .valueType(ScopeRuleValueType.ASSET_ID)
+              .ruleValueLabel("Old name")
+              .workflow(workflow)
+              .build();
+      workflow.getWorkflowScopeRules().add(existing);
+
+      Asset asset = mock(Asset.class);
+      when(asset.getName()).thenReturn("New name");
+      when(assetRepository.findByIdAndTenantId("asset-1", TENANT)).thenReturn(Optional.of(asset));
+
+      WorkflowConfigurationInput input =
+          WorkflowConfigurationInput.builder()
+              .workflowScopeRules(
+                  List.of(
+                      WorkflowScopeRuleInput.builder()
+                          .id(existing.getId())
+                          .selectedMode(ScopeRuleSelectedMode.DENYLIST)
+                          .ruleSource(ScopeRuleSource.ASSET)
+                          .ruleValue("asset-1")
+                          .build()))
+              .build();
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result = service.updateWorkflowConfiguration(workflow.getId(), input);
+
+        assertEquals(1, result.getWorkflowScopeRules().size());
+        assertEquals("New name", result.getWorkflowScopeRules().getFirst().getRuleValueLabel());
+      }
+    }
+
+    @Test
+    @DisplayName("should preserve the previous label on update when the asset was deleted")
+    void given_ruleUpdateWithDeletedAsset_should_preservePreviousLabel() {
+      Workflow workflow = buildTemplate();
+      WorkflowScopeRule existing =
+          WorkflowScopeRule.builder()
+              .id(UUID.randomUUID().toString())
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-1")
+              .valueType(ScopeRuleValueType.ASSET_ID)
+              .ruleValueLabel("Snapshotted name")
+              .workflow(workflow)
+              .build();
+      workflow.getWorkflowScopeRules().add(existing);
+
+      // asset deleted -> tenant-scoped lookup returns empty
+      when(assetRepository.findByIdAndTenantId("asset-1", TENANT)).thenReturn(Optional.empty());
+
+      // only the mode changes; the referenced asset is untouched
+      WorkflowConfigurationInput input =
+          WorkflowConfigurationInput.builder()
+              .workflowScopeRules(
+                  List.of(
+                      WorkflowScopeRuleInput.builder()
+                          .id(existing.getId())
+                          .selectedMode(ScopeRuleSelectedMode.DENYLIST)
+                          .ruleSource(ScopeRuleSource.ASSET)
+                          .ruleValue("asset-1")
+                          .build()))
+              .build();
+
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+
+        Workflow result = service.updateWorkflowConfiguration(workflow.getId(), input);
+
+        assertEquals(1, result.getWorkflowScopeRules().size());
+        assertEquals(
+            "Snapshotted name", result.getWorkflowScopeRules().getFirst().getRuleValueLabel());
+      }
+    }
+  }
+
+  // ========================================================================
   // Safety Policy Metrics Tests
   // ========================================================================
   @Nested
-  @DisplayName("updateWorkflowConfiguration – safety policy metrics")
+  @DisplayName("updateWorkflowConfiguration - safety policy metrics")
   class SafetyPolicyMetrics {
 
     private WorkflowService service;
@@ -1123,14 +2009,23 @@ class WorkflowServiceTest {
       service =
           new WorkflowService(
               stepService,
-              previewFeatureService,
+              conditionService,
               workflowStateService,
               stepDelayQueueService,
+              scopeSnapshotService,
+              scopeService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
+              assetRepository,
+              assetAgentJobRepository,
+              assetGroupRepository,
+              teamRepository,
+              userRepository,
+              workflowEndService,
               scopeMetricCollector,
-              chainingSafetyPolicyMetricCollector);
+              chainingSafetyPolicyMetricCollector,
+              resultsMetricCollector);
     }
 
     private Workflow buildTemplate() {
@@ -1233,6 +2128,786 @@ class WorkflowServiceTest {
           .recordTimeoutConfigured(anyLong(), anyLong(), anyBoolean());
       verify(chainingSafetyPolicyMetricCollector, never())
           .recordRateLimitConfigured(anyLong(), anyLong(), anyBoolean());
+    }
+  }
+
+  // ========================================================================
+  // evaluateWorkflowProgress Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("evaluateWorkflowProgress")
+  class EvaluateWorkflowProgressTests {
+
+    /**
+     * Helper: arrange the mandatory DB reload stub (introduced to handle detached entities from
+     * queue jobs). Every test that reaches normal evaluation logic must stub this.
+     */
+    private void stubReload(String workflowRunId, Workflow workflowRun) {
+      when(workflowRepository.findById(workflowRunId)).thenReturn(Optional.of(workflowRun));
+    }
+
+    @Test
+    @DisplayName("given workflow run not found in DB should throw ElementNotFoundException")
+    void given_workflowRunNotFound_should_throwElementNotFoundException() {
+      // Arrange
+      String workflowRunId = UUID.randomUUID().toString();
+      Workflow detachedRun =
+          Workflow.builder().id(workflowRunId).status(WorkflowStatus.RUN).build();
+      when(workflowRepository.findById(workflowRunId)).thenReturn(Optional.empty());
+
+      // Act & Assert
+      assertThrows(
+          ElementNotFoundException.class,
+          () -> workflowService.evaluateWorkflowProgress(detachedRun));
+      verify(workflowRepository).findById(workflowRunId);
+    }
+
+    @Test
+    @DisplayName("given the workflow run already ended should return early without readying steps")
+    void given_endedWorkflowRun_should_returnEarlyWithoutReadyingSteps() throws Exception {
+      // Arrange - a run that a timeout settle already ENDed. The isWorkflowEnded guard must
+      // short-circuit; without the early return the evaluation fell through and re-readied /
+      // re-enqueued steps on a terminated run (churn, and a possible re-fire after the settle).
+      String workflowRunId = UUID.randomUUID().toString();
+      String workflowTemplateId = UUID.randomUUID().toString();
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder()
+              .id(workflowRunId)
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .build();
+      stubReload(workflowRunId, workflowRun);
+      when(workflowRepository.existsByIdAndStatus(workflowRunId, WorkflowStatus.END))
+          .thenReturn(true);
+
+      // Act
+      Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
+
+      // Assert - returned untouched, and no step ever readied / enqueued on the ended run.
+      assertSame(workflowRun, result);
+      verify(stepService, never()).findAllStepTemplateByWorkflow(any());
+      verify(stepService, never()).createReadySteps(any(), any(), any(), anyInt());
+      verify(stepService, never()).enqueueReadySteps(any(), any());
+    }
+
+    @Test
+    @DisplayName("given workflow run has no template should return early without evaluating steps")
+    void given_nullWorkflowTemplate_should_returnEarlyWithoutEvaluatingSteps() throws Exception {
+      // Arrange - run with no template (e.g. corrupted state)
+      String workflowRunId = UUID.randomUUID().toString();
+      Workflow workflowRun =
+          Workflow.builder().id(workflowRunId).status(WorkflowStatus.RUN).build();
+      // workflowTemplate is null by default in the builder
+      stubReload(workflowRunId, workflowRun);
+
+      // Act
+      Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
+
+      // Assert - returned as-is, step service never called
+      assertSame(workflowRun, result);
+      verify(stepService, never()).findAllStepTemplateByWorkflow(any());
+    }
+
+    @Test
+    @DisplayName("given active steps exist should not set workflow to END")
+    void given_activeStepsExist_should_notEndWorkflow() throws Exception {
+      // Arrange
+      String workflowRunId = UUID.randomUUID().toString();
+      String workflowTemplateId = UUID.randomUUID().toString();
+
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder()
+              .id(workflowRunId)
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .build();
+      stubReload(workflowRunId, workflowRun);
+
+      Step stepTemplate = mock(Step.class);
+
+      when(workflowRepository.existsByIdAndStatus(workflowRunId, WorkflowStatus.END))
+          .thenReturn(false);
+      when(stepService.findAllStepTemplateByWorkflow(workflowTemplateId))
+          .thenReturn(List.of(stepTemplate));
+      // Active steps (RUN or READY) exist
+      when(stepService.countActiveSteps(workflowRunId)).thenReturn(2L);
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+          .thenReturn(Collections.emptyList());
+
+      // Act
+      Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
+
+      // Assert
+      assertNotEquals(WorkflowStatus.END, result.getStatus());
+      assertEquals(WorkflowStatus.RUN, result.getStatus());
+      verify(stepDelayQueueService, never()).findAllByWorkflowRun(any());
+    }
+
+    @Test
+    @DisplayName("given steps in delay queue should not set workflow to END")
+    void given_stepsInDelayQueue_should_notEndWorkflow() throws Exception {
+      // Arrange
+      String workflowRunId = UUID.randomUUID().toString();
+      String workflowTemplateId = UUID.randomUUID().toString();
+
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder()
+              .id(workflowRunId)
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .build();
+      stubReload(workflowRunId, workflowRun);
+
+      Step stepTemplate = mock(Step.class);
+
+      when(workflowRepository.existsByIdAndStatus(workflowRunId, WorkflowStatus.END))
+          .thenReturn(false);
+      when(stepService.findAllStepTemplateByWorkflow(workflowTemplateId))
+          .thenReturn(List.of(stepTemplate));
+      // No active steps
+      when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+          .thenReturn(Collections.emptyList());
+      // Delay queue has entries
+      StepDelayQueue delayedEntry = mock(StepDelayQueue.class);
+      when(stepDelayQueueService.findAllByWorkflowRun(workflowRun))
+          .thenReturn(List.of(delayedEntry));
+
+      // Act
+      Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
+
+      // Assert
+      assertNotEquals(WorkflowStatus.END, result.getStatus());
+      assertEquals(WorkflowStatus.RUN, result.getStatus());
+    }
+
+    @Test
+    @DisplayName("given new ready steps created should not set workflow to END")
+    void given_newReadyStepsCreated_should_notEndWorkflow() throws Exception {
+      // Arrange
+      String workflowRunId = UUID.randomUUID().toString();
+      String workflowTemplateId = UUID.randomUUID().toString();
+
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder()
+              .id(workflowRunId)
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .build();
+      stubReload(workflowRunId, workflowRun);
+
+      Step stepTemplate = mock(Step.class);
+      Step stepReady = mock(Step.class);
+
+      when(workflowRepository.existsByIdAndStatus(workflowRunId, WorkflowStatus.END))
+          .thenReturn(false);
+      when(stepService.findAllStepTemplateByWorkflow(workflowTemplateId))
+          .thenReturn(List.of(stepTemplate));
+      // No pre-existing active steps
+      when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
+      // But createReadySteps produces a new ready step
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+          .thenReturn(List.of(stepReady));
+
+      // Act
+      Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
+
+      // Assert
+      assertNotEquals(WorkflowStatus.END, result.getStatus());
+      assertEquals(WorkflowStatus.RUN, result.getStatus());
+      verify(stepService).enqueueReadySteps(List.of(stepReady), workflowRun);
+      verify(stepDelayQueueService, never()).findAllByWorkflowRun(any());
+    }
+
+    @Test
+    @DisplayName("given no active steps and empty delay queue should set workflow to END")
+    void given_noActiveStepsAndEmptyDelayQueue_should_endWorkflow() throws Exception {
+      // Arrange
+      String workflowRunId = UUID.randomUUID().toString();
+      String workflowTemplateId = UUID.randomUUID().toString();
+
+      Workflow workflowTemplate = Workflow.builder().id(workflowTemplateId).build();
+      Workflow workflowRun =
+          Workflow.builder()
+              .id(workflowRunId)
+              .status(WorkflowStatus.RUN)
+              .workflowTemplate(workflowTemplate)
+              .build();
+      stubReload(workflowRunId, workflowRun);
+
+      Step stepTemplate = mock(Step.class);
+
+      when(workflowRepository.existsByIdAndStatus(workflowRunId, WorkflowStatus.END))
+          .thenReturn(false);
+      when(stepService.findAllStepTemplateByWorkflow(workflowTemplateId))
+          .thenReturn(List.of(stepTemplate));
+      // No active steps
+      when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+          .thenReturn(Collections.emptyList());
+      // Delay queue is empty
+      when(stepDelayQueueService.findAllByWorkflowRun(workflowRun))
+          .thenReturn(Collections.emptyList());
+
+      // Act
+      Workflow result = workflowService.evaluateWorkflowProgress(workflowRun);
+
+      // Assert
+      assertEquals(WorkflowStatus.END, result.getStatus());
+    }
+  }
+
+  // ========================================================================
+  // markSimulationWorkflowKeepAlive Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("markSimulationWorkflowKeepAlive")
+  class MarkSimulationWorkflowKeepAliveTests {
+
+    @Test
+    @DisplayName("marks the simulation template and its live run keep-alive with timeout off")
+    void given_templateAndLiveRun_should_markBothKeepAlive() {
+      // Arrange - distinct ids matter: Workflow equality is id-only, so two id-less instances
+      // would be equal and the per-instance save verifications below would blur together.
+      String simulationId = UUID.randomUUID().toString();
+      Workflow template =
+          Workflow.builder()
+              .id(UUID.randomUUID().toString())
+              .status(WorkflowStatus.TEMPLATE)
+              .timeoutEnabled(true)
+              .build();
+      Workflow run =
+          Workflow.builder()
+              .id(UUID.randomUUID().toString())
+              .status(WorkflowStatus.RUN)
+              .timeoutEnabled(true)
+              .build();
+      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
+          .thenReturn(template);
+      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.RUN))
+          .thenReturn(List.of(run));
+      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END))
+          .thenReturn(Collections.emptyList());
+
+      // Act
+      workflowService.markSimulationWorkflowKeepAlive(simulationId);
+
+      // Assert
+      assertTrue(template.isKeepAlive());
+      assertFalse(template.isTimeoutEnabled());
+      assertTrue(run.isKeepAlive());
+      assertFalse(run.isTimeoutEnabled());
+      verify(workflowRepository).save(template);
+      verify(workflowRepository).save(run);
+    }
+
+    @Test
+    @DisplayName("restores the empty run the launch evaluation just ended back to RUN")
+    void given_freshlyEndedEmptyRun_should_restoreToRunAndMarkKeepAlive() {
+      // Arrange - an autonomous launch starts EMPTY, so the initial evaluation inside
+      // startWorkflow ENDs the run before this method executes; the RUN finder cannot see it.
+      String simulationId = UUID.randomUUID().toString();
+      Workflow endedRun =
+          Workflow.builder().status(WorkflowStatus.END).timeoutEnabled(true).build();
+      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
+          .thenReturn(null);
+      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.RUN))
+          .thenReturn(Collections.emptyList());
+      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END))
+          .thenReturn(List.of(endedRun));
+
+      // Act
+      workflowService.markSimulationWorkflowKeepAlive(simulationId);
+
+      // Assert - parked back in RUN awaiting the orchestrator, keep-alive on, watchdog off.
+      assertEquals(WorkflowStatus.RUN, endedRun.getStatus());
+      assertTrue(endedRun.isKeepAlive());
+      assertFalse(endedRun.isTimeoutEnabled());
+      verify(workflowRepository).save(endedRun);
+    }
+
+    @Test
+    @DisplayName("does not re-save a workflow already keep-alive with timeout off")
+    void given_alreadyMarkedWorkflow_should_notSaveAgain() {
+      // Arrange
+      String simulationId = UUID.randomUUID().toString();
+      Workflow run =
+          Workflow.builder()
+              .status(WorkflowStatus.RUN)
+              .keepAlive(true)
+              .timeoutEnabled(false)
+              .build();
+      when(workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE))
+          .thenReturn(null);
+      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.RUN))
+          .thenReturn(List.of(run));
+      when(workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END))
+          .thenReturn(Collections.emptyList());
+
+      // Act
+      workflowService.markSimulationWorkflowKeepAlive(simulationId);
+
+      // Assert
+      verify(workflowRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("is a no-op on a blank simulation id")
+    void given_blankSimulationId_should_doNothing() {
+      // Act
+      workflowService.markSimulationWorkflowKeepAlive("  ");
+
+      // Assert
+      verifyNoInteractions(workflowRepository);
+    }
+  }
+
+  // ========================================================================
+  // Event reuse: validate / resolve an existing event root (#7481)
+  // ========================================================================
+  @Nested
+  @DisplayName("event reuse - validation, root resolution, subtree copy")
+  class EventReuseTests {
+
+    private static final String SIMULATION_ID = "sim-1";
+    private static final String SCENARIO_ID = "scenario-1";
+    private static final String RUN_WORKFLOW_ID = "wf-run";
+
+    private Condition condition(
+        String id, ConditionType type, Condition parent, String workflowId) {
+      return Condition.builder()
+          .id(id)
+          .type(type)
+          .conditionParent(parent)
+          .workflowId(workflowId)
+          .build();
+    }
+
+    private void stubSimulationTemplate() {
+      Workflow template =
+          Workflow.builder().id(RUN_WORKFLOW_ID).status(WorkflowStatus.TEMPLATE).build();
+      when(workflowRepository.findBySimulation_IdAndStatus(SIMULATION_ID, WorkflowStatus.TEMPLATE))
+          .thenReturn(template);
+    }
+
+    @Test
+    @DisplayName("accepts an AND/OR event root that lives on the run's own simulation workflow")
+    void given_anEventRootOnTheRunWorkflow_when_validating_then_itPasses() {
+      stubSimulationTemplate();
+      when(conditionService.findConditionByIdOrNull("evt"))
+          .thenReturn(condition("evt", ConditionType.AND, null, RUN_WORKFLOW_ID));
+
+      assertDoesNotThrow(
+          () -> workflowService.assertEventRootOnSimulationWorkflow(SIMULATION_ID, "evt"));
+    }
+
+    @Test
+    @DisplayName("rejects an unknown event_id with a precise 'does not exist' message")
+    void given_anUnknownEventId_when_validating_then_itThrows() {
+      stubSimulationTemplate();
+      when(conditionService.findConditionByIdOrNull("nope")).thenReturn(null);
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () -> workflowService.assertEventRootOnSimulationWorkflow(SIMULATION_ID, "nope"));
+      assertTrue(ex.getMessage().contains("does not exist"));
+    }
+
+    @Test
+    @DisplayName("rejects a child condition id (not a root) with a precise message")
+    void given_aChildConditionId_when_validating_then_itThrows() {
+      stubSimulationTemplate();
+      Condition root = condition("evt", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      when(conditionService.findConditionByIdOrNull("leaf"))
+          .thenReturn(condition("leaf", ConditionType.EQ, root, RUN_WORKFLOW_ID));
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () -> workflowService.assertEventRootOnSimulationWorkflow(SIMULATION_ID, "leaf"));
+      assertTrue(ex.getMessage().contains("not an event root"));
+    }
+
+    @Test
+    @DisplayName("rejects a non-AND/OR root (e.g. a DEPEND_ON) as not a finding EVENT")
+    void given_aNonEventRoot_when_validating_then_itThrows() {
+      stubSimulationTemplate();
+      when(conditionService.findConditionByIdOrNull("dep"))
+          .thenReturn(condition("dep", ConditionType.DEPEND_ON, null, RUN_WORKFLOW_ID));
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () -> workflowService.assertEventRootOnSimulationWorkflow(SIMULATION_ID, "dep"));
+      assertTrue(ex.getMessage().contains("not a finding EVENT"));
+    }
+
+    @Test
+    @DisplayName(
+        "rejects an event root that belongs to a DIFFERENT workflow (cross-workflow / cross-run"
+            + " isolation)")
+    void given_anEventRootOnAnotherWorkflow_when_validating_then_itThrows() {
+      stubSimulationTemplate();
+      // A real AND/OR root, but authored on some other run's workflow - reuse must be pinned to the
+      // caller's own workflow, never leak across runs/tenants.
+      when(conditionService.findConditionByIdOrNull("foreign-evt"))
+          .thenReturn(condition("foreign-evt", ConditionType.AND, null, "wf-some-other-run"));
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () ->
+                  workflowService.assertEventRootOnSimulationWorkflow(
+                      SIMULATION_ID, "foreign-evt"));
+      assertTrue(ex.getMessage().contains("belongs to a different workflow"));
+    }
+
+    @Test
+    @DisplayName("rejects reuse when the run has no simulation template workflow")
+    void given_noSimulationTemplate_when_validating_then_itThrows() {
+      when(workflowRepository.findBySimulation_IdAndStatus(SIMULATION_ID, WorkflowStatus.TEMPLATE))
+          .thenReturn(null);
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () -> workflowService.assertEventRootOnSimulationWorkflow(SIMULATION_ID, "evt"));
+      assertTrue(ex.getMessage().contains("Workflow (TEMPLATE) not found"));
+    }
+
+    @Test
+    @DisplayName("author-scenario mode validates the event root on the SCENARIO workflow")
+    void given_anEventRootOnTheScenarioWorkflow_when_validating_then_itPasses() {
+      Workflow template =
+          Workflow.builder().id(RUN_WORKFLOW_ID).status(WorkflowStatus.TEMPLATE).build();
+      when(workflowRepository.findByScenario_IdAndStatus(SCENARIO_ID, WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(template));
+      when(conditionService.findConditionByIdOrNull("evt"))
+          .thenReturn(condition("evt", ConditionType.OR, null, RUN_WORKFLOW_ID));
+
+      assertDoesNotThrow(
+          () -> workflowService.assertEventRootOnScenarioWorkflow(SCENARIO_ID, "evt"));
+    }
+
+    @Test
+    @DisplayName(
+        "author-scenario mode rejects an event root from a different workflow (cross-workflow"
+            + " isolation)")
+    void given_aForeignEventRoot_when_validatingScenario_then_itThrows() {
+      Workflow template =
+          Workflow.builder().id(RUN_WORKFLOW_ID).status(WorkflowStatus.TEMPLATE).build();
+      when(workflowRepository.findByScenario_IdAndStatus(SCENARIO_ID, WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(template));
+      when(conditionService.findConditionByIdOrNull("foreign-evt"))
+          .thenReturn(condition("foreign-evt", ConditionType.AND, null, "wf-some-other-run"));
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () -> workflowService.assertEventRootOnScenarioWorkflow(SCENARIO_ID, "foreign-evt"));
+      assertTrue(ex.getMessage().contains("belongs to a different workflow"));
+    }
+
+    @Test
+    @DisplayName("findStepTriggerEventRootId returns the AND/OR ROOT, never a nested child group")
+    void given_aNestedEventTree_when_findingTheRootId_then_theRootWins() {
+      Condition root = condition("evt-root", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      Condition nestedGroup = condition("grp-child", ConditionType.OR, root, RUN_WORKFLOW_ID);
+      Condition leaf = condition("leaf", ConditionType.EQ, nestedGroup, RUN_WORKFLOW_ID);
+      // Deliberately return the nested group FIRST so a type-only filter would pick the wrong id.
+      when(conditionService.findAllConditionsByStepId("step"))
+          .thenReturn(List.of(nestedGroup, root, leaf));
+
+      assertEquals("evt-root", workflowService.findStepTriggerEventRootId("step"));
+    }
+
+    @Test
+    @DisplayName("findStepTriggerEventRootId returns null when the step has no finding event")
+    void given_aStepWithoutAnEvent_when_findingTheRootId_then_itIsNull() {
+      Condition dependOn = condition("dep", ConditionType.DEPEND_ON, null, RUN_WORKFLOW_ID);
+      Condition mapper = condition("map", ConditionType.MAPPER, null, RUN_WORKFLOW_ID);
+      when(conditionService.findAllConditionsByStepId("step"))
+          .thenReturn(List.of(dependOn, mapper));
+
+      assertNull(workflowService.findStepTriggerEventRootId("step"));
+    }
+
+    @Test
+    @DisplayName("resolveEventRootAsInputs copies the FULL subtree including nested groups")
+    void given_aNestedEvent_when_resolvingInputs_then_grandchildrenArePreserved() {
+      Condition root = condition("r", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      root.setName("SMB service exposed");
+      Condition directLeaf = condition("d", ConditionType.IS_NOT_NULL, root, RUN_WORKFLOW_ID);
+      directLeaf.setKeyTypes(List.of(PrimitiveType.Host));
+      Condition nestedGroup = condition("c", ConditionType.OR, root, RUN_WORKFLOW_ID);
+      Condition grandLeaf = condition("g", ConditionType.EQ, nestedGroup, RUN_WORKFLOW_ID);
+      grandLeaf.setKeyTypes(List.of(PrimitiveType.Port));
+      grandLeaf.setValue("445");
+
+      when(conditionService.findConditionByIdOrNull("r")).thenReturn(root);
+      when(conditionService.findAllNonMapperConditionsByWorkflowId(RUN_WORKFLOW_ID))
+          .thenReturn(List.of(root, directLeaf, nestedGroup, grandLeaf));
+
+      List<ConditionCreateInput> inputs = workflowService.resolveEventRootAsInputs("r");
+
+      // root + direct leaf + nested group + grandchild leaf = 4 nodes, none dropped.
+      assertEquals(4, inputs.size());
+
+      ConditionCreateInput rootInput =
+          inputs.stream()
+              .filter(i -> i.getTemporaryIdConditionParent() == null)
+              .findFirst()
+              .orElseThrow();
+      assertEquals(ConditionType.AND, rootInput.getType());
+      assertEquals("SMB service exposed", rootInput.getName());
+
+      // The nested OR group re-parents onto the copied root...
+      ConditionCreateInput groupInput =
+          inputs.stream().filter(i -> i.getType() == ConditionType.OR).findFirst().orElseThrow();
+      assertEquals(rootInput.getTemporaryId(), groupInput.getTemporaryIdConditionParent());
+
+      // ...and the grandchild leaf re-parents onto the copied group (depth > 1 preserved).
+      ConditionCreateInput grandInput =
+          inputs.stream().filter(i -> i.getType() == ConditionType.EQ).findFirst().orElseThrow();
+      assertEquals(groupInput.getTemporaryId(), grandInput.getTemporaryIdConditionParent());
+      assertEquals(List.of(PrimitiveType.Port), grandInput.getKeyTypes());
+      assertEquals("445", grandInput.getValue());
+    }
+
+    @Test
+    @DisplayName("resolveEventRootAsInputs returns empty when the id is not a resolvable root")
+    void given_aNonRoot_when_resolvingInputs_then_itIsEmpty() {
+      Condition root = condition("r", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      when(conditionService.findConditionByIdOrNull("leaf"))
+          .thenReturn(condition("leaf", ConditionType.EQ, root, RUN_WORKFLOW_ID));
+
+      assertTrue(workflowService.resolveEventRootAsInputs("leaf").isEmpty());
+    }
+
+    @Test
+    @DisplayName(
+        "appendChainedStep rejects a reused id that is not an event root on the sim workflow at the"
+            + " service boundary, before any step is linked")
+    void given_aNonRootReusedId_when_appending_then_itThrowsBeforeLinking() {
+      Workflow template =
+          Workflow.builder().id(RUN_WORKFLOW_ID).status(WorkflowStatus.TEMPLATE).build();
+      when(workflowRepository.findBySimulation_IdAndStatus(SIMULATION_ID, WorkflowStatus.TEMPLATE))
+          .thenReturn(template);
+      // The caller-supplied reused id resolves to a CHILD condition (a leaf), not an event root.
+      Condition root = condition("evt", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      when(conditionService.findConditionByIdOrNull("leaf"))
+          .thenReturn(condition("leaf", ConditionType.EQ, root, RUN_WORKFLOW_ID));
+
+      assertThrows(
+          ChainingException.class,
+          () ->
+              workflowService.appendChainedStep(
+                  SIMULATION_ID, new InjectInput(), null, List.of(), List.of("leaf")));
+      // Rejected at the boundary: the step-service link is never reached.
+      verifyNoInteractions(stepService);
+    }
+
+    @Test
+    @DisplayName(
+        "appendChainedStep rejects a reused event root from a DIFFERENT workflow at the service"
+            + " boundary, before any step is linked")
+    void given_aForeignReusedRoot_when_appending_then_itThrowsBeforeLinking() {
+      stubSimulationTemplate();
+      // A real AND/OR event root, but authored on some other run's workflow - the boundary must
+      // pin reuse to the caller's own workflow, never allow a silent cross-run link.
+      when(conditionService.findConditionByIdOrNull("foreign-evt"))
+          .thenReturn(condition("foreign-evt", ConditionType.AND, null, "wf-some-other-run"));
+
+      ChainingException ex =
+          assertThrows(
+              ChainingException.class,
+              () ->
+                  workflowService.appendChainedStep(
+                      SIMULATION_ID, new InjectInput(), null, List.of(), List.of("foreign-evt")));
+      assertTrue(ex.getMessage().contains("belongs to a different workflow"));
+      verifyNoInteractions(stepService);
+    }
+
+    @Test
+    @DisplayName(
+        "appendChainedStepToScenarioIsolated rejects a reused id that is not an event root on the"
+            + " scenario workflow at the service boundary, before any step is linked")
+    void given_aNonRootReusedId_when_appendingToScenarioIsolated_then_itThrowsBeforeLinking() {
+      Workflow template =
+          Workflow.builder().id(RUN_WORKFLOW_ID).status(WorkflowStatus.TEMPLATE).build();
+      when(workflowRepository.findByScenario_IdAndStatus(SCENARIO_ID, WorkflowStatus.TEMPLATE))
+          .thenReturn(List.of(template));
+      // The mirror-recorded twin id resolves to a CHILD condition (a leaf), not an event root.
+      Condition root = condition("evt", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      when(conditionService.findConditionByIdOrNull("leaf"))
+          .thenReturn(condition("leaf", ConditionType.EQ, root, RUN_WORKFLOW_ID));
+
+      assertThrows(
+          ChainingException.class,
+          () ->
+              workflowService.appendChainedStepToScenarioIsolated(
+                  SCENARIO_ID, new InjectInput(), null, List.of(), List.of("leaf")));
+      // Rejected at the boundary: the scenario mirror's step-service link is never reached.
+      verifyNoInteractions(stepService);
+    }
+
+    @Test
+    @DisplayName(
+        "updateChainedStep rejects a reused id that is not an event root on the step's own"
+            + " workflow at the service boundary, before the step is rebuilt")
+    void given_aNonRootReusedId_when_updating_then_itThrowsBeforeRebuilding()
+        throws ChainingException {
+      Workflow template =
+          Workflow.builder().id(RUN_WORKFLOW_ID).status(WorkflowStatus.TEMPLATE).build();
+      when(stepService.findStepTemplateById("step-1"))
+          .thenReturn(Step.builder().id("step-1").workflow(template).build());
+      Condition root = condition("evt", ConditionType.AND, null, RUN_WORKFLOW_ID);
+      when(conditionService.findConditionByIdOrNull("leaf"))
+          .thenReturn(condition("leaf", ConditionType.EQ, root, RUN_WORKFLOW_ID));
+
+      assertThrows(
+          ChainingException.class,
+          () ->
+              workflowService.updateChainedStep(
+                  "step-1", new InjectInput(), List.of(), List.of("leaf")));
+      // Rejected at the boundary: neither update flavour is ever reached (the isolated overload
+      // shares this exact body).
+      verify(stepService, never()).updateInjectStepTemplateData(any(), any());
+      verify(stepService, never()).updateInjectStepTemplateDataAndTrigger(any(), any(), any());
+    }
+  }
+
+  private static Exercise exerciseWithId(String id) {
+    Exercise exercise = new Exercise();
+    exercise.setId(id);
+    return exercise;
+  }
+
+  @Nested
+  @DisplayName("cancelSimulationEndWorkflowRun")
+  class CancelSimulationEndWorkflowRunTests {
+    private static final String TENANT = "tenant-1";
+
+    @Test
+    @DisplayName(
+        "ends the run, deletes its delay queue and states, and removes its asset agent"
+            + " jobs by inject id")
+    void given_singleRunWithActiveSteps_should_endItAndCleanUpDependencies() {
+      // Arrange
+      Exercise simulation = exerciseWithId("sim-1");
+      Workflow run =
+          Workflow.builder()
+              .id("wf-run-1")
+              .status(WorkflowStatus.RUN)
+              .simulation(simulation)
+              .build();
+
+      Step activeStepWithInject =
+          Step.builder()
+              .id("step-1")
+              .status(StepStatus.RUN)
+              .data("{\"inject_id\": \"inject-1\"}")
+              .build();
+      Step activeStepWithoutInject =
+          Step.builder().id("step-2").status(StepStatus.READY).data("{}").build();
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1"))
+          .thenReturn(new ArrayList<>(List.of(activeStepWithInject, activeStepWithoutInject)));
+
+      // Act
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+        workflowService.cancelSimulationEndWorkflowRun(List.of(run));
+      }
+
+      // Assert
+      assertEquals(WorkflowStatus.END, run.getStatus());
+      verify(workflowRepository).save(run);
+      verify(stepDelayQueueService).deleteAllByWorkflowRun(run);
+      verify(workflowStateService).deleteAllBySimulationId("sim-1");
+      assertEquals(StepStatus.END, activeStepWithInject.getStatus());
+      assertEquals(StepStatus.END, activeStepWithoutInject.getStatus());
+      verify(assetAgentJobRepository).deleteAllByInjectIdsAndTenantId(List.of("inject-1"), TENANT);
+      verify(stepService).saveSteps(List.of(activeStepWithInject, activeStepWithoutInject));
+    }
+
+    @Test
+    @DisplayName("aggregates inject ids and ended steps across multiple workflow runs")
+    void given_multipleRuns_should_aggregateInjectIdsAndSaveAllStepsOnce() {
+      // Arrange
+      Exercise simulation1 = exerciseWithId("sim-1");
+      Exercise simulation2 = exerciseWithId("sim-2");
+      Workflow run1 =
+          Workflow.builder()
+              .id("wf-run-1")
+              .status(WorkflowStatus.RUN)
+              .simulation(simulation1)
+              .build();
+      Workflow run2 =
+          Workflow.builder()
+              .id("wf-run-2")
+              .status(WorkflowStatus.RUN)
+              .simulation(simulation2)
+              .build();
+
+      Step step1 =
+          Step.builder()
+              .id("step-1")
+              .status(StepStatus.RUN)
+              .data("{\"inject_id\": \"inject-1\"}")
+              .build();
+      Step step2 =
+          Step.builder()
+              .id("step-2")
+              .status(StepStatus.RUN)
+              .data("{\"inject_id\": \"inject-2\"}")
+              .build();
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1"))
+          .thenReturn(new ArrayList<>(List.of(step1)));
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-2"))
+          .thenReturn(new ArrayList<>(List.of(step2)));
+
+      // Act
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+        workflowService.cancelSimulationEndWorkflowRun(List.of(run1, run2));
+      }
+
+      // Assert
+      verify(workflowStateService).deleteAllBySimulationId("sim-1");
+      verify(workflowStateService).deleteAllBySimulationId("sim-2");
+      verify(assetAgentJobRepository)
+          .deleteAllByInjectIdsAndTenantId(List.of("inject-1", "inject-2"), TENANT);
+      verify(stepService).saveSteps(List.of(step1, step2));
+    }
+
+    @Test
+    @DisplayName("does not re-end a run already in END status (idempotent)")
+    void given_alreadyEndedRun_should_notFreezeSnapshotAgain() {
+      // Arrange
+      Exercise simulation = exerciseWithId("sim-1");
+      Workflow run =
+          Workflow.builder()
+              .id("wf-run-1")
+              .status(WorkflowStatus.END)
+              .simulation(simulation)
+              .build();
+      when(stepService.findAllStepActiveByWorkflowRunId("wf-run-1")).thenReturn(new ArrayList<>());
+
+      // Act
+      try (MockedStatic<TenantContext> tc = mockStatic(TenantContext.class)) {
+        tc.when(TenantContext::getCurrentTenant).thenReturn(TENANT);
+        workflowService.cancelSimulationEndWorkflowRun(List.of(run));
+      }
+
+      // Assert
+      assertEquals(WorkflowStatus.END, run.getStatus());
+      verifyNoInteractions(scopeSnapshotService);
+      verify(workflowRepository).save(run);
     }
   }
 }

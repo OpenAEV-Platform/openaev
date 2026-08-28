@@ -2,9 +2,9 @@ package io.openaev.api.stix_process;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Scenario;
@@ -27,10 +27,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -41,9 +38,9 @@ public class StixApi extends RestBehavior {
 
   public static final String STIX_URI = "/api/stix";
   public static final String TENANT_STIX_URI = TENANT_PREFIX + "/stix";
-  private final ObjectMapper objectMapper;
   private final StixService stixService;
   private final OpenCTIConnectorService openCTIService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @PostMapping(
       value = "/process-bundle",
@@ -62,20 +59,22 @@ public class StixApi extends RestBehavior {
     @ApiResponse(responseCode = "500", description = "Unexpected server error")
   })
   @AccessControl(actionPerformed = Action.PROCESS, resourceType = ResourceType.STIX_BUNDLE)
-  public ResponseEntity<?> processBundle(@RequestBody @Validated CTIEvent ctiEvent)
+  public ResponseEntity<?> processBundle(@RequestBody @Validated CTIEvent ctiEvent, TxCtx ctx)
       throws ParsingException, ConnectorError, IOException {
-    String tenantId = TenantContext.getCurrentTenant();
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    String workId = ctiEvent.getInternal().getWorkId();
+    String stixBundle = ctiEvent.getEvent().getStixObjects();
+
+    log.debug("STIX bundle received from OpenCTI (workId={}). bundle={}", workId, stixBundle);
+
     try {
       openCTIService.acknowledgeReceivedOfCoverage(
-          ctiEvent.getInternal().getWorkId(), "OpenAEV ready to process the operation", tenantId);
+          workId, "OpenAEV ready to process the operation", tenantId);
 
-      Scenario scenario = stixService.processBundle(ctiEvent.getEvent().getStixObjects(), tenantId);
+      Scenario scenario = stixService.processBundle(stixBundle, tenantId);
 
       openCTIService.acknowledgeProcessedOfCoverage(
-          ctiEvent.getInternal().getWorkId(),
-          "Coverage successfully created or updated",
-          false,
-          tenantId);
+          workId, "Coverage successfully created or updated", false, tenantId);
       return ResponseEntity.ok(
           new BundleImportReport(
               scenario.getId(), stixService.generateBundleImportReport(scenario)));
@@ -87,12 +86,12 @@ public class StixApi extends RestBehavior {
       // we will signal the failure with a log in the OAEV process and an "isError" ack
       // for OpenCTI
       log.error(
-          "OpenAEV did not process this STIX bundle due to processing rules (workId={}). ctiEvent={}",
-          ctiEvent.getInternal().getWorkId(),
-          ctiEvent,
+          "OpenAEV did not process this STIX bundle due to processing rules (workId={}). bundle={}",
+          workId,
+          stixBundle,
           e);
       openCTIService.acknowledgeProcessedOfCoverage(
-          ctiEvent.getInternal().getWorkId(),
+          workId,
           "OpenAEV did not process this STIX bundle due to processing rules: %s"
               .formatted(e.getMessage()),
           true,
@@ -102,12 +101,12 @@ public class StixApi extends RestBehavior {
       return ResponseEntity.status(HttpStatus.OK).build();
     } catch (Exception e) {
       log.error(
-          "An error occurred while processing STIX bundle (workId={}). ctiEvent={}",
-          ctiEvent.getInternal().getWorkId(),
-          ctiEvent,
+          "An error occurred while processing STIX bundle (workId={}). bundle={}",
+          workId,
+          stixBundle,
           e);
       openCTIService.acknowledgeProcessedOfCoverage(
-          ctiEvent.getInternal().getWorkId(),
+          workId,
           "An error occurred while processing STIX bundle: %s".formatted(e.getMessage()),
           true,
           tenantId);

@@ -94,7 +94,7 @@ class DashboardApiTest extends IntegrationTest {
       Endpoint ep = endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
       Widget widget =
           widgetComposer
-              .forWidget(WidgetFixture.createListWidgetWithEntity("endpoint"))
+              .forWidget(WidgetFixture.createListWidgetWithEntity("asset"))
               .withCustomDashboard(
                   customDashboardComposer.forCustomDashboard(
                       CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
@@ -140,9 +140,9 @@ class DashboardApiTest extends IntegrationTest {
       epWrapper2.get().setHostname("ep2");
       epWrapper2.persist();
 
-      Widget listWidget = WidgetFixture.createListWidgetWithEntity("endpoint");
+      Widget listWidget = WidgetFixture.createListWidgetWithEntity("asset");
       EngineSortField sortField = new EngineSortField();
-      sortField.setFieldName("endpoint_hostname");
+      sortField.setFieldName("asset_hostname");
       sortField.setDirection(SortDirection.ASC);
       ((ListConfiguration) listWidget.getWidgetConfiguration()).setSorts(List.of(sortField));
       Widget widget =
@@ -302,9 +302,9 @@ class DashboardApiTest extends IntegrationTest {
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint("D")).persist().get();
       endpointComposer.forEndpoint(EndpointFixture.createEndpoint("E")).persist().get();
 
-      Widget listWidget = WidgetFixture.createListWidgetWithEntity("endpoint");
+      Widget listWidget = WidgetFixture.createListWidgetWithEntity("asset");
       EngineSortField sortField = new EngineSortField();
-      sortField.setFieldName("endpoint_name");
+      sortField.setFieldName("asset_name");
       sortField.setDirection(SortDirection.ASC);
       ((ListConfiguration) listWidget.getWidgetConfiguration()).setSorts(List.of(sortField));
       Widget widget =
@@ -362,7 +362,7 @@ class DashboardApiTest extends IntegrationTest {
       endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
       Widget widget =
           widgetComposer
-              .forWidget(WidgetFixture.createNumberWidgetWithEntity("endpoint"))
+              .forWidget(WidgetFixture.createNumberWidgetWithEntity("asset"))
               .withCustomDashboard(
                   customDashboardComposer.forCustomDashboard(
                       CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
@@ -379,7 +379,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -405,7 +409,7 @@ class DashboardApiTest extends IntegrationTest {
     void countNoEntityWithNoSpecificFilter() throws Exception {
       Widget widget =
           widgetComposer
-              .forWidget(WidgetFixture.createNumberWidgetWithEntity("endpoint"))
+              .forWidget(WidgetFixture.createNumberWidgetWithEntity("asset"))
               .withCustomDashboard(
                   customDashboardComposer.forCustomDashboard(
                       CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
@@ -422,7 +426,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -473,7 +481,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -535,7 +547,7 @@ class DashboardApiTest extends IntegrationTest {
           widgetComposer
               .forWidget(
                   WidgetFixture.createNumberWidgetWithEntityAndTimeRange(
-                      "endpoint", LAST_QUARTER, "base_created_at"))
+                      "asset", LAST_QUARTER, "base_created_at"))
               .withCustomDashboard(
                   customDashboardComposer.forCustomDashboard(
                       CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
@@ -544,7 +556,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(CustomDashboardTimeRange.LAST_SEMESTER));
@@ -571,6 +587,91 @@ class DashboardApiTest extends IntegrationTest {
       assertThatJson(response).node("interval_count").isEqualTo(1);
       assertThatJson(response).node("previous_interval_count").isEqualTo(0);
       assertThatJson(response).node("difference_count").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName(
+        "Count entities with DEFAULT widget and dashboard parameter ALL_TIME should count all"
+            + " entities regardless of age")
+    void countEntitiesWithDefaultWidgetAndDashboardParameterAllTime() throws Exception {
+      // -- ARRANGE --
+      Endpoint endpoint1 =
+          endpointComposer
+              .forEndpoint(
+                  EndpointFixture.createEndpointWithPlatform(
+                      "Endpoint 1", Endpoint.PLATFORM_TYPE.Windows))
+              .persist()
+              .get();
+      Endpoint endpoint2 =
+          endpointComposer
+              .forEndpoint(
+                  EndpointFixture.createEndpointWithPlatform(
+                      "Endpoint 2", Endpoint.PLATFORM_TYPE.Windows))
+              .persist()
+              .get();
+      Endpoint endpoint3 =
+          endpointComposer
+              .forEndpoint(
+                  EndpointFixture.createEndpointWithPlatform(
+                      "Endpoint 3", Endpoint.PLATFORM_TYPE.Linux))
+              .persist()
+              .get();
+
+      // All endpoints are older than a quarter (the DEFAULT fallback window)
+      endpointRepository.setCreationDate(
+          Instant.now().minus(200, ChronoUnit.DAYS), endpoint1.getId());
+      endpointRepository.setCreationDate(
+          Instant.now().minus(300, ChronoUnit.DAYS), endpoint2.getId());
+      endpointRepository.setCreationDate(
+          Instant.now().minus(400, ChronoUnit.DAYS), endpoint3.getId());
+
+      Widget widget =
+          widgetComposer
+              .forWidget(
+                  WidgetFixture.createNumberWidgetWithEntityAndTimeRange(
+                      "asset", DEFAULT, "base_created_at"))
+              .withCustomDashboard(
+                  customDashboardComposer.forCustomDashboard(
+                      CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
+              .persist()
+              .get();
+
+      List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
+      String timeRangeParameterId =
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
+
+      Map<String, String> input = new HashMap<>();
+      input.put(timeRangeParameterId, String.valueOf(ALL_TIME));
+
+      // force persistence
+      entityManager.flush();
+      entityManager.clear();
+      engineService.bulkProcessing(engineContext.getModels().stream());
+      // elastic needs to process the data; it does so async, so the method above
+      // completes before the data is available in the system
+      Thread.sleep(1000);
+
+      // -- ACT --
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/count/" + widget.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -- ASSERT --
+      // ALL_TIME must not apply any date lower bound, so all 3 endpoints are counted
+      assertThatJson(response).node("interval_count").isEqualTo(3);
+      assertThatJson(response).node("previous_interval_count").isEqualTo(0);
+      assertThatJson(response).node("difference_count").isEqualTo(3);
     }
   }
 
@@ -628,7 +729,7 @@ class DashboardApiTest extends IntegrationTest {
           widgetComposer
               .forWidget(
                   WidgetFixture.creatTemporalWidgetWithTimeRange(
-                      LAST_QUARTER, "base_created_at", HistogramInterval.month, "endpoint"))
+                      LAST_QUARTER, "base_created_at", HistogramInterval.month, "asset"))
               .withCustomDashboard(
                   customDashboardComposer.forCustomDashboard(
                       CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
@@ -637,7 +738,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -715,7 +820,7 @@ class DashboardApiTest extends IntegrationTest {
           widgetComposer
               .forWidget(
                   WidgetFixture.createStructuralWidgetWithTimeRange(
-                      LAST_QUARTER, "base_created_at", "endpoint_platform", "endpoint"))
+                      LAST_QUARTER, "base_created_at", "endpoint_platform", "asset"))
               .withCustomDashboard(
                   customDashboardComposer.forCustomDashboard(
                       CustomDashboardFixture.createCustomDashboardWithDefaultParams()))
@@ -732,7 +837,11 @@ class DashboardApiTest extends IntegrationTest {
 
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       Map<String, String> input = new HashMap<>();
       input.put(timeRangeParameterId, String.valueOf(LAST_QUARTER));
@@ -811,7 +920,8 @@ class DashboardApiTest extends IntegrationTest {
     }
 
     private InjectExpectationComposer.Composer createExpectationComposer(
-        InjectExpectation.EXPECTATION_TYPE type, InjectExpectation.EXPECTATION_STATUS status) {
+        BaseInjectExpectation.EXPECTATION_TYPE type,
+        BaseInjectExpectation.EXPECTATION_STATUS status) {
       return injectExpectationComposer.forExpectation(
           InjectExpectationFixture.createExpectationWithTypeAndStatus(type, status));
     }
@@ -852,7 +962,8 @@ class DashboardApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Given Structural Endpoint Histogram breakdown by platform, should return list of windows endpoint")
+        "Given Structural Endpoint Histogram breakdown by platform, should return list of windows"
+            + " endpoint")
     void given_structuralEndpointHistogram_should_returnListOfWindowsEndpoint() throws Exception {
       createEndpoint(
           EndpointFixture.createEndpointWithPlatform("Endpoint A", Endpoint.PLATFORM_TYPE.Windows));
@@ -866,14 +977,18 @@ class DashboardApiTest extends IntegrationTest {
       Widget widget =
           createWidgetWithDashboard(
               WidgetFixture.createStructuralWidgetWithTimeRange(
-                  LAST_QUARTER, "base_created_at", "endpoint_platform", "endpoint"));
+                  LAST_QUARTER, "base_created_at", "endpoint_platform", "asset"));
 
       flushAndProcessElastic();
 
       // Build request
       List<CustomDashboardParameters> parameters = widget.getCustomDashboard().getParameters();
       String timeRangeParameterId =
-          parameters.stream().filter(param -> param.getType() == timeRange).toString();
+          parameters.stream()
+              .filter(param -> param.getType() == timeRange)
+              .findFirst()
+              .orElseThrow()
+              .getId();
 
       WidgetToEntitiesInput input =
           createWidgetInput(
@@ -893,7 +1008,7 @@ class DashboardApiTest extends IntegrationTest {
           .anySatisfy(
               filter -> {
                 assertThatJson(filter).node("key").isEqualTo("base_entity");
-                assertThatJson(filter).node("values").isArray().containsExactly("endpoint");
+                assertThatJson(filter).node("values").isArray().containsExactly("asset");
               })
           .anySatisfy(
               filter -> {
@@ -919,48 +1034,48 @@ class DashboardApiTest extends IntegrationTest {
               attackPattern1,
               List.of(
                   createExpectationComposer(
-                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                      InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
                   createExpectationComposer(
-                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                      InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
       Inject inject2 =
           createTechnicalInject(
               null,
               attackPattern1,
               List.of(
                   createExpectationComposer(
-                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                      InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
                   createExpectationComposer(
-                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                      InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
       Inject inject3 =
           createTechnicalInject(
               null,
               attackPattern2,
               List.of(
                   createExpectationComposer(
-                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                      InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
                   createExpectationComposer(
-                      InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                      InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                      BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
       createTechnicalInject(
           null,
           attackPattern3,
           List.of(
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                  InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                  InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
 
       Widget widget =
           createWidgetWithDashboard(
               WidgetFixture.createSecurityConverageWidget(
-                  ALL_TIME, "base_created_at", InjectExpectation.EXPECTATION_TYPE.DETECTION));
+                  ALL_TIME, "base_created_at", BaseInjectExpectation.EXPECTATION_TYPE.DETECTION));
 
       flushAndProcessElastic();
 
@@ -996,9 +1111,228 @@ class DashboardApiTest extends IntegrationTest {
       assertThatJson(response).node("es_entities.total").isEqualTo(6);
     }
 
+    /** Sums every bucket of every charted series - what the tile actually renders. */
+    private int tileTotal(Widget widget) throws Exception {
+      String response =
+          mvc.perform(
+                  post(DASHBOARD_URI + "/series/" + widget.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(new HashMap<String, String>()))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      List<Integer> bucketValues = JsonPath.read(response, "$..data[*].value");
+      return bucketValues.stream().mapToInt(Integer::intValue).sum();
+    }
+
+    private WidgetToEntitiesInput seriesDrillDown(List<Integer> seriesIndexes) {
+      WidgetToEntitiesInput input = new WidgetToEntitiesInput();
+      input.setSeriesIndexes(seriesIndexes);
+      input.setParameters(new HashMap<>());
+      return input;
+    }
+
+    /**
+     * Guards the invariant behind #7079: a tile's number and the list you reach by clicking it must
+     * describe the same documents. The command center's ADVERSARY node totals several series at
+     * once, which a single {@code series_index} cannot express - the drill-down used to restate the
+     * scope as literal status values instead, and silently drifted from the widget definition
+     * (showing 747 while the list returned 795 in production). Naming the aggregated series makes
+     * both read one definition.
+     *
+     * <p>The same data is charted by two widgets so the drilled list is shown to follow the
+     * declared series rather than simply returning everything: a resolved-only widget must leave
+     * the pending expectations out. Only SUCCESS / FAILED / PENDING are exercised because no other
+     * status is reachable - {@code computeStatus} never returns PARTIAL, and returns UNKNOWN only
+     * for a null expected score, which migration V3_36 forbids.
+     */
+    @Test
+    @DisplayName("Given a total spanning several series, drilling it returns exactly that total")
+    void given_totalSpanningSeveralSeries_should_returnExactlyThatTotal() throws Exception {
+      createTechnicalInject(
+          null,
+          null,
+          List.of(
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.FAILED),
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.FAILED),
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.PENDING),
+              createExpectationComposer(
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.PENDING)));
+
+      Widget attempted =
+          createWidgetWithDashboard(
+              WidgetFixture.createExpectationStatusSeriesWidget(
+                  ALL_TIME,
+                  "base_created_at",
+                  List.of(
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                      BaseInjectExpectation.EXPECTATION_STATUS.FAILED,
+                      BaseInjectExpectation.EXPECTATION_STATUS.PENDING)));
+      Widget resolvedOnly =
+          createWidgetWithDashboard(
+              WidgetFixture.createExpectationStatusSeriesWidget(
+                  ALL_TIME,
+                  "base_created_at",
+                  List.of(
+                      BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                      BaseInjectExpectation.EXPECTATION_STATUS.FAILED)));
+
+      flushAndProcessElastic();
+
+      // Every attempted validation: the tile counts 5 and the list must hold those same 5.
+      assertThat(tileTotal(attempted)).isEqualTo(5);
+      assertThatJson(
+              performWidgetEntitiesRuntimeRequest(attempted, seriesDrillDown(List.of(0, 1, 2))))
+          .node("es_entities.total")
+          .isEqualTo(tileTotal(attempted));
+
+      // Same data, fewer declared series: the drill-down stays bounded by them and drops
+      // the two pending expectations instead of returning everything.
+      assertThat(tileTotal(resolvedOnly)).isEqualTo(3);
+      assertThatJson(
+              performWidgetEntitiesRuntimeRequest(resolvedOnly, seriesDrillDown(List.of(0, 1))))
+          .node("es_entities.total")
+          .isEqualTo(tileTotal(resolvedOnly));
+
+      // A single index still scopes to that one series.
+      assertThatJson(performWidgetEntitiesRuntimeRequest(attempted, seriesDrillDown(List.of(0))))
+          .node("es_entities.total")
+          .isEqualTo(1);
+    }
+
+    /**
+     * The flat per-key union that collapses a multi-series OR is only equivalent to it when the
+     * series diverge on exactly one key. Here they diverge on two (and the second series' types are
+     * a subset of the first's, so the union of that key does not even grow), which would admit a
+     * DETECTION/FAILED document matching neither series - reject instead of over-counting.
+     */
+    @Test
+    @DisplayName("Given series diverging on two keys, drilling them together is rejected")
+    void given_seriesDivergingOnTwoKeys_should_rejectTheDrillDown() throws Exception {
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createDivergentSeriesWidget(ALL_TIME, "base_created_at"));
+
+      flushAndProcessElastic();
+
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(0, 1))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * The series indexes travel as client-controlled URL parameters, so one the widget does not
+     * declare has to answer 400 - even alongside valid indexes, since silently dropping it would
+     * detach the drilled list from the number the caller believes it is expanding. Resolving to an
+     * empty series instead would carry a null filter list - Lombok drops the initializer under
+     * {@code @Builder.Default}, which is why {@link io.openaev.database.model.Filters} null-guards
+     * it everywhere - and surface as an opaque 500.
+     */
+    @Test
+    @DisplayName("Given a series index the widget does not declare, the drill-down is rejected")
+    void given_unknownSeriesIndex_should_rejectTheDrillDown() throws Exception {
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createExpectationStatusSeriesWidget(
+                  ALL_TIME,
+                  "base_created_at",
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+
+      flushAndProcessElastic();
+
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(99))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      // A valid index does not excuse an unknown one riding along with it.
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(0, 99))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * The per-key value union that collapses a multi-series OR presumes both series select
+     * documents the same way on that key. Series using different operators (here eq vs not_eq on
+     * the same status values) have no such collapse - the merged filter would keep one operator and
+     * mean something neither series said - so the drill-down must reject the shape.
+     */
+    @Test
+    @DisplayName("Given series using different operators on a key, drilling them is rejected")
+    void given_seriesWithDifferentOperators_should_rejectTheDrillDown() throws Exception {
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createStatusSeriesWidgetWithOperators(
+                  ALL_TIME,
+                  "base_created_at",
+                  Filters.FilterOperator.eq,
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name()),
+                  Filters.FilterOperator.not_eq,
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name())));
+
+      flushAndProcessElastic();
+
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(0, 1))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * Negated operators never union soundly: the engine turns every not_eq value into a must-not
+     * clause - a conjunction of exclusions - so {@code NOT SUCCESS} unioned with {@code NOT FAILED}
+     * would exclude both statuses when the OR of the series excludes neither everywhere. The
+     * drill-down must reject the divergence instead of quietly narrowing the list.
+     */
+    @Test
+    @DisplayName("Given series diverging under a negated operator, drilling them is rejected")
+    void given_seriesDivergingUnderNegatedOperator_should_rejectTheDrillDown() throws Exception {
+      Widget widget =
+          createWidgetWithDashboard(
+              WidgetFixture.createStatusSeriesWidgetWithOperators(
+                  ALL_TIME,
+                  "base_created_at",
+                  Filters.FilterOperator.not_eq,
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS.name()),
+                  Filters.FilterOperator.not_eq,
+                  List.of(BaseInjectExpectation.EXPECTATION_STATUS.FAILED.name())));
+
+      flushAndProcessElastic();
+
+      mvc.perform(
+              post(DASHBOARD_URI + "/entities-runtime/" + widget.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(seriesDrillDown(List.of(0, 1))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
     @Test
     @DisplayName(
-        "Given security domain widget should return list of expectation filtered by domain, type and status")
+        "Given security domain widget should return list of expectation filtered by domain, type"
+            + " and status")
     void given_securityDomainWidget_should_returnListOfExpectationFilteredByDomain()
         throws Exception {
       Domain networkDomain = createDomain("Network-test", "red");
@@ -1009,28 +1343,28 @@ class DashboardApiTest extends IntegrationTest {
           null,
           List.of(
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                  InjectExpectation.EXPECTATION_STATUS.FAILED),
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.FAILED),
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                  InjectExpectation.EXPECTATION_STATUS.SUCCESS),
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                  InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                  BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
       createTechnicalInject(
           networkDomain,
           null,
           List.of(
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                  InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
       createTechnicalInject(
           endpointDomain,
           null,
           List.of(
               createExpectationComposer(
-                  InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                  InjectExpectation.EXPECTATION_STATUS.SUCCESS)));
+                  BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                  BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)));
 
       Widget widget =
           createWidgetWithDashboard(
@@ -1328,7 +1662,7 @@ class DashboardApiTest extends IntegrationTest {
       tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
       Widget widget =
           widgetComposer
-              .forWidget(WidgetFixture.createNumberWidgetWithEntity("endpoint"))
+              .forWidget(WidgetFixture.createNumberWidgetWithEntity("asset"))
               .withCustomDashboard(
                   customDashboardComposer.forCustomDashboard(
                       CustomDashboardFixture.createCustomDashboardWithDefaultParams()))

@@ -116,8 +116,8 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
     defaultValues: { message: '' },
   });
 
-  const isTrialLicense = eeSettings?.license_type === LICENSE_OPTION_TRIAL;
-  if (!isTrialLicense) return null;
+  const isEE = eeSettings?.license_is_enterprise;
+  if (!isEE) return null;
 
   const bannerInfo = computeBannerInfo(t, eeSettings, () => {
     setShowFormDialog(true);
@@ -147,11 +147,15 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
             label={t('Your message')}
           />
           <div style={{
-            float: 'right',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: theme.spacing(1),
             marginTop: theme.spacing(2),
           }}
           >
             <Button
+              variant="outlined"
+              color="primary"
               onClick={() => {
                 setShowFormDialog(false);
                 reset();
@@ -159,7 +163,7 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
             >
               {t('Cancel')}
             </Button>
-            <Button type="submit" disabled={!isValid} color="secondary">
+            <Button type="submit" variant="contained" disabled={!isValid} color="primary">
               {t('Validate')}
             </Button>
           </div>

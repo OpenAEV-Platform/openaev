@@ -1,0 +1,276 @@
+name: "[OpenAEV] Documentation Gap Check"
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  docs-check:
+    name: "📖 Documentation gap check"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect documentation gaps
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const MARKER = '<!-- openaev-docs-gap-check -->';
+            const SKIP_LABELS = ['No need documentation', 'docs-not-needed'];
+            const SKIP_LABEL = SKIP_LABELS[0];
+
+            // -- helpers --------------------------------------------------
+
+            async function upsertComment(body) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                per_page: 100,
+              });
+              const existing = comments.find(c => c.body && c.body.includes(MARKER));
+              const params = { owner: context.repo.owner, repo: context.repo.repo };
+              if (existing) {
+                await github.rest.issues.updateComment({ ...params, comment_id: existing.id, body });
+              } else {
+                await github.rest.issues.createComment({ ...params, issue_number: context.issue.number, body });
+              }
+            }
+
+            // -- 1. skip label --------------------------------------------
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            const normalize = name => name.trim().toLowerCase();
+            const skipSet = new Set(SKIP_LABELS.map(normalize));
+            const matchedLabel = pr.labels
+              .map(l => l.name)
+              .find(name => skipSet.has(normalize(name)));
+
+            if (matchedLabel) {
+              await upsertComment([
+                MARKER,
+                '📖 **Documentation check** — ✅ Skipped',
+                '',
+                `\`${matchedLabel}\` label is present on this PR.`,
+              ].join('\n'));
+              return;
+            }
+
+            // -- 2. list changed files ------------------------------------
+
+            const allFiles = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+
+            // -- 3. classify files ----------------------------------------
+
+            const EXCLUDE = [
+              /Test\.java$/, /\.test\.(ts|tsx)$/, /tests_e2e\//,
+              /\.github\//, /Dockerfile/, /docker-compose/,
+              /pom\.xml$/, /package\.json$/, /yarn\.lock$/,
+              /\.eslintrc/, /\.prettierrc/, /spotless/, /\.editorconfig/,
+              /AGENTS\.md$/, /CLAUDE\.md$/, /CONTRIBUTING\.md$/,
+              /CODE_OF_CONDUCT\.md$/, /SECURITY\.md$/, /README\.md$/,
+              /openaev-annotation-processor\//, /openaev-maven-plugin\//,
+              /openaev-dev\//, /\.run\.xml$/,
+            ];
+
+            const FUNCTIONAL = [
+              /^openaev-api\/src\/main\//,
+              /^openaev-model\/src\/main\//,
+              /^openaev-front\/src\//,
+              /^openaev-framework\/src\/main\//,
+            ];
+
+            const docFiles  = allFiles.filter(f => f.filename.startsWith('docs/'));
+            const funcFiles = allFiles.filter(f => {
+              if (EXCLUDE.some(p => p.test(f.filename))) return false;
+              return FUNCTIONAL.some(p => p.test(f.filename));
+            });
+
+            // -- 4. no functional changes → pass --------------------------
+
+            if (funcFiles.length === 0) {
+              await upsertComment([
+                MARKER,
+                '📖 **Documentation check** — ✅ Passed',
+                '',
+                'No functional source changes detected.',
+              ].join('\n'));
+              return;
+            }
+
+            // -- 5. detect gaps -------------------------------------------
+
+            const gaps = [];
+
+            for (const file of funcFiles) {
+              const fn    = file.filename;
+              const isNew = file.status === 'added';
+              const isMod = file.status === 'modified';
+              const patch = file.patch || '';
+
+              // CRITICAL: new REST controller
+              if (isNew && /Api\.java$/.test(fn) && /\/api\/|\/rest\//.test(fn)) {
+                gaps.push({
+                  severity: 'CRITICAL', emoji: '🔴',
+                  title: 'New REST API controller',
+                  file: fn,
+                  doc: '`docs/docs/usage/rest-api.md`, `docs/docs/development/api-usage.md`',
+                  reason: 'New API endpoints must be documented.',
+                });
+              }
+
+              // CRITICAL: new integration factory
+              if (isNew && /IntegrationFactory\.java$/.test(fn)) {
+                gaps.push({
+                  severity: 'CRITICAL', emoji: '🔴',
+                  title: 'New integration type',
+                  file: fn,
+                  doc: '`docs/docs/deployment/ecosystem/`',
+                  reason: 'New integrations must be documented for deployment and usage.',
+                });
+              }
+
+              // CRITICAL: new frontend page / route
+              if (isNew && /\.tsx$/.test(fn) && (/Layout\.tsx$|Index\.tsx$|\/pages\//.test(fn))) {
+                if (/Route|path:|Navigate|useParams/.test(patch)) {
+                  gaps.push({
+                    severity: 'CRITICAL', emoji: '🔴',
+                    title: 'New UI page or route',
+                    file: fn,
+                    doc: '`docs/docs/usage/` (matching section)',
+                    reason: 'New user-facing pages must be documented.',
+                  });
+                }
+              }
+
+              // HIGH: new endpoints in existing controller
+              if (isMod && /Api\.java$/.test(fn) && /\/api\/|\/rest\//.test(fn)) {
+                const newMappings = (patch.match(/^\+.*@(Get|Post|Put|Delete|Patch)Mapping/gm) || []);
+                if (newMappings.length > 0) {
+                  gaps.push({
+                    severity: 'HIGH', emoji: '🟠',
+                    title: `${newMappings.length} new endpoint(s) in existing controller`,
+                    file: fn,
+                    doc: '`docs/docs/usage/rest-api.md`',
+                    reason: 'New endpoints expand the API surface.',
+                  });
+                }
+              }
+
+              // MEDIUM: new configuration property
+              if (/^\+.*@Value\("\$\{openaev\./m.test(patch)) {
+                gaps.push({
+                  severity: 'MEDIUM', emoji: '🟡',
+                  title: 'New configuration property',
+                  file: fn,
+                  doc: '`docs/docs/deployment/configuration.md`',
+                  reason: 'Configuration options should be documented for administrators.',
+                });
+              }
+
+              // MEDIUM: new preview feature flag
+              if (isMod && /PreviewFeature\.java$/.test(fn) && /^\+\s+[A-Z_]+/m.test(patch)) {
+                gaps.push({
+                  severity: 'MEDIUM', emoji: '🟡',
+                  title: 'New preview feature flag',
+                  file: fn,
+                  doc: '`docs/docs/deployment/configuration.md`',
+                  reason: 'Administrators need to know about available feature flags.',
+                });
+              }
+            }
+
+            // -- 6. no gaps → pass ----------------------------------------
+
+            if (gaps.length === 0) {
+              await upsertComment([
+                MARKER,
+                '📖 **Documentation check** — ✅ Passed',
+                '',
+                `**${funcFiles.length}** functional file(s), **${docFiles.length}** doc file(s) changed.`,
+                '',
+                'No documentation gaps detected.',
+              ].join('\n'));
+              return;
+            }
+
+            // -- 7. gaps found but docs also changed → pass ---------------
+
+            if (docFiles.length > 0) {
+              await upsertComment([
+                MARKER,
+                '📖 **Documentation check** — ✅ Passed',
+                '',
+                `**${funcFiles.length}** functional file(s), **${docFiles.length}** doc file(s) changed.`,
+                '',
+                'Documentation-worthy changes detected and documentation was updated. 👏',
+                '',
+                '<details>',
+                '<summary>Detected changes (covered by doc updates)</summary>',
+                '',
+                ...gaps.map(g => `- ${g.emoji} **${g.title}** — \`${g.file}\``),
+                '',
+                '</details>',
+              ].join('\n'));
+              return;
+            }
+
+            // -- 8. gaps found, no doc changes → report -------------------
+
+            const blocking    = gaps.filter(g => g.severity === 'CRITICAL' || g.severity === 'HIGH');
+            const nonBlocking = gaps.filter(g => g.severity !== 'CRITICAL' && g.severity !== 'HIGH');
+            const failed      = blocking.length > 0;
+
+            const lines = [
+              MARKER,
+              failed
+                ? '📖 **Documentation check** — ❌ Failed'
+                : '📖 **Documentation check** — ⚠️ Passed with warnings',
+              '',
+              `**${funcFiles.length}** functional file(s) changed, **0** documentation file(s) changed.`,
+              '',
+            ];
+
+            if (blocking.length > 0) {
+              lines.push('### Blocking gaps', '');
+              lines.push(`Update the docs or add the \`${SKIP_LABEL}\` label to bypass.`, '');
+              for (const g of blocking) {
+                lines.push(`#### ${g.emoji} ${g.title}`);
+                lines.push(`- **File**: \`${g.file}\``);
+                lines.push(`- **Expected doc update**: ${g.doc}`);
+                lines.push(`- **Reason**: ${g.reason}`);
+                lines.push('');
+              }
+            }
+
+            if (nonBlocking.length > 0) {
+              lines.push('### Suggestions (non-blocking)', '');
+              for (const g of nonBlocking) {
+                lines.push(`- ${g.emoji} **${g.title}** — \`${g.file}\` → ${g.doc}`);
+              }
+              lines.push('');
+            }
+
+            lines.push('---');
+            lines.push(`> Add the \`${SKIP_LABEL}\` label to bypass this check when no documentation update is needed.`);
+
+            await upsertComment(lines.join('\n'));
+
+            if (failed) {
+              core.setFailed(
+                `${blocking.length} blocking documentation gap(s) detected. `
+                + `Update documentation or add the '${SKIP_LABEL}' label.`
+              );
+            }

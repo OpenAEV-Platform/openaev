@@ -2,7 +2,7 @@ package io.openaev.datapack.local_fixtures;
 
 import static io.openaev.utils.StringUtils.generateRandomColor;
 
-import io.openaev.datapack.DataPack;
+import io.openaev.processor.datapack.DataPack;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.service.DataPackService;

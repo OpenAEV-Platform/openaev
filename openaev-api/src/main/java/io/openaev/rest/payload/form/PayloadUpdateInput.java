@@ -3,14 +3,16 @@ package io.openaev.rest.payload.form;
 import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.database.model.InjectExpectation;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
+import io.openaev.database.model.SecurityPlatform;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,6 +27,7 @@ public class PayloadUpdateInput {
   @JsonProperty("payload_name")
   private String name;
 
+  @NotEmpty(message = MANDATORY_MESSAGE)
   @JsonProperty("payload_platforms")
   private PLATFORM_TYPE[] platforms;
 
@@ -46,10 +49,16 @@ public class PayloadUpdateInput {
 
   @JsonProperty("payload_expectations")
   @NotNull
-  private InjectExpectation.EXPECTATION_TYPE[] expectations =
-      new InjectExpectation.EXPECTATION_TYPE[] {
-        InjectExpectation.EXPECTATION_TYPE.PREVENTION, InjectExpectation.EXPECTATION_TYPE.DETECTION
+  private BaseInjectExpectation.EXPECTATION_TYPE[] expectations =
+      new BaseInjectExpectation.EXPECTATION_TYPE[] {
+        BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+        BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
       };
+
+  @JsonProperty("payload_expected_security_platforms")
+  private java.util.Map<
+          BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+      expectedSecurityPlatforms = new java.util.HashMap<>();
 
   @JsonProperty("executable_file")
   private String executableFile;

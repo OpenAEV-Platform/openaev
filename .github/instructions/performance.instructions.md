@@ -39,7 +39,7 @@ group.setUsers(
     referenceResolver.resolve(userIds, User.class, userRepo::countByIdIn));
 
 // ❌ Bad — N queries (1 SELECT per ID)
-roleIds.stream().map(roleService::findById).toList();
+roleIds.stream().map(tenantRoleService::findById).toList();
 ```
 
 Repositories that are used with `ReferenceResolver` must expose a `countByIdIn(Set<String>)` method.
@@ -55,7 +55,7 @@ Repositories that are used with `ReferenceResolver` must expose a `countByIdIn(S
 
 - Prefer repository methods or `@Query` JPQL over `CrudRepository.findAll()` when filtering
 - Use `existsById()` instead of `findById().isPresent()` for existence checks
-- Use `@Modifying @Query` for bulk updates/deletes — avoid loading entities just to delete them
+- Use `@Modifying @Query` for bulk updates/deletes to avoid loading entities just to delete them, but only when the entity is not `@Indexable`, `@AuditDiffTracked`, or streamed: a native or bulk write skips the listener chain, so the index, audit, and stream are not updated (see `orm.instructions.md`). Otherwise keep the session delete or update them explicitly
 - Use projections (DTO queries) for read-heavy endpoints that don't need the full entity
 - Add database indexes on columns used in WHERE, ORDER BY, and JOIN conditions
 - Verify with `EXPLAIN` on realistic data volumes (>= 100k rows) that new indexes are actually
@@ -71,6 +71,11 @@ Repositories that are used with `ReferenceResolver` must expose a `countByIdIn(S
 - Pattern: materialize data inside a short transaction (`TransactionTemplate` in Quartz jobs),
   perform the network calls outside, persist results in a second short transaction
 - Cache static remote content (e.g. installer script templates) instead of re-fetching per request
+- **Factory startup pattern**: when a factory must both write to DB (`@Transactional`) and upload
+  to MinIO/S3, split into two methods — `initialise()` (DB-only, `@Transactional`) and
+  `refreshLogo()` / `refreshAssets()` (MinIO-only, **no** `@Transactional`). The caller invokes
+  `refreshLogo()` *after* `initialise()` returns so the DB transaction is already committed. Make
+  the asset upload best-effort (catch + warn, don't throw).
 
 ## Scheduled Jobs & Data Retention
 
@@ -101,4 +106,5 @@ Repositories that are used with `ReferenceResolver` must expose a `countByIdIn(S
 - ❌ Iterating a list to call `repository.findById()` in a loop — use `ReferenceResolver` or `findAllById()` instead
 - ❌ Opening a transaction for read-only operations without `readOnly = true`
 - ❌ Returning JPA entities with LAZY collections from `@RestController` (triggers proxy outside session)
+- ❌ Performing MinIO / S3 / file I/O inside `@Transactional` — split into DB method + separate best-effort upload method called after the transaction commits
 

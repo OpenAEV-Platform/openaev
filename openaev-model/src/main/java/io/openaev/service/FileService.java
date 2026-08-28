@@ -1,11 +1,16 @@
 package io.openaev.service;
 
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Tenant;
 import java.io.InputStream;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -36,6 +41,10 @@ public class FileService {
 
   /** Base path for executor icon images. */
   public static final String EXECUTORS_IMAGES_ICONS_BASE_PATH = "/executors/images/icons/";
+
+  /** Base path for secret_provider icon images. */
+  public static final String SECRETS_PROVIDERS_IMAGES_ICONS_BASE_PATH =
+      "/secrets-providers/images/icons/";
 
   /** Base path for executor banner images. */
   public static final String EXECUTORS_IMAGES_BANNERS_BASE_PATH = "/executors/images/banners/";
@@ -148,14 +157,30 @@ public class FileService {
     return getFilePath(document.getTarget());
   }
 
-  /**
-   * Retrieves an injector's image file.
-   *
-   * @param injectType the injector type identifier
-   * @return an Optional containing the image input stream, or empty if not found
-   */
-  public Optional<InputStream> getInjectorImage(String injectType) {
-    return getPlatformImage(INJECTORS_IMAGES_BASE_PATH + injectType + EXT_PNG);
+  public ResponseEntity<InputStreamResource> getConnectorImage(
+      ConnectorType connectorType, String type) {
+    String filePath;
+    switch (connectorType) {
+      case ConnectorType.COLLECTOR -> filePath = COLLECTORS_IMAGES_BASE_PATH;
+      case ConnectorType.INJECTOR -> filePath = INJECTORS_IMAGES_BASE_PATH;
+      case ConnectorType.EXECUTOR -> filePath = EXECUTORS_IMAGES_ICONS_BASE_PATH;
+      case ConnectorType.SECRETS_PROVIDER -> filePath = SECRETS_PROVIDERS_IMAGES_ICONS_BASE_PATH;
+      default -> throw new IllegalArgumentException("Unsupported connector type: " + connectorType);
+    }
+
+    Optional<InputStream> image = this.getPlatformImage(filePath + type + EXT_PNG);
+    if (image.isEmpty()) {
+      return ResponseEntity.notFound().build();
+    }
+
+    try {
+      return ResponseEntity.ok()
+          .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
+          .body(new InputStreamResource(image.get()));
+    } catch (Exception e) {
+      log.warn("Unable to read connector image {}", type, e);
+      return ResponseEntity.notFound().build();
+    }
   }
 
   /**
@@ -166,16 +191,6 @@ public class FileService {
    */
   public Optional<InputStream> getCollectorImage(String collectorId) {
     return getPlatformImage(COLLECTORS_IMAGES_BASE_PATH + collectorId + EXT_PNG);
-  }
-
-  /**
-   * Retrieves an executor's icon image file.
-   *
-   * @param executorId the executor identifier
-   * @return an Optional containing the image input stream, or empty if not found
-   */
-  public Optional<InputStream> getExecutorIconImage(String executorId) {
-    return getPlatformImage(EXECUTORS_IMAGES_ICONS_BASE_PATH + executorId + EXT_PNG);
   }
 
   /**

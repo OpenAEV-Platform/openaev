@@ -1,4 +1,4 @@
-import { DevicesOtherOutlined, KeyboardArrowRight } from '@mui/icons-material';
+import { KeyboardArrowRight } from '@mui/icons-material';
 import {
   Box,
   List as MuiList,
@@ -8,34 +8,45 @@ import {
   ListItemText, TablePagination,
 } from '@mui/material';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { type ChangeEvent, memo, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { type ChangeEvent, memo, useMemo, useRef } from 'react';
+import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPatternHelper } from '../../../../../../../actions/attack_patterns/attackpattern-helper';
 import { ROWS_PER_PAGE_OPTIONS } from '../../../../../../../components/common/queryable/pagination/usePaginationState';
 import useBodyItemsStyles from '../../../../../../../components/common/queryable/style/style';
+import Empty from '../../../../../../../components/Empty';
 import { useFormatter } from '../../../../../../../components/i18n';
 import Loader from '../../../../../../../components/Loader';
 import { useHelper } from '../../../../../../../store';
 import {
   type AttackPattern,
   type EsBase,
+  type EsInjectExpectation,
   type ListConfiguration, type Pagination,
 } from '../../../../../../../utils/api-types';
+import { expectationTypeIcon } from '../../../../../common/ExpectationIconByType';
+import AssetElementStyles from './elements/AssetElementStyles';
 import buildStyles from './elements/ColumnStyles';
 import DefaultElementStyles from './elements/DefaultElementStyles';
-import EndpointElementStyles from './elements/EndpointElementStyles';
+import getEntityLeadingIcon from './elements/EntityLeadingIcon';
 import listConfigRenderer, { defaultRenderer } from './elements/ListColumnConfig';
-import navigationHandlers from './elements/ListNavigationHandler';
+import { getNavigationUrl } from './elements/ListNavigationHandler';
 
 // Shared row height: used both for the list-item CSS and the virtualizer size
 // estimate so the two stay aligned.
 const ROW_HEIGHT = 50;
 
-const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
-  item: { height: ROW_HEIGHT },
+const useStyles = makeStyles()(theme => ({
+  item: {
+    'height': ROW_HEIGHT,
+    'borderRadius': theme.shape.borderRadius,
+    'transition': 'background 0.15s, box-shadow 0.15s',
+    '&:hover': {
+      backgroundColor: theme.palette.action.hover,
+      boxShadow: `inset 2px 0 0 0 ${theme.palette.primary.main}`,
+    },
+  },
 }));
 
 // Empty secondary action component to avoid recreation
@@ -52,14 +63,16 @@ const ListWidgetItem = memo<{
     bodyItem: React.CSSProperties;
   };
   attackPatterns: AttackPattern[];
-  onItemClick: (element: EsBase) => void;
   itemClass: string;
-}>(({ element, columns, columnStyles, bodyItemsStyles, attackPatterns, onItemClick, itemClass }) => {
-  const hasHandler = navigationHandlers[element.base_entity];
+}>(({ element, columns, columnStyles, bodyItemsStyles, attackPatterns, itemClass }) => {
+  // Real router link (not a JS navigate) so ctrl/cmd+click opens a new tab.
+  const url = getNavigationUrl(element);
 
-  const handleClick = useCallback(() => {
-    onItemClick(element);
-  }, [element, onItemClick]);
+  // Inject-expectation rows lead with the expectation-type icon (shield /
+  // sensor / bug / support agent...); every other entity leads with the same
+  // icon as its own list page (simulation play, scenario route, finding...).
+  const expectationType = (element as EsInjectExpectation).inject_expectation_type;
+  const LeadingIcon = expectationType ? expectationTypeIcon(expectationType) : getEntityLeadingIcon(element);
 
   const renderedColumns = useMemo(() => columns.map((col) => {
     const renderer = listConfigRenderer[col] ?? defaultRenderer;
@@ -80,29 +93,52 @@ const ListWidgetItem = memo<{
     );
   }), [columns, columnStyles, bodyItemsStyles, element, attackPatterns]);
 
+  const rowContent = (
+    <>
+      <ListItemIcon>
+        <LeadingIcon color="primary" />
+      </ListItemIcon>
+      <ListItemText
+        primary={(
+          <div style={bodyItemsStyles.bodyItems}>
+            {renderedColumns}
+          </div>
+        )}
+      />
+    </>
+  );
+
   return (
     <MuiListItem
       component="div"
       divider
       disablePadding
-      secondaryAction={hasHandler !== undefined ? <KeyboardArrowRight color="action" /> : <EmptySecondaryAction />}
+      secondaryAction={url !== null ? <KeyboardArrowRight color="action" /> : <EmptySecondaryAction />}
     >
-      <ListItemButton
-        onClick={handleClick}
-        classes={{ root: itemClass }}
-        className="noDrag"
-      >
-        <ListItemIcon>
-          <DevicesOtherOutlined color="primary" />
-        </ListItemIcon>
-        <ListItemText
-          primary={(
-            <div style={bodyItemsStyles.bodyItems}>
-              {renderedColumns}
-            </div>
-          )}
-        />
-      </ListItemButton>
+      {url !== null ? (
+        <ListItemButton
+          component={Link}
+          to={url}
+          classes={{ root: itemClass }}
+          className="noDrag"
+        >
+          {rowContent}
+        </ListItemButton>
+      ) : (
+        // Non-navigable row: disabled so it is neither focusable nor announced
+        // as actionable; opacity restored so the content stays readable.
+        <ListItemButton
+          classes={{ root: itemClass }}
+          className="noDrag"
+          disabled
+          sx={{
+            '&.Mui-disabled': { opacity: 1 },
+            'cursor': 'default',
+          }}
+        >
+          {rowContent}
+        </ListItemButton>
+      )}
     </MuiListItem>
   );
 });
@@ -116,6 +152,11 @@ type Props = {
   totalElements: number;
   onPaginationChange: (paginationInput: Pagination) => void;
   contentLoading?: boolean;
+  // Render the pagination bar above the list (aligns with the app's list pages) instead of below
+  // (default, used by embedded dashboard widget tiles).
+  paginationAbove?: boolean;
+  // Hide the built-in pagination entirely (the dashboard tile renders it in the widget title row).
+  hidePagination?: boolean;
 };
 
 const ListWidget = ({
@@ -126,11 +167,12 @@ const ListWidget = ({
   totalElements,
   onPaginationChange,
   contentLoading = false,
+  paginationAbove = false,
+  hidePagination = false,
 }: Props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
-  const navigate = useNavigate();
 
   const { attackPatterns } = useHelper((helper: AttackPatternHelper) => ({ attackPatterns: helper.getAttackPatterns() }));
 
@@ -160,17 +202,12 @@ const ListWidget = ({
     }
     const entityType = elements[0].base_entity;
     switch (entityType) {
-      case 'endpoint':
-        return buildStyles(columns, EndpointElementStyles);
+      case 'asset':
+        return buildStyles(columns, AssetElementStyles);
       default:
         return defaultStyles;
     }
   }, [columns, elements]);
-
-  const onListItemClick = useCallback((element: EsBase): void => {
-    const handler = navigationHandlers[element.base_entity];
-    handler?.(element, navigate);
-  }, [navigate]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -185,6 +222,26 @@ const ListWidget = ({
     return <div>{t('No columns configured for this list.')}</div>;
   }
 
+  const pagination = !hidePagination && elements.length > 0 && totalElements > elementsPerPage
+    ? (
+        <TablePagination
+          component="div"
+          rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+          count={totalElements}
+          page={currentPageNumber}
+          onPageChange={handleChangePage}
+          rowsPerPage={elementsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{
+            'flexShrink': 0,
+            [paginationAbove ? 'borderBottom' : 'borderTop']: theme => `1px solid ${theme.palette.divider}`,
+            'minHeight': 0,
+            '& .MuiTablePagination-toolbar': { minHeight: 40 },
+          }}
+        />
+      )
+    : null;
+
   return (
     <Box style={{
       height: '100%',
@@ -192,40 +249,17 @@ const ListWidget = ({
       flexDirection: 'column',
     }}
     >
-      {elements.length > 0
-        && (
-          <TablePagination
-            component="div"
-            rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
-            count={totalElements}
-            page={currentPageNumber}
-            onPageChange={handleChangePage}
-            rowsPerPage={elementsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        )}
-
-      <MuiList disablePadding>
-        <MuiListItem
-          classes={{ root: classes.itemHead }}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<EmptySecondaryAction />}
-        >
-          <ListItemIcon />
-        </MuiListItem>
-      </MuiList>
-
+      {paginationAbove && pagination}
       {contentLoading && <Loader variant="inElement" />}
       {!contentLoading && elements.length === 0 && (
         <div style={{
-          textAlign: 'center',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flex: 1,
         }}
         >
-          {t('No data to display')}
+          <Empty message={t('No data to display')} />
         </div>
       )}
       {!contentLoading && elements.length > 0 && (
@@ -266,7 +300,6 @@ const ListWidget = ({
                     columnStyles={columnStyles}
                     bodyItemsStyles={bodyItemsStyles}
                     attackPatterns={attackPatterns}
-                    onItemClick={onListItemClick}
                     itemClass={classes.item}
                   />
                 </div>
@@ -275,6 +308,8 @@ const ListWidget = ({
           </MuiList>
         </div>
       )}
+
+      {!paginationAbove && pagination}
     </Box>
   );
 };

@@ -41,6 +41,7 @@ const ThreatArsenalActionForm = ({
     action_name: '',
     action_platforms: [],
     action_expectations: ['PREVENTION', 'DETECTION'],
+    action_expected_security_platforms: {},
     action_description: '',
     command_executor: '',
     command_content: '',
@@ -102,8 +103,7 @@ const ThreatArsenalActionForm = ({
   const argumentZodObject = z.object({
     default_value: z.string().nonempty(t('Should not be empty')),
     key: z.string().nonempty(t('Should not be empty')),
-    type: z.enum(['text', 'number', 'port', 'portscan', 'ipv4', 'ipv6', 'credentials', 'cve', 'document', 'targeted-asset', 'kerberoastable_account', 'asreproastable_account', 'account_with_password_not_required', 'vulnerability', 'sid', 'delegation', 'password_policy', 'computer', 'group', 'admin_username', 'share', 'username'], { error: t('Should not be empty') }),
-    subtype: z.enum(['host', 'port', 'service', 'username', 'password', 'severity', 'domain']).optional(),
+    type: z.string().nonempty(t('Should not be empty')),
     description: z.string().optional(),
     separator: z.string().optional(),
   }).refine(
@@ -122,6 +122,31 @@ const ThreatArsenalActionForm = ({
     // action_domains: z.array(domainZodObject).refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
     action_domains: z.string().array().refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
     action_expectations: z.enum(['PREVENTION', 'DETECTION', 'VULNERABILITY', 'MANUAL', 'TEXT', 'CHALLENGE', 'DOCUMENT', 'ARTICLE']).array(),
+    // Bound per-expectation by ExpectationSecurityPlatformsField, whose Controllers
+    // may leave freshly mounted entries as `undefined` before the user touches them.
+    // Normalise (drop undefined/empty scopes) so an untouched form still validates.
+    // An emptied map is submitted as {} - NOT collapsed to undefined - because the
+    // backend treats an absent field as "keep the existing scopes" (partial update),
+    // so {} is the only way to clear a previously scoped expectation back to "any
+    // security platform".
+    action_expected_security_platforms: z.preprocess(
+      (value) => {
+        if (!value || typeof value !== 'object') {
+          return undefined;
+        }
+        const cleaned: Record<string, string[]> = {};
+        Object.entries(value as Record<string, unknown>).forEach(([key, platforms]) => {
+          if (Array.isArray(platforms) && platforms.length > 0) {
+            cleaned[key] = platforms as string[];
+          }
+        });
+        return cleaned;
+      },
+      z.record(
+        z.string(),
+        z.enum(['EDR', 'XDR', 'SIEM', 'SOAR', 'NDR', 'ISPM', 'LLM_FIREWALL', 'AI_GATEWAY', 'VULNERABILITY_SCANNER']).array(),
+      ).optional(),
+    ),
     action_platforms: z.enum(['Linux', 'Windows', 'MacOS', 'Container', 'Service', 'Generic', 'Internal', 'Unknown']).array().min(1, { error: t('Should not be empty') }).describe('Commands-tab'),
     action_execution_arch: z.enum(['x86_64', 'arm64', 'ALL_ARCHITECTURES'], { error: t('Should not be empty') }).describe('Commands-tab'),
     action_cleanup_command: z.string().optional().nullable().describe('Commands-tab'),
@@ -193,7 +218,10 @@ const ThreatArsenalActionForm = ({
   }, {
     key: 'Remediation',
     label: (
-      <Box display="flex" alignItems="center">
+      // The theme lowercases MuiTab labels and re-capitalises via ::first-letter,
+      // which only works on block containers: this flex label silently rendered
+      // as "remediation". Neutralise the transform, the i18n key is capitalised.
+      <Box display="flex" alignItems="center" sx={{ textTransform: 'none' }}>
         {t('Remediation')}
         {!isValidatedEnterpriseEdition && (
           <EEChip
@@ -271,7 +299,6 @@ const ThreatArsenalActionForm = ({
           style={{
             display: 'flex',
             flexDirection: 'column',
-            minHeight: '100%',
             gap: theme.spacing(2),
           }}
           id="actionForm"
@@ -300,27 +327,31 @@ const ThreatArsenalActionForm = ({
             <RemediationFormTabs actionId={initialValues?.action_id} />
           )}
 
+          {/* In-flow action buttons right after the form content, like every
+              other drawer form in the app (no bottom-pinned footer). */}
           <div style={{
-            marginTop: 'auto',
             display: 'flex',
-            flexDirection: 'row-reverse',
+            justifyContent: 'flex-end',
             gap: theme.spacing(1),
+            marginTop: theme.spacing(1),
+            marginBottom: theme.spacing(2),
           }}
           >
             <Button
-              variant="contained"
-              color="secondary"
-              type="submit"
-              disabled={isSubmitting || !isDirty}
-            >
-              {editing ? t('Update') : t('Create')}
-            </Button>
-            <Button
-              variant="contained"
+              variant="outlined"
+              color="primary"
               onClick={handleClose}
               disabled={isSubmitting}
             >
               {t('Cancel')}
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              type="submit"
+              disabled={isSubmitting || !isDirty}
+            >
+              {editing ? t('Update') : t('Create')}
             </Button>
           </div>
         </form>

@@ -29,8 +29,8 @@ const ActionsComponent: FunctionComponent<{
 
   return (
     <>
-      <Button onClick={onCancel}>{t('Cancel')}</Button>
-      <Button color="secondary" onClick={onSubmit} disabled={disabled}>
+      <Button variant="outlined" color="primary" onClick={onCancel}>{t('Cancel')}</Button>
+      <Button variant="contained" color="primary" onClick={onSubmit} disabled={disabled}>
         {editing ? t('Update') : t('Create')}
       </Button>
     </>
@@ -150,7 +150,7 @@ const WidgetForm: FunctionComponent<Props> = ({
     mode: 'onTouched',
     resolver: zodResolver(
       zodImplement<WidgetInputWithoutLayout>().with({
-        widget_type: z.enum(['vertical-barchart', 'horizontal-barchart', 'security-coverage', 'line', 'donut', 'list', 'attack-path', 'number', 'average']),
+        widget_type: z.enum(['vertical-barchart', 'horizontal-barchart', 'security-coverage', 'line', 'donut', 'list', 'attack-path', 'number', 'average', 'exposure-score', 'posture-radar', 'command-center', 'resilience-gauge']),
         widget_config: widgetConfigSchema,
       }),
     ),

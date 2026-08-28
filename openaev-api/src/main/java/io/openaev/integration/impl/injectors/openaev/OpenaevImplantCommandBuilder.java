@@ -1,5 +1,6 @@
 package io.openaev.integration.impl.injectors.openaev;
 
+import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.MDE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_NAME;
 
 import io.openaev.config.OpenAEVConfig;
@@ -31,31 +32,36 @@ final class OpenaevImplantCommandBuilder {
       String maxSizeVar,
       String unsecuredCertificateVar,
       String withProxyVar) {
-    CommandVars(OpenAEVConfig cfg) {
+    CommandVars() {
       this(
           "token=\"#{token}\"",
-          "server=\"" + cfg.getBaseUrlForAgent() + "\"",
-          "max_size=\"" + cfg.getLogsMaxSize() + "\"",
-          "unsecured_certificate=\"" + cfg.isUnsecuredCertificate() + "\"",
-          "with_proxy=\"" + cfg.isWithProxy() + "\"");
+          "server=\"#{baseUrl}\"",
+          "max_size=\"#{maxSize}\"",
+          "unsecured_certificate=\"#{unsecuredCertificate}\"",
+          "with_proxy=\"#{withProxy}\"");
     }
   }
 
-  static Map<String, String> buildExecutorCommands(OpenAEVConfig cfg) {
+  static Map<String, String> buildExecutorCommands(int timeoutSeconds) {
     Map<String, String> commands = new HashMap<>();
-    CommandVars vars = new CommandVars(cfg);
+    CommandVars vars = new CommandVars();
     // --- PALO ALTO WINDOWS SPECIFIC ---
-    buildPaloAltoWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, cfg, commands, vars);
-    buildPaloAltoWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, cfg, commands, vars);
+    buildPaloAltoWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars);
+    buildPaloAltoWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars);
+    // --- MDE WINDOWS SPECIFIC ---
+    // MDE Live Response (like Cortex XDR) terminates child processes when the remote session ends,
+    // so the implant must be launched from a detached scheduled task to survive and phone home.
+    buildMdeWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars);
+    buildMdeWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars);
     // --- WINDOWS ---
-    buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, cfg, commands, vars);
-    buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, cfg, commands, vars);
+    buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars, timeoutSeconds);
+    buildGenericWindowsCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars, timeoutSeconds);
     // --- LINUX ---
-    buildGenericLinuxCommand(Endpoint.PLATFORM_ARCH.x86_64, cfg, commands, vars);
-    buildGenericLinuxCommand(Endpoint.PLATFORM_ARCH.arm64, cfg, commands, vars);
+    buildGenericLinuxCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars, timeoutSeconds);
+    buildGenericLinuxCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars, timeoutSeconds);
     // --- MACOS ---
-    buildGenericMacOSCommand(Endpoint.PLATFORM_ARCH.x86_64, cfg, commands, vars);
-    buildGenericMacOSCommand(Endpoint.PLATFORM_ARCH.arm64, cfg, commands, vars);
+    buildGenericMacOSCommand(Endpoint.PLATFORM_ARCH.x86_64, commands, vars, timeoutSeconds);
+    buildGenericMacOSCommand(Endpoint.PLATFORM_ARCH.arm64, commands, vars, timeoutSeconds);
     return commands;
   }
 
@@ -63,31 +69,38 @@ final class OpenaevImplantCommandBuilder {
     Map<String, String> clear = new HashMap<>();
     clear.put(
         Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
-        "$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;cd \"$location\";Get-ChildItem -Recurse -Filter *implant* | Remove-Item");
+        "$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\","
+            + " \"\");[Environment]::CurrentDirectory = $location;cd \"$location\";Get-ChildItem"
+            + " -Recurse -Filter *implant* | Remove-Item");
     clear.put(
         Endpoint.PLATFORM_TYPE.Windows.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
-        "$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;cd \"$location\";Get-ChildItem -Recurse -Filter *implant* | Remove-Item");
+        "$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\","
+            + " \"\");[Environment]::CurrentDirectory = $location;cd \"$location\";Get-ChildItem"
+            + " -Recurse -Filter *implant* | Remove-Item");
     clear.put(
         Endpoint.PLATFORM_TYPE.Linux.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
-        "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd \"$location\"; rm *implant*");
+        "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd"
+            + " \"$location\"; rm *implant*");
     clear.put(
         Endpoint.PLATFORM_TYPE.Linux.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
-        "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd \"$location\"; rm *implant*");
+        "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd"
+            + " \"$location\"; rm *implant*");
     clear.put(
         Endpoint.PLATFORM_TYPE.MacOS.name() + "." + Endpoint.PLATFORM_ARCH.x86_64,
-        "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd \"$location\"; rm *implant*");
+        "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd"
+            + " \"$location\"; rm *implant*");
     clear.put(
         Endpoint.PLATFORM_TYPE.MacOS.name() + "." + Endpoint.PLATFORM_ARCH.arm64,
-        "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd \"$location\"; rm *implant*");
+        "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");cd"
+            + " \"$location\"; rm *implant*");
     return clear;
   }
 
   // --- Private helpers ---
 
-  private static String dlUri(OpenAEVConfig cfg, String platform, String arch) {
+  private static String dlUri(String platform, String arch) {
     return "\""
-        + cfg.getBaseUrlForAgent()
-        + "/api/tenants/#{tenant}/implant/openaev/"
+        + "#{baseUrl}/api/tenants/#{tenant}/implant/openaev/"
         + platform
         + "/"
         + arch
@@ -95,10 +108,9 @@ final class OpenaevImplantCommandBuilder {
   }
 
   @SuppressWarnings("SameParameterValue")
-  private static String dlVar(OpenAEVConfig cfg, String platform, String arch) {
+  private static String dlVar(String platform, String arch) {
     return "$url=\""
-        + cfg.getBaseUrl()
-        + "/api/tenants/#{tenant}/implant/openaev/"
+        + "#{baseUrl}/api/tenants/#{tenant}/implant/openaev/"
         + platform
         + "/"
         + arch
@@ -107,17 +119,35 @@ final class OpenaevImplantCommandBuilder {
   }
 
   private static void buildPaloAltoWindowsCommand(
+      Endpoint.PLATFORM_ARCH arch, Map<String, String> commands, CommandVars vars) {
+    buildScheduledTaskWindowsCommand(PALOALTOCORTEX_EXECUTOR_NAME, arch, commands, vars);
+  }
+
+  private static void buildMdeWindowsCommand(
+      Endpoint.PLATFORM_ARCH arch, Map<String, String> commands, CommandVars vars) {
+    buildScheduledTaskWindowsCommand(MDE_EXECUTOR_NAME, arch, commands, vars);
+  }
+
+  /**
+   * Builds a Windows implant command that launches the implant from a detached SYSTEM scheduled
+   * task instead of a direct child process. EDR remote-execution channels (Palo Alto Cortex XDR
+   * Live Terminal, Microsoft Defender for Endpoint Live Response) terminate the process tree of the
+   * remote session once it ends; a scheduled task survives session teardown so the implant can run
+   * and report its execution traces back to OpenAEV.
+   *
+   * @param executorNameKey executor name used as the command map key prefix
+   */
+  private static void buildScheduledTaskWindowsCommand(
+      String executorNameKey,
       Endpoint.PLATFORM_ARCH arch,
-      OpenAEVConfig cfg,
       Map<String, String> commands,
       CommandVars vars) {
     commands.put(
-        PALOALTOCORTEX_EXECUTOR_NAME
-            + "."
-            + Endpoint.PLATFORM_TYPE.Windows.name()
-            + "."
-            + arch.name(),
-        "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
+        executorNameKey + "." + Endpoint.PLATFORM_TYPE.Windows.name() + "." + arch.name(),
+        "[Net.ServicePointManager]::SecurityProtocol +="
+            + " [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\","
+            + " \"\");[Environment]::CurrentDirectory ="
+            + " $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
             + vars.tokenVar()
             + ";$"
             + vars.serverVar()
@@ -128,36 +158,46 @@ final class OpenaevImplantCommandBuilder {
             + ";$"
             + vars.maxSizeVar()
             + ";"
-            + dlVar(cfg, "windows", arch.name())
-            + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;"
-            + "$taskName = 'OpenAEV-Inject-#{inject}-Agent-#{agent}';"
-            + "$taskDescription = 'OpenAEV EDR validation task - inject #{inject} - agent #{agent} - safe to ignore - will self-delete after execution';"
-            + "$implantArgs = '--uri ' + $server + ' --token ' + $token + ' --unsecured-certificate ' + $unsecured_certificate + ' --with-proxy ' + $with_proxy + ' --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant}';"
-            + "$action = New-ScheduledTaskAction -Execute \"$location\\$filename\" -Argument $implantArgs;"
-            + "$principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest;"
-            + "$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 0);"
-            + "Register-ScheduledTask -TaskName $taskName -Description $taskDescription -Action $action -Principal $principal -Settings $settings -Force | Out-Null;"
-            + "Start-ScheduledTask -TaskName $taskName;"
-            + "$timeout = 300; $elapsed = 0;"
-            + "while($elapsed -lt $timeout) {"
-            + "  $state = (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue).State;"
-            + "  if($state -eq 'Ready') { break }"
-            + "  Start-Sleep -Seconds 1; $elapsed++;"
-            + "}"
-            + "$info = Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction SilentlyContinue;"
-            + "$exitCode = $info.LastTaskResult;"
-            + "Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue;"
-            + "exit $exitCode;");
+            + dlVar("windows", arch.name())
+            + ";$wc=New-Object"
+            + " System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data)"
+            + " | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV"
+            + " Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction"
+            + " Inbound -Program \"$location\\$filename\" -Action Allow |"
+            + " Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV"
+            + " Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction"
+            + " Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;$taskName ="
+            + " 'OpenAEV-Inject-#{inject}-Agent-#{agent}';$taskDescription = 'OpenAEV EDR"
+            + " validation task - inject #{inject} - agent #{agent} - safe to ignore - will"
+            + " self-delete after execution';$implantArgs = '--uri ' + $server + ' --token ' +"
+            + " $token + ' --unsecured-certificate ' + $unsecured_certificate + ' --with-proxy ' +"
+            + " $with_proxy + ' --agent-id #{agent} --inject-id #{inject} --tenant-id"
+            + " #{tenant}';$action = New-ScheduledTaskAction -Execute \"$location\\$filename\""
+            + " -Argument $implantArgs;$principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM'"
+            + " -LogonType ServiceAccount -RunLevel Highest;$settings ="
+            + " New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries"
+            + " -ExecutionTimeLimit (New-TimeSpan -Hours 0);Register-ScheduledTask -TaskName"
+            + " $taskName -Description $taskDescription -Action $action -Principal $principal"
+            + " -Settings $settings -Force | Out-Null;Start-ScheduledTask -TaskName"
+            + " $taskName;$timeout = 300; $elapsed = 0;while($elapsed -lt $timeout) {  $state ="
+            + " (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue).State; "
+            + " if($state -eq 'Ready') { break }  Start-Sleep -Seconds 1; $elapsed++;}$info ="
+            + " Get-ScheduledTaskInfo -TaskName $taskName -ErrorAction SilentlyContinue;$exitCode ="
+            + " $info.LastTaskResult;Unregister-ScheduledTask -TaskName $taskName -Confirm:$false"
+            + " -ErrorAction SilentlyContinue;exit $exitCode;");
   }
 
   private static void buildGenericWindowsCommand(
       Endpoint.PLATFORM_ARCH arch,
-      OpenAEVConfig cfg,
       Map<String, String> commands,
-      CommandVars vars) {
+      CommandVars vars,
+      int timeoutSeconds) {
     commands.put(
         Endpoint.PLATFORM_TYPE.Windows.name() + "." + arch.name(),
-        "[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\", \"\");[Environment]::CurrentDirectory = $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
+        "[Net.ServicePointManager]::SecurityProtocol +="
+            + " [Net.SecurityProtocolType]::Tls12;$x=\"#{location}\";$location=$x.Replace(\"\\oaev-agent-caldera.exe\","
+            + " \"\");[Environment]::CurrentDirectory ="
+            + " $location;$filename=\"oaev-implant-#{inject}-agent-#{agent}.exe\";$"
             + vars.tokenVar()
             + ";$"
             + vars.serverVar()
@@ -168,18 +208,33 @@ final class OpenaevImplantCommandBuilder {
             + ";$"
             + vars.maxSizeVar()
             + ";"
-            + dlVar(cfg, "windows", arch.name())
-            + ";$wc=New-Object System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data) | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction Inbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;Start-Process -FilePath \"$location\\$filename\" -ArgumentList \"--uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant}\" -WindowStyle hidden;");
+            + dlVar("windows", arch.name())
+            + ";$wc=New-Object"
+            + " System.Net.WebClient;$data=$wc.DownloadData($url);[io.file]::WriteAllBytes($filename,$data)"
+            + " | Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV"
+            + " Inbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Inbound\" -Direction"
+            + " Inbound -Program \"$location\\$filename\" -Action Allow |"
+            + " Out-Null;Remove-NetFirewallRule -DisplayName \"Allow OpenAEV"
+            + " Outbound\";New-NetFirewallRule -DisplayName \"Allow OpenAEV Outbound\" -Direction"
+            + " Outbound -Program \"$location\\$filename\" -Action Allow | Out-Null;$proc=Start-Process"
+            + " -FilePath \"$location\\$filename\" -ArgumentList \"--uri $server --token $token"
+            + " --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id"
+            + " #{agent} --inject-id #{inject} --tenant-id #{tenant}\" -WindowStyle hidden -PassThru;"
+            + "if(-not $proc.WaitForExit("
+            + (timeoutSeconds * 1000L)
+            + ")){Stop-Process -Id $proc.Id -Force;exit 124};"
+            + "exit $proc.ExitCode;");
   }
 
   private static void buildGenericLinuxCommand(
       Endpoint.PLATFORM_ARCH arch,
-      OpenAEVConfig cfg,
       Map<String, String> commands,
-      CommandVars vars) {
+      CommandVars vars,
+      int timeoutSeconds) {
     commands.put(
         Endpoint.PLATFORM_TYPE.Linux.name() + "." + arch.name(),
-        "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"
+        "x=\"#{location}\";location=$(echo \"$x\" | sed"
+            + " \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"
             + vars.serverVar()
             + ";"
             + vars.tokenVar()
@@ -190,18 +245,26 @@ final class OpenaevImplantCommandBuilder {
             + ";"
             + vars.maxSizeVar()
             + ";curl -s -X GET "
-            + dlUri(cfg, "linux", arch.name())
-            + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant} &");
+            + dlUri("linux", arch.name())
+            + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri"
+            + " $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy"
+            + " $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant} & pid=$!;"
+            + "(sleep "
+            + timeoutSeconds
+            + ";if kill -0 $pid 2>/dev/null;then kill -TERM $pid 2>/dev/null;sleep 5;"
+            + "kill -KILL $pid 2>/dev/null;fi) & watchdog=$!;wait $pid 2>/dev/null;exit_code=$?;"
+            + "kill $watchdog 2>/dev/null;wait $watchdog 2>/dev/null;exit $exit_code");
   }
 
   private static void buildGenericMacOSCommand(
       Endpoint.PLATFORM_ARCH arch,
-      OpenAEVConfig cfg,
       Map<String, String> commands,
-      CommandVars vars) {
+      CommandVars vars,
+      int timeoutSeconds) {
     commands.put(
         Endpoint.PLATFORM_TYPE.MacOS.name() + "." + arch.name(),
-        "x=\"#{location}\";location=$(echo \"$x\" | sed \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"
+        "x=\"#{location}\";location=$(echo \"$x\" | sed"
+            + " \"s#/openaev-caldera-agent##\");filename=oaev-implant-#{inject}-agent-#{agent};"
             + vars.serverVar()
             + ";"
             + vars.tokenVar()
@@ -214,7 +277,14 @@ final class OpenaevImplantCommandBuilder {
                 : ";$") // TODO: Should find a way to test on an x86 mac if the diff is necessary
             + vars.maxSizeVar()
             + ";curl -s -X GET "
-            + dlUri(cfg, "macos", arch.name())
-            + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant} &");
+            + dlUri("macos", arch.name())
+            + " > $location/$filename;chmod +x $location/$filename;$location/$filename --uri"
+            + " $server --token $token --unsecured-certificate $unsecured_certificate --with-proxy"
+            + " $with_proxy --agent-id #{agent} --inject-id #{inject} --tenant-id #{tenant} & pid=$!;"
+            + "(sleep "
+            + timeoutSeconds
+            + ";if kill -0 $pid 2>/dev/null;then kill -TERM $pid 2>/dev/null;sleep 5;"
+            + "kill -KILL $pid 2>/dev/null;fi) & watchdog=$!;wait $pid 2>/dev/null;exit_code=$?;"
+            + "kill $watchdog 2>/dev/null;wait $watchdog 2>/dev/null;exit $exit_code");
   }
 }

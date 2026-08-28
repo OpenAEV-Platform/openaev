@@ -1,3 +1,5 @@
+import purify from 'dompurify';
+
 import { isNotEmptyField } from './utils';
 
 interface UserWithName {
@@ -87,6 +89,10 @@ export const capitalize = (text: string): string => {
   return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 };
 
+export const formatPrimitiveTypeLabel = (value: string): string => value
+  .replace(/[_-]/g, ' ')
+  .replace(/^./, c => c.toUpperCase());
+
 export const formatMacAddress = (mac: string): string => {
   const address = mac.toUpperCase();
   return address.match(/.{1,2}/g)?.join(':') || '-';
@@ -96,4 +102,27 @@ export const formatIp = (ip: string): string => {
   // IPv4 addresses are numeric, IPv6 hex digits are case-insensitive
   // Return as-is since IP addresses don't need case transformation
   return ip;
+};
+
+const HTML_ESCAPE_MAP: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  '\'': '&#39;',
+};
+
+/**
+ * Sanitizes a value about to be interpolated into an HTML string (e.g. a custom
+ * ApexCharts tooltip rendered via innerHTML), so user-controlled data (labels,
+ * names...) cannot break out of its text-node/attribute context and inject markup
+ * or event handlers.
+ *
+ * @param {unknown} value Value to sanitize (coerced to a string; `null`/`undefined`
+ * become an empty string).
+ * @returns {string} The escaped, sanitized string, safe to interpolate as HTML text.
+ */
+export const sanitizeHtml = (value: unknown): string => {
+  const escaped = String(value ?? '').replace(/[&<>"']/g, char => HTML_ESCAPE_MAP[char]);
+  return purify.sanitize(escaped);
 };

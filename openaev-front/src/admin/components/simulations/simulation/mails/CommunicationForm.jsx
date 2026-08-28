@@ -45,10 +45,7 @@ const CommunicationForm = ({ onSubmit, handleClose, initialValues }) => {
             name="communication_content"
             label={t('Content')}
             fullWidth={true}
-            style={{
-              marginTop: 20,
-              height: 250,
-            }}
+            style={{ marginTop: 20 }}
           />
           <FileField
             variant="standard"
@@ -62,6 +59,8 @@ const CommunicationForm = ({ onSubmit, handleClose, initialValues }) => {
           }}
           >
             <Button
+              variant="outlined"
+              color="primary"
               onClick={handleClose}
               style={{ marginRight: 10 }}
               disabled={submitting}
@@ -69,7 +68,8 @@ const CommunicationForm = ({ onSubmit, handleClose, initialValues }) => {
               {t('Cancel')}
             </Button>
             <Button
-              color="secondary"
+              variant="contained"
+              color="primary"
               type="submit"
               disabled={pristine || submitting}
             >

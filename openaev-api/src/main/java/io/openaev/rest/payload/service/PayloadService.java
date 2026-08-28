@@ -40,12 +40,15 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.enums.PresetDomain;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectIndexCleanupService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
-import io.openaev.service.ExpectationService;
 import io.openaev.service.UserService;
+import io.openaev.service.chaining.ChainingStepCleanupService;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
@@ -58,6 +61,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -78,16 +82,28 @@ public class PayloadService {
   private final UserService userService;
   private final DocumentService documentService;
   private final PayloadUtils payloadUtils;
+  private final ResultsMetricCollector resultsMetricCollector;
   private final DomainService domainService;
   private final TagService tagService;
-  private final ExpectationService expectationService;
+  private final InjectIndexCleanupService injectIndexCleanupService;
+  private final ChainingStepCleanupService chainingStepCleanupService;
+  private final InjectorContractService injectorContractService;
 
   private final PayloadMapper payloadMapper;
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
+    // A contract lives in its payload's tenant. findAllByPayloads is scoped only by the ambient
+    // TxCtx, which for a global (non-selector) request authorizes every tenant the caller can see -
+    // built-in payload injectors repeat across tenants, so the raw result can mix several tenants'
+    // rows. Narrow to the payload's own tenant before picking the reference injector and building
+    // the injector links, otherwise the contract (stamped on the payload's tenant) could reference
+    // another tenant's injector or fail on the injectors_injector_contracts FK.
+    String payloadTenantId = payload.getTenant().getId();
     List<Injector> injectors =
-        this.injectorRepository.findAllByPayloadsAndTenantId(true, payload.getTenant().getId());
+        this.injectorRepository.findAllByPayloads(true).stream()
+            .filter(injector -> payloadTenantId.equals(injector.getTenantId()))
+            .toList();
 
     Injector referenceInjector = injectors.isEmpty() ? null : injectors.getFirst();
     if (referenceInjector == null) {
@@ -157,6 +173,7 @@ public class PayloadService {
 
   private List<ContractElement> targetedAssetFields(String key, PayloadArgument payloadArgument) {
     ContractElement targetedAssetField = new ContractTargetedAsset(key, key);
+    targetedAssetField.setArgumentType(payloadArgument.getType());
 
     Map<String, String> targetPropertySelectorMap = new HashMap<>();
     for (ContractTargetedProperty property : ContractTargetedProperty.values()) {
@@ -195,7 +212,9 @@ public class PayloadService {
             "/img/icon-" + injector.getType() + ".png");
     ContractAsset assetField = assetField(Multiple);
     ContractAssetGroup assetGroupField = assetGroupField(Multiple);
-    ContractExpectations expectationsField = expectations(payload.getExpectations());
+    ContractExpectations expectationsField =
+        createContractExpectationsBasedOnPayload(
+            payload.getExpectations(), payload.getExpectedSecurityPlatforms());
     ContractDef builder = contractBuilder();
     builder.mandatoryGroup(assetField, assetGroupField);
 
@@ -209,79 +228,68 @@ public class PayloadService {
           .getArguments()
           .forEach(
               payloadArgument -> {
-                if (ArgumentType.TargetedAsset == payloadArgument.getType()) {
+                if (PrimitiveType.TargetedAsset == payloadArgument.getType()) {
                   List<ContractElement> targetedAssetsFields =
                       targetedAssetFields(payloadArgument.getKey(), payloadArgument);
                   targetedAssetsFields.forEach(builder::mandatory);
                 } else {
-                  builder.mandatory(
+                  ContractElement textField =
                       textField(
                           payloadArgument.getKey(),
                           payloadArgument.getKey(),
-                          payloadArgument.getDefaultValue()));
+                          payloadArgument.getDefaultValue());
+                  textField.setArgumentType(payloadArgument.getType());
+                  builder.mandatory(textField);
                 }
               });
     }
+    // A payload with no platforms must never crash contract building: Arrays.asList(null) throws an
+    // NPE, turning a bad/partial update into a 500. Treat a missing platform array as "no
+    // platforms".
+    Endpoint.PLATFORM_TYPE[] payloadPlatforms = payload.getPlatforms();
     return executableContract(
         contractConfig,
         contractId,
         Map.of(en, payload.getName(), fr, payload.getName()),
         builder.build(),
-        Arrays.asList(payload.getPlatforms()),
+        payloadPlatforms == null ? List.of() : Arrays.asList(payloadPlatforms),
         true,
         domains);
   }
 
-  private ContractExpectations expectations(InjectExpectation.EXPECTATION_TYPE[] expectationTypes) {
-    List<Expectation> predefined = new ArrayList<>();
+  private ContractExpectations createContractExpectationsBasedOnPayload(
+      BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes,
+      Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+          expectedSecurityPlatforms) {
+    Expectation preventionExpectation =
+        withExpectedSecurityPlatforms(
+            this.expectationBuilderService.buildPreventionExpectation(),
+            BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+            expectedSecurityPlatforms);
+    Expectation detectionExpectation =
+        withExpectedSecurityPlatforms(
+            this.expectationBuilderService.buildDetectionExpectation(),
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+            expectedSecurityPlatforms);
+    Expectation vulnerableExpectation =
+        withExpectedSecurityPlatforms(
+            this.expectationBuilderService.buildVulnerabilityExpectation(),
+            BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
+            expectedSecurityPlatforms);
+
     if (expectationTypes != null) {
-      for (InjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
+      for (BaseInjectExpectation.EXPECTATION_TYPE type : expectationTypes) {
         switch (type) {
-          case TEXT ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildTextExpectation()));
-          case DOCUMENT ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildDocumentExpectation()));
-          case ARTICLE ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildArticleExpectation()));
-          case CHALLENGE ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildChallengeExpectation()));
-          case MANUAL ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildManualExpectation()));
-          case PREVENTION ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildPreventionExpectation()));
-          case DETECTION ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildDetectionExpectation()));
-          case VULNERABILITY ->
-              predefined.add(
-                  withExpectedMultiSelectableFlag(
-                      this.expectationBuilderService.buildVulnerabilityExpectation()));
+          case DETECTION -> detectionExpectation.setPredefined(true);
+          case PREVENTION -> preventionExpectation.setPredefined(true);
+          case VULNERABILITY -> vulnerableExpectation.setPredefined(true);
           default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
         }
       }
     }
 
-    // Payload contracts are technical injects: available expectations are always the 3 standard
-    // technical types.
-    List<Expectation> available =
-        expectationService.buildAvailableExpectationsForTechnicalInject().stream()
-            .map(this::withExpectedMultiSelectableFlag)
-            .toList();
-
-    return expectationsField(predefined, available);
+    return expectationsField(
+        List.of(detectionExpectation, preventionExpectation, vulnerableExpectation));
   }
 
   public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
@@ -323,17 +331,49 @@ public class PayloadService {
    */
   private Expectation withExpectedMultiSelectableFlag(Expectation expectation) {
     expectation.setMultiSelectable(
-        InjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
+        BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
+    return expectation;
+  }
+
+  /**
+   * Applies the payload's optional expected security platform types to the predefined expectation
+   * of the given type. Absent / empty means "any platform" (legacy behaviour), so the expectation
+   * keeps its empty list.
+   */
+  private Expectation withExpectedSecurityPlatforms(
+      Expectation expectation,
+      BaseInjectExpectation.EXPECTATION_TYPE type,
+      Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+          expectedSecurityPlatforms) {
+    if (expectedSecurityPlatforms != null) {
+      List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expected = expectedSecurityPlatforms.get(type);
+      if (expected != null && !expected.isEmpty()) {
+        expectation.setExpectedSecurityPlatformTypes(new ArrayList<>(expected));
+      }
+    }
     return expectation;
   }
 
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
       @NotBlank final String payloadId) {
     Payload origin = this.payloadRepository.findById(payloadId).orElseThrow();
+    // Telemetry: one payload duplicated (community payload customization signal),
+    // counted only once the origin payload is known to exist.
+    resultsMetricCollector.recordPayloadDuplicated();
     Optional<InjectorContract> originInjectorContract =
         injectorContractRepository.findInjectorContractByPayload(origin);
 
-    Payload duplicated = payloadRepository.save(generateDuplicatedPayload(origin));
+    Payload duplicatedPayload = generateDuplicatedPayload(origin);
+    // A duplicate is a new manual payload: it is authored by the user performing the
+    // duplication. System flows without an authenticated user keep the author copied
+    // from the origin.
+    User duplicatingUser = userService.currentUserOrNull();
+    if (duplicatingUser != null) {
+      duplicatedPayload.setAuthorUser(duplicatingUser);
+      duplicatedPayload.setAuthorTeam(null);
+      duplicatedPayload.setAuthorOrganization(null);
+    }
+    Payload duplicated = payloadRepository.save(duplicatedPayload);
     InjectorContract injectorContract =
         this.synchroniseInjectorContractBasedOnPayload(
             duplicated,
@@ -381,6 +421,27 @@ public class PayloadService {
         NetworkTraffic duplicateNetworkTraffic = new NetworkTraffic();
         payloadUtils.duplicateCommonProperties(originNetworkTraffic, duplicateNetworkTraffic);
         yield duplicateNetworkTraffic;
+      }
+      case AI_ATTACK -> {
+        AiAttack originAiAttack = (AiAttack) Hibernate.unproxy(originalPayload);
+        AiAttack duplicateAiAttack = new AiAttack();
+        payloadUtils.duplicateCommonProperties(originAiAttack, duplicateAiAttack);
+        // duplicateCommonProperties already copies the scalar AiAttack fields; re-copy the
+        // mutable JSON-backed structures defensively so the duplicate never shares state with
+        // the origin within the same persistence context.
+        duplicateAiAttack.setMultiTurn(
+            Optional.ofNullable(originAiAttack.getMultiTurn())
+                .map(HashMap::new)
+                .orElseGet(HashMap::new));
+        duplicateAiAttack.setSuccessDetector(
+            Optional.ofNullable(originAiAttack.getSuccessDetector())
+                .map(HashMap::new)
+                .orElseGet(HashMap::new));
+        duplicateAiAttack.setConverters(
+            Optional.ofNullable(originAiAttack.getConverters())
+                .map(String[]::clone)
+                .orElseGet(() -> new String[0]));
+        yield duplicateAiAttack;
       }
     };
   }
@@ -462,9 +523,9 @@ public class PayloadService {
     fileDrop.setPlatforms(ALL_PLATFORMS);
     fileDrop.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
     fileDrop.setExpectations(
-        new InjectExpectation.EXPECTATION_TYPE[] {
-          InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-          InjectExpectation.EXPECTATION_TYPE.DETECTION
+        new BaseInjectExpectation.EXPECTATION_TYPE[] {
+          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
         });
 
     FileDrop saved = payloadRepository.save(fileDrop);
@@ -511,15 +572,15 @@ public class PayloadService {
     dynamicDnsResolutionPayload.setExecutionArch(Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
 
     PayloadArgument argument = new PayloadArgument();
-    argument.setType(ArgumentType.Text);
+    argument.setType(PrimitiveType.Text);
     argument.setKey(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY);
     argument.setDefaultValue("filigran.io");
     dynamicDnsResolutionPayload.setArguments(new ArrayList<>(List.of(argument)));
 
     dynamicDnsResolutionPayload.setExpectations(
-        new InjectExpectation.EXPECTATION_TYPE[] {
-          InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-          InjectExpectation.EXPECTATION_TYPE.DETECTION
+        new BaseInjectExpectation.EXPECTATION_TYPE[] {
+          BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+          BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
         });
 
     DnsResolution saved = payloadRepository.save(dynamicDnsResolutionPayload);
@@ -536,10 +597,33 @@ public class PayloadService {
     return saved;
   }
 
+  // Transactional so the payload delete and the chaining step sweep commit or roll back together:
+  // without it the deleteById commits first and a sweep failure would leave the ghost steps this
+  // cleanup exists to prevent. Same pattern as InjectorService.deleteInjector.
+  @Transactional(rollbackFor = Exception.class)
   public void delete(String payloadId) {
-    payloadRepository
-        .findById(payloadId)
-        .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
+    Payload payload =
+        payloadRepository
+            .findById(payloadId)
+            .orElseThrow(() -> new ElementNotFoundException("Payload not found: " + payloadId));
+    // Payload deletion cascades at the DB level to its injector contract and then to the injects
+    // (both FKs are ON DELETE CASCADE): de-index the doomed injects explicitly, no JPA lifecycle
+    // event fires for them. Chaining steps referencing that contract have no FK to cascade on
+    // (the contract is only a JSON snapshot in step_data), so inventory the doomed contract rows
+    // BEFORE the delete and sweep the orphaned step templates explicitly too. The inventory is
+    // grouped by tenant and each sweep stays scoped to its own tenant: today a payload backs at
+    // most one contract platform-wide (unique_injector_contract_payload), the grouping simply
+    // keeps this path correct if that 1:1 constraint is ever relaxed.
+    String tenantId = payload.getTenant().getId();
+    Map<String, List<String>> cascadeDeletedContractIdsPerTenant =
+        injectorContractService.findContractIdsByPayloadIdPerTenant(payloadId);
+    List<String> cascadeDeletedInjectIds =
+        injectIndexCleanupService.injectIdsByPayloadId(payloadId, tenantId);
     payloadRepository.deleteById(payloadId);
+    injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+    cascadeDeletedContractIdsPerTenant.forEach(
+        (contractTenantId, contractIds) ->
+            chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+                contractIds, contractTenantId));
   }
 }

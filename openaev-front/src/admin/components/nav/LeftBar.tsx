@@ -1,25 +1,23 @@
 import {
   DashboardOutlined,
   DescriptionOutlined,
-  DevicesOtherOutlined,
   DnsOutlined,
-  Groups3Outlined,
+  DomainOutlined,
+  ExtensionOutlined,
   GroupsOutlined,
-  HubOutlined,
   InsertChartOutlined,
+  KeyOutlined,
   LayersOutlined,
-  MovieFilterOutlined,
-  OnlinePredictionOutlined,
   PersonOutlined,
+  PhishingOutlined,
+  PlayCircleOutlineOutlined,
   RocketLaunchOutlined,
+  RouteOutlined,
   RowingOutlined,
-  SchoolOutlined,
-  SmartButtonOutlined,
-  TerminalOutlined,
-  Widgets,
 } from '@mui/icons-material';
 import {
   Binoculars,
+  FileChartOutline,
   NewspaperVariantMultipleOutline,
   PostOutline,
   SecurityNetwork,
@@ -30,14 +28,24 @@ import { useContext } from 'react';
 
 import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
 import { type LeftMenuEntries } from '../../../components/common/menu/leftmenu/leftmenu-model';
+import useAuth from '../../../utils/hooks/useAuth';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { isFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
 import settingsEntries from './config/settings.config';
+import LeftBarHeader from './LeftBarHeader';
 import TenantSwitcher from './LeftBarTenantSwitcher';
 
 const LeftBar = () => {
   const ability = useContext(AbilityContext);
+  const { userTenants } = useAuth();
+  // The tenant switcher only appears when the user can switch (more than one
+  // tenant). Passing no headerElement in the single-tenant case keeps the menu
+  // clean and avoids an orphan divider above the first entry (Home).
+  const hasTenantSwitcher = (userTenants ?? []).length > 1;
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+
   const entries: LeftMenuEntries[] = [
     {
       userRight: true,
@@ -55,6 +63,12 @@ const LeftBar = () => {
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DASHBOARDS),
         },
         {
+          path: `/admin/reporting`,
+          icon: () => (<FileChartOutline />),
+          label: 'Reporting',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.REPORTINGS),
+        },
+        {
           path: '/admin/findings',
           icon: () => (<Binoculars />),
           label: 'Findings',
@@ -67,21 +81,27 @@ const LeftBar = () => {
       items: [
         {
           path: `/admin/scenarios`,
-          icon: () => (<MovieFilterOutlined />),
+          icon: () => (<RouteOutlined />),
           label: 'Scenarios',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
+          userRight: true,
         },
         {
           path: `/admin/simulations`,
-          icon: () => (<HubOutlined />),
+          icon: () => (<PlayCircleOutlineOutlined />),
           label: 'Simulations',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
+          userRight: true,
         },
         {
           path: `/admin/atomic_testings`,
           icon: () => (<Target />),
           label: 'Atomic testings',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT),
+          userRight: true,
+        },
+        {
+          path: `/admin/threat-arsenal`,
+          icon: () => (<LayersOutlined />),
+          label: 'Threat Arsenal',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
         },
       ],
     },
@@ -89,58 +109,64 @@ const LeftBar = () => {
       userRight: true,
       items: [
         {
-          path: `/admin/threat-arsenal`,
-          icon: () => (<LayersOutlined />),
-          label: 'Threat Arsenal',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
-        },
-        {
           path: `/admin/assets`,
           icon: () => (<DnsOutlined />),
           label: 'Assets',
-          href: 'assets',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS) || ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
-          subItems: [
-            {
-              link: '/admin/assets/endpoints',
-              label: 'Endpoints',
-              icon: () => (<DevicesOtherOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
-            },
-            {
-              link: '/admin/assets/asset_groups',
-              label: 'Asset groups',
-              icon: () => (<SelectGroup fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
-            },
-            {
-              link: '/admin/assets/security_platforms',
-              label: 'Security platforms',
-              icon: () => (<SecurityNetwork fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
-            },
-          ],
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
+        },
+        {
+          path: `/admin/asset_groups`,
+          icon: () => (<SelectGroup />),
+          label: 'Asset groups',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.ASSETS),
+        },
+        ...isCredentialAssetEnabled
+          ? [{
+              path: `/admin/credentials`,
+              icon: () => (<KeyOutlined />),
+              label: 'Credentials',
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CREDENTIALS),
+            }]
+          : [],
+      ],
+    },
+    {
+      userRight: true,
+      items: [
+        {
+          path: `/admin/persons`,
+          icon: () => (<PersonOutlined />),
+          label: 'Persons',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
         },
         {
           path: `/admin/teams`,
-          icon: () => (<Groups3Outlined />),
-          label: 'People',
-          href: 'teams',
+          icon: () => (<GroupsOutlined />),
+          label: 'Teams',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
-          subItems: [
-            {
-              link: '/admin/teams/players',
-              label: 'Players',
-              icon: () => (<PersonOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
-            },
-            {
-              link: '/admin/teams/teams',
-              label: 'Teams',
-              icon: () => (<GroupsOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TEAMS_AND_PLAYERS),
-            },
-          ],
+        },
+        {
+          path: `/admin/organizations`,
+          icon: () => (<DomainOutlined />),
+          label: 'Organizations',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
+        },
+      ],
+    },
+    {
+      userRight: true,
+      items: [
+        {
+          path: `/admin/integrations`,
+          icon: () => (<ExtensionOutlined />),
+          label: 'Integrations',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
+        },
+        {
+          path: `/admin/security_platforms`,
+          icon: () => (<SecurityNetwork />),
+          label: 'Security platforms',
+          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS),
         },
         {
           path: `/admin/components`,
@@ -149,8 +175,8 @@ const LeftBar = () => {
           href: 'components',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.DOCUMENTS)
             || ability.can(ACTIONS.ACCESS, SUBJECTS.CHANNELS)
-            || ability.can(ACTIONS.ACCESS, SUBJECTS.CHALLENGES)
-            || ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED),
+            || ability.can(ACTIONS.ACCESS, SUBJECTS.PHISHING)
+            || ability.can(ACTIONS.ACCESS, SUBJECTS.CHALLENGES),
           subItems: [
             {
               link: '/admin/components/documents',
@@ -165,54 +191,16 @@ const LeftBar = () => {
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CHANNELS),
             },
             {
+              link: '/admin/components/phishing',
+              label: 'Phishing',
+              icon: () => (<PhishingOutlined fontSize="small" />),
+              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.PHISHING),
+            },
+            {
               link: '/admin/components/challenges',
               label: 'Challenges',
               icon: () => (<RowingOutlined fontSize="small" />),
               userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.CHALLENGES),
-            },
-            {
-              link: '/admin/components/lessons',
-              label: 'Lessons learned',
-              icon: () => (<SchoolOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED),
-            },
-          ],
-        },
-      ],
-    },
-    {
-      userRight: true,
-      items: [
-        {
-          path: `/admin/integrations`,
-          icon: () => (<DnsOutlined />),
-          label: 'Integrations',
-          href: 'integrations',
-          userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
-          subItems: [
-            {
-              link: '/admin/integrations/catalog',
-              label: 'Catalog',
-              icon: () => (<Widgets fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
-            },
-            {
-              link: '/admin/integrations/injectors',
-              label: 'Injectors',
-              icon: () => (<SmartButtonOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
-            },
-            {
-              link: '/admin/integrations/collectors',
-              label: 'Collectors',
-              icon: () => (<OnlinePredictionOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
-            },
-            {
-              link: '/admin/integrations/executors',
-              label: 'Executors',
-              icon: () => (<TerminalOutlined fontSize="small" />),
-              userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS),
             },
           ],
         },
@@ -243,7 +231,8 @@ const LeftBar = () => {
     <LeftMenu
       entries={entries}
       bottomEntries={bottomEntries}
-      headerElement={(navOpen: boolean) => <TenantSwitcher navOpen={navOpen} />}
+      logoHeader={(navOpen: boolean) => <LeftBarHeader navOpen={navOpen} />}
+      headerElement={hasTenantSwitcher ? (navOpen: boolean) => <TenantSwitcher navOpen={navOpen} /> : undefined}
     />
   );
 };

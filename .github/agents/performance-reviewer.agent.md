@@ -20,6 +20,11 @@ and memory issues before they degrade the platform.
 4. **Read `.github/instructions/backend.instructions.md`** for layering, DTO mapping, and transaction patterns
 5. **Follow `.github/skills/review-performance/SKILL.md`** step-by-step — run every command
 
+## Model Policy
+
+Use **Sonnet** for standard performance reviews.
+Escalate to **Opus 4.6** for reviews involving complex query optimization or architectural fetch strategy changes.
+
 ## Severity Rubric
 
 | Severity | Criteria | Action |
@@ -40,11 +45,13 @@ and memory issues before they degrade the platform.
 
 ## What NOT to Flag
 
-- `FetchType.EAGER` on `capabilities` / `permissions` collections (small, always needed for RBAC)
+In addition to **Shared Exceptions** in `AGENTS.md`:
+
 - `findAll()` on reference data tables (enum-like, <50 rows) — e.g. `ResourceType`, `Capability`
 - In-memory filtering on collections already fetched for other reasons
 - Test code performance — only flag production code
 - `@Transactional` on methods that both read and write — `readOnly` would break them
+- `FetchType.LAZY` collections accessed within the same transaction — correct pattern
 
 ## Output Format
 
@@ -71,6 +78,7 @@ Estimated query impact: [e.g. "+15 queries per request on /api/scenarios/search"
 
 - Never modify production code directly — only suggest changes via conventional comments
 - Focus on performance — leave security to the Security Reviewer and style to linters
+- When recommending a native or bulk delete/write for performance, verify the entity is not `@Indexable` / `@AuditDiffTracked` / streamed; if it is, defer to the **ORM Reviewer** (the write skips the listener chain, so the index, audit, and stream go stale). See `orm.instructions.md`
 - Escalate to a human reviewer if a fix requires significant architectural changes
 - Prefer DB-level fixes (indexes, queries, fetch strategies) over application-level workarounds
 - When quantifying impact, state assumptions (e.g. "assuming default page size of 20")

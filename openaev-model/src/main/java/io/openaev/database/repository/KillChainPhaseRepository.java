@@ -5,7 +5,9 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -19,4 +21,15 @@ public interface KillChainPhaseRepository
 
   Optional<KillChainPhase> findByKillChainNameAndShortName(
       @NotNull String killChainName, @NotNull String shortName);
+
+  // The database unique key is (phase_stix_id, tenant_id): upserts must match on the STIX id
+  // first, otherwise a renamed phase (same STIX id, new short name) is treated as a new row and
+  // violates the constraint. The Hibernate tenant filter scopes this to the current tenant.
+  Optional<KillChainPhase> findByStixId(@NotNull String stixId);
+
+  @Query(
+      "SELECT DISTINCT kcp FROM Inject i JOIN i.injectorContract ic"
+          + " JOIN ic.attackPatterns ap JOIN ap.killChainPhases kcp"
+          + " WHERE i.exercise.id = :exerciseId")
+  List<KillChainPhase> findDistinctByExerciseId(@Param("exerciseId") String exerciseId);
 }

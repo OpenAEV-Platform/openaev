@@ -3,13 +3,20 @@ package io.openaev.service;
 import static io.openaev.database.model.Filters.isEmptyFilterGroup;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static java.time.Instant.now;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.specification.EndpointSpecification;
+import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.rest.asset_group.form.AssetGroupBulkProcessingInput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.schema.PropertySchema;
+import io.openaev.schema.SchemaUtils;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.AssetGroupMapper;
 import jakarta.validation.constraints.NotBlank;
@@ -19,10 +26,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.Hibernate;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 @RequiredArgsConstructor
 @Service
@@ -33,6 +42,7 @@ public class AssetGroupService {
   private final EndpointService endpointService;
   private final TagRuleService tagRuleService;
   private final AssetGroupMapper assetGroupMapper;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
 
   // -- ASSET GROUP --
 
@@ -117,6 +127,54 @@ public class AssetGroupService {
     this.assetGroupRepository.deleteById(assetGroupId);
   }
 
+  /**
+   * Bulk delete of asset groups, either from an explicit list of ids or from a search input
+   * (select-all with optional exclusions).
+   *
+   * <p>Deliberately NOT transactional as a whole: the scope is resolved in a short read
+   * transaction, then asset groups are deleted in small independent chunks (with deadlock retry) so
+   * the request never holds row locks against concurrent writers for its whole duration.
+   *
+   * @param input the bulk processing input (ids or search input, plus ids to ignore)
+   * @return the ids of the deleted asset groups
+   */
+  public List<String> bulkDeleteAssetGroups(@NotNull final AssetGroupBulkProcessingInput input) {
+    if ((CollectionUtils.isEmpty(input.getAssetGroupIdsToProcess())
+            && input.getSearchPaginationInput() == null)
+        || (!CollectionUtils.isEmpty(input.getAssetGroupIdsToProcess())
+            && input.getSearchPaginationInput() != null)) {
+      throw new BadRequestException(
+          "Either asset_group_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+    }
+    List<String> assetGroupIdsToDelete =
+        bulkDeleteExecutor.resolveInTransaction(
+            () -> {
+              Specification<AssetGroup> specification;
+              if (input.getSearchPaginationInput() != null) {
+                // Same specification chain as the list search (filter group + text search), so the
+                // deletion scope matches exactly what the user sees in the list.
+                specification =
+                    FilterUtilsJpa.<AssetGroup>computeFilterGroupJpa(
+                            input.getSearchPaginationInput().getFilterGroup())
+                        .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+              } else {
+                specification = SpecificationUtils.hasIdIn(input.getAssetGroupIdsToProcess());
+              }
+              if (!CollectionUtils.isEmpty(input.getAssetGroupIdsToIgnore())) {
+                List<String> idsToIgnore = input.getAssetGroupIdsToIgnore();
+                specification =
+                    specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+              }
+              return this.assetGroupRepository.findAll(specification).stream()
+                  .map(AssetGroup::getId)
+                  .toList();
+            });
+    return bulkDeleteExecutor.deleteInChunks(
+        "asset groups",
+        assetGroupIdsToDelete,
+        chunk -> this.assetGroupRepository.deleteAll(this.assetGroupRepository.findAllById(chunk)));
+  }
+
   public AssetGroup createOrUpdateAssetGroupWithoutDynamicAssets(AssetGroup assetGroup) {
     return this.assetGroupRepository.save(assetGroup);
   }
@@ -125,20 +183,67 @@ public class AssetGroupService {
 
   @Transactional(readOnly = true)
   public List<Asset> assetsFromAssetGroup(@NotBlank final String assetGroupId) {
-    AssetGroup assetGroup = this.assetGroup(assetGroupId);
+    return assetsFromAssetGroup(this.assetGroup(assetGroupId));
+  }
+
+  /**
+   * Same as {@link #assetsFromAssetGroup(String)} but for a group whose dynamic assets are already
+   * resolved - avoids re-running the (potentially expensive) dynamic resolution.
+   */
+  public List<Asset> assetsFromAssetGroup(@NotNull final AssetGroup assetGroup) {
     List<Asset> assets = new ArrayList<>();
-    List<String> assetIds = new ArrayList<>();
+    // Dedup on getId() (not on the instance) because Hibernate proxies and unproxied
+    // entities of the same row would otherwise both pass an identity-based check.
+    Set<String> assetIds = new HashSet<>();
     Stream.concat(assetGroup.getAssets().stream(), assetGroup.getDynamicAssets().stream())
         .forEach(
             asset -> {
-              // We have to call getId() because some assets are returned null because of Hibernate
-              // unproxy
-              if (!assetIds.contains(asset.getId())) {
+              if (assetIds.add(asset.getId())) {
                 assets.add(asset);
-                assetIds.add(asset.getId());
               }
             });
     return assets;
+  }
+
+  /**
+   * Resolve every asset group the given asset belongs to: static membership (the asset is
+   * explicitly listed in the group) plus dynamic membership (the group's dynamic filter matches the
+   * asset). Dynamic membership is checked with an id-constrained query per dynamic group so the
+   * potentially large dynamic member lists are never materialized.
+   */
+  @Transactional(readOnly = true)
+  public List<AssetGroup> assetGroupsOfAsset(@NotNull final Asset asset) {
+    Map<String, AssetGroup> assetGroupsById = new LinkedHashMap<>();
+    asset.getAssetGroups().forEach(group -> assetGroupsById.putIfAbsent(group.getId(), group));
+    fromIterable(this.assetGroupRepository.findAll()).stream()
+        .filter(group -> !assetGroupsById.containsKey(group.getId()))
+        .filter(group -> !isEmptyFilterGroup(group.getDynamicFilter()))
+        .filter(group -> isAssetInDynamicGroup(asset, group))
+        .forEach(group -> assetGroupsById.putIfAbsent(group.getId(), group));
+    return new ArrayList<>(assetGroupsById.values());
+  }
+
+  /** True when the group's dynamic filter matches the given asset (id-constrained query). */
+  private boolean isAssetInDynamicGroup(
+      @NotNull final Asset asset, @NotNull final AssetGroup assetGroup) {
+    if (Hibernate.unproxy(asset) instanceof Endpoint) {
+      Specification<Endpoint> filterSpecification =
+          computeFilterGroupJpa(assetGroup.getDynamicFilter());
+      Specification<Endpoint> specification =
+          filterSpecification
+              .and(EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints())
+              .and((root, query, cb) -> cb.equal(root.get("id"), asset.getId()));
+      return !this.endpointService.endpoints(specification).isEmpty();
+    }
+    // Same eager key validation as resolveDynamicNonEndpointAssets: endpoint-only filter keys
+    // cannot match non-endpoint assets and would fail the base-Asset query.
+    if (!isFilterResolvableForBaseAssets(assetGroup.getDynamicFilter())) {
+      return false;
+    }
+    Specification<Asset> filterSpecification = computeFilterGroupJpa(assetGroup.getDynamicFilter());
+    Specification<Asset> specification =
+        filterSpecification.and((root, query, cb) -> cb.equal(root.get("id"), asset.getId()));
+    return !this.assetService.assets(specification).isEmpty();
   }
 
   private List<AssetGroup> computeDynamicAssets(@NotNull final List<AssetGroup> assetGroups) {
@@ -152,12 +257,12 @@ public class AssetGroupService {
           if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
             Specification<Endpoint> specification =
                 computeFilterGroupJpa(assetGroup.getDynamicFilter());
-            List<Asset> assets =
-                this.endpointService.endpoints(specification).stream()
-                    .map(Asset.class::cast)
-                    .distinct()
-                    .toList();
-            assetGroup.setDynamicAssets(assets);
+            List<Asset> assets = new ArrayList<>();
+            this.endpointService.endpoints(specification).stream()
+                .map(Asset.class::cast)
+                .forEach(assets::add);
+            assets.addAll(resolveDynamicNonEndpointAssets(assetGroup.getDynamicFilter()));
+            assetGroup.setDynamicAssets(assets.stream().distinct().toList());
           }
         });
     return assetGroups;
@@ -170,13 +275,53 @@ public class AssetGroupService {
     Specification<Endpoint> specification = computeFilterGroupJpa(assetGroup.getDynamicFilter());
     Specification<Endpoint> specification2 =
         EndpointSpecification.findEndpointsForInjectionOrAgentlessEndpoints();
-    List<Asset> assets =
-        this.endpointService.endpoints(specification.and(specification2)).stream()
-            .map(Asset.class::cast)
-            .distinct()
-            .toList();
-    assetGroup.setDynamicAssets(assets);
+    List<Asset> assets = new ArrayList<>();
+    this.endpointService.endpoints(specification.and(specification2)).stream()
+        .map(Asset.class::cast)
+        .forEach(assets::add);
+    assets.addAll(resolveDynamicNonEndpointAssets(assetGroup.getDynamicFilter()));
+    assetGroup.setDynamicAssets(assets.stream().distinct().toList());
     return assetGroup;
+  }
+
+  /**
+   * Resolve the NON-endpoint assets (AI targets, identities, cloud / web / network / generic
+   * assets, ...) matching a dynamic filter. The endpoint-scoped resolution above only returns
+   * {@code Endpoint} rows, so without this a dynamic group such as {@code Category = AI_TARGET}
+   * would always be empty. The endpoint injectability constraint (agent / agentless) does not apply
+   * to non-endpoint assets, and {@code Endpoint} rows are excluded here to avoid duplicating the
+   * endpoint branch. When the filter references a field that does not exist for the queried assets
+   * (e.g. an endpoint-only {@code platform} rule) the query cannot resolve, which simply means the
+   * group targets no non-endpoint assets and contributes none.
+   */
+  private List<Asset> resolveDynamicNonEndpointAssets(
+      @NotNull final Filters.FilterGroup dynamicFilter) {
+    // The specification is lazy: an unresolvable filter key (e.g. an endpoint-only
+    // "platform" rule) only throws inside the repository call, which marks the
+    // surrounding transaction rollback-only BEFORE the catch below runs - killing
+    // startup when the starter pack seeds endpoint-scoped dynamic groups on a fresh
+    // database. Validate the keys eagerly instead: subtype-only keys cannot match
+    // non-endpoint assets anyway, so such groups simply contribute none.
+    if (!isFilterResolvableForBaseAssets(dynamicFilter)) {
+      return List.of();
+    }
+    // No catch here on purpose: a repository failure inside an active transaction has already
+    // marked it rollback-only, so swallowing the exception would only defer the failure to an
+    // opaque UnexpectedRollbackException at commit. The eager key validation above is the guard.
+    Specification<Asset> filterSpec = computeFilterGroupJpa(dynamicFilter);
+    Specification<Asset> nonEndpoint =
+        (root, query, cb) -> cb.notEqual(root.get("type"), AssetType.Values.ENDPOINT_TYPE);
+    return this.assetService.assets(filterSpec.and(nonEndpoint));
+  }
+
+  /** True when every filter key is a filterable property of the base {@link Asset} type. */
+  private boolean isFilterResolvableForBaseAssets(final Filters.FilterGroup dynamicFilter) {
+    Set<String> filterableKeys =
+        SchemaUtils.getFilterableProperties(SchemaUtils.schema(Asset.class)).stream()
+            .map(PropertySchema::getJsonName)
+            .collect(Collectors.toSet());
+    return Optional.ofNullable(dynamicFilter.getFilters()).orElse(List.of()).stream()
+        .allMatch(filter -> filterableKeys.contains(filter.getKey()));
   }
 
   public List<FilterUtilsJpa.Option> getOptionsByNameLinkedToFindings(
@@ -212,7 +357,15 @@ public class AssetGroupService {
                 group -> group,
                 group ->
                     this.assetsFromAssetGroup(group.getId()).stream()
-                        .map(Endpoint.class::cast)
+                        // A group may now resolve non-endpoint assets (e.g. AI targets); this
+                        // endpoint-scoped view only keeps the endpoints. Unproxy first: a lazy
+                        // proxy typed as Asset would fail the instanceof for a real endpoint.
+                        .map(
+                            asset ->
+                                Hibernate.unproxy(asset) instanceof Endpoint endpoint
+                                    ? endpoint
+                                    : null)
+                        .filter(Objects::nonNull)
                         .toList()));
   }
 

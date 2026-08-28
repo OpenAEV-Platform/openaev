@@ -6,6 +6,7 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.Tenant;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegrationFactory;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -37,8 +38,8 @@ public class SentinelOneExecutorConfigurationMigrationTest {
       url = "sentinelOne_url",
       apiKey = "sentinelOne_api_key",
       apiRegisterInterval = 1234,
+      cleanImplantCron = "0 0 4 * * ?",
       accountId = "so_acct_id",
-      cleanImplantInterval = 4321,
       apiBatchExecutionActionPagination = 5678,
       windowsScriptId = "so_windows_script_id",
       unixScriptId = "so_unix_script_id",
@@ -66,7 +67,7 @@ public class SentinelOneExecutorConfigurationMigrationTest {
                   SentinelOneExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      sentinelOneExecutorConfigurationMigration.migrate();
+      sentinelOneExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -90,7 +91,7 @@ public class SentinelOneExecutorConfigurationMigrationTest {
                   SentinelOneExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      sentinelOneExecutorConfigurationMigration.migrate();
+      sentinelOneExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -137,8 +138,8 @@ public class SentinelOneExecutorConfigurationMigrationTest {
       url = "sentinelOne_url",
       apiKey = "sentinelOne_api_key",
       apiRegisterInterval = 1234,
+      cleanImplantCron = "0 0 4 * * ?",
       accountId = "so_acct_id",
-      cleanImplantInterval = 4321,
       apiBatchExecutionActionPagination = 5678,
       windowsScriptId = "so_windows_script_id",
       unixScriptId = "so_unix_script_id",
@@ -155,27 +156,22 @@ public class SentinelOneExecutorConfigurationMigrationTest {
     @Autowired private CatalogConnectorComposer catalogConnectorComposer;
 
     @Test
-    @DisplayName("Resulting instance is stopped")
-    public void whenConfigIsEnabled_resultingInstanceIsStopped() throws Exception {
+    @DisplayName("No instance is seeded")
+    public void whenConfigIsDisabled_noInstanceIsSeeded() throws Exception {
       catalogConnectorComposer
           .forCatalogConnector(
               CatalogConnectorFixture.createCatalogConnectorWithClassName(
                   SentinelOneExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      sentinelOneExecutorConfigurationMigration.migrate();
+      sentinelOneExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
               SentinelOneExecutorIntegrationFactory.class.getCanonicalName());
       assertThat(connector).isPresent();
-
-      ConnectorInstancePersisted instance =
-          connectorInstanceService.findAllByCatalogConnector(connector.get()).getFirst();
-
-      assertThat(instance).isInstanceOf(ConnectorInstancePersisted.class);
-      assertThat(instance.getRequestedStatus())
-          .isEqualTo(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+      assertThat(connector.get().isPropertiesMigrated()).isTrue();
+      assertThat(connectorInstanceService.findAllByCatalogConnector(connector.get())).isEmpty();
     }
   }
 }

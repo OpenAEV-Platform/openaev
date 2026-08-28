@@ -47,6 +47,8 @@ public class OpenAEVConfig {
   @Value("${openbas.application-license:${openaev.application-license:}}")
   private String applicationLicense;
 
+  @JsonIgnore private RunMode runMode = RunMode.NORMAL;
+
   @JsonProperty("application_base_url")
   @Value("${openbas.base-url:${openaev.base-url:#{null}}}")
   private String baseUrl;
@@ -119,6 +121,23 @@ public class OpenAEVConfig {
   @JsonIgnore
   @Value("${openbas.cookie-secure:${openaev.cookie-secure:false}}")
   private boolean cookieSecure;
+
+  /**
+   * Idle timeout surfaced to the frontend session lock screen (0 = disabled). The server-side
+   * rolling timeout is {@code server.servlet.session.timeout}.
+   */
+  @JsonIgnore
+  @Value("${openbas.session-idle-timeout:${openaev.session-idle-timeout:0}}")
+  private java.time.Duration sessionIdleTimeout;
+
+  /**
+   * When true, the session cookie carries no Expires attribute and dies when the browser closes
+   * (the server-side timeout still applies). When false, the cookie persists for the full session
+   * timeout so users stay logged in across browser restarts.
+   */
+  @JsonIgnore
+  @Value("${openbas.session-cookie:${openaev.session-cookie:false}}")
+  private boolean sessionCookie;
 
   @JsonProperty("application_agent_url")
   @Value("${openbas.agent-url:${openaev.agent-url:#{null}}}")

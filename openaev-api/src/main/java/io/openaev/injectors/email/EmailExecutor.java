@@ -8,15 +8,19 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
+import io.openaev.expectation.Expectation;
+import io.openaev.expectation.ManualExpectation;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.model.ExecutionProcess;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class EmailExecutor extends Injector {
@@ -82,12 +86,26 @@ public class EmailExecutor extends Injector {
         });
   }
 
+  /**
+   * Builds a non-platform recipient for a raw email address (e.g. one mapped from an upstream
+   * finding in a chaining workflow). The wrapped {@link User} is transient (never persisted): it
+   * carries a generated id - so execution traces can reference it - and the target address. Such
+   * recipients have no platform account, so encryption/PGP and player-specific template variables
+   * do not apply to them.
+   */
+  private ExecutionContext buildSyntheticRecipient(String email) {
+    User user = new User();
+    user.setId(UUID.randomUUID().toString());
+    user.setEmail(email);
+    return new ExecutionContext(user, List.of("Recipients"));
+  }
+
   @Override
   public ExecutionProcess process(
       @NotNull final Execution execution, @NotNull final ExecutableInject injection)
       throws Exception {
     Inject inject = injection.getInjection().getInject();
-    EmailContent content = contentConvert(injection, EmailContent.class);
+    EmailContent content = injectExpectationService.contentConvert(injection, EmailContent.class);
     List<Document> documents =
         inject.getDocuments().stream()
             .filter(InjectDocument::isAttached)
@@ -98,8 +116,29 @@ public class EmailExecutor extends Injector {
     String subject = content.getSubject();
     String message = content.buildMessage(injection, this.context.getOpenAEVConfig().getBaseUrl());
     boolean mustBeEncrypted = content.isEncrypted();
-    // Resolve the attachments only once
-    List<ExecutionContext> users = injection.getUsers();
+    // Recipients come from the inject's audience (team-resolved players) and/or raw addresses
+    // mapped
+    // into the "recipients" content field by a chaining MAPPER (e.g. an upstream "email" finding).
+    // Raw addresses are delivered to as synthetic, non-platform recipients so a finding can drive
+    // an
+    // email without a team.
+    List<ExecutionContext> users = new ArrayList<>(injection.getUsers());
+    List<String> manualRecipients = content.getParsedRecipients();
+    if (!manualRecipients.isEmpty()) {
+      Set<String> existingEmails =
+          users.stream()
+              .map(uc -> uc.getUser() != null ? uc.getUser().getEmail() : null)
+              .filter(Objects::nonNull)
+              .map(email -> email.toLowerCase())
+              .collect(Collectors.toSet());
+      for (String address : manualRecipients) {
+        if (existingEmails.add(address.toLowerCase())) {
+          users.add(buildSyntheticRecipient(address));
+        }
+      }
+      // Raw addresses have no platform account / PGP key, so encryption cannot apply to them.
+      mustBeEncrypted = false;
+    }
     if (users.isEmpty()) {
       throw new UnsupportedOperationException("Email needs at least one user");
     }

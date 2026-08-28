@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdSerializer;
+import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.stix.objects.DomainObject;
 import io.openaev.stix.objects.constants.CommonProperties;
 import io.openaev.stix.objects.constants.ObjectTypes;
@@ -13,15 +14,19 @@ import io.openaev.stix.parsing.StixDomainObjectConvertible;
 import io.openaev.stix.types.Identifier;
 import io.openaev.stix.types.StixString;
 import io.openaev.stix.types.Timestamp;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
+import org.hibernate.annotations.BatchSize;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -62,6 +67,19 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
     NDR,
     @JsonProperty("ISPM")
     ISPM,
+    // Email security (secure email gateways / anti-phishing) - fulfills the PREVENTION and
+    // DETECTION expectations carried by phishing injector contracts.
+    @JsonProperty("EMAIL_SECURITY")
+    EMAIL_SECURITY,
+    // AI defense platforms (LLM firewalls / guardrails / AI gateways)
+    @JsonProperty("LLM_FIREWALL")
+    LLM_FIREWALL,
+    @JsonProperty("AI_GATEWAY")
+    AI_GATEWAY,
+    // Vulnerability assessment tools (e.g. the Nuclei injector) that fulfill
+    // VULNERABILITY expectations themselves and appear as the verdict source.
+    @JsonProperty("VULNERABILITY_SCANNER")
+    VULNERABILITY_SCANNER,
   }
 
   @Queryable(filterable = true, sortable = true)
@@ -78,6 +96,44 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
       fetch = FetchType.LAZY)
   @JsonProperty("security_platform_traces")
   private List<InjectExpectationTrace> traces;
+
+  /**
+   * Collectors currently declaring this security platform as theirs (the FK is {@code ON DELETE SET
+   * NULL}, so this list empties when the collector is removed). This is the authoritative "managed
+   * by a collector" signal: {@code asset_external_reference} is set at creation and never cleared,
+   * so it must not be used to decide whether the platform is still read-only.
+   */
+  @ArraySchema(
+      schema =
+          @Schema(
+              description = "IDs of the collectors currently managing this security platform",
+              implementation = String.class))
+  @OneToMany(mappedBy = "securityPlatform", fetch = FetchType.LAZY)
+  @BatchSize(size = 1000)
+  @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonProperty("security_platform_collectors")
+  @EqualsAndHashCode.Exclude
+  @ToString.Exclude
+  private List<Collector> collectors = new ArrayList<>();
+
+  /**
+   * Injectors currently declaring this security platform as theirs (e.g. Nuclei registering itself
+   * as a VULNERABILITY_SCANNER at startup). Same lifecycle contract as {@link #collectors}: the FK
+   * is {@code ON DELETE SET NULL}, so this list empties when the injector is deleted from the
+   * catalog, and the UI combines both lists into its "managed, keep read-only" signal (#7063).
+   */
+  @ArraySchema(
+      schema =
+          @Schema(
+              description = "IDs of the injectors currently managing this security platform",
+              implementation = String.class))
+  @OneToMany(mappedBy = "securityPlatform", fetch = FetchType.LAZY)
+  @BatchSize(size = 1000)
+  @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonProperty("security_platform_injectors")
+  @EqualsAndHashCode.Exclude
+  @ToString.Exclude
+  private List<Injector> injectors = new ArrayList<>();
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "security_platform_logo_light")
@@ -96,6 +152,26 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
   private final ResourceType resourceType = ResourceType.SECURITY_PLATFORM;
+
+  /**
+   * A Security Platform always belongs to the SECURITY_PLATFORM asset category; its subcategory
+   * mirrors the platform type (EDR / SIEM / ...) so it shows up consistently in the inventory and
+   * filters.
+   */
+  @PrePersist
+  @PreUpdate
+  public void applySecurityPlatformDefaults() {
+    if (this.getCategory() == null) {
+      this.setCategory(AssetCategory.SECURITY_PLATFORM);
+    }
+    if (this.getSubcategory() == null && this.securityPlatformType != null) {
+      try {
+        this.setSubcategory(AssetSubCategory.valueOf(this.securityPlatformType.name()));
+      } catch (IllegalArgumentException ignored) {
+        // No matching subcategory for this platform type; leave it unset.
+      }
+    }
+  }
 
   public SecurityPlatform() {}
 

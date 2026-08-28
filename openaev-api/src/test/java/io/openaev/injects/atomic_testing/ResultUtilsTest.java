@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -57,29 +57,29 @@ class ResultUtilsTest extends IntegrationTest {
     List<RawInjectExpectationIndexing> expectations =
         List.of(
             createDefaultInjectExpectation(
-                InjectExpectation.EXPECTATION_TYPE.PREVENTION.toString(), 100.0, 100.0),
+                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.toString(), 100.0, 100.0),
             createDefaultInjectExpectation(
-                InjectExpectation.EXPECTATION_TYPE.DETECTION.toString(), 100.0, 100.0),
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.toString(), 100.0, 100.0),
             createDefaultInjectExpectation(
-                InjectExpectation.EXPECTATION_TYPE.VULNERABILITY.toString(), 100.0, 100.0),
+                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.toString(), 100.0, 100.0),
             createDefaultInjectExpectation(
-                InjectExpectation.EXPECTATION_TYPE.MANUAL.toString(), 0.0, 100.0),
+                BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.toString(), 0.0, 100.0),
             createDefaultInjectExpectation(
-                InjectExpectation.EXPECTATION_TYPE.PREVENTION.toString(), 50.0, 100.0),
+                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.toString(), 50.0, 100.0),
             createDefaultInjectExpectation(
-                InjectExpectation.EXPECTATION_TYPE.DETECTION.toString(), 100.0, 100.0),
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.toString(), 100.0, 100.0),
             createDefaultInjectExpectation(
-                InjectExpectation.EXPECTATION_TYPE.VULNERABILITY.toString(), 100.0, 100.0),
+                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.toString(), 100.0, 100.0),
             createDefaultInjectExpectation(
-                InjectExpectation.EXPECTATION_TYPE.MANUAL.toString(), 0.0, 100.0),
+                BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.toString(), 0.0, 100.0),
             createDefaultInjectExpectation(
-                InjectExpectation.EXPECTATION_TYPE.PREVENTION.toString(), 0.0, 100.0),
+                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.toString(), 0.0, 100.0),
             createDefaultInjectExpectation(
-                InjectExpectation.EXPECTATION_TYPE.DETECTION.toString(), 100.0, 100.0),
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.toString(), 100.0, 100.0),
             createDefaultInjectExpectation(
-                InjectExpectation.EXPECTATION_TYPE.VULNERABILITY.toString(), 100.0, 100.0),
+                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY.toString(), 100.0, 100.0),
             createDefaultInjectExpectation(
-                InjectExpectation.EXPECTATION_TYPE.MANUAL.toString(), 0.0, 100.0));
+                BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.toString(), 0.0, 100.0));
     when(injectExpectationRepository.rawForComputeGlobalByInjectIds(injectIds))
         .thenReturn(expectations);
 
@@ -87,16 +87,16 @@ class ResultUtilsTest extends IntegrationTest {
 
     ExpectationResultsByType expectedPreventionResult =
         createDefaultExpectationResultsByType(
-            PREVENTION, InjectExpectation.EXPECTATION_STATUS.PARTIAL, 1, 0, 1, 1);
+            PREVENTION, BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL, 1, 0, 1, 1);
     ExpectationResultsByType expectedDetectionResult =
         createDefaultExpectationResultsByType(
-            DETECTION, InjectExpectation.EXPECTATION_STATUS.SUCCESS, 3, 0, 0, 0);
+            DETECTION, BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS, 3, 0, 0, 0);
     ExpectationResultsByType expectedVulnerabilityResult =
         createDefaultExpectationResultsByType(
-            VULNERABILITY, InjectExpectation.EXPECTATION_STATUS.SUCCESS, 3, 0, 0, 0);
+            VULNERABILITY, BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS, 3, 0, 0, 0);
     ExpectationResultsByType expectedHumanResponseResult =
         createDefaultExpectationResultsByType(
-            HUMAN_RESPONSE, InjectExpectation.EXPECTATION_STATUS.FAILED, 0, 0, 0, 3);
+            HUMAN_RESPONSE, BaseInjectExpectation.EXPECTATION_STATUS.FAILED, 0, 0, 0, 3);
 
     List<ExpectationResultsByType> expectedPreventionResult1 =
         List.of(

@@ -3,10 +3,11 @@ package io.openaev.config.security;
 import static io.openaev.config.security.SecurityService.OPENAEV_PROVIDER_PATH_PREFIX;
 import static io.openaev.database.model.User.ROLE_ADMIN;
 import static io.openaev.database.model.User.ROLE_USER;
-import static org.springframework.security.saml2.provider.service.authentication.OpenSaml4AuthenticationProvider.createDefaultResponseAuthenticationConverter;
+import static org.springframework.security.saml2.provider.service.authentication.OpenSaml5AuthenticationProvider.createDefaultResponseAuthenticationConverter;
 
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.OpenAEVSaml2User;
+import io.openaev.config.SessionManager;
 import io.openaev.database.model.User;
 import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
 import io.openaev.service.UserMappingService;
@@ -24,11 +25,11 @@ import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.saml2.core.Saml2Error;
-import org.springframework.security.saml2.provider.service.authentication.OpenSaml4AuthenticationProvider;
+import org.springframework.security.saml2.provider.service.authentication.OpenSaml5AuthenticationProvider;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
 import org.springframework.security.saml2.provider.service.authentication.Saml2Authentication;
 import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticationException;
-import org.springframework.security.saml2.provider.service.metadata.OpenSamlMetadataResolver;
+import org.springframework.security.saml2.provider.service.metadata.OpenSaml5MetadataResolver;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
 import org.springframework.security.saml2.provider.service.web.DefaultRelyingPartyRegistrationResolver;
 import org.springframework.security.saml2.provider.service.web.Saml2MetadataFilter;
@@ -45,6 +46,7 @@ public class OpenSamlConfig {
   private final Environment env;
   private final SecurityService securityService;
   private final UserMappingService userMappingService;
+  private final SessionManager sessionManager;
 
   @Autowired(required = false)
   private RelyingPartyRegistrationRepository relyingPartyRegistrationRepository;
@@ -61,8 +63,8 @@ public class OpenSamlConfig {
     DefaultRelyingPartyRegistrationResolver relyingPartyRegistrationResolver =
         new DefaultRelyingPartyRegistrationResolver(this.relyingPartyRegistrationRepository);
     Saml2MetadataFilter filter =
-        new Saml2MetadataFilter(relyingPartyRegistrationResolver, new OpenSamlMetadataResolver());
-    OpenSaml4AuthenticationProvider authenticationProvider = getOpenSaml4AuthenticationProvider();
+        new Saml2MetadataFilter(relyingPartyRegistrationResolver, new OpenSaml5MetadataResolver());
+    OpenSaml5AuthenticationProvider authenticationProvider = getOpenSaml5AuthenticationProvider();
 
     http.addFilterBefore(filter, Saml2WebSsoAuthenticationFilter.class)
         .saml2Login(
@@ -70,13 +72,14 @@ public class OpenSamlConfig {
                 saml2Login
                     .authenticationManager(new ProviderManager(authenticationProvider))
                     .successHandler(
-                        new SsoRefererAuthenticationSuccessHandler(this.auditLogger.orElse(null))));
+                        new SsoRefererAuthenticationSuccessHandler(
+                            this.auditLogger.orElse(null), this.sessionManager)));
   }
 
   // -- PRIVATE --
 
-  private OpenSaml4AuthenticationProvider getOpenSaml4AuthenticationProvider() {
-    OpenSaml4AuthenticationProvider authenticationProvider = new OpenSaml4AuthenticationProvider();
+  OpenSaml5AuthenticationProvider getOpenSaml5AuthenticationProvider() {
+    OpenSaml5AuthenticationProvider authenticationProvider = new OpenSaml5AuthenticationProvider();
     authenticationProvider.setResponseAuthenticationConverter(
         responseToken -> {
           Saml2Authentication authentication =

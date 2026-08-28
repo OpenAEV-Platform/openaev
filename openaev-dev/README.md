@@ -4,7 +4,7 @@ This folder contains configuration files for setting up a local development envi
 
 ## Prerequisites
 
-- Podman and Podman Compose (or `podman compose`)
+- Podman with a Compose provider, or Docker with the Compose plugin
 - Java 21+ (for backend development)
 - Node.js 20+ and Yarn (for frontend development)
 - IntelliJ IDEA (recommended IDE)
@@ -13,7 +13,8 @@ This folder contains configuration files for setting up a local development envi
 
 ### 1. Set up environment variables
 
-Copy the example environment file and adjust values if needed:
+Container image tags live directly in `docker-compose.yml`. Runtime settings such
+as credentials are supplied through `.env`, so copy the example and adjust it:
 
 ```bash
 # Linux/macOS
@@ -26,7 +27,9 @@ copy .env.example .env
 Copy-Item .env.example .env
 ```
 
-The default values should work for local development.
+The provided values work for local development. If an existing `.env` contains
+`COMPOSE_ENV_FILES`, remove that line. Image tags now live in `docker-compose.yml`,
+which is also the source used by CI.
 
 ### 2. Create the backend dev configuration
 
@@ -44,7 +47,11 @@ cp ../openaev-api/src/main/resources/application-dev.properties.example \
 Only **4 services** are required to run OpenAEV locally:
 
 ```bash
+# Podman
 podman compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq
+
+# Docker
+docker compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq
 ```
 
 | Service | Port | Why it's required |
@@ -59,7 +66,11 @@ podman compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsear
 #### Full start (all services)
 
 ```bash
+# Podman
 podman compose up -d
+
+# Docker
+docker compose up -d
 ```
 
 This starts everything, including optional services:
@@ -98,12 +109,57 @@ To use them, copy the `*.run.xml` files to your `.idea/runConfigurations/` folde
 
 | File | Description |
 |------|-------------|
-| `.env.example` | Example environment variables (copy to `.env`) |
+| `.env.example` | Development environment variables (copy to `.env`) |
 | `docker-compose.yml` | Container composition file (used via `podman compose`) |
 | `rabbitmq.conf` | RabbitMQ configuration |
 | `otlp-config.yaml` | OpenTelemetry Collector configuration (for telemetry) |
 | `Project.xml` | IntelliJ code style settings |
 | `../openaev-api/src/main/resources/application-dev.properties.example` | Example Spring dev profile (copy to `application-dev.properties`) |
+
+## Setup Scripts
+
+| Script | Platform | Description |
+|--------|----------|-------------|
+| `setup-auto-db.sh` | Linux / macOS / Git Bash | Installs the auto-start database feature |
+| `setup-auto-db.ps1` | Windows PowerShell | Same as above |
+
+### Auto-Start Database (`setup-auto-db`)
+
+Copies `DevDatabaseEnvironmentPostProcessor.java` and `spring.factories` from
+`test-containers/` into `openaev-api/` so the backend can automatically start a
+per-branch PostgreSQL container on launch.
+
+The runtime (Podman or Docker) is **auto-detected** — Podman is preferred when
+both are available. You can force a specific runtime via a property.
+
+The copied files are **git-ignored** — they never pollute the API module in version control.
+
+```bash
+# Linux / macOS / Git Bash
+./setup-auto-db.sh
+```
+
+```powershell
+# Windows PowerShell
+.\setup-auto-db.ps1
+```
+
+```properties
+# Then add to your application-dev.properties:
+openaev.dev.auto-start-database=true
+
+# Optional — force a fixed port instead of per-branch auto-port:
+openaev.dev.database-port=5432
+
+# Optional — force a specific container runtime (default: auto-detect):
+openaev.dev.container-runtime=podman
+```
+
+To uninstall, delete the two copied files:
+```bash
+rm openaev-api/src/main/java/io/openaev/config/DevDatabaseEnvironmentPostProcessor.java
+rm openaev-api/src/main/resources/META-INF/spring.factories
+```
 
 ## Notes
 

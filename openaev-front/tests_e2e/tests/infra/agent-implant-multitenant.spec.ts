@@ -35,13 +35,11 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
 
   let newTenantId: string | null = null;
   let hostname: string;
-  let agentUser: string;
   const echoToken = `e2e-tenant-${Date.now()}`;
   const payloadName = `E2E Payload ${echoToken}`;
 
   test.beforeAll(async ({ browser }) => {
     hostname = os.hostname().toLowerCase();
-    agentUser = execSync('whoami', { encoding: 'utf-8' }).trim();
     const platform = getOsPlatform();
 
     const context = await browser.newContext({
@@ -81,7 +79,7 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     await page.goto(tenantUrl('/admin/agents', newTenantId!));
     const agentInstallPage = new AgentInstallPage(page);
     await agentInstallPage.waitForLoad();
-    let installCommand = await agentInstallPage.getInstallCommand(platform);
+    const installCommand = await agentInstallPage.getInstallCommand(platform);
 
     // ─── Create a command-line payload in the new tenant ───
     await page.goto(tenantUrl('/admin', newTenantId!));
@@ -95,10 +93,10 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     await context.close();
 
     // ─── Execute the install command ───
-    if (os.platform() === 'win32') {
-      installCommand = installCommand.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing');
-    }
-    execSync(installCommand, {
+    const commandToExecute = os.platform() === 'win32'
+      ? installCommand.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing')
+      : installCommand;
+    execSync(commandToExecute, {
       stdio: 'inherit',
       timeout: 60_000,
       shell: os.platform() === 'win32' ? 'powershell' : undefined,
@@ -122,8 +120,8 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
 
     // ─── Wait for agent to register an endpoint ───
     await expect(async () => {
-      await page.goto(tenantUrl('/admin/assets/endpoints', newTenantId!));
-      await page.waitForURL('**/assets/endpoints**');
+      await page.goto(tenantUrl('/admin/assets', newTenantId!));
+      await page.waitForURL('**/admin/assets**');
       await expect(page.getByText(hostname)).toBeVisible();
     }).toPass({
       intervals: [5_000],
@@ -143,17 +141,26 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     await atomicTestingForm.launch();
 
     // ─── Wait for execution result ───
+    // The redesigned atomic-testing detail only fills the "Results by target"
+    // panel once a target is selected in the left "Targets" panel, and a reload
+    // clears that selection. So each poll iteration reloads, (re-)opens the
+    // Endpoints tab, selects the endpoint row and checks for the agent traces.
+    const endpointsTab = page.getByRole('tab', { name: 'Endpoints' });
+    const endpointRow = page.getByRole('button', { name: new RegExp(hostname, 'i') });
+    const spawnTrace = page.getByText('Implant spawn by the agent');
+
     await expect(async () => {
       await page.reload();
-      await expect(page.getByRole('button', { name: new RegExp(`${agentUser}.*Executed`, 'i') })).toBeVisible();
+      if (await endpointsTab.isVisible().catch(() => false)) {
+        await endpointsTab.click();
+      }
+      await endpointRow.first().click();
+      await expect(spawnTrace).toBeVisible({ timeout: 5_000 });
     }).toPass({
       intervals: [10_000],
       timeout: 240_000,
     });
 
-    // Expand the agent row to reveal traces
-    await page.getByRole('button', { name: new RegExp(`${agentUser}.*Executed`, 'i') }).click();
-    await expect(page.getByText('Implant spawn by the agent')).toBeVisible();
     await expect(page.getByText(new RegExp(`"stdout":".*${echoToken}`))).toBeVisible();
   });
 });

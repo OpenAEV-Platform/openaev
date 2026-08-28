@@ -13,6 +13,7 @@ import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,13 +44,13 @@ class ConditionRepositoryTest extends IntegrationTest {
     // AND: two conditions linked to the SAME step
     Condition condition1 =
         conditionComposer
-            .forCondition(ConditionFixture.getDefaultCondition(ConditionKeyType.IPv4, "val1"))
+            .forCondition(ConditionFixture.getDefaultCondition(PrimitiveType.IPv4, "val1"))
             .withStep(stepComposer1)
             .persist()
             .get();
     Condition condition2 =
         conditionComposer
-            .forCondition(ConditionFixture.getDefaultCondition(ConditionKeyType.IPv4, "val2"))
+            .forCondition(ConditionFixture.getDefaultCondition(PrimitiveType.IPv4, "val2"))
             .withStep(stepComposer1)
             .persist()
             .get();
@@ -64,9 +65,15 @@ class ConditionRepositoryTest extends IntegrationTest {
     // THEN
     Assertions.assertEquals(2, conditions.size());
 
-    Set<ConditionKeyType> keys =
-        conditions.stream().map(Condition::getKeyType).collect(Collectors.toSet());
-    Assertions.assertEquals(Set.of(ConditionKeyType.IPv4), keys);
+    Set<PrimitiveType> keys =
+        conditions.stream()
+            .flatMap(
+                condition ->
+                    condition.getKeyTypes() == null
+                        ? Stream.empty()
+                        : condition.getKeyTypes().stream())
+            .collect(Collectors.toSet());
+    Assertions.assertEquals(Set.of(PrimitiveType.IPv4), keys);
 
     Set<String> values = conditions.stream().map(Condition::getValue).collect(Collectors.toSet());
     Assertions.assertEquals(Set.of(condition1.getValue(), condition2.getValue()), values);

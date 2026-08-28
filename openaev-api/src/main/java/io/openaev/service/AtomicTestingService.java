@@ -1,36 +1,33 @@
 package io.openaev.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS;
-import static io.openaev.database.model.InjectorContract.PREDEFINED_EXPECTATIONS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
-import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.InjectUtils;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.*;
-import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -58,12 +55,15 @@ public class AtomicTestingService {
   private final TagRepository tagRepository;
   private final DocumentRepository documentRepository;
   private final AssetGroupService assetGroupService;
+  private final InjectExpectationService injectExpectationService;
   private final UserService userService;
   private final InjectSearchService injectSearchService;
   private final InjectService injectService;
   private final GrantService grantService;
   private final InjectDocumentRepository injectDocumentRepository;
   private final InjectUtils injectUtils;
+  private final InjectorContractContentUtils injectorContractContentUtils;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
 
   // -- CRUD --
 
@@ -83,13 +83,10 @@ public class AtomicTestingService {
             ? injectRepository.findByIdAndTenantId(injectId, tenantId)
             : injectRepository.findWithStatusById(injectId);
 
-    if (injectOpt.isPresent()) {
-      Inject inject = injectOpt.get();
-      List<AssetGroup> computedAssetGroup =
-          inject.getAssetGroups().stream().map(assetGroupService::computeDynamicAssets).toList();
-      inject.getAssetGroups().clear();
-      inject.getAssetGroups().addAll(computedAssetGroup);
-    }
+    // Compute dynamic assets for display, in place on the SAME managed AssetGroup instances
+    // (AssetGroup.dynamicAssets is @Transient: this mutation is never persisted).
+    injectOpt.ifPresent(
+        inject -> inject.getAssetGroups().forEach(assetGroupService::computeDynamicAssets));
     return injectOpt
         .map(injectMapper::toInjectResultOverviewOutput)
         .orElseThrow(ElementNotFoundException::new);
@@ -118,7 +115,7 @@ public class AtomicTestingService {
     ObjectNode finalContent = input.getContent();
     // Set expectations
     if (injectId == null) {
-      finalContent = setExpectations(input, injectorContract, finalContent);
+      finalContent = injectorContractContentUtils.setExpectations(injectorContract, finalContent);
     }
     injectToSave.setTitle(input.getTitle());
     injectToSave.setContent(finalContent);
@@ -174,52 +171,6 @@ public class AtomicTestingService {
     return injectMapper.toInjectResultOverviewOutput(injectToSave);
   }
 
-  private ObjectNode setExpectations(
-      AtomicTestingInput input, InjectorContract injectorContract, ObjectNode finalContent) {
-    if (input.getContent() == null
-        || input.getContent().get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS) == null
-        || input.getContent().get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS).isEmpty()) {
-      try {
-        JsonNode jsonNode = mapper.readTree(injectorContract.getContent());
-        List<JsonNode> contractElements =
-            StreamSupport.stream(jsonNode.get("fields").spliterator(), false)
-                .filter(
-                    contractElement ->
-                        contractElement
-                            .get("type")
-                            .asText()
-                            .equals(ContractFieldType.Expectation.name().toLowerCase()))
-                .toList();
-        if (!contractElements.isEmpty()) {
-          JsonNode contractElement = contractElements.getFirst();
-          if (!contractElement.get(PREDEFINED_EXPECTATIONS).isNull()
-              && !contractElement.get(PREDEFINED_EXPECTATIONS).isEmpty()) {
-            finalContent = finalContent != null ? finalContent : mapper.createObjectNode();
-            ArrayNode predefinedExpectations = mapper.createArrayNode();
-            StreamSupport.stream(contractElement.get(PREDEFINED_EXPECTATIONS).spliterator(), false)
-                .forEach(
-                    predefinedExpectation -> {
-                      ObjectNode newExpectation = predefinedExpectation.deepCopy();
-                      newExpectation.put("expectation_score", 100);
-                      predefinedExpectations.add(newExpectation);
-                    });
-            // We need the remove in case there are empty expectations because put is deprecated and
-            // putifabsent doesn't replace empty expectations
-            if (finalContent.has(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS)
-                && finalContent.get(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS).isEmpty()) {
-              finalContent.remove(CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS);
-            }
-            finalContent.putIfAbsent(
-                CONTRACT_ELEMENT_CONTENT_KEY_EXPECTATIONS, predefinedExpectations);
-          }
-        }
-      } catch (JsonProcessingException e) {
-        log.error("Cannot open injector contract", e);
-      }
-    }
-    return finalContent;
-  }
-
   @Transactional
   public InjectResultOverviewOutput updateAtomicTestingTags(
       String injectId, AtomicTestingUpdateTagsInput input) {
@@ -237,6 +188,36 @@ public class AtomicTestingService {
     injectService.delete(injectId);
   }
 
+  /**
+   * Bulk delete of atomic testings, either from an explicit list of ids or from a search input
+   * (select-all with optional exclusions). The scope is restricted to atomic testings (injects
+   * without scenario or simulation) the user is allowed to plan on.
+   *
+   * @param input the bulk processing input (ids or search input, plus ids to ignore)
+   *     <p>Not transactional as a whole: the deletion scope is resolved in a short transaction,
+   *     then atomic testings are deleted in small independent chunks (with deadlock retry) tracked
+   *     as a massive operation, so per-entity stream events are suppressed in favor of aggregated
+   *     progress events.
+   * @return the list of deleted inject ids
+   */
+  public List<String> bulkDelete(@NotNull final InjectBulkProcessingInput input) {
+    // The generic inject specification is unrestricted when no simulation/scenario id is given:
+    // constrain it to atomic testings only so a select-all can never touch simulation or scenario
+    // injects.
+    input.setSimulationOrScenarioId(null);
+    List<String> injectIdsToDelete =
+        bulkDeleteExecutor.resolveInTransaction(
+            () -> {
+              Specification<Inject> specification =
+                  injectService
+                      .getInjectSpecification(input, Grant.GRANT_TYPE.PLANNER)
+                      .and(InjectSpecification.isAtomicTesting());
+              return injectRepository.findAll(specification).stream().map(Inject::getId).toList();
+            });
+    return bulkDeleteExecutor.deleteInChunks(
+        "atomic testings", injectIdsToDelete, injectService::deleteAllByIds);
+  }
+
   // -- ACTIONS --
 
   public InjectResultOverviewOutput duplicate(String id) {
@@ -252,14 +233,86 @@ public class AtomicTestingService {
 
   @Transactional
   public InjectResultOverviewOutput relaunch(String id) {
+    return doRelaunch(id, true);
+  }
+
+  /**
+   * Relaunch an atomic testing (duplicate + queue new + delete old) and migrate its grants to the
+   * new inject. Scheduled relaunches pass {@code checkLaunchable = false} to skip the Enterprise
+   * executor gate.
+   */
+  @Transactional
+  public InjectResultOverviewOutput relaunch(String id, boolean checkLaunchable) {
+    return doRelaunch(id, checkLaunchable);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points: an intra-class call to a
+  // @Transactional method bypasses the Spring proxy (self-invocation), so the overloads never call
+  // each other directly.
+  private InjectResultOverviewOutput doRelaunch(String id, boolean checkLaunchable) {
     findInject(id);
     // Relaunching an atomic testing is considered as creating a new one.
     // Therefore, any grants created on the current atomic testing will have to be updated with the
     // new ID
-    InjectResultOverviewOutput relaunched = injectService.relaunch(id);
+    InjectResultOverviewOutput relaunched = injectService.relaunch(id, checkLaunchable);
     grantService.updateGrantsForNewResource(
         id, relaunched.getId(), Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
     return relaunched;
+  }
+
+  /** Bulk update used by the recurring atomic testing job to self-clear outdated recurrences. */
+  @Transactional
+  public List<Inject> updateInjects(@NotNull final List<Inject> injects) {
+    return fromIterable(this.injectRepository.saveAll(injects));
+  }
+
+  /** Atomic testing is recurring AND end date is after now (or has no end date). */
+  public List<Inject> recurringAtomicTestings(@NotNull final Instant instant) {
+    return injectRepository.findAll(
+        InjectSpecification.isAtomicTesting()
+            .and(InjectSpecification.isRecurring())
+            .and(InjectSpecification.recurrenceStopDateAfter(instant)));
+  }
+
+  /**
+   * Atomic testing is recurring, bounded by an end date, AND started or already ended. Only
+   * end-bounded recurrences can ever become outdated (the job's outdated check returns false for a
+   * null end date), so unbounded ones are filtered out in SQL instead of being scanned every
+   * minute.
+   */
+  public List<Inject> potentialOutdatedRecurringAtomicTestings(@NotNull final Instant instant) {
+    return injectRepository.findAll(
+        InjectSpecification.isAtomicTesting()
+            .and(InjectSpecification.isRecurring())
+            .and(InjectSpecification.hasRecurrenceEnd())
+            .and(
+                InjectSpecification.recurrenceStartDateBefore(instant)
+                    .or(InjectSpecification.recurrenceStopDateBefore(instant))));
+  }
+
+  @Transactional
+  public InjectResultOverviewOutput updateRecurrence(String injectId, InjectRecurrenceInput input) {
+    Inject inject = findInject(injectId);
+    // Normalize a blank expression to null so a cleared schedule can never be persisted as an
+    // unparseable empty cron that the minutely job would keep selecting (isRecurring checks
+    // isNotNull only).
+    String recurrence =
+        (input.getRecurrence() == null || input.getRecurrence().isBlank())
+            ? null
+            : input.getRecurrence().trim();
+    // Scheduling itself is a Community Edition feature, but the Enterprise executor gate still
+    // applies: without it, scheduling would bypass the licence check enforced on manual launches
+    // (scheduled executions deliberately skip the gate at run time). A recurrence with a null
+    // start date still fires (null start counts as already started), so the gate keys on the
+    // normalized recurrence expression; clearing the schedule stays allowed.
+    if (recurrence != null) {
+      injectService.throwIfInjectNotLaunchable(inject);
+    }
+    inject.setRecurrence(recurrence);
+    inject.setRecurrenceStart(input.getRecurrenceStart());
+    inject.setRecurrenceEnd(input.getRecurrenceEnd());
+    Inject saved = injectRepository.save(inject);
+    return injectMapper.toInjectResultOverviewOutput(saved);
   }
 
   // -- PAGINATION --

@@ -5,26 +5,30 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.quality.Strictness.LENIENT;
 
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectDependenciesRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
-import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openaev.service.NotificationEventService;
-import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.composers.InjectComposer;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -43,11 +47,13 @@ class InjectsExecutionJobUnitTest {
   @Mock private InjectDependenciesRepository injectDependenciesRepository;
 
   @Mock private ExerciseRepository exerciseRepository;
-  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private WorkflowService workflowService;
   @Mock private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Mock private NotificationEventService notificationEventService;
   @Mock private InjectExpectationRepository injectExpectationRepository;
+  @Mock private InjectService injectService;
+  @Mock private EntityManager entityManager;
+  @Mock private TenantScopedTransaction tenantTx;
 
   @InjectMocks private InjectsExecutionJob injectsExecutionJob;
 
@@ -55,7 +61,6 @@ class InjectsExecutionJobUnitTest {
   void setUp() {
     reset(
         exerciseRepository,
-        previewFeatureService,
         workflowService,
         securityCoverageSendJobService,
         notificationEventService);
@@ -129,22 +134,47 @@ class InjectsExecutionJobUnitTest {
 
     private Exercise createMockSimulation(String id, Scenario scenario) {
       Exercise simulation = mock(Exercise.class, withSettings().strictness(LENIENT));
+      Tenant tenant = mock(Tenant.class, withSettings().strictness(LENIENT));
+      when(tenant.getId()).thenReturn("tenant-test");
       when(simulation.getId()).thenReturn(id);
       when(simulation.getScenario()).thenReturn(scenario);
+      when(simulation.getTenant()).thenReturn(tenant);
       return simulation;
+    }
+
+    private void mockFindAllByIdFrom(List<Exercise> simulations) {
+      when(exerciseRepository.findAllById(anyIterable()))
+          .thenAnswer(
+              invocation -> {
+                Iterable<String> ids = invocation.getArgument(0);
+                List<String> idList = new ArrayList<>();
+                ids.forEach(idList::add);
+                return simulations.stream().filter(s -> idList.contains(s.getId())).toList();
+              });
+    }
+
+    private void mockTenantTxExecuteInline() {
+      doAnswer(
+              invocation -> {
+                Runnable work = invocation.getArgument(1);
+                work.run();
+                return null;
+              })
+          .when(tenantTx)
+          .execute(any(), any(Runnable.class));
     }
 
     @Test
     @DisplayName("should finish simuations and update their status")
     void shouldFinishSimulationsAndUpdateStatus() {
       // Prepare
+      mockTenantTxExecuteInline();
       String simulationId = UUID.randomUUID().toString();
       Exercise simulation = createMockSimulation(simulationId, null);
       List<Exercise> simulations = new ArrayList<>(List.of(simulation));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
+      mockFindAllByIdFrom(simulations);
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
@@ -161,6 +191,7 @@ class InjectsExecutionJobUnitTest {
     @DisplayName("should filter out chaining simulations when feature is enabled")
     void shouldFilterOutChainingSimulationsWhenFeatureEnabled() {
       // Prepare
+      mockTenantTxExecuteInline();
       String chainingSimulationId = UUID.randomUUID().toString();
       String normalSimulationId = UUID.randomUUID().toString();
 
@@ -169,9 +200,9 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(chainingSimulation, normalSimulation));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
-      when(workflowService.isSimulationChaining(chainingSimulationId)).thenReturn(true);
-      when(workflowService.isSimulationChaining(normalSimulationId)).thenReturn(false);
+      when(workflowService.existsBySimulationId(chainingSimulationId)).thenReturn(true);
+      when(workflowService.existsBySimulationId(normalSimulationId)).thenReturn(false);
+      mockFindAllByIdFrom(simulations);
       when(exerciseRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
 
       // Act
@@ -185,9 +216,10 @@ class InjectsExecutionJobUnitTest {
     }
 
     @Test
-    @DisplayName("should not filter simulations when chaining feature is disabled")
-    void shouldNotFilterSimulationsWhenChainingFeatureDisabled() {
+    @DisplayName("should keep non-chaining simulations")
+    void shouldKeepNonChainingSimulations() {
       // Prepare
+      mockTenantTxExecuteInline();
       String simulationId1 = UUID.randomUUID().toString();
       String simulationId2 = UUID.randomUUID().toString();
 
@@ -196,15 +228,14 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(simulation1, simulation2));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
+      mockFindAllByIdFrom(simulations);
       when(exerciseRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
 
       // Act
       injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
-      verify(workflowService, never()).isSimulationChaining(anyString());
+      verify(workflowService, times(2)).existsBySimulationId(anyString());
       verify(exerciseRepository).saveAll(simulationCaptor.capture());
       assertEquals(2, simulationCaptor.getValue().size());
     }
@@ -213,12 +244,12 @@ class InjectsExecutionJobUnitTest {
     @DisplayName("should trigger coverage send job for finished simulations")
     void shouldTriggerCoverageSendJob() {
       // Prepare
+      mockTenantTxExecuteInline();
       Exercise simulation = createMockSimulation(UUID.randomUUID().toString(), null);
       List<Exercise> simulations = new ArrayList<>(List.of(simulation));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
+      mockFindAllByIdFrom(simulations);
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
@@ -233,6 +264,7 @@ class InjectsExecutionJobUnitTest {
     @DisplayName("should send notification for simulations with scenario")
     void shouldSendNotificationForSimulationsWithScenario() {
       // Prepare
+      mockTenantTxExecuteInline();
       String scenarioId = UUID.randomUUID().toString();
       Scenario scenario = mock(Scenario.class);
       when(scenario.getId()).thenReturn(scenarioId);
@@ -241,8 +273,7 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(simulation));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
+      mockFindAllByIdFrom(simulations);
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
@@ -254,7 +285,7 @@ class InjectsExecutionJobUnitTest {
 
       NotificationEvent event = notificationEventCaptor.getValue();
       assertEquals(NotificationEventType.SIMULATION_COMPLETED, event.getEventType());
-      assertEquals(NotificationRuleResourceType.SCENARIO, event.getResourceType());
+      assertEquals(ResourceType.SCENARIO, event.getResourceType());
       assertEquals(scenarioId, event.getResourceId());
       assertNotNull(event.getTimestamp());
     }
@@ -263,12 +294,12 @@ class InjectsExecutionJobUnitTest {
     @DisplayName("should not send notification for simulations without scenario")
     void shouldNotSendNotificationForSimulationsWithoutScenario() {
       // Prepare
+      mockTenantTxExecuteInline();
       Exercise simulation = createMockSimulation(UUID.randomUUID().toString(), null);
       List<Exercise> simulations = new ArrayList<>(List.of(simulation));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
+      mockFindAllByIdFrom(simulations);
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
@@ -282,6 +313,7 @@ class InjectsExecutionJobUnitTest {
     @DisplayName("should send notifications only for simulations with scenario in mixed list")
     void shouldSendNotificationsOnlyForSimulationsWithScenarioInMixedList() {
       // Prepare
+      mockTenantTxExecuteInline();
       String scenarioId = UUID.randomUUID().toString();
       Scenario scenario = mock(Scenario.class);
       when(scenario.getId()).thenReturn(scenarioId);
@@ -293,8 +325,7 @@ class InjectsExecutionJobUnitTest {
           new ArrayList<>(List.of(simulationWithScenario, simulationWithoutScenario));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
+      mockFindAllByIdFrom(simulations);
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
@@ -309,18 +340,14 @@ class InjectsExecutionJobUnitTest {
     void shouldHandleEmptyListOfSimulations() {
       // Prepare
       when(exerciseRepository.thatMustBeFinished()).thenReturn(Collections.emptyList());
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
-      when(exerciseRepository.saveAll(anyList())).thenReturn(Collections.emptyList());
 
       // Act
       injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
-      verify(exerciseRepository).saveAll(simulationCaptor.capture());
-      assertTrue(simulationCaptor.getValue().isEmpty());
-      verify(securityCoverageSendJobService)
-          .createOrUpdateCoverageSendJobForSimulationsIfReady(Collections.emptyList());
+      verify(exerciseRepository, never()).saveAll(anyList());
+      verify(securityCoverageSendJobService, never())
+          .createOrUpdateCoverageSendJobForSimulationsIfReady(anyList());
       verify(notificationEventService, never()).sendNotificationEventWithDelay(any(), anyLong());
     }
 
@@ -336,23 +363,23 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(simulation1, simulation2));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)).thenReturn(true);
-      when(workflowService.isSimulationChaining(simulationId1)).thenReturn(true);
-      when(workflowService.isSimulationChaining(simulationId2)).thenReturn(true);
-      when(exerciseRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
+      when(workflowService.existsBySimulationId(simulationId1)).thenReturn(true);
+      when(workflowService.existsBySimulationId(simulationId2)).thenReturn(true);
 
       // Act
       injectsExecutionJob.handleAutoClosingSimulations();
 
       // Assert
-      verify(exerciseRepository).saveAll(simulationCaptor.capture());
-      assertTrue(simulationCaptor.getValue().isEmpty());
+      verify(exerciseRepository, never()).saveAll(anyList());
+      verify(securityCoverageSendJobService, never())
+          .createOrUpdateCoverageSendJobForSimulationsIfReady(anyList());
     }
 
     @Test
     @DisplayName("should send multiple notifications for multiple simulations with scenarios")
     void shouldSendMultipleNotificationsForMultipleSimulationsWithScenarios() {
       // Prepare
+      mockTenantTxExecuteInline();
       Scenario scenario1 = mock(Scenario.class);
       when(scenario1.getId()).thenReturn(UUID.randomUUID().toString());
 
@@ -364,8 +391,7 @@ class InjectsExecutionJobUnitTest {
       List<Exercise> simulations = new ArrayList<>(List.of(simulation1, simulation2));
 
       when(exerciseRepository.thatMustBeFinished()).thenReturn(simulations);
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING))
-          .thenReturn(false);
+      mockFindAllByIdFrom(simulations);
       when(exerciseRepository.saveAll(anyList())).thenReturn(simulations);
 
       // Act
@@ -373,6 +399,95 @@ class InjectsExecutionJobUnitTest {
 
       // Assert
       verify(notificationEventService, times(2)).sendNotificationEventWithDelay(any(), anyLong());
+    }
+  }
+
+  // ========================================================================
+  // Inject expectation collect status
+  // ========================================================================
+  @Nested
+  @DisplayName("handleInjectExpectationCollectStatus")
+  class HandleInjectExpectationCollectStatusTests {
+
+    @Captor private ArgumentCaptor<List<Inject>> injectsCaptor;
+
+    private Inject inject;
+
+    @BeforeEach
+    void setUpCollectStatus() {
+      Session session = mock(Session.class, withSettings().strictness(LENIENT));
+      when(entityManager.unwrap(Session.class)).thenReturn(session);
+      inject = new Inject();
+      when(injectService.getExecutedAndNotFinished()).thenReturn(List.of(inject));
+    }
+
+    private BaseInjectExpectation buildExpectation(
+        Instant createdAt, long expirationSeconds, String... resultTexts) {
+      BaseInjectExpectation expectation = new BaseInjectExpectation();
+      expectation.setCreatedAt(createdAt);
+      expectation.setExpirationTime(expirationSeconds);
+      expectation.setResults(
+          Arrays.stream(resultTexts)
+              .map(text -> InjectExpectationResult.builder().result(text).build())
+              .collect(Collectors.toCollection(ArrayList::new)));
+      return expectation;
+    }
+
+    private List<Inject> actAndCaptureSaved() {
+      injectsExecutionJob.handleInjectExpectationCollectStatus();
+      verify(injectService).saveAll(injectsCaptor.capture());
+      return injectsCaptor.getValue();
+    }
+
+    @Test
+    @DisplayName("should complete collect status when the inject has no expectations")
+    void shouldCompleteWhenNoExpectations() {
+      List<Inject> saved = actAndCaptureSaved();
+
+      assertEquals(1, saved.size());
+      assertEquals(CollectExecutionStatus.COMPLETED, saved.get(0).getCollectExecutionStatus());
+    }
+
+    @Test
+    @DisplayName("should complete collect status when every expectation result is filled")
+    void shouldCompleteWhenAllResultsFilled() {
+      inject
+          .getExpectations()
+          .add(buildExpectation(Instant.now(), 3600, "Prevented", "Not Prevented"));
+
+      List<Inject> saved = actAndCaptureSaved();
+
+      assertEquals(1, saved.size());
+    }
+
+    @Test
+    @DisplayName("should keep collecting while an unexpired expectation has an unfilled result")
+    void shouldKeepCollectingWhileUnexpiredResultUnfilled() {
+      // One collector reported, the other placeholder is still empty and the window is open
+      inject.getExpectations().add(buildExpectation(Instant.now(), 3600, "Prevented", ""));
+
+      List<Inject> saved = actAndCaptureSaved();
+
+      assertTrue(saved.isEmpty());
+      assertEquals(CollectExecutionStatus.COLLECTING, inject.getCollectExecutionStatus());
+    }
+
+    @Test
+    @DisplayName(
+        "should complete collect status when an expectation with unfilled results has expired "
+            + "(prevents simulations from staying on-going forever)")
+    void shouldCompleteWhenExpectationExpiredDespiteUnfilledResults() {
+      // Partially filled expectation: score was set by the reporting collector, so the
+      // expiration manager never back-fills the empty placeholder. Once the collection
+      // window is over the inject must stop blocking the simulation auto-close.
+      inject
+          .getExpectations()
+          .add(buildExpectation(Instant.now().minusSeconds(7200), 3600, "Prevented", ""));
+
+      List<Inject> saved = actAndCaptureSaved();
+
+      assertEquals(1, saved.size());
+      assertEquals(CollectExecutionStatus.COMPLETED, saved.get(0).getCollectExecutionStatus());
     }
   }
 }

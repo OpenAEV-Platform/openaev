@@ -19,6 +19,13 @@ import org.springframework.stereotype.Component;
 public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
   private static final String API_URI = "/web/api/v2.1/";
 
+  /**
+   * Daily off-peak pass. SentinelOne serializes remote script tasks per agent, so cleanup must not
+   * compete with inject dispatch. Daily rather than wider: cost is one task per agent per pass
+   * whatever the cadence, while leftover disk grows linearly (5-10 MB per implant).
+   */
+  public static final String DEFAULT_CLEAN_IMPLANT_CRON = "0 0 3 * * ?";
+
   @IntegrationConfigKey(
       key = "EXECUTOR_ID",
       description =
@@ -73,7 +80,7 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
   @Getter
   @NotBlank
-  private Integer apiBatchExecutionActionPagination = 2500;
+  private Integer apiBatchExecutionActionPagination = 100;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_SENTINELONE_API_REGISTER_INTERVAL",
@@ -87,15 +94,15 @@ public class SentinelOneExecutorConfig extends BaseIntegrationConfiguration {
   private Integer apiRegisterInterval = 1200;
 
   @IntegrationConfigKey(
-      key = "EXECUTOR_SENTINELONE_CLEAN_IMPLANT_INTERVAL",
+      key = "EXECUTOR_SENTINELONE_CLEAN_IMPLANT_CRON",
       description =
           """
-          SentinelOne clean old implant interval (in hours)
+          Cron expression scheduling the SentinelOne garbage collector that removes implant directories older than 24 hours (default: daily at 3:00 AM)
           """,
-      jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER)
+      jsonType = CONNECTOR_CONFIGURATION_TYPE.STRING)
   @Getter
   @NotBlank
-  private Integer cleanImplantInterval = 8;
+  private String cleanImplantCron = DEFAULT_CLEAN_IMPLANT_CRON;
 
   @IntegrationConfigKey(
       key = "EXECUTOR_SENTINELONE_ACCOUNT_ID",

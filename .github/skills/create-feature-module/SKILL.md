@@ -15,6 +15,18 @@ description: >-
 - Tenancy scope: **tenant-scoped**, **platform-level**, or **dual-scope**
 - Fields with types and constraints
 
+## Checkpoint: Scope Confirmation
+
+Before writing any code, present the following to the user and wait for confirmation:
+
+- **Entity name** and **table name**
+- **Tenancy scope**: tenant-scoped, platform-level, or dual-scope
+- **Fields**: name, type, constraints, nullable
+- **Files to create**: list every file (entity, repository, service, DTOs, mapper, controller, migration, test fixtures, integration test, frontend actions/page)
+- **Instruction files read**: confirm you have read the relevant `.github/instructions/` files for all layers involved
+
+Do not proceed until the user confirms the scope is correct.
+
 ## Procedure
 
 ### Step 1 — Create the JPA Entity
@@ -48,6 +60,16 @@ public interface {Entity}Repository extends JpaRepository<{Entity}, String>,
 
 - Add value in `ResourceType.java`
 - Add `ACCESS_`, `MANAGE_`, `DELETE_` in `Capability.java` with parent hierarchy
+
+### Checkpoint: Entity Layer Review
+
+After completing Steps 1–3, present the following to the user and wait for confirmation:
+
+- **Entity class**: field names, column names, annotations, tenant scope
+- **ResourceType** and **Capability** additions: exact enum values and hierarchy
+- **Repository**: confirm interface signature
+
+Do not proceed to the service/API/frontend layers until the user confirms the entity layer is correct.
 
 ### Step 4 — Create the Service
 

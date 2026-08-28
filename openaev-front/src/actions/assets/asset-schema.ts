@@ -17,3 +17,12 @@ export const securityPlatform = new schema.Entity(
   { idAttribute: 'asset_id' },
 );
 export const arrayOfSecurityPlatforms = new schema.Array(securityPlatform);
+
+// AI Targets
+
+export const aiTarget = new schema.Entity(
+  'aitargets',
+  {},
+  { idAttribute: 'asset_id' },
+);
+export const arrayOfAiTargets = new schema.Array(aiTarget);

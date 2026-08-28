@@ -6,11 +6,15 @@ import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.executors.ExecutorService;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.executor.form.ExecutorCreateInput;
 import io.openaev.rest.executor.form.ExecutorOutput;
@@ -19,6 +23,8 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.connectors.PlatformConnectors;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.AgentUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -71,6 +77,7 @@ public class ExecutorApi extends RestBehavior {
   private final FileService fileService;
   private final ExecutorService executorService;
   private final ServiceAccountPrivilegeService privilegeService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @Resource protected ObjectMapper mapper;
 
@@ -79,7 +86,7 @@ public class ExecutorApi extends RestBehavior {
   @Operation(
       summary = "Retrieve executors",
       description = "Retrieve all executors and pending executors if includeNext is true")
-  @Transactional
+  @Transactional(readOnly = true)
   @ApiResponse(
       responseCode = "200",
       content =
@@ -87,6 +94,7 @@ public class ExecutorApi extends RestBehavior {
               mediaType = "application/json",
               array = @ArraySchema(schema = @Schema(implementation = ExecutorOutput.class))))
   public Iterable<ExecutorOutput> executors(
+      TxCtx ctx,
       @Parameter(
               name = "includeNext",
               description = "Include executors pending deployment",
@@ -97,14 +105,14 @@ public class ExecutorApi extends RestBehavior {
   }
 
   @GetMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
-      resourceId = "#collectorId",
+      resourceId = "#executorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
-  public Executor getExecutor(@PathVariable String executorId) {
+  public ExecutorOutput getExecutor(TxCtx ctx, @PathVariable String executorId) {
     try {
-      return executorService.executor(executorId);
+      return executorService.executorOutput(executorId);
     } catch (ElementNotFoundException e) {
       log.warn(
           "Executor with id {} not found - This may be because the executor has never been started yet",
@@ -124,11 +132,18 @@ public class ExecutorApi extends RestBehavior {
       resourceType = ResourceType.ASSET)
   @Operation(summary = "Retrieve executor related ids")
   @Transactional
-  public ConnectorIds getExecutorRelatedIds(@PathVariable String executorId) {
-    return executorService.getExecutorRelationsId(executorId);
+  // connector_instances/connector_instance_configurations are now on v2 isolation (activated
+  // #6408). The lookup below still needs a single-tenant selector: it is a native query
+  // (bypasses the Hibernate @Filter either way) and this executor's tenant is resolved explicitly,
+  // see AbstractConnectorService#getConnectorRelationsId.
+  public ConnectorIds getExecutorRelatedIds(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String executorId) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return executorService.getExecutorRelationsId(executorId, tenantId);
   }
 
-  private Executor updateExecutor(Executor executor, String type, String name, String[] platforms) {
+  private Executor applyExecutorUpdate(
+      Executor executor, String type, String name, String[] platforms) {
     executor.setUpdatedAt(Instant.now());
     executor.setType(type);
     executor.setName(name);
@@ -143,13 +158,37 @@ public class ExecutorApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ASSET)
   public Executor updateExecutor(
-      @PathVariable String executorId, @Valid @RequestBody ExecutorUpdateInput input) {
-    Executor executor =
-        executorRepository
-            .findByIdAndTenantId(executorId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
-    return updateExecutor(
+      TxCtx ctx, @PathVariable String executorId, @Valid @RequestBody ExecutorUpdateInput input) {
+    Executor executor = executorService.executor(executorId);
+    return applyExecutorUpdate(
         executor, executor.getType(), executor.getName(), executor.getPlatforms());
+  }
+
+  @DeleteMapping({EXECUTOR_URI + "/{executorId}", TENANT_EXECUTOR_URI + "/{executorId}"})
+  @AccessControl(
+      resourceId = "#executorId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.ASSET)
+  @Operation(
+      summary = "Delete an executor",
+      description =
+          "Removes a registered executor. Intended for stopped executors that no longer ping;"
+              + " an active executor re-registers on its next heartbeat. The agent executor drives"
+              + " every agent and cannot be removed.")
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteExecutor(@RequireTenantSelector TxCtx ctx, @PathVariable String executorId)
+      throws ConnectorStatusException {
+    writeScopeResolver.tenantForWrite(ctx, null);
+    executorRepository
+        .findByExecutorId(executorId)
+        .ifPresent(
+            executor -> {
+              if (PlatformConnectors.isPlatformExecutor(executor.getType())) {
+                throw new BadRequestException(
+                    "The agent executor is required by the platform and cannot be deleted");
+              }
+            });
+    executorService.remove(executorId);
   }
 
   @PostMapping(
@@ -159,31 +198,29 @@ public class ExecutorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public Executor registerExecutor(
+      TxCtx ctx,
       @Valid @RequestPart("input") ExecutorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> icon,
       @RequestPart("banner") Optional<MultipartFile> banner) {
     try {
+      // Resolve the write tenant first — refuses ambiguous multi-tenant scope with 400
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+
       // Upload icon
       if (icon.isPresent() && "image/png".equals(icon.get().getContentType())) {
         fileService.uploadFile(
             FileService.EXECUTORS_IMAGES_ICONS_BASE_PATH + input.getType() + ".png", icon.get());
       }
-      // Upload icon
+      // Upload banner
       if (banner.isPresent() && "image/png".equals(banner.get().getContentType())) {
         fileService.uploadFile(
             FileService.EXECUTORS_IMAGES_BANNERS_BASE_PATH + input.getType() + ".png",
             banner.get());
       }
-      // We need to support upsert for registration
-      Executor executor =
-          executorRepository
-              .findByIdAndTenantId(input.getId(), TenantContext.getCurrentTenant())
-              .orElse(null);
+      // Upsert: look up by id (inspector scopes to the resolved tenant)
+      Executor executor = executorRepository.findByExecutorId(input.getId()).orElse(null);
       if (executor == null) {
-        Executor executorChecking =
-            executorRepository
-                .findByTypeAndTenantId(input.getType(), TenantContext.getCurrentTenant())
-                .orElse(null);
+        Executor executorChecking = executorRepository.findByType(input.getType()).orElse(null);
         if (executorChecking != null) {
           throw new Exception(
               "The executor "
@@ -192,14 +229,15 @@ public class ExecutorApi extends RestBehavior {
         }
       }
       if (executor != null) {
-        return updateExecutor(executor, input.getType(), input.getName(), input.getPlatforms());
+        return applyExecutorUpdate(
+            executor, input.getType(), input.getName(), input.getPlatforms());
       } else {
-        // save the injector
         Executor newExecutor = new Executor();
         newExecutor.setId(input.getId());
         newExecutor.setName(input.getName());
         newExecutor.setType(input.getType());
         newExecutor.setPlatforms(input.getPlatforms());
+        newExecutor.setTenantId(tenantId);
         return executorRepository.save(newExecutor);
       }
     } catch (Exception e) {
@@ -326,7 +364,10 @@ public class ExecutorApi extends RestBehavior {
 
       String filename = "openaev-agent-installer-";
       if (!resolvedInstallationMode.equals(SERVICE)) {
-        filename = filename.concat(installationMode).concat("-");
+        // Use the validated/normalised value here (not the raw path variable) so this stays
+        // restricted to the known installation modes before it reaches the resource path
+        // resolution below (avoids java/path-injection).
+        filename = filename.concat(resolvedInstallationMode).concat("-");
       }
 
       if (agentBinaryOrigin.equals("local")) { // if we want the local binaries

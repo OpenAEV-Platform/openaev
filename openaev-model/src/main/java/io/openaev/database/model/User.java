@@ -92,6 +92,20 @@ public class User implements Base {
     return ofNullable(this.theme).orElse(THEME_DEFAULT);
   }
 
+  @Column(name = "user_home_dashboard")
+  @JsonProperty("user_home_dashboard")
+  @Schema(
+      description =
+          "Preferred home dashboard of the user; overrides the tenant home dashboard setting")
+  private String homeDashboard;
+
+  // The UI sends an empty string to mean "platform default"; normalize it to null so the FK to
+  // custom_dashboards is never violated (profile updates copy this value via BeanUtils).
+  public void setHomeDashboard(final String homeDashboard) {
+    this.homeDashboard =
+        ofNullable(homeDashboard).map(String::trim).filter(v -> !v.isEmpty()).orElse(null);
+  }
+
   @Getter(NONE)
   @Setter(NONE)
   @Column(name = "user_email")
@@ -421,22 +435,7 @@ public class User implements Base {
   @JsonProperty("user_capabilities")
   @Enumerated(EnumType.STRING)
   public Set<Capability> getCapabilities() {
-    Set<Capability> capabilities = new HashSet<>();
-    for (Group group : scopedGroups()) {
-      boolean isPlatformGroup = group.getTenant() == null;
-      for (Role role : group.getRoles()) {
-        for (Capability cap : role.getCapabilities()) {
-          if (cap == Capability.BYPASS) {
-            // Expand BYPASS into concrete capabilities matching the group scope
-            capabilities.addAll(
-                isPlatformGroup ? Capability.allPlatformScoped() : Capability.allTenantScoped());
-          } else {
-            capabilities.add(cap);
-          }
-        }
-      }
-    }
-    return capabilities;
+    return capabilitiesOf(scopedGroups());
   }
 
   @JsonProperty("user_grants")
@@ -480,5 +479,42 @@ public class User implements Base {
   @Override
   public String toString() {
     return this.email;
+  }
+
+  // -- UTILS --
+
+  public boolean hasBypassIn(CapabilityScope scope) {
+    return scope == CapabilityScope.PLATFORM ? hasPlatformBypass() : hasTenantBypass();
+  }
+
+  /**
+   * Returns the capabilities the user actually holds <em>within</em> the given scope, used to
+   * decide what they are allowed to grant to others.
+   */
+  public Set<Capability> getCapabilities(CapabilityScope scope) {
+    return capabilitiesOf(scope == CapabilityScope.PLATFORM ? platformGroups() : scopedGroups());
+  }
+
+  /**
+   * Shared by both {@code getCapabilities()} overloads: the caller picks the groups, this expands
+   * them. BYPASS is expanded rather than returned, so it never leaks into a capability set.
+   */
+  private static Set<Capability> capabilitiesOf(List<Group> groups) {
+    Set<Capability> capabilities = new HashSet<>();
+    for (Group group : groups) {
+      boolean isPlatformGroup = group.getTenant() == null;
+      for (Role role : group.getRoles()) {
+        for (Capability cap : role.getCapabilities()) {
+          if (cap == Capability.BYPASS) {
+            // Expand BYPASS into concrete capabilities matching the group scope
+            capabilities.addAll(
+                isPlatformGroup ? Capability.allPlatformScoped() : Capability.allTenantScoped());
+          } else {
+            capabilities.add(cap);
+          }
+        }
+      }
+    }
+    return capabilities;
   }
 }

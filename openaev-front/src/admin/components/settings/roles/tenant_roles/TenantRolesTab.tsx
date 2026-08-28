@@ -1,6 +1,7 @@
 import { SecurityOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { useMemo } from 'react';
+import { useContext, useMemo } from 'react';
+import { useNavigate } from 'react-router';
 
 import PaginatedList from '../../../../../components/common/list/PaginatedList';
 import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
@@ -9,9 +10,10 @@ import SortHeadersComponentV2 from '../../../../../components/common/queryable/s
 import { useQueryableWithLocalStorage } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
+import { ROLE_BASE_URL } from '../../../../../constants/BaseUrls';
 import { type RoleOutput } from '../../../../../utils/api-types';
-import { Can } from '../../../../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
 import CreateRole from './CreateRole';
 import useTenantRoles from './hooks/useTenantRoles';
 import RolePopover from './RolePopover';
@@ -23,7 +25,11 @@ import {
 } from './tenantRoles.queryable';
 
 const TenantRolesTab = () => {
+  const ability = useContext(AbilityContext);
+  // MANAGE is greyed out rather than hidden: the affordance stays discoverable.
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
   const { t } = useFormatter();
+  const navigate = useNavigate();
 
   const {
     roles,
@@ -50,6 +56,9 @@ const TenantRolesTab = () => {
         entityPrefix={ENTITY_TENANT_ROLE_PREFIX}
         availableFilterNames={TENANT_ROLE_FILTERS}
         queryableHelpers={queryableHelpers}
+        topBarButtons={(
+          <CreateRole onCreate={addRole} disabled={!canManage} disabledMessage={PERMISSION_REQUIRED} />
+        )}
       />
       <List>
         <ListItem
@@ -84,13 +93,11 @@ const TenantRolesTab = () => {
                 headers={headers}
                 items={roles}
                 rowKey="role_id"
+                onRowClick={role => navigate(`${ROLE_BASE_URL}/${role.role_id}`)}
                 itemWidth={TENANT_ROLE_INLINE_STYLES}
               />
             )}
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-        <CreateRole onCreate={addRole} />
-      </Can>
     </>
   );
 };

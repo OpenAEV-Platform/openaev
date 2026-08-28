@@ -3,11 +3,14 @@ package io.openaev.service.connector_instances;
 import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
-import java.util.List;
+import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityNotFoundException;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConnectorInstanceLogService {
   public static final long LOG_SIZE_LIMIT = 10L;
   private final ConnectorInstanceLogRepository connectorInstanceLogRepository;
+  private final ConnectorInstanceService connectorInstanceService;
 
   private void cleanupExcessLogs(String connectorInstanceId) {
     long currentCount =
@@ -69,12 +73,25 @@ public class ConnectorInstanceLogService {
   }
 
   /**
-   * Retrieves all logs for a specific connector instance.
+   * Searches logs for a specific connector instance with pagination.
+   *
+   * <p>Validates the connector instance is visible in the caller's tenant scope first: the logs
+   * table has no {@code tenant_id} of its own and rides along with its parent connector instance,
+   * so searching by {@code connectorInstanceId} alone (as before) let any tenant read any other
+   * tenant's logs. {@link ConnectorInstanceService#connectorInstanceById} enforces the same
+   * ownership check used by every other read on this table (v1 {@code @Filter} today, the v2
+   * inspector once {@code connector_instances} is activated).
    *
    * @param connectorInstanceId the connector instance identifier
-   * @return list of logs for the connector instance, empty if none found
+   * @param input the search pagination input
+   * @return a page of logs for the connector instance
+   * @throws EntityNotFoundException if the connector instance is not visible in the current scope
    */
-  public List<ConnectorInstanceLog> findLogsByConnectorInstanceId(String connectorInstanceId) {
-    return connectorInstanceLogRepository.findByConnectorInstanceId(connectorInstanceId);
+  @Transactional(readOnly = true)
+  public Page<ConnectorInstanceLog> searchLogsByConnectorInstanceId(
+      String connectorInstanceId, SearchPaginationInput input) {
+    connectorInstanceService.connectorInstanceById(connectorInstanceId);
+    return connectorInstanceLogRepository.searchByConnectorInstanceId(
+        connectorInstanceId, PageRequest.of(input.getPage(), input.getSize()));
   }
 }

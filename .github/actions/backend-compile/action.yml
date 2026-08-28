@@ -5,7 +5,7 @@ runs:
   using: composite
   steps:
     - name: Set up Java 21
-      uses: actions/setup-java@v5
+      uses: actions/setup-java@v6
       with:
         java-version: "21"
         distribution: temurin
@@ -14,7 +14,7 @@ runs:
       run: |
         for attempt in 1 2; do
           echo "::group::Attempt $attempt of 2"
-          if mvn -U -B -ntp -T 1C install -DskipTests \
+          if mvn -U -B -ntp -T 1 install -DskipTests \
                -Dspring-boot.repackage.skip=true \
                -Djacoco.skip=true; then
             echo "::endgroup::"
@@ -34,6 +34,8 @@ runs:
       with:
         name: backend-compiled
         path: ~/.m2/repository/io/openaev/
+        # JARs are already zips — re-zipping costs CPU for ~0% gain
+        compression-level: 0
     - name: Upload API build output
       uses: actions/upload-artifact@v7
       with:

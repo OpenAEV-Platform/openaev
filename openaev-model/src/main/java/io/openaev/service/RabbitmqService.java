@@ -10,6 +10,7 @@ import io.openaev.driver.RabbitmqDriver;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.queue.QueueExecution;
 import io.openaev.service.queue.Queueable;
+import io.openaev.service.rabbitmq.RabbitmqManagementClient;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -58,9 +59,13 @@ public class RabbitmqService {
   private static final String X_QUEUE_TYPE = "x-queue-type";
   private static final String INJECTOR_PREFIX = "_injector_";
 
+  /** Connection timeout for health check probes, so a degraded broker fails fast. */
+  private static final int HEALTH_CHECK_CONNECTION_TIMEOUT_MS = 5_000;
+
   private final RabbitmqConfig rabbitmqConfig;
   private final ConnectionFactory connectionFactory;
   private final RabbitmqDriver rabbitmqDriver;
+  private final RabbitmqManagementClient managementClient;
 
   // -- CONFIGURATION --
 
@@ -314,17 +319,198 @@ public class RabbitmqService {
     return cachedVersion;
   }
 
+  /** Cached factory for health check probes (thread-safe lazy initialization). */
+  private volatile ConnectionFactory healthCheckConnectionFactory;
+
   /**
    * Checks the health of the RabbitMQ broker by opening and immediately closing a connection and
    * channel.
+   *
+   * <p>Uses a dedicated {@link ConnectionFactory} with a short connection timeout instead of the
+   * shared factory (default 60s timeout), so health probes fail fast when the broker is degraded
+   * and never pile up on request threads. The factory is created once and reused: with SSL enabled,
+   * factory creation loads the truststore from disk, which should not happen on every probe.
    *
    * @throws IOException if the broker is unreachable
    * @throws TimeoutException if the connection times out
    */
   public void checkHealth() throws IOException, TimeoutException {
-    try (Connection connection = connectionFactory.newConnection()) {
+    ConnectionFactory factory = this.healthCheckConnectionFactory;
+    if (factory == null) {
+      synchronized (this) {
+        factory = this.healthCheckConnectionFactory;
+        if (factory == null) {
+          factory = rabbitmqDriver.createConnectionFactory();
+          factory.setConnectionTimeout(HEALTH_CHECK_CONNECTION_TIMEOUT_MS);
+          this.healthCheckConnectionFactory = factory;
+        }
+      }
+    }
+    try (Connection connection = factory.newConnection()) {
       connection.createChannel().close();
     }
+  }
+
+  // -- MIGRATION HELPERS --
+
+  /**
+   * Drains all messages from a queue using {@code basicGet} without acknowledging them, and returns
+   * their bodies as raw byte arrays.
+   *
+   * <p>Messages are fetched with manual-ack but <b>never acknowledged</b>. When the channel closes,
+   * RabbitMQ requeues them. This guarantees no data loss if the caller fails before completing the
+   * migration (publish + delete). The caller is expected to delete the queue via {@link
+   * #safeDeleteQueue(String)} after a successful {@link #publishBatch} to the target.
+   *
+   * <p>Returns an empty list if the queue does not exist (AMQP 404). Any other error (connection
+   * failure, permission denied, etc.) is propagated as an exception.
+   *
+   * @param queueName the full queue name (already prefixed)
+   * @return a list of message bodies, or empty if the queue does not exist
+   * @throws IOException if a non-404 channel/connection error occurs
+   * @throws TimeoutException if the connection cannot be established
+   */
+  public List<byte[]> drainQueue(String queueName) throws IOException, TimeoutException {
+    List<byte[]> messages = new java.util.ArrayList<>();
+    try (Connection connection = connectionFactory.newConnection()) {
+      // Use a separate channel for passive declare — it gets closed on 404
+      try (Channel checkChannel = connection.createChannel()) {
+        checkChannel.queueDeclarePassive(queueName);
+      } catch (IOException e) {
+        // Only treat as "not found" if the cause is a 404 channel shutdown
+        if (isQueueNotFound(e)) {
+          log.info("Queue '{}' does not exist — nothing to drain.", queueName);
+          return messages;
+        }
+        throw e;
+      }
+      // Queue exists — drain without ack: if publish fails, messages stay in the queue.
+      // The queue is deleted only after successful publish, so no data loss is possible.
+      try (Channel drainChannel = connection.createChannel()) {
+        com.rabbitmq.client.GetResponse response;
+        while ((response = drainChannel.basicGet(queueName, false)) != null) {
+          messages.add(response.getBody());
+        }
+        // No basicAck — closing the channel requeues unacked messages.
+        // safeDeleteQueue() (called after publishBatch) will destroy the queue.
+      }
+      log.info("Drained {} messages from queue '{}'.", messages.size(), queueName);
+    }
+    return messages;
+  }
+
+  /**
+   * Checks whether an IOException from queueDeclarePassive is a 404 NOT_FOUND (queue does not
+   * exist) rather than a connection/channel error.
+   */
+  private static boolean isQueueNotFound(IOException e) {
+    Throwable cause = e.getCause();
+    if (cause instanceof com.rabbitmq.client.ShutdownSignalException shutdown) {
+      Object reason = shutdown.getReason();
+      if (reason instanceof com.rabbitmq.client.AMQP.Channel.Close close) {
+        return close.getReplyCode() == 404;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Publishes a batch of raw messages to the given exchange with the given routing key.
+   *
+   * @param exchange the target exchange name
+   * @param routingKey the routing key
+   * @param messages the list of message bodies to publish
+   */
+  public void publishBatch(String exchange, String routingKey, List<byte[]> messages)
+      throws IOException, TimeoutException {
+    if (messages.isEmpty()) {
+      return;
+    }
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      for (byte[] body : messages) {
+        channel.basicPublish(exchange, routingKey, null, body);
+      }
+      log.info(
+          "Published {} messages to exchange '{}' with routing key '{}'.",
+          messages.size(),
+          exchange,
+          routingKey);
+    }
+  }
+
+  /**
+   * Deletes a queue if it exists. Silently ignores errors (e.g. queue does not exist).
+   *
+   * @param queueName the full queue name to delete
+   */
+  public void safeDeleteQueue(String queueName) {
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      channel.queueDelete(queueName);
+      log.info("Deleted queue '{}'.", queueName);
+    } catch (Exception e) {
+      log.debug("Could not delete queue '{}' (may not exist): {}", queueName, e.getMessage());
+    }
+  }
+
+  /**
+   * Idempotently declares a durable exchange. Used to ensure a target exchange is available before
+   * publishing messages (e.g., during migrations where bean init order is not guaranteed).
+   *
+   * <p>Logs a warning and does not throw if the declaration fails (best-effort). Callers that
+   * require a hard guarantee should catch and handle the warning scenario.
+   *
+   * @param exchangeName the full exchange name
+   * @param type the exchange type ({@code "topic"}, {@code "direct"}, etc.)
+   */
+  public void ensureExchangeExists(String exchangeName, String type) {
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      channel.exchangeDeclare(exchangeName, type, true);
+      log.debug("Ensured exchange '{}' exists (type={}).", exchangeName, type);
+    } catch (Exception e) {
+      log.warn("Could not declare exchange '{}': {}", exchangeName, e.getMessage());
+    }
+  }
+
+  /**
+   * Deletes an exchange if it exists. Silently ignores errors (e.g. exchange does not exist).
+   *
+   * @param exchangeName the full exchange name to delete
+   */
+  public void safeDeleteExchange(String exchangeName) {
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      channel.exchangeDelete(exchangeName);
+      log.info("Deleted exchange '{}'.", exchangeName);
+    } catch (Exception e) {
+      log.debug("Could not delete exchange '{}' (may not exist): {}", exchangeName, e.getMessage());
+    }
+  }
+
+  // -- MANAGEMENT API --
+
+  /**
+   * Lists all queue names from the RabbitMQ management API that start with the given prefix.
+   *
+   * @param prefix the prefix to filter queue names
+   * @return a list of matching queue names
+   * @throws IllegalStateException if the management API is unreachable or returns an error
+   */
+  public List<String> listQueueNamesWithPrefix(String prefix) {
+    return managementClient.listQueueNamesWithPrefix(prefix);
+  }
+
+  /**
+   * Lists all exchange names from the RabbitMQ management API that start with the given prefix.
+   *
+   * @param prefix the prefix to filter exchange names
+   * @return a list of matching exchange names
+   * @throws IllegalStateException if the management API is unreachable or returns an error
+   */
+  public List<String> listExchangeNamesWithPrefix(String prefix) {
+    return managementClient.listExchangeNamesWithPrefix(prefix);
   }
 
   // -- INTERNAL --

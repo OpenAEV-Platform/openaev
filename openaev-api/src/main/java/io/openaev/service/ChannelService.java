@@ -43,13 +43,31 @@ public class ChannelService {
         .orElseThrow(() -> new ElementNotFoundException("Channel not found with id: " + channelId));
   }
 
-  public ChannelReader validateArticles(String exerciseId, String channelId, User user) {
+  public boolean existsById(@NotBlank final String channelId) {
+    return channelRepository.existsById(channelId);
+  }
+
+  // -- DELETE --
+
+  // existsById() is tenant-filtered by Hibernate, so deleteById() below is safe.
+  public void deleteChannel(@NotBlank final String channelId) {
+    if (!channelRepository.existsById(channelId)) {
+      throw new ElementNotFoundException("Channel not found with id: " + channelId);
+    }
+    channelRepository.deleteById(channelId);
+  }
+
+  /**
+   * @param tenantId resolved by the caller (API layer), not read from TenantContext here.
+   */
+  public ChannelReader validateArticles(
+      String exerciseId, String channelId, User user, @NotBlank final String tenantId) {
     ChannelReader channelReader;
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
     List<Inject> injects;
 
-    Optional<Exercise> exerciseOpt = exerciseRepository.findById(exerciseId);
+    Optional<Exercise> exerciseOpt = exerciseRepository.findByIdAndTenantId(exerciseId, tenantId);
     if (exerciseOpt.isPresent()) {
       Exercise exercise = exerciseOpt.get();
       channelReader = new ChannelReader(channel, exercise);
@@ -101,7 +119,7 @@ public class ChannelService {
       channelReader.setChannelArticles(publishedArticles);
       // Fulfill article expectations
       List<Inject> finalInjects = injects;
-      List<InjectExpectation> expectationExecutions =
+      List<ArticleInjectExpectation> expectationExecutions =
           publishedArticles.stream()
               .flatMap(
                   article ->
@@ -139,18 +157,18 @@ public class ChannelService {
     List<String> articleIds =
         publishedArticles.stream().map(Article::getId).toList(); // Articles with the same channel
     // Find all expectations linked to teams' user, channel and exercise
-    List<InjectExpectation> channelExpectations =
+    List<ArticleInjectExpectation> channelExpectations =
         injectExpectationExecutionRepository.findChannelExpectations(
             injectIds, teamIds, articleIds);
-    List<InjectExpectation> parentExpectations =
+    List<ArticleInjectExpectation> parentExpectations =
         channelExpectations.stream().filter(exp -> exp.getUser() == null).toList();
-    Map<Team, List<InjectExpectation>> playerByTeam =
+    Map<Team, List<ArticleInjectExpectation>> playerByTeam =
         channelExpectations.stream()
             .filter(exp -> exp.getUser() != null)
-            .collect(Collectors.groupingBy(InjectExpectation::getTeam));
+            .collect(Collectors.groupingBy(ArticleInjectExpectation::getTeam));
 
     // Depending on type of validation, we process the parent expectations:
-    List<InjectExpectation> toUpdate =
+    List<BaseInjectExpectation> toUpdate =
         ExpectationUtils.processByValidationType(
             isaNewExpectationResult, channelExpectations, parentExpectations, playerByTeam);
     injectExpectationExecutionRepository.saveAll(toUpdate);

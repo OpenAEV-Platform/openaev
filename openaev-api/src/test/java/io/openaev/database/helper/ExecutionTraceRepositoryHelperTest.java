@@ -95,23 +95,4 @@ class ExecutionTraceRepositoryHelperTest extends IntegrationTest {
     assertThat(updated.get().getName()).isEqualTo(ExecutionStatus.EXECUTED);
     assertThat(updated.get().getTrackingEndDate()).isNotNull();
   }
-
-  @Test
-  @DisplayName("updateInjectUpdateDate should update inject timestamp")
-  void given_existingInject_should_updateTimestamp() {
-    // Arrange
-    Inject inject = injectComposer.forInject(InjectFixture.getDefaultInject()).persist().get();
-    Instant newTimestamp = Instant.now();
-    entityManager.flush();
-
-    // Act
-    helper.updateInjectUpdateDate(inject.getId(), newTimestamp);
-
-    // Assert
-    entityManager.clear();
-
-    Optional<Inject> updated = injectRepository.findById(inject.getId());
-    assertThat(updated).isPresent();
-    assertThat(updated.get().getUpdatedAt()).isNotNull();
-  }
 }

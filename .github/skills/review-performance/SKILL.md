@@ -72,6 +72,10 @@ description: >-
 
 - Read-only operations use `@Transactional(readOnly = true)`
 - No long-running computation inside `@Transactional` (keep transactions short)
+- **Check for MinIO / S3 / file I/O inside `@Transactional`**: search for calls to `fileService`
+  or `uploadCatalogLogo` inside methods annotated `@Transactional` — flag as blocking issue
+  (DB connection held during network I/O). Required fix: split into `initialise()` (DB, transactional)
+  + `refreshAssets()` (MinIO, non-transactional) called in sequence after the transaction commits.
 - Verify no `@Transactional` self-calls (Spring proxy bypass):
   ```bash
   grep -rn "this\." openaev-api/src/main/java/io/openaev/service/ --include="*.java" | grep -i "find\|get\|search\|create\|update\|delete"

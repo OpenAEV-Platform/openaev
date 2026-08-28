@@ -1,6 +1,7 @@
 package io.openaev.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.helper.ObjectMapperHelper;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.ExternalDocumentation;
@@ -13,6 +14,7 @@ import jakarta.annotation.Resource;
 import org.springdoc.core.converters.models.SortObject;
 import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.Ordered;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -23,7 +25,9 @@ import org.springframework.web.client.RestTemplate;
 @Component
 @EnableAsync
 @EnableScheduling
-@EnableTransactionManagement
+// The transaction advisor runs just inside @Lock and just outside the audit aspect,
+// so the chain is lock -> tx -> audit -> scope/rbac.
+@EnableTransactionManagement(order = Ordered.LOWEST_PRECEDENCE - 2)
 public class AppConfig {
 
   static {
@@ -38,6 +42,10 @@ public class AppConfig {
      *   https://stackoverflow.com/questions/60058976/open-api-3-how-to-read-spring-boot-pagination-properties
      */
     SpringDocUtils.getConfig().replaceWithClass(Sort.class, SortObject.class);
+    // TxCtx is resolved server-side by TxCtxArgumentResolver from the request (path/header), so it
+    // is not a client-supplied parameter and must not leak into the OpenAPI contract or the
+    // generated api-types.d.ts.
+    SpringDocUtils.getConfig().addRequestWrapperToIgnore(TxCtx.class);
   }
 
   // Validations

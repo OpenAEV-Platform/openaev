@@ -2,6 +2,8 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
 import static io.openaev.database.model.ExecutionStatus.*;
+import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS;
+import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
 import static io.openaev.database.model.Payload.PAYLOAD_EXECUTION_ARCH.*;
 import static io.openaev.database.specification.InjectSpecification.*;
@@ -22,8 +24,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.database.audit.IndexEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
@@ -45,7 +48,6 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
@@ -55,10 +57,13 @@ import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
+import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.JpaUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
 import jakarta.annotation.Nullable;
@@ -81,6 +86,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -100,6 +106,7 @@ public class InjectService {
   private final ExecutionTraceRepository executionTraceRepository;
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
+  private final AiTargetRepository aiTargetRepository;
   private final CollectorService collectorService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final EndpointService endpointService;
@@ -125,6 +132,8 @@ public class InjectService {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final InjectUtils injectUtils;
   private final ThreatArsenalService threatArsenalService;
+  private final ApplicationEventPublisher eventPublisher;
+  private final BulkOperationMonitor bulkOperationMonitor;
 
   private InjectStatusService injectStatusService;
 
@@ -315,6 +324,10 @@ public class InjectService {
   public void deleteAllByIds(List<String> injectIds) {
     if (!CollectionUtils.isEmpty(injectIds)) {
       injectRepository.deleteByAllIdsNative(injectIds);
+      // Native delete: no JPA lifecycle event fires, notify the search engine explicitly so the
+      // inject docs (and their expectation/finding docs via dependency cascade) are removed.
+      injectIds.forEach(
+          id -> eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, id)));
     }
   }
 
@@ -395,7 +408,35 @@ public class InjectService {
                   });
             });
 
+    // AI targets are referenced from the inject content ("ai_target" key), not as an asset relation
+    // on the inject (see AiTargetSearchAdaptor). Resolve that reference here so the agentless
+    // asset-level DETECTION / PREVENTION expectations get created at execution, exactly like any
+    // other directly-targeted asset - otherwise an AI Red Team atomic testing / simulation produces
+    // zero expectation rows ("No expectation for ...") and the collector has nothing to match. AI
+    // targets reached through an asset group are already resolved by the group loop above.
+    resolveContentAiTarget(inject)
+        .ifPresent(
+            aiTarget -> {
+              boolean alreadyResolved =
+                  assetToExecutes.stream()
+                      .anyMatch(as -> as.asset().getId().equals(aiTarget.getId()));
+              if (!alreadyResolved) {
+                assetToExecutes.add(new AssetToExecute(aiTarget));
+              }
+            });
+
     return assetToExecutes;
+  }
+
+  /**
+   * Resolve the AI target ({@link Asset} with {@code category = AI_TARGET}) referenced from the
+   * inject content, if any. The key parsing is shared with {@code AiTargetSearchAdaptor} (via
+   * {@link InjectContentUtils}) so display and execution agree on which AI target the inject
+   * targets.
+   */
+  private Optional<Asset> resolveContentAiTarget(Inject inject) {
+    return InjectContentUtils.contentAiTargetId(inject.getContent())
+        .flatMap(aiTargetRepository::findAiTargetById);
   }
 
   public void cleanInjectsDocExercise(String exerciseId, String documentId) {
@@ -473,8 +514,27 @@ public class InjectService {
 
   @Transactional
   public InjectResultOverviewOutput relaunch(String id) {
+    return doRelaunch(id, true);
+  }
+
+  /**
+   * Relaunch an inject (duplicate + queue new + delete old). Scheduled relaunches pass {@code
+   * checkLaunchable = false} to skip the Enterprise executor gate, matching scenario scheduled
+   * execution which never re-gates at run time.
+   */
+  @Transactional
+  public InjectResultOverviewOutput relaunch(String id, boolean checkLaunchable) {
+    return doRelaunch(id, checkLaunchable);
+  }
+
+  // Non-transactional body shared by both @Transactional entry points: an intra-class call to a
+  // @Transactional method bypasses the Spring proxy (self-invocation), so the overloads never call
+  // each other directly.
+  private InjectResultOverviewOutput doRelaunch(String id, boolean checkLaunchable) {
     Inject duplicatedInject = findAndDuplicateInject(id);
-    this.throwIfInjectNotLaunchable(duplicatedInject);
+    if (checkLaunchable) {
+      this.throwIfInjectNotLaunchable(duplicatedInject);
+    }
     Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
     deleteForRelaunch(id, savedInject.getId());
     return injectMapper.toInjectResultOverviewOutput(savedInject);
@@ -485,10 +545,14 @@ public class InjectService {
     injectRepository.deleteById(id);
   }
 
-  @Transactional
-  public void deleteForRelaunch(String oldId, String newId) {
+  // Only ever runs inside the relaunch transaction: private and non-transactional by design (a
+  // public @Transactional variant would only be reachable through self-invocation).
+  private void deleteForRelaunch(String oldId, String newId) {
     injectDocumentRepository.updateInjectId(newId, oldId);
     injectRepository.deleteByIdNative(oldId);
+    // Native delete: notify the search engine so the old inject and its expectation/finding docs
+    // don't survive the relaunch (they would double-count against the duplicated inject).
+    eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, oldId));
   }
 
   /**
@@ -618,6 +682,7 @@ public class InjectService {
    * @param operations the operations to perform with fields and values to add, remove or replace
    * @return the list of updated injects
    */
+  @Transactional(rollbackFor = Exception.class)
   public List<Inject> bulkUpdateInject(
       final List<Inject> injectsToUpdate, final List<InjectBulkUpdateOperation> operations) {
     // We aggregate the different field values in distinct sets in order to avoid retrieving the
@@ -865,6 +930,18 @@ public class InjectService {
       return;
     }
 
+    // Assets and asset groups are only relevant for injects whose contract declares the matching
+    // targeting field in its content: skip these operations for other injects (e.g. email, SMS,
+    // manual) so that irrelevant data is never persisted (#2165). The contract content is the
+    // discriminator - not needs_executor - because agentless technical contracts (Nmap, Nuclei,
+    // HTTP query...) do not need an executor agent yet legitimately target assets. Teams stay
+    // unrestricted as human response expectations can be added to technical injects.
+    InjectorContract contract = injectToUpdate.getInjectorContract().orElse(null);
+    boolean supportsAssets =
+        injectorContractContentUtils.hasField(contract, CONTRACT_ELEMENT_CONTENT_KEY_ASSETS);
+    boolean supportsAssetGroups =
+        injectorContractContentUtils.hasField(contract, CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS);
+
     for (var operation : operations) {
       switch (operation.getField()) {
         case TEAMS ->
@@ -873,18 +950,38 @@ public class InjectService {
                 operation.getValues(),
                 teamsFromDB,
                 operation.getOperation());
-        case ASSETS ->
+        case ASSETS -> {
+          if (supportsAssets) {
             updateInjectEntities(
                 injectToUpdate.getAssets(),
                 operation.getValues(),
                 assetsFromDB,
                 operation.getOperation());
-        case ASSET_GROUPS ->
+          } else {
+            log.debug(
+                "Skipping ASSETS bulk update operation for inject {}: {}",
+                injectToUpdate.getId(),
+                contract == null
+                    ? "it has no injector contract"
+                    : "its contract has no assets field");
+          }
+        }
+        case ASSET_GROUPS -> {
+          if (supportsAssetGroups) {
             updateInjectEntities(
                 injectToUpdate.getAssetGroups(),
                 operation.getValues(),
                 assetGroupsFromDB,
                 operation.getOperation());
+          } else {
+            log.debug(
+                "Skipping ASSET_GROUPS bulk update operation for inject {}: {}",
+                injectToUpdate.getId(),
+                contract == null
+                    ? "it has no injector contract"
+                    : "its contract has no asset_groups field");
+          }
+        }
         default ->
             throw new BadRequestException("Invalid field to update: " + operation.getField());
       }
@@ -957,9 +1054,13 @@ public class InjectService {
 
   private void extractAgentsAndAssetsAgentless(
       Set<Agent> agents, Set<Asset> assetsAgentless, Asset asset) {
+    // Only endpoints carry agents. A group may resolve non-endpoint assets (e.g. AI targets);
+    // they are not agent-bearing endpoints and are irrelevant to agent extraction.
+    if (!(Hibernate.unproxy(asset) instanceof Endpoint endpoint)) {
+      return;
+    }
     List<Agent> collectedAgents =
-        Optional.ofNullable(((Endpoint) Hibernate.unproxy(asset)).getAgents())
-            .orElse(Collections.emptyList());
+        Optional.ofNullable(endpoint.getAgents()).orElse(Collections.emptyList());
     if (collectedAgents.isEmpty()) {
       assetsAgentless.add(asset);
     } else {
@@ -977,9 +1078,12 @@ public class InjectService {
 
     Consumer<Asset> extractAgents =
         asset -> {
+          // Only endpoints carry agents; skip non-endpoint assets (e.g. AI targets).
+          if (!(Hibernate.unproxy(asset) instanceof Endpoint endpoint)) {
+            return;
+          }
           List<Agent> collectedAgents =
-              Optional.ofNullable(((Endpoint) Hibernate.unproxy(asset)).getAgents())
-                  .orElse(Collections.emptyList());
+              Optional.ofNullable(endpoint.getAgents()).orElse(Collections.emptyList());
           for (Agent agent : collectedAgents) {
             if (isPrimaryAgent(agent) && !agentIds.contains(agent.getId())) {
               agents.add(agent);
@@ -1026,7 +1130,9 @@ public class InjectService {
       final String injectId, final String targetId, final TargetType targetType) {
     return switch (targetType) {
       case AGENT -> this.executionTraceRepository.findByInjectIdAndAgentId(injectId, targetId);
-      case ASSETS -> this.executionTraceRepository.findByInjectIdAndAssetId(injectId, targetId);
+      // AI targets are plain assets (asset_category driven), so their traces are asset-scoped.
+      case ASSETS, AI_TARGETS ->
+          this.executionTraceRepository.findByInjectIdAndAssetId(injectId, targetId);
       case TEAMS -> this.executionTraceRepository.findByInjectIdAndTeamId(injectId, targetId);
       case PLAYERS -> this.executionTraceRepository.findByInjectIdAndPlayerId(injectId, targetId);
       default -> throw new BadRequestException("Target type " + targetType + " is not supported");
@@ -1036,6 +1142,11 @@ public class InjectService {
   public InjectStatusOutput getInjectStatusWithGlobalExecutionTraces(String injectId) {
     return injectStatusMapper.toInjectStatusOutput(
         injectStatusRepository.findInjectStatusWithGlobalExecutionTraces(injectId));
+  }
+
+  public InjectStatusOutput getInjectStatusWithAllExecutionTraces(String injectId) {
+    return injectStatusMapper.toInjectStatusOutputWithAllTraces(
+        injectStatusRepository.findByInjectId(injectId));
   }
 
   /**
@@ -1356,7 +1467,8 @@ public class InjectService {
       return null;
     }
 
-    List<Collector> collectors = this.collectorService.securityPlatformCollectors();
+    List<Collector> collectors =
+        this.collectorService.securityPlatformCollectors(inject.getTenant().getId());
     List<Injector> injectors = this.injectorService.findAll();
     List<HealthCheck> healthChecks = new ArrayList<>();
 
@@ -1391,7 +1503,7 @@ public class InjectService {
    * @return distinct security platforms
    */
   public List<SecurityPlatform> extractSecurityPlatforms(List<Inject> injects) {
-    Stream<InjectExpectation> allInjectExpectationsStream =
+    Stream<BaseInjectExpectation> allInjectExpectationsStream =
         extractInjectExpectationsFromInjects(injects);
     Set<String> assetIds =
         extractAssetIdsFromInjectExpectationsResults(allInjectExpectationsStream);
@@ -1419,17 +1531,9 @@ public class InjectService {
   }
 
   /**
-   * Find a list of Inject in the Raw format
-   *
-   * @param ids IDs of the inject to fetch
-   * @return the list of matching injects in Raw format
-   */
-  public List<RawInject> findRawByIds(List<String> ids) {
-    return injectRepository.findRawByIds(ids);
-  }
-
-  /**
-   * Create all injects from a contract research
+   * Create all injects from a contract research (threat arsenal "add to scenario(s)" mass action).
+   * Tracked as a massive operation (header progress indicator): the operation is registered lazily
+   * once the first contract page reveals the total, and progresses page by page.
    *
    * @param exercise to link injects on
    * @param scenarios to link injects on
@@ -1449,15 +1553,32 @@ public class InjectService {
     input.setSize(INJECTOR_CONTRACT_PAGE_SIZE);
     int pageNumber = 0;
     Page<? extends InjectorContractBaseOutput> page;
+    String operationId = null;
 
-    do {
-      page = fetchInjectorContractsPage(input, pageNumber);
-      List<InjectInput> injectInputs = toInjectInputs(page.getContent(), locale);
-      if (!injectInputs.isEmpty()) {
-        scenarios.forEach(scenario -> createAndSaveInjectList(exercise, scenario, injectInputs));
+    try {
+      do {
+        page = fetchInjectorContractsPage(input, pageNumber);
+        if (operationId == null && page.getTotalElements() > 0) {
+          operationId =
+              bulkOperationMonitor.start(
+                  "create", "injects", (int) page.getTotalElements() * scenarios.size());
+        }
+        List<InjectInput> injectInputs = toInjectInputs(page.getContent(), locale);
+        if (!injectInputs.isEmpty()) {
+          scenarios.forEach(scenario -> createAndSaveInjectList(exercise, scenario, injectInputs));
+          bulkOperationMonitor.progress(operationId, injectInputs.size() * scenarios.size());
+        }
+        pageNumber++;
+      } while (page.hasNext());
+      if (operationId != null) {
+        bulkOperationMonitor.complete(operationId);
       }
-      pageNumber++;
-    } while (page.hasNext());
+    } catch (RuntimeException e) {
+      if (operationId != null) {
+        bulkOperationMonitor.fail(operationId);
+      }
+      throw e;
+    }
   }
 
   private Page<? extends InjectorContractBaseOutput> fetchInjectorContractsPage(
@@ -1493,7 +1614,10 @@ public class InjectService {
             : injectorContractFullOutput.getLabels().get("en"));
     injectInput.setDependsDuration(0L);
     injectInput.setInjectorContract(injectorContractFullOutput.getId());
-    injectInput.setContent(convertContent(injectorContractFullOutput.getContent()));
+    // Content is intentionally left null: buildInject then derives it from the contract's
+    // dynamic field defaults, which includes the predefined (default) expectations. Setting
+    // the raw contract definition here instead used to pollute the inject content and drop
+    // the default expectations (#6820).
     return injectInput;
   }
 

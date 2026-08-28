@@ -33,7 +33,7 @@ const TenantPopover: FunctionComponent<Props> = ({
   // Standard hooks
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
-  const { reloadUserTenants } = useAuth();
+  const { reloadUserTenants, settings } = useAuth();
 
   // Edition
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -83,6 +83,8 @@ const TenantPopover: FunctionComponent<Props> = ({
   }, [tenant.tenant_id, onReactivate, handleCloseReactivate, reloadUserTenants]);
 
   // Button Popover
+  const isDefaultTenant = tenant.tenant_id === settings.default_tenant_id;
+
   const entries = useMemo(() => {
     const result = [];
 
@@ -102,6 +104,8 @@ const TenantPopover: FunctionComponent<Props> = ({
       result.push({
         label: t('Delete'),
         action: handleOpenDelete,
+        disabled: isDefaultTenant,
+        disabledMessage: t('The default tenant cannot be deleted.'),
         userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TENANTS),
       });
     }
@@ -117,7 +121,7 @@ const TenantPopover: FunctionComponent<Props> = ({
     }
 
     return result;
-  }, [actions, ability, handleOpenEdit, handleOpenDelete, handleOpenReactivate]);
+  }, [actions, ability, handleOpenEdit, handleOpenDelete, handleOpenReactivate, isDefaultTenant]);
 
   return (
     <>

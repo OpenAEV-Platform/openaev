@@ -59,6 +59,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @Slf4j
 public class InjectImportService {
+  private static final ObjectMapper mapper = new ObjectMapper();
 
   private final InjectRepository injectRepository;
   private final ScenarioTeamUserRepository scenarioTeamUserRepository;
@@ -738,7 +739,6 @@ public class InjectImportService {
     }
 
     // Initializing the content with a root node
-    ObjectMapper mapper = new ObjectMapper();
     inject.setContent(mapper.createObjectNode());
 
     // Once it's done, we set the injectorContract
@@ -748,7 +748,7 @@ public class InjectImportService {
     inject.setInjector(injectorContract.getFirstInjector());
 
     // So far, we only support one expectation
-    AtomicReference<InjectExpectation> expectation = new AtomicReference<>();
+    AtomicReference<BaseInjectExpectation> expectation = new AtomicReference<>();
 
     // For each rule attributes of the importer
     matchingInjectImporter
@@ -826,7 +826,7 @@ public class InjectImportService {
       RuleAttribute ruleAttribute,
       Row row,
       Map<String, Team> mapTeamByName,
-      AtomicReference<InjectExpectation> expectation,
+      AtomicReference<BaseInjectExpectation> expectation,
       ImportMapper importMapper,
       Map<String, Pattern> mapPatternByAllTeams) {
     // If it's a reserved field, it's already taken care of
@@ -947,8 +947,7 @@ public class InjectImportService {
         }
         // If the rule type is of an expectation,
         if (expectation.get() == null) {
-          expectation.set(new InjectExpectation());
-          expectation.get().setType(InjectExpectation.EXPECTATION_TYPE.MANUAL);
+          expectation.set(new ManualInjectExpectation());
         }
         if (ruleAttribute.getName().contains("_")) {
           if ("score".equals(ruleAttribute.getName().split("_")[1])) {

@@ -1,19 +1,23 @@
+import { InsertChartOutlined } from '@mui/icons-material';
 import { Button } from '@mui/material';
 import { useState } from 'react';
 
-import ButtonPopover from '../../../../components/common/ButtonPopover';
 import Dialog from '../../../../components/common/dialog/Dialog';
 import CustomDashboardAutocompleteField from '../../../../components/fields/CustomDashboardAutocompleteField';
 import { useFormatter } from '../../../../components/i18n';
 
 interface Props {
-  variant?: 'popover' | 'text';
+  /**
+   * outlined: explicit "Change dashboard" button (Statistics tab, dashboard
+   * already displayed) - text: plain link-like button (empty state).
+   */
+  variant?: 'outlined' | 'text';
   defaultDashboardId?: string;
   handleApplyChange: (dashboardId: string) => void;
   scenarioOrSimulationId?: string;
 }
 
-const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'popover', handleApplyChange, scenarioOrSimulationId }: Props) => {
+const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'outlined', handleApplyChange, scenarioOrSimulationId }: Props) => {
   // Standard hooks
   const { t } = useFormatter();
   const [dashboardId, setDashboardId] = useState<string>(defaultDashboardId);
@@ -29,16 +33,21 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'popover', h
 
   return (
     <>
-      {variant === 'popover'
+      {variant === 'outlined'
         ? (
-            <ButtonPopover
-              entries={[{
-                label: 'Select a dashboard',
-                action: handleOpenSelectDashboardDialog,
-                userRight: true,
-              }]}
-              style={{ alignSelf: 'start' }}
-            />
+            <Button
+              variant="outlined"
+              color="primary"
+              size="small"
+              startIcon={<InsertChartOutlined />}
+              onClick={handleOpenSelectDashboardDialog}
+              sx={{
+                alignSelf: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {t('Change dashboard')}
+            </Button>
           )
         : <Button onClick={handleOpenSelectDashboardDialog} variant="text">{t('Select a dashboard')}</Button>}
       <Dialog
@@ -47,8 +56,8 @@ const SelectDashboardButton = ({ defaultDashboardId = '', variant = 'popover', h
         handleClose={handleCloseSelectDashboardDialog}
         actions={(
           <>
-            <Button onClick={handleCloseSelectDashboardDialog}>{t('Cancel')}</Button>
-            <Button color="secondary" onClick={onHandleSubmit}>
+            <Button variant="outlined" color="primary" onClick={handleCloseSelectDashboardDialog}>{t('Cancel')}</Button>
+            <Button variant="contained" color="primary" onClick={onHandleSubmit}>
               {t('Continue')}
             </Button>
           </>

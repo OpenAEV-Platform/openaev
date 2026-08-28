@@ -1,12 +1,10 @@
 package io.openaev.rest.collector.service;
 
-import static io.openaev.database.specification.CollectorSpecification.hasSecurityPlatform;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.COLLECTORS_IMAGES_BASE_PATH;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
@@ -19,6 +17,7 @@ import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.CollectorMapper;
 import jakarta.annotation.Resource;
@@ -78,19 +77,18 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   @Override
   protected Collector getConnectorById(String collectorId) {
-    return collectorRepository
-        .findByIdAndTenantId(collectorId, TenantContext.getCurrentTenant())
-        .orElse(null);
+    return collectorRepository.findByCollectorId(collectorId).orElse(null);
   }
 
   @Override
   protected CollectorOutput mapToOutput(
       Collector collector,
+      String displayName,
       CatalogConnector catalogConnector,
       ConnectorInstance connectorInstance,
       boolean existingCollector) {
     return collectorMapper.toCollectorOutput(
-        collector, catalogConnector, connectorInstance, existingCollector);
+        collector, displayName, catalogConnector, connectorInstance, existingCollector);
   }
 
   @Override
@@ -100,10 +98,46 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
   // -- CRUD --
 
+  /**
+   * Full composite key lookup — use when tenantId is explicitly available (from TxCtx). Avoids
+   * ambiguity on the composite PK (collector_id, tenant_id).
+   */
+  public Collector collector(String id, String tenantId) {
+    return collectorRepository
+        .findById(ConnectorCompositeId.of(id, tenantId))
+        .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
+  }
+
+  /**
+   * Inspector-scoped lookup — use from background services or paths where tenantId is not
+   * explicitly available but the transaction is guaranteed single-tenant (e.g. forEachTenant).
+   */
   public Collector collector(String id) {
     return collectorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findByCollectorId(id)
         .orElseThrow(() -> new ElementNotFoundException("Collector not found with id: " + id));
+  }
+
+  /**
+   * Deletes a collector. A started collector can never be deleted (OpenCTI parity): a managed one
+   * must have a stop requested or effective on its owning instance, an unmanaged one must have
+   * stopped pinging (see {@link #throwIfConnectorRunning}). When the collector was deployed through
+   * the Integration Manager, the owning instance is torn down with it - deleting the row alone
+   * would leave the container running and the entity would reappear on its next registration
+   * heartbeat.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteCollector(String collectorId, String tenantId) throws ConnectorStatusException {
+    Collector collector = collector(collectorId, tenantId);
+    if (collector.isExternal()) {
+      throwIfConnectorRunning(collector, collector.getUpdatedAt());
+    }
+    if (!deleteOwningConnectorInstance(collectorId)) {
+      // Tenant-exact delete on the composite PK (collector_id, tenant_id): the entity was
+      // resolved with the explicit tenantId above, so the delete must not rely on the tenant
+      // rewriting of the id-only DELETE.
+      collectorRepository.delete(collector);
+    }
   }
 
   /**
@@ -113,6 +147,10 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    */
   public Iterable<Collector> collectors() {
     return collectorRepository.findAll();
+  }
+
+  public CollectorOutput collectorOutput(String id) {
+    return getConnectorOutput(id);
   }
 
   /**
@@ -126,17 +164,46 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
   }
 
   /**
-   * Retrieves IDs of resources associated with a collector.
+   * Retrieves IDs of resources associated with a collector, using the full composite key.
    *
-   * @param collectorId collector identifier.
+   * <p>Tenant safety: {@code connector_instances}/{@code connector_instance_configurations} are now
+   * on v2 isolation (activated #6408). This lookup still carries {@code tenantId} explicitly, not
+   * as a leftover v1 workaround, but because it is a native query (bypasses the Hibernate
+   * {@code @Filter} either way) called with one specific collector's tenant - {@code tenantId} is
+   * also reused below for the composite-PK {@code registered} check, which the automatic inspector
+   * scoping cannot substitute for.
+   *
+   * @param collectorId collector identifier
+   * @param tenantId tenant for the composite PK lookup
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
-  public ConnectorIds getCollectorRelationsId(String collectorId) {
-    return getConnectorRelationsId(collectorId);
+  public ConnectorIds getCollectorRelationsId(String collectorId, String tenantId) {
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
+        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+            ConnectorType.COLLECTOR.getIdKeyName(), collectorId, tenantId);
+    if (relatedIds != null) {
+      boolean registered =
+          collectorRepository.findById(ConnectorCompositeId.of(collectorId, tenantId)).isPresent();
+      return catalogConnectorMapper.toConnectorIds(
+          relatedIds.getCatalogConnectorId(), relatedIds.getConnectorInstanceId(), registered);
+    }
+
+    Collector collector =
+        collectorRepository
+            .findById(ConnectorCompositeId.of(collectorId, tenantId))
+            .orElseThrow(
+                () -> new ElementNotFoundException("Collector not found with id: " + collectorId));
+    CatalogConnector catalogConnector =
+        catalogConnectorService.findBySlug(collector.getType()).orElse(null);
+    if (catalogConnector != null) {
+      return catalogConnectorMapper.toConnectorIds(catalogConnector.getId(), null, true);
+    }
+
+    return catalogConnectorMapper.toConnectorIds(null, null, true);
   }
 
-  public List<Collector> securityPlatformCollectors() {
-    return fromIterable(collectorRepository.findAll(hasSecurityPlatform()));
+  public List<Collector> securityPlatformCollectors(@NotNull String tenantId) {
+    return collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(tenantId);
   }
 
   public Collector updateCollectorState(Collector collectorToUpdate, ObjectNode newState) {
@@ -180,6 +247,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
    * @param period polling period in seconds (only relevant for external collectors)
    * @param securityPlatformId optional security platform reference
    * @param iconStream optional PNG icon data — uploaded to the file store when present
+   * @param author optional source-declared author override for the collector's payloads and
+   *     contracts; when null or blank the collector name is used as author
    * @return the persisted collector
    */
   @Transactional
@@ -191,7 +260,8 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
       boolean external,
       int period,
       String securityPlatformId,
-      InputStream iconStream)
+      InputStream iconStream,
+      String author)
       throws Exception {
 
     if (iconStream != null) {
@@ -200,17 +270,29 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
 
     CollectorType collectorType = ensureCollectorTypeExists(type);
 
-    Collector collector = collectorRepository.findByIdAndTenantId(id, tenantId).orElse(null);
+    // Full composite key lookup: identity is (collector_id, tenant_id).
+    Collector collector =
+        collectorRepository.findById(ConnectorCompositeId.of(id, tenantId)).orElse(null);
 
     SecurityPlatform securityPlatform =
         securityPlatformId != null
-            ? securityPlatformRepository.findById(securityPlatformId).orElseThrow()
+            ? securityPlatformRepository
+                .findByIdAndTenantId(securityPlatformId, tenantId)
+                .orElse(null)
             : null;
+
+    if (securityPlatformId != null && securityPlatform == null) {
+      log.warn(
+          "SecurityPlatform {} not found for tenant {} during collector registration (collector: {})",
+          securityPlatformId,
+          tenantId,
+          id);
+    }
 
     if (collector == null) {
       collector = new Collector();
       collector.setId(id);
-      collector.setTenant(new Tenant(tenantId));
+      collector.setTenantId(tenantId);
       collector.setPeriod(period); // immutable after creation
     }
 
@@ -218,6 +300,7 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     collector.setType(type);
     collector.setCollectorType(collectorType);
     collector.setExternal(external);
+    collector.setAuthor(author != null && !author.isBlank() ? author : null);
     if (external) {
       collector.setUpdatedAt(Instant.now());
     }
@@ -227,11 +310,22 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     return collectorRepository.save(collector);
   }
 
-  public List<Collector> collectorsForPayload(String payloadId) {
-    return collectorRepository.findByPayloadId(payloadId);
-  }
-
-  public List<Collector> collectorsForAtomicTesting(String injectId) {
-    return collectorRepository.findByInjectId(injectId);
+  /**
+   * Stamps the last execution of a collector. Used as a heartbeat by built-in collectors (which run
+   * inside the platform and never go through the external registration ping) so the UI can surface
+   * a truthful liveliness signal.
+   *
+   * @param collectorId collector identifier
+   * @param tenantId tenant the collector belongs to
+   */
+  @Transactional
+  public void updateLastExecution(@NotNull final String collectorId, @NotNull String tenantId) {
+    collectorRepository
+        .findByIdAndTenantId(collectorId, tenantId)
+        .ifPresent(
+            collector -> {
+              collector.setLastExecution(Instant.now());
+              collectorRepository.save(collector);
+            });
   }
 }

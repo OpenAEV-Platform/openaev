@@ -7,8 +7,8 @@ import type { EndpointOutput } from '../../../../../../utils/api-types';
 import { EndpointContext } from '../../../../../../utils/context/endpoint/EndpointContext';
 import { Can } from '../../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
-import EndpointPopover from '../../../../assets/endpoints/EndpointPopover';
-import EndpointsList from '../../../../assets/endpoints/EndpointsList';
+import AssetPopover from '../../../../assets/endpoints/AssetPopover';
+import AssetsList from '../../../../assets/endpoints/AssetsList';
 import InjectAddEndpoints from '../../../../simulations/simulation/injects/endpoints/InjectAddEndpoints';
 
 interface Props {
@@ -50,10 +50,11 @@ const InjectEndpointsList = ({ name, platforms = [], architectures, disabled = f
 
   return (
     <>
-      <EndpointsList
+      <AssetsList
         endpoints={endpoints}
+        withHeaders
         renderActions={endpoint => (
-          <EndpointPopover
+          <AssetPopover
             inline
             agentless={endpoint.asset_agents.length === 0}
             endpoint={endpoint}

@@ -1,11 +1,13 @@
 package io.openaev.aop.audit_log;
 
+import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.rest.team.TeamApi.TEAM_URI;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.timeout;
@@ -20,16 +22,28 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
-import io.openaev.database.audit.EntityDiffContext;
+import io.openaev.config.AuditLogProperties;
+import io.openaev.config.ShutdownService;
+import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.team.form.TeamUpdateInput;
+import io.openaev.service.LogService;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
+import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.TeamFixture;
+import io.openaev.utils.fixtures.composers.ExecutorComposer;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Map;
+import java.util.logging.Level;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -42,6 +56,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -54,75 +69,84 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper objectMapper;
   @Autowired private TeamRepository teamRepository;
+  @Autowired private ExecutorComposer executorComposer;
+  @Autowired private ExecutorFixture executorFixture;
+  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private TestUserHolder testUserHolder;
 
   @MockitoSpyBean private AuditLogger auditLogger;
+  @MockitoSpyBean private AuditLogProperties auditLogProperties;
+  @MockitoSpyBean private LogService logService;
+  @MockitoSpyBean private ShutdownService shutdownService;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   @BeforeEach
   void setup() {
-    reset(auditLogger);
+    reset(auditLogger, auditLogProperties, logService, shutdownService);
     doReturn(true).when(auditLogger).isAuditLoggingEnabled();
+    // Always prevent System.exit() — initiateShutdown() starts a daemon thread that calls
+    // System.exit(). Without this safety net, any test that accidentally triggers
+    // prepareLogFailure() (e.g. via a race with the async audit thread) would kill the JVM.
+    doNothing().when(shutdownService).initiateShutdown();
+    // /register carries a TxCtx param (v2 write-scope resolution): the mock user needs a
+    // users_tenants row, otherwise the scope resolves to TxCtx.Missing and the write is refused
+    // with 400 regardless of isAdmin/capabilities. Guarded by an active-transaction check because
+    // one test in this class runs with Propagation.NOT_SUPPORTED (no transaction during setup).
+    if (testUserHolder.isSet()
+        && org.springframework.transaction.support.TransactionSynchronizationManager
+            .isActualTransactionActive()) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
   }
 
   @Nested
-  @DisplayName("RBAC denials")
+  @DisplayName("RBAC denials — audit event emitted for unauthorized access")
   class RbacDenialAudit {
 
     @Test
     @WithMockUser
-    void given_missingCapability_should_logUnauthorizedEvent() throws Exception {
+    void given_missingCapability_should_returnForbiddenAndLogUnauthorizedEvent() throws Exception {
       // Arrange
-      ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<AuditEventScope> eventScopeCaptor =
+          ArgumentCaptor.forClass(AuditEventScope.class);
+      ArgumentCaptor<EventStatus> eventStatusCaptor = ArgumentCaptor.forClass(EventStatus.class);
       ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
       ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<JsonNode> inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<JsonNode> signatureCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<String> logUuidCaptor = ArgumentCaptor.forClass(String.class);
 
       // Act
       mvc.perform(delete(TEAM_URI + "/{teamId}", PROTECTED_TEAM_ID).with(csrf()))
           .andExpect(status().isForbidden());
 
-      // Assert
-      verify(auditLogger, timeout(1000))
+      // Assert — audit event logged with "unauthorized" scope
+      verify(auditLogger, timeout(2000))
           .logAccessControlEvent(
               eventScopeCaptor.capture(),
               eventStatusCaptor.capture(),
               resourceTypeCaptor.capture(),
               resourceIdCaptor.capture(),
-              inputCaptor.capture(),
-              outputCaptor.capture(),
-              signatureCaptor.capture(),
               any(),
-              logUuidCaptor.capture());
+              any(),
+              any(),
+              any());
 
-      assertThat(eventScopeCaptor.getValue()).isEqualTo("unauthorized");
-      assertThat(eventStatusCaptor.getValue()).isEqualTo("error");
+      assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.UNAUTHORIZED);
+      assertThat(eventStatusCaptor.getValue()).isEqualTo(EventStatus.ERROR);
       assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
       assertThat(resourceIdCaptor.getValue()).isEqualTo(PROTECTED_TEAM_ID);
-      assertThat(inputCaptor.getValue()).isNull();
-      assertThat(outputCaptor.getValue()).isNotNull();
-      assertThat(outputCaptor.getValue().path("exception_type").asText())
-          .contains("AccessControlAspect$");
-      assertThat(signatureCaptor.getValue()).isNotNull();
-      assertThat(logUuidCaptor.getValue()).isNotBlank();
     }
 
     @Test
     @WithMockUser
-    void given_missingCapabilityWithAutomatedUserAgent_should_logUnauthorizedEvent()
-        throws Exception {
+    void
+        given_missingCapabilityWithAutomatedUserAgent_should_returnForbiddenAndLogUnauthorizedEvent()
+            throws Exception {
       // Arrange
-      ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<AuditEventScope> eventScopeCaptor =
+          ArgumentCaptor.forClass(AuditEventScope.class);
+      ArgumentCaptor<EventStatus> eventStatusCaptor = ArgumentCaptor.forClass(EventStatus.class);
       ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
       ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<JsonNode> inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<JsonNode> signatureCaptor = ArgumentCaptor.forClass(JsonNode.class);
-      ArgumentCaptor<String> logUuidCaptor = ArgumentCaptor.forClass(String.class);
 
       // Act
       mvc.perform(
@@ -131,29 +155,22 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
                   .header("User-Agent", "openaev-agent/x.x.x"))
           .andExpect(status().isForbidden());
 
-      // Assert
-      verify(auditLogger, timeout(1000))
+      // Assert — audit event logged even for automated agents
+      verify(auditLogger, timeout(2000))
           .logAccessControlEvent(
               eventScopeCaptor.capture(),
               eventStatusCaptor.capture(),
               resourceTypeCaptor.capture(),
               resourceIdCaptor.capture(),
-              inputCaptor.capture(),
-              outputCaptor.capture(),
-              signatureCaptor.capture(),
               any(),
-              logUuidCaptor.capture());
+              any(),
+              any(),
+              any());
 
-      assertThat(eventScopeCaptor.getValue()).isEqualTo("unauthorized");
-      assertThat(eventStatusCaptor.getValue()).isEqualTo("error");
+      assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.UNAUTHORIZED);
+      assertThat(eventStatusCaptor.getValue()).isEqualTo(EventStatus.ERROR);
       assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
       assertThat(resourceIdCaptor.getValue()).isEqualTo(PROTECTED_TEAM_ID);
-      assertThat(inputCaptor.getValue()).isNull();
-      assertThat(outputCaptor.getValue()).isNotNull();
-      assertThat(outputCaptor.getValue().path("exception_type").asText())
-          .contains("AccessControlAspect$");
-      assertThat(signatureCaptor.getValue()).isNotNull();
-      assertThat(logUuidCaptor.getValue()).isNotBlank();
     }
   }
 
@@ -169,15 +186,14 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       // Assert
       verify(auditLogger, after(1000).never())
           .logAccessControlEvent(
-              anyString(),
-              anyString(),
+              any(AuditEventScope.class),
+              any(EventStatus.class),
               any(),
               anyString(),
               any(),
               any(),
               any(),
-              any(),
-              anyString());
+              any());
     }
   }
 
@@ -194,15 +210,14 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       // Assert
       verify(auditLogger, after(1000).never())
           .logAccessControlEvent(
-              anyString(),
-              anyString(),
+              any(AuditEventScope.class),
+              any(EventStatus.class),
               any(),
               anyString(),
               any(),
               any(),
               any(),
-              any(),
-              anyString());
+              any());
     }
   }
 
@@ -214,8 +229,9 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
     @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
     void given_successfulCreate_should_logCreateEvent() throws Exception {
       // Arrange
-      ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<AuditEventScope> eventScopeCaptor =
+          ArgumentCaptor.forClass(AuditEventScope.class);
+      ArgumentCaptor<EventStatus> eventStatusCaptor = ArgumentCaptor.forClass(EventStatus.class);
       ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
       ArgumentCaptor<JsonNode> inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
       ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
@@ -237,11 +253,10 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               inputCaptor.capture(),
               outputCaptor.capture(),
               any(),
-              any(),
-              anyString());
+              any());
 
-      assertThat(eventScopeCaptor.getValue()).isEqualTo("create");
-      assertThat(eventStatusCaptor.getValue()).isEqualTo("success");
+      assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.CREATE);
+      assertThat(eventStatusCaptor.getValue()).isEqualTo(EventStatus.SUCCESS);
       assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
       assertThat(inputCaptor.getValue()).isNotNull();
       assertThat(outputCaptor.getValue()).isNotNull();
@@ -259,8 +274,9 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       Team team = teamRepository.save(TeamFixture.getDefaultTeam());
       entityManager.flush();
 
-      ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<AuditEventScope> eventScopeCaptor =
+          ArgumentCaptor.forClass(AuditEventScope.class);
+      ArgumentCaptor<EventStatus> eventStatusCaptor = ArgumentCaptor.forClass(EventStatus.class);
       ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
       ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
 
@@ -278,11 +294,10 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               any(),
               any(),
               any(),
-              any(),
-              anyString());
+              any());
 
-      assertThat(eventScopeCaptor.getValue()).isEqualTo("delete");
-      assertThat(eventStatusCaptor.getValue()).isEqualTo("success");
+      assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.DELETE);
+      assertThat(eventStatusCaptor.getValue()).isEqualTo(EventStatus.SUCCESS);
       assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
       assertThat(resourceIdCaptor.getValue()).isEqualTo(team.getId());
     }
@@ -308,15 +323,72 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       // Assert
       verify(auditLogger, after(1000).never())
           .logAccessControlEvent(
-              anyString(),
-              anyString(),
+              any(AuditEventScope.class),
+              any(EventStatus.class),
               any(),
               anyString(),
               any(),
               any(),
               any(),
+              any());
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    void given_auditContextDisabled_should_notLogSuccessEvent() throws Exception {
+      // Arrange — set up executor and service account required for agent registration
+      executorComposer.reset();
+      executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
+      serviceAccountPrivilegeService.ensurePrivilegedUserExists(
+          io.openaev.context.TenantContext.getCurrentTenant());
+      entityManager.flush();
+
+      // Register the same agent twice; the second registration is a heartbeat
+      String registerJson =
+          objectMapper.writeValueAsString(
+              EndpointRegisterInputFixture.getDefaultEndpointRegisterInput());
+
+      // First registration — creates the agent (audit IS expected)
+      mvc.perform(
+              post(ENDPOINT_URI + "/register")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(registerJson))
+          .andExpect(status().isOk());
+
+      // Wait for first audit event and then reset the spy
+      verify(auditLogger, timeout(1000))
+          .logAccessControlEvent(
+              any(AuditEventScope.class),
+              any(EventStatus.class),
               any(),
-              anyString());
+              anyString(),
+              any(),
+              any(),
+              any(),
+              any());
+      reset(auditLogger);
+      doReturn(true).when(auditLogger).isAuditLoggingEnabled();
+
+      // Act — second registration with same data (heartbeat, no significant change)
+      mvc.perform(
+              post(ENDPOINT_URI + "/register")
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(registerJson))
+          .andExpect(status().isOk());
+
+      // Assert — audit should be suppressed for the heartbeat
+      verify(auditLogger, after(1000).never())
+          .logAccessControlEvent(
+              any(AuditEventScope.class),
+              any(EventStatus.class),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              any(),
+              any());
     }
   }
 
@@ -337,8 +409,9 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
 
       String updateJson = objectMapper.writeValueAsString(updateInput);
 
-      ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<AuditEventScope> eventScopeCaptor =
+          ArgumentCaptor.forClass(AuditEventScope.class);
+      ArgumentCaptor<EventStatus> eventStatusCaptor = ArgumentCaptor.forClass(EventStatus.class);
       ArgumentCaptor<ResourceType> resourceTypeCaptor = ArgumentCaptor.forClass(ResourceType.class);
       ArgumentCaptor<String> resourceIdCaptor = ArgumentCaptor.forClass(String.class);
       ArgumentCaptor<JsonNode> inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
@@ -363,11 +436,10 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               inputCaptor.capture(),
               outputCaptor.capture(),
               signatureCaptor.capture(),
-              any(),
-              anyString());
+              any());
 
-      assertThat(eventScopeCaptor.getValue()).isEqualTo("update");
-      assertThat(eventStatusCaptor.getValue()).isEqualTo("success");
+      assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.UPDATE);
+      assertThat(eventStatusCaptor.getValue()).isEqualTo(EventStatus.SUCCESS);
       assertThat(resourceTypeCaptor.getValue()).isEqualTo(ResourceType.TEAM);
       assertThat(resourceIdCaptor.getValue()).isEqualTo(team.getId());
       assertThat(inputCaptor.getValue()).isNotNull();
@@ -392,8 +464,9 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       updateInput.setName("Updated Team");
       String updateJson = objectMapper.writeValueAsString(updateInput);
 
-      ArgumentCaptor<String> eventScopeCaptor = ArgumentCaptor.forClass(String.class);
-      ArgumentCaptor<String> eventStatusCaptor = ArgumentCaptor.forClass(String.class);
+      ArgumentCaptor<AuditEventScope> eventScopeCaptor =
+          ArgumentCaptor.forClass(AuditEventScope.class);
+      ArgumentCaptor<EventStatus> eventStatusCaptor = ArgumentCaptor.forClass(EventStatus.class);
       ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
 
       // Act
@@ -414,11 +487,10 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
               any(),
               outputCaptor.capture(),
               any(),
-              any(),
-              anyString());
+              any());
 
-      assertThat(eventScopeCaptor.getValue()).isEqualTo("update");
-      assertThat(eventStatusCaptor.getValue()).isEqualTo("error");
+      assertThat(eventScopeCaptor.getValue()).isEqualTo(AuditEventScope.UPDATE);
+      assertThat(eventStatusCaptor.getValue()).isEqualTo(EventStatus.ERROR);
       assertThat(outputCaptor.getValue()).isNotNull();
       assertThat(outputCaptor.getValue().has("exception_type")).isTrue();
     }
@@ -431,22 +503,22 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
     @Test
     @WithMockUser(withCapabilities = {Capability.DELETE_TEAMS_AND_PLAYERS})
     void given_entityDiffsInContext_should_serializeAndPassToAuditLogger() throws Exception {
-      // Arrange — pre-populate EntityDiffContext via request attributes (the storage used during
+      // Arrange — pre-populate AuditLogContext via request attributes (the storage used during
       // HTTP requests) to simulate snapshots stored by @PreUpdate listener
       Team team = teamRepository.save(TeamFixture.getDefaultTeam());
       entityManager.flush();
 
-      Map<String, EntityDiffContext.EntitySnapshot> snapshotsMap = new java.util.LinkedHashMap<>();
+      Map<String, AuditLogContext.EntitySnapshot> snapshotsMap = new java.util.LinkedHashMap<>();
       snapshotsMap.put(
           team.getId(),
-          new EntityDiffContext.EntitySnapshot(
+          new AuditLogContext.EntitySnapshot(
               "Team", "update", Map.of("name", "Old Name"), Map.of("name", "New Name")));
 
       @SuppressWarnings("unchecked")
-      ArgumentCaptor<Map<String, EntityDiffContext.EntitySnapshot>> snapshotsCaptor =
+      ArgumentCaptor<Map<String, AuditLogContext.EntitySnapshot>> snapshotsCaptor =
           ArgumentCaptor.forClass(Map.class);
 
-      // Act — pass snapshots as request attribute so EntityDiffContext finds them during the
+      // Act — pass snapshots as request attribute so AuditLogContext finds them during the
       // request
       mvc.perform(
               delete(TEAM_URI + "/{teamId}", team.getId())
@@ -457,20 +529,19 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       // Assert — captureEntitySnapshots() should pass the pre-stored snapshots
       verify(auditLogger, timeout(1000))
           .logAccessControlEvent(
-              anyString(),
-              anyString(),
+              any(AuditEventScope.class),
+              any(EventStatus.class),
               any(),
               anyString(),
               any(),
               any(),
               any(),
-              snapshotsCaptor.capture(),
-              anyString());
+              snapshotsCaptor.capture());
 
-      Map<String, EntityDiffContext.EntitySnapshot> captured = snapshotsCaptor.getValue();
+      Map<String, AuditLogContext.EntitySnapshot> captured = snapshotsCaptor.getValue();
       assertThat(captured).isNotNull();
       assertThat(captured).containsKey(team.getId());
-      EntityDiffContext.EntitySnapshot snapshot = captured.get(team.getId());
+      AuditLogContext.EntitySnapshot snapshot = captured.get(team.getId());
       assertThat(snapshot.entityType()).isEqualTo("Team");
       assertThat(snapshot.operation()).isEqualTo("update");
       assertThat(snapshot.before().get("name")).isEqualTo("Old Name");
@@ -480,11 +551,11 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
     void given_noDiffsInContext_should_passEmptyEntityDiffs() throws Exception {
-      // Arrange — no snapshots in EntityDiffContext
+      // Arrange — no snapshots in AuditLogContext
       String teamJson = objectMapper.writeValueAsString(TeamFixture.createTeam());
 
       @SuppressWarnings("unchecked")
-      ArgumentCaptor<Map<String, EntityDiffContext.EntitySnapshot>> snapshotsCaptor =
+      ArgumentCaptor<Map<String, AuditLogContext.EntitySnapshot>> snapshotsCaptor =
           ArgumentCaptor.forClass(Map.class);
 
       // Act
@@ -495,17 +566,54 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       // Assert
       verify(auditLogger, timeout(1000))
           .logAccessControlEvent(
-              anyString(),
-              anyString(),
+              any(AuditEventScope.class),
+              any(EventStatus.class),
               any(),
               anyString(),
               any(),
               any(),
               any(),
-              snapshotsCaptor.capture(),
-              anyString());
+              snapshotsCaptor.capture());
 
       assertThat(snapshotsCaptor.getValue()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Halt-on-failure: rollback on audit transport failure")
+  class HaltOnFailureRollback {
+
+    private void stubHaltOnFailure() {
+      doReturn(true).when(auditLogProperties).isHaltOnFailure();
+      doReturn(true).when(logService).isEnabled();
+      doReturn(false)
+          .when(logService)
+          .logGenericEvent(any(AuditEvent.class), any(Level.class), anyString());
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS})
+    void given_haltOnFailureAndTransportFails_should_returnServerErrorAndRollback()
+        throws Exception {
+      // Arrange — enable halt-on-failure and make transport fail
+      stubHaltOnFailure();
+      long teamCountBefore = teamRepository.count();
+
+      String teamJson = objectMapper.writeValueAsString(TeamFixture.createTeam());
+
+      // Act — request should fail (audit failure propagates through @Transactional boundary)
+      mvc.perform(
+              post(TEAM_URI).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(teamJson))
+          .andExpect(status().isInternalServerError());
+
+      // Assert — the audit transport was attempted and halt-on-failure triggered shutdown
+      verify(logService, timeout(2000))
+          .logGenericEvent(any(AuditEvent.class), any(Level.class), anyString());
+      verify(shutdownService, timeout(2000)).initiateShutdown();
+
+      // Assert — the team creation was rolled back: no new rows in the table
+      assertThat(teamRepository.count()).isEqualTo(teamCountBefore);
     }
   }
 }

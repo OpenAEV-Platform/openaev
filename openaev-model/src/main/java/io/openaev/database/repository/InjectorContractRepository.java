@@ -1,17 +1,18 @@
 package io.openaev.database.repository;
 
-import io.openaev.database.model.Injector;
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.InjectorContractId;
-import io.openaev.database.model.Payload;
-import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.*;
+import io.openaev.database.model.attackpath.projection.AttackPathInjectorPatternRow;
+import io.openaev.database.raw.RawContractTenant;
 import io.openaev.database.raw.RawInjectorsContracts;
 import io.openaev.database.raw.RawPayloadRelatedIds;
+import jakarta.persistence.LockModeType;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -60,6 +61,19 @@ public interface InjectorContractRepository
   List<RawInjectorsContracts> getAllRawInjectorsContracts();
 
   /**
+   * Retrieves the distinct platforms declared by the injector contracts used in an exercise.
+   *
+   * @param exerciseId the ID of the exercise
+   * @return list of distinct platform arrays, one per contract
+   */
+  @Query(
+      "SELECT DISTINCT ic.platforms FROM Inject i JOIN i.injectorContract ic"
+          + " WHERE i.exercise.id = :exerciseId"
+          + " AND ic.platforms IS NOT NULL")
+  List<Endpoint.PLATFORM_TYPE[]> findDistinctPlatformsByExerciseId(
+      @Param("exerciseId") String exerciseId);
+
+  /**
    * Retrieves injector contracts that a specific user has been granted access to.
    *
    * <p>Returns only contracts where the user has a THREAT_ARSENAL grant on the injector contract ID
@@ -101,14 +115,82 @@ public interface InjectorContractRepository
   @Query("SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id")
   boolean existsByContractId(@Param("id") @NotNull String id);
 
+  @Query(
+      "SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.compositeId.tenantId = :tenantId")
+  boolean existsByContractIdAndTenant(
+      @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
+
+  /**
+   * Existence check taken under a pessimistic share lock ({@code SELECT ... FOR SHARE} on
+   * Postgres), used at chaining step authoring time to serialize with the contract-delete
+   * transaction (#7418).
+   *
+   * <p>A chaining step references its injector contract only through the JSON snapshot in {@code
+   * step_data} - there is no foreign key for a database cascade to act on - so nothing otherwise
+   * stops a stale (or racing) client from authoring a step against a contract that is being
+   * deleted, recreating the ghost-step state that {@code ChainingStepCleanupService} (#7413)
+   * sweeps. FOR SHARE makes the two transactions serialize: if the delete committed first the row
+   * is gone and authoring is rejected; if authoring takes the lock first, the delete (and its #7413
+   * sweep) waits for authoring to commit and then sees the newly created step.
+   *
+   * <p>Deliberately a scalar id projection, not an entity select: {@link InjectorContract} eagerly
+   * loads several collections, and a {@code SELECT ic ... FOR SHARE} would outer-join them and fail
+   * on Postgres ("FOR SHARE cannot be applied to the nullable side of an outer join"). Projecting a
+   * single column keeps the locking query on the {@code injectors_contracts} row alone. Tenant-
+   * scoped JPQL (so Hibernate's {@code tenantFilter} also applies) because the default contracts
+   * share their ids across every tenant.
+   *
+   * @param id the injector contract id referenced by the step being authored
+   * @param tenantId the current tenant
+   * @return the contract id if it exists in the tenant, empty otherwise
+   */
+  @Lock(LockModeType.PESSIMISTIC_READ)
+  @Query(
+      "SELECT ic.compositeId.id FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.compositeId.tenantId = :tenantId")
+  Optional<String> lockContractIdForAuthoring(
+      @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
+
+  /**
+   * Tenant-scoped counterpart of {@link #findById(String)}: the composite PK is (tenant_id, id), so
+   * a bare-id lookup can match another tenant's contract (or throw on duplicate ids across tenants
+   * when the Hibernate tenant filter is not enabled). Use for user-supplied ids (e.g. imports).
+   */
+  @NotNull
+  @Query(
+      "SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.compositeId.tenantId = :tenantId")
+  Optional<InjectorContract> findByContractIdAndTenant(
+      @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
+
   @NotNull
   @Query(
       "SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id OR ic.externalId = :externalId")
   Optional<InjectorContract> findByIdOrExternalId(
       @Param("id") String id, @Param("externalId") String externalId);
 
+  /**
+   * Batched form of {@link #findByIdOrExternalId}: every contract whose id OR external id is in the
+   * set.
+   */
+  @Query(
+      "SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id IN :ids OR ic.externalId IN :ids")
+  List<InjectorContract> findAllByIdOrExternalIdIn(@Param("ids") Collection<String> ids);
+
+  /**
+   * Batched ATT&CK techniques for the attack-path injector nodes: one flat query returning the
+   * (contract external id, pattern) pairs for a set of contracts. A flat projection, not the
+   * entity, so it never pulls the contract's other eager collections into secondary selects.
+   */
+  @Query(
+      "SELECT new io.openaev.database.model.attackpath.projection.AttackPathInjectorPatternRow("
+          + "ic.externalId, ap.externalId, ap.name) "
+          + "FROM InjectorContract ic JOIN ic.attackPatterns ap "
+          + "WHERE ic.externalId IN :externalIds")
+  List<AttackPathInjectorPatternRow> findInjectorAttackPatternsByExternalIdIn(
+      @Param("externalIds") Collection<String> externalIds);
+
   @NotNull
-  List<InjectorContract> findByInjectorsContaining(@NotNull Injector injector);
+  @Query("SELECT ic FROM InjectorContract ic JOIN ic.injectorLinks l WHERE l.injector = :injector")
+  List<InjectorContract> findByInjectorsContaining(@NotNull @Param("injector") Injector injector);
 
   @NotNull
   Optional<InjectorContract> findInjectorContractByPayload(@NotNull Payload payload);
@@ -141,10 +223,63 @@ public interface InjectorContractRepository
       nativeQuery = true)
   Optional<RawPayloadRelatedIds> findRelatedIdsByPayloadId(@Param("payloadId") String payloadId);
 
+  /**
+   * Returns the (injector_contract_id, tenant_id) pair of EVERY contract row backed by the given
+   * payload, across all tenants. Deleting a payload cascades to its contracts at the database level
+   * ({@code injector_contract_payload ... ON DELETE CASCADE}), so the payload-delete path must
+   * resolve these pairs BEFORE the delete to cascade-clean the chaining steps that reference the
+   * doomed contracts (the step -> contract link lives only inside {@code step_data}, with no FK to
+   * cascade on).
+   *
+   * <p>Deliberately NOT tenant-scoped, unlike the other native queries here: the sweep set must be
+   * exactly what the database cascade deletes, whatever tenant it lives in. Today the schema
+   * guarantees at most one row - {@code unique_injector_contract_payload} (V4_98) is a
+   * single-column unique on the payload FK, so a payload backs one contract platform-wide - but
+   * returning the (contract, tenant) pair keeps the delete path correct even if that 1:1 constraint
+   * is ever relaxed. The caller sweeps each returned tenant separately; the sweep itself stays
+   * strictly tenant-scoped per pair.
+   *
+   * @param payloadId the payload whose contract rows are enumerated
+   * @return one (contract id, tenant id) pair per contract row referencing the payload
+   */
+  @Query(
+      value =
+          "SELECT ic.injector_contract_id AS injector_contract_id, ic.tenant_id AS tenant_id FROM injectors_contracts ic WHERE ic.injector_contract_payload = :payloadId",
+      nativeQuery = true)
+  List<RawContractTenant> findContractTenantPairsByPayloadId(@Param("payloadId") String payloadId);
+
   @Query(
       "SELECT CASE WHEN COUNT(ic) > 0 THEN true ELSE false END "
           + "FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.payload IS NOT NULL")
   boolean existsByIdAndPayloadIsNotNull(@Param("id") String id);
+
+  /**
+   * Returns the ids of payload-bearing contracts that are not linked to any injector, scoped to a
+   * tenant. Starter-pack imports create such orphan contracts before any payload-supporting
+   * injector is registered (fresh platform); the payload injector adopts them on registration.
+   */
+  @Query(
+      "SELECT ic.compositeId.id FROM InjectorContract ic "
+          + "WHERE ic.compositeId.tenantId = :tenantId "
+          + "AND ic.payload IS NOT NULL "
+          + "AND ic.injectorLinks IS EMPTY")
+  List<String> findContractIdsWithPayloadAndNoInjector(@Param("tenantId") String tenantId);
+
+  /**
+   * Returns the non-custom contracts that have neither a payload nor any injector link, scoped to a
+   * tenant. A (now fixed) regression in the starter-pack import persisted payload contracts without
+   * their payload reference on fresh platforms; those broken contracts are repaired by the {@code
+   * V20260725_Fix_starter_pack_payload_contracts} runtime migration. Static injector contracts
+   * imported before their injector registers (e.g. nmap/nuclei) also match this query; the
+   * migration leaves them untouched because no orphan payload exists for them.
+   */
+  @Query(
+      "SELECT ic FROM InjectorContract ic "
+          + "WHERE ic.compositeId.tenantId = :tenantId "
+          + "AND ic.payload IS NULL "
+          + "AND (ic.custom IS NULL OR ic.custom = false) "
+          + "AND ic.injectorLinks IS EMPTY")
+  List<InjectorContract> findContractsWithoutPayloadAndInjector(@Param("tenantId") String tenantId);
 
   @Modifying
   @Query("DELETE FROM InjectorContract ic WHERE ic.compositeId.id IN :ids")

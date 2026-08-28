@@ -8,7 +8,7 @@ import Chart from '../../../../../components/Chart';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
-import { type Exercise, type InjectExpectation, type User } from '../../../../../utils/api-types';
+import { type Exercise, type InjectExpectationOutput, type User } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { resolveUserName } from '../../../../../utils/String';
 
@@ -27,14 +27,14 @@ const ExerciseDistributionScoreByPlayer: FunctionComponent<Props> = ({ exerciseI
 
   const usersTotalScores = R.pipe(
     R.filter(
-      (n: InjectExpectation) => !R.isEmpty(n.inject_expectation_results)
+      (n: InjectExpectationOutput) => !R.isEmpty(n.inject_expectation_results)
         && n.inject_expectation_user !== null,
     ),
     R.groupBy(R.prop('inject_expectation_user')),
     R.toPairs,
-    R.map((n: [string, InjectExpectation[]]) => ({
+    R.map((n: [string, InjectExpectationOutput[]]) => ({
       ...usersMap[n[0]],
-      user_total_score: R.sum(R.map((o: InjectExpectation) => o.inject_expectation_score, n[1])),
+      user_total_score: R.sum(R.map((o: InjectExpectationOutput) => o.inject_expectation_score, n[1])),
     })),
   )(injectExpectations);
 

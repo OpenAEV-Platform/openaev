@@ -1,4 +1,4 @@
-import { CastForEducationOutlined, DnsOutlined, LanOutlined } from '@mui/icons-material';
+import { CastForEducationOutlined, LanOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -19,6 +19,7 @@ import { useHelper } from '../../../../../../store';
 import { type AssetGroup, type Endpoint, type Inject, type Team } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
+import AssetCategoryIcon from '../../../../assets/AssetCategoryIcon';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
 import ChallengeExpectation from '../expectations/ChallengeExpectation';
 import ChannelExpectation from '../expectations/ChannelExpectation';
@@ -107,7 +108,9 @@ const TeamOrAssetLine: FunctionComponent<Props> = ({
       >
         <ListItemIcon>
           {!!team && <CastForEducationOutlined fontSize="small" />}
-          {!!asset && <DnsOutlined fontSize="small" />}
+          {/* Category-aware glyph: hosts keep the server icon (HOST maps to it),
+              web apps / cloud / AI targets get their taxonomy icon. */}
+          {!!asset && <AssetCategoryIcon category={asset.asset_category} fontSize="small" />}
           {!!assetGroup && <LanOutlined fontSize="small" />}
         </ListItemIcon>
         <ListItemText

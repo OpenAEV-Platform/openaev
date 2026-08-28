@@ -45,7 +45,7 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
   @DisplayName("Retrieve inject expectations")
   @Test
   void retrieveInjectExpectations() {
-    List<InjectExpectation> expectations =
+    List<BaseInjectExpectation> expectations =
         this.exerciseExpectationService.injectExpectations(EXERCISE_ID);
     assertNotNull(expectations);
 
@@ -56,14 +56,14 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
   @Test
   void updateInjectExpectation() {
     // -- PREPARE --
-    List<InjectExpectation> expectations =
+    List<BaseInjectExpectation> expectations =
         this.exerciseExpectationService.injectExpectations(EXERCISE_ID);
     assertNotNull(expectations);
     String id = expectations.getFirst().getId();
 
     // -- EXECUTE --
     ExpectationUpdateInput input = ExpectationUpdateInput.builder().score(7.0).build();
-    InjectExpectation expectation =
+    BaseInjectExpectation expectation =
         this.injectExpectationService.updateInjectExpectation(id, input);
 
     // -- ASSERT --

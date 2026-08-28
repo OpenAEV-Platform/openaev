@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CatalogConnectorIngestionService {
   public static final Set<String> PROTECTED_KEYS =
-      Set.of("COLLECTOR_ID", "INJECTOR_ID", "EXECUTOR_ID");
+      Set.of("COLLECTOR_ID", "INJECTOR_ID", "EXECUTOR_ID", "SECRETS_PROVIDER_ID");
   public static final String OPENAEV_KEY_URL = "OPENAEV_URL";
   public static final String OPENAEV_KEY_TOKEN = "OPENAEV_TOKEN";
   public static final String OPENAEV_KEY_TENANT_ID = "OPENAEV_TENANT_ID";
@@ -216,7 +216,8 @@ public class CatalogConnectorIngestionService {
               CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_TYPE.valueOf(
                   connectorConfigurationType.trim().toUpperCase()));
         } catch (IllegalArgumentException e) {
-          log.warn("Unknown type '{}', ignoring it", connectorConfigurationType);
+          log.warn(
+              "Unknown type '{}' for property '{}', ignoring it", connectorConfigurationType, key);
         }
       } else {
         log.warn("type is null or empty");
@@ -230,7 +231,10 @@ public class CatalogConnectorIngestionService {
               CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.valueOf(
                   connectorConfigurationFormat.trim().toUpperCase()));
         } catch (IllegalArgumentException e) {
-          log.warn("Unknown format '{}', ignoring it", connectorConfigurationFormat);
+          log.warn(
+              "Unknown format '{}' for property '{}', ignoring it",
+              connectorConfigurationFormat,
+              key);
         }
       } else {
         log.debug("format is null or empty");

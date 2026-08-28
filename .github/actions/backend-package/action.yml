@@ -7,7 +7,7 @@ inputs:
   download-release-assets:
     description: Whether to download the release-assets artifact
     required: false
-    default: 'false'
+    default: "false"
 
 outputs:
   jar-size:
@@ -17,6 +17,12 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Set up Java 21
+      uses: actions/setup-java@v6
+      with:
+        java-version: "21"
+        distribution: temurin
+        cache: maven
     - name: Download frontend build artifact
       uses: actions/download-artifact@v8
       with:
@@ -33,12 +39,6 @@ runs:
       with:
         name: release-assets
         path: openaev-api/src/main/resources
-    - name: Set up Java 21
-      uses: actions/setup-java@v5
-      with:
-        java-version: "21"
-        distribution: temurin
-        cache: maven
     - name: Verify downloaded artifacts
       run: |
         # Verify frontend build
@@ -81,4 +81,5 @@ runs:
       with:
         name: openaev-api-jar
         path: openaev-api/target/openaev-api.jar
-
+        # A JAR is already a zip — re-zipping costs CPU for ~0% gain
+        compression-level: 0

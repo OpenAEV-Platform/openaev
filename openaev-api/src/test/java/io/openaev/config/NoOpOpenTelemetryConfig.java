@@ -1,12 +1,11 @@
 package io.openaev.config;
 
 import io.openaev.database.repository.SettingRepository;
-import io.openaev.executors.ExecutorService;
-import io.openaev.service.AgentService;
 import io.openaev.telemetry.OpenTelemetryConfig;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
-import io.openaev.telemetry.metric_collectors.AgentMetricCollector;
+import io.openaev.telemetry.metric_collectors.AssetMetricCollector;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
+import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
 import io.openaev.telemetry.metric_collectors.MetricRegistry;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.opentelemetry.api.OpenTelemetry;
@@ -50,12 +49,13 @@ public class NoOpOpenTelemetryConfig {
   }
 
   @Bean
-  public AgentMetricCollector agentMetricCollector(
-      MetricRegistry metricRegistry,
-      OpenTelemetryConfig openTelemetryConfig,
-      AgentService agentService,
-      ExecutorService executorService) {
-    return Mockito.mock(AgentMetricCollector.class);
+  public InventoryMetricCollector inventoryMetricCollector(MetricRegistry metricRegistry) {
+    return Mockito.mock(InventoryMetricCollector.class);
+  }
+
+  @Bean
+  public AssetMetricCollector assetMetricCollector(MetricRegistry metricRegistry) {
+    return Mockito.mock(AssetMetricCollector.class);
   }
 
   @Bean

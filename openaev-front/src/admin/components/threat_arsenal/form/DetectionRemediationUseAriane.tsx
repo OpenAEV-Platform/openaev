@@ -1,4 +1,4 @@
-import { Button, IconButton, SvgIcon } from '@mui/material';
+import { Button, SvgIcon } from '@mui/material';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { useEffect, useState } from 'react';
 
@@ -12,12 +12,13 @@ import FiligranAiCguDialog from '../../ariane/FiligranAiCguDialog';
 import EEChip from '../../common/entreprise_edition/EEChip';
 import EETooltip from '../../common/entreprise_edition/EETooltip';
 import Loader from '../../payloads/Loader';
-import useIsEligibleArianeCollector from '../hook/useIsEligibleArianeCollector';
 import useIsEligibleArianePayloadType from '../hook/useIsEligibleArianePayloadType';
+import useIsEligibleArianeSecurityPlatform from '../hook/useIsEligibleArianeSecurityPlatform';
 import { useSnapshotRemediation } from '../utils/useSnapshotRemediation';
 
 export interface Props {
-  collectorType: string;
+  securityPlatformId: string;
+  securityPlatformName?: string;
   payloadType?: string | undefined;
   detectionRemediationContent?: string;
   onSubmit: (agentSlug?: string) => Promise<void>;
@@ -25,7 +26,8 @@ export interface Props {
 }
 
 const DetectionRemediationUseAriane = ({
-  collectorType,
+  securityPlatformId,
+  securityPlatformName,
   payloadType,
   detectionRemediationContent,
   onSubmit,
@@ -40,19 +42,12 @@ const DetectionRemediationUseAriane = ({
   } = useEnterpriseEdition();
   const { enabled, isCguPending, configured, xtmOneConfigured } = useAI();
 
-  // Hide entirely when AI is explicitly disabled
-  if (enabled === false) {
-    return null;
-  }
-
-  const isAvailable = isEnterpriseEdition && enabled && (configured || xtmOneConfigured);
   const [openValidateTermsOfUse, setOpenValidateTermsOfUse] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<AgentOption | null>(null);
   const [loadingAgents, setLoadingAgents] = useState(false);
-  const isEligibleArianeCollector = useIsEligibleArianeCollector(collectorType);
+  const isEligibleSecurityPlatform = useIsEligibleArianeSecurityPlatform(securityPlatformName);
   const isEligibleArianePayload = useIsEligibleArianePayloadType(payloadType);
   const hasContent = isNotEmptyField(detectionRemediationContent);
 
@@ -66,6 +61,13 @@ const DetectionRemediationUseAriane = ({
       })
       .finally(() => setLoadingAgents(false));
   }, [xtmOneConfigured]);
+
+  // Hide entirely when AI is explicitly disabled
+  if (enabled === false) {
+    return null;
+  }
+
+  const isAvailable = isEnterpriseEdition && enabled && (configured || xtmOneConfigured);
 
   const runOnSubmit = (agentSlug?: string) => {
     setLoading(true);
@@ -93,8 +95,8 @@ const DetectionRemediationUseAriane = ({
   if (!isAvailable) {
     btnLabel = btnLabel + ' (EE)';
   }
-  if (!isEligibleArianeCollector) {
-    btnLabel = btnLabel + t(' is not available for current collector');
+  if (!isEligibleSecurityPlatform) {
+    btnLabel = btnLabel + t(' is not available for this security platform');
   } else if (!isEligibleArianePayload) {
     btnLabel = btnLabel + t(' is not available for current payload type');
   } else if (!isValidForm) {
@@ -103,9 +105,9 @@ const DetectionRemediationUseAriane = ({
     btnLabel = btnLabel + t(' is only available for empty content');
   }
 
-  const disabled = !isEligibleArianeCollector || (!isAvailable && !isCguPending) || hasContent || !isValidForm || !isEligibleArianePayload;
+  const disabled = !isEligibleSecurityPlatform || (!isAvailable && !isCguPending) || hasContent || !isValidForm || !isEligibleArianePayload;
 
-  const isLoading = loading || snapshot?.get(collectorType)?.isLoading;
+  const isLoading = loading || snapshot?.get(securityPlatformId)?.isLoading;
 
   const actionColor = isEnterpriseEdition ? 'ai.main' : 'action.disabled';
   const actionBorderColor = isEnterpriseEdition ? 'ai.main' : 'action.disabledBackground';
@@ -123,42 +125,24 @@ const DetectionRemediationUseAriane = ({
         </div>
       );
     }
-    if (xtmOneConfigured) {
-      return (
-        <IconButton
-          onClick={handleClick}
-          aria-label={t('Use XTM One')}
-          disabled={disabled || loading || !selectedAgent}
-          sx={{
-            width: 36,
-            height: 36,
-            border: '1px solid',
-            borderRadius: 1,
-            color: actionColor,
-            borderColor: actionBorderColor,
-          }}
-        >
-          <SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />
-        </IconButton>
-      );
-    }
     return (
       <Button
         type="button"
         variant="outlined"
         size="small"
         onClick={handleClick}
-        aria-label={t('Use Ariane')}
+        aria-label={xtmOneConfigured ? t('Generate with AI') : t('Use Ariane')}
         startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
-        endIcon={isEnterpriseEdition ? <></> : <span><EEChip /></span>}
-        disabled={disabled || loading}
+        endIcon={isEnterpriseEdition ? undefined : <span><EEChip /></span>}
+        disabled={disabled || loading || (!!xtmOneConfigured && !selectedAgent)}
         sx={{
           height: 36,
+          whiteSpace: 'nowrap',
           color: actionColor,
           borderColor: actionBorderColor,
         }}
       >
-        {t('Use Ariane')}
+        {xtmOneConfigured ? t('Generate with AI') : t('Use Ariane')}
       </Button>
     );
   };

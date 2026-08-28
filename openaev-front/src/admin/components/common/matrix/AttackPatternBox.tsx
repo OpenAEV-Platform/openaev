@@ -23,7 +23,10 @@ const useStyles = makeStyles()(theme => ({
     width: '100%',
     textTransform: 'capitalize',
     color: theme.palette.text?.primary,
-    backgroundColor: hexToRGB(theme.palette.background.accent, 0.4),
+    backgroundColor: hexToRGB(
+      theme.palette.background.accent || theme.palette.background.paper,
+      0.4,
+    ),
     borderRadius: 4,
   },
   buttonText: {

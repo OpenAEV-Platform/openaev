@@ -1,7 +1,7 @@
 package io.openaev.collectors.expectations_expiration_manager.utils;
 
-import io.openaev.database.model.InjectExpectation;
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.expectation.ExpectationType;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -17,7 +17,7 @@ public class ExpectationUtils {
    * @param expectation the expectation to check
    * @return true if the expectation has exceeded its expiration time
    */
-  public static boolean isExpired(@NotNull final InjectExpectation expectation) {
+  public static boolean isExpired(@NotNull final BaseInjectExpectation expectation) {
     // expirationTime is stored in seconds, convert to minutes for comparison
     long expirationTimeInMinutes = expectation.getExpirationTime() / 60;
     Instant expirationThreshold = Instant.now().minus(expirationTimeInMinutes, ChronoUnit.MINUTES);
@@ -37,6 +37,7 @@ public class ExpectationUtils {
     return switch (expectationType) {
       case DETECTION -> ExpectationType.DETECTION.failureLabel;
       case PREVENTION -> ExpectationType.PREVENTION.failureLabel;
+      case VULNERABILITY -> ExpectationType.VULNERABILITY.failureLabel;
       default -> ExpectationType.HUMAN_RESPONSE.failureLabel;
     };
   }

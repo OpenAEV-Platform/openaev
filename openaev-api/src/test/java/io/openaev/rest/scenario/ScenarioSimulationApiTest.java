@@ -3,12 +3,14 @@ package io.openaev.rest.scenario;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Filters;
@@ -155,15 +157,28 @@ public class ScenarioSimulationApiTest extends IntegrationTest {
                             .direction("DESC")
                             .build()))
                 .build();
-        mvc.perform(
-                post(SCENARIO_URI + "/" + scenario.getId() + "/exercises/search")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(searchPaginationInput))
-                    .with(csrf()))
-            .andExpect(status().is2xxSuccessful())
-            .andExpect(jsonPath("$.numberOfElements").value(2))
-            .andExpect(jsonPath("$.content[0].exercise_id").value(exercise2FromScenario.getId()))
-            .andExpect(jsonPath("$.content[1].exercise_id").value(exercise1FromScenario.getId()));
+        String response =
+            mvc.perform(
+                    post(SCENARIO_URI + "/" + scenario.getId() + "/exercises/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(searchPaginationInput))
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andExpect(jsonPath("$.numberOfElements").value(2))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // Keep the assertion stable even if two rows share the same DB timestamp precision.
+        List<String> returnedIds = JsonPath.read(response, "$.content[*].exercise_id");
+        List<String> returnedUpdatedAt =
+            JsonPath.read(response, "$.content[*].exercise_updated_at");
+
+        assertThat(returnedIds)
+            .containsExactlyInAnyOrder(
+                exercise1FromScenario.getId(), exercise2FromScenario.getId());
+        assertThat(Instant.parse(returnedUpdatedAt.get(0)))
+            .isAfterOrEqualTo(Instant.parse(returnedUpdatedAt.get(1)));
       }
 
       @Test

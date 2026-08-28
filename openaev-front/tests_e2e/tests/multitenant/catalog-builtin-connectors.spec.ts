@@ -21,10 +21,10 @@ test.describe('Multi-tenancy — built-in connectors', () => {
 
   let newTenantId: string | null = null;
 
+  // Dummy placeholder injectors are gone: starter-pack contracts are now
+  // imported injector-less and adopted by the real injector on registration.
   const BUILTIN_INJECTORS = [
     'Challenges',
-    'Dummy Nmap',
-    'Dummy Nuclei',
     'Email',
     'Manual',
     'Media pressure',
@@ -90,7 +90,7 @@ test.describe('Multi-tenancy — built-in connectors', () => {
 
     // ─── Verify built-in injectors ───
     const injectorsListPage = new InjectorsListPage(page);
-    await page.goto(tenantUrl('/admin/integrations/injectors', newTenantId!));
+    await page.goto(tenantUrl('/admin/integrations/deployed', newTenantId!));
     await injectorsListPage.waitForLoad();
 
     await Promise.all(
@@ -103,8 +103,8 @@ test.describe('Multi-tenancy — built-in connectors', () => {
     );
 
     // ─── Verify built-in collectors ───
-    await page.goto(tenantUrl('/admin/integrations/collectors', newTenantId!));
-    await page.waitForURL('**/integrations/collectors**');
+    await page.goto(tenantUrl('/admin/integrations/deployed', newTenantId!));
+    await page.waitForURL('**/integrations/deployed**');
 
     await Promise.all(
       BUILTIN_COLLECTORS.map(async (collectorName) => {
@@ -116,8 +116,8 @@ test.describe('Multi-tenancy — built-in connectors', () => {
     );
 
     // ─── Verify executors page is accessible ───
-    await page.goto(tenantUrl('/admin/integrations/executors', newTenantId!));
-    await page.waitForURL('**/integrations/executors**');
+    await page.goto(tenantUrl('/admin/integrations/deployed', newTenantId!));
+    await page.waitForURL('**/integrations/deployed**');
     // At minimum, the OpenAEV Agent executor should be listed
     await expect(
       page.locator('.MuiCard-root').filter({ hasText: /OpenAEV/i }).first(),

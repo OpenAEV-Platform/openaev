@@ -1,6 +1,6 @@
 package io.openaev.expectation;
 
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import jakarta.validation.constraints.NotNull;
 
 public enum ExpectationType {

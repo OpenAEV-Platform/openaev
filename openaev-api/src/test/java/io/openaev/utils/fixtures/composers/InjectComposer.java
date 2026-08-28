@@ -110,7 +110,7 @@ public class InjectComposer extends ComposerBase<Inject> {
 
     public Composer withExpectation(InjectExpectationComposer.Composer expectationComposer) {
       expectationComposers.add(expectationComposer);
-      List<InjectExpectation> tempExpectations = this.inject.getExpectations();
+      List<BaseInjectExpectation> tempExpectations = this.inject.getExpectations();
       tempExpectations.add(expectationComposer.get());
       expectationComposer.get().setInject(this.inject);
       this.inject.setExpectations(tempExpectations);

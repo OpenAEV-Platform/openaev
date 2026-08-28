@@ -6,6 +6,8 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utils.fixtures.tenants.TenantComposer;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Assertions;
@@ -27,6 +29,7 @@ class StepRepositoryTest extends IntegrationTest {
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private EndpointComposer endpointComposer;
+  @Autowired private TenantComposer tenantComposer;
 
   @Test
   void whenFindAllByStepTemplateIdIsNullAndWorkflowId_thenReturnsStepsTemplateForWorkflow() {
@@ -77,7 +80,7 @@ class StepRepositoryTest extends IntegrationTest {
   void whenFindStepIdsByExpectationIds_thenReturnsCorrectStepIds() {
     // GIVEN: an inject with an expectation, and a step referencing that inject
     Inject inject = InjectFixture.getDefaultInject();
-    InjectExpectation expectation =
+    BaseInjectExpectation expectation =
         InjectExpectationFixture.createDefaultDetectionInjectExpectation();
 
     injectComposer
@@ -120,11 +123,11 @@ class StepRepositoryTest extends IntegrationTest {
 
     // Create inject1 with 3 expectations
     Inject inject1 = InjectFixture.getDefaultInject();
-    InjectExpectation expectation1 =
+    BaseInjectExpectation expectation1 =
         InjectExpectationFixture.createDefaultDetectionInjectExpectation();
-    InjectExpectation expectation2 =
+    BaseInjectExpectation expectation2 =
         InjectExpectationFixture.createDefaultDetectionInjectExpectation();
-    InjectExpectation expectation3 =
+    BaseInjectExpectation expectation3 =
         InjectExpectationFixture.createDefaultDetectionInjectExpectation();
 
     injectComposer
@@ -146,7 +149,7 @@ class StepRepositoryTest extends IntegrationTest {
 
     // Create inject2 with 1 expectation
     Inject inject2 = InjectFixture.getDefaultInject();
-    InjectExpectation expectation4 =
+    BaseInjectExpectation expectation4 =
         InjectExpectationFixture.createDefaultDetectionInjectExpectation();
 
     injectComposer
@@ -226,5 +229,206 @@ class StepRepositoryTest extends IntegrationTest {
     // THEN: should return only step2
     Assertions.assertEquals(1, stepIdsForInject2.size(), "Should return exactly 1 step ID");
     Assertions.assertTrue(stepIdsForInject2.contains(step2.getId()), "Should contain step2");
+  }
+
+  @Test
+  void whenFindInjectIdsByStepIds_thenReturnsOnePairPerResolvedStep() {
+    // GIVEN: two steps carrying an inject_id, one carrying none
+    Step withInject1 =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data("{\"inject_id\": \"inject-batch-1\"}")
+            .build();
+    Step withInject2 =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data("{\"inject_id\": \"inject-batch-2\"}")
+            .build();
+    Step withoutInject =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data("{\"something_else\": \"no inject here\"}")
+            .build();
+
+    workflowComposer
+        .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+        .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withStep(stepComposer.forStep(withInject1))
+        .withStep(stepComposer.forStep(withInject2))
+        .withStep(stepComposer.forStep(withoutInject))
+        .persist();
+
+    // WHEN: resolving all three in one query
+    List<Object[]> pairs =
+        stepRepository.findInjectIdsByStepIds(
+            List.of(withInject1.getId(), withInject2.getId(), withoutInject.getId()));
+
+    // THEN: the step with no inject_id is filtered out, not returned as a null pair
+    Assertions.assertEquals(2, pairs.size(), "Only the steps carrying an inject_id come back");
+    Set<String> resolved =
+        pairs.stream()
+            .map(row -> row[0] + "=" + row[1])
+            .collect(java.util.stream.Collectors.toSet());
+    Assertions.assertTrue(resolved.contains(withInject1.getId() + "=inject-batch-1"));
+    Assertions.assertTrue(resolved.contains(withInject2.getId() + "=inject-batch-2"));
+  }
+
+  @Test
+  void given_bothStepDataShapesAcrossTenants_should_matchOnlyTenantTemplateSteps() {
+    // GIVEN: two TEMPLATE steps referencing the doomed contracts (one per serialized shape), a
+    // TEMPLATE step on an unrelated contract, and a RUN step on the same doomed contract.
+    String objectContractId = "cascade-contract-object";
+    String stringContractId = "cascade-contract-string";
+    String otherContractId = "cascade-contract-other";
+
+    Step objectShapeTemplate =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data(
+                "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                    + objectContractId
+                    + "\"}}")
+            .build();
+    Step stringShapeTemplate =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data("{\"inject_injector_contract\": \"" + stringContractId + "\"}")
+            .build();
+    Step unrelatedTemplate =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data(
+                "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                    + otherContractId
+                    + "\"}}")
+            .build();
+    // A RUN step references the doomed contract too, but carries immutable execution history and
+    // must survive: it is excluded by the step_status = 'TEMPLATE' guard even though its
+    // step_template_id is also null here.
+    Step runStepSameContract =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.RUN)
+            .data(
+                "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                    + objectContractId
+                    + "\"}}")
+            .build();
+
+    ExerciseComposer.Composer exerciseWrapper =
+        simulationComposer.forExercise(ExerciseFixture.createDefaultExercise());
+    workflowComposer
+        .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+        .withSimulation(exerciseWrapper)
+        .withStep(stepComposer.forStep(objectShapeTemplate))
+        .withStep(stepComposer.forStep(stringShapeTemplate))
+        .withStep(stepComposer.forStep(unrelatedTemplate))
+        .withStep(stepComposer.forStep(runStepSameContract))
+        .persist();
+    String tenantId = exerciseWrapper.get().getTenant().getId();
+
+    // AND: another tenant authored a TEMPLATE step referencing the SAME contract id - default
+    // contracts are provisioned id-for-id into every tenant, so this is a legitimate state. The
+    // sweep scoped to the deleting tenant must never touch it.
+    Tenant otherTenant =
+        tenantComposer.forTenant(TenantFixture.getTenant("chaining-sweep-other")).persist().get();
+    Exercise otherTenantExercise = ExerciseFixture.createDefaultExercise();
+    otherTenantExercise.setTenant(otherTenant);
+    Step otherTenantTemplate =
+        Step.builder()
+            .stepAction(StepActionClass.INJECT_EXECUTION)
+            .status(StepStatus.TEMPLATE)
+            .data(
+                "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                    + objectContractId
+                    + "\"}}")
+            .build();
+    workflowComposer
+        .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+        .withSimulation(simulationComposer.forExercise(otherTenantExercise))
+        .withStep(stepComposer.forStep(otherTenantTemplate))
+        .persist();
+
+    // WHEN
+    List<Step> matched =
+        stepRepository.findTemplateStepsByInjectorContractIds(
+            List.of(objectContractId, stringContractId), tenantId);
+
+    // THEN
+    Set<String> matchedIds =
+        matched.stream().map(Step::getId).collect(java.util.stream.Collectors.toSet());
+    Assertions.assertEquals(
+        2, matchedIds.size(), "Only the two TEMPLATE steps on the doomed contracts match");
+    Assertions.assertTrue(
+        matchedIds.contains(objectShapeTemplate.getId()), "object-shape TEMPLATE matches");
+    Assertions.assertTrue(
+        matchedIds.contains(stringShapeTemplate.getId()), "string-shape TEMPLATE matches");
+    Assertions.assertFalse(
+        matchedIds.contains(unrelatedTemplate.getId()), "unrelated contract is excluded");
+    Assertions.assertFalse(
+        matchedIds.contains(runStepSameContract.getId()), "RUN step is preserved");
+    Assertions.assertFalse(
+        matchedIds.contains(otherTenantTemplate.getId()),
+        "another tenant's TEMPLATE step on the same contract id must be out of scope");
+
+    // AND: the same sweep scoped to the other tenant only sees that tenant's own step.
+    Set<String> otherTenantMatchedIds =
+        stepRepository
+            .findTemplateStepsByInjectorContractIds(
+                List.of(objectContractId, stringContractId), otherTenant.getId())
+            .stream()
+            .map(Step::getId)
+            .collect(java.util.stream.Collectors.toSet());
+    Assertions.assertEquals(
+        Set.of(otherTenantTemplate.getId()),
+        otherTenantMatchedIds,
+        "the sweep scoped to the other tenant matches exactly its own TEMPLATE step");
+  }
+
+  @Test
+  void whenExistsInjectorContractByWorkflowIdAndInjectorContractId_thenChecksBothJsonShapes() {
+    // GIVEN
+    String objectContractId = "contract-object";
+    String stringContractId = "contract-string";
+    Workflow workflow =
+        workflowComposer
+            .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+            .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+            .withStep(
+                stepComposer.forStep(
+                    Step.builder()
+                        .stepAction(StepActionClass.INJECT_EXECUTION)
+                        .status(StepStatus.TEMPLATE)
+                        .data(
+                            "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                                + objectContractId
+                                + "\"}}")
+                        .build()))
+            .withStep(
+                stepComposer.forStep(
+                    Step.builder()
+                        .stepAction(StepActionClass.INJECT_EXECUTION)
+                        .status(StepStatus.TEMPLATE)
+                        .data("{\"inject_injector_contract\": \"" + stringContractId + "\"}")
+                        .build()))
+            .persist()
+            .get();
+
+    // WHEN / THEN
+    Assertions.assertTrue(
+        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
+            workflow.getId(), objectContractId));
+    Assertions.assertTrue(
+        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
+            workflow.getId(), stringContractId));
+    Assertions.assertFalse(
+        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
+            workflow.getId(), "contract-missing"));
   }
 }

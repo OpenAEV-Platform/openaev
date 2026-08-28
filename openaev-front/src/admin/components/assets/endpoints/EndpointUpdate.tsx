@@ -9,7 +9,8 @@ import { useHelper } from '../../../../store';
 import type { Endpoint, EndpointInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import EndpointForm from './EndpointForm';
+import { type AssetCategory } from '../asset-categories';
+import AssetForm from '../AssetForm';
 
 interface Props {
   open: boolean;
@@ -56,22 +57,28 @@ const EndpointUpdate: FunctionComponent<Props> = ({
     );
   };
 
-  if (loading) {
-    return <Loader />;
-  }
+  const category = (endpoint?.asset_category as AssetCategory) ?? 'HOST';
+  // The drawer shell renders immediately so the slide-in animation plays and the
+  // underlying screen never shows a full-page loader; the fetch only swaps the
+  // drawer body content.
   return (
     <Drawer
       open={open}
       handleClose={handleClose}
-      title={t('Update an endpoint')}
+      title={t('Update an asset')}
     >
-      <EndpointForm
-        initialValues={endpoint}
-        editing
-        onSubmit={onSubmit}
-        agentless={agentless}
-        handleClose={handleClose}
-      />
+      {loading || !endpoint
+        ? <Loader variant="inElement" />
+        : (
+            <AssetForm
+              category={category}
+              initialValues={endpoint as unknown as Partial<EndpointInput>}
+              editing
+              onSubmit={onSubmit}
+              agentless={agentless}
+              handleClose={handleClose}
+            />
+          )}
     </Drawer>
   );
 };

@@ -2,10 +2,12 @@ package io.openaev.rest.payload;
 
 import static java.time.Instant.now;
 
-import io.openaev.database.model.CollectorType;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.Payload;
-import io.openaev.database.repository.CollectorTypeRepository;
+import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.repository.SecurityPlatformRepository;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.form.DetectionRemediationInput;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -20,7 +22,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class DetectionRemediationUtils {
 
-  private final CollectorTypeRepository collectorTypeRepository;
+  private final SecurityPlatformRepository securityPlatformRepository;
 
   public <T> void copy(List<T> detectionRemediations, Payload target, boolean copyId) {
     if (detectionRemediations == null) {
@@ -58,9 +60,16 @@ public class DetectionRemediationUtils {
       boolean copyId) {
     BeanUtils.copyProperties(input, newDetectionRemediation, "id");
 
-    CollectorType collectorType =
-        collectorTypeRepository.findByName(input.getCollectorType()).orElseThrow();
-    newDetectionRemediation.setCollectorType(collectorType);
+    // Tenant-guarded lookup: the platform id comes from the request body, so scope it explicitly
+    // instead of relying on the Hibernate tenant filter being active on this thread.
+    SecurityPlatform securityPlatform =
+        securityPlatformRepository
+            .findByIdAndTenantId(input.getSecurityPlatformId(), TenantContext.getCurrentTenant())
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Security platform not found: " + input.getSecurityPlatformId()));
+    newDetectionRemediation.setSecurityPlatform(securityPlatform);
 
     if (copyId) {
       newDetectionRemediation.setId(input.getId());
@@ -71,7 +80,7 @@ public class DetectionRemediationUtils {
       DetectionRemediation origin, DetectionRemediation newDetectionRemediation, boolean copyId) {
     BeanUtils.copyProperties(origin, newDetectionRemediation, "id");
 
-    newDetectionRemediation.setCollectorType(origin.getCollectorType());
+    newDetectionRemediation.setSecurityPlatform(origin.getSecurityPlatform());
 
     if (copyId) {
       newDetectionRemediation.setId(origin.getId());

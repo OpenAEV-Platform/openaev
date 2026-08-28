@@ -39,7 +39,6 @@ interface Props {
   inject: InjectPopoverType;
   setSelectedInjectId: (injectId: Inject['inject_id']) => void;
   isDisabled?: boolean;
-  isUpdateDisabled?: boolean;
   canBeTested?: boolean;
   canDone?: boolean;
   canTriggerNow?: boolean;
@@ -58,7 +57,6 @@ const InjectPopover: FunctionComponent<Props> = ({
   inject,
   setSelectedInjectId,
   isDisabled = false,
-  isUpdateDisabled = true,
   canBeTested = false,
   canDone = false,
   canTriggerNow = false,
@@ -137,7 +135,7 @@ const InjectPopover: FunctionComponent<Props> = ({
   const handleExportOpen = () => setOpenExportDialog(true);
   const handleExportClose = () => setOpenExportDialog(false);
 
-  const handleExportJsonSingle = (withPlayers: boolean, withTeams: boolean, withVariableValues: boolean) => {
+  const handleExportJsonSingle = (withPlayers: boolean, withTeams: boolean, withVariableValues: boolean, _withScopeDefinition: boolean) => {
     const exportData: InjectIndividualExportRequestInput = {
       options: {
         with_players: withPlayers,
@@ -217,10 +215,12 @@ const InjectPopover: FunctionComponent<Props> = ({
 
   // Button Popover
   const entries = [];
+  // Update stays available for disabled injects: "disabled" only excludes the inject from
+  // execution, it is not a read-only state.
   entries.push({
     label: 'Update',
     action: () => handleOpenEditContent(),
-    disabled: isDisabled || isUpdateDisabled,
+    disabled: isDisabled,
     userRight: permissions.canManage,
   });
   entries.push({
@@ -294,10 +294,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDone}>
+          <Button variant="outlined" color="primary" onClick={handleCloseDone}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitDone}>
+          <Button variant="contained" color="primary" onClick={submitDone}>
             {t('Mark')}
           </Button>
         </DialogActions>
@@ -326,10 +326,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseEnable}>
+          <Button variant="outlined" color="primary" onClick={handleCloseEnable}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitEnable}>
+          <Button variant="contained" color="primary" onClick={submitEnable}>
             {t('Enable')}
           </Button>
         </DialogActions>
@@ -346,10 +346,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDisable}>
+          <Button variant="outlined" color="primary" onClick={handleCloseDisable}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitDisable}>
+          <Button variant="contained" color="primary" onClick={submitDisable}>
             {t('Disable')}
           </Button>
         </DialogActions>
@@ -366,10 +366,10 @@ const InjectPopover: FunctionComponent<Props> = ({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseTrigger}>
+          <Button variant="outlined" color="primary" onClick={handleCloseTrigger}>
             {t('Cancel')}
           </Button>
-          <Button color="secondary" onClick={submitTrigger}>
+          <Button variant="contained" color="primary" onClick={submitTrigger}>
             {t('Trigger')}
           </Button>
         </DialogActions>

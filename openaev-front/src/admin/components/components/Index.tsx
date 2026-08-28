@@ -1,5 +1,5 @@
 import { lazy, Suspense, useContext } from 'react';
-import { Navigate, Route, Routes } from 'react-router';
+import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { errorWrapper } from '../../../components/Error';
@@ -11,24 +11,39 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 const IndexChannel = lazy(() => import('./channels/Index'));
 const Channels = lazy(() => import('./channels/Channels'));
+const Phishing = lazy(() => import('./phishing/Phishing'));
+const IndexPhishingLandingPage = lazy(() => import('./phishing/landing_pages/Index'));
+const IndexPhishingEmailTemplate = lazy(() => import('./phishing/email_templates/Index'));
+const PhishingLandingPageEditor = lazy(() => import('./phishing/landing_pages/PhishingLandingPageEditor'));
+const PhishingEmailTemplateEditor = lazy(() => import('./phishing/email_templates/PhishingEmailTemplateEditor'));
 const Documents = lazy(() => import('./documents/Documents'));
 const Challenges = lazy(() => import('./challenges/Challenges'));
-const Lessons = lazy(() => import('./lessons/LessonsTemplates'));
-const LessonIndex = lazy(() => import('./lessons/Index'));
 
 const useStyles = makeStyles()(() => ({ root: { flexGrow: 1 } }));
+
+// Lessons learned templates moved to Settings > Customization; old bookmarks
+// under /admin/components/lessons keep working through this redirect.
+const LegacyLessonsRedirect = () => {
+  const location = useLocation();
+  return (
+    <Navigate
+      to={location.pathname.replace('/admin/components/lessons', '/admin/settings/customization/lessons')}
+      replace={true}
+    />
+  );
+};
 
 const Index = () => {
   const { classes } = useStyles();
   const ability = useContext(AbilityContext);
 
-  const order = ['DOCUMENTS', 'CHANNELS', 'CHALLENGES', 'LESSONS_LEARNED'] as const;
+  const order = ['DOCUMENTS', 'CHANNELS', 'PHISHING', 'CHALLENGES'] as const;
 
   const subjectToRoute: Record<typeof order[number], string> = {
     DOCUMENTS: 'documents',
     CHANNELS: 'channels',
+    PHISHING: 'phishing',
     CHALLENGES: 'challenges',
-    LESSONS_LEARNED: 'lessons',
   };
 
   const accessibleSubject = order.find(subject => ability.can(ACTIONS.ACCESS, subject));
@@ -76,6 +91,107 @@ const Index = () => {
               />
             )}
           />
+          {/* Single "Phishing" page with a Pages / Emails tab; the tab is a URL
+              segment so old /phishing/landing_pages and /phishing/email_templates
+              bookmarks land directly on the right tab. */}
+          <Route
+            path="phishing"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(Phishing)()}
+              />
+            )}
+          />
+          <Route
+            path="phishing/:tab"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(Phishing)()}
+              />
+            )}
+          />
+          {/* Full-page create / edit editors (replace the old drawer). Static
+              "create" and "edit" segments out-rank the :id detail routes. */}
+          <Route
+            path="phishing/landing_pages/create"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.MANAGE,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(PhishingLandingPageEditor)()}
+              />
+            )}
+          />
+          <Route
+            path="phishing/landing_pages/:landingPageId/edit"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.MANAGE,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(PhishingLandingPageEditor)()}
+              />
+            )}
+          />
+          <Route
+            path="phishing/email_templates/create"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.MANAGE,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(PhishingEmailTemplateEditor)()}
+              />
+            )}
+          />
+          <Route
+            path="phishing/email_templates/:emailTemplateId/edit"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.MANAGE,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(PhishingEmailTemplateEditor)()}
+              />
+            )}
+          />
+          <Route
+            path="phishing/landing_pages/:landingPageId/*"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(IndexPhishingLandingPage)()}
+              />
+            )}
+          />
+          <Route
+            path="phishing/email_templates/:emailTemplateId/*"
+            element={(
+              <ProtectedRoute
+                checks={[{
+                  action: ACTIONS.ACCESS,
+                  subject: SUBJECTS.PHISHING,
+                }]}
+                Component={errorWrapper(IndexPhishingEmailTemplate)()}
+              />
+            )}
+          />
           <Route
             path="challenges"
             element={(
@@ -88,30 +204,8 @@ const Index = () => {
               />
             )}
           />
-          <Route
-            path="lessons"
-            element={(
-              <ProtectedRoute
-                checks={[{
-                  action: ACTIONS.ACCESS,
-                  subject: SUBJECTS.LESSONS_LEARNED,
-                }]}
-                Component={errorWrapper(Lessons)()}
-              />
-            )}
-          />
-          <Route
-            path="lessons/:lessonsTemplateId/*"
-            element={(
-              <ProtectedRoute
-                checks={[{
-                  action: ACTIONS.ACCESS,
-                  subject: SUBJECTS.LESSONS_LEARNED,
-                }]}
-                Component={errorWrapper(LessonIndex)()}
-              />
-            )}
-          />
+          <Route path="lessons" element={<LegacyLessonsRedirect />} />
+          <Route path="lessons/*" element={<LegacyLessonsRedirect />} />
           {/* Not found */}
           <Route path="*" element={<NotFound />} />
         </Routes>

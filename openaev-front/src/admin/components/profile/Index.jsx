@@ -4,6 +4,7 @@ import * as R from 'ramda';
 import { useDispatch } from 'react-redux';
 
 import { meTokens, renewToken, updateMeInformation, updateMePassword, updateMeProfile } from '../../../actions/users/User';
+import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import Paper from '../../../components/common/Paper';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
@@ -12,6 +13,7 @@ import { countryOption } from '../../../utils/Option';
 import PasswordForm from './PasswordForm';
 import ProfileForm from './ProfileForm';
 import UserForm from './UserForm';
+import XtmOneMcpAccess from './XtmOneMcpAccess';
 
 const Index = () => {
   const { t } = useFormatter();
@@ -104,9 +106,11 @@ const Index = () => {
           .
         </Typography>
         <Typography
-          variant="h4"
           gutterBottom={true}
-          style={{ marginTop: 20 }}
+          sx={{
+            ...SECTION_LABEL_SX,
+            mt: 2.5,
+          }}
         >
           {t('Token key')}
         </Typography>
@@ -120,9 +124,11 @@ const Index = () => {
           {t('RENEW')}
         </Button>
         <Typography
-          variant="h4"
           gutterBottom={true}
-          style={{ marginTop: 20 }}
+          sx={{
+            ...SECTION_LABEL_SX,
+            mt: 2.5,
+          }}
         >
           {t('Example')}
         </Typography>
@@ -148,6 +154,7 @@ const Index = () => {
           {t('API specifications')}
         </Button>
       </Paper>
+      <XtmOneMcpAccess />
     </div>
   );
 };

@@ -1,29 +1,53 @@
 package io.openaev.api.chaining;
 
+import static io.openaev.database.model.InjectorContract.AVAILABLE_EXPECTATIONS;
+import static io.openaev.database.model.InjectorContract.IS_PREDEFINED_EXPECTATION;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.TenantRepository;
+import io.openaev.execution.ExecutionContext;
+import io.openaev.execution.ExecutionContextService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.ExerciseTeamUserService;
+import io.openaev.service.InjectExpectationService;
 import io.openaev.service.UserService;
+import io.openaev.service.attackpath.AttackPathIds;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ConditionService;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.utils.ConditionUtils;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.helpers.InjectTestHelper;
+import jakarta.persistence.EntityManager;
 import java.util.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,14 +66,25 @@ public class InjectExecutionStepTest extends IntegrationTest {
   @MockitoBean private ConditionService conditionService;
   @MockitoBean private ConditionUtils conditionUtils;
   @MockitoBean private io.openaev.executors.Executor executor;
+  @MockitoBean private ScopeService scopeService;
+  @MockitoBean private ExerciseTeamUserService exerciseTeamUserService;
+  @MockitoBean private ExecutionContextService executionContextService;
+  @MockitoBean private InjectExpectationService injectExpectationService;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private TeamRepository teamRepository;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private DocumentRepository documentRepository;
   @Autowired InjectExecutionStep injectExecutionStep;
+  @Autowired AttackPathExecutionIngestionService attackPathExecutionIngestionService;
   ObjectMapper mapper = new ObjectMapper();
   @Autowired private InjectTestHelper injectTestHelper;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
+  @Autowired private EntityManager entityManager;
   String injectInputJson;
   InjectorContract injectorContractSaved;
+  Asset savedAsset;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -59,7 +94,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     InjectorContract injectorContract = InjectorContractFixture.createImplantInjectorContract();
     injectorContract.addInjector(injectorSaved);
     injectorContractSaved = injectorContractRepository.save(injectorContract);
-    injectorSaved.getContracts().add(injectorContractSaved);
+    injectorSaved.linkContract(injectorContractSaved);
     injectorRepository.save(injectorSaved);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
@@ -79,6 +114,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     Inject injectExecuted = new Inject();
     injectExecuted.setId("INJECT-ID");
 
+    injectExecuted.setTenant(new Tenant(io.openaev.context.TenantContext.getCurrentTenant()));
+
     ExecutionTrace executionTrace = new ExecutionTrace();
     executionTrace.setStatus(ExecutionTraceStatus.EXECUTED);
 
@@ -95,6 +132,11 @@ public class InjectExecutionStepTest extends IntegrationTest {
     doReturn(injectExecuted).when(injectService).findInjectOrNull(any());
     Asset asset = AssetFixture.createDefaultAsset("AssetTest");
     asset = injectTestHelper.forceSaveAsset(asset);
+    savedAsset = asset;
+
+    // Mock scope service: return the saved asset so that hasAssetTargets = true in run()
+    doReturn(List.of(savedAsset)).when(scopeService).getValidAssets(any());
+    doReturn(List.of()).when(scopeService).getValidManualTargetsFromScopeAndGlobalState(any());
 
     injectInputJson =
         """
@@ -154,11 +196,13 @@ public class InjectExecutionStepTest extends IntegrationTest {
     step.setId("step-1");
     step.setInput("{\"IPv4\":\"10.10.10.10\"}");
 
-    String contentJson = "{\"target_ip\":\"0.0.0.0\",\"file\":\"script.bat\"}";
+    ObjectNode contentNode = mapper.createObjectNode();
+    contentNode.put("target_ip", "0.0.0.0");
+    contentNode.put("file", "script.bat");
 
     Condition mapperCondition = new Condition();
     mapperCondition.setType(ConditionType.MAPPER);
-    mapperCondition.setKeyType(ConditionKeyType.IPv4);
+    mapperCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
     mapperCondition.setKey("target_ip");
 
     doReturn(List.of(mapperCondition)).when(conditionService).findAllConditionsByStepId("step-1");
@@ -167,7 +211,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // Act
     com.fasterxml.jackson.databind.node.ObjectNode updated =
         ReflectionTestUtils.invokeMethod(
-            injectExecutionStep, "updateContentWithInputs", step, contentJson);
+            injectExecutionStep, "updateContentWithInputs", step, contentNode);
 
     // Assert
     assertNotNull(updated);
@@ -176,17 +220,53 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
+  void
+      given_scopeWithSubnetAndExpandedValues_whenExpandTargetBatches_thenManualTargetsUseExpandedHosts() {
+    // Arrange
+    Workflow workflowRun = Workflow.builder().id("workflow-1").build();
+    List<ConditionService.ExecutionBatch> batches =
+        List.of(new ConditionService.ExecutionBatch("{}", List.of(), null));
+
+    doReturn(List.of()).when(scopeService).getValidAssets("workflow-1");
+    doReturn(List.of("192.168.10.0/26", "192.168.10.1", "192.168.10.2", "example.org"))
+        .when(scopeService)
+        .getValidManualTargetsFromScopeAndGlobalState("workflow-1");
+
+    Step stepTemplate = new Step();
+
+    // Act
+    List<ConditionService.ExecutionBatch> expanded =
+        injectExecutionStep.expandTargetBatches(batches, workflowRun, stepTemplate);
+
+    // Assert
+    assertEquals(3, expanded.size());
+    List<String> resolvedManualTargets =
+        expanded.stream()
+            .map(ConditionService.ExecutionBatch::inputString)
+            .map(JsonParser::parseString)
+            .map(JsonElement::getAsJsonObject)
+            .map(json -> json.getAsJsonObject("_target"))
+            .map(target -> target.get("manual").getAsString())
+            .toList();
+    assertTrue(resolvedManualTargets.contains("192.168.10.1"));
+    assertTrue(resolvedManualTargets.contains("192.168.10.2"));
+    assertTrue(resolvedManualTargets.contains("example.org"));
+    assertFalse(resolvedManualTargets.contains("192.168.10.0/26"));
+  }
+
+  @Test
   void given_emptyStepInput_should_keepOriginalContractContent() {
     // Arrange
     Step step = new Step();
     step.setId("step-2");
     step.setInput("{}");
-    String contentJson = "{\"target_ip\":\"0.0.0.0\"}";
+    ObjectNode contentNode = mapper.createObjectNode();
+    contentNode.put("target_ip", "0.0.0.0");
 
     // Act
     com.fasterxml.jackson.databind.node.ObjectNode updated =
         ReflectionTestUtils.invokeMethod(
-            injectExecutionStep, "updateContentWithInputs", step, contentJson);
+            injectExecutionStep, "updateContentWithInputs", step, contentNode);
 
     // Assert
     assertNotNull(updated);
@@ -195,20 +275,133 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
-  void given_invalidContractContent_should_returnEmptyObject() {
+  void given_invalidStepInput_should_returnEmptyObject() {
     // Arrange
     Step step = new Step();
     step.setId("step-3");
-    step.setInput("{\"IPv4\":\"10.10.10.10\"}");
+    step.setInput("{invalid-json");
+    ObjectNode contentNode = mapper.createObjectNode();
+    contentNode.put("target_ip", "0.0.0.0");
 
     // Act
     com.fasterxml.jackson.databind.node.ObjectNode updated =
         ReflectionTestUtils.invokeMethod(
-            injectExecutionStep, "updateContentWithInputs", step, "{invalid-json");
+            injectExecutionStep, "updateContentWithInputs", step, contentNode);
 
     // Assert
     assertNotNull(updated);
     assertTrue(updated.isEmpty());
+  }
+
+  @Test
+  void given_parsedContainsObjectArraysAndPrimitiveLists_should_extractValues() {
+    // Arrange
+    JsonObject parsed = new JsonObject();
+    JsonArray portscan = new JsonArray();
+    JsonObject portscanItem = new JsonObject();
+    portscanItem.addProperty("asset_id", (String) null);
+    portscanItem.addProperty("host", "0.0.0.0");
+    portscanItem.addProperty("port", 135);
+    portscanItem.addProperty("service", "TCP");
+    JsonObject secondPortscanItem = new JsonObject();
+    secondPortscanItem.addProperty("asset_id", (String) null);
+    secondPortscanItem.addProperty("host", "127.0.0.1");
+    secondPortscanItem.addProperty("port", 5432);
+    secondPortscanItem.addProperty("service", "TCP");
+    portscan.add(portscanItem);
+    portscan.add(secondPortscanItem);
+    parsed.add("portscan", portscan);
+
+    JsonArray ips = new JsonArray();
+    ips.add(new JsonPrimitive("0.0.0.0"));
+    ips.add(new JsonPrimitive("127.0.0.1"));
+    parsed.add("ips", ips);
+
+    JsonArray ports = new JsonArray();
+    ports.add(new JsonPrimitive(135));
+    ports.add(new JsonPrimitive(5432));
+    parsed.add("ports", ports);
+
+    Map<String, JsonElement> outputEntry = new HashMap<>();
+    outputEntry.put("parsed", parsed);
+
+    // Act
+    JsonObject extracted =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "extractDataFromParsed", List.of(outputEntry));
+
+    // Assert
+    assertNotNull(extracted);
+    assertTrue(extracted.get("portscan").isJsonArray());
+    assertEquals(2, extracted.getAsJsonArray("portscan").size());
+    assertEquals(portscanItem, extracted.getAsJsonArray("portscan").get(0).getAsJsonObject());
+    assertEquals(secondPortscanItem, extracted.getAsJsonArray("portscan").get(1).getAsJsonObject());
+    assertEquals("0.0.0.0", extracted.getAsJsonArray("ips").get(0).getAsString());
+    assertEquals("127.0.0.1", extracted.getAsJsonArray("ips").get(1).getAsString());
+    assertEquals(135, extracted.getAsJsonArray("ports").get(0).getAsInt());
+    assertEquals(5432, extracted.getAsJsonArray("ports").get(1).getAsInt());
+  }
+
+  @Test
+  void given_parsedContainsSingleObject_should_wrapValueIntoArray() {
+    // Arrange
+    JsonObject parsed = new JsonObject();
+    JsonObject credential = new JsonObject();
+    credential.addProperty("username", "admin");
+    credential.addProperty("password", "secret");
+    parsed.add("credentials", credential);
+
+    Map<String, JsonElement> outputEntry = new HashMap<>();
+    outputEntry.put("parsed", parsed);
+
+    // Act
+    JsonObject extracted =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "extractDataFromParsed", List.of(outputEntry));
+
+    // Assert
+    assertNotNull(extracted);
+    assertTrue(extracted.get("credentials").isJsonArray());
+    assertEquals(1, extracted.getAsJsonArray("credentials").size());
+    assertEquals(credential, extracted.getAsJsonArray("credentials").get(0).getAsJsonObject());
+  }
+
+  @Test
+  void given_payloadOutputMarkedAsNonFinding_should_stillBuildTypeMapping() {
+    // Arrange
+    ContractOutputElement outputElement = new ContractOutputElement();
+    outputElement.setKey("output");
+    outputElement.setType(ContractOutputType.ActionOutput);
+    outputElement.setName("output");
+    outputElement.setRule(".*");
+    outputElement.setFinding(false);
+    OutputParser outputParser = new OutputParser();
+    outputParser.setMode(ParserMode.STDOUT);
+    outputParser.setType(ParserType.REGEX);
+    outputParser.addContractOutputElement(outputElement);
+
+    Payload payload = new Payload();
+    payload.addOutputParser(outputParser);
+
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setPayload(payload);
+
+    Inject inject = new Inject();
+    inject.setInjectorContract(injectorContract);
+
+    // Act
+    @SuppressWarnings("unchecked")
+    Map<String, ChainingMappedType> typeMappings =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "buildTypeMappingsFromInject", inject);
+
+    // Assert
+    assertNotNull(typeMappings);
+    assertTrue(typeMappings.containsKey("output"));
+    ChainingMappedType mappedType = typeMappings.get("output");
+    assertNotNull(mappedType);
+    assertEquals(ChainingTypeKind.PRIMITIVE, mappedType.kind());
+    assertEquals(List.of(PrimitiveType.ActionOutput), mappedType.primitiveTypes());
   }
 
   @Test
@@ -274,7 +467,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyTypes(List.of(PrimitiveType.IPv4))
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -298,9 +491,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
         StepService.getField(
             stepTemplate.getData(), "inject_injector_contract.injector_contract_id"));
     assertEquals("output.message.ip", StepService.getField(stepTemplate.getInput(), "input.path"));
-    assertEquals(
-        ConditionKeyType.IPv4.name(),
-        StepService.getField(stepTemplate.getInput(), "input.keyType"));
+    assertEquals("[\"IPv4\"]", StepService.getField(stepTemplate.getInput(), "input.keyTypes"));
   }
 
   /**
@@ -327,7 +518,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyTypes(List.of(PrimitiveType.IPv4))
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -377,7 +568,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyTypes(List.of(PrimitiveType.IPv4))
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -400,6 +591,123 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     // ASSERT
     assertNotNull(StepService.getField(stepReady.getData(), "inject_id"));
+    String injectId = StepService.getField(stepReady.getData(), "inject_id");
+    Inject createdInject = injectRepository.findById(injectId).orElseThrow();
+    assertEquals(2, createdInject.getContent().withArray("expectations").size());
+  }
+
+  @Test
+  public void run_shouldSetPredefinedExpectations_whenStepHasNoExpectationsInData()
+      throws JsonProcessingException, ChainingException {
+    // PREPARE
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+    JsonNode injectorContractContent = mapper.readTree(injectorContractSaved.getContent());
+    int expectedPredefinedExpectations = 0;
+    for (JsonNode field : injectorContractContent.path("fields")) {
+      if ("expectations".equals(field.path("key").asText())) {
+        JsonNode available = field.path(AVAILABLE_EXPECTATIONS);
+        for (JsonNode exp : available) {
+          if (exp.path(IS_PREDEFINED_EXPECTATION).asBoolean(false)) {
+            expectedPredefinedExpectations++;
+          }
+        }
+        break;
+      }
+    }
+
+    ObjectNode injectInputNode = (ObjectNode) mapper.readTree(injectInputJson);
+    ((ObjectNode) injectInputNode.get("inject_content")).remove("expectations");
+    InjectInput injectInput = mapper.treeToValue(injectInputNode, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    ConditionCreateInput conditionMapper =
+        ConditionCreateInput.builder()
+            .keyTypes(List.of(PrimitiveType.IPv4))
+            .value("output.message.ip")
+            .type(ConditionType.MAPPER)
+            .build();
+    step.setConditions(Collections.singletonList(conditionMapper));
+
+    // ACT
+    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    assertTrue(stepTemplateOpt.isPresent());
+    Step stepTemplate = stepTemplateOpt.get();
+
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+
+    Optional<Step> stepReadyOpt =
+        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
+    assertTrue(stepReadyOpt.isPresent());
+    Step stepReady = stepReadyOpt.get();
+
+    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+    assertTrue(stepRunOpt.isPresent());
+
+    // ASSERT
+    String injectId = StepService.getField(stepReady.getData(), "inject_id");
+    Inject createdInject = injectRepository.findById(injectId).orElseThrow();
+    assertEquals(
+        expectedPredefinedExpectations,
+        createdInject.getContent().withArray("expectations").size());
+  }
+
+  @Test
+  public void run_shouldKeepStepExpectations_whenCustomExpectationProvidedInStepData()
+      throws JsonProcessingException, ChainingException {
+    // PREPARE
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    ObjectNode injectInputNode = (ObjectNode) mapper.readTree(injectInputJson);
+    ObjectNode injectContentNode = (ObjectNode) injectInputNode.get("inject_content");
+    ObjectNode customExpectationNode = mapper.createObjectNode();
+    customExpectationNode.put("expectation_type", "DETECTION");
+    customExpectationNode.put("expectation_name", "Custom detection expectation");
+    customExpectationNode.putNull("expectation_description");
+    customExpectationNode.put("expectation_score", 80);
+    customExpectationNode.put("expectation_expectation_group", false);
+    customExpectationNode.put("expectation_expiration_time", 3600);
+    injectContentNode.set("expectations", mapper.createArrayNode().add(customExpectationNode));
+
+    InjectInput injectInput = mapper.treeToValue(injectInputNode, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    ConditionCreateInput conditionMapper =
+        ConditionCreateInput.builder()
+            .keyTypes(List.of(PrimitiveType.IPv4))
+            .value("output.message.ip")
+            .type(ConditionType.MAPPER)
+            .build();
+    step.setConditions(Collections.singletonList(conditionMapper));
+
+    // ACT
+    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+    assertTrue(stepTemplateOpt.isPresent());
+    Step stepTemplate = stepTemplateOpt.get();
+
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+
+    Optional<Step> stepReadyOpt =
+        injectExecutionStep.ready(stepTemplate, "{\"input\" : \"do defined\"}", workflowRun);
+    assertTrue(stepReadyOpt.isPresent());
+    Step stepReady = stepReadyOpt.get();
+
+    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+    assertTrue(stepRunOpt.isPresent());
+
+    // ASSERT
+    String injectId = StepService.getField(stepReady.getData(), "inject_id");
+    Inject createdInject = injectRepository.findById(injectId).orElseThrow();
+    assertEquals(1, createdInject.getContent().withArray("expectations").size());
+    assertEquals(
+        "Custom detection expectation",
+        createdInject
+            .getContent()
+            .withArray("expectations")
+            .get(0)
+            .path("expectation_name")
+            .asText());
   }
 
   @Test
@@ -414,7 +722,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyTypes(List.of(PrimitiveType.IPv4))
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -442,14 +750,13 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertNotNull(injectorIdsJson);
     String[] injectorIds = mapper.readValue(injectorIdsJson, String[].class);
     for (String id : injectorIds) {
-      injectorRepository.deleteByIdAndTenantId(
-          id, io.openaev.context.TenantContext.getCurrentTenant());
+      injectorRepository.deleteByInjectorId(id);
     }
     entityManager.flush();
     entityManager.clear();
 
     // Clear injectors from the mocked contract so the code cannot resolve them
-    injectorContractSaved.getInjectors().clear();
+    injectorContractSaved.clearInjectors();
 
     // ACT
     ChainingException ex =
@@ -479,7 +786,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyTypes(List.of(PrimitiveType.IPv4))
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -512,6 +819,593 @@ public class InjectExecutionStepTest extends IntegrationTest {
         injectRepository.findById(idInject).isPresent(), idInject + " should not be persisted");
   }
 
+  // ---------------------------------------------------------------------------
+  // resolveAudienceRecipients (tabletop audience: teams, scope players, denylist)
+  // ---------------------------------------------------------------------------
+
+  /** A tabletop (email) step snapshot with teams explicitly picked in the drawer. */
+  private static final String AUDIENCE_STEP_WITH_EXPLICIT_TEAMS_DATA =
+      """
+      {"inject_injector_contract":{"injector_contract_id":"contract-email",
+      "injector_contract_content":
+      "{\\"fields\\":[{\\"key\\":\\"teams\\",\\"type\\":\\"team\\"}]}"},
+      "inject_all_teams":false,"inject_teams":["team-1"]}
+      """;
+
+  /** The same tabletop step snapshot with no audience configured in the drawer. */
+  private static final String AUDIENCE_STEP_WITHOUT_AUDIENCE_DATA =
+      """
+      {"inject_injector_contract":{"injector_contract_id":"contract-email",
+      "injector_contract_content":
+      "{\\"fields\\":[{\\"key\\":\\"teams\\",\\"type\\":\\"team\\"}]}"},
+      "inject_all_teams":false,"inject_teams":[]}
+      """;
+
+  private Step audienceReadyStep(String data) {
+    Step readyStep = new Step();
+    readyStep.setWorkflow(Workflow.builder().id("workflow-1").build());
+    readyStep.setData(data);
+    return readyStep;
+  }
+
+  @Test
+  void given_audienceStepWithDeniedTeamMember_whenResolvingRecipients_thenDeniedPlayerIsExcluded() {
+    // Arrange
+    User keptUser = new User();
+    keptUser.setId("user-kept");
+    User deniedUser = new User();
+    deniedUser.setId("user-denied");
+    Team team = new Team();
+    team.setId("team-1");
+    team.setName("Blue team");
+    team.setUsers(List.of(keptUser, deniedUser));
+
+    Exercise exercise = ExerciseFixture.createDefaultExercise();
+    Inject inject = new Inject();
+    inject.setExercise(exercise);
+    inject.setTeams(new ArrayList<>(List.of(team)));
+
+    Step readyStep = audienceReadyStep(AUDIENCE_STEP_WITH_EXPLICIT_TEAMS_DATA);
+
+    doReturn(Set.of("user-denied")).when(scopeService).getDeniedPlayerIds("workflow-1");
+    doAnswer(invocation -> mock(ExecutionContext.class))
+        .when(executionContextService)
+        .executionContext(any(User.class), any(Inject.class), anyString());
+
+    // Act
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert
+    assertNotNull(recipients);
+    assertEquals(1, recipients.size());
+    verify(executionContextService).executionContext(keptUser, inject, "Blue team");
+    verify(executionContextService, never())
+        .executionContext(eq(deniedUser), any(Inject.class), anyString());
+    // Explicit drawer audience stays authoritative: scope players are never consulted.
+    verify(scopeService, never()).getValidPlayers(any());
+    // The denylist travels into the enable step so the denied player is never persisted into
+    // the simulation audience (exercise_teams_users) either.
+    verify(exerciseTeamUserService)
+        .enableTargetedTeamMembers(exercise.getId(), List.of("team-1"), Set.of("user-denied"));
+  }
+
+  @Test
+  void
+      given_audienceStepWithoutAudience_whenResolvingRecipients_thenScopePlayersAreDirectRecipients() {
+    // Arrange
+    User scopePlayer = new User();
+    scopePlayer.setId("player-1");
+
+    Inject inject = new Inject();
+    inject.setExercise(ExerciseFixture.createDefaultExercise());
+
+    Step readyStep = audienceReadyStep(AUDIENCE_STEP_WITHOUT_AUDIENCE_DATA);
+
+    doReturn(List.of(scopePlayer)).when(scopeService).getValidPlayers("workflow-1");
+    doReturn(Set.of()).when(scopeService).getDeniedPlayerIds("workflow-1");
+    doAnswer(invocation -> mock(ExecutionContext.class))
+        .when(executionContextService)
+        .executionContext(any(User.class), any(Inject.class), anyString());
+
+    // Act
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert
+    assertNotNull(recipients);
+    assertEquals(1, recipients.size());
+    verify(executionContextService).executionContext(scopePlayer, inject, "Direct execution");
+    // No targeted team to enable on the simulation.
+    verifyNoInteractions(exerciseTeamUserService);
+  }
+
+  @Test
+  void given_audienceStepWithRecipientsMapper_whenResolvingRecipients_thenScopePlayersAreSkipped() {
+    // Arrange: a mapper feeds the "recipients" content field from upstream outputs, so the
+    // mapped audience is authoritative and scope players must not widen it.
+    Inject inject = new Inject();
+    inject.setExercise(ExerciseFixture.createDefaultExercise());
+
+    Step readyStep = audienceReadyStep(AUDIENCE_STEP_WITHOUT_AUDIENCE_DATA);
+    readyStep.setId("ready-mapper-1");
+
+    Condition recipientsMapper = new Condition();
+    recipientsMapper.setType(ConditionType.MAPPER);
+    recipientsMapper.setKey("recipients");
+    doReturn(Map.of("ready-mapper-1", List.of(recipientsMapper)))
+        .when(conditionService)
+        .findAllConditionsByStepIds(any());
+
+    // Act
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert
+    assertNotNull(recipients);
+    assertTrue(recipients.isEmpty());
+    verify(scopeService, never()).getValidPlayers(any());
+  }
+
+  @Test
+  void
+      given_playerBothInTargetedTeamAndScope_whenResolvingRecipients_thenSingleRecipientWithTeamLabel() {
+    // Arrange
+    User player = new User();
+    player.setId("player-1");
+    Team team = new Team();
+    team.setId("team-1");
+    team.setName("Blue team");
+    team.setUsers(List.of(player));
+
+    Inject inject = new Inject();
+    inject.setExercise(ExerciseFixture.createDefaultExercise());
+    // Teams set by the scope audience fallback; the drawer itself holds no audience.
+    inject.setTeams(new ArrayList<>(List.of(team)));
+
+    Step readyStep = audienceReadyStep(AUDIENCE_STEP_WITHOUT_AUDIENCE_DATA);
+
+    doReturn(List.of(player)).when(scopeService).getValidPlayers("workflow-1");
+    doReturn(Set.of()).when(scopeService).getDeniedPlayerIds("workflow-1");
+    doAnswer(invocation -> mock(ExecutionContext.class))
+        .when(executionContextService)
+        .executionContext(any(User.class), any(Inject.class), anyString());
+
+    // Act
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert
+    assertNotNull(recipients);
+    assertEquals(1, recipients.size());
+    verify(executionContextService).executionContext(player, inject, "Blue team");
+    verify(executionContextService, never()).executionContext(player, inject, "Direct execution");
+  }
+
+  // ---------------------------------------------------------------------------
+  // getInjectFromDataStep audience fallback (scope teams consumed at run time)
+  // ---------------------------------------------------------------------------
+
+  /** Email-style (audience-centric) contract content: team + recipients fields, no payload. */
+  private static final String EMAIL_CONTRACT_CONTENT =
+      "{\"fields\":[{\"key\":\"teams\",\"type\":\"team\",\"cardinality\":\"n\"},"
+          + "{\"key\":\"recipients\",\"type\":\"text\",\"cardinality\":\"1\"},"
+          + "{\"key\":\"subject\",\"type\":\"text\",\"cardinality\":\"1\"}]}";
+
+  /**
+   * Builds a READY email step through the real create/ready path so its data carries the full
+   * serialized inject and contract snapshot, with the given teams picked in the drawer.
+   */
+  private Step emailReadyStep(List<String> drawerTeamIds) throws Exception {
+    return emailReadyStep(drawerTeamIds, List.of());
+  }
+
+  /**
+   * Same as {@link #emailReadyStep(List)} with attachment documents picked in the drawer, so the
+   * step data carries {@code inject_documents} link objects serialized from the inject entity.
+   */
+  private Step emailReadyStep(List<String> drawerTeamIds, List<Document> drawerDocuments)
+      throws Exception {
+    Injector emailInjector =
+        injectorRepository.save(
+            InjectorFixture.createInjector(
+                UUID.randomUUID().toString(), "Email injector", "openaev_email_test"));
+    InjectorContract emailContract =
+        InjectorContractFixture.createInjectorContract(
+            Map.of("en", "Email"), EMAIL_CONTRACT_CONTENT);
+    emailContract.addInjector(emailInjector);
+    InjectorContract emailContractSaved = injectorContractRepository.save(emailContract);
+    emailInjector.linkContract(emailContractSaved);
+    injectorRepository.save(emailInjector);
+    doReturn(emailContractSaved)
+        .when(injectorContractService)
+        .injectorContract(emailContractSaved.getId());
+
+    String teamsJson =
+        drawerTeamIds.stream()
+            .map(id -> "\"" + id + "\"")
+            .collect(java.util.stream.Collectors.joining(","));
+    String documentsJson =
+        drawerDocuments.stream()
+            .map(d -> "{\"document_id\":\"" + d.getId() + "\",\"document_attached\":true}")
+            .collect(java.util.stream.Collectors.joining(","));
+    String emailInputJson =
+        """
+        {"type":"inject","inject_title":"tabletop email","inject_description":"",
+         "inject_injector_contract":"%s","inject_injector":"%s",
+         "inject_content":{"subject":"Subject","body":"Body"},
+         "inject_depends_on":[],"inject_depends_duration":0,
+         "inject_teams":[%s],"inject_assets":[],"inject_asset_groups":[],
+         "inject_documents":[%s],"inject_all_teams":false,"inject_tags":[],"inject_enabled":true}
+        """
+            .formatted(emailContractSaved.getId(), emailInjector.getId(), teamsJson, documentsJson);
+    InjectInput injectInput = mapper.readValue(emailInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+    Step stepTemplate = injectExecutionStep.create(step, workflowTemplate).orElseThrow();
+
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    return injectExecutionStep.ready(stepTemplate, null, workflowRun).orElseThrow();
+  }
+
+  @Test
+  void given_audienceStepWithoutDrawerAudience_whenBuildingInject_thenScopeTeamsAreConsumed()
+      throws Exception {
+    // Arrange
+    Step readyStep = emailReadyStep(List.of());
+    Team scopeTeam = new Team();
+    scopeTeam.setId("scope-team-1");
+    scopeTeam.setName("Scope team");
+    doReturn(List.of(scopeTeam)).when(scopeService).getValidTeams(any());
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: empty drawer audience falls back to the workflow scope's teams.
+    assertNotNull(inject);
+    assertEquals(List.of("scope-team-1"), inject.getTeams().stream().map(Team::getId).toList());
+  }
+
+  @Test
+  void given_audienceStepWithRecipientsMapper_whenBuildingInject_thenScopeFallbackIsSkipped()
+      throws Exception {
+    // Arrange: the step's audience is mapper-fed (upstream findings mapped into "recipients"),
+    // so the scope-team fallback must not widen the mapped audience.
+    Step readyStep = emailReadyStep(List.of());
+    readyStep.setId("ready-step-mapper");
+    Condition recipientsMapper = new Condition();
+    recipientsMapper.setType(ConditionType.MAPPER);
+    recipientsMapper.setKey("recipients");
+    doReturn(Map.of("ready-step-mapper", List.of(recipientsMapper)))
+        .when(conditionService)
+        .findAllConditionsByStepIds(any());
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert
+    assertNotNull(inject);
+    assertTrue(inject.getTeams() == null || inject.getTeams().isEmpty());
+    verify(scopeService, never()).getValidTeams(any());
+  }
+
+  @Test
+  void given_audienceStepWithExplicitDrawerTeams_whenBuildingInject_thenScopeIsNotConsulted()
+      throws Exception {
+    // Arrange
+    Team drawerTeam = teamRepository.save(TeamFixture.getDefaultTeam());
+    Step readyStep = emailReadyStep(List.of(drawerTeam.getId()));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the drawer audience stays authoritative, the scope is never consulted.
+    assertNotNull(inject);
+    assertEquals(List.of(drawerTeam.getId()), inject.getTeams().stream().map(Team::getId).toList());
+    verify(scopeService, never()).getValidTeams(any());
+  }
+
+  // ---------------------------------------------------------------------------
+  // getInjectFromDataStep document attachments (inject_documents round-trip)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void given_emailStepWithAttachment_whenBuildingInject_thenDocumentLinkSurvivesRoundTrip()
+      throws Exception {
+    // Arrange: the step data serializes the inject entity, so inject_documents holds full link
+    // objects ({inject_id, document_id, document_attached, document_name}), not scalar ids.
+    Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    Step readyStep = emailReadyStep(List.of(), List.of(attachment));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the attachment round-trips and is re-parented onto the deserialized inject so the
+    // cascade persist in run() can derive the @MapsId composite key.
+    assertNotNull(inject);
+    assertEquals(1, inject.getDocuments().size());
+    InjectDocument link = inject.getDocuments().getFirst();
+    assertEquals(attachment.getId(), link.getDocument().getId());
+    assertTrue(link.isAttached());
+    assertSame(inject, link.getInject());
+  }
+
+  @Test
+  void given_stepDataWithScalarDocumentId_whenBuildingInject_thenDocumentIsResolved()
+      throws Exception {
+    // Arrange: defensive shape - a plain string document id instead of the link object.
+    Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    Step readyStep = emailReadyStep(List.of());
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    data.putArray("inject_documents").add(attachment.getId());
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the scalar form resolves too, with document_attached defaulting to true.
+    assertNotNull(inject);
+    assertEquals(1, inject.getDocuments().size());
+    assertEquals(attachment.getId(), inject.getDocuments().getFirst().getDocument().getId());
+    assertTrue(inject.getDocuments().getFirst().isAttached());
+  }
+
+  @Test
+  void given_stepDataWithDeletedDocument_whenBuildingInject_thenAttachmentIsDropped()
+      throws Exception {
+    // Arrange: the document is deleted between step authoring and execution.
+    Document attachment = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    Step readyStep = emailReadyStep(List.of(), List.of(attachment));
+    documentRepository.delete(attachment);
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: a deleted attachment degrades to "no attachment" instead of failing the step.
+    assertNotNull(inject);
+    assertTrue(inject.getDocuments().isEmpty());
+  }
+
+  @Test
+  void given_stepDataWithForeignTenantDocument_whenBuildingInject_thenAttachmentIsDropped()
+      throws Exception {
+    // Arrange: the step is authored under the current tenant, but its data references a document
+    // persisted under ANOTHER tenant (stale or crafted step id). The document resolution goes
+    // through a JPQL query precisely so Hibernate's tenantFilter applies; this test pins that
+    // guarantee - a future primary-key lookup (filters never apply to those) or a disabled filter
+    // would resolve the foreign document and fail here.
+    Step readyStep = emailReadyStep(List.of());
+    String currentTenantId = TenantContext.getCurrentTenant();
+    // A bare tenant row is enough here (no provisioning side effects): the document only needs a
+    // foreign tenant to be stamped with, and the run-path lookup only reads documents.
+    Tenant foreignTenant =
+        tenantRepository.save(TenantFixture.getTenant("inject-doc-isolation-" + UUID.randomUUID()));
+    Document foreignDocument;
+    tenantIsolationTestHelper.switchToTenant(foreignTenant.getId(), entityManager);
+    try {
+      foreignDocument = documentRepository.save(DocumentFixture.getDocumentJpeg());
+    } finally {
+      tenantIsolationTestHelper.switchToTenant(currentTenantId, entityManager);
+    }
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    ObjectNode link = mapper.createObjectNode();
+    link.put("document_id", foreignDocument.getId());
+    link.put("document_attached", true);
+    data.putArray("inject_documents").add(link);
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act: deserialize through the real scoped run path (the helper re-enabled the tenantFilter
+    // for the current tenant on this session, as the transaction aspect does for the queue run).
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the foreign-tenant attachment degrades exactly like a deleted one - dropped, with
+    // the step still executable - instead of leaking another tenant's document.
+    assertNotNull(inject);
+    assertTrue(inject.getDocuments().isEmpty());
+  }
+
+  // ---------------------------------------------------------------------------
+  // getInjectFromDataStep injector resolution: explicit id vs auto-resolve from contract
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void
+      given_payloadInjectWithNoExplicitInjectorId_whenBuildingInject_thenInjectorAutoResolvesFromContract()
+          throws Exception {
+    // Arrange: a payload-based inject (e.g. a command payload run through an OpenAEV agent asset)
+    // never carries an explicit injectorId - InjectService/AtomicTestingService/SimulationInjectApi
+    // all call injectUtils.resolveInjector(null, injectorContract) in that case, auto-resolving the
+    // single injector linked to the contract. The serialized step data therefore holds an EXPLICIT
+    // JSON null for "inject_injector" (Jackson never invokes MonoIdSerializer for a null field),
+    // not a missing field - JsonNode#asText() on that null node returns the literal string "null",
+    // which used to be mistaken for a real injector id and looked up verbatim (#7434 regression).
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+    Step stepTemplate = injectExecutionStep.create(step, workflowTemplate).orElseThrow();
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    Step readyStep = injectExecutionStep.ready(stepTemplate, null, workflowRun).orElseThrow();
+
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    data.putNull("inject_injector");
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: the injector is auto-resolved from the injector contract's linked injector instead
+    // of failing with "Injector not found for injectorId null".
+    assertNotNull(inject);
+    assertNotNull(inject.getInjector());
+    assertEquals(
+        injectorContractSaved.getInjectors().stream().findFirst().orElseThrow().getId(),
+        inject.getInjector().getId());
+  }
+
+  @Test
+  void
+      given_stepDataWithMissingInjectorField_whenBuildingInject_thenInjectorAutoResolvesFromContract()
+          throws Exception {
+    // Arrange: the field is absent altogether (not even serialized as null) - the same auto-resolve
+    // fallback must still apply.
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+    Step stepTemplate = injectExecutionStep.create(step, workflowTemplate).orElseThrow();
+    Workflow workflowRun = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
+    Step readyStep = injectExecutionStep.ready(stepTemplate, null, workflowRun).orElseThrow();
+
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    data.remove("inject_injector");
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert
+    assertNotNull(inject);
+    assertNotNull(inject.getInjector());
+    assertEquals(
+        injectorContractSaved.getInjectors().stream().findFirst().orElseThrow().getId(),
+        inject.getInjector().getId());
+  }
+
+  // ---------------------------------------------------------------------------
+  // getInjectFromDataStep mono-id collections (inject_communications /
+  // inject_expectations round-trip) - #7414
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void
+      given_stepDataWithObjectShapedCommunicationsAndExpectations_whenBuildingInject_thenNoDesyncAndTrailingFieldBinds()
+          throws Exception {
+    // Arrange: MultiModelSerializer writes inject_communications and inject_expectations as FULL
+    // objects (each starting with its id property), yet both are read back through the scalar-only
+    // MonoIdDeserializerHelper. Before #7414 the object was not consumed, so the collection
+    // deserializer misread the object's first field name as the next element's id and desynced the
+    // whole stream - corrupting every field that came after the collections. Craft that exact
+    // shape and put a scalar field (inject_title) AFTER both collections: the trailing field is the
+    // observable desync symptom.
+    Step readyStep = emailReadyStep(List.of());
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    data.remove("inject_communications");
+    data.remove("inject_expectations");
+    data.remove("inject_title");
+    data.putArray("inject_communications")
+        .addObject()
+        .put("communication_id", "comm-1")
+        .put("communication_subject", "Subject")
+        .put("communication_from", "from@openaev.io")
+        .put("communication_to", "to@openaev.io");
+    data.putArray("inject_expectations")
+        .addObject()
+        .put("inject_expectation_id", "exp-1")
+        .put("inject_expectation_name", "Prevention")
+        .put("inject_expectation_type", "PREVENTION");
+    // Trailing field, placed AFTER both object-shaped collections on purpose.
+    data.put("inject_title", "desync sentinel title");
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: no desync - the elements resolve by their id and the field AFTER the collections
+    // still binds to its own value instead of being consumed by the misaligned array parsing.
+    assertNotNull(inject);
+    assertEquals("desync sentinel title", inject.getTitle());
+    assertEquals(1, inject.getCommunications().size());
+    assertEquals("comm-1", inject.getCommunications().getFirst().getId());
+    assertEquals(1, inject.getExpectations().size());
+    assertEquals("exp-1", inject.getExpectations().getFirst().getId());
+  }
+
+  @Test
+  void
+      given_stepDataWithScalarCommunicationAndExpectationIds_whenBuildingInject_thenElementsResolve()
+          throws Exception {
+    // Arrange: the defensive scalar shape (a plain string id per element) must keep working exactly
+    // as before - the scalar path in the deserializer is unchanged by #7414.
+    Step readyStep = emailReadyStep(List.of());
+    ObjectNode data = (ObjectNode) mapper.readTree(readyStep.getData());
+    data.remove("inject_communications");
+    data.remove("inject_expectations");
+    data.putArray("inject_communications").add("comm-scalar");
+    data.putArray("inject_expectations").add("exp-scalar");
+    // Trailing field, to prove the scalar path leaves the stream aligned too.
+    data.remove("inject_title");
+    data.put("inject_title", "scalar sentinel title");
+    readyStep.setData(mapper.writeValueAsString(data));
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert
+    assertNotNull(inject);
+    assertEquals("scalar sentinel title", inject.getTitle());
+    assertEquals(1, inject.getCommunications().size());
+    assertEquals("comm-scalar", inject.getCommunications().getFirst().getId());
+    assertEquals(1, inject.getExpectations().size());
+    assertEquals("exp-scalar", inject.getExpectations().getFirst().getId());
+  }
+
+  // ---------------------------------------------------------------------------
+  // create - injector contract existence validation at authoring time (#7418)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void create_shouldRejectWith400_whenInjectorContractDoesNotExist() throws Exception {
+    // #7418: a stale client (or one racing the contract-delete tx) can reference an injector
+    // contract that no longer exists. Authoring must reject it (BadRequestException -> 400) instead
+    // of baking it into an un-runnable ghost step; the existence check is real (repository) so the
+    // mocked injectorContractService return value is irrelevant here.
+    String missingContractId = "missing-" + UUID.randomUUID();
+    InjectInput injectInput =
+        mapper.readValue(
+            injectInputJson.replace(injectorContractSaved.getId(), missingContractId),
+            InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    BadRequestException ex =
+        assertThrows(
+            BadRequestException.class, () -> injectExecutionStep.create(step, workflowTemplate));
+    assertTrue(ex.getMessage().contains(missingContractId));
+  }
+
+  @Test
+  void create_shouldSucceed_whenInjectorContractExists() throws Exception {
+    // #7418: the happy path - the referenced contract exists in the tenant, so authoring proceeds.
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    workflowTemplate.setSimulation(ExerciseFixture.createDefaultExercise());
+
+    Optional<Step> created = injectExecutionStep.create(step, workflowTemplate);
+    assertTrue(created.isPresent());
+  }
+
   /**
    * Tests the update phase of an Inject Execution step.
    *
@@ -538,7 +1432,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyTypes(List.of(PrimitiveType.IPv4))
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
             .build();
@@ -568,11 +1462,159 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertEquals("testValue", StepService.getField(runUpdated.getOutput(), "outputs.message.test"));
   }
 
+  // -------------------
+  // end() completion analysis: Status / ExecutionTraces / Expectation
+  // -------------------
+
+  /**
+   * Builds a bare Step in RUN status carrying only the inject_id in its data, matching what end()
+   * needs to resolve the underlying inject.
+   */
+  private Step stepRunForInject(String injectId) {
+    Step stepRun = new Step();
+    stepRun.setStatus(StepStatus.RUN);
+    stepRun.setData("{\"inject_id\":\"" + injectId + "\"}");
+    return stepRun;
+  }
+
+  private InjectStatus mockInjectStatus(ExecutionStatus name, boolean withTrace) {
+    InjectStatus injectStatus = mock(InjectStatus.class);
+    when(injectStatus.getName()).thenReturn(name);
+    List<ExecutionTrace> traces =
+        withTrace ? List.of(mock(ExecutionTrace.class)) : Collections.emptyList();
+    when(injectStatus.getTraces()).thenReturn(traces);
+    return injectStatus;
+  }
+
+  private BaseInjectExpectation mockExpectation(boolean hasResult) {
+    BaseInjectExpectation expectation = mock(BaseInjectExpectation.class);
+    List<InjectExpectationResult> results =
+        hasResult ? List.of(mock(InjectExpectationResult.class)) : Collections.emptyList();
+    when(expectation.getResults()).thenReturn(results);
+    return expectation;
+  }
+
+  @Test
+  void given_terminalInjectWithTracesAndResolvedExpectations_should_endStep()
+      throws ChainingException {
+    // ARRANGE
+    String injectId = UUID.randomUUID().toString();
+    Step stepRun = stepRunForInject(injectId);
+
+    Inject inject = mock(Inject.class);
+    InjectStatus injectStatus = mockInjectStatus(ExecutionStatus.EXECUTED, true);
+    when(inject.getStatus()).thenReturn(Optional.of(injectStatus));
+    when(injectService.inject(injectId)).thenReturn(inject);
+    List<BaseInjectExpectation> expectations = List.of(mockExpectation(true));
+    when(injectExpectationService.findAllByInjectId(injectId)).thenReturn(expectations);
+
+    // ACT
+    injectExecutionStep.end(stepRun);
+
+    // ASSERT
+    assertEquals(StepStatus.END, stepRun.getStatus());
+  }
+
+  @Test
+  void given_terminalInjectWithPendingExpectation_should_keepStepRunning()
+      throws ChainingException {
+    // ARRANGE
+    String injectId = UUID.randomUUID().toString();
+    Step stepRun = stepRunForInject(injectId);
+
+    Inject inject = mock(Inject.class);
+    InjectStatus injectStatus = mockInjectStatus(ExecutionStatus.EXECUTED, true);
+    when(inject.getStatus()).thenReturn(Optional.of(injectStatus));
+    when(injectService.inject(injectId)).thenReturn(inject);
+    // One resolved, one still pending -> not all resolved
+    List<BaseInjectExpectation> expectations =
+        List.of(mockExpectation(true), mockExpectation(false));
+    when(injectExpectationService.findAllByInjectId(injectId)).thenReturn(expectations);
+
+    // ACT
+    injectExecutionStep.end(stepRun);
+
+    // ASSERT
+    assertEquals(StepStatus.RUN, stepRun.getStatus());
+  }
+
+  @Test
+  void given_stepNotInRunStatus_should_doNothing() throws ChainingException {
+    // ARRANGE
+    String injectId = UUID.randomUUID().toString();
+    Step stepRun = stepRunForInject(injectId);
+    stepRun.setStatus(StepStatus.END);
+
+    // ACT
+    injectExecutionStep.end(stepRun);
+
+    // ASSERT
+    verifyNoInteractions(injectService);
+    assertEquals(StepStatus.END, stepRun.getStatus());
+  }
+
+  @Test
+  void given_injectStatusStillInProgress_should_keepStepRunning() throws ChainingException {
+    // ARRANGE
+    String injectId = UUID.randomUUID().toString();
+    Step stepRun = stepRunForInject(injectId);
+
+    Inject inject = mock(Inject.class);
+    InjectStatus injectStatus = mockInjectStatus(ExecutionStatus.EXECUTING, true);
+    when(inject.getStatus()).thenReturn(Optional.of(injectStatus));
+    when(injectService.inject(injectId)).thenReturn(inject);
+
+    // ACT
+    injectExecutionStep.end(stepRun);
+
+    // ASSERT
+    assertEquals(StepStatus.RUN, stepRun.getStatus());
+    verifyNoInteractions(injectExpectationService);
+  }
+
+  @Test
+  void given_terminalStatusButNoExecutionTraces_should_keepStepRunning() throws ChainingException {
+    // ARRANGE
+    String injectId = UUID.randomUUID().toString();
+    Step stepRun = stepRunForInject(injectId);
+
+    Inject inject = mock(Inject.class);
+    InjectStatus injectStatus = mockInjectStatus(ExecutionStatus.EXECUTED, false);
+    when(inject.getStatus()).thenReturn(Optional.of(injectStatus));
+    when(injectService.inject(injectId)).thenReturn(inject);
+    List<BaseInjectExpectation> expectations = List.of(mockExpectation(true));
+    when(injectExpectationService.findAllByInjectId(injectId)).thenReturn(expectations);
+
+    // ACT
+    injectExecutionStep.end(stepRun);
+
+    // ASSERT
+    assertEquals(StepStatus.RUN, stepRun.getStatus());
+  }
+
+  @Test
+  void given_noInjectStatusYet_should_keepStepRunning() {
+    // ARRANGE
+    String injectId = UUID.randomUUID().toString();
+    Step stepRun = stepRunForInject(injectId);
+
+    Inject inject = mock(Inject.class);
+    when(inject.getStatus()).thenReturn(Optional.empty());
+    when(injectService.inject(injectId)).thenReturn(inject);
+
+    // ACT
+    assertDoesNotThrow(() -> injectExecutionStep.end(stepRun));
+
+    // ASSERT
+    assertEquals(StepStatus.RUN, stepRun.getStatus());
+    verifyNoInteractions(injectExpectationService);
+  }
+
   public static InjectorContract getInjectorContract() throws JsonProcessingException {
     ObjectMapper mapper = new ObjectMapper();
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setContent(
-        "{\"config\":{\"type\":\"openaev_implant\",\"expose\":true,\"label\":{\"en\":\"OpenAEV Implant\",\"fr\":\"OpenAEV Implant\"},\"color_dark\":\"#000000\",\"color_light\":\"#000000\"},\"label\":{\"en\":\"WHOAMI\",\"fr\":\"WHOAMI\"},\"manual\":false,\"fields\":[{\"key\":\"assets\",\"label\":\"Source assets\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"asset_groups\"],\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset\"},{\"key\":\"asset_groups\",\"label\":\"Source asset groups\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"asset_groups\"],\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset-group\"},{\"key\":\"obfuscator\",\"label\":\"Obfuscators\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"1\",\"defaultValue\":[\"plain-text\"],\"choices\":[{\"label\":\"plain-text\",\"value\":\"plain-text\",\"information\":\"\"},{\"label\":\"base64\",\"value\":\"base64\",\"information\":\"CMD does not support base64 obfuscation\"}],\"type\":\"choice\"},{\"key\":\"expectations\",\"label\":\"Expectations\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"predefinedExpectations\":[{\"expectation_type\":\"PREVENTION\",\"expectation_name\":\"Prevention\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600},{\"expectation_type\":\"DETECTION\",\"expectation_name\":\"Detection\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600}],\"type\":\"expectation\"}],\"variables\":[{\"key\":\"user\",\"label\":\"User that will receive the injection\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[{\"key\":\"user.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.email\",\"label\":\"Email of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.firstname\",\"label\":\"First name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lastname\",\"label\":\"Last name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lang\",\"label\":\"Language of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"exercise\",\"label\":\"Exercise of the current injection\",\"type\":\"Object\",\"cardinality\":\"1\",\"children\":[{\"key\":\"exercise.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.name\",\"label\":\"Name of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.description\",\"label\":\"Description of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"teams\",\"label\":\"List of team name for the injection\",\"type\":\"String\",\"cardinality\":\"n\",\"children\":[]},{\"key\":\"player_uri\",\"label\":\"Player interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"challenges_uri\",\"label\":\"Challenges interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"scoreboard_uri\",\"label\":\"Scoreboard interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"lessons_uri\",\"label\":\"Lessons learned interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}],\"context\":{},\"contract_id\":\"73bfd988-b0bd-4740-bb7e-a6209a538835\",\"contract_attack_patterns_external_ids\":[],\"is_atomic_testing\":true,\"needs_executor\":true,\"platforms\":[\"MacOS\"],\"domains\":[{\"listened\":true,\"domain_id\":\"948e3cdc-c345-45dd-80cb-943804c09a3a\",\"domain_name\":\"Endpoint\",\"domain_color\":\"#389CFF\",\"domain_created_at\":\"2026-02-03T12:15:01.323228Z\",\"domain_updated_at\":\"2026-02-03T12:15:01.323228Z\"}]}");
+        "{\"config\":{\"type\":\"openaev_implant\",\"expose\":true,\"label\":{\"en\":\"OpenAEV Implant\",\"fr\":\"OpenAEV Implant\"},\"color_dark\":\"#000000\",\"color_light\":\"#000000\"},\"label\":{\"en\":\"WHOAMI\",\"fr\":\"WHOAMI\"},\"manual\":false,\"fields\":[{\"key\":\"assets\",\"label\":\"Source assets\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"asset_groups\"],\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset\"},{\"key\":\"asset_groups\",\"label\":\"Source asset groups\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":[\"assets\",\"asset_groups\"],\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"type\":\"asset-group\"},{\"key\":\"obfuscator\",\"label\":\"Obfuscators\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"1\",\"defaultValue\":[\"plain-text\"],\"choices\":[{\"label\":\"plain-text\",\"value\":\"plain-text\",\"information\":\"\"},{\"label\":\"base64\",\"value\":\"base64\",\"information\":\"CMD does not support base64 obfuscation\"}],\"type\":\"choice\"},{\"key\":\"expectations\",\"label\":\"Expectations\",\"mandatory\":false,\"readOnly\":false,\"mandatoryGroups\":null,\"mandatoryConditionFields\":null,\"mandatoryConditionValues\":null,\"visibleConditionFields\":null,\"visibleConditionValues\":null,\"linkedFields\":[],\"linkedValues\":[],\"cardinality\":\"n\",\"defaultValue\":[],\"availableExpectations\":[{\"expectation_type\":\"PREVENTION\",\"expectation_name\":\"Prevention\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600,\"expectation_is_predefined\":true},{\"expectation_type\":\"DETECTION\",\"expectation_name\":\"Detection\",\"expectation_description\":null,\"expectation_score\":100.0,\"expectation_expectation_group\":false,\"expectation_expiration_time\":21600,\"expectation_is_predefined\":true}],\"type\":\"expectation\"}],\"variables\":[{\"key\":\"user\",\"label\":\"User that will receive the injection\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[{\"key\":\"user.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.email\",\"label\":\"Email of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.firstname\",\"label\":\"First name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lastname\",\"label\":\"Last name of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"user.lang\",\"label\":\"Language of the user\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"exercise\",\"label\":\"Exercise of the current injection\",\"type\":\"Object\",\"cardinality\":\"1\",\"children\":[{\"key\":\"exercise.id\",\"label\":\"Id of the user in the platform\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.name\",\"label\":\"Name of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"exercise.description\",\"label\":\"Description of the exercise\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}]},{\"key\":\"teams\",\"label\":\"List of team name for the injection\",\"type\":\"String\",\"cardinality\":\"n\",\"children\":[]},{\"key\":\"player_uri\",\"label\":\"Player interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"challenges_uri\",\"label\":\"Challenges interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"scoreboard_uri\",\"label\":\"Scoreboard interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]},{\"key\":\"lessons_uri\",\"label\":\"Lessons learned interface platform link\",\"type\":\"String\",\"cardinality\":\"1\",\"children\":[]}],\"context\":{},\"contract_id\":\"73bfd988-b0bd-4740-bb7e-a6209a538835\",\"contract_attack_patterns_external_ids\":[],\"is_atomic_testing\":true,\"needs_executor\":true,\"platforms\":[\"MacOS\"],\"domains\":[{\"listened\":true,\"domain_id\":\"948e3cdc-c345-45dd-80cb-943804c09a3a\",\"domain_name\":\"Endpoint\",\"domain_color\":\"#389CFF\",\"domain_created_at\":\"2026-02-03T12:15:01.323228Z\",\"domain_updated_at\":\"2026-02-03T12:15:01.323228Z\"}]}");
     injectorContract.setConvertedContent(
         (ObjectNode) mapper.readTree(injectorContract.getContent()));
     injectorContract.setId("73bfd988-b0bd-4740-bb7e-a6209a538835");
@@ -594,7 +1636,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
-  public void given_conditionWithKeySubtype_should_includeKeySubtypeInStepInput()
+  public void given_mapperCondition_should_includeKeyTypeInStepInput()
       throws JsonProcessingException, ChainingException {
     // Arrange
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
@@ -602,8 +1644,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.Credentials)
-            .keySubtype(ConditionKeySubtype.USERNAME)
+            .keyTypes(List.of(PrimitiveType.Username))
             .key("expectations")
             .value("output.message.credentials")
             .type(ConditionType.MAPPER)
@@ -619,16 +1660,11 @@ public class InjectExecutionStepTest extends IntegrationTest {
     Step stepTemplate = stepTemplateOpt.get();
 
     // Assert
-    assertEquals(
-        ConditionKeyType.Credentials.name(),
-        StepService.getField(stepTemplate.getInput(), "input.keyType"));
-    assertEquals(
-        ConditionKeySubtype.USERNAME.name(),
-        StepService.getField(stepTemplate.getInput(), "input.keySubtype"));
+    assertEquals("[\"Username\"]", StepService.getField(stepTemplate.getInput(), "input.keyTypes"));
   }
 
   @Test
-  public void given_conditionWithoutKeySubtype_should_haveNullKeySubtypeInStepInput()
+  public void given_mapperConditionWithoutSubtype_should_not_includeKeySubtypeInStepInput()
       throws JsonProcessingException, ChainingException {
     // Arrange
     InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
@@ -636,7 +1672,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     ConditionCreateInput conditionMapper =
         ConditionCreateInput.builder()
-            .keyType(ConditionKeyType.IPv4)
+            .keyTypes(List.of(PrimitiveType.IPv4))
             .key("target_ip")
             .value("output.message.ip")
             .type(ConditionType.MAPPER)
@@ -652,9 +1688,226 @@ public class InjectExecutionStepTest extends IntegrationTest {
     Step stepTemplate = stepTemplateOpt.get();
 
     // Assert
-    assertEquals(
-        ConditionKeyType.IPv4.name(),
-        StepService.getField(stepTemplate.getInput(), "input.keyType"));
+    assertEquals("[\"IPv4\"]", StepService.getField(stepTemplate.getInput(), "input.keyTypes"));
     assertNull(StepService.getField(stepTemplate.getInput(), "input.keySubtype"));
+  }
+
+  @Test
+  void given_injectWithoutStatus_whenGetCommand_thenReturnEmptyString() {
+    // Arrange
+    Inject inject = new Inject();
+
+    // Act
+    String command = ReflectionTestUtils.invokeMethod(injectExecutionStep, "getCommand", inject);
+
+    // Assert
+    assertEquals("", command);
+  }
+
+  @Test
+  void given_injectWithPayloadCommands_whenGetCommand_thenResolvePayloadVariables() {
+    // Arrange
+    Inject inject = new Inject();
+    InjectorContract contract = new InjectorContract();
+    Command payload = new Command();
+    payload.setExecutor("bash");
+    payload.setContent("echo #{var} && whoami #{user}");
+
+    PayloadArgument varArg = new PayloadArgument();
+    varArg.setType(PrimitiveType.Text);
+    varArg.setKey("var");
+    varArg.setDefaultValue("eva");
+
+    PayloadArgument userArg = new PayloadArgument();
+    userArg.setType(PrimitiveType.Username);
+    userArg.setKey("user");
+    userArg.setDefaultValue("admin");
+
+    payload.setArguments(List.of(varArg, userArg));
+    contract.setPayload(payload);
+    inject.setInjectorContract(contract);
+
+    // Act
+    String command = ReflectionTestUtils.invokeMethod(injectExecutionStep, "getCommand", inject);
+
+    // Assert
+    assertEquals("echo eva && whoami admin", command);
+  }
+
+  @Test
+  void given_injectWithoutStatus_whenGetExecutionTracesByEndpointIndex_thenReturnEmptyMap() {
+    // Arrange
+    Inject inject = new Inject();
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            attackPathExecutionIngestionService, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertTrue(tracesByEndpointSource.isEmpty());
+  }
+
+  @Test
+  void given_injectWithInjector_whenGetExecutionTracesByEndpointIndex_thenGroupByInjectorId() {
+    // Arrange
+    Inject inject = new Inject();
+    inject.setId("inject-1");
+    Injector injector = new Injector();
+    injector.setId("injector-1");
+    inject.setInjector(injector);
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setNeedsExecutor(false);
+    inject.setInjectorContract(injectorContract);
+    Asset targetAsset = new Asset();
+    targetAsset.setId("asset-1");
+    inject.setAssets(List.of(targetAsset));
+    inject.setContent(mapper.createObjectNode().put("target_selector", "assets"));
+
+    ExecutionTrace firstTrace = new ExecutionTrace();
+    firstTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+    firstTrace.setMessage("first");
+
+    ExecutionTrace secondTrace = new ExecutionTrace();
+    secondTrace.setStatus(ExecutionTraceStatus.ERROR);
+    secondTrace.setMessage("second");
+
+    InjectStatus status = new InjectStatus();
+    status.addTrace(firstTrace);
+    status.addTrace(secondTrace);
+    inject.setStatus(status);
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            attackPathExecutionIngestionService, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertEquals(1, tracesByEndpointSource.size());
+    String expectedIndex = AttackPathIds.executionNode("inject-1", "asset-1", "injector-1");
+    assertTrue(tracesByEndpointSource.containsKey(expectedIndex));
+    assertEquals(
+        "EXECUTED first\nERROR second\n", tracesByEndpointSource.get(expectedIndex).toString());
+  }
+
+  @Test
+  void
+      given_injectWithoutInjector_whenGetExecutionTracesByEndpointIndex_thenGroupByAgentAndAsset() {
+    // Arrange
+    Inject inject = new Inject();
+    inject.setId("inject-2");
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setNeedsExecutor(true);
+    DnsResolution dnsResolution = new DnsResolution();
+    dnsResolution.setHostname("target.local");
+    injectorContract.setPayload(dnsResolution);
+    inject.setInjectorContract(injectorContract);
+
+    Endpoint assetOne = new Endpoint();
+    assetOne.setId("asset-1");
+    Agent agentOne = new Agent();
+    agentOne.setId("agent-1");
+    agentOne.setAsset(assetOne);
+
+    Endpoint assetTwo = new Endpoint();
+    assetTwo.setId("asset-2");
+    Agent agentTwo = new Agent();
+    agentTwo.setId("agent-2");
+    agentTwo.setAsset(assetTwo);
+
+    ExecutionTrace firstTrace = new ExecutionTrace();
+    firstTrace.setAgent(agentOne);
+    firstTrace.setAction(ExecutionTraceAction.EXECUTION);
+    firstTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+    firstTrace.setMessage("first");
+
+    ExecutionTrace secondTrace = new ExecutionTrace();
+    secondTrace.setAgent(agentOne);
+    secondTrace.setAction(ExecutionTraceAction.EXECUTION);
+    secondTrace.setStatus(ExecutionTraceStatus.ERROR);
+    secondTrace.setMessage("second");
+
+    ExecutionTrace thirdTrace = new ExecutionTrace();
+    thirdTrace.setAgent(agentTwo);
+    thirdTrace.setAction(ExecutionTraceAction.EXECUTION);
+    thirdTrace.setStatus(ExecutionTraceStatus.INFO);
+    thirdTrace.setMessage("third");
+
+    InjectStatus status = new InjectStatus();
+    status.addTrace(firstTrace);
+    status.addTrace(secondTrace);
+    status.addTrace(thirdTrace);
+    inject.setStatus(status);
+    doReturn(new AgentsAndAssetsAgentless(Set.of(agentOne, agentTwo), Set.of()))
+        .when(injectService)
+        .getAgentsAndAgentlessAssetsByInject(inject);
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            attackPathExecutionIngestionService, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertEquals(2, tracesByEndpointSource.size());
+    String expectedIndexAgentOne =
+        AttackPathIds.executionNode("inject-2", "target.local", "agent-1");
+    String expectedIndexAgentTwo =
+        AttackPathIds.executionNode("inject-2", "target.local", "agent-2");
+    assertEquals("first\nsecond\n", tracesByEndpointSource.get(expectedIndexAgentOne).toString());
+    assertEquals("third\n", tracesByEndpointSource.get(expectedIndexAgentTwo).toString());
+  }
+
+  @Test
+  void given_injectWithoutInjector_whenTraceHasNoAgent_thenSkipAgentlessTrace() {
+    // Arrange
+    Inject inject = new Inject();
+    inject.setId("inject-3");
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setNeedsExecutor(true);
+    DnsResolution dnsResolution = new DnsResolution();
+    dnsResolution.setHostname("target.local");
+    injectorContract.setPayload(dnsResolution);
+    inject.setInjectorContract(injectorContract);
+
+    Endpoint asset = new Endpoint();
+    asset.setId("asset-1");
+    Agent agent = new Agent();
+    agent.setId("agent-1");
+    agent.setAsset(asset);
+
+    ExecutionTrace globalTrace = new ExecutionTrace();
+    globalTrace.setAgent(null);
+    globalTrace.setAction(ExecutionTraceAction.EXECUTION);
+    globalTrace.setStatus(ExecutionTraceStatus.WARNING);
+    globalTrace.setMessage("global warning");
+
+    ExecutionTrace endpointTrace = new ExecutionTrace();
+    endpointTrace.setAgent(agent);
+    endpointTrace.setAction(ExecutionTraceAction.EXECUTION);
+    endpointTrace.setStatus(ExecutionTraceStatus.EXECUTED);
+    endpointTrace.setMessage("endpoint ok");
+
+    InjectStatus status = new InjectStatus();
+    status.addTrace(globalTrace);
+    status.addTrace(endpointTrace);
+    inject.setStatus(status);
+    doReturn(new AgentsAndAssetsAgentless(Set.of(agent), Set.of()))
+        .when(injectService)
+        .getAgentsAndAgentlessAssetsByInject(inject);
+
+    // Act
+    Map<String, StringBuilder> tracesByEndpointSource =
+        ReflectionTestUtils.invokeMethod(
+            attackPathExecutionIngestionService, "getExecutionTracesByEndpointIndex", inject);
+
+    // Assert
+    assertNotNull(tracesByEndpointSource);
+    assertEquals(1, tracesByEndpointSource.size());
+    String expectedIndex = AttackPathIds.executionNode("inject-3", "target.local", "agent-1");
+    assertTrue(tracesByEndpointSource.containsKey(expectedIndex));
+    assertEquals("endpoint ok\n", tracesByEndpointSource.get(expectedIndex).toString());
   }
 }

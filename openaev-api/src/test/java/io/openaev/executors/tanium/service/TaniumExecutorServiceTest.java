@@ -5,8 +5,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -21,7 +23,10 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,6 +49,9 @@ public class TaniumExecutorServiceTest {
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
+  @Mock private OpenAEVConfig openAEVConfig;
+
+  @Mock private TenantScopedTransaction tenantTx;
 
   @InjectMocks private TaniumExecutorService taniumExecutorService;
 
@@ -58,7 +66,16 @@ public class TaniumExecutorServiceTest {
     taniumExecutor = new Executor();
     taniumExecutor.setName(TaniumExecutorIntegration.TANIUM_EXECUTOR_NAME);
     taniumExecutor.setType(TaniumExecutorIntegration.TANIUM_EXECUTOR_TYPE);
-    taniumExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    taniumExecutor.setTenantId(TenantContext.getCurrentTenant());
+    // The service wraps run() in tenantTx.execute(...): make the mock actually invoke the
+    // supplied work, otherwise doRun() never happens and the tests below have nothing to verify.
+    lenient()
+        .when(tenantTx.execute(any(), any(java.util.function.Supplier.class)))
+        .thenAnswer(
+            invocation -> {
+              java.util.function.Supplier<?> work = invocation.getArgument(1);
+              return work.get();
+            });
   }
 
   @Test
@@ -120,6 +137,7 @@ public class TaniumExecutorServiceTest {
         List.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345"));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
+    when(openAEVConfig.getBaseUrlForAgent()).thenReturn("http://localhost:8080");
     // Run method to test
     taniumExecutorContextService.launchBatchExecutorSubprocess(
         inject, new HashSet<>(agents), injectStatus, "token");
@@ -162,6 +180,7 @@ public class TaniumExecutorServiceTest {
         List.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345"));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
+    when(openAEVConfig.getBaseUrlForAgent()).thenReturn("http://localhost:8080");
 
     // Act
     taniumExecutorContextService.launchBatchExecutorSubprocess(

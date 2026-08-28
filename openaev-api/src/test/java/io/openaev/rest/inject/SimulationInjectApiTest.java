@@ -64,7 +64,7 @@ public class SimulationInjectApiTest extends IntegrationTest {
     externalInjector.setExternal(true);
 
     injectorContract = InjectorContractFixture.createDefaultInjectorContract();
-    injectorContract.getInjectors().clear();
+    injectorContract.clearInjectors();
     injectorContract.addInjector(externalInjector);
 
     injectorContractComposer.forInjectorContract(injectorContract).persist();

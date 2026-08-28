@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("Workflow Timeout Integration Tests")
 class WorkflowTimeoutIntegrationTest extends IntegrationTest {
 
-  @Autowired private WorkflowTimeoutService workflowTimeoutService;
+  @Autowired private WorkflowEndService workflowEndService;
   @Autowired private WorkflowRepository workflowRepository;
   @Autowired private StepRepository stepRepository;
   @Autowired private StepDelayQueueRepository stepDelayQueueRepository;
@@ -44,10 +44,10 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
   }
 
   // ========================================================================
-  // forceCompleteWorkflow
+  // forceCompleteWorkflowByTimeout
   // ========================================================================
   @Nested
-  @DisplayName("forceCompleteWorkflow")
+  @DisplayName("forceCompleteWorkflowByTimeout")
   class ForceCompleteWorkflowTests {
 
     @Test
@@ -57,7 +57,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
       Workflow workflowRun = createPersistedRunWorkflow();
 
       // Act
-      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+      workflowEndService.forceCompleteWorkflowByTimeout(workflowRun);
 
       // Assert
       Workflow result = workflowRepository.findById(workflowRun.getId()).orElseThrow();
@@ -75,7 +75,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
       Step stepRun2 = createPersistedStep(workflowRun, StepStatus.RUN);
 
       // Act
-      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+      workflowEndService.forceCompleteWorkflowByTimeout(workflowRun);
 
       // Assert
       assertEquals(
@@ -96,7 +96,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
       Step stepActive = createPersistedStep(workflowRun, StepStatus.RUN);
 
       // Act
-      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+      workflowEndService.forceCompleteWorkflowByTimeout(workflowRun);
 
       // Assert
       assertEquals(
@@ -128,7 +128,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
       assertFalse(stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty());
 
       // Act
-      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+      workflowEndService.forceCompleteWorkflowByTimeout(workflowRun);
 
       // Assert
       assertTrue(stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty());
@@ -157,7 +157,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
       stepDelayQueueRepository.save(delayEntry);
 
       // Act
-      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+      workflowEndService.forceCompleteWorkflowByTimeout(workflowRun);
 
       // Assert
       Workflow result = workflowRepository.findById(workflowRun.getId()).orElseThrow();
@@ -181,7 +181,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
       Step stepRun = createPersistedStep(workflowRun, StepStatus.RUN);
 
       // First call — normal force-complete
-      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+      workflowEndService.forceCompleteWorkflowByTimeout(workflowRun);
       assertEquals(
           WorkflowStatus.END,
           workflowRepository.findById(workflowRun.getId()).orElseThrow().getStatus());
@@ -189,7 +189,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
           StepStatus.END, stepRepository.findById(stepRun.getId()).orElseThrow().getStatus());
 
       // Act — second call on already-ended workflow (simulates concurrent pod execution)
-      assertDoesNotThrow(() -> workflowTimeoutService.forceCompleteWorkflow(workflowRun));
+      assertDoesNotThrow(() -> workflowEndService.forceCompleteWorkflowByTimeout(workflowRun));
 
       // Assert — still END, no exception
       assertEquals(
@@ -212,7 +212,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
       Workflow notExpired = createPersistedRunWorkflowWithTimeout(true, 3600L, Instant.now());
 
       // Act
-      List<Workflow> result = workflowTimeoutService.findAllExpiredRunWorkflows();
+      List<Workflow> result = workflowEndService.findAllExpiredRunWorkflows();
 
       // Assert
       assertTrue(result.stream().noneMatch(w -> w.getId().equals(notExpired.getId())));
@@ -227,7 +227,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
               true, 3600L, Instant.now().minus(2, ChronoUnit.HOURS));
 
       // Act
-      List<Workflow> result = workflowTimeoutService.findAllExpiredRunWorkflows();
+      List<Workflow> result = workflowEndService.findAllExpiredRunWorkflows();
 
       // Assert
       assertTrue(result.stream().anyMatch(w -> w.getId().equals(expired.getId())));
@@ -242,7 +242,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
               false, 60L, Instant.now().minus(24, ChronoUnit.HOURS));
 
       // Act
-      List<Workflow> result = workflowTimeoutService.findAllExpiredRunWorkflows();
+      List<Workflow> result = workflowEndService.findAllExpiredRunWorkflows();
 
       // Assert
       assertTrue(result.stream().noneMatch(w -> w.getId().equals(noTimeout.getId())));
@@ -261,7 +261,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
       workflowComposer.forWorkflow(template).withSimulation(simComposer).persist();
 
       // Act
-      List<Workflow> result = workflowTimeoutService.findAllExpiredRunWorkflows();
+      List<Workflow> result = workflowEndService.findAllExpiredRunWorkflows();
 
       // Assert
       assertTrue(result.stream().noneMatch(w -> w.getId().equals(template.getId())));
@@ -283,7 +283,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
               false, 60L, Instant.now().minus(2, ChronoUnit.HOURS));
 
       // Act
-      List<Workflow> result = workflowTimeoutService.findAllExpiredRunWorkflows();
+      List<Workflow> result = workflowEndService.findAllExpiredRunWorkflows();
 
       // Assert
       List<String> resultIds = result.stream().map(Workflow::getId).toList();
@@ -304,7 +304,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
               true, 60L, Instant.now().minus(61, ChronoUnit.SECONDS));
 
       // Act
-      List<Workflow> result = workflowTimeoutService.findAllExpiredRunWorkflows();
+      List<Workflow> result = workflowEndService.findAllExpiredRunWorkflows();
 
       // Assert
       assertTrue(result.stream().anyMatch(w -> w.getId().equals(justExpired.getId())));
@@ -346,13 +346,13 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
       stepDelayQueueRepository.save(delayEntry);
 
       // Precondition: workflow is detected as expired
-      List<Workflow> expired = workflowTimeoutService.findAllExpiredRunWorkflows();
+      List<Workflow> expired = workflowEndService.findAllExpiredRunWorkflows();
       assertTrue(
           expired.stream().anyMatch(w -> w.getId().equals(workflowRun.getId())),
           "Workflow must be detected as expired");
 
       // Act — simulate what the timeout scheduled job does
-      workflowTimeoutService.forceCompleteWorkflow(workflowRun);
+      workflowEndService.forceCompleteWorkflowByTimeout(workflowRun);
 
       // Assert — workflow status is END
       Workflow result = workflowRepository.findById(workflowRun.getId()).orElseThrow();
@@ -371,7 +371,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
       assertTrue(stepDelayQueueRepository.findAllByWorkflowRun(workflowRun).isEmpty());
 
       // Assert — workflow is no longer detected as expired (status is now END, not RUN)
-      List<Workflow> expiredAfter = workflowTimeoutService.findAllExpiredRunWorkflows();
+      List<Workflow> expiredAfter = workflowEndService.findAllExpiredRunWorkflows();
       assertTrue(
           expiredAfter.stream().noneMatch(w -> w.getId().equals(workflowRun.getId())),
           "Force-completed workflow must no longer appear in expired list");
@@ -386,7 +386,7 @@ class WorkflowTimeoutIntegrationTest extends IntegrationTest {
       Step stepRun = createPersistedStep(workflowRun, StepStatus.RUN);
 
       // Act
-      List<Workflow> expired = workflowTimeoutService.findAllExpiredRunWorkflows();
+      List<Workflow> expired = workflowEndService.findAllExpiredRunWorkflows();
 
       // Assert — not detected
       assertTrue(

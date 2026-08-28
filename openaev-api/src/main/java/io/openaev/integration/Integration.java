@@ -3,6 +3,7 @@ package io.openaev.integration;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.helper.ConnectorInstanceHashHelper;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.reflection.FieldUtils;
 import java.lang.reflect.Field;
@@ -30,6 +31,11 @@ public abstract class Integration {
     this.componentRequestEngine = componentRequestEngine;
     this.connectorInstance = connectorInstance;
     this.connectorInstanceService = connectorInstanceService;
+  }
+
+  /** Returns the tenant ID from the underlying persisted connector instance. */
+  protected String getTenantId() {
+    return ((ConnectorInstancePersisted) connectorInstance).getTenant().getId();
   }
 
   protected abstract void innerStart() throws Exception;

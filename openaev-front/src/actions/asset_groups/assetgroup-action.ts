@@ -6,9 +6,10 @@ import {
   postReferential,
   putReferential,
   simpleCall,
+  simpleDelCall,
   simplePostCall,
 } from '../../utils/Action';
-import { type AssetGroup, type AssetGroupInput, type SearchPaginationInput, type UpdateAssetsOnAssetGroupInput } from '../../utils/api-types';
+import { type AssetGroup, type AssetGroupBulkProcessingInput, type AssetGroupInput, type SearchPaginationInput, type UpdateAssetsOnAssetGroupInput } from '../../utils/api-types';
 import { arrayOfAssetGroups, assetGroup } from './assetgroup-schema';
 
 const ASSET_GROUP_URI = '/api/asset_groups';
@@ -38,6 +39,12 @@ export const deleteAssetGroup = (assetGroupId: AssetGroup['asset_group_id']) => 
   return delReferential(uri, assetGroup.key, assetGroupId)(dispatch);
 };
 
+// Bulk delete of asset groups: explicit id list or search input (select-all with optional
+// exclusions).
+export const bulkDeleteAssetGroups = (input: AssetGroupBulkProcessingInput) => {
+  return simpleDelCall(ASSET_GROUP_URI, { data: input });
+};
+
 export const fetchAssetGroups = () => (dispatch: Dispatch) => {
   return getReferential(arrayOfAssetGroups, ASSET_GROUP_URI)(dispatch);
 };
@@ -62,6 +69,13 @@ export const searchEndpointsFromAssetGroup = (searchPaginationInput: SearchPagin
   const data = searchPaginationInput;
   const uri = `${ASSET_GROUP_URI}/${assetGroupId}/assets/search`;
   return simplePostCall(uri, data);
+};
+
+// "Injects played" for the asset group detail page: every inject (atomic testing or simulation
+// inject) that concerns the group - targeted directly or evidenced by the technical expectations
+// persisted at execution time. Same scope as the asset group posture score.
+export const searchInjectsForAssetGroup = (assetGroupId: string, searchPaginationInput: SearchPaginationInput) => {
+  return simplePostCall(`${ASSET_GROUP_URI}/${assetGroupId}/injects/search`, searchPaginationInput);
 };
 
 export const searchAssetGroupAsOption = (searchText: string = '', sourceId: string = '', inputFilterOption: string = '') => {

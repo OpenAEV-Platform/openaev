@@ -43,7 +43,8 @@ public class CatalogConnectorConfiguration implements Base {
     DURATION,
     EMAIL,
     PASSWORD,
-    URI
+    URI,
+    UUID
   }
 
   public static final Set<CONNECTOR_CONFIGURATION_FORMAT> ENCRYPTED_FORMATS =

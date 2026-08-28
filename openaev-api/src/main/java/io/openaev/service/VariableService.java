@@ -34,6 +34,22 @@ public class VariableService {
             () -> new ElementNotFoundException("Variable not found with id: " + variableId));
   }
 
+  public Variable variableForExercise(
+      @NotBlank final String variableId, @NotBlank final String exerciseId) {
+    return this.variableRepository
+        .findByIdAndExerciseId(variableId, exerciseId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Variable not found with id: " + variableId));
+  }
+
+  public Variable variableForScenario(
+      @NotBlank final String variableId, @NotBlank final String scenarioId) {
+    return this.variableRepository
+        .findByIdAndScenarioId(variableId, scenarioId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Variable not found with id: " + variableId));
+  }
+
   public List<Variable> variablesFromExercise(@NotBlank final String exerciseId) {
     return this.variableRepository.findAll(VariableSpecification.fromExercise(exerciseId));
   }

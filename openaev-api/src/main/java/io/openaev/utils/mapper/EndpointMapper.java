@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 
 /**
@@ -47,10 +48,76 @@ public class EndpointMapper {
         .id(endpoint.getId())
         .name(endpoint.getName())
         .type(endpoint.getType())
+        .externalReference(endpoint.getExternalReference())
         .agents(agentMapper.toAgentOutputs(getPrimaryAgents(endpoint)))
         .platform(endpoint.getPlatform())
         .arch(endpoint.getArch())
         .tags(endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
+        .category(endpoint.getCategory())
+        .subcategory(endpoint.getSubcategory())
+        .criticality(endpoint.getCriticality())
+        .internetFacing(endpoint.getInternetFacing())
+        .cloudProvider(endpoint.getCloudProvider())
+        .cloudNativeType(endpoint.getCloudNativeType())
+        .cloudRegion(endpoint.getCloudRegion())
+        .linkedPerson(endpoint.getLinkedPerson())
+        .build();
+  }
+
+  /**
+   * Converts ANY asset to the inventory output DTO. Endpoints keep their full representation
+   * (agents, platform, arch); every other asset type (AI targets, identities, cloud / web / network
+   * / generic assets) is mapped from the shared {@link Asset} fields with no agents and no
+   * platform/arch, so the unified asset inventory can list all categories side by side.
+   */
+  public EndpointOutput toAssetOutput(Asset asset) {
+    // Unproxy before the instanceof so a lazily-loaded Asset proxy still reveals the Endpoint
+    // subtype (otherwise endpoints would lose their agents/platform in the unified list).
+    if (Hibernate.unproxy(asset) instanceof Endpoint endpoint) {
+      return toEndpointOutput(endpoint);
+    }
+    return EndpointOutput.builder()
+        .id(asset.getId())
+        .name(asset.getName())
+        .type(asset.getType())
+        .externalReference(asset.getExternalReference())
+        .agents(emptySet())
+        .tags(asset.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
+        .category(asset.getCategory())
+        .subcategory(asset.getSubcategory())
+        .criticality(asset.getCriticality())
+        .internetFacing(asset.getInternetFacing())
+        .build();
+  }
+
+  /**
+   * Converts ANY asset to the overview DTO used by the unified asset detail page. Endpoints get
+   * their full representation (agents, platform, arch, EOL); other asset types map from the shared
+   * {@link Asset} fields, and AI targets additionally expose their (non-secret) connection metadata
+   * so a single detail page can render every category with the relevant sections.
+   */
+  public EndpointOverviewOutput toAssetOverviewOutput(Asset asset) {
+    if (Hibernate.unproxy(asset) instanceof Endpoint endpoint) {
+      return toEndpointOverviewOutput(endpoint);
+    }
+    return EndpointOverviewOutput.builder()
+        .id(asset.getId())
+        .name(asset.getName())
+        .description(asset.getDescription())
+        .hostname(asset.getHostname())
+        .agents(emptySet())
+        .tags(asset.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
+        .category(asset.getCategory())
+        .subcategory(asset.getSubcategory())
+        .criticality(asset.getCriticality())
+        .internetFacing(asset.getInternetFacing())
+        .metadata(asset.getMetadata())
+        // AI target connection metadata (token intentionally omitted)
+        .aiTargetProvider(asset.getAiTargetProvider())
+        .aiTargetModality(asset.getAiTargetModality())
+        .aiTargetEndpoint(asset.getAiTargetEndpoint())
+        .aiTargetModel(asset.getAiTargetModel())
+        .aiTargetSystemPrompt(asset.getAiTargetSystemPrompt())
         .build();
   }
 
@@ -61,7 +128,19 @@ public class EndpointMapper {
    * @return the simplified endpoint DTO
    */
   public EndpointSimple toEndpointSimple(Asset asset) {
-    return EndpointSimple.builder().id(asset.getId()).name(asset.getName()).build();
+    // Unproxy before the instanceof so a lazily-loaded Asset proxy still reveals the Endpoint
+    // subtype (otherwise endpoints would lose their platform in list chips).
+    Endpoint endpoint = Hibernate.unproxy(asset) instanceof Endpoint e ? e : null;
+    return EndpointSimple.builder()
+        .id(asset.getId())
+        .name(asset.getName())
+        .type(asset.getType())
+        .category(asset.getCategory() != null ? asset.getCategory().name() : null)
+        .platform(
+            endpoint != null && endpoint.getPlatform() != null
+                ? endpoint.getPlatform().name()
+                : null)
+        .build();
   }
 
   /**
@@ -99,6 +178,7 @@ public class EndpointMapper {
         .name(endpoint.getName())
         .description(endpoint.getDescription())
         .hostname(endpoint.getHostname())
+        .url(endpoint.getUrl())
         .platform(endpoint.getPlatform())
         .arch(endpoint.getArch())
         .seenIp(endpoint.getSeenIp())
@@ -112,6 +192,15 @@ public class EndpointMapper {
                 : emptySet())
         .agents(agentMapper.toAgentOutputs(getPrimaryAgents(endpoint)))
         .tags(endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
+        .category(endpoint.getCategory())
+        .subcategory(endpoint.getSubcategory())
+        .criticality(endpoint.getCriticality())
+        .internetFacing(endpoint.getInternetFacing())
+        .cloudProvider(endpoint.getCloudProvider())
+        .cloudNativeType(endpoint.getCloudNativeType())
+        .cloudRegion(endpoint.getCloudRegion())
+        .linkedPerson(endpoint.getLinkedPerson())
+        .metadata(endpoint.getMetadata())
         .isEol(endpoint.isEoL())
         .build();
   }
@@ -122,6 +211,14 @@ public class EndpointMapper {
    * <p>Converts to lowercase, removes formatting characters, and filters out known invalid MAC
    * addresses.
    *
+   * <p>Only canonical 6-byte Ethernet addresses are kept. Interface enumeration reports an address
+   * of whatever length the adapter declares, and tunnel pseudo-interfaces (Teredo reports the
+   * 8-byte {@code 00:00:00:00:00:00:00:E0}) carry the same value on every Windows host. Since MAC
+   * overlap is what identifies an endpoint at agent registration, keeping those would merge
+   * unrelated assets. Discarding a non-Ethernet address costs nothing: the external reference is
+   * mandatory on every registration and is the primary matcher, MAC overlap only being the
+   * fallback.
+   *
    * @param macAddresses the MAC addresses to sanitize
    * @return sanitized array of MAC addresses
    */
@@ -131,6 +228,7 @@ public class EndpointMapper {
     } else {
       return Arrays.stream(macAddresses)
           .map(macAddress -> macAddress.toLowerCase().replaceAll(REGEX_MAC_ADDRESS, ""))
+          .filter(macAddress -> macAddress.length() == MAC_ADDRESS_LENGTH)
           .filter(macAddress -> !BAD_MAC_ADDRESS.contains(macAddress))
           .distinct()
           .toArray(String[]::new);

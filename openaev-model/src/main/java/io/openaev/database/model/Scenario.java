@@ -23,6 +23,8 @@ import io.openaev.helper.MultiModelSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.NamedEntityGraph;
+import jakarta.persistence.NamedEntityGraphs;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -34,7 +36,9 @@ import java.util.*;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.hibernate.annotations.*;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Entity representing a simulation scenario in OpenAEV.
@@ -165,6 +169,70 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @Queryable(filterable = true, sortable = true)
   private SEVERITY severity;
 
+  /**
+   * Kill chain (by name, e.g. "mitre-attack") displayed first in the overview's kill chain results.
+   * Null means automatic (ATT&CK first); blank input (the UI's "Automatic" option) is normalized to
+   * null on write. A user's own selection, remembered in local storage, still overrides this
+   * default.
+   */
+  @Setter(NONE)
+  @Column(name = "scenario_default_kill_chain")
+  @JsonProperty("scenario_default_kill_chain")
+  private String defaultKillChain;
+
+  public void setDefaultKillChain(String defaultKillChain) {
+    // The UI sends "" for "Automatic": normalize so null is the only automatic marker in DB.
+    this.defaultKillChain =
+        (defaultKillChain == null || defaultKillChain.isBlank()) ? null : defaultKillChain;
+  }
+
+  /**
+   * Whether the expectation-drift warning was dismissed for this scenario (the drifted expectations
+   * were customized on purpose). Persisted in database so the dismissal is shared between users.
+   * Reset on realignment so a future drift surfaces the full warning again.
+   */
+  @Column(name = "scenario_expectations_drift_dismissed")
+  @JsonProperty("scenario_expectations_drift_dismissed")
+  private boolean expectationsDriftDismissed;
+
+  /**
+   * Whether this scenario is driven by an autonomous (AI) attack-path run. Set when the scenario is
+   * auto-provisioned for an autonomous run (or an existing scenario is handed to one). Persisted so
+   * the detail page can render the AI cockpit - and, crucially, so a plain manual scenario can be
+   * recognized as manual WITHOUT probing the autonomous-run lookup endpoint on every load.
+   */
+  @Column(name = "scenario_autonomous")
+  @JsonProperty("scenario_autonomous")
+  private boolean autonomous;
+
+  /**
+   * Saved autonomous-run configuration for this chained scenario: the serialized {@code
+   * AutonomousRunCreateInput} (objective, specialist agents + discovery modes, allow/deny scope,
+   * time budget) the operator configured in the AI builder but has not yet launched. Lets the
+   * parameters be persisted to "build later" WITHOUT parking a CREATED run (which would lock the
+   * scenario into the AI cockpit). The scenario stays a normal, editable chained scenario until the
+   * operator actually plans (Build) or launches it. Served only through the dedicated {@code
+   * /autonomous-runs/scenario-config/{scenarioId}} endpoint, never on the Scenario payload, and
+   * kept as a generic map so the model does not depend on the api DTO.
+   */
+  @JsonIgnore
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "scenario_autonomous_config")
+  private Map<String, Object> autonomousConfig;
+
+  /**
+   * Virtual filter facet exposing the scenario "engine type" (Time-based / Chained / Autonomous) to
+   * the list's filter bar. It is NOT a stored column: the value is derived at query time from
+   * {@link #autonomous} and the presence of a chaining Workflow TEMPLATE (see {@code
+   * ScenarioUtils#handleCustomFilter}, which strips this key and re-expresses it as a
+   * Specification). Declared only so the schema endpoint advertises a filterable {@code
+   * scenario_type} property; it is never read or written.
+   */
+  @Transient
+  @JsonProperty("scenario_type")
+  @Queryable(filterable = true)
+  private String type;
+
   @Column(name = "scenario_type_affinity")
   @JsonProperty("scenario_type_affinity")
   private String typeAffinity;
@@ -181,6 +249,12 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
 
   // -- OCTI GENERATION SCENARIO FROM STIX --
 
+  // mappedBy @OneToOne: SecurityCoverage owns the FK, so Hibernate cannot proxy this side and
+  // resolves it with an immediate extra query on every Scenario load, tenant-gated once
+  // security_coverages is active. Excluded from @Data's generated toString() so logging/debugging
+  // a Scenario can never trigger that query outside a scoped transaction (ArchUnit:
+  // TenantActiveTableAccessArchTest#security_coverages_scenario_association_access_is_reviewed).
+  @ToString.Exclude
   @OneToOne(mappedBy = "scenario")
   @JsonProperty("scenario_security_coverage")
   @JsonIgnore
@@ -391,6 +465,12 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @Column(name = "scenario_lessons_anonymized")
   @JsonProperty("scenario_lessons_anonymized")
   private boolean lessonsAnonymized = false;
+
+  // Opt-in module flag: the lessons learned tab is only surfaced when enabled.
+  @Getter
+  @Column(name = "scenario_lessons_enabled")
+  @JsonProperty("scenario_lessons_enabled")
+  private boolean lessonsEnabled = false;
 
   // -- TENANT --
 

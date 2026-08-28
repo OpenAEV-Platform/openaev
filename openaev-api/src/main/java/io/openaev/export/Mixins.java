@@ -21,6 +21,7 @@ public class Mixins {
         "scenario_category",
         "scenario_main_focus",
         "scenario_severity",
+        "scenario_default_kill_chain",
         "scenario_message_header",
         "scenario_message_footer",
         "scenario_mail_from",
@@ -81,6 +82,10 @@ public class Mixins {
         "exercise_name",
         "exercise_description",
         "exercise_subtitle",
+        "exercise_category",
+        "exercise_main_focus",
+        "exercise_severity",
+        "exercise_default_kill_chain",
         "exercise_image",
         "exercise_message_header",
         "exercise_message_footer",
@@ -254,4 +259,79 @@ public class Mixins {
         "lessons_question_order",
       })
   public static class LessonsQuestion {}
+
+  // -- WORKFLOW EXPORT MIXINS --
+
+  @JsonIncludeProperties(
+      value = {
+        "workflow_version",
+        "workflow_rate_limit_enabled",
+        "workflow_max_attempts",
+        "workflow_max_temporal_rate_seconds",
+        "workflow_timeout_enabled",
+        "workflow_timeout_seconds",
+        "workflow_safe_mode_enabled",
+        "workflow_scope_rules",
+        "workflow_scope_variables",
+        "workflow_steps",
+        "workflow_standalone_conditions",
+      })
+  public static class WorkflowExport {}
+
+  /** Workflow export mixin without scope definition fields (rate limit, timeout, rules, etc.). */
+  @JsonIncludeProperties(
+      value = {
+        "workflow_version",
+        "workflow_steps",
+        "workflow_standalone_conditions",
+      })
+  public static class WorkflowExportWithoutScope {}
+
+  @JsonIncludeProperties(
+      value = {
+        "workflow_scope_rule_selected_mode",
+        "workflow_scope_rule_source",
+        "workflow_scope_rule_value",
+        "workflow_scope_rule_value_type",
+      })
+  public static class WorkflowScopeRuleExport {}
+
+  @JsonIncludeProperties(
+      value = {
+        "scope_variable_key",
+        "scope_variable_type",
+        "scope_variable_value",
+        "scope_variable_description",
+      })
+  public static class ScopeVariableExport {}
+
+  @JsonIncludeProperties(
+      value = {
+        "step_id",
+        "step_action_class",
+        "step_output",
+        "step_output_parser",
+        "step_input",
+        "step_data",
+        "step_limit_execution",
+        "step_condition_executed",
+        "step_conditions",
+      })
+  public static class StepExport {}
+
+  @JsonIncludeProperties(
+      value = {
+        "condition_id",
+        "condition_key",
+        "condition_key_types",
+        "condition_type",
+        "condition_mapping_type",
+        "condition_value",
+        "condition_name",
+        "condition_description",
+        "condition_parent_id",
+        "condition_step_from_id",
+        "condition_is_root",
+      })
+  public static class ConditionExport {}
 }

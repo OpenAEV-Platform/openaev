@@ -1,11 +1,15 @@
 package io.openaev.service.platform.roles;
 
 import static io.openaev.database.specification.RoleSpecification.platformScope;
+import static io.openaev.service.account.PrivilegeEscalationValidator.assertCanAssignCapabilities;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.CapabilityScope;
 import io.openaev.database.model.Role;
+import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
+import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -24,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlatformRoleService {
 
   private final RoleRepository roleRepository;
+  private final GroupRepository groupRepository;
+  private final UserService userService;
 
   // -- CREATE --
 
@@ -31,11 +37,38 @@ public class PlatformRoleService {
       @NotBlank final String name,
       final String description,
       @NotNull final Set<Capability> capabilities) {
+    assertCanAssignCapabilities(userService.currentUser(), capabilities, CapabilityScope.PLATFORM);
     Capability.validateForPlatformRole(capabilities);
     Role role = new Role();
     role.setName(name);
     role.setDescription(description);
-    role.setCapabilities(Capability.resolveWithParents(capabilities));
+    role.setCapabilities(capabilities);
+    return roleRepository.save(role);
+  }
+
+  /**
+   * Idempotently creates or updates a system-managed platform role under a fixed, well-known id
+   * (used by the bootstrap to seed the platform administrators role). This is an internal seeding
+   * path that keeps the role platform-scoped (no tenant); unlike the tenant-scoped role CRUD, it
+   * does not run the reserved-id validation. Fails fast if a role already exists under the id but
+   * is tenant-scoped, since {@code tenant_id} is {@code updatable=false} and silently reusing it
+   * would grant incorrect, tenant-scoped privileges.
+   */
+  public Role ensureInternalPlatformRole(
+      @NotBlank final String id,
+      @NotBlank final String name,
+      final String description,
+      @NotNull final Set<Capability> capabilities) {
+    Capability.validateForPlatformRole(capabilities);
+    Role role = roleRepository.findById(id).orElseGet(Role::new);
+    if (role.getTenant() != null) {
+      throw new IllegalStateException(
+          "Role " + id + " already exists as a tenant-scoped role; expected a platform role");
+    }
+    role.setId(id);
+    role.setName(name);
+    role.setDescription(description);
+    role.setCapabilities(capabilities);
     return roleRepository.save(role);
   }
 
@@ -45,12 +78,15 @@ public class PlatformRoleService {
   public Role findById(String id) {
     return roleRepository
         .findById(id)
+        .filter(role -> role.getTenant() == null)
         .orElseThrow(() -> new EntityNotFoundException("Platform role not found: " + id));
   }
 
   @Transactional(readOnly = true)
   public List<Role> findByIds(List<String> ids) {
-    return roleRepository.findAllById(ids);
+    return roleRepository.findAllById(ids).stream()
+        .filter(role -> role.getTenant() == null)
+        .toList();
   }
 
   @Transactional(readOnly = true)
@@ -69,18 +105,21 @@ public class PlatformRoleService {
       @NotBlank final String name,
       final String description,
       @NotNull final Set<Capability> capabilities) {
-    Capability.validateForPlatformRole(capabilities);
+    Set<Capability> scopedCapabilities = Capability.filterForPlatformRole(capabilities);
+    assertCanAssignCapabilities(
+        userService.currentUser(), scopedCapabilities, CapabilityScope.PLATFORM);
     Role role = findById(roleId);
     role.setName(name);
     role.setDescription(description);
-    role.setCapabilities(Capability.resolveWithParents(capabilities));
+    role.setCapabilities(scopedCapabilities);
     return roleRepository.save(role);
   }
 
   // -- DELETE --
 
-  public void deletePlatformRole(@NotBlank final String roleId) {
+  public void delete(@NotBlank final String roleId) {
     Role role = findById(roleId);
+    groupRepository.findAllByRoles(role).forEach(group -> group.getRoles().remove(role));
     roleRepository.delete(role);
   }
 }

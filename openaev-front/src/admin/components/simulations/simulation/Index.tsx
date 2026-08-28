@@ -1,12 +1,11 @@
-import { Alert, AlertTitle, Box, Tab, Tabs } from '@mui/material';
-import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
+import { Alert, AlertTitle } from '@mui/material';
+import { type FunctionComponent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router';
 
+import { type AutonomousEvent, type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
 import { fetchExercise } from '../../../../actions/Exercise';
 import { fetchScenarioFromSimulation } from '../../../../actions/exercises/exercise-action';
 import { type ExercisesHelper } from '../../../../actions/exercises/exercise-helper';
-import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { errorWrapper } from '../../../../components/Error';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
@@ -17,20 +16,23 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { INHERITED_CONTEXT } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
-import { isFeatureEnabled } from '../../../../utils/utils';
+import { AutonomousContext } from '../../autonomous/AutonomousContext';
+import AutonomousOverview from '../../autonomous/AutonomousOverview';
+import AutonomousReasoningPanel from '../../autonomous/AutonomousReasoningPanel';
+import { isAutonomousRunActive } from '../../autonomous/autonomousStatus';
+import useAutonomousPanelWidth from '../../autonomous/useAutonomousPanelWidth';
+import useAutonomousRunForSimulation from '../../autonomous/useAutonomousRunForSimulation';
 import { DocumentContext, type DocumentContextType, InjectContext, PermissionsContext, type PermissionsContextType } from '../../common/Context';
 import injectContextForExercise from './ExerciseContext';
-import ExerciseDatePopover from './ExerciseDatePopover';
-import ExerciseHeader from './ExerciseHeader';
+import SimulationShell from './SimulationShell';
 
 const Simulation = lazy(() => import('./overview/SimulationComponent'));
+const SimulationStatistics = lazy(() => import('./analysis/SimulationAnalysis'));
 const Lessons = lazy(() => import('./lessons/SimulationLessons'));
 const SimulationFindings = lazy(() => import('./findings/SimulationFindings'));
-const SimulationAnalysis = lazy(() => import('./analysis/SimulationAnalysis'));
-const SimulationDefinition = lazy(() => import('./SimulationDefinition'));
 const Injects = lazy(() => import('./injects/ExerciseInjects'));
 const Tests = lazy(() => import('./tests/ExerciseTests'));
-const TimelineOverview = lazy(() => import('./timeline/TimelineOverview'));
+const ExecutionOverview = lazy(() => import('./timeline/ExecutionOverview'));
 const Mails = lazy(() => import('./mails/Mails'));
 const MailsInject = lazy(() => import('./mails/Inject'));
 const Logs = lazy(() => import('./logs/Logs'));
@@ -38,23 +40,57 @@ const Chat = lazy(() => import('./chat/Chat'));
 const Validations = lazy(() => import('./validation/Validations'));
 const SimulationScope = lazy(() => import('./scope/SimulationScope'));
 const SimulationLogic = lazy(() => import('./logic/SimulationLogic'));
+const SimulationAttackPath = lazy(() => import('./attack_path/SimulationAttackPath'));
 
-const useStyles = makeStyles()(() => ({
-  scheduling: {
-    display: 'flex',
-    margin: '-35px 8px 0 0',
-    float: 'right',
-    alignItems: 'center',
-  },
-}));
-
-const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ exercise }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const { t, fldt } = useFormatter();
+// The Animation area was renamed Execution: rewrite any legacy /animation/*
+// deep link to its /execution/* equivalent, preserving the sub-path.
+const AnimationToExecutionRedirect = () => {
   const location = useLocation();
-  const { classes } = useStyles();
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  return <Navigate to={location.pathname.replace('/animation', '/execution')} replace />;
+};
+
+const IndexComponent: FunctionComponent<{
+  exercise: SimulationDetails;
+  autonomousRun: AutonomousRun | null;
+  onAutonomousRunUpdate: (run: AutonomousRun) => void;
+}> = ({ exercise, autonomousRun, onAutonomousRunUpdate }) => {
+  const location = useLocation();
   const permissions = useSimulationPermissions(exercise.exercise_id, exercise);
+  const isAutonomous = !!autonomousRun;
+  // The AI cockpit polls the run's decision timeline in the always-open reasoning panel. Lift that
+  // stream here and share it with the overview outcome layer so the overview does NOT start a
+  // SECOND full-from-cursor-0 poll of the same endpoint while the run is active (the simulation-side
+  // double-poll fix, #7472 - mirrors the scenario cockpit).
+  const cockpitActive = isAutonomousRunActive(autonomousRun);
+  const [cockpitTimeline, setCockpitTimeline] = useState<AutonomousEvent[]>([]);
+  // Same identity-change rule as AutonomousReasoningPanel / the scenario cockpit: clear only on a
+  // real run / simulation switch. A transient payload that momentarily lost its simulation id on
+  // the SAME run must not blank the overview layer (it would receive sharedEvents=[] and not poll).
+  const cockpitStreamKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const runId = autonomousRun?.autonomous_run_id;
+    const simulationId = autonomousRun?.autonomous_run_simulation_id;
+    if (!runId) {
+      cockpitStreamKeyRef.current = null;
+      setCockpitTimeline([]);
+      return;
+    }
+    const nextKey = `${runId}::${simulationId ?? ''}`;
+    if (cockpitStreamKeyRef.current === nextKey) {
+      return;
+    }
+    const previousRunId = cockpitStreamKeyRef.current?.split('::')[0];
+    if (cockpitStreamKeyRef.current !== null && previousRunId === runId && !simulationId) {
+      return;
+    }
+    cockpitStreamKeyRef.current = nextKey;
+    setCockpitTimeline([]);
+  }, [autonomousRun?.autonomous_run_id, autonomousRun?.autonomous_run_simulation_id]);
+  // Resizable reasoning-panel width, shared with the content padding so the two stay in lockstep.
+  const [panelWidth, setPanelWidth] = useAutonomousPanelWidth();
+  // Attack path only exists for chained simulations (workflow-backed), never
+  // for time-based ones: gate the route like the tab in SimulationShell.
+  const hasWorkflow = !!exercise.exercise_workflow_id;
   // Stable context identities: these providers wrap the whole simulation subtree and a
   // new value each render forces every consumer (incl. the injects list) to re-render.
   const permissionsContext: PermissionsContextType = useMemo(() => ({
@@ -74,162 +110,82 @@ const IndexComponent: FunctionComponent<{ exercise: SimulationDetails }> = ({ ex
     }),
   }), [exercise?.exercise_id, exercise?.exercise_name]);
 
-  let tabValue = location.pathname;
-  if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/definition`)) {
-    tabValue = `/admin/simulations/${exercise.exercise_id}/definition`;
-  } else if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/animation`)) {
-    tabValue = `/admin/simulations/${exercise.exercise_id}/animation`;
-  } else if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/results`)) {
-    tabValue = `/admin/simulations/${exercise.exercise_id}/results`;
-  } else if (location.pathname.includes(`/admin/simulations/${exercise.exercise_id}/tests`)) {
-    tabValue = `/admin/simulations/${exercise.exercise_id}/tests`;
+  // Autonomous runs reserve the right column for the always-open reasoning panel; otherwise keep
+  // the legacy right rail only on the Execution timeline.
+  let contentPaddingRight = 0;
+  if (isAutonomous) {
+    contentPaddingRight = panelWidth;
+  } else if (location.pathname.includes('/execution')) {
+    contentPaddingRight = 200;
   }
 
-  return (
-    <PermissionsContext.Provider value={permissionsContext}>
-      <DocumentContext.Provider value={documentContext}>
+  const autonomousContext = useMemo(() => ({ isAutonomous }), [isAutonomous]);
 
-        <div style={{ paddingRight: ['/results', '/animation'].some(el => location.pathname.includes(el)) ? 200 : 0 }}>
-          <Breadcrumbs
-            variant="object"
-            elements={[
-              {
-                label: t('Simulations'),
-                link: '/admin/simulations',
-              },
-              {
-                label: exercise.exercise_name,
-                current: true,
-              },
-            ]}
-          />
-          <ExerciseHeader onLoading={setIsLoading} isLoading={isLoading} />
-          {isLoading
-            ? <Loader />
-            : (
-                <>
-                  <Box
-                    sx={{
-                      borderBottom: 1,
-                      borderColor: 'divider',
-                      marginBottom: 2,
-                    }}
-                  >
-                    {isChainingFeatureEnabled && exercise.exercise_workflow_id
-                      ? (
-                          <Tabs value={tabValue}>
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}`}
-                              value={`/admin/simulations/${exercise.exercise_id}`}
-                              label={t('Overview')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/scope`}
-                              value={`/admin/simulations/${exercise.exercise_id}/scope`}
-                              label={t('Scope')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/logic`}
-                              value={`/admin/simulations/${exercise.exercise_id}/logic`}
-                              label={t('Logic')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/animation`}
-                              value={`/admin/simulations/${exercise.exercise_id}/animation`}
-                              label={t('Animation')}
-                            />
-                          </Tabs>
-                        )
-                      : (
-                          <Tabs value={tabValue}>
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}`}
-                              value={`/admin/simulations/${exercise.exercise_id}`}
-                              label={t('Overview')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/definition`}
-                              value={`/admin/simulations/${exercise.exercise_id}/definition`}
-                              label={t('Definition')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/injects`}
-                              value={`/admin/simulations/${exercise.exercise_id}/injects`}
-                              label={t('Injects')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/tests`}
-                              value={`/admin/simulations/${exercise.exercise_id}/tests`}
-                              label={t('Tests')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/animation`}
-                              value={`/admin/simulations/${exercise.exercise_id}/animation`}
-                              label={t('Animation')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/lessons`}
-                              value={`/admin/simulations/${exercise.exercise_id}/lessons`}
-                              label={t('Lessons learned')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/findings`}
-                              value={`/admin/simulations/${exercise.exercise_id}/findings`}
-                              label={t('Findings')}
-                            />
-                            <Tab
-                              component={Link}
-                              to={`/admin/simulations/${exercise.exercise_id}/analysis`}
-                              value={`/admin/simulations/${exercise.exercise_id}/analysis`}
-                              label={t('Analysis')}
-                            />
-                          </Tabs>
-                        )}
-                    {permissionsContext.permissions.canManage && (
-                      <div className={classes.scheduling}>
-                        <ExerciseDatePopover exercise={exercise} />
-                        {exercise.exercise_start_date ? fldt(exercise.exercise_start_date) : t('Manual')}
-                      </div>
-                    )}
-                  </Box>
-                  <Suspense fallback={<Loader />}>
-                    <Routes>
-                      <Route path="" element={errorWrapper(Simulation)()} />
-                      <Route path="definition" element={errorWrapper(SimulationDefinition)()} />
-                      <Route path="injects" element={errorWrapper(Injects)()} />
-                      <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
-                      <Route path="animation" element={<Navigate to="timeline" replace={true} />} />
-                      <Route path="animation/timeline" element={errorWrapper(TimelineOverview)()} />
-                      <Route path="animation/mails" element={errorWrapper(Mails)()} />
-                      <Route path="animation/mails/:injectId" element={errorWrapper(MailsInject)()} />
-                      <Route path="animation/logs" element={errorWrapper(Logs)()} />
-                      <Route path="animation/chat" element={errorWrapper(Chat)()} />
-                      <Route path="animation/validations" element={errorWrapper(Validations)()} />
-                      <Route path="lessons" element={errorWrapper(Lessons)()} />
-                      <Route path="findings" element={errorWrapper(SimulationFindings)()} />
-                      <Route path="analysis" element={errorWrapper(SimulationAnalysis)()} />
-                      <Route path="scope" element={errorWrapper(SimulationScope)()} />
-                      <Route path="logic" element={errorWrapper(SimulationLogic)()} />
-                      {/* Not found */}
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Suspense>
-                </>
-              )}
-        </div>
-      </DocumentContext.Provider>
-    </PermissionsContext.Provider>
+  return (
+    <AutonomousContext.Provider value={autonomousContext}>
+      <PermissionsContext.Provider value={permissionsContext}>
+        <DocumentContext.Provider value={documentContext}>
+          <div style={{ paddingRight: contentPaddingRight }}>
+            <SimulationShell exercise={exercise} autonomousRun={autonomousRun}>
+              <Suspense fallback={<Loader />}>
+                <Routes>
+                  {/* Overview swaps to the AI cockpit for autonomous runs. */}
+                  <Route path="" element={isAutonomous ? <AutonomousOverview run={autonomousRun} sharedEvents={cockpitActive ? cockpitTimeline : undefined} /> : errorWrapper(Simulation)()} />
+                  {/* Definition merged into the Injects authoring tab; redirect old links. */}
+                  <Route path="definition" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/injects`} replace={true} />} />
+                  <Route path="injects" element={errorWrapper(Injects)()} />
+                  <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
+                  <Route path="execution" element={<Navigate to="timeline" replace={true} />} />
+                  <Route path="execution/timeline" element={errorWrapper(ExecutionOverview)()} />
+                  <Route path="execution/mails" element={errorWrapper(Mails)()} />
+                  <Route path="execution/mails/:injectId" element={errorWrapper(MailsInject)()} />
+                  <Route path="execution/logs" element={errorWrapper(Logs)()} />
+                  <Route path="execution/chat" element={errorWrapper(Chat)()} />
+                  <Route path="execution/validations" element={errorWrapper(Validations)()} />
+                  {/* The Animation area was renamed Execution; keep old deep links working. */}
+                  <Route path="animation/*" element={<AnimationToExecutionRedirect />} />
+                  <Route path="lessons" element={errorWrapper(Lessons)()} />
+                  <Route path="findings" element={errorWrapper(SimulationFindings)()} />
+                  {/* An autonomous run's attack path renders as an action timeline instead of the
+                    finding-centric manual-BAS view. That switch is derived inside SimulationAttackPath
+                    from the selected simulation's durable exercise_autonomous marker, so a finished
+                    autonomous run keeps action-centric rendering even after its live run row is gone. */}
+                  {hasWorkflow && <Route path="attack-path" element={errorWrapper(SimulationAttackPath)()} />}
+                  {/* Simulation-scoped custom dashboard, surfaced as the Statistics tab. */}
+                  <Route path="statistics" element={errorWrapper(SimulationStatistics)()} />
+                  {/* Statistics replaced the hero dashboard quick action and the old
+                    Analysis tab; keep redirects for old links. */}
+                  <Route path="dashboard" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
+                  <Route path="analysis" element={<Navigate to={`/admin/simulations/${exercise.exercise_id}/statistics`} replace />} />
+                  {/* On an autonomous run the AI provisions and drives the attack path, so scope / logic
+                    are exposed read-only for inspection instead of the manual editors. */}
+                  <Route
+                    path="scope"
+                    element={isAutonomous ? errorWrapper(SimulationScope)({
+                      readOnly: true,
+                      autonomousTimeoutSeconds: autonomousRun?.autonomous_run_timeout_seconds,
+                    }) : errorWrapper(SimulationScope)()}
+                  />
+                  <Route path="logic" element={isAutonomous ? errorWrapper(SimulationLogic)({ isAutonomous: true }) : errorWrapper(SimulationLogic)()} />
+                  {/* Not found */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </SimulationShell>
+          </div>
+          {isAutonomous && (
+            <AutonomousReasoningPanel
+              run={autonomousRun}
+              onRunUpdate={onAutonomousRunUpdate}
+              onTimelineEvents={setCockpitTimeline}
+              width={panelWidth}
+              onWidthChange={setPanelWidth}
+              readOnly
+            />
+          )}
+        </DocumentContext.Provider>
+      </PermissionsContext.Provider>
+    </AutonomousContext.Provider>
   );
 };
 
@@ -242,6 +198,16 @@ const Index = () => {
   // Fetching data
   const { exerciseId } = useParams() as { exerciseId: ExerciseType['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
+  // Detect whether this simulation is an autonomous (AI-driven) run, so we can render the AI
+  // cockpit (reasoning panel + gated tabs) instead of the manual chaining editor. Forward the
+  // durable exercise_autonomous marker as a POSITIVE hint only: a marked simulation keeps the
+  // Loader up across a transient post-reload 404 (no manual-editor flash) and re-probes fast,
+  // while an unmarked one probes as before - `false` is deliberately NOT forwarded, because
+  // simulations provisioned before the marker existed carry false while still being autonomous.
+  const { run: autonomousRun, resolved: autonomousResolved, setRun: setAutonomousRun } = useAutonomousRunForSimulation(
+    exerciseId,
+    exercise?.exercise_autonomous === true ? true : undefined,
+  );
   useDataLoader(() => {
     setLoading(true);
     dispatch(fetchExercise(exerciseId)).finally(() => {
@@ -249,8 +215,14 @@ const Index = () => {
     });
   }, [exerciseId]);
 
+  // Fetch the scenario only once per simulation id: the exercise object gets a
+  // new identity on every Redux update (e.g. SSE), which used to re-trigger
+  // this effect and re-fetch the scenario redundantly.
+  const scenarioRequestedForRef = useRef<ExerciseType['exercise_id'] | undefined>(undefined);
   useEffect(() => {
     if (!exercise) return;
+    if (scenarioRequestedForRef.current === exercise.exercise_id) return;
+    scenarioRequestedForRef.current = exercise.exercise_id;
     setLoading(true);
     if (!exercise.exercise_scenario) {
       setPristine(false);
@@ -262,12 +234,12 @@ const Index = () => {
           setLoading(false);
         });
     }
-  }, [exercise]);
+  }, [exercise, dispatch]);
 
   const exerciseInjectContext = injectContextForExercise(exercise);
 
   // avoid to show loader if something trigger useDataLoader
-  if (pristine && loading) {
+  if ((pristine && loading) || !autonomousResolved) {
     return <Loader />;
   }
   if (!loading && !exercise) {
@@ -280,7 +252,11 @@ const Index = () => {
   }
   return (
     <InjectContext.Provider value={exerciseInjectContext}>
-      <IndexComponent exercise={exercise} />
+      <IndexComponent
+        exercise={exercise}
+        autonomousRun={autonomousRun}
+        onAutonomousRunUpdate={setAutonomousRun}
+      />
     </InjectContext.Provider>
   );
 };

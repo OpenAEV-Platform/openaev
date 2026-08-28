@@ -9,6 +9,7 @@ import io.openaev.schema.model.PropertySchemaDTO;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,20 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping
 public class SchemaApi extends RestBehavior {
+
+  /**
+   * Public schema aliases used by clients and persisted filters.
+   *
+   * <ul>
+   *   <li>{@code InjectExpectation} keeps backward compatibility after class rename.
+   *   <li>{@code Credential} is an alias mapped to {@code
+   *       io.openaev.database.model.CredentialSecretReference}.
+   * </ul>
+   */
+  private static final Map<String, String> ENTITY_CLASS_ALIASES =
+      Map.of(
+          "InjectExpectation", "io.openaev.database.model.BaseInjectExpectation",
+          "Credential", "io.openaev.database.model.CredentialSecretReference");
 
   private final EngineContext engineContext;
 
@@ -36,7 +51,8 @@ public class SchemaApi extends RestBehavior {
     if (!isValidClassName(className)) {
       throw new IllegalArgumentException("Class not allowed : " + className);
     }
-    String completeClassName = basePackage + "." + className;
+    String completeClassName =
+        ENTITY_CLASS_ALIASES.getOrDefault(className, basePackage + "." + className);
 
     Class<?> clazz = Class.forName(completeClassName);
 

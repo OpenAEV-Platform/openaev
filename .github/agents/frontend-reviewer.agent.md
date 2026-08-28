@@ -19,6 +19,11 @@ type-safe, and uses modern conventions consistently.
 3. **Read `.github/instructions/frontend.instructions.md`** for component, form, permission, and styling rules
 4. **Follow `.github/skills/review-frontend/SKILL.md`** step-by-step — run every command
 
+## Model Policy
+
+Use **Sonnet** for standard frontend reviews.
+Escalate to **Opus 4.6** for reviews involving permission model changes or significant state management refactors.
+
 ## Severity Rubric
 
 | Severity | Criteria | Action |
@@ -28,13 +33,34 @@ type-safe, and uses modern conventions consistently.
 | 🟡 **MEDIUM** | Legacy pattern not migrated when file was touched, missing `t()` on user-facing strings, `any` type usage | `suggestion (non-blocking):` — should fix |
 | 🟢 **LOW** | Style preference, minor refactoring opportunity, naming nitpick | `suggestion (non-blocking):` — nice to have |
 
+## Quantitative Thresholds
+
+These thresholds trigger automatic severity levels regardless of subjective assessment:
+
+| Metric | Threshold | Severity |
+|---|---|---|
+| **List without pagination** | Any `map()` over an API list without `PaginationComponentV2` on a collection with >50 potential items | 🟠 HIGH |
+| **Re-render risk** | `useEffect` with missing or incorrect dependency array on a component that fetches data | 🟠 HIGH |
+| **Component size** | Single component file >300 lines → suggest splitting | 🟡 MEDIUM |
+| **`any` type usage** | Any `any` in new code (not pre-existing) | 🟡 MEDIUM |
+| **Missing `t()`** | Any user-facing string literal not wrapped in `t()` | 🟡 MEDIUM |
+| **Inline styles** | `style={{ }}` on a MUI component — use `sx` | 🟡 MEDIUM |
+| **Hardcoded tokens** | Colors, spacing, border-radius, or typography not from `theme.*` (fixed `width` exempt) | 🟡 MEDIUM |
+| **Dead props** | Props declared in `interface Props` but never passed by any call-site in the codebase | 🟡 MEDIUM |
+| **`@ts-ignore`** | Any `@ts-ignore` without an explanatory comment | 🟡 MEDIUM |
+| **Button convention** | Affirmative confirm not `contained`/`primary`, Cancel not `outlined`/`primary`, or irreversible delete confirm not `contained`/`error` (per `frontend.instructions.md`) | 🟡 MEDIUM |
+| **Props count** | Component with >8 props → suggest decomposition or context | 🟢 LOW |
+
 ## What NOT to Flag
+
+In addition to **Shared Exceptions** in `AGENTS.md`:
 
 - Legacy `.jsx` files that are NOT being touched in this PR — migration is incremental
 - `makeStyles` in files not modified by this PR — only flag when the file is being changed
 - Redux store usage in existing features — only flag for new features
 - Third-party library patterns (apexcharts, react-dnd) — different conventions are expected
 - Pre-existing i18n issues in unchanged code
+- `any` types in auto-generated `api-types.d.ts` — not our code
 
 ## Output Format
 
@@ -47,7 +73,7 @@ Findings: 🔴 [n] Critical | 🟠 [n] High | 🟡 [n] Medium | 🟢 [n] Low
 
 ### [Severity emoji] [Category] — [Short description]
 - **File**: `path/to/file.tsx:line`
-- **Rule**: [Which rule from frontend.instructions.md]
+- **Rule**: [Which rule from frontend.instructions.md or Quantitative Thresholds]
 - **Impact**: [What could go wrong or inconsistency caused]
 - **Fix**: [Concrete suggestion with code snippet if helpful]
 

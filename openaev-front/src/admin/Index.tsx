@@ -1,7 +1,7 @@
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { lazy, Suspense, useEffect } from 'react';
-import { Route, Routes, useNavigate } from 'react-router';
+import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router';
 import { type CSSObject } from 'tss-react';
 import { makeStyles } from 'tss-react/mui';
 import { useLocalStorage } from 'usehooks-ts';
@@ -21,6 +21,7 @@ import useAuth from '../utils/hooks/useAuth';
 import useDataLoader from '../utils/hooks/useDataLoader';
 import ProtectedRoute from '../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../utils/permissions/types';
+import { isFeatureEnabled } from '../utils/utils';
 import ChatbotProvider from './components/ariane/ChatbotProvider';
 import { useChatbotContentMargin, useChatbotContentTransition } from './components/ariane/useChatbotHooks';
 import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/GettingStartedPage';
@@ -31,25 +32,64 @@ import TopBar from './components/nav/TopBar';
 import DeployScenario from './components/scenarios/DeployScenario';
 
 const Home = lazy(() => import('./components/Home'));
+const DashboardResults = lazy(() => import('./components/workspaces/custom_dashboards/results/DashboardResults'));
 // Lazy like every other route: keeps the inject detail tree (incl. charts) out of the main admin chunk
 const InjectIndex = lazy(() => import('./components/simulations/simulation/injects/InjectIndex'));
 const IndexProfile = lazy(() => import('./components/profile/Index'));
+const ProfileNotifications = lazy(() => import('./components/profile/notifications/Notifications'));
+const ProfileTriggers = lazy(() => import('./components/profile/triggers/Triggers'));
 const FullTextSearch = lazy(() => import('./components/search/FullTextSearch'));
 const Findings = lazy(() => import('./components/findings/Findings'));
+const FindingOverview = lazy(() => import('./components/findings/FindingOverview'));
 const Exercises = lazy(() => import('./components/simulations/Simulations'));
 const IndexExercise = lazy(() => import('./components/simulations/simulation/Index'));
+const SimulationInjectCreation = lazy(() => import('./components/simulations/simulation/injects/SimulationInjectCreationRoute'));
 const AtomicTestings = lazy(() => import('./components/atomic_testings/AtomicTestings'));
+const AtomicTestingCreation = lazy(() => import('./components/atomic_testings/AtomicTestingCreation'));
 const IndexAtomicTesting = lazy(() => import('./components/atomic_testings/atomic_testing/Index'));
 const Scenarios = lazy(() => import('./components/scenarios/Scenarios'));
 const IndexScenario = lazy(() => import('./components/scenarios/scenario/Index'));
-const Assets = lazy(() => import('./components/assets/Index'));
-const Teams = lazy(() => import('./components/teams/Index'));
+const AutonomousRun = lazy(() => import('./components/autonomous/AutonomousRun'));
+const Endpoints = lazy(() => import('./components/assets/endpoints/Endpoints'));
+const AssetDetail = lazy(() => import('./components/assets/asset/AssetDetail'));
+const AssetGroups = lazy(() => import('./components/assets/asset_groups/AssetGroups'));
+const AssetGroupDetail = lazy(() => import('./components/assets/asset_groups/AssetGroupDetail'));
+const SecurityPlatforms = lazy(() => import('./components/assets/security_platforms/SecurityPlatforms'));
+const SecurityPlatformDetail = lazy(() => import('./components/assets/security_platforms/SecurityPlatformDetail'));
+const Persons = lazy(() => import('./components/teams/Players'));
+const PersonDetail = lazy(() => import('./components/teams/persons/PersonDetail'));
+const TeamsList = lazy(() => import('./components/teams/Teams'));
+const TeamDetail = lazy(() => import('./components/teams/teams/TeamDetail'));
+const OrganizationsList = lazy(() => import('./components/teams/OrganizationsList'));
+const OrganizationDetail = lazy(() => import('./components/teams/organizations/OrganizationDetail'));
 const IndexComponents = lazy(() => import('./components/components/Index'));
 const IndexIntegrations = lazy(() => import('./components/integrations/Index'));
 const IndexAgents = lazy(() => import('./components/agents/Agents'));
 const IndexCustomDashboard = lazy(() => import('./components/workspaces/custom_dashboards/Index'));
+const IndexReporting = lazy(() => import('./components/reporting/Index'));
 const IndexSettings = lazy(() => import('./components/settings/Index'));
 const ThreatArsenal = lazy(() => import('./components/threat_arsenal/ThreatArsenal'));
+const Credentials = lazy(() => import('./components/assets/credentials/Credentials'));
+const CredentialDetail = lazy(() => import('./components/assets/credentials/CredentialDetailPage'));
+
+// Param-preserving redirects for the legacy nested asset URLs
+// (/admin/assets/details/:id, /admin/assets/endpoints/:id,
+//  /admin/assets/asset_groups/:id, /admin/assets/security_platforms/:id).
+const LegacyAssetDetailRedirect = () => {
+  const { assetId, endpointId } = useParams() as {
+    assetId?: string;
+    endpointId?: string;
+  };
+  return <Navigate to={`/admin/assets/${assetId ?? endpointId}`} replace={true} />;
+};
+const LegacyAssetGroupDetailRedirect = () => {
+  const { assetGroupId } = useParams() as { assetGroupId: string };
+  return <Navigate to={`/admin/asset_groups/${assetGroupId}`} replace={true} />;
+};
+const LegacySecurityPlatformDetailRedirect = () => {
+  const { securityPlatformId } = useParams() as { securityPlatformId: string };
+  return <Navigate to={`/admin/security_platforms/${securityPlatformId}`} replace={true} />;
+};
 
 const useStyles = makeStyles()(theme => ({ toolbar: theme.mixins.toolbar as CSSObject }));
 
@@ -74,6 +114,7 @@ const Index = () => {
 
   const chatbotMargin = useChatbotContentMargin();
   const chatbotTransition = useChatbotContentTransition(theme);
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
 
   const { currentUserTenant } = useAuth();
 
@@ -82,6 +123,9 @@ const Index = () => {
     paddingTop: 2,
     paddingLeft: 2.5,
     paddingRight: 2.5,
+    // Global bottom breathing room: without it every page's last row sits flush
+    // against the viewport edge and feels "cut off". Set once here for the whole app.
+    paddingBottom: 3,
     marginRight: chatbotMargin > 0 ? `${chatbotMargin}px` : 0,
     transition: chatbotTransition,
     overflowX: 'hidden',
@@ -94,7 +138,7 @@ const Index = () => {
     dispatch(fetchTags());
     dispatch(fetchDomains());
   }, [currentUserTenant?.tenant_id]);
-  const { bannerHeight } = computeBannerSettings(settings);
+  const { bannerHeight, bannerHeightNumber } = computeBannerSettings(settings);
   const [goToGettingStarted, setGoToGettingStarted] = useLocalStorage<boolean>(GETTING_STARTED_LOCAL_STORAGE_KEY, true);
   useEffect(() => {
     if (goToGettingStarted) {
@@ -108,6 +152,12 @@ const Index = () => {
       sx={{
         display: 'flex',
         minWidth: 1400,
+        // Lock the shell to the viewport (minus any system banners) so <main> matches the
+        // viewport height instead of the sidebar's content height. Without this the app is only
+        // as tall as the left menu, which leaves full-height pages (e.g. the dashboard results
+        // page) either short with a gap or overflowing into a body scrollbar depending on the
+        // viewport. minHeight (not height) still lets genuinely long pages grow and body-scroll.
+        minHeight: `calc(100dvh - ${2 * bannerHeightNumber}px)`,
         marginTop: bannerHeight,
         marginBottom: bannerHeight,
       }}
@@ -118,8 +168,12 @@ const Index = () => {
         <div className={classes.toolbar} />
         <Suspense fallback={<Loader />}>
           <Routes>
+            {/* Static segments rank above the profile wildcard in React Router */}
+            <Route path="profile/notifications" element={errorWrapper(ProfileNotifications)()} />
+            <Route path="profile/triggers" element={errorWrapper(ProfileTriggers)()} />
             <Route path="profile/*" element={errorWrapper(IndexProfile)()} />
             <Route path="" element={errorWrapper(Home)()} />
+            <Route path="results" element={errorWrapper(DashboardResults)()} />
             <Route path="fulltextsearch" element={errorWrapper(FullTextSearch)()} />
             <Route
               path="findings"
@@ -133,7 +187,56 @@ const Index = () => {
                 />
               )}
             />
+            <Route
+              path="findings/:findingId"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.FINDINGS,
+                  }]}
+                  Component={errorWrapper(FindingOverview)()}
+                />
+              )}
+            />
             <Route path="simulations" element={errorWrapper(Exercises)()} />
+            {/* Inject creation is a full-page flow and MUST be declared before the
+                inject-detail route below: `injects/:injectId/*` would otherwise
+                capture `injects/create` (injectId="create") and mount the detail
+                view, which loads forever. The static `create` segment ranks these
+                two routes above both `injects/:injectId/*` and `:exerciseId/*`. */}
+            <Route
+              path="simulations/:exerciseId/injects/create"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.MANAGE,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }, {
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.RESOURCE,
+                    resourceURIParamName: 'exerciseId',
+                  }]}
+                  Component={errorWrapper(SimulationInjectCreation)()}
+                />
+              )}
+            />
+            <Route
+              path="simulations/:exerciseId/injects/create/:contractId"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.MANAGE,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }, {
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.RESOURCE,
+                    resourceURIParamName: 'exerciseId',
+                  }]}
+                  Component={errorWrapper(SimulationInjectCreation)()}
+                />
+              )}
+            />
             <Route
               path="simulations/:exerciseId/*"
               element={(
@@ -167,6 +270,31 @@ const Index = () => {
               )}
             />
             <Route path="atomic_testings" element={errorWrapper(AtomicTestings)()} />
+            {/* Creation requires the same Manage Assessment capability as the create button. */}
+            <Route
+              path="atomic_testings/create"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.MANAGE,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }]}
+                  Component={errorWrapper(AtomicTestingCreation)()}
+                />
+              )}
+            />
+            <Route
+              path="atomic_testings/create/:contractId"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.MANAGE,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }]}
+                  Component={errorWrapper(AtomicTestingCreation)()}
+                />
+              )}
+            />
             <Route
               path="atomic_testings/:injectId/*"
               element={(
@@ -184,6 +312,18 @@ const Index = () => {
               )}
             />
             <Route path="scenarios" element={errorWrapper(Scenarios)()} />
+            <Route
+              path="autonomous/:runId"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.ASSESSMENT,
+                  }]}
+                  Component={errorWrapper(AutonomousRun)()}
+                />
+              )}
+            />
             <Route path="deploy-scenario/:serviceInstanceId/:fileId" element={errorWrapper(DeployScenario)()} />
             <Route
               path="scenarios/:scenarioId/*"
@@ -201,8 +341,154 @@ const Index = () => {
                 />
               )}
             />
-            <Route path="assets/*" element={errorWrapper(Assets)()} />
-            <Route path="teams/*" element={errorWrapper(Teams)()} />
+            {/* Assets / Asset groups / Security platforms are flat top-level
+                sections (list at /admin/<section>, detail at /admin/<section>/:id,
+                like persons or teams). The static legacy aliases below rank above
+                the dynamic ":assetId" route in React Router. */}
+            <Route
+              path="assets"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.ASSETS,
+                  }]}
+                  Component={errorWrapper(Endpoints)()}
+                />
+              )}
+            />
+            <Route path="assets/inventory" element={<Navigate to="/admin/assets" replace={true} />} />
+            <Route path="assets/endpoints" element={<Navigate to="/admin/assets" replace={true} />} />
+            <Route path="assets/ai_targets" element={<Navigate to="/admin/assets" replace={true} />} />
+            <Route path="assets/details/:assetId/*" element={<LegacyAssetDetailRedirect />} />
+            <Route path="assets/endpoints/:endpointId/*" element={<LegacyAssetDetailRedirect />} />
+            <Route path="assets/asset_groups" element={<Navigate to="/admin/asset_groups" replace={true} />} />
+            <Route path="assets/asset_groups/:assetGroupId/*" element={<LegacyAssetGroupDetailRedirect />} />
+            <Route path="assets/security_platforms" element={<Navigate to="/admin/security_platforms" replace={true} />} />
+            <Route path="assets/security_platforms/:securityPlatformId/*" element={<LegacySecurityPlatformDetailRedirect />} />
+            <Route
+              path="assets/:assetId/*"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.ASSETS,
+                  }]}
+                  Component={errorWrapper(AssetDetail)()}
+                />
+              )}
+            />
+            { isCredentialAssetEnabled && (
+              <>
+                <Route
+                  path="credentials"
+                  element={(
+                    <ProtectedRoute
+                      checks={[{
+                        action: ACTIONS.ACCESS,
+                        subject: SUBJECTS.CREDENTIALS,
+                      }]}
+                      Component={errorWrapper(Credentials)()}
+                    />
+                  )}
+                />
+                <Route
+                  path="credentials/:credentialId/*"
+                  element={(
+                    <ProtectedRoute
+                      checks={[{
+                        action: ACTIONS.ACCESS,
+                        subject: SUBJECTS.CREDENTIALS,
+                      }]}
+                      Component={errorWrapper(CredentialDetail)()}
+                    />
+                  )}
+                />
+              </>
+            )}
+            <Route
+              path="security_platforms"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.SECURITY_PLATFORMS,
+                  }]}
+                  Component={errorWrapper(SecurityPlatforms)()}
+                />
+              )}
+            />
+            <Route
+              path="security_platforms/:securityPlatformId/*"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.SECURITY_PLATFORMS,
+                  }]}
+                  Component={errorWrapper(SecurityPlatformDetail)()}
+                />
+              )}
+            />
+            <Route
+              path="asset_groups"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.ASSETS,
+                  }]}
+                  Component={errorWrapper(AssetGroups)()}
+                />
+              )}
+            />
+            <Route
+              path="asset_groups/:assetGroupId/*"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.ASSETS,
+                  }]}
+                  Component={errorWrapper(AssetGroupDetail)()}
+                />
+              )}
+            />
+            {/* Persons / Teams / Organizations are top-level sections (no shared
+                "teams" parent segment). Static back-compat aliases below rank
+                above the dynamic ":teamId" route in React Router. */}
+            <Route path="persons" element={errorWrapper(Persons)()} />
+            <Route path="persons/:userId" element={errorWrapper(PersonDetail)()} />
+            <Route path="teams" element={errorWrapper(TeamsList)()} />
+            <Route path="teams/persons" element={<Navigate to="/admin/persons" replace={true} />} />
+            <Route path="teams/players" element={<Navigate to="/admin/persons" replace={true} />} />
+            <Route path="teams/teams" element={<Navigate to="/admin/teams" replace={true} />} />
+            <Route path="teams/organizations" element={<Navigate to="/admin/organizations" replace={true} />} />
+            <Route path="teams/:teamId" element={errorWrapper(TeamDetail)()} />
+            <Route
+              path="organizations"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.TENANT_SETTINGS,
+                  }]}
+                  Component={errorWrapper(OrganizationsList)()}
+                />
+              )}
+            />
+            <Route
+              path="organizations/:organizationId"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.TENANT_SETTINGS,
+                  }]}
+                  Component={errorWrapper(OrganizationDetail)()}
+                />
+              )}
+            />
             <Route path="components/*" element={errorWrapper(IndexComponents)()} />
             <Route
               path="workspaces/custom_dashboards/*"
@@ -213,6 +499,18 @@ const Index = () => {
                     subject: SUBJECTS.DASHBOARDS,
                   }]}
                   Component={errorWrapper(IndexCustomDashboard)()}
+                />
+              )}
+            />
+            <Route
+              path="reporting/*"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.ACCESS,
+                    subject: SUBJECTS.REPORTINGS,
+                  }]}
+                  Component={errorWrapper(IndexReporting)()}
                 />
               )}
             />

@@ -6,7 +6,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { type AssetGroup } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { type UserStore } from '../../teams/players/Player';
-import EndpointsDialogAdding from '../endpoints/EndpointsDialogAdding';
+import EndpointsPicker from '../endpoints/EndpointsPicker';
 
 interface Props {
   assetGroupId: string;
@@ -48,8 +48,8 @@ const AssetGroupAddEndpoints: FunctionComponent<Props> = ({
 
   return (
     <>
-      <ButtonCreate onClick={() => setOpen(true)} />
-      <EndpointsDialogAdding
+      <ButtonCreate label={t('Add')} onClick={() => setOpen(true)} />
+      <EndpointsPicker
         initialState={assetGroupEndpointIds}
         open={open}
         onClose={onClose}

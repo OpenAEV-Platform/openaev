@@ -9,6 +9,7 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.Tenant;
 import io.openaev.executors.caldera.config.CalderaExecutorConfig;
 import io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegrationFactory;
 import io.openaev.rest.exception.UnencryptableElementException;
@@ -65,7 +66,7 @@ public class CalderaExecutorConfigurationMigrationTest {
                   CalderaExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      calderaExecutorConfigurationMigration.migrate();
+      calderaExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -89,7 +90,7 @@ public class CalderaExecutorConfigurationMigrationTest {
                   CalderaExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      calderaExecutorConfigurationMigration.migrate();
+      calderaExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -141,7 +142,8 @@ public class CalderaExecutorConfigurationMigrationTest {
           new CalderaExecutorConfigurationMigration(
               beanConfig, catalogConnectorService, connectorInstanceService, encryptionFactory);
 
-      assertThatThrownBy(mockedCalderaExecutorConfigurationMigration::migrate)
+      assertThatThrownBy(
+              () -> mockedCalderaExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID))
           .isInstanceOf(UnencryptableElementException.class);
     }
   }
@@ -167,27 +169,22 @@ public class CalderaExecutorConfigurationMigrationTest {
     @Autowired private CatalogConnectorComposer catalogConnectorComposer;
 
     @Test
-    @DisplayName("Resulting instance is stopped")
-    public void whenConfigIsEnabled_resultingInstanceIsStopped() throws Exception {
+    @DisplayName("No instance is seeded")
+    public void whenConfigIsDisabled_noInstanceIsSeeded() throws Exception {
       catalogConnectorComposer
           .forCatalogConnector(
               CatalogConnectorFixture.createCatalogConnectorWithClassName(
                   CalderaExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      calderaExecutorConfigurationMigration.migrate();
+      calderaExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
               CalderaExecutorIntegrationFactory.class.getCanonicalName());
       assertThat(connector).isPresent();
-
-      ConnectorInstancePersisted instance =
-          connectorInstanceService.findAllByCatalogConnector(connector.get()).getFirst();
-
-      assertThat(instance).isInstanceOf(ConnectorInstancePersisted.class);
-      assertThat(instance.getRequestedStatus())
-          .isEqualTo(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+      assertThat(connector.get().isPropertiesMigrated()).isTrue();
+      assertThat(connectorInstanceService.findAllByCatalogConnector(connector.get())).isEmpty();
     }
   }
 }

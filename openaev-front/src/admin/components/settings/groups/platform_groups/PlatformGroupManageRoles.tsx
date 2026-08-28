@@ -1,15 +1,12 @@
 import { SecurityOutlined } from '@mui/icons-material';
-import { Box } from '@mui/material';
 import { type FC, useEffect, useMemo, useState } from 'react';
 
 import { fetchPlatformGroupRoleIds } from '../../../../../actions/platform/platform-group/platform-group-action';
 import { findPlatformRoles, searchPlatformRoles } from '../../../../../actions/platform/platform-role/platform-role-action';
-import ActionButtons from '../../../../../components/common/ActionButtons';
-import Drawer from '../../../../../components/common/Drawer';
 import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../../components/common/queryable/useQueryableWithLocalStorage';
-import SelectList, { type SelectListElements } from '../../../../../components/common/SelectList';
+import SelectListPicker, { type SelectListPickerElements } from '../../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../../components/i18n';
 import { type PlatformRoleOutput } from '../../../../../utils/api-types';
 import { ENTITY_PLATFORM_ROLE_PREFIX, PLATFORM_ROLE_FILTERS } from '../../roles/platform_roles/platformRoles.queryable';
@@ -50,24 +47,31 @@ const PlatformGroupManageRoles: FC<Props> = ({
     }
   }, [open, platformGroupId]);
 
+  const selectedIds = useMemo(() => selectedRoleValues.map(r => r.platform_role_id), [selectedRoleValues]);
+
+  const toggleRole = (roleId: string, role: PlatformRoleOutput) => {
+    if (selectedIds.includes(roleId)) {
+      setSelectedRoleValues(prev => prev.filter(r => r.platform_role_id !== roleId));
+    } else {
+      setSelectedRoleValues(prev => [...prev, role]);
+    }
+  };
+
   // Headers
-  const elements: SelectListElements<PlatformRoleOutput> = useMemo(() => ({
+  const elements: SelectListPickerElements<PlatformRoleOutput> = useMemo(() => ({
     icon: { value: () => <SecurityOutlined /> },
     headers: [
       {
-        field: 'platform_role_name',
+        // Backend Queryable sort field (the output DTO exposes it as
+        // platform_role_name, see platformRoles.queryable.ts).
+        field: 'role_name',
+        label: 'Name',
+        isSortable: true,
         value: (role: PlatformRoleOutput) => role.platform_role_name,
         width: 100,
       },
     ],
   }), []);
-
-  const addRole = (_roleId: string, role: PlatformRoleOutput) => {
-    setSelectedRoleValues(prev => [...prev, role]);
-  };
-  const removeRole = (roleId: string) => {
-    setSelectedRoleValues(prev => prev.filter(r => r.platform_role_id !== roleId));
-  };
 
   // Pagination
   const { queryableHelpers, searchPaginationInput } = useQueryable(buildSearchPagination({}));
@@ -95,40 +99,19 @@ const PlatformGroupManageRoles: FC<Props> = ({
   };
 
   return (
-    <Drawer
+    <SelectListPicker<PlatformRoleOutput>
       open={open}
-      handleClose={handleClose}
+      onClose={handleClose}
+      onSubmit={handleSubmit}
       title={t('Manage the platform roles of this group')}
-      variant="full"
-    >
-      <Box sx={{
-        marginTop: 2,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2,
-      }}
-      >
-        <SelectList
-          values={roleValues}
-          selectedValues={selectedRoleValues}
-          isLoadingValues={isLoading}
-          elements={elements}
-          onSelect={addRole}
-          onDelete={removeRole}
-          paginationComponent={paginationComponent}
-          getId={element => element.platform_role_id}
-          getName={(element: PlatformRoleOutput) => element.platform_role_name}
-        />
-        <div style={{ alignSelf: 'flex-end' }}>
-          <ActionButtons
-            onSubmit={handleSubmit}
-            onCancel={handleClose}
-            cancelLabel={t('Cancel')}
-            submitLabel={t('Update')}
-          />
-        </div>
-      </Box>
-    </Drawer>
+      headerComponent={paginationComponent}
+      values={roleValues}
+      elements={elements}
+      selectedIds={selectedIds}
+      onToggle={toggleRole}
+      getId={element => element.platform_role_id}
+      isLoading={isLoading}
+    />
   );
 };
 

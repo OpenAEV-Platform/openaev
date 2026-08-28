@@ -1,4 +1,4 @@
-import { createContext, type ReactElement } from 'react';
+import { createContext } from 'react';
 
 import { type FullArticleStore } from '../../../actions/channels/Article';
 import { type InjectOutputType, type InjectStore } from '../../../actions/injects/Inject';
@@ -31,8 +31,6 @@ import {
   type ObjectiveInput,
   type PublicExercise,
   type PublicScenario,
-  type Report,
-  type ReportInput,
   type SearchPaginationInput,
   type Team,
   type TeamCreateInput,
@@ -67,8 +65,8 @@ export type ArticleContextType = {
   }>;
   fetchDocuments: () => Promise<Document[]>;
   onAddArticle: (data: ArticleCreateInput) => Promise<{ result: string }>;
-  onUpdateArticle: (article: Article, data: ArticleUpdateInput) => string;
-  onDeleteArticle: (article: Article) => string;
+  onUpdateArticle: (article: Article, data: ArticleUpdateInput) => Promise<Article>;
+  onDeleteArticle: (article: Article) => Promise<unknown>;
 };
 
 export type ChallengeContextType = {
@@ -116,12 +114,6 @@ export type VariableContextType = {
   onCreateVariable: (data: VariableInput) => void;
   onEditVariable: (variable: Variable, data: VariableInput) => void;
   onDeleteVariable: (variable: Variable) => void;
-};
-
-export type ReportContextType = {
-  onDeleteReport: (report: Report) => void;
-  onUpdateReport: (reportId: Report['report_id'], report: ReportInput) => void;
-  renderReportForm: (onSubmitForm: (data: ReportInput) => void, onHandleCancel: () => void, report: Report) => ReactElement;
 };
 
 export type TeamContextType = {
@@ -245,11 +237,11 @@ export const ArticleContext = createContext<ArticleContextType>({
   onAddArticle(_data: ArticleCreateInput): Promise<{ result: string }> {
     return Promise.resolve({ result: '' });
   },
-  onDeleteArticle(_article: Article): string {
-    return '';
+  onDeleteArticle(_article: Article): Promise<unknown> {
+    return Promise.resolve();
   },
-  onUpdateArticle(_article: Article, _data: ArticleUpdateInput): string {
-    return '';
+  onUpdateArticle(_article: Article, _data: ArticleUpdateInput): Promise<Article> {
+    return Promise.resolve({} as Article);
   },
   previewArticleUrl(_article: FullArticleStore): string {
     return '';
@@ -316,14 +308,6 @@ export const VariableContext = createContext<VariableContextType>({
   onDeleteVariable(_variable: Variable): void {
   },
   onEditVariable(_variable: Variable, _data: VariableInput): void {
-  },
-});
-export const ReportContext = createContext<ReportContextType>(<ReportContextType>{
-  onDeleteReport(_report: Report): void {
-  },
-  onUpdateReport(_reportId: Report['report_id'], _report: ReportInput): void {
-  },
-  renderReportForm(_onSubmit: (data: ReportInput) => void, _onCancel: () => void, _report: Report): void {
   },
 });
 export const TeamContext = createContext<TeamContextType>({

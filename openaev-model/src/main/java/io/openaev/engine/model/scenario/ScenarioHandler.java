@@ -10,18 +10,14 @@ import io.openaev.engine.Handler;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class ScenarioHandler implements Handler<EsScenario> {
 
-  private ScenarioRepository scenarioRepository;
-
-  @Autowired
-  public void setScenarioRepository(ScenarioRepository scenarioRepository) {
-    this.scenarioRepository = scenarioRepository;
-  }
+  private final ScenarioRepository scenarioRepository;
 
   @Override
   public List<EsScenario> fetch(Instant from, int limit) {

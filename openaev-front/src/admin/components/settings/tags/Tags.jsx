@@ -82,6 +82,13 @@ const Tags = () => {
           searchPaginationInput={searchPaginationInput}
           setContent={setTags}
           exportProps={exportProps}
+          createButton={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TAGS}>
+              <CreateTag
+                onCreate={result => setTags([result, ...tags])}
+              />
+            </Can>
+          )}
         />
         <List>
           <ListItem
@@ -151,11 +158,6 @@ const Tags = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <CreateTag
-            onCreate={result => setTags([result, ...tags])}
-          />
-        </Can>
       </div>
       <TaxonomiesMenu />
     </div>

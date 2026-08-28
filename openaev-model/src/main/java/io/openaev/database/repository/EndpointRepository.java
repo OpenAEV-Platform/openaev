@@ -2,7 +2,6 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.AssetType;
 import io.openaev.database.model.Endpoint;
-import io.openaev.database.raw.RawEndpoint;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -20,9 +19,31 @@ import org.springframework.stereotype.Repository;
 public interface EndpointRepository
     extends CrudRepository<Endpoint, String>, JpaSpecificationExecutor<Endpoint> {
 
+  // Asset.activityStatus is a @Formula property, so Hibernate expects a result-set column literally
+  // named "activityStatus" when hydrating an Endpoint from a native query. A bare "select e.*" does
+  // not produce it, which breaks every native Endpoint fetch (e.g. agent registration). Every
+  // native
+  // query returning Endpoint entities must therefore append this expression (mirrors the formula in
+  // Asset, with asset_id qualified as e.asset_id so it stays unambiguous when other tables are
+  // joined). Aliased in double quotes so the label case matches the property name exactly.
+  String ACTIVITY_STATUS_SELECT =
+      ", (CASE"
+          + " WHEN NOT EXISTS (SELECT 1 FROM agents ag WHERE ag.agent_asset = e.asset_id)"
+          + " THEN 'AGENTLESS'"
+          + " WHEN EXISTS (SELECT 1 FROM agents ag WHERE ag.agent_asset = e.asset_id"
+          + " AND ag.agent_last_seen > now() - interval '1 hour') THEN 'ACTIVE'"
+          + " ELSE 'INACTIVE' END) AS \"activityStatus\"";
+
+  // The asset_hostname / asset_ips / asset_mac_addresses columns now live on the Asset base and
+  // can be populated for non-endpoint assets (web, cloud, network categories), so every native
+  // query hydrating Endpoint entities must filter on the discriminator explicitly.
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_hostname = :hostname and e.endpoint_ips && cast(:ips as text[]) and e.tenant_id = :tenantId",
+          "select e.*"
+              + ACTIVITY_STATUS_SELECT
+              + " from assets e where e.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' and e.asset_hostname = :hostname and e.asset_ips && cast(:ips as text[]) and e.tenant_id = :tenantId",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneIp(
       @NotBlank final @Param("hostname") String hostname,
@@ -31,8 +52,12 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where LOWER(e.endpoint_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId "
-              + "and exists (select 1 from unnest(e.endpoint_mac_addresses) as mac "
+          "select e.*"
+              + ACTIVITY_STATUS_SELECT
+              + " from assets e where e.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' and LOWER(e.asset_hostname) = LOWER(:hostname) and e.tenant_id = :tenantId "
+              + "and exists (select 1 from unnest(e.asset_mac_addresses) as mac "
               + "where mac = any(select LOWER(REPLACE(REPLACE(m, ':', ''), '-', '')) from unnest(cast(:macAddresses as text[])) as m))",
       nativeQuery = true)
   List<Endpoint> findByHostnameAndAtleastOneMacAddress(
@@ -42,7 +67,11 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where e.endpoint_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :tenantId order by e.asset_id",
+          "select e.*"
+              + ACTIVITY_STATUS_SELECT
+              + " from assets e where e.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' and e.asset_mac_addresses && cast(:macAddresses as text[]) and e.tenant_id = :tenantId order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByAtleastOneMacAddress(
       @NotNull final @Param("macAddresses") String[] macAddresses,
@@ -50,7 +79,11 @@ public interface EndpointRepository
 
   @Query(
       value =
-          "select e.* from assets e where e.asset_external_reference = :externalReference and e.tenant_id = :tenantId order by e.asset_id",
+          "select e.*"
+              + ACTIVITY_STATUS_SELECT
+              + " from assets e where e.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' and e.asset_external_reference = :externalReference and e.tenant_id = :tenantId order by e.asset_id",
       nativeQuery = true)
   List<Endpoint> findByExternalReference(
       @NotNull final @Param("externalReference") String externalReference,
@@ -64,15 +97,20 @@ public interface EndpointRepository
           + "   OR (i.exercise.id = :simulationOrScenarioId"
           + "   OR i.scenario.id = :simulationOrScenarioId)"
           + " ) AND (:name IS NULL OR lower(a.name) LIKE lower(concat('%', cast(coalesce(:name, '') as string), '%')))"
+          // injects_assets may now reference non-endpoint assets (e.g. AI targets)
+          + " AND TYPE(a) = Endpoint"
           + " AND i.tenant.id = :#{#tenantContext.currentTenant}")
   List<Endpoint> findAllBySimulationOrScenarioIdAndName(String simulationOrScenarioId, String name);
 
   @Query(
       value =
-          "SELECT DISTINCT e.* "
-              + "FROM assets e "
+          "SELECT DISTINCT e.*"
+              + ACTIVITY_STATUS_SELECT
+              + " FROM assets e "
               + "INNER JOIN injects_assets ia ON e.asset_id = ia.asset_id "
-              + "WHERE e.tenant_id = :#{#tenantContext.currentTenant}",
+              + "WHERE e.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' AND e.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   List<Endpoint> findAllEndpointsForAtomicTestingsSimulationsAndScenarios();
 
@@ -117,64 +155,6 @@ public interface EndpointRepository
       nativeQuery = true)
   List<Object[]> findAllByNameLinkedToFindingsWithContext(
       @Param("sourceId") String sourceId, @Param("name") String name, Pageable pageable);
-
-  @Query(
-      value =
-          "WITH changed_assets AS ("
-              + "SELECT a.asset_id FROM assets a WHERE a.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
-              + "' AND a.asset_updated_at > :from "
-              + "UNION "
-              + "SELECT ia.asset_id FROM injects_assets ia "
-              + "JOIN injects i ON ia.inject_id = i.inject_id "
-              + "JOIN assets a ON ia.asset_id = a.asset_id AND a.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
-              + "' WHERE i.inject_updated_at > :from "
-              + "UNION "
-              + "SELECT ia.asset_id FROM injects_assets ia "
-              + "JOIN injects i ON ia.inject_id = i.inject_id "
-              + "JOIN exercises e ON i.inject_exercise = e.exercise_id "
-              + "JOIN assets a ON ia.asset_id = a.asset_id AND a.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
-              + "' WHERE e.exercise_updated_at > :from "
-              + "UNION "
-              + "SELECT ia.asset_id FROM injects_assets ia "
-              + "JOIN injects i ON ia.inject_id = i.inject_id "
-              + "JOIN scenarios s ON i.inject_scenario = s.scenario_id "
-              + "JOIN assets a ON ia.asset_id = a.asset_id AND a.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
-              + "' WHERE s.scenario_updated_at > :from "
-              + "UNION "
-              + "SELECT fa.asset_id FROM findings_assets fa "
-              + "JOIN findings f ON fa.finding_id = f.finding_id "
-              + "JOIN assets a ON fa.asset_id = a.asset_id AND a.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
-              + "' WHERE f.finding_updated_at > :from"
-              + "), "
-              + "endpoint_data AS ("
-              + "SELECT a.asset_id, a.asset_type, a.asset_name, a.asset_external_reference, "
-              + "a.endpoint_ips, a.endpoint_hostname, a.endpoint_platform, a.endpoint_arch, "
-              + "a.endpoint_mac_addresses, a.endpoint_seen_ip, a.asset_created_at, a.endpoint_is_eol, a.asset_description, a.tenant_id, "
-              + "GREATEST(a.asset_updated_at, max(i.inject_updated_at), max(e.exercise_updated_at), max(s.scenario_updated_at), max(f.finding_updated_at)) as endpoint_updated_at, "
-              + "array_agg(DISTINCT fa.finding_id) FILTER ( WHERE fa.finding_id IS NOT NULL ) as asset_findings, "
-              + "array_agg(DISTINCT at.tag_id) FILTER ( WHERE at.tag_id IS NOT NULL ) as asset_tags, "
-              + "array_agg(DISTINCT i.inject_exercise) FILTER ( WHERE i.inject_exercise IS NOT NULL ) as endpoint_exercises, "
-              + "array_agg(DISTINCT i.inject_scenario) FILTER ( WHERE i.inject_scenario IS NOT NULL ) as endpoint_scenarios "
-              + "FROM assets a "
-              + "JOIN changed_assets ca ON a.asset_id = ca.asset_id "
-              + "LEFT JOIN findings_assets fa ON a.asset_id = fa.asset_id "
-              + "LEFT JOIN findings f ON fa.finding_id = f.finding_id "
-              + "LEFT JOIN assets_tags at ON a.asset_id = at.asset_id "
-              + "LEFT JOIN injects_assets ia ON a.asset_id = ia.asset_id "
-              + "LEFT JOIN injects i ON ia.inject_id = i.inject_id "
-              + "LEFT JOIN exercises e ON i.inject_exercise = e.exercise_id "
-              + "LEFT JOIN scenarios s ON i.inject_scenario = s.scenario_id "
-              + "GROUP BY a.asset_id"
-              + ") "
-              + "SELECT * FROM endpoint_data ed "
-              + "ORDER BY ed.endpoint_updated_at ASC LIMIT :limit;",
-      nativeQuery = true)
-  List<RawEndpoint> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
   // For testing purposes only
   @Modifying

@@ -49,11 +49,44 @@ public class WorkflowScopeRule implements Base {
   @JsonProperty("workflow_scope_rule_value")
   private String ruleValue;
 
+  /**
+   * Display-name snapshot of the referenced asset / asset group, captured when the rule is created
+   * or updated. A scope rule stores only the referenced id in {@link #ruleValue}; the name shown in
+   * the UI is otherwise resolved against the live inventory. Once that asset / group is deleted the
+   * live lookup returns nothing, so - without this snapshot - a past simulation's scope would
+   * render a permanent "Loading..." placeholder even though the immutable per-run reference is
+   * intact. Nullable: only ASSET / ASSET_GROUP rules carry a label, and it stays {@code null} when
+   * the id cannot be resolved within the owning tenant.
+   */
+  @Column(name = "workflow_scope_rule_value_label")
+  @JsonProperty("workflow_scope_rule_value_label")
+  private String ruleValueLabel;
+
   @Column(name = "workflow_scope_rule_value_type")
   @Enumerated(EnumType.STRING)
   @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @JsonProperty("workflow_scope_rule_value_type")
   private ScopeRuleValueType valueType;
+
+  /**
+   * Immutable launch-time photo (frozen only on the RUN copy). Null for templates and pre-ADR-006
+   * simulations. {@code @JsonIgnore}: the stored JSON model is never exposed on endpoints that
+   * serialize the entity - snapshots surface only through the dedicated {@code
+   * WorkflowScopeRuleOutput} DTO (see ADR-006).
+   */
+  @Column(name = "workflow_scope_rule_snapshot_start")
+  @JdbcTypeCode(SqlTypes.JSON)
+  @JsonIgnore
+  private ScopeRuleSnapshot snapshotStart;
+
+  /**
+   * Immutable end-of-run photo (frozen once when the run reaches END/STOP). Null while RUNNING.
+   * {@code @JsonIgnore} for the same reason as {@link #snapshotStart}. See ADR-006.
+   */
+  @Column(name = "workflow_scope_rule_snapshot_end")
+  @JdbcTypeCode(SqlTypes.JSON)
+  @JsonIgnore
+  private ScopeRuleSnapshot snapshotEnd;
 
   @CreationTimestamp
   @Column(name = "workflow_scope_rule_created_at")
@@ -75,6 +108,7 @@ public class WorkflowScopeRule implements Base {
         .selectedMode(source.getSelectedMode())
         .ruleSource(source.getRuleSource())
         .ruleValue(source.getRuleValue())
+        .ruleValueLabel(source.getRuleValueLabel())
         .valueType(source.getValueType())
         .workflow(target)
         .build();

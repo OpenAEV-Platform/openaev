@@ -6,6 +6,7 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
@@ -13,9 +14,11 @@ import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.helper.CollectorTypeNameSerializer;
+import io.openaev.helper.MonoIdDeserializerHelper;
+import io.openaev.helper.MonoIdSerializer;
 import io.openaev.jsonapi.IncludeOption;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -46,7 +49,8 @@ import org.hibernate.annotations.*;
       Executable.class,
       FileDrop.class,
       DnsResolution.class,
-      NetworkTraffic.class
+      NetworkTraffic.class,
+      AiAttack.class
     },
     discriminatorMapping = {
       @DiscriminatorMapping(value = Command.COMMAND_TYPE, schema = Command.class),
@@ -57,7 +61,8 @@ import org.hibernate.annotations.*;
           schema = DnsResolution.class),
       @DiscriminatorMapping(
           value = NetworkTraffic.NETWORK_TRAFFIC_TYPE,
-          schema = NetworkTraffic.class)
+          schema = NetworkTraffic.class),
+      @DiscriminatorMapping(value = AiAttack.AI_ATTACK_TYPE, schema = AiAttack.class)
     })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
 public class Payload implements GrantableBase, TenantBase {
@@ -127,15 +132,13 @@ public class Payload implements GrantableBase, TenantBase {
   @JsonProperty("payload_elevation_required")
   private boolean elevationRequired;
 
-  @Setter
   @Type(JsonType.class)
-  @Column(name = "payload_arguments")
+  @Column(name = "payload_arguments", nullable = false)
   @JsonProperty("payload_arguments")
   private List<PayloadArgument> arguments = new ArrayList<>();
 
-  @Setter
   @Type(JsonType.class)
-  @Column(name = "payload_prerequisites")
+  @Column(name = "payload_prerequisites", nullable = false)
   @JsonProperty("payload_prerequisites")
   private List<PayloadPrerequisite> prerequisites = new ArrayList<>();
 
@@ -157,6 +160,19 @@ public class Payload implements GrantableBase, TenantBase {
   @Column(name = "payload_expectations", columnDefinition = "text[]")
   @JsonProperty("payload_expectations")
   private EXPECTATION_TYPE[] expectations;
+
+  /**
+   * Optional map of expectation type to the security platform types expected to fulfil it (e.g.
+   * {@code {"DETECTION": ["EDR","XDR","SIEM"], "PREVENTION": ["EDR","XDR"]}}). Empty or absent
+   * means "any security platform" (legacy behaviour). Used to pre-seed only the relevant collectors
+   * when this payload's predefined expectations are instantiated on an inject.
+   */
+  @Setter
+  @Type(JsonType.class)
+  @Column(name = "payload_expected_security_platforms", columnDefinition = "jsonb")
+  @JsonProperty("payload_expected_security_platforms")
+  private Map<EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+      expectedSecurityPlatforms = new HashMap<>();
 
   @Setter
   @Queryable(filterable = true)
@@ -187,6 +203,45 @@ public class Payload implements GrantableBase, TenantBase {
   @IncludeOption(key = "exclude from payload export")
   @Schema(implementation = String.class)
   private CollectorType collectorType;
+
+  // -- AUTHOR (polymorphic: a payload is authored by a user, a team OR an
+  // organization). The three FKs are mutually exclusive; collector-created
+  // payloads are authored by the collector's organization, manually created
+  // ones by the creating user. --
+
+  // The author must never travel with payload/action exports: the JSON:API
+  // exporter would embed the full user/team/organization resource and the
+  // import would then re-create it (duplicate email/name in the target
+  // environment). Authorship is environment-local by design.
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payload_author_user")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
+  @JsonProperty("payload_author_user")
+  @IncludeOption(key = "exclude from payload export")
+  @Queryable(dynamicValues = true, filterable = true, path = "authorUser.id")
+  @Schema(description = "User author of the payload", type = "string")
+  private User authorUser;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payload_author_team")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
+  @JsonProperty("payload_author_team")
+  @IncludeOption(key = "exclude from payload export")
+  @Queryable(dynamicValues = true, filterable = true, path = "authorTeam.id")
+  @Schema(description = "Team author of the payload", type = "string")
+  private Team authorTeam;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payload_author_organization")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
+  @JsonProperty("payload_author_organization")
+  @IncludeOption(key = "exclude from payload export")
+  @Queryable(dynamicValues = true, filterable = true, path = "authorOrganization.id")
+  @Schema(description = "Organization author of the payload", type = "string")
+  private Organization authorOrganization;
 
   @OneToMany(
       mappedBy = "payload",
@@ -250,7 +305,7 @@ public class Payload implements GrantableBase, TenantBase {
   @JsonIgnore
   public List<String> getArgumentsDocumentsIds() {
     return this.getArguments().stream()
-        .filter(payloadArgument -> ArgumentType.Document == payloadArgument.getType())
+        .filter(payloadArgument -> PrimitiveType.Document == payloadArgument.getType())
         .map(PayloadArgument::getDefaultValue)
         .toList();
   }

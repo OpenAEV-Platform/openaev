@@ -4,8 +4,8 @@ import static io.openaev.config.AppConfig.MANDATORY_MESSAGE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.*;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Payload.PAYLOAD_SOURCE;
 import io.openaev.database.model.Payload.PAYLOAD_STATUS;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
@@ -72,6 +72,13 @@ public class PayloadCreateInput {
   @NotNull
   private EXPECTATION_TYPE[] expectations =
       new EXPECTATION_TYPE[] {EXPECTATION_TYPE.PREVENTION, EXPECTATION_TYPE.DETECTION};
+
+  @JsonProperty("payload_expected_security_platforms")
+  private java.util.Map<EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+      expectedSecurityPlatforms = new java.util.HashMap<>();
+
+  @JsonProperty("payload_elevation_required")
+  private boolean elevationRequired;
 
   @JsonProperty("payload_description")
   private String description;

@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -55,17 +56,31 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
   @Autowired private DocumentComposer documentComposer;
-  @Autowired private CollectorComposer collectorComposer;
-  @Autowired private CollectorTypeComposer collectorTypeComposer;
+  @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private DomainComposer domainComposer;
   @Autowired private EntityManager entityManager;
   @Resource protected ObjectMapper mapper;
 
-  private static final String CROWDSTRIKE_FRONTEND_NAME = "openaev_crowdstrike";
-  private static final String SPLUNK_FRONTEND_NAME = "openaev_splunk_es";
+  private SecurityPlatform crowdstrikePlatform;
+  private SecurityPlatform splunkPlatform;
 
-  // -- TEST API : POST api/detection-remediations/ai/rules/{collectorType} --
+  @BeforeEach
+  void setupSecurityPlatforms() {
+    crowdstrikePlatform =
+        securityPlatformComposer
+            .forSecurityPlatform(SecurityPlatformFixture.createDefault("CrowdStrike Falcon", "EDR"))
+            .persist()
+            .get();
+    splunkPlatform =
+        securityPlatformComposer
+            .forSecurityPlatform(
+                SecurityPlatformFixture.createDefault("Splunk Enterprise Security", "SIEM"))
+            .persist()
+            .get();
+  }
+
+  // -- TEST API : POST api/detection-remediations/ai/rules/{securityPlatformId} --
 
   @Test
   @DisplayName("Generate AI rules detection remediation by payload , EE not available")
@@ -85,7 +100,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                 mockMvc.perform(
                     post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                             + "/rules/"
-                            + CROWDSTRIKE_FRONTEND_NAME)
+                            + crowdstrikePlatform.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(input))
                         .with(csrf())))
@@ -95,8 +110,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Generate AI rules detection remediation by payload for unknow collector type")
-  public void getDetectionRemediationRuleByPayloadForUnknowCollectorType() {
+  @DisplayName("Generate AI rules detection remediation by payload for unknown security platform")
+  public void getDetectionRemediationRuleByPayloadForUnknownSecurityPlatform() throws Exception {
     // -- PREPARE -
     Command payload =
         (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
@@ -104,17 +119,54 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     PayloadInput input = payloadComposer.forPayloadInput(payload, List.of(), List.of());
 
     // -- EXECUTE --
-    assertThatThrownBy(
-            () ->
-                mockMvc.perform(
-                    post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
-                            + "/rules/collector_name_unknow")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(mapper.writeValueAsString(input))
-                        .with(csrf())))
-        .hasCauseInstanceOf(IllegalStateException.class)
-        .hasMessage(
-            "Request processing failed: java.lang.IllegalStateException: Collector :\"collector_name_unknow\" unsupported");
+    MockHttpServletResponse output =
+        mockMvc
+            .perform(
+                post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                        + "/rules/security_platform_unknown")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(mapper.writeValueAsString(input))
+                    .with(csrf()))
+            .andReturn()
+            .getResponse();
+
+    // -- ASSERT --
+    assertThat(output.getStatus()).isEqualTo(404);
+    String response = JsonPath.read(output.getContentAsString(), "$.message");
+    assertThat(response)
+        .isEqualTo("Element not found: Security platform not found: security_platform_unknown");
+  }
+
+  @Test
+  @DisplayName(
+      "Generate AI rules detection remediation by payload for a security platform without AI vendor")
+  public void getDetectionRemediationRuleByPayloadForUnsupportedSecurityPlatform()
+      throws Exception {
+    // -- PREPARE -
+    Command payload =
+        (Command) payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).get();
+
+    PayloadInput input = payloadComposer.forPayloadInput(payload, List.of(), List.of());
+
+    // A platform whose name matches no AI rule vendor (neither crowdstrike nor splunk)
+    SecurityPlatform unsupportedPlatform =
+        securityPlatformComposer
+            .forSecurityPlatform(SecurityPlatformFixture.createDefault("SentinelOne", "EDR"))
+            .persist()
+            .get();
+
+    when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
+
+    // -- EXECUTE / ASSERT --
+    mockMvc
+        .perform(
+            post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
+                    + "/rules/"
+                    + unsupportedPlatform.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(input))
+                .with(csrf()))
+        .andExpect(status().isNotImplemented());
   }
 
   @Test
@@ -140,7 +192,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         .perform(
             post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
-                    + CROWDSTRIKE_FRONTEND_NAME)
+                    + crowdstrikePlatform.getId())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(input))
                 .with(csrf()))
@@ -181,7 +233,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         .perform(
             post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
-                    + CROWDSTRIKE_FRONTEND_NAME)
+                    + crowdstrikePlatform.getId())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(input))
                 .with(csrf()))
@@ -223,7 +275,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         .perform(
             post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
-                    + CROWDSTRIKE_FRONTEND_NAME)
+                    + crowdstrikePlatform.getId())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(input))
                 .with(csrf()))
@@ -266,7 +318,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         .perform(
             post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
-                    + CROWDSTRIKE_FRONTEND_NAME)
+                    + crowdstrikePlatform.getId())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(input))
                 .with(csrf()))
@@ -286,7 +338,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     DetectionRemediationInput detectionRemediationInput = new DetectionRemediationInput();
     detectionRemediationInput.setValues("I have a rule");
     detectionRemediationInput.setAuthorRule(DetectionRemediation.AUTHOR_RULE.HUMAN);
-    detectionRemediationInput.setCollectorType(CollectorsUtils.CROWDSTRIKE);
+    detectionRemediationInput.setSecurityPlatformId(crowdstrikePlatform.getId());
     input.setDetectionRemediations(List.of(detectionRemediationInput));
 
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
@@ -297,7 +349,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                 mockMvc.perform(
                     post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                             + "/rules/"
-                            + CROWDSTRIKE_FRONTEND_NAME)
+                            + crowdstrikePlatform.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(input))
                         .with(csrf())))
@@ -333,7 +385,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             .perform(
                 post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/"
-                        + CROWDSTRIKE_FRONTEND_NAME)
+                        + crowdstrikePlatform.getId())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(mapper.writeValueAsString(input))
                     .with(csrf()))
@@ -406,7 +458,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             .perform(
                 post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/"
-                        + CROWDSTRIKE_FRONTEND_NAME)
+                        + crowdstrikePlatform.getId())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(mapper.writeValueAsString(input))
                     .with(csrf()))
@@ -476,7 +528,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             .perform(
                 post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/"
-                        + SPLUNK_FRONTEND_NAME)
+                        + splunkPlatform.getId())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(mapper.writeValueAsString(input))
                     .with(csrf()))
@@ -526,7 +578,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             .perform(
                 post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/"
-                        + CROWDSTRIKE_FRONTEND_NAME)
+                        + crowdstrikePlatform.getId())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(mapper.writeValueAsString(input))
                     .with(csrf()))
@@ -599,7 +651,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             .perform(
                 post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/"
-                        + SPLUNK_FRONTEND_NAME)
+                        + splunkPlatform.getId())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(mapper.writeValueAsString(input))
                     .with(csrf()))
@@ -640,7 +692,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         mockMvc.perform(
             post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
-                    + CROWDSTRIKE_FRONTEND_NAME)
+                    + crowdstrikePlatform.getId())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(input))
                 .with(csrf()));
@@ -674,7 +726,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         mockMvc.perform(
             post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
-                    + SPLUNK_FRONTEND_NAME)
+                    + splunkPlatform.getId())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(input))
                 .with(csrf()));
@@ -708,7 +760,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         mockMvc.perform(
             post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
-                    + CROWDSTRIKE_FRONTEND_NAME)
+                    + crowdstrikePlatform.getId())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(input))
                 .with(csrf()));
@@ -742,7 +794,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
         mockMvc.perform(
             post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/"
-                    + SPLUNK_FRONTEND_NAME)
+                    + splunkPlatform.getId())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(input))
                 .with(csrf()));
@@ -752,15 +804,13 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   }
 
   // -- TEST API : POST
-  // api/detection-remediations/ai/rules/inject/{injectId}/collector/{collectorType} --
+  // api/detection-remediations/ai/rules/inject/{injectId}/security-platform/{securityPlatformId}
+  // --
 
   @Test
   @DisplayName("Generate AI rules detection remediation by inject id , EE not available")
   public void getDetectionRemediationRuleByInjectWithoutLicenceEE() throws JsonProcessingException {
     // -- PREPARE -
-    collectorComposer
-        .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
-        .persist();
     Inject inject = getInjectCommandWithPlatformsAndArchitectureAndAttackPatternAndArguments();
 
     when(httpClientFactory.httpClientCustom()).thenReturn(httpClient);
@@ -773,8 +823,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                     post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                             + "/rules/inject/"
                             + inject.getId()
-                            + "/collector/"
-                            + CROWDSTRIKE_FRONTEND_NAME)
+                            + "/security-platform/"
+                            + crowdstrikePlatform.getId())
                         .with(csrf())))
         .hasCauseInstanceOf(IllegalStateException.class)
         .hasMessage(
@@ -782,8 +832,9 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("Generate AI rules detection remediation  by inject id for unknow collector type")
-  public void getDetectionRemediationRuleByInjectUnknowCollectorType() throws Exception {
+  @DisplayName(
+      "Generate AI rules detection remediation  by inject id for unknown security platform")
+  public void getDetectionRemediationRuleByInjectUnknownSecurityPlatform() throws Exception {
     // -- PREPARE -
     Inject inject = getInjectCommandWithPlatformsAndArchitectureAndAttackPatternAndArguments();
 
@@ -794,7 +845,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                 post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
-                        + "/collector/collector_name_unknow")
+                        + "/security-platform/security_platform_unknown")
                     .with(csrf()))
             .andReturn()
             .getResponse();
@@ -803,7 +854,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     assertThat(output.getStatus()).isEqualTo(404);
     String response = JsonPath.read(output.getContentAsString(), "$.message");
     assertThat(response)
-        .isEqualTo("Element not found: Collector type not found: collector_name_unknow");
+        .isEqualTo("Element not found: Security platform not found: security_platform_unknown");
   }
 
   @Test
@@ -812,15 +863,10 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void
       getDetectionRemediationRuleBasedInjectCommandCrowdStrikeWithDetectionRemediationWithContent() {
     // -- PREPARE -
-    Collector collector =
-        collectorComposer
-            .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
-            .persist()
-            .get();
     clearEntityManager();
     Inject inject =
         getInjectCommandWithPlatformsAndArchitectureAndAttackPatternAndArgumentsAndDetectionRemediationWithContent(
-            collector);
+            crowdstrikePlatform);
 
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
 
@@ -831,8 +877,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                     post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                             + "/rules/inject/"
                             + inject.getId()
-                            + "/collector/"
-                            + CROWDSTRIKE_FRONTEND_NAME)
+                            + "/security-platform/"
+                            + crowdstrikePlatform.getId())
                         .with(csrf())))
         .hasCauseInstanceOf(IllegalStateException.class)
         .hasMessage(
@@ -846,15 +892,10 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedInjectCommandCrowdStrikeWithDetectionRemediationWithoutContent()
           throws Exception {
     // -- PREPARE -
-    Collector collector =
-        collectorComposer
-            .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
-            .persist()
-            .get();
     clearEntityManager();
     Inject inject =
         getInjectCommandWithPlatformsAndArchitectureAndAttackPatternAndArgumentsAndDetectionRemediationWithoutContent(
-            collector);
+            crowdstrikePlatform);
 
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
 
@@ -872,8 +913,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
-                    + "/collector/"
-                    + CROWDSTRIKE_FRONTEND_NAME)
+                    + "/security-platform/"
+                    + crowdstrikePlatform.getId())
                 .with(csrf()))
         .andExpect(status().isOk());
   }
@@ -885,9 +926,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedOnInjectCommandCrowdStrikeWithoutDetectionRemediation()
           throws Exception {
     // -- PREPARE -
-    collectorComposer
-        .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
-        .persist();
     Inject inject = getInjectCommandWithPlatformsAndArchitectureAndAttackPatternAndArguments();
 
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
@@ -907,8 +945,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                 post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
-                        + "/collector/"
-                        + CROWDSTRIKE_FRONTEND_NAME)
+                        + "/security-platform/"
+                        + crowdstrikePlatform.getId())
                     .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
@@ -916,8 +954,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             .getContentAsString();
 
     // -- ASSERT --
-    String collectorType = JsonPath.read(output, "$.detection_remediation_collector");
-    assertThat(collectorType).isEqualTo(CollectorsUtils.CROWDSTRIKE);
+    String securityPlatformId = JsonPath.read(output, "$.detection_remediation_security_platform");
+    assertThat(securityPlatformId).isEqualTo(crowdstrikePlatform.getId());
 
     String idDetection = JsonPath.read(output, "$.detection_remediation_id");
     assertThat(idDetection).isNotBlank();
@@ -952,9 +990,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleBasedOnInjectCommandSplunkWithoutDetectionRemediation()
       throws Exception {
     // -- PREPARE -
-    collectorComposer
-        .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.SPLUNK))
-        .persist();
     Inject inject = getInjectCommandWithPlatformsAndArchitectureAndAttackPatternAndArguments();
 
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
@@ -974,8 +1009,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                 post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
-                        + "/collector/"
-                        + SPLUNK_FRONTEND_NAME)
+                        + "/security-platform/"
+                        + splunkPlatform.getId())
                     .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
@@ -983,8 +1018,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             .getContentAsString();
 
     // -- ASSERT --
-    String collectorType = JsonPath.read(output, "$.detection_remediation_collector");
-    assertThat(collectorType).isEqualTo(CollectorsUtils.SPLUNK);
+    String securityPlatformId = JsonPath.read(output, "$.detection_remediation_security_platform");
+    assertThat(securityPlatformId).isEqualTo(splunkPlatform.getId());
 
     String idDetection = JsonPath.read(output, "$.detection_remediation_id");
     assertThat(idDetection).isNotBlank();
@@ -1003,9 +1038,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedOnInjectDnsResolutionCrowdStrikeWithoutDetectionRemediation()
           throws Exception {
     // -- PREPARE -
-    collectorComposer
-        .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
-        .persist();
     Inject inject =
         getInjectDnsResolutionWithPlatformsAndArchitectureAndAttackPatternAndArguments();
 
@@ -1026,8 +1058,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                 post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
-                        + "/collector/"
-                        + CROWDSTRIKE_FRONTEND_NAME)
+                        + "/security-platform/"
+                        + crowdstrikePlatform.getId())
                     .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
@@ -1035,8 +1067,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             .getContentAsString();
 
     // -- ASSERT --
-    String collectorType = JsonPath.read(output, "$.detection_remediation_collector");
-    assertThat(collectorType).isEqualTo(CollectorsUtils.CROWDSTRIKE);
+    String securityPlatformId = JsonPath.read(output, "$.detection_remediation_security_platform");
+    assertThat(securityPlatformId).isEqualTo(crowdstrikePlatform.getId());
 
     String idDetection = JsonPath.read(output, "$.detection_remediation_id");
     assertThat(idDetection).isNotBlank();
@@ -1072,9 +1104,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedOnInjectDnsResolutionSplunkWithoutDetectionRemediation()
           throws Exception {
     // -- PREPARE -
-    collectorComposer
-        .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.SPLUNK))
-        .persist();
     Inject inject =
         getInjectDnsResolutionWithPlatformsAndArchitectureAndAttackPatternAndArguments();
 
@@ -1095,8 +1124,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                 post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                         + "/rules/inject/"
                         + inject.getId()
-                        + "/collector/"
-                        + SPLUNK_FRONTEND_NAME)
+                        + "/security-platform/"
+                        + splunkPlatform.getId())
                     .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
@@ -1104,8 +1133,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             .getContentAsString();
 
     // -- ASSERT --
-    String collectorType = JsonPath.read(output, "$.detection_remediation_collector");
-    assertThat(collectorType).isEqualTo(CollectorsUtils.SPLUNK);
+    String securityPlatformId = JsonPath.read(output, "$.detection_remediation_security_platform");
+    assertThat(securityPlatformId).isEqualTo(splunkPlatform.getId());
 
     String idDetection = JsonPath.read(output, "$.detection_remediation_id");
     assertThat(idDetection).isNotBlank();
@@ -1124,9 +1153,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedOnInjectFileDropCrowdStrikeWithoutDetectionRemediation()
           throws Exception {
     // -- PREPARE -
-    collectorComposer
-        .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
-        .persist();
     Inject inject = getInjectFileDropWithPlatformsAndArchitectureAndAttackPatternAndArguments();
 
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
@@ -1145,8 +1171,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
-                    + "/collector/"
-                    + CROWDSTRIKE_FRONTEND_NAME)
+                    + "/security-platform/"
+                    + crowdstrikePlatform.getId())
                 .with(csrf()));
 
     // -- ASSERT --
@@ -1159,9 +1185,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleBasedOnInjectFileDropSplunkWithoutDetectionRemediation()
       throws Exception {
     // -- PREPARE -
-    collectorComposer
-        .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.SPLUNK))
-        .persist();
     Inject inject = getInjectFileDropWithPlatformsAndArchitectureAndAttackPatternAndArguments();
 
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
@@ -1180,8 +1203,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
-                    + "/collector/"
-                    + SPLUNK_FRONTEND_NAME)
+                    + "/security-platform/"
+                    + splunkPlatform.getId())
                 .with(csrf()));
 
     // -- ASSERT --
@@ -1195,9 +1218,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
       getDetectionRemediationRuleBasedOnInjectExecutableCrowdStrikeWithoutDetectionRemediation()
           throws Exception {
     // -- PREPARE -
-    collectorComposer
-        .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.CROWDSTRIKE))
-        .persist();
     Inject inject = getInjectExecutableWithPlatformsAndArchitectureAndAttackPatternAndArguments();
 
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
@@ -1216,8 +1236,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
-                    + "/collector/"
-                    + CROWDSTRIKE_FRONTEND_NAME)
+                    + "/security-platform/"
+                    + crowdstrikePlatform.getId())
                 .with(csrf()));
 
     // -- ASSERT --
@@ -1230,9 +1250,6 @@ public class DetectionRemediationApiTest extends IntegrationTest {
   public void getDetectionRemediationRuleBasedOnInjectExecutableSplunkWithoutDetectionRemediation()
       throws Exception {
     // -- PREPARE -
-    collectorComposer
-        .forCollector(CollectorFixture.createDefaultCollector(CollectorsUtils.SPLUNK))
-        .persist();
     Inject inject = getInjectExecutableWithPlatformsAndArchitectureAndAttackPatternAndArguments();
 
     when(enterpriseEdition.getEncodedCertificate()).thenReturn("certificate");
@@ -1251,8 +1268,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
             post(DetectionRemediationApi.DETECTION_REMEDIATION_URI
                     + "/rules/inject/"
                     + inject.getId()
-                    + "/collector/"
-                    + SPLUNK_FRONTEND_NAME)
+                    + "/security-platform/"
+                    + splunkPlatform.getId())
                 .with(csrf()));
 
     // -- ASSERT --
@@ -1300,7 +1317,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
   private Inject
       getInjectCommandWithPlatformsAndArchitectureAndAttackPatternAndArgumentsAndDetectionRemediationWithContent(
-          Collector collector) {
+          SecurityPlatform securityPlatform) {
     List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
@@ -1308,6 +1325,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     DetectionRemediation detectionRemediation = new DetectionRemediation();
     detectionRemediation.setValues("I have a rule");
     detectionRemediation.setAuthorRule(DetectionRemediation.AUTHOR_RULE.HUMAN);
+    detectionRemediation.setSecurityPlatform(securityPlatform);
 
     Command payload = (Command) PayloadFixture.createDefaultCommandWithArguments(payloadArguments);
 
@@ -1319,12 +1337,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                 payloadComposer
                     .forPayload(payload)
                     .withDetectionRemediation(
-                        detectionRemediationComposer
-                            .forDetectionRemediation(detectionRemediation)
-                            .withCollectorType(
-                                collectorTypeComposer.forCollectorType(
-                                    CollectorTypeFixture.createCollectorType(
-                                        collector.getType())))));
+                        detectionRemediationComposer.forDetectionRemediation(
+                            detectionRemediation)));
 
     for (AttackPattern attackPattern : attackPatterns) {
       contractComposer.withAttackPattern(attackPatternComposer.forAttackPattern(attackPattern));
@@ -1339,7 +1353,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
   private Inject
       getInjectCommandWithPlatformsAndArchitectureAndAttackPatternAndArgumentsAndDetectionRemediationWithoutContent(
-          Collector collector) {
+          SecurityPlatform securityPlatform) {
     List<AttackPattern> attackPatterns = saveAndGetAttackPatterns();
 
     List<PayloadArgument> payloadArguments = getPayloadArguments();
@@ -1347,6 +1361,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
     DetectionRemediation detectionRemediation = new DetectionRemediation();
     detectionRemediation.setValues("");
     detectionRemediation.setAuthorRule(DetectionRemediation.AUTHOR_RULE.HUMAN);
+    detectionRemediation.setSecurityPlatform(securityPlatform);
 
     Command payload = (Command) PayloadFixture.createDefaultCommandWithArguments(payloadArguments);
 
@@ -1358,12 +1373,8 @@ public class DetectionRemediationApiTest extends IntegrationTest {
                 payloadComposer
                     .forPayload(payload)
                     .withDetectionRemediation(
-                        detectionRemediationComposer
-                            .forDetectionRemediation(detectionRemediation)
-                            .withCollectorType(
-                                collectorTypeComposer.forCollectorType(
-                                    CollectorTypeFixture.createCollectorType(
-                                        collector.getType())))));
+                        detectionRemediationComposer.forDetectionRemediation(
+                            detectionRemediation)));
 
     for (AttackPattern attackPattern : attackPatterns) {
       contractComposer.withAttackPattern(attackPatternComposer.forAttackPattern(attackPattern));
@@ -1476,7 +1487,7 @@ public class DetectionRemediationApiTest extends IntegrationTest {
 
   private List<PayloadArgument> getPayloadArguments() {
     PayloadArgument payloadArgumentText =
-        PayloadFixture.createPayloadArgument("guest_user", ArgumentType.Text, "guest", null);
+        PayloadFixture.createPayloadArgument("guest_user", PrimitiveType.Text, "guest", null);
     return new ArrayList<>(List.of(payloadArgumentText));
   }
 

@@ -1,51 +1,37 @@
-import * as R from 'ramda';
-import { useState } from 'react';
+import { useContext } from 'react';
 import { useNavigate } from 'react-router';
 
-import { createAtomicTesting, searchAtomicTestings } from '../../../actions/atomic_testings/atomic-testing-actions';
+import { bulkDeleteAtomicTestings, searchAtomicTestings } from '../../../actions/atomic_testings/atomic-testing-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import ButtonCreate from '../../../components/common/ButtonCreate';
 import { initSorting } from '../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
-import { type AtomicTestingInput, type InjectResultOverviewOutput } from '../../../utils/api-types';
-import { EndpointContext } from '../../../utils/context/endpoint/EndpointContext';
-import endpointContextForAtomicTesting from '../../../utils/context/endpoint/EndpointContextForAtomicTesting';
-import { Can } from '../../../utils/permissions/permissionsContext';
+import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { TeamContext } from '../common/Context';
-import CreateInject from '../common/injects/CreateInject';
-import teamContextForAtomicTesting from './atomic_testing/context/TeamContextForAtomicTesting';
 import InjectResultList from './InjectResultList';
 
 const AtomicTestings = () => {
   // Standard hooks
   const { t } = useFormatter();
   const navigate = useNavigate();
-  const [openCreateDrawer, setOpenCreateDrawer] = useState(false);
-
-  const onCreateAtomicTesting = async (data: AtomicTestingInput) => {
-    const toCreate = R.pipe(
-      R.assoc('inject_tags', data.inject_tags),
-      R.assoc('inject_title', data.inject_title),
-      R.assoc('inject_all_teams', data.inject_all_teams),
-      R.assoc('inject_asset_groups', data.inject_asset_groups),
-      R.assoc('inject_assets', data.inject_assets),
-      R.assoc('inject_content', data.inject_content),
-      R.assoc('inject_injector_contract', data.inject_injector_contract),
-      R.assoc('inject_injector', data.inject_injector),
-      R.assoc('inject_description', data.inject_description),
-      R.assoc('inject_documents', data.inject_documents),
-      R.assoc('inject_teams', data.inject_teams),
-    )(data);
-    await createAtomicTesting(toCreate).then((result: { data: InjectResultOverviewOutput }) => {
-      navigate(`/admin/atomic_testings/${result.data.inject_id}`);
-    });
-  };
+  const ability = useContext(AbilityContext);
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
 
   const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('atomic-testing', buildSearchPagination({ sorts: initSorting('inject_updated_at', 'DESC') }));
-  const endpointContext = endpointContextForAtomicTesting();
+
+  const bulkDelete = (params: {
+    selectAll: boolean;
+    selectedIds: string[];
+    deSelectedIds: string[];
+  }) => {
+    return bulkDeleteAtomicTestings({
+      search_pagination_input: params.selectAll ? searchPaginationInput : undefined,
+      inject_ids_to_process: params.selectAll ? undefined : params.selectedIds,
+      inject_ids_to_ignore: params.deSelectedIds,
+    }).then(result => (result.data ?? []) as string[]);
+  };
 
   return (
     <>
@@ -62,24 +48,16 @@ const AtomicTestings = () => {
         goTo={injectId => `/admin/atomic_testings/${injectId}`}
         queryableHelpers={queryableHelpers}
         searchPaginationInput={searchPaginationInput}
+        onBulkDelete={canManage ? bulkDelete : undefined}
+        deleteConfirmation={count => (count === 1
+          ? t('Do you want to delete this atomic testing?')
+          : t('Do you want to delete these {count} atomic testings?', { count: String(count) }))}
+        createButton={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+            <ButtonCreate onClick={() => navigate('/admin/atomic_testings/create')} />
+          </Can>
+        )}
       />
-
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-        <>
-          <ButtonCreate onClick={() => setOpenCreateDrawer(true)} />
-          <TeamContext.Provider value={teamContextForAtomicTesting()}>
-            <EndpointContext.Provider value={endpointContext}>
-              <CreateInject
-                title={t('Create a new atomic test')}
-                onCreateInject={onCreateAtomicTesting}
-                isAtomic
-                open={openCreateDrawer}
-                handleClose={() => setOpenCreateDrawer(false)}
-              />
-            </EndpointContext.Provider>
-          </TeamContext.Provider>
-        </>
-      </Can>
     </>
   );
 };

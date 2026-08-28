@@ -21,6 +21,10 @@ export const SETTINGS_ACCESS_CHECKS: {
   },
   {
     action: ACTIONS.ACCESS,
+    subject: SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES,
+  },
+  {
+    action: ACTIONS.ACCESS,
     subject: SUBJECTS.PLATFORM_SETTINGS,
   },
   {
@@ -31,44 +35,78 @@ export const SETTINGS_ACCESS_CHECKS: {
     action: ACTIONS.ACCESS,
     subject: SUBJECTS.TENANTS,
   },
+  {
+    // Lessons learned templates live under Settings > Customization.
+    action: ACTIONS.ACCESS,
+    subject: SUBJECTS.LESSONS_LEARNED,
+  },
+  {
+    action: ACTIONS.ACCESS,
+    subject: SUBJECTS.TAGS,
+  },
+  {
+    action: ACTIONS.MANAGE,
+    subject: SUBJECTS.SESSIONS,
+  },
+  {
+    action: ACTIONS.MANAGE,
+    subject: SUBJECTS.PLATFORM_SESSIONS,
+  },
 ];
 
+export const canAccessTags = (ability: AppAbility): boolean => {
+  return ability.can(ACTIONS.ACCESS, SUBJECTS.TAGS);
+};
+
+export const canAccessTenantSettings = (ability: AppAbility): boolean => {
+  return ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
+};
+
 const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
-  const canAccessTenantSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
+  const hasTenantSettingsAccess = canAccessTenantSettings(ability);
+  const canAccessTenantUsers = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
   const canAccessPlatformSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);
   const canAccessPlatformUGR = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
+  const canAccessLessonsLearned = ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED);
+  const hasTagsAccess = canAccessTags(ability);
+  const canManageAnySessions = ability.can(ACTIONS.MANAGE, SUBJECTS.SESSIONS)
+    || ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SESSIONS);
 
   const subItems = [
     {
       link: '/admin/settings/parameters',
       label: 'Parameters',
-      userRight: canAccessTenantSettings,
+      userRight: hasTenantSettingsAccess,
     },
     {
       link: '/admin/settings/security',
       label: 'Security',
-      userRight: canAccessTenantSettings || canAccessPlatformUGR || canAccessTenants,
+      userRight: hasTenantSettingsAccess || canAccessTenantUsers || canAccessPlatformUGR || canAccessTenants
+        || canManageAnySessions,
     },
     {
-      link: '/admin/settings/asset_rules',
+      // Section root: redirects to asset_rules; Notifiers and Lessons learned
+      // live in the Customization right submenu (OpenCTI-aligned), not as
+      // direct entries.
+      link: '/admin/settings/customization',
       label: 'Customization',
-      userRight: canAccessTenantSettings,
+      userRight: hasTenantSettingsAccess || canAccessLessonsLearned,
     },
     {
       link: '/admin/settings/taxonomies',
       label: 'Taxonomies',
-      userRight: canAccessTenantSettings,
+      userRight: hasTenantSettingsAccess || hasTagsAccess,
     },
     {
       link: '/admin/settings/data_ingestion',
       label: 'Data ingestion',
-      userRight: canAccessTenantSettings,
+      userRight: hasTenantSettingsAccess,
     },
     {
       link: '/admin/settings/experience',
       label: 'Filigran Experience',
-      userRight: canAccessTenantSettings || canAccessPlatformSettings,
+      userRight: hasTenantSettingsAccess || canAccessPlatformSettings,
     },
   ];
 

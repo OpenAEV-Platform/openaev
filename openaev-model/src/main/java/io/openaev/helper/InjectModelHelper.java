@@ -239,10 +239,10 @@ public class InjectModelHelper {
         if (!node.isNull()
             && node.get("expectation_type") != null
             && !node.get("expectation_type").isNull()) {
-          InjectExpectation.EXPECTATION_TYPE type =
-              InjectExpectation.EXPECTATION_TYPE.valueOf(node.get("expectation_type").asText());
-          if (InjectExpectation.EXPECTATION_TYPE.DETECTION.equals(type)
-              || InjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(type)) {
+          BaseInjectExpectation.EXPECTATION_TYPE type =
+              BaseInjectExpectation.EXPECTATION_TYPE.valueOf(node.get("expectation_type").asText());
+          if (BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.equals(type)
+              || BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(type)) {
             return true;
           }
         }

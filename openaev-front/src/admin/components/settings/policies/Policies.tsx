@@ -1,10 +1,11 @@
-import { GridLegacy, Paper, Typography } from '@mui/material';
+import { GridLegacy, Paper } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchPlatformParameters, updatePlatformPolicies } from '../../../../actions/Application';
 import { type LoggedHelper } from '../../../../actions/helper';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
+import { SectionLabel } from '../../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type PlatformSettings, type PolicyInput } from '../../../../utils/api-types';
@@ -54,9 +55,7 @@ const Policies: FunctionComponent = () => {
           }]}
         />
         <GridLegacy item={true} xs={6} style={{ marginTop: 30 }}>
-          <Typography variant="h4" gutterBottom={true}>
-            {t('Login messages')}
-          </Typography>
+          <SectionLabel>{t('Login messages')}</SectionLabel>
           <Paper classes={{ root: classes.paper }} variant="outlined">
             <PolicyForm onSubmit={onUpdate} initialValues={initialValues}></PolicyForm>
           </Paper>

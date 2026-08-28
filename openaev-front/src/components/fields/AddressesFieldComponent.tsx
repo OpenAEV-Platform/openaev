@@ -1,5 +1,6 @@
-import { FormHelperText, TextField } from '@mui/material';
-import type { CSSProperties, FormEventHandler } from 'react';
+import { TravelExploreOutlined } from '@mui/icons-material';
+import { CircularProgress, FormHelperText, IconButton, InputAdornment, TextField, Tooltip } from '@mui/material';
+import { type CSSProperties, type FormEventHandler, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { useFormatter } from '../i18n';
@@ -11,11 +12,16 @@ interface Props {
   helperText: string;
   disabled?: boolean;
   required?: boolean;
+  /** When provided, renders a button that resolves values (e.g. IP from hostname) and merges them in. */
+  onResolve?: () => Promise<string[]>;
+  resolveDisabled?: boolean;
+  resolveTooltip?: string;
 }
 
-const AddressesFieldComponent = ({ name, label, style = {}, disabled = false, required = false, helperText }: Props) => {
+const AddressesFieldComponent = ({ name, label, style = {}, disabled = false, required = false, helperText, onResolve, resolveDisabled = false, resolveTooltip }: Props) => {
   const { control } = useFormContext();
   const { t } = useFormatter();
+  const [resolving, setResolving] = useState(false);
 
   return (
     <Controller
@@ -28,6 +34,21 @@ const AddressesFieldComponent = ({ name, label, style = {}, disabled = false, re
             onChange([]);
           } else {
             onChange(event.currentTarget.value.split('\n'));
+          }
+        };
+        const handleResolve = async () => {
+          if (!onResolve) {
+            return;
+          }
+          setResolving(true);
+          try {
+            const resolved = await onResolve();
+            if (resolved && resolved.length > 0) {
+              const current: string[] = Array.isArray(value) ? value.filter((v: string) => v !== '') : [];
+              onChange(Array.from(new Set([...current, ...resolved])));
+            }
+          } finally {
+            setResolving(false);
           }
         };
         return (
@@ -46,6 +67,35 @@ const AddressesFieldComponent = ({ name, label, style = {}, disabled = false, re
               onBlur={onBlur}
               value={value2}
               required={required}
+              slotProps={onResolve
+                ? {
+                    input: {
+                      endAdornment: (
+                        <InputAdornment
+                          position="end"
+                          sx={{
+                            alignSelf: 'flex-start',
+                            marginTop: 1,
+                          }}
+                        >
+                          <Tooltip title={resolveTooltip ?? ''}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                edge="end"
+                                disabled={disabled || resolveDisabled || resolving}
+                                onClick={handleResolve}
+                                aria-label={resolveTooltip ?? t('Resolve')}
+                              >
+                                {resolving ? (<CircularProgress size={16} />) : (<TravelExploreOutlined fontSize="small" />)}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </InputAdornment>
+                      ),
+                    },
+                  }
+                : undefined}
             />
             <FormHelperText>{t(helperText)}</FormHelperText>
           </>

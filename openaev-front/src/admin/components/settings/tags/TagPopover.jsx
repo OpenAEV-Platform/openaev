@@ -9,11 +9,13 @@ import { deleteTag, updateTag } from '../../../../actions/tags/tag-action';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
-import { Can } from '../../../../utils/permissions/permissionsContext';
+import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TagForm from './TagForm';
 
 class TagPopoverComponent extends Component {
+  static contextType = AbilityContext;
+
   constructor(props) {
     super(props);
     this.state = {
@@ -73,32 +75,40 @@ class TagPopoverComponent extends Component {
 
   render() {
     const { t } = this.props;
+    const ability = this.context;
+    const canManageTags = ability?.can(ACTIONS.MANAGE, SUBJECTS.TAGS);
+    const canDeleteTags = ability?.can(ACTIONS.DELETE, SUBJECTS.TAGS);
     const initialValues = R.pipe(R.pick(['tag_name', 'tag_color']))(
       this.props.tag,
     );
     return (
       <>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+        {(canManageTags || canDeleteTags) && (
           <IconButton
             color="primary"
             onClick={this.handlePopoverOpen.bind(this)}
             aria-haspopup="true"
-            size="large"
+            size="small"
+            sx={{ borderRadius: 1 }}
           >
-            <MoreVert />
+            <MoreVert fontSize="small" />
           </IconButton>
-        </Can>
+        )}
         <Menu
           anchorEl={this.state.anchorEl}
           open={Boolean(this.state.anchorEl)}
           onClose={this.handlePopoverClose.bind(this)}
         >
-          <MenuItem onClick={this.handleOpenEdit.bind(this)}>
-            {t('Update')}
-          </MenuItem>
-          <MenuItem onClick={this.handleOpenDelete.bind(this)}>
-            {t('Delete')}
-          </MenuItem>
+          {canManageTags && (
+            <MenuItem onClick={this.handleOpenEdit.bind(this)}>
+              {t('Update')}
+            </MenuItem>
+          )}
+          {canDeleteTags && (
+            <MenuItem onClick={this.handleOpenDelete.bind(this)}>
+              {t('Delete')}
+            </MenuItem>
+          )}
         </Menu>
         <Dialog
           open={this.state.openDelete}
@@ -112,10 +122,10 @@ class TagPopoverComponent extends Component {
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={this.handleCloseDelete.bind(this)}>
+            <Button variant="outlined" color="primary" onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button color="secondary" onClick={this.submitDelete.bind(this)}>
+            <Button variant="contained" color="error" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>

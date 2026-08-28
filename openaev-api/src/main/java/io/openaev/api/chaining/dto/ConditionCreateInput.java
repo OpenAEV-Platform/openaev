@@ -1,11 +1,11 @@
 package io.openaev.api.chaining.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.ConditionKeySubtype;
-import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
+import io.openaev.database.model.PrimitiveType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.*;
 
 /** The DTO for creation of a condition to execute a step. */
@@ -24,25 +24,38 @@ public class ConditionCreateInput {
   @JsonProperty("condition_temporary_id")
   private String temporaryId;
 
+  /**
+   * Optional display name for the condition. Only meaningful on the ROOT condition of a trigger
+   * tree, where it becomes the EVENT name shown in the Logic graph (an unnamed root renders as
+   * "Untitled event"). Ignored/left null on child leaves and mapper conditions.
+   */
+  @Schema(
+      description =
+          "Optional display name. On a trigger's root condition this is the event name shown in "
+              + "the Logic graph; leave null on child/mapper conditions.")
+  @JsonProperty("condition_name")
+  private String name;
+
   /** Temporary ID of the parent condition */
   @Schema(description = "Temporary ID of the parent condition")
   @JsonProperty("condition_temporary_id_condition_parent")
   private String temporaryIdConditionParent;
 
-  /** Condition key Type: Path to the value in the output of the step from */
-  @Schema(description = "Path to the value in the output of the step from")
-  @JsonProperty("condition_key_type")
-  private ConditionKeyType keyType;
-
-  /** Condition key subtype */
-  @Schema(description = "Condition key subtype")
-  @JsonProperty("condition_key_subtype")
-  private ConditionKeySubtype keySubtype;
+  /** Condition key types: Paths to values in output of the step from. */
+  @Schema(description = "Paths to values in the output of the step from")
+  @JsonProperty("condition_key_types")
+  private List<PrimitiveType> keyTypes;
 
   /** Condition value: Value to be compared */
   @Schema(description = "Value to be compared")
   @JsonProperty("condition_value")
   private String value;
+
+  /** Whether the comparison is case-sensitive (default: true) */
+  @Schema(description = "Whether the comparison is case-sensitive")
+  @JsonProperty("condition_case_sensitive")
+  @Builder.Default
+  private boolean caseSensitive = true;
 
   /** Condition key: Property to be mapped */
   @Schema(description = "Property to be mapped")

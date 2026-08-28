@@ -10,8 +10,10 @@ import { useLocation } from 'react-router';
 
 import { useFormatter } from '../../../components/i18n';
 import { api } from '../../../network';
+import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import { MESSAGING$ } from '../../../utils/Environment';
 import useAuth from '../../../utils/hooks/useAuth';
+import { toHttpUrl } from '../../../utils/url-helper';
 import installChatbotCsrf from './installChatbotCsrf';
 
 interface AskArianePanelProps {
@@ -40,10 +42,17 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [agentFetchState, setAgentFetchState] = useState<AgentFetchState>('loading');
 
-  const topOffset = 64;
+  // Sit flush under the app bar, pushed down by any active top banner (EE trial,
+  // system messages) so the panel never slides under the header when a banner
+  // is shown.
+  const { bannerHeightNumber } = computeBannerSettings(settings);
+  const topOffset = 64 + bannerHeightNumber;
   const firstName = me.user_email?.split('@')[0] ?? 'User';
   const accentColor = theme.palette.ai?.main ?? '#B286FF';
-  const xtmOneUrl = settings.platform_xtm_one_url || '';
+  // Guarded by the shared http(s)-only helper: the URL is forwarded to the
+  // chatbot widget as `agentDashboardUrl` (an anchor href), so a misconfigured
+  // scheme must never reach it.
+  const xtmOneUrl = toHttpUrl(settings.platform_xtm_one_url) || '';
   const isDarkMode = theme.palette.mode === 'dark';
 
   const logoIcon = (
@@ -151,40 +160,47 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
     return null;
   }
 
+  const chatPanelProps = {
+    mode,
+    onClose,
+    onModeChange,
+    topOffset,
+    backendType: 'rest' as const,
+    apiBaseUrl: '/api/xtmone/chat',
+    apiEndpoints: {
+      agents: '/agents',
+      messages: '/messages',
+      // Mid-run steering — must be set explicitly because the chatbot
+      // default ('/chat/messages/steer') assumes XTM One-style paths,
+      // while the OpenAEV proxy exposes '/messages/steer' relative to
+      // its '/api/xtmone/chat' base.
+      steer: '/messages/steer',
+      // Setting these is what makes the panel advertise `supports_tool_approval`
+      // upstream; left unset it never claims support and gated tools degrade to
+      // a plain assistant message instead of pausing the turn.
+      approve: '/messages/approve',
+      pendingApprovals: '/conversations',
+      sessions: '/sessions',
+      upload: '/upload',
+      download: '/files',
+    },
+    user: { firstName },
+    disableFileManagement: false,
+    t,
+    accentColor,
+    logoIcon,
+    agentDashboardUrl: xtmOneUrl || undefined,
+    promptSuggestions,
+    pageContext,
+    resizable: mode === 'sidebar',
+    onWidthChange,
+    onResizeStart,
+    onResizeEnd,
+    onTaskComplete: (_title: string, body: string) => MESSAGING$.notifySuccess(body),
+  };
+
   return createPortal(
-    <ChatPanel
-      mode={mode}
-      onClose={onClose}
-      onModeChange={onModeChange}
-      topOffset={topOffset}
-      backendType="rest"
-      apiBaseUrl="/api/xtmone/chat"
-      apiEndpoints={{
-        agents: '/agents',
-        messages: '/messages',
-        // Mid-run steering — must be set explicitly because the chatbot
-        // default ('/chat/messages/steer') assumes XTM One-style paths,
-        // while the OpenAEV proxy exposes '/messages/steer' relative to
-        // its '/api/xtmone/chat' base.
-        steer: '/messages/steer',
-        sessions: '/sessions',
-        upload: '/upload',
-        download: '/files',
-      }}
-      user={{ firstName }}
-      disableFileManagement={false}
-      t={t}
-      accentColor={accentColor}
-      logoIcon={logoIcon}
-      agentDashboardUrl={xtmOneUrl || undefined}
-      promptSuggestions={promptSuggestions}
-      pageContext={pageContext}
-      resizable={mode === 'sidebar'}
-      onWidthChange={onWidthChange}
-      onResizeStart={onResizeStart}
-      onResizeEnd={onResizeEnd}
-      onTaskComplete={(_title, body) => MESSAGING$.notifySuccess(body)}
-    />,
+    <ChatPanel {...chatPanelProps} />,
     container,
   );
 };

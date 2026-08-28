@@ -3,6 +3,7 @@ package io.openaev.integration.impl.executors.caldera;
 import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_TYPE;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -43,6 +44,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
   private final ThreadPoolTaskScheduler taskScheduler;
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final TenantScopedTransaction tenantTx;
 
   public CalderaExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -57,7 +59,8 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
       ThreadPoolTaskScheduler taskScheduler,
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      TenantScopedTransaction tenantTx) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
@@ -71,6 +74,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
     this.taskScheduler = taskScheduler;
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.tenantTx = tenantTx;
   }
 
   @Override
@@ -79,25 +83,39 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void runMigrations() throws Exception {
-    calderaExecutorConfigurationMigration.migrate();
+  protected void runMigrations(String tenantId) throws Exception {
+    calderaExecutorConfigurationMigration.migrate(tenantId);
+  }
+
+  private String getLogoFilename() {
+    return "%s-logo.png".formatted(CALDERA_EXECUTOR_TYPE);
   }
 
   @Override
-  protected void insertCatalogEntry() throws Exception {
-    String logoFilename = "%s-logo.png".formatted(CALDERA_EXECUTOR_TYPE);
+  protected void ensureCatalogLogo() throws Exception {
+    ensureCatalogLogo(getLogoFilename());
+  }
+
+  private void ensureCatalogLogo(String logoFilename) throws Exception {
     fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
         logoFilename,
         getClass().getResourceAsStream("/img/icon-caldera.png"));
+  }
+
+  @Override
+  protected void insertCatalogEntry() throws Exception {
+    String logoFilename = getLogoFilename();
+    ensureCatalogLogo(logoFilename);
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("Caldera Executor");
     connector.setSlug(CALDERA_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
-        "With Caldera executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Caldera instance.");
-    connector.setShortDescription(
-        "Enable execution of OpenAEV scenarios through your Caldera instance.");
+        "Register hosts managed by your MITRE Caldera instance as OpenAEV executors and run"
+            + " simulated attacks on them through Caldera, so you can validate detection and"
+            + " prevention on real endpoints without deploying the OpenAEV agent.");
+    connector.setShortDescription("Run OpenAEV simulations on hosts managed by MITRE Caldera.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://caldera.mitre.org/");
     connector.setContainerType(ConnectorType.EXECUTOR);
@@ -119,6 +137,7 @@ public class CalderaExecutorIntegrationFactory extends IntegrationFactory {
         injectorService,
         taskScheduler,
         baseIntegrationConfigurationBuilder,
-        httpClientFactory);
+        httpClientFactory,
+        tenantTx);
   }
 }

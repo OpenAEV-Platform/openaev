@@ -69,8 +69,7 @@ class InjectImportTest extends IntegrationTest {
   @Autowired private ChannelComposer channelComposer;
   @Autowired private ChallengeComposer challengeComposer;
   @Autowired private DocumentComposer documentComposer;
-  @Autowired private CollectorComposer collectorComposer;
-  @Autowired private CollectorTypeComposer collectorTypeComposer;
+  @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private FileService fileService;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private TeamComposer teamComposer;
@@ -109,7 +108,7 @@ class InjectImportTest extends IntegrationTest {
     exerciseComposer.reset();
     injectorContractComposer.reset();
     payloadComposer.reset();
-    collectorComposer.reset();
+    securityPlatformComposer.reset();
     domainComposer.reset();
 
     staticArticleWrappers.clear();
@@ -141,12 +140,6 @@ class InjectImportTest extends IntegrationTest {
     // Inject in exercise with an article attached
     ArticleComposer.Composer articleWrapper =
         getStaticArticleWrappers().get(KNOWN_ARTICLE_WRAPPER_KEY);
-
-    Collector collector =
-        collectorComposer
-            .forCollector(CollectorFixture.createDefaultCollector("CS"))
-            .persist()
-            .get();
 
     clearEntityManager();
 
@@ -200,10 +193,10 @@ class InjectImportTest extends IntegrationTest {
                             .withDetectionRemediation(
                                 detectionRemediationComposer
                                     .forDetectionRemediation(createDetectionRemediation())
-                                    .withCollectorType(
-                                        collectorTypeComposer.forCollectorType(
-                                            CollectorTypeFixture.createCollectorType(
-                                                collector.getType()))))))
+                                    .withSecurityPlatform(
+                                        securityPlatformComposer.forSecurityPlatform(
+                                            SecurityPlatformFixture.createDefault(
+                                                "CrowdStrike Falcon", "EDR"))))))
             .withTag(tagComposer.forTag(TagFixture.getTagWithText("inject with payload tag"))),
         injectComposer
             .forInject(InjectFixture.getDefaultInject())
@@ -646,9 +639,6 @@ class InjectImportTest extends IntegrationTest {
             getExportDataThenDelete(getInjectFromExerciseWrappers(), true, true, true);
         ExerciseComposer.Composer destinationExerciseWrapper = getPersistedExerciseWrapper();
 
-        // We need to save the collector to check the import
-        collectorComposer.forCollector(CollectorFixture.createDefaultCollector("CS")).persist();
-
         doImportForSimulation(destinationExerciseWrapper.get().getId(), exportData)
             .andExpect(status().is2xxSuccessful());
         clearEntityManager();
@@ -1016,9 +1006,6 @@ class InjectImportTest extends IntegrationTest {
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
         ScenarioComposer.Composer destinationScenarioWrapper = getPersistedScenarioWrapper();
 
-        // We need to save the collector to check the import
-        collectorComposer.forCollector(CollectorFixture.createDefaultCollector("CS")).persist();
-
         doImportForScenario(destinationScenarioWrapper.get().getId(), exportData)
             .andExpect(status().is2xxSuccessful());
         clearEntityManager();
@@ -1276,9 +1263,6 @@ class InjectImportTest extends IntegrationTest {
 
         byte[] exportData =
             getExportDataThenDelete(getInjectFromScenarioWrappers(), true, true, true);
-
-        // We need to save the collector to check the import
-        collectorComposer.forCollector(CollectorFixture.createDefaultCollector("CS")).persist();
 
         doImportForAtomicTestings(exportData).andExpect(status().is2xxSuccessful());
         clearEntityManager();

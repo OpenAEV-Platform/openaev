@@ -8,6 +8,8 @@ import { type StructuralHistogramWidget } from '../../../../../../utils/api-type
 import { donutChartOptions } from '../../../../../../utils/Charts';
 import { getStatusColor } from '../../../../../../utils/statusUtils';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
+import { sampleStatusSeries } from './sample/sampleData';
+import SamplePreview from './sample/SamplePreview';
 
 interface Props {
   widgetId: string;
@@ -21,12 +23,21 @@ interface Props {
 
 const useStyles = makeStyles()(() => ({ chartContainer: { '& .apexcharts-pie-area': { cursor: 'pointer' } } }));
 
-const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }: Props) => {
+const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas: realDatas }: Props) => {
   const theme = useTheme();
   const { classes } = useStyles();
   const { t } = useFormatter();
 
-  const { openWidgetDataDrawer } = useContext(CustomDashboardContext);
+  const isSample = realDatas.length === 0 || realDatas.every(d => (d.y ?? 0) === 0);
+  const datas = useMemo(() => (isSample
+    ? (sampleStatusSeries[0].data ?? []).map(d => ({
+        x: d.label,
+        y: d.value,
+        meta: d.key,
+      }))
+    : realDatas), [isSample, realDatas]);
+
+  const { openWidgetResults } = useContext(CustomDashboardContext);
 
   // Memoize click handler
   const onClick = useCallback((_: Event, config: {
@@ -34,12 +45,12 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
     dataPointIndex: number;
   }) => {
     const dataPoint = datas[config.dataPointIndex];
-    openWidgetDataDrawer({
+    openWidgetResults({
       widgetId,
       filter_values_map: { [widgetConfig.field]: [dataPoint?.meta ?? ''] },
       series_index: config.seriesIndex,
     });
-  }, [datas, openWidgetDataDrawer, widgetId]);
+  }, [datas, openWidgetResults, widgetId]);
 
   // Memoize labels
   const labels = useMemo(
@@ -49,11 +60,12 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
 
   // Memoize chart colors
   const chartColors = useMemo(() => {
-    const isStatusBreakdown = 'field' in widgetConfig
-      && (widgetConfig.field.toLowerCase().includes('status')
-        || widgetConfig.field.toLowerCase().includes('vulnerable_endpoint_action'));
+    const isStatusBreakdown = isSample
+      || ('field' in widgetConfig
+        && (widgetConfig.field.toLowerCase().includes('status')
+          || widgetConfig.field.toLowerCase().includes('vulnerable_endpoint_action')));
     return isStatusBreakdown ? labels.map(label => getStatusColor(theme, label)) : [];
-  }, [widgetConfig, labels, theme]);
+  }, [widgetConfig, labels, theme, isSample]);
 
   // Memoize empty chart text
   const emptyChartText = useMemo(() => t('No data to display'), [t]);
@@ -77,14 +89,16 @@ const DonutChart: FunctionComponent<Props> = ({ widgetId, widgetConfig, datas }:
   );
 
   return (
-    <Chart
-      options={options}
-      series={series}
-      type="donut"
-      width="100%"
-      height="100%"
-      className={classes.chartContainer}
-    />
+    <SamplePreview active={isSample}>
+      <Chart
+        options={options}
+        series={series}
+        type="donut"
+        width="100%"
+        height="100%"
+        className={classes.chartContainer}
+      />
+    </SamplePreview>
   );
 };
 

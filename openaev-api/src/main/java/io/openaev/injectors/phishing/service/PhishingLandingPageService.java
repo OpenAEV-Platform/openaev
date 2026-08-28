@@ -1,0 +1,572 @@
+package io.openaev.injectors.phishing.service;
+
+import static io.openaev.helper.SupportedLanguage.en;
+import static io.openaev.helper.SupportedLanguage.fr;
+import static io.openaev.injector_contract.Contract.executableContract;
+import static io.openaev.injector_contract.ContractCardinality.Multiple;
+import static io.openaev.injector_contract.ContractCardinality.One;
+import static io.openaev.injector_contract.ContractDef.contractBuilder;
+import static io.openaev.injector_contract.fields.ContractExpectations.expectationsField;
+import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
+import static io.openaev.injector_contract.fields.ContractTeam.teamField;
+import static io.openaev.injector_contract.fields.ContractText.textField;
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.custom_domain.CustomDomainService;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.ContractOutputType;
+import io.openaev.database.model.CustomDomain;
+import io.openaev.database.model.CustomDomain.CustomDomainStatus;
+import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Injector;
+import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.InjectorContractId;
+import io.openaev.database.model.PhishingEmailTemplate;
+import io.openaev.database.model.PhishingLandingPage;
+import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.repository.AttackPatternRepository;
+import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.PhishingEmailTemplateRepository;
+import io.openaev.database.repository.PhishingLandingPageRepository;
+import io.openaev.database.specification.SpecificationUtils;
+import io.openaev.expectation.ExpectationBuilderService;
+import io.openaev.helper.StreamHelper;
+import io.openaev.injector_contract.Contract;
+import io.openaev.injector_contract.ContractConfig;
+import io.openaev.injector_contract.ContractDef;
+import io.openaev.injector_contract.fields.ContractElement;
+import io.openaev.injector_contract.fields.ContractSelect;
+import io.openaev.injector_contract.outputs.InjectorContractContentOutputElement;
+import io.openaev.injectors.phishing.PhishingContract;
+import io.openaev.injectors.phishing.form.PhishingLandingPageBulkProcessingInput;
+import io.openaev.model.inject.form.Expectation;
+import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.domain.DomainService;
+import io.openaev.rest.domain.enums.PresetDomain;
+import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.inject.service.InjectIndexCleanupService;
+import io.openaev.service.chaining.ChainingStepCleanupService;
+import io.openaev.service.organization.OrganizationService;
+import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
+
+/**
+ * CRUD for reusable phishing landing pages plus the dynamic {@link InjectorContract} synthesis that
+ * makes each landing page appear as a Threat Arsenal action. Mirrors {@code
+ * PayloadService.synchroniseInjectorContractBasedOnPayload}: every create/update rebuilds the
+ * landing page's contract (id equal to the landing page id, bound to the tenant's phishing
+ * injector), and delete removes it.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class PhishingLandingPageService {
+
+  // Built-in phishing actions are shipped by the platform, so their contracts are authored by
+  // Filigran - the same author every other built-in injector contract carries (see
+  // InjectorService.BUILTIN_INJECTOR_AUTHOR).
+  private static final String BUILTIN_INJECTOR_AUTHOR = "Filigran";
+
+  // MITRE ATT&CK techniques a credential-harvesting phishing landing page exercises. Both are the
+  // "Spearphishing Link" technique read from its two legitimate angles: T1566.002 (Phishing -
+  // Initial Access) is the lure email carrying the link to the landing page, and T1598.003
+  // (Phishing
+  // for Information - Reconnaissance) is the credential capture the page performs. The kill chain
+  // phases (Initial Access, Reconnaissance) are DERIVED from these patterns by
+  // InjectorContract.getKillChainPhases(), so associating the attack patterns is all that is
+  // needed.
+  // Resolution is by external id against the tenant's imported MITRE data; a tenant without that
+  // data
+  // simply gets no association (never a failure).
+  private static final List<String> PHISHING_ATTACK_PATTERN_EXTERNAL_IDS =
+      List.of("T1566.002", "T1598.003");
+
+  private final PhishingLandingPageRepository landingPageRepository;
+  private final PhishingEmailTemplateRepository emailTemplateRepository;
+  private final InjectorRepository injectorRepository;
+  private final InjectorContractRepository injectorContractRepository;
+  private final InjectIndexCleanupService injectIndexCleanupService;
+  private final ChainingStepCleanupService chainingStepCleanupService;
+  private final AttackPatternRepository attackPatternRepository;
+  private final ExpectationBuilderService expectationBuilderService;
+  private final PhishingContract phishingContract;
+  private final DocumentService documentService;
+  private final DomainService domainService;
+  private final OrganizationService organizationService;
+  private final CustomDomainService customDomainService;
+  private final ObjectMapper mapper;
+
+  /**
+   * Resolves a landing page's linked custom domain from an id, enforcing that it exists in the
+   * tenant and is verified. A blank id clears the link (serve on the platform domain). A domain
+   * that is not yet verified is rejected so a page can never point at an unusable hostname.
+   */
+  public CustomDomain resolveVerifiedCustomDomain(final String customDomainId) {
+    if (customDomainId == null || customDomainId.isBlank()) {
+      return null;
+    }
+    CustomDomain domain = customDomainService.customDomain(customDomainId);
+    if (domain.getStatus() != CustomDomainStatus.VERIFIED) {
+      throw new BadRequestException("The selected custom domain is not verified yet");
+    }
+    return domain;
+  }
+
+  // -- CRUD --
+
+  public List<PhishingLandingPage> landingPages() {
+    return StreamHelper.fromIterable(landingPageRepository.findAll());
+  }
+
+  public Page<PhishingLandingPage> search(@NotNull final SearchPaginationInput input) {
+    return buildPaginationJPA(
+        (Specification<PhishingLandingPage> specification, Pageable pageable) ->
+            landingPageRepository.findAll(specification, pageable),
+        input,
+        PhishingLandingPage.class);
+  }
+
+  public PhishingLandingPage landingPage(@NotBlank final String id) {
+    return landingPageRepository.findById(id).orElseThrow(ElementNotFoundException::new);
+  }
+
+  public PhishingLandingPage upsert(@NotNull final PhishingLandingPage landingPage) {
+    validateRedirectUrl(landingPage.getRedirectUrl());
+    landingPage.setUpdatedAt(Instant.now());
+    PhishingLandingPage saved = landingPageRepository.save(landingPage);
+    synchroniseInjectorContract(saved);
+    return saved;
+  }
+
+  /**
+   * Rejects redirect URLs that are neither a relative path nor an http(s) URL. The public landing
+   * page assigns this value to {@code window.location.href} after the victim submits, so a {@code
+   * javascript:} (or {@code data:}) scheme would execute script in the OpenAEV origin, bypassing
+   * the page's DOMPurify sanitization. Only relative, {@code http}, and {@code https} targets are
+   * allowed. Browsers strip ASCII control/whitespace characters before parsing a URL scheme, so the
+   * value is normalized the same way before the scheme is inspected.
+   */
+  private void validateRedirectUrl(final String redirectUrl) {
+    if (redirectUrl == null || redirectUrl.isBlank()) {
+      return;
+    }
+    String normalized = redirectUrl.replaceAll("[\\u0000-\\u0020]", "");
+    int schemeSeparator = normalized.indexOf(':');
+    int firstSlash = normalized.indexOf('/');
+    boolean hasScheme = schemeSeparator > 0 && (firstSlash < 0 || schemeSeparator < firstSlash);
+    if (!hasScheme) {
+      return;
+    }
+    String scheme = normalized.substring(0, schemeSeparator).toLowerCase(Locale.ROOT);
+    if (!"http".equals(scheme) && !"https".equals(scheme)) {
+      throw new BadRequestException("Redirect URL must be a relative path or an http(s) URL");
+    }
+  }
+
+  /**
+   * Resolves and sets the dark/light logo documents of a landing page, keeping document resolution
+   * in the service layer so the controller depends on services only. A {@code null} id clears the
+   * corresponding logo; a non-null id that does not resolve is rejected by {@code
+   * DocumentService.document}.
+   */
+  public PhishingLandingPage updateLogos(
+      @NotBlank final String id, final String logoDarkId, final String logoLightId) {
+    PhishingLandingPage landingPage = landingPage(id);
+    landingPage.setLogoDark(logoDarkId != null ? documentService.document(logoDarkId) : null);
+    landingPage.setLogoLight(logoLightId != null ? documentService.document(logoLightId) : null);
+    return upsert(landingPage);
+  }
+
+  public void delete(@NotBlank final String id) {
+    PhishingLandingPage landingPage = landingPage(id);
+    deleteInjectorContract(landingPage);
+    landingPageRepository.deleteById(id);
+  }
+
+  /**
+   * Bulk delete of landing pages, either from an explicit list of ids or from a search input
+   * (select all with optional exclusions). Each page is removed through the regular {@link
+   * #delete(String)} path so its synthesized Threat Arsenal contract is cleaned up too.
+   *
+   * @param input the bulk processing input (exactly one of ids / search input must be provided)
+   * @return the ids of the deleted landing pages
+   */
+  public List<String> bulkDelete(@NotNull final PhishingLandingPageBulkProcessingInput input) {
+    boolean hasIds = !CollectionUtils.isEmpty(input.getLandingPageIdsToProcess());
+    boolean hasSearch = input.getSearchPaginationInput() != null;
+    if (hasIds == hasSearch) {
+      throw new BadRequestException(
+          "Either landing_page_ids_to_process or search_pagination_input must be provided, and not"
+              + " both at the same time");
+    }
+
+    Specification<PhishingLandingPage> specification;
+    if (hasSearch) {
+      // Same specification chain as the list search (filter group + text search), so the deletion
+      // scope matches exactly what the user sees in the list.
+      specification =
+          FilterUtilsJpa.<PhishingLandingPage>computeFilterGroupJpa(
+                  input.getSearchPaginationInput().getFilterGroup())
+              .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+    } else {
+      specification = SpecificationUtils.hasIdIn(input.getLandingPageIdsToProcess());
+    }
+    if (!CollectionUtils.isEmpty(input.getLandingPageIdsToIgnore())) {
+      List<String> idsToIgnore = input.getLandingPageIdsToIgnore();
+      specification =
+          specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+    }
+
+    List<String> idsToDelete =
+        landingPageRepository.findAll(specification).stream()
+            .map(PhishingLandingPage::getId)
+            .toList();
+    idsToDelete.forEach(this::delete);
+    return idsToDelete;
+  }
+
+  // -- SEED --
+
+  /**
+   * Seeds a platform-themed default email template and login landing page for the current tenant
+   * when none exist yet. Called once per tenant at startup (after the phishing injector is
+   * registered), so the seeded landing page immediately gets its Threat Arsenal contract.
+   * Idempotent on the tenant scope: the tenant filter is active during per-tenant registration, so
+   * existing rows short-circuit both seeds. Always ends with {@link #resyncAllContracts()} so
+   * existing landing pages keep (or regain) arsenal actions after injector re-registration.
+   */
+  public void seedDefaultsIfEmpty() {
+    if (!emailTemplateRepository.findAll().iterator().hasNext()) {
+      PhishingEmailTemplate emailTemplate = new PhishingEmailTemplate();
+      emailTemplate.setName("Default lure email");
+      emailTemplate.setDescription("A simple, reusable lure email created by the platform.");
+      emailTemplate.setSubject("Action required: verify your account");
+      emailTemplate.setHtmlBody(
+          """
+          <p>Hello,</p>
+          <p>We detected unusual activity on your account. Please verify your identity to keep
+          your access active.</p>
+          <p><a href="{{phishing_url}}">Verify my account</a></p>
+          <p>If you did not expect this message, you can ignore it.</p>
+          """);
+      emailTemplate.setAddTrackingPixel(true);
+      emailTemplateRepository.save(emailTemplate);
+    }
+
+    if (!landingPageRepository.findAll().iterator().hasNext()) {
+      PhishingLandingPage landingPage = new PhishingLandingPage();
+      landingPage.setName("Default login page");
+      landingPage.setDescription("A simple, platform-themed credential capture page.");
+      landingPage.setHtml(
+          """
+<div class="phishing-card">
+  <h1>Sign in</h1>
+  <p>Please sign in to continue.</p>
+  <form data-phishing-form>
+    <label>Email<input type="email" name="username" autocomplete="username" required /></label>
+    <label>Password<input type="password" name="password" autocomplete="current-password" required /></label>
+    <button type="submit">Sign in</button>
+  </form>
+</div>
+""");
+      landingPage.setCss(
+          """
+          .phishing-card { max-width: 360px; margin: 10vh auto; padding: 2rem;
+            border-radius: 8px; font-family: sans-serif; }
+          .phishing-card label { display: block; margin: 0.75rem 0; }
+          .phishing-card input { width: 100%; padding: 0.5rem; box-sizing: border-box; }
+          .phishing-card button { margin-top: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; }
+          """);
+      landingPage.setCaptureSubmittedData(true);
+      landingPage.setCapturePasswords(true);
+      // upsert already synchronises the contract; resyncAllContracts below is still needed for
+      // tenants that already had landing pages before a wipe / upgrade.
+      upsert(landingPage);
+    }
+
+    resyncAllContracts();
+  }
+
+  /**
+   * Rebuilds the Threat Arsenal contract for every landing page in the current tenant. Safe to call
+   * after injector registration and after email-template mutations that change select choices.
+   */
+  public void resyncAllContracts() {
+    landingPages().forEach(this::synchroniseInjectorContract);
+  }
+
+  // -- CONTRACT SYNC --
+
+  /**
+   * Creates or updates the {@link InjectorContract} backing this landing page (Threat Arsenal
+   * action). No-op when the phishing injector is not yet registered for the tenant (e.g. startup
+   * ordering); the next update re-syncs.
+   */
+  public InjectorContract synchroniseInjectorContract(
+      @NotNull final PhishingLandingPage landingPage) {
+    String tenantId = resolveTenantId(landingPage);
+    List<Injector> injectors =
+        injectorRepository.findByPhishingContractTypeByTenantId(PhishingContract.TYPE, tenantId);
+    if (injectors.isEmpty()) {
+      log.warn("Phishing injector not registered for tenant {}, skipping contract sync", tenantId);
+      return null;
+    }
+
+    InjectorContract injectorContract =
+        injectorContractRepository
+            .findById(new InjectorContractId(landingPage.getId(), tenantId))
+            .orElseGet(
+                () -> {
+                  InjectorContract created = new InjectorContract();
+                  created.setId(landingPage.getId());
+                  return created;
+                });
+
+    Contract contract = buildContract(landingPage);
+
+    // Prefix so Threat Arsenal search / category browsing makes the phishing origin obvious.
+    Map<String, String> labels =
+        Map.of(
+            "en",
+            "Phishing: " + landingPage.getName(),
+            "fr",
+            "Hameconnage : " + landingPage.getName());
+    injectorContract.setLabels(labels);
+    injectors.forEach(injectorContract::addInjector);
+
+    // The Threat Arsenal and the atomic-testing picker read these entity columns, NOT the
+    // serialized
+    // content JSON. Populate them from the synthesized contract exactly like a static built-in
+    // contract does (InjectorContractService.applyBuiltinContractData), otherwise the action shows
+    // no
+    // platform / domain / author and is filtered out of the atomic-testing picker
+    // (injector_contract_atomic_testing = true).
+    injectorContract.setManual(contract.isManual());
+    injectorContract.setAtomicTesting(contract.isAtomicTesting());
+    injectorContract.setNeedsExecutor(contract.isNeedsExecutor());
+    injectorContract.setPlatforms(contract.getPlatforms().toArray(new Endpoint.PLATFORM_TYPE[0]));
+    injectorContract.setDomains(
+        this.domainService.upsertDomainEntities(contract.getDomains(), tenantId));
+    injectorContract.setAuthorOrganization(
+        this.organizationService.findOrCreateByName(BUILTIN_INJECTOR_AUTHOR));
+
+    // MITRE ATT&CK association, resolved by external id against the tenant's imported patterns
+    // exactly
+    // like a static built-in contract (InjectorContractService.applyBuiltinContractData). Kill
+    // chain
+    // phases follow automatically (InjectorContract.getKillChainPhases() derives them from the
+    // attack
+    // patterns). Missing MITRE data yields an empty list, so the action is simply left
+    // unassociated.
+    List<AttackPattern> attackPatterns =
+        attackPatternRepository.findAllByExternalIdInIgnoreCaseAndTenantId(
+            contract.getAttackPatternsExternalIds(), tenantId);
+    injectorContract.setAttackPatterns(attackPatterns);
+
+    try {
+      String content = mapper.writeValueAsString(contract);
+      injectorContract.setContent(content);
+      injectorContract.setConvertedContent(mapper.readValue(content, ObjectNode.class));
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+
+    return injectorContractRepository.save(injectorContract);
+  }
+
+  public void deleteInjectorContract(@NotNull final PhishingLandingPage landingPage) {
+    String tenantId = resolveTenantId(landingPage);
+    InjectorContractId contractId = new InjectorContractId(landingPage.getId(), tenantId);
+    if (injectorContractRepository.existsById(contractId)) {
+      // The injects FK on injectors_contracts is ON DELETE CASCADE: deleting the landing page's
+      // contract silently hard-deletes every inject built on it (and, one hop further, their
+      // expectations and findings) at the database level, without a single JPA lifecycle event.
+      // Same compensation as InjectorContractService.deleteInjectorContract: collect the doomed
+      // inject ids BEFORE the delete and de-index them explicitly, otherwise their documents stay
+      // in the search engine forever and keep feeding every ES-backed statistic (home dashboard
+      // tiles, coverage, KPIs).
+      List<String> cascadeDeletedInjectIds =
+          injectIndexCleanupService.injectIdsByContractIds(List.of(landingPage.getId()), tenantId);
+      injectorContractRepository.deleteById(contractId);
+      injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
+      // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
+      // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject
+      // de-index. The sweep is tenant-scoped to never touch another tenant's logic maps.
+      chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+          List.of(landingPage.getId()), tenantId);
+    }
+  }
+
+  private String resolveTenantId(final PhishingLandingPage landingPage) {
+    return landingPage.getTenant() != null
+        ? landingPage.getTenant().getId()
+        : TenantContext.getCurrentTenant();
+  }
+
+  private Contract buildContract(final PhishingLandingPage landingPage) {
+    ContractConfig contractConfig = phishingContract.getConfig();
+
+    // Email template chooser populated from the tenant's reusable templates.
+    Map<String, String> templateChoices = new LinkedHashMap<>();
+    List<PhishingEmailTemplate> templates =
+        StreamHelper.fromIterable(emailTemplateRepository.findAll());
+    templates.forEach(template -> templateChoices.put(template.getId(), template.getName()));
+    ContractSelect emailTemplateField =
+        templateChoices.isEmpty()
+            ? new ContractSelect("emailTemplate", "Email template", One)
+            : selectFieldWithDefault(
+                "emailTemplate",
+                "Email template",
+                templateChoices,
+                templateChoices.keySet().iterator().next());
+    emailTemplateField.setChoices(templateChoices);
+
+    ContractDef builder = contractBuilder();
+    List<ContractElement> fields =
+        builder
+            .mandatory(teamField(Multiple))
+            .mandatory(emailTemplateField)
+            .optional(textField("subject", "Subject override", ""))
+            .optional(textField("fromName", "Sender name override", ""))
+            .optional(textField("fromEmail", "Sender email override", ""))
+            .optional(expectationsField(buildPhishingExpectations()))
+            .build();
+
+    // Server-side email delivery, exactly like the email injector: platform Service and no executor
+    // agent. A recipient is a team player (teamField below), never an endpoint, so needsExecutor
+    // stays false - otherwise target search would demand agents and the health check would fail.
+    Contract contract =
+        executableContract(
+            contractConfig,
+            landingPage.getId(),
+            Map.of(
+                en,
+                "Phishing: " + landingPage.getName(),
+                fr,
+                "Hameconnage : " + landingPage.getName()),
+            fields,
+            List.of(Endpoint.PLATFORM_TYPE.Service),
+            false,
+            Set.of(PresetDomain.getEmailInfiltration()));
+
+    // Declare the MITRE techniques on the contract so the serialized content carries them like any
+    // static built-in contract; the entity-level attackPatterns are resolved from these ids in
+    // synchroniseInjectorContract (and the kill chain phases are derived from them).
+    PHISHING_ATTACK_PATTERN_EXTERNAL_IDS.forEach(contract::addAttackPattern);
+
+    // A capture-enabled landing page turns submitted data into a Credentials finding
+    // (PhishingTrackingService.captureCredentials). Phishing is a native, payload-less injector, so
+    // this contract "outputs" declaration is the only place that finding type is machine-readable:
+    // it feeds InjectorContract.getProviding() (Threat Arsenal "Outputs" section, findings-based
+    // chaining, the injector_contract_providing filter). A page that does not capture declares no
+    // output, matching what is actually produced.
+    if (landingPage.isCaptureSubmittedData()) {
+      contract.addOutput(buildCredentialsOutput());
+    }
+    return contract;
+  }
+
+  /**
+   * The single {@code Credentials} finding a credential-capture phishing page produces, shaped like
+   * a payload output element ({@code isFindingCompatible}) so the Threat Arsenal drawer renders it
+   * exactly like a scanner's parsed output.
+   */
+  private InjectorContractContentOutputElement buildCredentialsOutput() {
+    InjectorContractContentOutputElement credentials = new InjectorContractContentOutputElement();
+    credentials.setType(ContractOutputType.Credentials);
+    credentials.setField(PhishingTrackingService.CREDENTIALS_FIELD);
+    credentials.setLabels(new String[] {"Credentials"});
+    credentials.setMultiple(false);
+    credentials.setFindingCompatible(true);
+    return credentials;
+  }
+
+  /**
+   * Available expectations for a phishing action. Two complementary families, all predefined so
+   * every phishing inject measures them by default:
+   *
+   * <ul>
+   *   <li><b>Human response</b> - the three steps of a phishing test: the recipient opening the
+   *       lure email, following the link (landing page loaded) and submitting data. Each is a
+   *       MANUAL expectation with inverted polarity (see {@link PhishingTrackingService}): GREEN
+   *       ("resisted") while the recipient has not performed the step, flipping RED ("fell for it")
+   *       the moment they do, so a recipient who never interacts keeps the green verdict through
+   *       expiration. Named for the resisted outcome ("Email not opened", "Link not clicked",
+   *       "Credentials not submitted") so the row always reads true when green, and explicitly
+   *       ordered 1 {@literal ->} 2 {@literal ->} 3 to match the kill chain (email {@literal ->}
+   *       link {@literal ->} submission) in the results timeline and list.
+   *   <li><b>Security control</b> - PREVENTION and DETECTION, exactly like most technical injector
+   *       contracts: a phishing simulation is only complete if the platform can also score whether
+   *       the lure was blocked (prevention) or detected (detection). Both are focused on {@link
+   *       SecurityPlatform.SECURITY_PLATFORM_TYPE#EMAIL_SECURITY} platforms - the control that
+   *       actually inspects inbound mail - instead of asking every connected collector for a
+   *       verdict.
+   * </ul>
+   */
+  private List<Expectation> buildPhishingExpectations() {
+    Expectation prevention = this.expectationBuilderService.buildPreventionExpectation();
+    prevention.setPredefined(true);
+    prevention.setExpectedSecurityPlatformTypes(
+        new ArrayList<>(List.of(SecurityPlatform.SECURITY_PLATFORM_TYPE.EMAIL_SECURITY)));
+
+    Expectation detection = this.expectationBuilderService.buildDetectionExpectation();
+    detection.setPredefined(true);
+    detection.setExpectedSecurityPlatformTypes(
+        new ArrayList<>(List.of(SecurityPlatform.SECURITY_PLATFORM_TYPE.EMAIL_SECURITY)));
+
+    return List.of(
+        detection,
+        prevention,
+        buildPhishingStep(
+            PhishingTrackingService.STEP_OPENED,
+            "Red once the recipient opens the lure email (tracking pixel loaded); green while the"
+                + " email is never opened.",
+            1),
+        buildPhishingStep(
+            PhishingTrackingService.STEP_CLICKED,
+            "Red once the recipient opens the phishing landing page; green while the link is never"
+                + " followed.",
+            2),
+        buildPhishingStep(
+            PhishingTrackingService.STEP_SUBMITTED,
+            "Red once the recipient submits data on the phishing page; green while nothing is ever"
+                + " submitted.",
+            3));
+  }
+
+  private Expectation buildPhishingStep(
+      final String name, final String description, final int order) {
+    Expectation expectation = this.expectationBuilderService.buildManualExpectation();
+    expectation.setName(name);
+    expectation.setDescription(description);
+    expectation.setPredefined(true);
+    expectation.setMultiSelectable(false);
+    expectation.setOrder(order);
+    return expectation;
+  }
+}

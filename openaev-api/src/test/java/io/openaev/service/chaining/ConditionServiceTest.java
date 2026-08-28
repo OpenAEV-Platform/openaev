@@ -3,16 +3,26 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
+import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -34,6 +44,7 @@ public class ConditionServiceTest {
   @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
   @Mock private ConditionRepository conditionRepository;
   @Mock private StepRepository stepRepository;
+  @Mock private WorkflowRepository workflowRepository;
   @Mock private WorkflowStateService workflowStateService;
   @Spy private ConditionUtils conditionUtils;
 
@@ -160,28 +171,6 @@ public class ConditionServiceTest {
   }
 
   /* ============================================================
-   * isDependOn
-   * ============================================================ */
-  @Nested
-  class IsDependOn {
-
-    @Test
-    void shouldCreateDependOnCondition_withGivenStepTemplateId() {
-      // -------- Prepare --------
-      String stepTemplateId = UUID.randomUUID().toString();
-
-      // -------- Act --------
-      Condition result = conditionService.isDependOn(stepTemplateId);
-
-      // -------- Assert --------
-      assertNotNull(result);
-      assertEquals(ConditionKeyType.STEP_TEMPLATE_ID, result.getKeyType());
-      assertEquals(ConditionType.DEPEND_ON, result.getType());
-      assertEquals(stepTemplateId, result.getValue());
-    }
-  }
-
-  /* ============================================================
    * checkCondition
    * ============================================================ */
   @Nested
@@ -236,7 +225,8 @@ public class ConditionServiceTest {
       when(conditionUtils.isMapperCondition(mapperTemplate)).thenReturn(true);
 
       List<ConditionService.ExecutionBatch> expected =
-          List.of(new ConditionService.ExecutionBatch("{\"IPv4\":\"10.10.10.10\"}", List.of()));
+          List.of(
+              new ConditionService.ExecutionBatch("{\"IPv4\":\"10.10.10.10\"}", List.of(), null));
       doReturn(expected)
           .when(conditionService)
           .prepareInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
@@ -249,6 +239,743 @@ public class ConditionServiceTest {
       assertEquals(expected, result);
       verify(conditionService)
           .prepareInputsForStepExecution(stepTemplate, workflowRun, List.of(mapperTemplate));
+    }
+  }
+
+  /* ============================================================
+   * prepareInputsForStepExecution — correlated + fallback batching
+   * ============================================================ */
+  @Nested
+  class PrepareInputsForStepExecution {
+    private final Gson gson = new Gson();
+
+    private Condition mapper(MappingType mappingType, PrimitiveType keyType, String value) {
+      Condition mapper = new Condition();
+      mapper.setType(ConditionType.MAPPER);
+      mapper.setMappingType(mappingType);
+      mapper.setKeyTypes(List.of(keyType));
+      mapper.setValue(value);
+      return mapper;
+    }
+
+    private Condition mapper(MappingType mappingType, List<PrimitiveType> keyTypes, String value) {
+      Condition mapper = new Condition();
+      mapper.setType(ConditionType.MAPPER);
+      mapper.setMappingType(mappingType);
+      mapper.setKeyTypes(keyTypes);
+      mapper.setValue(value);
+      return mapper;
+    }
+
+    private WorkflowStateEntries.Input input(String key, String... values) {
+      return WorkflowStateEntries.Input.builder()
+          .key(key)
+          .values(new HashSet<>(Set.of(values)))
+          .build();
+    }
+
+    private WorkflowStateEntries.Correlated correlated(
+        String type, WorkflowStateEntries.Pair... values) {
+      return WorkflowStateEntries.Correlated.builder()
+          .type(type)
+          .values(new HashSet<>(Set.of(values)))
+          .build();
+    }
+
+    private WorkflowStateEntries entries(
+        List<WorkflowStateEntries.Input> inputs, List<WorkflowStateEntries.Correlated> correlated) {
+      return new WorkflowStateEntries(
+          new ArrayList<>(inputs), new ArrayList<>(correlated), new HashSet<>(), new HashSet<>());
+    }
+
+    private WorkflowStateEntries entries(
+        List<WorkflowStateEntries.Input> inputs,
+        List<WorkflowStateEntries.Correlated> correlated,
+        Set<String> hashExecution) {
+      return new WorkflowStateEntries(
+          new ArrayList<>(inputs),
+          new ArrayList<>(correlated),
+          new HashSet<>(hashExecution),
+          new HashSet<>());
+    }
+
+    private String hashCombo(Map<String, String> combo) {
+      WorkflowStateEntries temp =
+          new WorkflowStateEntries(
+              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+      return temp.hashCombo(combo);
+    }
+
+    private WorkflowState stateFromEntries(WorkflowStateEntries entries) {
+      WorkflowState state = new WorkflowState();
+      state.setEntries(gson.toJson(entries));
+      return state;
+    }
+
+    private JsonObject inputJson(ConditionService.ExecutionBatch batch) {
+      return JsonParser.parseString(batch.inputString()).getAsJsonObject();
+    }
+
+    @Test
+    void given_noCorrelatedData_should_buildFallbackCartesianBatches() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-no-correlated");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.GLOBAL, PrimitiveType.IPv4, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Port, null));
+
+      WorkflowStateEntries globalEntries =
+          entries(
+              List.of(input("IPv4", "10.0.0.1", "10.0.0.2"), input("Port", "80", "443")),
+              List.of());
+      WorkflowStateEntries localEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-no-correlated"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(4, batches.size());
+      Set<String> pairs =
+          batches.stream()
+              .map(
+                  b -> {
+                    JsonObject json = inputJson(b);
+                    return json.get("IPv4").getAsString() + ":" + json.get("Port").getAsString();
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("10.0.0.1:80", "10.0.0.1:443", "10.0.0.2:80", "10.0.0.2:443"), pairs);
+    }
+
+    @Test
+    void given_mapperWithMultipleKeyTypes_should_generateOneBatchPerMatchedPrimitiveValue() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-multi-key-types");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.GLOBAL, List.of(PrimitiveType.IPv4, PrimitiveType.Service), null));
+
+      WorkflowStateEntries globalEntries =
+          entries(List.of(input("IPv4", "10.0.0.1"), input("Service", "ssh")), List.of());
+      WorkflowStateEntries localEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-multi-key-types"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(2, batches.size());
+      Set<String> payloads =
+          batches.stream()
+              .map(
+                  b -> {
+                    JsonObject json = inputJson(b);
+                    if (json.has("IPv4")) {
+                      return "IPv4:" + json.get("IPv4").getAsString();
+                    }
+                    return "Service:" + json.get("Service").getAsString();
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("IPv4:10.0.0.1", "Service:ssh"), payloads);
+    }
+
+    @Test
+    void given_localAndGlobalSubsetCorrelation_should_completeUncoveredKeyFromMappedPool() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-subset");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.LOCAL, PrimitiveType.IPv4, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Port, null),
+              mapper(MappingType.DEFAULT, PrimitiveType.Text, "static-default"));
+
+      WorkflowStateEntries localEntries =
+          entries(
+              List.of(input("IPv4", "10.0.0.1")),
+              List.of(correlated("LocalIp", new WorkflowStateEntries.Pair("IPv4", "10.0.0.1"))));
+      WorkflowStateEntries globalEntries = entries(List.of(input("Port", "80", "443")), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-subset"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(2, batches.size());
+      for (ConditionService.ExecutionBatch batch : batches) {
+        JsonObject json = inputJson(batch);
+        assertEquals("10.0.0.1", json.get("IPv4").getAsString());
+        assertTrue(Set.of("80", "443").contains(json.get("Port").getAsString()));
+        assertEquals("static-default", json.get("Text").getAsString());
+      }
+    }
+
+    @Test
+    void given_localCorrelatedCoversRequiredKeys_shouldAlsoGenerateBestEffortCombinations() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-local-priority");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.LOCAL, PrimitiveType.Port, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Host, null));
+
+      WorkflowStateEntries localEntries =
+          entries(
+              List.of(input("Port", "5040")),
+              List.of(
+                  correlated(
+                      "PortsScan",
+                      new WorkflowStateEntries.Pair("Host", "0.0.0.0"),
+                      new WorkflowStateEntries.Pair("Port", "5040"),
+                      new WorkflowStateEntries.Pair("Service", "TCP"))));
+      WorkflowStateEntries globalEntries =
+          entries(List.of(input("Host", "0.0.0.0", "1.1.1.1", "2.2.2.2", "3.3.3.3")), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-local-priority"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(4, batches.size());
+      Set<String> hostPorts =
+          batches.stream()
+              .map(
+                  b -> {
+                    JsonObject json = inputJson(b);
+                    return json.get("Host").getAsString() + ":" + json.get("Port").getAsString();
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(
+          Set.of("0.0.0.0:5040", "1.1.1.1:5040", "2.2.2.2:5040", "3.3.3.3:5040"), hostPorts);
+    }
+
+    @Test
+    void given_localMappersAndCorrelatedOnly_should_generateBatchEvenIfHostNotInInputs() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-local-correlated-only");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.LOCAL, PrimitiveType.Port, null),
+              mapper(MappingType.LOCAL, PrimitiveType.Host, null));
+
+      WorkflowStateEntries localEntries =
+          entries(
+              List.of(input("Port", "5040")),
+              List.of(
+                  correlated(
+                      "PortsScan",
+                      new WorkflowStateEntries.Pair("Host", "0.0.0.0"),
+                      new WorkflowStateEntries.Pair("Port", "5040"),
+                      new WorkflowStateEntries.Pair("Service", "TCP"))));
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-local-correlated-only"))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals("5040", json.get("Port").getAsString());
+      assertEquals("0.0.0.0", json.get("Host").getAsString());
+    }
+
+    @Test
+    void
+        given_portInLocalCorrelatedAndHostInGlobalState_should_completeHostFromGlobalMappingType() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-local-port-global-host");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.LOCAL, PrimitiveType.Port, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Host, null));
+
+      WorkflowStateEntries localEntries =
+          entries(
+              List.of(),
+              List.of(
+                  correlated(
+                      "PortsScan",
+                      new WorkflowStateEntries.Pair("Port", "5040"),
+                      new WorkflowStateEntries.Pair("Filename", "scan.txt"))));
+      WorkflowStateEntries globalEntries =
+          entries(List.of(input("Host", "1.1.1.1", "2.2.2.2")), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-local-port-global-host"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(2, batches.size());
+      Set<String> hostPorts =
+          batches.stream()
+              .map(
+                  b -> {
+                    JsonObject json = inputJson(b);
+                    return json.get("Host").getAsString() + ":" + json.get("Port").getAsString();
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("1.1.1.1:5040", "2.2.2.2:5040"), hostPorts);
+    }
+
+    @Test
+    void given_fullCorrelatedCoverageButAlreadyExecuted_shouldKeepBestEffortCombinations() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-local-priority-executed");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.LOCAL, PrimitiveType.Port, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Host, null));
+
+      // Hash identity is keyed by mapper position ("mapper#<index in mappers list>"), not by
+      // source type name, so it stays unique even when mappers share a source type.
+      Map<String, String> executedCombo = new java.util.TreeMap<>();
+      executedCombo.put("mapper#0", "5040"); // Port mapper (index 0)
+      executedCombo.put("mapper#1", "0.0.0.0"); // Host mapper (index 1)
+      String executedHash = hashCombo(executedCombo);
+
+      WorkflowStateEntries localEntries =
+          entries(
+              List.of(input("Port", "5040")),
+              List.of(
+                  correlated(
+                      "PortsScan",
+                      new WorkflowStateEntries.Pair("Host", "0.0.0.0"),
+                      new WorkflowStateEntries.Pair("Port", "5040"),
+                      new WorkflowStateEntries.Pair("Service", "TCP"))),
+              Set.of(executedHash));
+      WorkflowStateEntries globalEntries =
+          entries(List.of(input("Host", "0.0.0.0", "1.1.1.1", "2.2.2.2", "3.3.3.3")), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-local-priority-executed"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(3, batches.size());
+      Set<String> hostPorts =
+          batches.stream()
+              .map(
+                  b -> {
+                    JsonObject json = inputJson(b);
+                    return json.get("Host").getAsString() + ":" + json.get("Port").getAsString();
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("1.1.1.1:5040", "2.2.2.2:5040", "3.3.3.3:5040"), hostPorts);
+    }
+
+    @Test
+    void given_supersetCorrelatedTuple_should_ignoreExtraKeysOutsideMapperScope() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-superset");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.GLOBAL, PrimitiveType.IPv4, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Port, null));
+
+      WorkflowStateEntries globalEntries =
+          entries(
+              List.of(input("IPv4", "10.0.0.1"), input("Port", "443")),
+              List.of(
+                  correlated(
+                      "RichTuple",
+                      new WorkflowStateEntries.Pair("IPv4", "10.0.0.1"),
+                      new WorkflowStateEntries.Pair("Port", "443"),
+                      new WorkflowStateEntries.Pair("Text", "folder-A"))));
+      WorkflowStateEntries localEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-superset"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals("10.0.0.1", json.get("IPv4").getAsString());
+      assertEquals("443", json.get("Port").getAsString());
+      assertFalse(json.has("Text"));
+    }
+
+    @Test
+    void given_correlatedAndFallbackSameCombo_should_deduplicateToSingleBatch() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-dedup");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.GLOBAL, PrimitiveType.IPv4, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Port, null));
+
+      WorkflowStateEntries globalEntries =
+          entries(
+              List.of(input("IPv4", "10.0.0.9"), input("Port", "8443")),
+              List.of(
+                  correlated(
+                      "HostPort",
+                      new WorkflowStateEntries.Pair("IPv4", "10.0.0.9"),
+                      new WorkflowStateEntries.Pair("Port", "8443"))));
+      WorkflowStateEntries localEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-dedup"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals("10.0.0.9", json.get("IPv4").getAsString());
+      assertEquals("8443", json.get("Port").getAsString());
+    }
+
+    @Test
+    void given_onlyDefaultMappers_should_returnSingleBatchWithDefaults() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-default-only");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.DEFAULT, PrimitiveType.Text, "admin"),
+              mapper(MappingType.DEFAULT, PrimitiveType.Host, "worker-01"));
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-default-only"))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals("admin", json.get("Text").getAsString());
+      assertEquals("worker-01", json.get("Host").getAsString());
+      assertNotNull(batches.getFirst().hash());
+    }
+
+    @Test
+    void given_twoMappersSharingSameSourceType_should_generateAllCombinationsWithoutDuplicates() {
+      // -------- Arrange --------
+      // Regression test: two input fields ("value" and "value2") both mapped from the same
+      // primitive type pool used to silently collapse "swapped" combinations (e.g. value=A/
+      // value2=B vs value=B/value2=A) into the same hash, dropping one and duplicating another.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-shared-type");
+
+      Condition valueMapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      valueMapper.setKey("value");
+      Condition value2Mapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      value2Mapper.setKey("value2");
+      List<Condition> mappers = List.of(valueMapper, value2Mapper);
+
+      WorkflowStateEntries localEntries = entries(List.of(input("Text", "key", "pass")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-shared-type"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      // 2 mappers x 2 candidate values each = 4 distinct combinations, no drops, no duplicates.
+      assertEquals(4, batches.size());
+
+      Set<String> combos =
+          batches.stream()
+              .map(
+                  b -> {
+                    Map<String, String> byKey =
+                        b.usedMappers().stream()
+                            .collect(
+                                java.util.stream.Collectors.toMap(
+                                    Condition::getKey, Condition::getValue));
+                    return byKey.get("value") + ":" + byKey.get("value2");
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("key:key", "key:pass", "pass:key", "pass:pass"), combos);
+
+      // All batch hashes are unique (no accidental collisions causing duplicate executions).
+      Set<String> hashes =
+          batches.stream()
+              .map(ConditionService.ExecutionBatch::hash)
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(4, hashes.size());
+    }
+
+    @Test
+    void given_alreadyExecutedSwappedCombo_should_stillGenerateItsDistinctMirrorCombo() {
+      // -------- Arrange --------
+      // Even if one cross-combination (value=key/value2=pass) was already executed, its mirror
+      // (value=pass/value2=key) must still be generated: they are distinct combinations, not the
+      // same hash.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-shared-type-executed");
+
+      Condition valueMapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      valueMapper.setKey("value");
+      Condition value2Mapper = mapper(MappingType.LOCAL, PrimitiveType.Text, null);
+      value2Mapper.setKey("value2");
+      List<Condition> mappers = List.of(valueMapper, value2Mapper);
+
+      // Mark "value=key / value2=pass" (mapper#0="key", mapper#1="pass") as already executed.
+      Map<String, String> executedCombo = new java.util.TreeMap<>();
+      executedCombo.put("mapper#0", "key");
+      executedCombo.put("mapper#1", "pass");
+      String executedHash = hashCombo(executedCombo);
+
+      WorkflowStateEntries localEntries =
+          entries(List.of(input("Text", "key", "pass")), List.of(), Set.of(executedHash));
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-shared-type-executed"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      // 4 combinations minus the 1 already executed = 3 remaining, including the mirror combo.
+      assertEquals(3, batches.size());
+      Set<String> combos =
+          batches.stream()
+              .map(
+                  b -> {
+                    Map<String, String> byKey =
+                        b.usedMappers().stream()
+                            .collect(
+                                java.util.stream.Collectors.toMap(
+                                    Condition::getKey, Condition::getValue));
+                    return byKey.get("value") + ":" + byKey.get("value2");
+                  })
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("key:key", "pass:key", "pass:pass"), combos);
+    }
+
+    @Test
+    void
+        given_mapperWithBothDefinedValueAndLinkedType_should_includeDefinedValueAsExtraCandidate() {
+      // -------- Arrange --------
+      // A mapper can have a static "defined value" set before a primitive type is linked to it.
+      // Linking a type switches its mappingType away from DEFAULT, but the defined value must
+      // still be used as one more candidate in the generated combinations, not discarded.
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-defined-plus-linked-type");
+
+      Condition mapperWithDefinedValue =
+          mapper(MappingType.LOCAL, PrimitiveType.Text, "manual-value");
+      mapperWithDefinedValue.setKey("value");
+      List<Condition> mappers = List.of(mapperWithDefinedValue);
+
+      WorkflowStateEntries localEntries =
+          entries(List.of(input("Text", "pool-a", "pool-b")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-defined-plus-linked-type"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      // 2 values from the linked type's pool + 1 defined value = 3 distinct combinations.
+      assertEquals(3, batches.size());
+      Set<String> values =
+          batches.stream()
+              .map(b -> b.usedMappers().getFirst().getValue())
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("pool-a", "pool-b", "manual-value"), values);
+    }
+
+    @Test
+    void given_mapperDefinedValueAlreadyInLinkedTypePool_should_notGenerateDuplicateCombination() {
+      // -------- Arrange --------
+      // If the defined value happens to already be one of the linked type's pool values, it must
+      // not be added a second time (would otherwise execute the exact same effective value twice).
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-defined-value-collision");
+
+      Condition mapperWithDefinedValue = mapper(MappingType.LOCAL, PrimitiveType.Text, "pool-a");
+      mapperWithDefinedValue.setKey("value");
+      List<Condition> mappers = List.of(mapperWithDefinedValue);
+
+      WorkflowStateEntries localEntries =
+          entries(List.of(input("Text", "pool-a", "pool-b")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-defined-value-collision"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(2, batches.size());
+      Set<String> values =
+          batches.stream()
+              .map(b -> b.usedMappers().getFirst().getValue())
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("pool-a", "pool-b"), values);
+    }
+
+    @Test
+    void given_defaultMapperAndMissingLinkedMapper_should_generateSingleBatchWithDefaultOnly() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-default-plus-missing-linked");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.DEFAULT, PrimitiveType.Text, "admin"),
+              mapper(MappingType.LOCAL, PrimitiveType.Host, null));
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-default-plus-missing-linked"))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals("admin", json.get("Text").getAsString());
+      assertFalse(json.has("Host"));
+
+      Condition textMapper =
+          batches.getFirst().usedMappers().stream()
+              .filter(mapper -> "Text".equals(mapper.getKey()))
+              .findFirst()
+              .orElseThrow();
+      Condition hostMapper =
+          batches.getFirst().usedMappers().stream()
+              .filter(mapper -> "Host".equals(mapper.getKey()))
+              .findFirst()
+              .orElseThrow();
+      assertEquals("admin", textMapper.getValue());
+      assertNull(hostMapper.getValue());
+    }
+
+    @Test
+    void given_allLinkedMappersMissingValues_should_generateSingleEmptyInputBatch() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-all-linked-missing");
+
+      List<Condition> mappers =
+          List.of(
+              mapper(MappingType.LOCAL, PrimitiveType.IPv4, null),
+              mapper(MappingType.GLOBAL, PrimitiveType.Port, null));
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-all-linked-missing"))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(entries(List.of(), List.of())));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(1, batches.size());
+      JsonObject json = inputJson(batches.getFirst());
+      assertEquals(0, json.size());
+      assertEquals(2, batches.getFirst().usedMappers().size());
+      assertTrue(
+          batches.getFirst().usedMappers().stream().allMatch(mapper -> mapper.getValue() == null));
     }
   }
 
@@ -487,7 +1214,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -524,7 +1251,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -560,7 +1287,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -596,7 +1323,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -631,7 +1358,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -669,7 +1396,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -707,7 +1434,7 @@ public class ConditionServiceTest {
 
       Condition eqCondition = new Condition();
       eqCondition.setType(ConditionType.EQ);
-      eqCondition.setKeyType(ConditionKeyType.IPv4);
+      eqCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
       eqCondition.setValue("10.0.0.1");
 
       doReturn(List.of(eqCondition)).when(conditionService).findAllConditionsByStepId(stepId);
@@ -795,7 +1522,7 @@ public class ConditionServiceTest {
     }
 
     @Test
-    void shouldPreserveExcludedCondition_whenUnlinkedButInExclusionList() {
+    void shouldLeaveExcludedConditionUntouched_whenInExclusionList() {
       String removedStepId = "step-A";
 
       Condition condition = new Condition();
@@ -805,14 +1532,110 @@ public class ConditionServiceTest {
       conditionService.linkToStep(condition, stepA, true);
 
       when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
+
+      conditionService.deleteAllConditionsByStepId(removedStepId, List.of("cond-excluded"));
+
+      // Untouched means untouched: not unlinked, not saved, not deleted. Unlinking a preserved node
+      // and saving it is what left a surviving parent pointing at a deleted child, failing the step
+      // merge with ObjectDeletedException.
+      verify(conditionRepository, never()).save(any());
+      verify(conditionRepository, never()).delete(any());
+      assertEquals(1, condition.getConditionSteps().size());
+      assertEquals(removedStepId, condition.getConditionSteps().getFirst().getStep().getId());
+    }
+
+    @Test
+    void shouldLeaveTheChildrenOfAnExcludedConditionUntouched_whenOnlyItsRootIsNamed() {
+      String removedStepId = "step-A";
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+
+      // createConditionTree links EVERY node of an event's tree to the step, but the caller only
+      // ever
+      // names the ROOT it keeps, so the child's preservation has to be derived from its parent
+      // chain.
+      Condition root = new Condition();
+      root.setId("cond-root");
+      Condition child = new Condition();
+      child.setId("cond-child");
+      child.setConditionParent(root);
+      root.setConditionChildren(List.of(child));
+      conditionService.linkToStep(root, stepA, true);
+      conditionService.linkToStep(child, stepA, false);
+
+      when(conditionRepository.findAllLinkedToStepId(removedStepId))
+          .thenReturn(List.of(root, child));
+
+      conditionService.deleteAllConditionsByStepId(removedStepId, List.of("cond-root"));
+
+      verify(conditionRepository, never()).save(any());
+      verify(conditionRepository, never()).delete(any());
+      assertEquals(1, child.getConditionSteps().size());
+    }
+
+    @Test
+    void shouldTerminate_whenACorruptedParentChainFormsACycle() {
+      String removedStepId = "step-A";
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+
+      // Corrupted data: two conditions each claiming the other as parent. The preservation walk
+      // must terminate instead of looping forever, and neither matches the exclusion list.
+      Condition a = new Condition();
+      a.setId("cond-a");
+      Condition b = new Condition();
+      b.setId("cond-b");
+      a.setConditionParent(b);
+      b.setConditionParent(a);
+      conditionService.linkToStep(a, stepA, true);
+      conditionService.linkToStep(b, stepA, false);
+
+      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(a, b));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      conditionService.deleteAllConditionsByStepId(removedStepId, List.of("cond-unrelated"));
+
+      verify(conditionRepository, times(2)).save(any(Condition.class));
+    }
+
+    @Test
+    void shouldNotPreserveACondition_whenItHasNoIdYet() {
+      String removedStepId = "step-A";
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+
+      // A condition with no id was never persisted, so no caller can have named it as preserved.
+      Condition condition = new Condition();
+      conditionService.linkToStep(condition, stepA, true);
+
+      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
       when(conditionRepository.save(any(Condition.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       conditionService.deleteAllConditionsByStepId(removedStepId, List.of("cond-excluded"));
 
-      verify(conditionRepository).save(condition);
-      verify(conditionRepository, never()).delete(any());
-      assertTrue(condition.getConditionSteps().isEmpty());
+      verify(conditionRepository).delete(condition);
+    }
+
+    @Test
+    void shouldTolerateANullEntryInTheExclusionList() {
+      String removedStepId = "step-A";
+
+      Condition condition = new Condition();
+      condition.setId("cond-deleted");
+      Step stepA = new Step();
+      stepA.setId(removedStepId);
+      conditionService.linkToStep(condition, stepA, true);
+
+      when(conditionRepository.findAllLinkedToStepId(removedStepId)).thenReturn(List.of(condition));
+      when(conditionRepository.save(any(Condition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      conditionService.deleteAllConditionsByStepId(
+          removedStepId, Arrays.asList(null, "cond-other"));
+
+      verify(conditionRepository).delete(condition);
     }
   }
 
@@ -876,7 +1699,7 @@ public class ConditionServiceTest {
       childInput.setTemporaryId("tmp-child");
       childInput.setTemporaryIdConditionParent("tmp-root");
       childInput.setType(ConditionType.EQ);
-      childInput.setKeyType(ConditionKeyType.Portscan);
+      childInput.setKeyTypes(List.of(PrimitiveType.Port));
       childInput.setValue("445");
 
       EventInput input =
@@ -948,7 +1771,7 @@ public class ConditionServiceTest {
       childInput.setTemporaryId("tmp-child");
       childInput.setTemporaryIdConditionParent("tmp-root");
       childInput.setType(ConditionType.EQ);
-      childInput.setKeyType(ConditionKeyType.Status);
+      childInput.setKeyTypes(List.of(PrimitiveType.Text));
       childInput.setValue("ok");
 
       EventInput input =
@@ -1089,9 +1912,14 @@ public class ConditionServiceTest {
   class IsFilterConditionValid {
 
     private Condition leaf(ConditionType type, String value) {
+      return leaf(type, value, true);
+    }
+
+    private Condition leaf(ConditionType type, String value, boolean caseSensitive) {
       Condition c = new Condition();
       c.setType(type);
       c.setValue(value);
+      c.setCaseSensitive(caseSensitive);
       return c;
     }
 
@@ -1215,7 +2043,8 @@ public class ConditionServiceTest {
 
       @Test
       void eq_shouldReturnTrue_whenValuesMatch_caseInsensitive() {
-        assertTrue(conditionUtils.isFilterConditionValid("Admin", leaf(ConditionType.EQ, "admin")));
+        assertTrue(
+            conditionUtils.isFilterConditionValid("Admin", leaf(ConditionType.EQ, "admin", false)));
       }
 
       @Test
@@ -1263,9 +2092,17 @@ public class ConditionServiceTest {
       }
 
       @Test
+      void in_shouldTrimSingleTargetCandidate() {
+        assertTrue(
+            conditionUtils.isFilterConditionValid(
+                "prefix-admin-suffix", leaf(ConditionType.IN, "  admin  ")));
+      }
+
+      @Test
       void in_shouldBeCaseInsensitive() {
         assertTrue(
-            conditionUtils.isFilterConditionValid("ADMIN", leaf(ConditionType.IN, "admin, root")));
+            conditionUtils.isFilterConditionValid(
+                "ADMIN", leaf(ConditionType.IN, "admin, root", false)));
       }
 
       @Test
@@ -1396,6 +2233,315 @@ public class ConditionServiceTest {
         assertTrue(
             conditionUtils.isFilterConditionValid("any", leaf(ConditionType.DEPEND_ON, "some-id")));
       }
+    }
+  }
+
+  /* ============================================================
+   * isFilterTreeSatisfied — empty AND node defense
+   * ============================================================ */
+  @Nested
+  class FilterTreeEmptyAndNode {
+
+    @Test
+    void given_andNodeWithNoChildren_should_returnFalse() throws Exception {
+      // Arrange: AND node with empty children list
+      Condition andNode =
+          Condition.builder()
+              .type(ConditionType.AND)
+              .build(); // conditionChildren defaults to empty
+
+      // Access private method via reflection
+      java.lang.reflect.Method method =
+          ConditionService.class.getDeclaredMethod(
+              "isFilterTreeSatisfied", Condition.class, java.util.function.Supplier.class);
+      method.setAccessible(true);
+
+      java.util.function.Supplier<?> dummySupplier = () -> null;
+
+      // Act
+      boolean result = (boolean) method.invoke(conditionService, andNode, dummySupplier);
+
+      // Assert — an empty AND must NOT be satisfied (gate must stay closed)
+      assertFalse(result);
+    }
+
+    @Test
+    void given_andNodeWithNullChildren_should_returnFalse() throws Exception {
+      // Arrange: AND node with null children
+      Condition andNode = Condition.builder().type(ConditionType.AND).build();
+      andNode.setConditionChildren(null);
+
+      java.lang.reflect.Method method =
+          ConditionService.class.getDeclaredMethod(
+              "isFilterTreeSatisfied", Condition.class, java.util.function.Supplier.class);
+      method.setAccessible(true);
+
+      java.util.function.Supplier<?> dummySupplier = () -> null;
+
+      // Act
+      boolean result = (boolean) method.invoke(conditionService, andNode, dummySupplier);
+
+      // Assert
+      assertFalse(result);
+    }
+  }
+
+  /* ============================================================
+   * findEventsByWorkflowId — cold read with complete tree
+   * ============================================================ */
+  @Nested
+  class FindEventsByWorkflowId {
+
+    @Test
+    void given_deepEventTree_when_readByWorkflow_should_returnCompleteContent_withoutLazyInit() {
+      // GIVEN a workflow with a root AND "totoCond" -> child OR group -> leaf EQ "toto"
+      //       root.getConditionChildren() is left EMPTY to simulate the cold read
+      String workflowId = "wf-1";
+
+      Condition root = Condition.builder().type(ConditionType.AND).build();
+      root.setId("root-id");
+      root.setName("totoCond");
+      root.setWorkflowId(workflowId);
+      root.setConditionChildren(List.of()); // simulate uninitialized lazy collection
+
+      Condition childGroup =
+          Condition.builder().type(ConditionType.OR).conditionParent(root).build();
+      childGroup.setId("child-group-id");
+      childGroup.setWorkflowId(workflowId);
+      childGroup.setConditionChildren(List.of()); // not initialized
+
+      Condition leaf =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("text")
+              .value("toto")
+              .conditionParent(childGroup)
+              .build();
+      leaf.setId("leaf-id");
+      leaf.setWorkflowId(workflowId);
+
+      // Repository returns the FLAT list (root + descendants)
+      when(conditionRepository.findAllByWorkflowIdAndTypeNot(workflowId, ConditionType.MAPPER))
+          .thenReturn(List.of(root, childGroup, leaf));
+
+      // WHEN
+      List<EventOutput> events = conditionService.findEventsByWorkflowId(workflowId);
+
+      // THEN one event returned
+      assertEquals(1, events.size());
+      EventOutput event = events.get(0);
+      assertEquals("totoCond", event.getName());
+
+      // The event contains root + child group + leaf = 3 conditions
+      assertEquals(3, event.getConditions().size());
+
+      // The leaf value "toto" is present in the mapped output
+      assertTrue(
+          event.getConditions().stream().anyMatch(c -> "toto".equals(c.getValue())),
+          "Leaf condition with value 'toto' should be in the event output");
+    }
+
+    @Test
+    void given_twoIndependentEvents_when_readByWorkflow_should_notContaminateEachOther() {
+      // GIVEN two independent root events in the same workflow
+      String workflowId = "wf-2";
+
+      Condition rootA = Condition.builder().type(ConditionType.AND).build();
+      rootA.setId("root-a");
+      rootA.setName("EventA");
+      rootA.setWorkflowId(workflowId);
+      rootA.setConditionChildren(List.of());
+
+      Condition leafA =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("field_a")
+              .value("valueA")
+              .conditionParent(rootA)
+              .build();
+      leafA.setId("leaf-a");
+      leafA.setWorkflowId(workflowId);
+
+      Condition rootB = Condition.builder().type(ConditionType.OR).build();
+      rootB.setId("root-b");
+      rootB.setName("EventB");
+      rootB.setWorkflowId(workflowId);
+      rootB.setConditionChildren(List.of());
+
+      Condition leafB =
+          Condition.builder()
+              .type(ConditionType.EQ)
+              .key("field_b")
+              .value("valueB")
+              .conditionParent(rootB)
+              .build();
+      leafB.setId("leaf-b");
+      leafB.setWorkflowId(workflowId);
+
+      when(conditionRepository.findAllByWorkflowIdAndTypeNot(workflowId, ConditionType.MAPPER))
+          .thenReturn(List.of(rootA, leafA, rootB, leafB));
+
+      // WHEN
+      List<EventOutput> events = conditionService.findEventsByWorkflowId(workflowId);
+
+      // THEN two events returned
+      assertEquals(2, events.size());
+
+      EventOutput eventA =
+          events.stream().filter(e -> "EventA".equals(e.getName())).findFirst().orElseThrow();
+      EventOutput eventB =
+          events.stream().filter(e -> "EventB".equals(e.getName())).findFirst().orElseThrow();
+
+      // EventA has root + leafA = 2 conditions, NOT leafB
+      assertEquals(2, eventA.getConditions().size());
+      assertTrue(eventA.getConditions().stream().anyMatch(c -> "valueA".equals(c.getValue())));
+      assertFalse(
+          eventA.getConditions().stream().anyMatch(c -> "valueB".equals(c.getValue())),
+          "EventA must not contain EventB's leaf");
+
+      // EventB has root + leafB = 2 conditions, NOT leafA
+      assertEquals(2, eventB.getConditions().size());
+      assertTrue(eventB.getConditions().stream().anyMatch(c -> "valueB".equals(c.getValue())));
+      assertFalse(
+          eventB.getConditions().stream().anyMatch(c -> "valueA".equals(c.getValue())),
+          "EventB must not contain EventA's leaf");
+    }
+  }
+
+  /* ============================================================
+   * Logic-map freeze (ADR-005) — create / update / delete guards
+   * ============================================================ */
+  @Nested
+  class LogicMapFreezeTests {
+
+    private Workflow workflowWithSimulation(String workflowId, ExerciseStatus status) {
+      Exercise simulation = new Exercise();
+      simulation.setStatus(status);
+      return Workflow.builder().id(workflowId).simulation(simulation).build();
+    }
+
+    private EventInput singleRootEventInput(String workflowId) {
+      ConditionCreateInput rootInput = new ConditionCreateInput();
+      rootInput.setTemporaryId("tmp-root");
+      rootInput.setType(ConditionType.AND);
+      return EventInput.builder()
+          .name("event")
+          .workflowId(workflowId)
+          .conditions(List.of(rootInput))
+          .build();
+    }
+
+    @Test
+    void given_runningSimulation_should_rejectCreateConditionTree() {
+      // Arrange
+      String workflowId = "wf-running";
+      when(workflowRepository.findById(workflowId))
+          .thenReturn(Optional.of(workflowWithSimulation(workflowId, ExerciseStatus.RUNNING)));
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> conditionService.createConditionTree(singleRootEventInput(workflowId)));
+      verify(conditionRepository, never()).save(any());
+    }
+
+    @Test
+    void given_scheduledSimulation_should_allowCreateConditionTree() {
+      // Arrange
+      String workflowId = "wf-scheduled";
+      when(workflowRepository.findById(workflowId))
+          .thenReturn(Optional.of(workflowWithSimulation(workflowId, ExerciseStatus.SCHEDULED)));
+      when(conditionRepository.save(any(Condition.class))).thenAnswer(inv -> inv.getArgument(0));
+
+      // Act & Assert
+      assertDoesNotThrow(
+          () -> conditionService.createConditionTree(singleRootEventInput(workflowId)));
+    }
+
+    @Test
+    void given_persistedRootOnRunningSimulation_should_rejectUpdate_ignoringClientWorkflowId() {
+      // Arrange — the persisted root belongs to a RUNNING simulation, while the client tries to
+      // pass a SCHEDULED workflow id in the payload to bypass the freeze.
+      String rootId = "root-1";
+      String runningWorkflowId = "wf-running";
+      Condition existingRoot = new Condition();
+      existingRoot.setId(rootId);
+      existingRoot.setWorkflowId(runningWorkflowId);
+      existingRoot.setType(ConditionType.OR);
+      when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
+      when(workflowRepository.findById(runningWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(runningWorkflowId, ExerciseStatus.RUNNING)));
+
+      EventInput input = singleRootEventInput("wf-scheduled-client-supplied");
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> conditionService.updateConditionTree(rootId, input));
+    }
+
+    @Test
+    void given_editableRoot_should_rejectUpdate_whenTargetWorkflowIsFrozen() {
+      // Arrange — the persisted root is editable (SCHEDULED), but the client re-points it onto a
+      // launched (RUNNING) workflow via the payload. Both source and target must be editable.
+      String rootId = "root-1";
+      String scheduledWorkflowId = "wf-scheduled-source";
+      String frozenTargetWorkflowId = "wf-running-target";
+      Condition existingRoot = new Condition();
+      existingRoot.setId(rootId);
+      existingRoot.setWorkflowId(scheduledWorkflowId);
+      existingRoot.setType(ConditionType.OR);
+      when(conditionRepository.findById(rootId)).thenReturn(Optional.of(existingRoot));
+      when(workflowRepository.findById(scheduledWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(scheduledWorkflowId, ExerciseStatus.SCHEDULED)));
+      when(workflowRepository.findById(frozenTargetWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(frozenTargetWorkflowId, ExerciseStatus.RUNNING)));
+
+      EventInput input = singleRootEventInput(frozenTargetWorkflowId);
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> conditionService.updateConditionTree(rootId, input));
+    }
+
+    @Test
+    void given_runningSimulation_should_rejectDeleteConditionTree() {
+      // Arrange
+      String conditionRootId = "cond-1";
+      String runningWorkflowId = "wf-running";
+      Condition condition = new Condition();
+      condition.setId(conditionRootId);
+      condition.setWorkflowId(runningWorkflowId);
+      when(conditionRepository.findById(conditionRootId)).thenReturn(Optional.of(condition));
+      when(workflowRepository.findById(runningWorkflowId))
+          .thenReturn(
+              Optional.of(workflowWithSimulation(runningWorkflowId, ExerciseStatus.RUNNING)));
+
+      // Act & Assert
+      assertThrows(
+          WorkflowNotEditableException.class,
+          () -> conditionService.deleteConditionTree(conditionRootId));
+      verify(conditionRepository, never()).deleteById(anyString());
+    }
+
+    @Test
+    void given_unknownWorkflow_should_notBlockDelete() {
+      // Arrange — no workflow found: the freeze guard is a no-op (scenario/unknown workflow).
+      String conditionRootId = "cond-2";
+      String workflowId = "wf-unknown";
+      Condition condition = new Condition();
+      condition.setId(conditionRootId);
+      condition.setWorkflowId(workflowId);
+      when(conditionRepository.findById(conditionRootId)).thenReturn(Optional.of(condition));
+      when(workflowRepository.findById(workflowId)).thenReturn(Optional.empty());
+
+      // Act & Assert
+      assertDoesNotThrow(() -> conditionService.deleteConditionTree(conditionRootId));
+      verify(conditionRepository).deleteById(conditionRootId);
     }
   }
 }

@@ -8,7 +8,7 @@ import { SIMULATIONS } from '../../../../../../../components/common/queryable/fi
 import SimulationField from '../../../../../../../components/fields/SimulationField';
 import { useFormatter } from '../../../../../../../components/i18n';
 import Loader from '../../../../../../../components/Loader';
-import { type InjectExpectation, type Series } from '../../../../../../../utils/api-types';
+import { type InjectExpectationOutput, type Series } from '../../../../../../../utils/api-types';
 import type { GroupOption } from '../../../../../../../utils/Option';
 import { CustomDashboardContext } from '../../../CustomDashboardContext';
 import { extractGroupOptionsFromCustomDashboardParameters, getSeries, updateSimulationFilterOnSeries } from '../../WidgetUtils';
@@ -32,7 +32,7 @@ const perspectives: {
   icon: () => SvgIconComponent;
   title: string;
   description: string;
-  type: InjectExpectation['inject_expectation_type'];
+  type: InjectExpectationOutput['inject_expectation_type'];
 }[] = [{
   icon: () => TrackChangesOutlined,
   title: 'Detection',
@@ -93,7 +93,7 @@ const WidgetSecurityCoverageSeriesSelection: FunctionComponent<Props> = ({ value
   };
 
   if (loader) {
-    return <Loader />;
+    return <Loader variant="inElement" />;
   }
 
   return (

@@ -23,6 +23,8 @@ export const formProps = (initialValues: ExpectationInputForm, t: (key: string) 
     expectation_description: z.string().optional(),
     expectation_score: z.number({ error: t('Score must be a valid number') }).min(1, t('Score must be greater than 0')).max(100, t('Score must be less than or equal to 100')).int(t('Score must be a whole number')),
     expectation_expectation_group: z.boolean(),
+    expectation_is_predefined: z.boolean(),
+    expectation_expected_security_platform_types: z.array(z.string()).optional(),
     expiration_time_days: z.number().min(0),
     expiration_time_hours: z.number().min(0),
     expiration_time_minutes: z.number().min(0),

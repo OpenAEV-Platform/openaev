@@ -123,7 +123,7 @@ public class PlatformGroupApi extends RestBehavior {
   public List<String> updateUsers(
       @PathVariable String platformGroupId,
       @Valid @RequestBody PlatformGroupUpdateUsersInput input) {
-    return platformGroupService.updatePlatformGroupUsers(platformGroupId, input.userIds());
+    return platformGroupService.updateGroupUsers(platformGroupId, input.userIds());
   }
 
   @Operation(summary = "Update platform roles of a platform group")
@@ -137,7 +137,7 @@ public class PlatformGroupApi extends RestBehavior {
   public Set<String> updatePlatformRoles(
       @PathVariable String platformGroupId,
       @Valid @RequestBody PlatformGroupUpdateRolesInput input) {
-    return platformGroupService.updatePlatformGroupRoles(platformGroupId, input.platformRoleIds());
+    return platformGroupService.updateGroupRoles(platformGroupId, input.platformRoleIds());
   }
 
   // -- DELETE --
@@ -152,6 +152,6 @@ public class PlatformGroupApi extends RestBehavior {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
   public void delete(@PathVariable String platformGroupId) {
-    platformGroupService.deletePlatformGroup(platformGroupId);
+    platformGroupService.delete(platformGroupId);
   }
 }

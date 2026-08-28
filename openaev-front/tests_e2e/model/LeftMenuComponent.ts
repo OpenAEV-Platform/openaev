@@ -17,8 +17,7 @@ class LeftMenuComponent {
   };
 
   async goToTeams() {
-    await this.page.getByRole('menuitem', { name: 'People' }).click();
-    return this.page.getByRole('menuitem', { name: 'Players' }).click();
+    return this.page.getByRole('menuitem', { name: 'Persons' }).click();
   }
 }
 

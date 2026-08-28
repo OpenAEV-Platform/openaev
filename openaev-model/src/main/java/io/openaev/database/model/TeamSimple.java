@@ -97,13 +97,13 @@ public class TeamSimple {
     return this.scenariosInjects.size();
   }
 
-  @JsonIgnore private List<InjectExpectation> injectExpectations = new ArrayList<>();
+  @JsonIgnore private List<BaseInjectExpectation> injectExpectations = new ArrayList<>();
 
   @JsonProperty("team_inject_expectations")
   @Schema(description = "List of expectation ids linked to this team")
   private Set<String> getInjectExpectationsAsStringList() {
     return getInjectExpectations().stream()
-        .map(InjectExpectation::getId)
+        .map(BaseInjectExpectation::getId)
         .collect(Collectors.toSet());
   }
 
@@ -119,7 +119,7 @@ public class TeamSimple {
   public double getInjectExpectationsTotalScore() {
     return getInjectExpectations().stream()
         .filter((inject) -> inject.getScore() != null)
-        .mapToDouble(InjectExpectation::getScore)
+        .mapToDouble(BaseInjectExpectation::getScore)
         .sum();
   }
 
@@ -135,7 +135,7 @@ public class TeamSimple {
         .collect(
             Collectors.groupingBy(
                 expectation -> expectation.getExercise().getId(),
-                Collectors.summingDouble(InjectExpectation::getScore)));
+                Collectors.summingDouble(BaseInjectExpectation::getScore)));
   }
 
   @JsonProperty("team_injects_expectations_total_expected_score")
@@ -144,7 +144,7 @@ public class TeamSimple {
   public double getInjectExpectationsTotalExpectedScore() {
     return getInjectExpectations().stream()
         .filter(expectation -> Objects.nonNull(expectation.getExpectedScore()))
-        .mapToDouble(InjectExpectation::getExpectedScore)
+        .mapToDouble(BaseInjectExpectation::getExpectedScore)
         .sum();
   }
 
@@ -157,7 +157,7 @@ public class TeamSimple {
         .collect(
             Collectors.groupingBy(
                 expectation -> expectation.getExercise().getId(),
-                Collectors.summingDouble(InjectExpectation::getExpectedScore)));
+                Collectors.summingDouble(BaseInjectExpectation::getExpectedScore)));
   }
 
   // endregion

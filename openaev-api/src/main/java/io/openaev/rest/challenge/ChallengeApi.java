@@ -7,6 +7,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.ChallengeFlag.FLAG_TYPE;
 import io.openaev.database.raw.RawDocument;
@@ -25,6 +26,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,7 +71,9 @@ public class ChallengeApi extends RestBehavior {
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
   public Challenge updateChallenge(
-      @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input) {
+      @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input)
+      throws InputValidationException {
+    challengeService.validateFlags(input.flags());
     Challenge challenge =
         challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
@@ -98,22 +102,25 @@ public class ChallengeApi extends RestBehavior {
   @PostMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
-  public Challenge createChallenge(@Valid @RequestBody ChallengeInput input) {
+  public Challenge createChallenge(@Valid @RequestBody ChallengeInput input)
+      throws InputValidationException {
+    challengeService.validateFlags(input.flags());
     Challenge challenge = new Challenge();
     challenge.setUpdateAttributes(input);
     challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
     challenge.setDocuments(fromIterable(documentRepository.findAllById(input.documentIds())));
     List<ChallengeFlag> challengeFlags =
-        input.flags().stream()
-            .map(
-                flagInput -> {
-                  ChallengeFlag challengeFlag = new ChallengeFlag();
-                  challengeFlag.setType(FLAG_TYPE.valueOf(flagInput.getType()));
-                  challengeFlag.setValue(flagInput.getValue());
-                  challengeFlag.setChallenge(challenge);
-                  return challengeFlag;
-                })
-            .toList();
+        new ArrayList<>(
+            input.flags().stream()
+                .map(
+                    flagInput -> {
+                      ChallengeFlag challengeFlag = new ChallengeFlag();
+                      challengeFlag.setType(FLAG_TYPE.valueOf(flagInput.getType()));
+                      challengeFlag.setValue(flagInput.getValue());
+                      challengeFlag.setChallenge(challenge);
+                      return challengeFlag;
+                    })
+                .toList());
     challenge.setFlags(challengeFlags);
     return challengeRepository.save(challenge);
   }
@@ -125,7 +132,9 @@ public class ChallengeApi extends RestBehavior {
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
   public void deleteChallenge(@PathVariable String challengeId) {
-    challengeRepository.deleteById(challengeId);
+    Challenge challenge =
+        challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
+    challengeRepository.delete(challenge);
   }
 
   @PostMapping({CHALLENGE_URI + "/{challengeId}/try", TENANT_CHALLENGE_URI + "/{challengeId}/try"})
@@ -135,7 +144,9 @@ public class ChallengeApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.CHALLENGE)
   public ChallengeResult tryChallenge(
-      @PathVariable String challengeId, @Valid @RequestBody ChallengeTryInput input)
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for this transaction.
+      TxCtx ctx, @PathVariable String challengeId, @Valid @RequestBody ChallengeTryInput input)
       throws InputValidationException {
     validateUUID(challengeId);
     return challengeService.tryChallenge(challengeId, input);

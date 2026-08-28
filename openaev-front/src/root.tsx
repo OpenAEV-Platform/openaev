@@ -16,10 +16,12 @@ import Loader from './components/Loader';
 import Message from './components/Message';
 import NoTenantAlert from './components/NoTenantAlert';
 import NotFound from './components/NotFound';
+import TimeoutLock from './components/TimeoutLock';
 import SystemBanners from './public/components/systembanners/SystemBanners';
 import LicenseBanner from './public/components/trialbanners/LicenseBanner';
 import StartTrialBanner from './public/components/trialbanners/StartTrialBanner';
 import { useHelper } from './store';
+import { APP_BASE_PATH } from './utils/Environment';
 import ErrorHandler from './utils/error/ErrorHandler';
 import { useAppDispatch } from './utils/hooks';
 import { UserContext } from './utils/hooks/useAuth';
@@ -29,17 +31,19 @@ import PermissionsProvider from './utils/permissions/PermissionsProvider';
 import { buildTenantUrl, DEFAULT_TENANT_UUID, extractTenantFromUrl } from './utils/url-helper';
 
 const RootPublic = lazy(() => import('./public/Root'));
+const XtmHubRedirect = lazy(() => import('./admin/components/xtm_hub/XtmHubRedirect'));
 const IndexPrivate = lazy(() => import('./private/Index'));
 const IndexAdmin = lazy(() => import('./admin/Index'));
 const Comcheck = lazy(() => import('./public/components/comcheck/Comcheck'));
 const Channel = lazy(() => import('./public/components/channels/Channel'));
-const SimulationReport = lazy(() => import('./admin/components/simulations/simulation/reports/SimulationReportPage'));
 const Challenges = lazy(() => import('./public/components/challenges/ChallengesPlayer'));
 const ExerciseViewLessons = lazy(() => import('./public/components/lessons/ExerciseViewLessons'));
 const ScenarioViewLessons = lazy(() => import('./public/components/lessons/ScenarioViewLessons'));
 const UrlAccess = lazy(() => import('./public/components/url_access/UrlAccess'));
+const PhishingPage = lazy(() => import('./public/components/phishing/PhishingPage'));
 const SimulationChallengesPreview = lazy(() => import('./admin/components/simulations/simulation/challenges/SimulationChallengesPreview'));
 const ScenarioChallengesPreview = lazy(() => import('./admin/components/scenarios/scenario/challenges/ScenarioChallengesPreview'));
+const ReportingRender = lazy(() => import('./admin/components/reporting/render/ReportingRender'));
 
 const Root = () => {
   const { logged, me, settings } = useHelper((helper: LoggedHelper) => {
@@ -113,7 +117,10 @@ const Root = () => {
   // When the user is authenticated but the URL has no tenant prefix
   // (e.g. first visit at "/", or right after login), hard-redirect to
   // the tenant-prefixed URL so BrowserRouter picks up the correct basename.
-  if (!extractTenantFromUrl()) {
+  // The benign phishing landing route is intentionally tenant-less (the tenant
+  // is resolved server-side from the token), so it must never be rewritten.
+  const isTenantLessPublicRoute = window.location.pathname.replace(APP_BASE_PATH, '').startsWith('/auth/');
+  if (!extractTenantFromUrl() && !isTenantLessPublicRoute) {
     // Wait for fetchUserTenants (useTenant) before deciding which tenant to use.
     if (userTenants === undefined) {
       return <Loader />;
@@ -137,6 +144,7 @@ const Root = () => {
                 <Message />
                 <ErrorHandler />
                 <EnterpriseEditionAgreementDialog />
+                {(settings.platform_session_idle_timeout ?? 0) > 0 && <TimeoutLock />}
                 <SystemBanners settings={settings} />
                 <LicenseBanner settings={settings} />
                 <StartTrialBanner settings={settings} />
@@ -151,6 +159,9 @@ const Root = () => {
                     {/* Add challenge preview routes here to ensure they are rendered without the top & left bar */}
                     <Route path="admin/simulations/:exerciseId/challenges" element={errorWrapper(SimulationChallengesPreview)()} />
                     <Route path="admin/scenarios/:scenarioId/challenges" element={errorWrapper(ScenarioChallengesPreview)()} />
+                    {/* Standalone print-ready report render (headless PDF capture + in-app preview) */}
+                    <Route path="reporting/:reportingId/render" element={errorWrapper(ReportingRender)()} />
+                    <Route path="redirect/*" element={errorWrapper(XtmHubRedirect)()} />
                     <Route path="admin/*" element={errorWrapper(IndexAdmin)()} />
                     {/* Routes from /public/Index that need to be accessible for logged user are duplicated here */}
                     <Route path="comcheck/:statusId" element={errorWrapper(Comcheck)()} />
@@ -159,8 +170,9 @@ const Root = () => {
                     <Route path="lessons/simulation/:exerciseId" element={errorWrapper(ExerciseViewLessons)()} />
                     <Route path="lessons/scenario/:scenarioId" element={errorWrapper(ScenarioViewLessons)()} />
                     <Route path="url/access" element={errorWrapper(UrlAccess)()} />
-                    <Route path="reports/:reportId/exercise/:exerciseId" element={errorWrapper(SimulationReport)()} />
-
+                    {/* Benign, tenant-less phishing landing route (tenant resolved server-side from token) */}
+                    <Route path="auth/:token" element={errorWrapper(PhishingPage)()} />
+                    <Route path="phishing/:tenantId/:token" element={errorWrapper(PhishingPage)()} />
                     {/* Not found */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>

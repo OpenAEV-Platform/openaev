@@ -8,7 +8,8 @@ public enum PayloadType {
   EXECUTABLE(Executable.EXECUTABLE_TYPE, Executable::new),
   FILE_DROP(FileDrop.FILE_DROP_TYPE, FileDrop::new),
   DNS_RESOLUTION(DnsResolution.DNS_RESOLUTION_TYPE, DnsResolution::new),
-  NETWORK_TRAFFIC(NetworkTraffic.NETWORK_TRAFFIC_TYPE, NetworkTraffic::new);
+  NETWORK_TRAFFIC(NetworkTraffic.NETWORK_TRAFFIC_TYPE, NetworkTraffic::new),
+  AI_ATTACK(AiAttack.AI_ATTACK_TYPE, AiAttack::new);
 
   public final String key;
   @Getter public final Supplier<Payload> payloadSupplier;

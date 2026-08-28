@@ -45,7 +45,7 @@ public class StepDelayQueueService {
       Workflow workflowRun,
       Instant goal) {
     log.debug(
-        "Delay step template: {} condition time after: {} + {} milliseconds => goal: {}",
+        "[Chaining] Delay step template: {} condition time after: {} + {} milliseconds => goal: {}",
         stepTemplate.getId(),
         now,
         delay,
@@ -66,9 +66,9 @@ public class StepDelayQueueService {
    * Atomically retrieves and removes the oldest eligible entry per workflow run from the delay
    * queue.
    *
-   * <p>A step is eligible when its scheduled goal time has been reached. Atomicity is guaranteed at
-   * the database level via {@code DELETE ... RETURNING}. {@code synchronized} provides an
-   * additional safeguard for single-pod concurrency.
+   * <p>A step is eligible when its scheduled goal time has been reached. Must be called within a
+   * transaction so that the find and delete are atomic. {@code synchronized} provides an additional
+   * safeguard for single-pod concurrency.
    *
    * @return the oldest eligible {@link StepDelayQueue} per workflow run, or an empty list
    */

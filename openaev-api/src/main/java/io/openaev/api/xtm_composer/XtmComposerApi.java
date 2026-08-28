@@ -1,5 +1,7 @@
 package io.openaev.api.xtm_composer;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+
 import io.openaev.aop.AccessControl;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
@@ -29,11 +31,17 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "XTM COMPOSER API", description = "Operations related to XTM Composer")
 public class XtmComposerApi extends RestBehavior {
   public static final String XTMCOMPOSER_URI = "/api/xtm-composer";
+  public static final String TENANT_XTMCOMPOSER_URI = TENANT_PREFIX + "/xtm-composer";
 
   private final XtmComposerService xtmComposerService;
   private final ConnectorOrchestrationService orchestrationService;
 
-  @PostMapping(value = XTMCOMPOSER_URI + "/register")
+  // Tenant URI needed for RBAC only, NOT because the underlying data is tenant-scoped.
+  // Without the tenant path here, a user whose only CATALOG-capable group lives on a
+  // non-default tenant would resolve zero capabilities and get a 403, even though registration
+  // itself is not scoped to any tenant (issue #6485).
+  // TODO v2: #7248
+  @PostMapping(value = {XTMCOMPOSER_URI + "/register", TENANT_XTMCOMPOSER_URI + "/register"})
   @Operation(
       summary = "Register XtmComposer",
       description = "Save registration data into settings from XTM Composer registration")
@@ -44,7 +52,12 @@ public class XtmComposerApi extends RestBehavior {
     return this.xtmComposerService.register(input);
   }
 
-  @PutMapping(value = XTMCOMPOSER_URI + "/{xtmComposerId}/refresh-connectivity")
+  // TODO v2: #7248.
+  @PutMapping(
+      value = {
+        XTMCOMPOSER_URI + "/{xtmComposerId}/refresh-connectivity",
+        TENANT_XTMCOMPOSER_URI + "/{xtmComposerId}/refresh-connectivity"
+      })
   @Operation(
       summary = "Refresh connectivity with XTM composer",
       description = "Refresh last check connectivity in settings and version in XTM Composer")
@@ -55,22 +68,30 @@ public class XtmComposerApi extends RestBehavior {
     return xtmComposerService.refreshConnectivity(xtmComposerId, Instant.now());
   }
 
-  @GetMapping(value = XTMCOMPOSER_URI + "/reachable")
+  // The ONLY XtmComposerApi endpoint actually called from the frontend
+  // (isXtmComposerIsReachable() in catalog-actions.ts, used by Integrations/CatalogLayout/
+  // ConnectorLayout to gate deploy/migrate/update buttons). It is NOT tenant-scoped data
+  // TODO v2: #7248.
+  @GetMapping(value = {XTMCOMPOSER_URI + "/reachable", TENANT_XTMCOMPOSER_URI + "/reachable"})
   @Operation(
       summary = "Check if XtmComposer is reachable and registered in OpenAEV",
       description = "Returns true if XtmComposer is reachable, false otherwise")
-  @Transactional
+  @Transactional(readOnly = true, noRollbackFor = Exception.class)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
   public boolean isXtmComposerReachable() {
-    try {
-      this.xtmComposerService.throwIfXtmComposerNotReachable();
-      return true;
-    } catch (Exception e) {
-      return false;
-    }
+    // Use the non-throwing probe: throwing (and catching) a BadRequestException here would mark the
+    // shared transaction rollback-only and make the surrounding commit fail with
+    // UnexpectedRollbackException (500), even though we intend to just return false.
+    return this.xtmComposerService.isXtmComposerReachable();
   }
 
-  @GetMapping(value = XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances")
+  // Deliberately NOT tenant-scoped, one composer instance manages connector instances across
+  // every tenant.
+  @GetMapping(
+      value = {
+        XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances",
+        TENANT_XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances"
+      })
   @Operation(
       summary = "Get all connector instances managed by xtm-composer",
       description = "Retrieve all connector instances managed by xtm-composer")
@@ -83,7 +104,10 @@ public class XtmComposerApi extends RestBehavior {
   }
 
   @PutMapping(
-      value = XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/status")
+      value = {
+        XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/status",
+        TENANT_XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/status"
+      })
   @Transactional
   @Operation(
       summary = "Update connector instance status",
@@ -99,7 +123,10 @@ public class XtmComposerApi extends RestBehavior {
   }
 
   @PostMapping(
-      value = XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/logs")
+      value = {
+        XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/logs",
+        TENANT_XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/logs"
+      })
   @Transactional
   @Operation(
       summary = "Received connector instance logs",
@@ -115,9 +142,11 @@ public class XtmComposerApi extends RestBehavior {
   }
 
   @PutMapping(
-      value =
-          XTMCOMPOSER_URI
-              + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/health-check")
+      value = {
+        XTMCOMPOSER_URI + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/health-check",
+        TENANT_XTMCOMPOSER_URI
+            + "/{xtmComposerId}/connector-instances/{connectorInstanceId}/health-check"
+      })
   @Transactional
   @Operation(
       summary = "Health check of connector instance",

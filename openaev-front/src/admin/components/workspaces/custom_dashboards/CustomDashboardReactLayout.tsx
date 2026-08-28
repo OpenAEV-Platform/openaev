@@ -196,6 +196,8 @@ const CustomDashboardReactLayout: FunctionComponent<{
     margin: 0,
     borderRadius: 4,
     overflow: 'hidden',
+    backgroundImage: 'linear-gradient(165deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 45%)',
+    transition: 'box-shadow 0.3s, border-color 0.3s',
   };
 
   // Compute layouts directly for data-grid prop to avoid timing issues

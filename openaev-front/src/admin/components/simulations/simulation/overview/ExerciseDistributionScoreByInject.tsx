@@ -7,7 +7,7 @@ import Chart from '../../../../../components/Chart';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
-import { type Exercise, type Inject, type InjectExpectation } from '../../../../../utils/api-types';
+import { type Exercise, type Inject, type InjectExpectationOutput } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
@@ -24,18 +24,18 @@ const ExerciseDistributionScoreByInject: FunctionComponent<Props> = ({ exerciseI
   }));
 
   const injectsTotalScores = R.pipe(
-    R.filter((n: InjectExpectation) => !R.isEmpty(n.inject_expectation_results)),
+    R.filter((n: InjectExpectationOutput) => !R.isEmpty(n.inject_expectation_results)),
     R.groupBy(R.prop('inject_expectation_inject')),
     R.toPairs,
-    R.map((n: [string, InjectExpectation[]]) => ({
+    R.map((n: [string, InjectExpectationOutput[]]) => ({
       ...injectsMap[n[0]],
-      inject_total_score: R.sum(R.map((o: InjectExpectation) => o.inject_expectation_score, n[1])),
+      inject_total_score: R.sum(R.map((o: InjectExpectationOutput) => o.inject_expectation_score, n[1])),
     })),
   )(injectExpectations);
 
   const sortedInjectsByTotalScore = R.pipe(
     R.sortWith([R.descend(R.prop('inject_total_score'))]),
-    R.filter((n: InjectExpectation & { inject_total_score: number }) => n.inject_total_score > 0),
+    R.filter((n: InjectExpectationOutput & { inject_total_score: number }) => n.inject_total_score > 0),
     R.take(10),
   )(injectsTotalScores);
 

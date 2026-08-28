@@ -1,6 +1,5 @@
 import { useContext, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { deleteConnectorInstance } from '../../../../actions/connector_instances/connector-instance-actions';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
@@ -20,11 +19,8 @@ type ConnectorPopoverProps = {
   disabled?: boolean;
 };
 
-const useStyles = makeStyles()(() => ({ autoMarginLeft: { marginLeft: 'auto' } }));
-
 const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false }: ConnectorPopoverProps) => {
   // Standard hooks
-  const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -60,6 +56,13 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
   const onOpenUpdateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(true);
   const onCloseUpdateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(false);
 
+  // OpenCTI parity: a started managed connector can never be deleted. Deletion
+  // is only allowed once a stop has been requested (requested status stopping)
+  // or is effective (current status stopped); the backend enforces the same
+  // rule. The entry stays visible but disabled, with the reason as tooltip.
+  const canDeleteInstance = instance?.connector_instance_requested_status === 'stopping'
+    || instance?.connector_instance_current_status === 'stopped';
+
   // Button Popover
   const entries = [
     {
@@ -71,14 +74,15 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
       label: 'Delete',
       action: handleDelete,
       userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TENANT_SETTINGS),
+      disabled: !canDeleteInstance,
+      // Raw i18n key: ButtonPopover translates disabledMessage itself (like label).
+      disabledMessage: 'Stop the connector before deleting it',
     }];
 
   return (
     <>
       <ButtonPopover
-        className={classes.autoMarginLeft}
         entries={entries}
-        variant="toggle"
         disabled={disabled}
       />
       <DialogDelete

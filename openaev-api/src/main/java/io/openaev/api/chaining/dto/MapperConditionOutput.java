@@ -1,8 +1,9 @@
 package io.openaev.api.chaining.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.ConditionKeyType;
 import io.openaev.database.model.MappingType;
+import io.openaev.database.model.PrimitiveType;
+import java.util.List;
 import lombok.*;
 
 /** Output DTO for mapper conditions attached to a step. */
@@ -13,8 +14,8 @@ import lombok.*;
 @NoArgsConstructor
 public class MapperConditionOutput {
 
-  @JsonProperty("condition_key_type")
-  private ConditionKeyType conditionKeyType;
+  @JsonProperty("condition_key_types")
+  private List<PrimitiveType> conditionKeyTypes;
 
   @JsonProperty("condition_key")
   private String conditionKey;

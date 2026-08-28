@@ -3,7 +3,6 @@ import {
   BrushOutlined,
   CancelOutlined,
   ClearOutlined,
-  CloseOutlined,
   DeleteOutlined,
   DevicesOtherOutlined,
   FileDownloadOutlined,
@@ -15,7 +14,6 @@ import {
   Autocomplete,
   Box,
   Button,
-  Drawer,
   FormControl,
   Grid,
   IconButton,
@@ -27,7 +25,7 @@ import {
   Typography,
 } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
-import { Component, type ComponentType, type JSX } from 'react';
+import { Component, type ComponentType, type JSX, type ReactNode } from 'react';
 import { connect } from 'react-redux';
 
 import { fetchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
@@ -35,6 +33,7 @@ import { fetchEndpoints } from '../../../actions/assets/endpoint-actions';
 import { storeHelper } from '../../../actions/Schema';
 import DialogDelete from '../../../components/common/DialogDelete';
 import DialogTest from '../../../components/common/DialogTest';
+import Drawer from '../../../components/common/Drawer';
 import ExportOptionsDialog from '../../../components/common/export/ExportOptionsDialog';
 import inject18n from '../../../components/i18n';
 import {
@@ -64,6 +63,16 @@ type ToolBarOwnProps = {
   showUpdate?: boolean;
   showBulkTest?: boolean;
   showBulkDelete?: boolean;
+  /**
+   * Already-translated delete confirmation texts. Defaults to the inject wording
+   * for backward compatibility with the injects lists.
+   */
+  deleteConfirmationSingular?: string;
+  deleteConfirmationPlural?: string;
+  /** Extra content rendered inside the delete confirmation dialog (below the
+   *  confirmation question). Use this to display contextual warnings, e.g. when
+   *  some of the selected items are currently running. */
+  deleteExtraContent?: ReactNode;
 };
 
 type ReduxProps = {
@@ -134,7 +143,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
     });
   }
 
-  handleSubmitExport(withPlayers: boolean, withTeams: boolean, withVariableValues: boolean) {
+  handleSubmitExport(withPlayers: boolean, withTeams: boolean, withVariableValues: boolean, _withScopeDefinition: boolean) {
     this.handleCloseExport();
     this.props.handleClearSelectedElements();
     this.props.handleExport?.(withPlayers, withTeams, withVariableValues);
@@ -504,9 +513,11 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
     const canTest = showBulkTest ?? (canManage && Boolean(this.props.handleBulkTest));
     const canDelete = showBulkDelete ?? (canManage && Boolean(this.props.handleBulkDelete));
     const confirmationText = () => {
-      return numberOfSelectedElements === 1
-        ? t('Do you want to delete this inject?')
-        : t('Do you want to delete these {count} injects?', { count: numberOfSelectedElements });
+      if (numberOfSelectedElements === 1) {
+        return this.props.deleteConfirmationSingular ?? t('Do you want to delete this inject?');
+      }
+      return this.props.deleteConfirmationPlural
+        ?? t('Do you want to delete these {count} injects?', { count: numberOfSelectedElements });
     };
     const testConfirmationText = () => {
       return numberOfSelectedElements === 1
@@ -523,7 +534,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
             alignItems: 'center',
             flex: '1 1 100%',
             width: '100%',
-            backgroundColor: 'rgb(15, 30, 56)',
+            backgroundColor: 'background.accent',
             pr: 1,
           }}
         >
@@ -653,48 +664,10 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
         </Box>
         <Drawer
           open={this.state.displayUpdate}
-          anchor="right"
-          elevation={1}
-          sx={{
-            'zIndex': 1202,
-            '& .MuiDrawer-paper': {
-              minHeight: '100vh',
-              width: '50%',
-              position: 'fixed',
-              transition: theme => theme.transitions.create('width', {
-                easing: theme.transitions.easing.sharp,
-                duration: theme.transitions.duration.enteringScreen,
-              }),
-            },
-          }}
-          onClose={this.handleCloseUpdate.bind(this)}
+          handleClose={this.handleCloseUpdate.bind(this)}
+          title={t('Update objects')}
         >
-          <Box sx={{
-            backgroundColor: 'background.nav',
-            p: 2.5,
-          }}
-          >
-            <IconButton
-              aria-label="Close"
-              sx={{
-                position: 'absolute',
-                top: 1.5,
-                left: 0.625,
-                color: 'inherit',
-              }}
-              onClick={this.handleCloseUpdate.bind(this)}
-              size="large"
-              color="primary"
-            >
-              <CloseOutlined fontSize="small" color="primary" />
-            </IconButton>
-            <Typography variant="h6">{t('Update objects')}</Typography>
-          </Box>
-          <Box sx={{
-            p: 1.25,
-            mt: 2.5,
-          }}
-          >
+          <Box sx={{ mt: 1 }}>
             {new Array(actionsInputs.length)
               .fill(0)
               .map((_, i) => (
@@ -798,6 +771,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
           handleClose={this.handleCloseBulkDelete.bind(this)}
           handleSubmit={this.handleSubmitBulkDelete.bind(this)}
           text={confirmationText()}
+          extraContent={this.props.deleteExtraContent}
         />
         <DialogTest
           open={canTest && this.state.displayBulkTest}

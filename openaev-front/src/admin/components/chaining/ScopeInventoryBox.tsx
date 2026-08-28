@@ -3,6 +3,7 @@ import { Box, Button, Chip, IconButton, Paper, Tooltip, Typography } from '@mui/
 import { useTheme } from '@mui/material/styles';
 import { type ChangeEvent, type KeyboardEvent, useMemo, useRef, useState } from 'react';
 
+import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../components/i18n';
 import { MESSAGING$ } from '../../../utils/Environment';
 
@@ -78,8 +79,9 @@ const ScopeInventoryBox = ({
   return (
     <Box>
       <Typography
-        variant="h4"
+        component="div"
         sx={{
+          ...SECTION_LABEL_SX,
           m: 0,
           display: 'flex',
           alignItems: 'center',
@@ -221,6 +223,8 @@ const ScopeInventoryBox = ({
       >
         <InfoOutlined fontSize="small" color="primary" />
         {t('Add multiple items at once by separating them with commas.')}
+        {' '}
+        {t('Subnet expansion is safety-limited /24. Large subnets may not be expanded.')}
       </Typography>
     </Box>
   );

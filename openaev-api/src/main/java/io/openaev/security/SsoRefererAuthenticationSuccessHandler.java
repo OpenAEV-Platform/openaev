@@ -2,9 +2,10 @@ package io.openaev.security;
 
 import static org.springframework.http.HttpHeaders.REFERER;
 
+import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
+import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionManager;
-import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.utils.log.LogUtils;
 import jakarta.servlet.ServletException;
@@ -24,9 +25,12 @@ public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticat
 
   private final RequestCache requestCache = new HttpSessionRequestCache();
   private final Optional<AuditLogger> auditLogger;
+  private final SessionManager sessionManager;
 
-  public SsoRefererAuthenticationSuccessHandler(AuditLogger auditLogger) {
+  public SsoRefererAuthenticationSuccessHandler(
+      AuditLogger auditLogger, SessionManager sessionManager) {
     this.auditLogger = Optional.ofNullable(auditLogger);
+    this.sessionManager = sessionManager;
   }
 
   @Override
@@ -42,13 +46,16 @@ public class SsoRefererAuthenticationSuccessHandler extends SimpleUrlAuthenticat
 
     auditLogger.ifPresent(
         logger -> {
-          String eventScope = LogUtils.getEventScope(Action.LOGIN);
-          String eventStatus = LogUtils.getEventStatus(EventStatus.SUCCESS);
-          logger.logAuthEvent(eventScope, eventStatus, provider, null, null);
+          logger.logAuthEvent(AuditEventScope.LOGIN, EventStatus.SUCCESS, provider, null);
         });
 
-    // Capture auth context in session for reliable expiry audit metadata.
-    SessionManager.markAuthenticatedSession(request);
+    // Capture auth context in session for reliable expiry audit metadata and index the session
+    // by user id so it can be managed (refresh, kill, concurrency limit) across restarts.
+    if (authentication.getPrincipal() instanceof OpenAEVPrincipal principal) {
+      SessionManager.markAuthenticatedSession(request, principal.getId());
+      // Enforce the max concurrent sessions platform setting (oldest sessions are evicted).
+      this.sessionManager.enforceSessionLimit(principal.getId(), request.getSession().getId());
+    }
 
     SavedRequest savedRequest = this.requestCache.getRequest(request, response);
 

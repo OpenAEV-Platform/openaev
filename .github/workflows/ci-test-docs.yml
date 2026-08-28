@@ -1,0 +1,51 @@
+name: Docs build check
+
+on:
+  push:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/ci-test-docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/ci-test-docs.yml'
+
+# The GITHUB_TOKEN is only used by the git-committers plugin to read commit history.
+permissions:
+  contents: read
+
+jobs:
+  docs-build:
+    name: Build MkDocs documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+
+      - name: Install documentation dependencies
+        working-directory: docs
+        run: pip install -r requirements.txt
+
+      - name: Check for underscores in MkDocs URIs
+        working-directory: docs
+        run: |
+          echo "Checking mkdocs.yml for URIs (use '-' instead of '_')"
+          INVALID_PATHS=$(grep '.md' mkdocs.yml | grep '_' | grep -Ev 'pymdownx\.superfences|md_in_html' || true)
+          if [ -n "$INVALID_PATHS" ]; then
+            echo "Invalid MkDocs URIs detected (use '-' instead of '_'):"
+            echo "$INVALID_PATHS" | sed 's/^/ - /'
+            exit 1
+          fi
+          echo "All MkDocs URIs are clean (no underscores)."
+
+      - name: Build documentation
+        working-directory: docs
+        env:
+          MKDOCS_GIT_COMMITTERS_APIKEY: ${{ secrets.GITHUB_TOKEN }}
+        run: mkdocs build --strict

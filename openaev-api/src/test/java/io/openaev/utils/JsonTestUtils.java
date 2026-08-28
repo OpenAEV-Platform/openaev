@@ -2,7 +2,10 @@ package io.openaev.utils;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.openaev.database.audit.AuditStateCapturable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -16,6 +19,10 @@ public class JsonTestUtils {
     }
     mapper = new ObjectMapper();
     mapper.registerModule(new JavaTimeModule());
+    mapper.setFilterProvider(
+        new SimpleFilterProvider()
+            .addFilter(
+                AuditStateCapturable.AUDIT_STATE_FILTER, SimpleBeanPropertyFilter.serializeAll()));
     return mapper;
   }
 

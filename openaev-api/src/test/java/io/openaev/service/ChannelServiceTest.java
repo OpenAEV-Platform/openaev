@@ -3,6 +3,7 @@ package io.openaev.service;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,6 +34,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @DisplayName("ChannelService")
 @ExtendWith(MockitoExtension.class)
 class ChannelServiceTest {
+
+  private static final String TENANT_ID = "tenant-1";
 
   @Mock private InjectExpectationRepository injectExpectationExecutionRepository;
   @Mock private ExerciseRepository exerciseRepository;
@@ -76,9 +79,8 @@ class ChannelServiceTest {
       inject.setContent(contentNode);
 
       Double expectedScore = 100.0;
-      InjectExpectation expectation = new InjectExpectation();
+      ArticleInjectExpectation expectation = new ArticleInjectExpectation();
       expectation.setId("expectation-1");
-      expectation.setType(InjectExpectation.EXPECTATION_TYPE.ARTICLE);
       expectation.setExpectedScore(expectedScore);
       expectation.setArticle(article);
       expectation.setUser(user);
@@ -91,18 +93,23 @@ class ChannelServiceTest {
       exercise.setInjects(List.of(inject));
 
       when(channelRepository.findById("channel-1")).thenReturn(Optional.of(channel));
-      when(exerciseRepository.findById("exercise-1")).thenReturn(Optional.of(exercise));
+      // tenantId is now resolved by the caller (API layer) and passed explicitly, instead of the
+      // service reading TenantContext / calling the unscoped findById.
+      when(exerciseRepository.findByIdAndTenantId(eq("exercise-1"), eq(TENANT_ID)))
+          .thenReturn(Optional.of(exercise));
       when(articleRepository.findAllById(any())).thenReturn(List.of(article));
       when(injectExpectationExecutionRepository.findChannelExpectations(any(), any(), any()))
           .thenReturn(List.of());
 
       // Act
-      assertDoesNotThrow(() -> channelService.validateArticles("exercise-1", "channel-1", user));
+      assertDoesNotThrow(
+          () -> channelService.validateArticles("exercise-1", "channel-1", user, TENANT_ID));
 
       // Assert
-      ArgumentCaptor<InjectExpectation> captor = ArgumentCaptor.forClass(InjectExpectation.class);
+      ArgumentCaptor<BaseInjectExpectation> captor =
+          ArgumentCaptor.forClass(BaseInjectExpectation.class);
       verify(injectExpectationExecutionRepository).save(captor.capture());
-      InjectExpectation saved = captor.getValue();
+      BaseInjectExpectation saved = captor.getValue();
       assertEquals(expectedScore, saved.getScore());
       assertNotNull(saved.getResults());
       assertFalse(saved.getResults().isEmpty());

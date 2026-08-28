@@ -4,7 +4,9 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
@@ -19,7 +21,7 @@ import io.openaev.executors.tanium.service.TaniumExecutorService;
 import io.openaev.executors.tanium.service.TaniumGarbageCollectorService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
@@ -60,6 +62,8 @@ public class TaniumExecutorIntegration extends Integration {
   private final ConnectorInstanceService connectorInstanceService;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final OpenAEVConfig openAEVConfig;
+  private final TenantScopedTransaction tenantTx;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
@@ -75,7 +79,9 @@ public class TaniumExecutorIntegration extends Integration {
       ExecutorService executorService,
       ThreadPoolTaskScheduler taskScheduler,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      OpenAEVConfig openAEVConfig,
+      TenantScopedTransaction tenantTx) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -87,6 +93,8 @@ public class TaniumExecutorIntegration extends Integration {
     this.connectorInstanceService = connectorInstanceService;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.openAEVConfig = openAEVConfig;
+    this.tenantTx = tenantTx;
 
     // Refresh the context to get the config
     try {
@@ -115,6 +123,7 @@ public class TaniumExecutorIntegration extends Integration {
 
     Executor executor =
         executorService.register(
+            getTenantId(),
             executorId,
             TANIUM_EXECUTOR_TYPE,
             executorName,
@@ -131,13 +140,18 @@ public class TaniumExecutorIntegration extends Integration {
     client = new TaniumExecutorClient(config, httpClientFactory);
     taniumExecutorContextService =
         new TaniumExecutorContextService(
-            enterpriseEditionService, licenseCacheManager, config, client, executorService);
+            enterpriseEditionService,
+            licenseCacheManager,
+            config,
+            client,
+            executorService,
+            openAEVConfig);
     taniumExecutorService =
         new TaniumExecutorService(
-            executor, client, config, endpointService, agentService, assetGroupService);
+            executor, client, config, endpointService, agentService, assetGroupService, tenantTx);
     taniumGarbageCollectorService =
         new TaniumGarbageCollectorService(
-            config, taniumExecutorContextService, agentService, executorId);
+            config, taniumExecutorContextService, agentService, executor, tenantTx);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

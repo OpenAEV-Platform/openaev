@@ -92,7 +92,7 @@ public class EmailExecutorTest extends IntegrationTest {
     content.setBody("A body");
     Expectation expectation =
         ExpectationFixture.createExpectation(
-            InjectExpectation.EXPECTATION_TYPE.MANUAL,
+            BaseInjectExpectation.EXPECTATION_TYPE.MANUAL,
             "The animation team can validate the audience reaction");
     content.setExpectations(List.of(expectation));
     Inject inject = new Inject();
@@ -116,7 +116,7 @@ public class EmailExecutorTest extends IntegrationTest {
     emailExecutor.process(execution, executableInject);
 
     // -- ASSERT --
-    // No injectExpectation should be created.
+    // No BaseInjectExpectation should be created.
     assertEquals(Collections.emptyList(), injectExpectationRepository.findAll());
   }
 
@@ -128,12 +128,12 @@ public class EmailExecutorTest extends IntegrationTest {
     String expectationAName = "Expectation A";
     Expectation expectationA =
         ExpectationFixture.createExpectation(
-            InjectExpectation.EXPECTATION_TYPE.MANUAL, expectationAName);
+            BaseInjectExpectation.EXPECTATION_TYPE.MANUAL, expectationAName);
 
     String expectationBName = "Expectation B";
     Expectation expectationB =
         ExpectationFixture.createExpectation(
-            InjectExpectation.EXPECTATION_TYPE.MANUAL, expectationBName);
+            BaseInjectExpectation.EXPECTATION_TYPE.MANUAL, expectationBName);
 
     Inject inject = createEmailInjectHelper(List.of(expectationA, expectationB));
     Injection injection = mock(Injection.class);
@@ -164,11 +164,16 @@ public class EmailExecutorTest extends IntegrationTest {
     // -- ASSERT --
     // Should have 4 inject expectations - 1 for team - 2 for the user (expectation A and
     // expectation B)
-    List<InjectExpectation> injectExpectationList =
+    List<BaseInjectExpectation> injectExpectationList =
         injectExpectationRepository.findAllByInjectId(inject.getId());
     assertEquals(4, injectExpectationList.size());
-    List<InjectExpectation> teamExpectations =
+    List<TableTopInjectExpectation> tableTopInjectExpectationList =
         injectExpectationList.stream()
+            .filter(ie -> ie instanceof TableTopInjectExpectation)
+            .map(ie -> (TableTopInjectExpectation) ie)
+            .toList();
+    List<TableTopInjectExpectation> teamExpectations =
+        tableTopInjectExpectationList.stream()
             .filter(ie -> ie.getUser() == null && ie.getTeam() != null)
             .toList();
     assertEquals(2, teamExpectations.size());
@@ -176,8 +181,8 @@ public class EmailExecutorTest extends IntegrationTest {
         1, teamExpectations.stream().filter(ie -> expectationAName.equals(ie.getName())).count());
     assertEquals(
         1, teamExpectations.stream().filter(ie -> expectationBName.equals(ie.getName())).count());
-    List<InjectExpectation> userExpectations =
-        injectExpectationList.stream()
+    List<TableTopInjectExpectation> userExpectations =
+        tableTopInjectExpectationList.stream()
             .filter(ie -> ie.getUser() != null && ie.getTeam() != null)
             .toList();
     assertEquals(2, userExpectations.size());
@@ -186,7 +191,7 @@ public class EmailExecutorTest extends IntegrationTest {
     assertEquals(
         1, userExpectations.stream().filter(ie -> expectationBName.equals(ie.getName())).count());
 
-    // InjectExpectation.results.result should be set to null for all user expectation
+    // BaseInjectExpectation.results.result should be set to null for all user expectation
     List<InjectExpectationResult> teamResults =
         teamExpectations.stream().flatMap(ie -> ie.getResults().stream()).toList();
     assertEquals(0, teamResults.size());

@@ -1,5 +1,7 @@
 package io.openaev.utils.mapper;
 
+import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
+
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
 import io.openaev.healthcheck.dto.HealthCheck;
@@ -57,8 +59,8 @@ public class InjectMapper {
     // Use primary (top-level) expectations for score computation.
     // When no primary expectations match (e.g. only agent-level expectations exist),
     // fall back to all expectations to avoid losing scores in buildFallbackResults.
-    List<InjectExpectation> primaryExpectations = injectUtils.getPrimaryExpectations(inject);
-    List<InjectExpectation> expectationsForScoring =
+    List<BaseInjectExpectation> primaryExpectations = injectUtils.getPrimaryExpectations(inject);
+    List<BaseInjectExpectation> expectationsForScoring =
         primaryExpectations.isEmpty()
             ? new ArrayList<>(inject.getExpectations())
             : primaryExpectations;
@@ -83,6 +85,9 @@ public class InjectMapper {
                 InjectExpectationResultUtils::getScores))
         .isReady(healthCheckUtils.runContentChecks(inject).isEmpty())
         .updatedAt(inject.getUpdatedAt())
+        .recurrence(inject.getRecurrence())
+        .recurrenceStart(inject.getRecurrenceStart())
+        .recurrenceEnd(inject.getRecurrenceEnd())
         .build();
   }
 
@@ -105,7 +110,8 @@ public class InjectMapper {
   /**
    * Converts a single raw database result array to a target simple DTO.
    *
-   * @param target array containing [exerciseId, targetId, targetName]
+   * @param target array containing [contextId, targetId, targetName] and, for asset rows,
+   *     optionally [assetCategory, endpointPlatform] used client-side to pick the correct icon
    * @param type the type of target
    * @return the target simple DTO
    */
@@ -114,6 +120,8 @@ public class InjectMapper {
         .id((String) target[1])
         .name((String) target[2])
         .type(type)
+        .category(target.length > 3 ? (String) target[3] : null)
+        .subtype(target.length > 4 ? (String) target[4] : null)
         .build();
   }
 
@@ -155,11 +163,11 @@ public class InjectMapper {
    * @return list of simplified expectation DTOs
    */
   public List<InjectExpectationSimple> toInjectExpectationSimples(
-      List<InjectExpectation> expectations) {
+      List<BaseInjectExpectation> expectations) {
     return expectations.stream().filter(Objects::nonNull).map(this::toExpectationSimple).toList();
   }
 
-  private InjectExpectationSimple toExpectationSimple(InjectExpectation expectation) {
+  private InjectExpectationSimple toExpectationSimple(BaseInjectExpectation expectation) {
     return InjectExpectationSimple.builder()
         .id(expectation.getId())
         .name(expectation.getName())
@@ -279,22 +287,25 @@ public class InjectMapper {
   public InjectOutput toInjectOutput(Inject inject, List<HealthCheck> healthchecks) {
     InjectorContract injectorContract = inject.getInjectorContract().orElse(null);
     String type = inject.getType();
-    return toInjectOutput(
-        inject.getId(),
-        inject.getTitle(),
-        inject.isEnabled(),
-        inject.getContent(),
-        inject.getExercise(),
-        inject.getScenario(),
-        inject.getDependsOn(),
-        inject.getDependsDuration(),
-        injectorContract,
-        inject.getTags(),
-        inject.getTeams(),
-        inject.getAssets(),
-        inject.getAssetGroups(),
-        type,
-        inject.getDependsOn(),
-        healthchecks);
+    InjectOutput output =
+        toInjectOutput(
+            inject.getId(),
+            inject.getTitle(),
+            inject.isEnabled(),
+            inject.getContent(),
+            inject.getExercise(),
+            inject.getScenario(),
+            inject.getDependsOn(),
+            inject.getDependsDuration(),
+            injectorContract,
+            inject.getTags(),
+            inject.getTeams(),
+            inject.getAssets(),
+            inject.getAssetGroups(),
+            type,
+            inject.getDependsOn(),
+            healthchecks);
+    output.setExpectations(toOutputs(inject.getExpectations()));
+    return output;
   }
 }

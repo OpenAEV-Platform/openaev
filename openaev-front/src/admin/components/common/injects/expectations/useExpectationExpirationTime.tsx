@@ -1,8 +1,8 @@
 import { type LoggedHelper } from '../../../../../actions/helper';
 import { useHelper } from '../../../../../store';
-import { type InjectExpectation, type PlatformSettings } from '../../../../../utils/api-types';
+import { type InjectExpectationOutput, type PlatformSettings } from '../../../../../utils/api-types';
 
-const useExpectationExpirationTime = (expectationType: InjectExpectation['inject_expectation_type']): number => {
+const useExpectationExpirationTime = (expectationType: InjectExpectationOutput['inject_expectation_type']): number => {
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   switch (expectationType) {
     case 'DETECTION':

@@ -7,9 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.*;
-import io.openaev.executors.crowdstrike.model.Authentication;
-import io.openaev.executors.crowdstrike.model.ResourcesHosts;
-import io.openaev.executors.crowdstrike.model.ResourcesSession;
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.service.EndpointService;
 import jakarta.validation.constraints.NotBlank;
@@ -20,7 +17,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.ClientProtocolException;
@@ -44,9 +44,9 @@ public class CrowdStrikeExecutorClient {
   private static final String OAUTH_URI = "/oauth2/token";
   private static final String HOST_GROUPS_URI = "/devices/entities/host-groups/v1";
   private static final String ENDPOINTS_URI = "/devices/combined/host-group-members/v1";
-  private static final String SESSION_URI = "/real-time-response/combined/batch-init-session/v1";
+  private static final String SESSION_URI = "/real-time-response/entities/sessions/v1";
   private static final String REAL_TIME_RESPONSE_URI =
-      "/real-time-response/combined/batch-active-responder-command/v1";
+      "/real-time-response/entities/active-responder-command/v1";
 
   private final CrowdStrikeExecutorConfig config;
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -62,14 +62,15 @@ public class CrowdStrikeExecutorClient {
       int offset = 0;
       List<CrowdStrikeDevice> hosts = new ArrayList<>();
       ResourcesHosts partialResults = getResourcesHosts(offset, hostGroup);
-      if (partialResults.getErrors() != null && !partialResults.getErrors().isEmpty()) {
-        logErrors(partialResults.getErrors(), hostGroup);
+      throwIfCrowdStrikeErrors(
+          "devices",
+          "hostGroupId=" + hostGroup,
+          partialResults.getErrors(),
+          partialResults.getMeta() == null ? null : partialResults.getMeta().getTraceId());
+      if (partialResults.getResources() == null) {
         return hosts;
-      } else if (partialResults.getResources() == null) {
-        return hosts;
-      } else {
-        hosts.addAll(partialResults.getResources());
       }
+      hosts.addAll(partialResults.getResources());
       int numberOfExecution =
           Math.ceilDiv(
               partialResults.getMeta().getPagination().getTotal(),
@@ -77,33 +78,21 @@ public class CrowdStrikeExecutorClient {
       for (int callNumber = 1; callNumber < numberOfExecution; callNumber += 1) {
         offset += partialResults.getMeta().getPagination().getLimit();
         partialResults = getResourcesHosts(offset, hostGroup);
+        throwIfCrowdStrikeErrors(
+            "devices",
+            "hostGroupId=" + hostGroup + ", offset=" + offset,
+            partialResults.getErrors(),
+            partialResults.getMeta() == null ? null : partialResults.getMeta().getTraceId());
         if (partialResults.getResources() == null) {
           return hosts;
-        } else {
-          hosts.addAll(partialResults.getResources());
         }
+        hosts.addAll(partialResults.getResources());
       }
       return hosts;
     } catch (Exception e) {
       log.error(String.format("Unexpected error occurred. Error: %s", e.getMessage()), e);
       throw new ExecutorException(e, e.getMessage(), CROWDSTRIKE_EXECUTOR_NAME);
     }
-  }
-
-  private void logErrors(List<CrowdstrikeError> errors, String hostGroup) {
-    StringBuilder msg =
-        new StringBuilder(
-            "Error occurred while getting Crowdstrike devices API request for hostGroup id "
-                + hostGroup
-                + ".");
-    for (CrowdstrikeError error : errors) {
-      msg.append("\nCode: ")
-          .append(error.getCode())
-          .append(", message: ")
-          .append(error.getMessage())
-          .append(".");
-    }
-    log.error(msg.toString());
   }
 
   private ResourcesHosts getResourcesHosts(int offset, String hostGroup) {
@@ -138,10 +127,16 @@ public class CrowdStrikeExecutorClient {
   }
 
   public ResourcesGroups hostGroup(String hostGroup) {
-    String jsonResponse;
     try {
-      jsonResponse = this.get(HOST_GROUPS_URI + "?ids=" + hostGroup);
-      return this.objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+      String jsonResponse = this.get(HOST_GROUPS_URI + "?ids=" + hostGroup);
+      ResourcesGroups resourcesGroups =
+          this.objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+      throwIfCrowdStrikeErrors(
+          "hostGroup",
+          "hostGroupId=" + hostGroup,
+          resourcesGroups.getErrors(),
+          resourcesGroups.getMeta() == null ? null : resourcesGroups.getMeta().getTraceId());
+      return resourcesGroups;
     } catch (Exception e) {
       log.error(
           String.format(
@@ -151,15 +146,16 @@ public class CrowdStrikeExecutorClient {
     }
   }
 
-  public void executeAction(List<String> devicesId, String scriptName, String command) {
+  public void executeAction(String deviceId, String scriptName, String command) {
     try {
       // Open remote session
       Map<String, Object> bodySession = new HashMap<>();
-      bodySession.put("host_ids", devicesId);
+      bodySession.put("device_id", deviceId);
       bodySession.put("queue_offline", false);
-      String jsonSessionResponse = this.postSync(SESSION_URI, bodySession);
-      ResourcesSession session =
+      String jsonSessionResponse = this.postSync(SESSION_URI, bodySession, deviceId);
+      ResourcesSession sessions =
           this.objectMapper.readValue(jsonSessionResponse, new TypeReference<>() {});
+      CrowdStrikeSession session = sessions.getResources().getFirst();
       if (session == null) {
         log.error("Cannot get the session on the selected device");
         throw new ExecutorException(
@@ -167,7 +163,7 @@ public class CrowdStrikeExecutorClient {
       }
       // Execute the command
       Map<String, Object> bodyCommand = new HashMap<>();
-      bodyCommand.put("batch_id", session.getBatch_id());
+      bodyCommand.put("session_id", session.getSession_id());
       bodyCommand.put("base_command", "runscript");
       bodyCommand.put(
           "command_string",
@@ -176,7 +172,7 @@ public class CrowdStrikeExecutorClient {
               + "\"  -CommandLine=```'{\"command\":\""
               + command
               + "\"}'```");
-      this.postAsync(REAL_TIME_RESPONSE_URI, bodyCommand);
+      this.postAsync(REAL_TIME_RESPONSE_URI, bodyCommand, deviceId);
     } catch (IOException e) {
       throw new ExecutorException(e, e.getMessage(), CROWDSTRIKE_EXECUTOR_NAME);
     }
@@ -198,7 +194,8 @@ public class CrowdStrikeExecutorClient {
     }
   }
 
-  private String post(@NotBlank final String uri, @NotNull final Map<String, Object> body)
+  private String post(
+      @NotBlank final String uri, @NotNull final Map<String, Object> body, String deviceId)
       throws IOException {
     if (this.lastAuthentication.isBefore(Instant.now().minusSeconds(AUTH_TIMEOUT))) {
       this.authenticate();
@@ -211,21 +208,36 @@ public class CrowdStrikeExecutorClient {
       // Body
       StringEntity entity = new StringEntity(this.objectMapper.writeValueAsString(body));
       httpPost.setEntity(entity);
-      return httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
+      String responseEntity =
+          httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
+      ResourcesGroups resourcesGroups =
+          this.objectMapper.readValue(responseEntity, new TypeReference<>() {});
+      throwIfCrowdStrikeErrors(
+          "POST " + uri,
+          "deviceId=" + deviceId,
+          resourcesGroups.getErrors(),
+          resourcesGroups.getMeta() != null ? resourcesGroups.getMeta().getTraceId() : null);
+      return responseEntity;
     } catch (IOException e) {
-      throw new ClientProtocolException("Unexpected response", e);
+      throw new ClientProtocolException(
+          "Unexpected response for request on: " + uri + " (deviceId=" + deviceId + ")", e);
+    } catch (ExecutorException e) {
+      log.error("Error occurred during Crowdstrike post API request. Error: {}", e.getMessage(), e);
+      throw e;
     }
   }
 
-  private String postSync(@NotBlank final String uri, @NotNull final Map<String, Object> body)
+  private String postSync(
+      @NotBlank final String uri, @NotNull final Map<String, Object> body, final String deviceId)
       throws IOException {
-    return post(uri, body);
+    return post(uri, body, deviceId);
   }
 
   @Async
-  protected void postAsync(@NotBlank final String uri, @NotNull final Map<String, Object> body)
+  protected void postAsync(
+      @NotBlank final String uri, @NotNull final Map<String, Object> body, final String deviceId)
       throws IOException {
-    post(uri, body);
+    post(uri, body, deviceId);
   }
 
   private void authenticate() throws IOException {
@@ -242,10 +254,56 @@ public class CrowdStrikeExecutorClient {
       String jsonResponse =
           httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
       Authentication auth = this.objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+      if (auth.getErrors() != null && !auth.getErrors().isEmpty()) {
+        StringBuilder msg =
+            new StringBuilder(
+                "Crowdstrike authentication failed: the token could not be obtained (expired or"
+                    + " invalid credentials).");
+        for (CrowdstrikeError error : auth.getErrors()) {
+          msg.append("\nCode: ")
+              .append(error.getCode())
+              .append(", message: ")
+              .append(error.getMessage())
+              .append(".");
+        }
+        throw new ExecutorException(msg.toString(), CROWDSTRIKE_EXECUTOR_NAME);
+      }
+      if (auth.getAccess_token() == null || auth.getAccess_token().isBlank()) {
+        throw new ExecutorException(
+            "Crowdstrike authentication failed: no access token returned (expired or invalid"
+                + " credentials).",
+            CROWDSTRIKE_EXECUTOR_NAME);
+      }
       this.token = auth.getAccess_token();
       this.lastAuthentication = Instant.now();
     } catch (IOException e) {
       throw new ClientProtocolException("Unexpected response", e);
     }
+  }
+
+  private void throwIfCrowdStrikeErrors(
+      String endpoint, String context, List<CrowdstrikeError> errors, String traceId) {
+    if (errors == null || errors.isEmpty()) {
+      return;
+    }
+    StringBuilder message =
+        new StringBuilder(
+            "Crowdstrike API returned business errors for endpoint "
+                + endpoint
+                + " ("
+                + context
+                + ")");
+    if (traceId != null && !traceId.isBlank()) {
+      message.append(" [trace_id=").append(traceId).append("]");
+    }
+    for (CrowdstrikeError error : errors) {
+      message
+          .append("\nCode: ")
+          .append(error.getCode())
+          .append(", message: ")
+          .append(error.getMessage())
+          .append(".");
+    }
+    throw new ExecutorException(message.toString(), CROWDSTRIKE_EXECUTOR_NAME);
   }
 }

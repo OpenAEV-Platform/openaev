@@ -11,8 +11,10 @@ const iframeStyle: React.CSSProperties = {
   position: 'absolute',
   width: '100%',
   height: '100%',
-  border: '1px solid white',
-  borderRadius: '12px',
+  // Design-system frame: standard paper border tone and 4px radius, instead of
+  // the former bright white 12px-rounded outline.
+  border: '1px solid rgba(255, 255, 255, 0.12)',
+  borderRadius: '4px',
 };
 
 interface VideoPlayerProps { videoLink: string }

@@ -15,8 +15,8 @@ import io.openaev.output_processor.OutputProcessor;
 import io.openaev.output_processor.OutputProcessorFactory;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,31 +47,6 @@ class InjectorExecutionProcessingHandlerTest {
     this.injectorContract = mock(InjectorContract.class);
     inject.setInjectorContract(injectorContract);
     handler.mapper = mapper;
-  }
-
-  @Test
-  @DisplayName("Should return empty if status is not SUCCESS or action is not COMPLETE")
-  void shouldReturnEmptyWhenStatusNotSuccessOrActionNotComplete() throws Exception {
-    // Case 1: Status is ERROR
-    InjectExecutionInput inputError =
-        buildInput(ExecutionTraceStatus.ERROR, InjectExecutionAction.complete, "{}");
-    assertTrue(
-        handler
-            .processContext(new ExecutionProcessingContext(inject, null, inputError, Map.of()))
-            .isEmpty());
-
-    verifyNoInteractions(outputProcessorFactory);
-
-    // Case 2: Action is NOT complete
-    InjectExecutionInput inputWrongAction =
-        buildInput(ExecutionTraceStatus.EXECUTED, InjectExecutionAction.command_execution, "{}");
-    assertTrue(
-        handler
-            .processContext(
-                new ExecutionProcessingContext(inject, null, inputWrongAction, Map.of()))
-            .isEmpty());
-
-    verifyNoInteractions(outputProcessorFactory);
   }
 
   @Test

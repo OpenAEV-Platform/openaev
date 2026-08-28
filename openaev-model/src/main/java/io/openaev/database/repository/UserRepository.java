@@ -4,12 +4,10 @@ import io.openaev.database.model.User;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.raw.RawUser;
 import io.openaev.database.raw.RawUserAuthFlat;
+import io.openaev.database.raw.RawUserIdentity;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -94,6 +92,28 @@ public interface UserRepository
   List<RawUser> rawAllInTenant(@Param("tenantId") String tenantId);
 
   @Query(
+      value = "select ut.user_id from users_tenants ut where ut.tenant_id = :tenantId",
+      nativeQuery = true)
+  List<String> findUserIdsByTenantId(@Param("tenantId") String tenantId);
+
+  /**
+   * Returns a projection rather than {@code User} entities, because loading one user also loads its
+   * groups (EAGER), then each group's grants, roles and other members, and the audit listener
+   * snapshots every Group and Role loaded to JSON. That is a lot of work to display a name.
+   */
+  @Query(
+      value =
+          "select us.user_id, us.user_email, us.user_firstname, us.user_lastname"
+              + " from users us where us.user_id in (:ids)",
+      nativeQuery = true)
+  List<RawUserIdentity> rawIdentities(@Param("ids") Collection<String> ids);
+
+  @Query(
+      value = "select ut.tenant_id from users_tenants ut where ut.user_id = :userId",
+      nativeQuery = true)
+  List<String> findTenantIdsByUserId(@Param("userId") String userId);
+
+  @Query(
       value =
           "SELECT "
               + "us.user_id AS user_id, "
@@ -113,13 +133,15 @@ public interface UserRepository
       value =
           "select us.user_id, us.user_email, "
               + "us.user_firstname, us.user_lastname, "
-              + "us.user_country, us.user_organization,"
+              + "us.user_country, us.user_phone, us.user_admin, us.user_organization,"
               + "array_remove(array_agg(tg.tag_id), null) as user_tags "
               + "from users us "
               + "left join users_tags usr_tg on us.user_id = usr_tg.user_id "
               + "left join tags tg on usr_tg.tag_id = tg.tag_id "
               + "left join users_tenants ut on us.user_id = ut.user_id "
               + "where ut.tenant_id = :#{#tenantContext.currentTenant} "
+              // Reserved service/connector accounts are system users, never players.
+              + "and us.user_email not ilike '%@openaev.invalid' "
               + "group by us.user_id;",
       nativeQuery = true)
   List<RawPlayer> rawAllPlayers();
@@ -177,7 +199,7 @@ public interface UserRepository
 
   @Query("SELECT u FROM User u JOIN u.tenants t WHERE u.id IN :ids AND t.id = :tenantId")
   List<User> findAllByIdInAndTenantId(
-      @Param("ids") List<String> ids, @Param("tenantId") String tenantId);
+      @Param("ids") Collection<String> ids, @Param("tenantId") String tenantId);
 
   // -- PAGINATION --
 

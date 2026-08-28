@@ -7,7 +7,7 @@ interface UseAgentStreamReturn {
   setContent: (content: string) => void;
   loading: boolean;
   error: string | undefined;
-  execute: (agentSlug: string, prompt: string) => void;
+  execute: (agentSlug: string, prompt: string, intent?: string) => void;
   abort: () => void;
 }
 
@@ -26,7 +26,7 @@ const useAgentStream = (): UseAgentStreamReturn => {
     abortRef.current = null;
   }, []);
 
-  const execute = useCallback((agentSlug: string, prompt: string) => {
+  const execute = useCallback((agentSlug: string, prompt: string, intent?: string) => {
     // Abort any existing stream
     abort();
 
@@ -51,6 +51,7 @@ const useAgentStream = (): UseAgentStreamReturn => {
         setContent(partialContent);
       },
       controller.signal,
+      intent,
     )
       .then((result) => {
         if (!isActive()) return;

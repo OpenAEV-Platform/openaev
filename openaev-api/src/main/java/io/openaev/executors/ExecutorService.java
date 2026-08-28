@@ -4,7 +4,6 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -13,10 +12,12 @@ import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.executor.form.ExecutorOutput;
+import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.AbstractConnectorService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
@@ -40,6 +41,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   private final ExecutorMapper executorMapper;
 
+  private final EndpointService endpointService;
+
   @Autowired
   public ExecutorService(
       ExecutorRepository executorRepository,
@@ -49,7 +52,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       CatalogConnectorService catalogConnectorService,
       ConnectorInstanceService connectorInstanceService,
       ExecutorMapper executorMapper,
-      CatalogConnectorMapper catalogConnectorMapper) {
+      CatalogConnectorMapper catalogConnectorMapper,
+      EndpointService endpointService) {
     super(
         ConnectorType.EXECUTOR,
         connectorInstanceConfigurationRepository,
@@ -60,6 +64,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     this.executorRepository = executorRepository;
     this.executionTraceRepository = executionTraceRepository;
     this.executorMapper = executorMapper;
+    this.endpointService = endpointService;
   }
 
   @Override
@@ -69,23 +74,27 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   @Override
   protected Executor getConnectorById(String executorId) {
-    return executorRepository
-        .findByIdAndTenantId(executorId, TenantContext.getCurrentTenant())
-        .orElse(null);
+    return executorRepository.findByExecutorId(executorId).orElse(null);
   }
 
   @Override
   protected ExecutorOutput mapToOutput(
       Executor executor,
+      String displayName,
       CatalogConnector catalogConnector,
       ConnectorInstance instance,
       boolean existingExecutor) {
-    return executorMapper.toExecutorOutput(executor, catalogConnector, instance, existingExecutor);
+    return executorMapper.toExecutorOutput(
+        executor, displayName, catalogConnector, instance, existingExecutor);
   }
 
   @Override
   protected Executor createNewConnector() {
     return new Executor();
+  }
+
+  public ExecutorOutput executorOutput(String id) {
+    return getConnectorOutput(id);
   }
 
   /**
@@ -107,7 +116,7 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    */
   public Executor executor(String id) throws ElementNotFoundException {
     return executorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
+        .findByExecutorId(id)
         .orElseThrow(() -> new ElementNotFoundException("Executor not found with id: " + id));
   }
 
@@ -115,10 +124,12 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    * Retrieves IDs of resources associated with an executor.
    *
    * @param executorId executor identifier.
+   * @param tenantId the requesting tenant, resolved by the caller from the request's single-tenant
+   *     scope
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
-  public ConnectorIds getExecutorRelationsId(String executorId) {
-    return getConnectorRelationsId(executorId);
+  public ConnectorIds getExecutorRelationsId(String executorId, String tenantId) {
+    return getConnectorRelationsId(executorId, tenantId);
   }
 
   /**
@@ -137,11 +148,12 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
    * @return an Optional containing the executor if found, empty otherwise
    */
   public Optional<Executor> executorByType(String type) {
-    return this.executorRepository.findByTypeAndTenantId(type, TenantContext.getCurrentTenant());
+    return this.executorRepository.findByType(type);
   }
 
   @Transactional
   public Executor register(
+      String tenantId,
       String id,
       String type,
       String name,
@@ -152,11 +164,21 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       String[] platforms)
       throws Exception {
     return register(
-        id, type, name, documentationUrl, backgroundColor, iconData, bannerData, platforms, true);
+        tenantId,
+        id,
+        type,
+        name,
+        documentationUrl,
+        backgroundColor,
+        iconData,
+        bannerData,
+        platforms,
+        true);
   }
 
   @Transactional
   public Executor register(
+      String tenantId,
       String id,
       String type,
       String name,
@@ -180,14 +202,11 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       fileService.uploadStream(EXECUTORS_IMAGES_BANNERS_BASE_PATH, type + EXT_PNG, bannerData);
     }
 
-    Executor executor =
-        executorRepository.findByIdAndTenantId(id, TenantContext.getCurrentTenant()).orElse(null);
+    Executor executor = executorRepository.findByExecutorId(id).orElse(null);
     if (executor == null) {
-      Tenant tenant = new Tenant(TenantContext.getCurrentTenant());
       executor = new Executor();
       executor.setId(id);
-      executor.setTenant(tenant);
-      executor.setTenantId(tenant.getId());
+      executor.setTenantId(tenantId);
     }
 
     executor.setName(name);
@@ -200,11 +219,28 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     return executorRepository.save(executor);
   }
 
+  /**
+   * Deletes an executor and, when it was deployed through the Integration Manager, the connector
+   * instance that owns it - otherwise the deployment keeps running against an executor that no
+   * longer exists and recreates it on its next registration heartbeat (see {@link
+   * io.openaev.service.connectors.AbstractConnectorService#deleteOwningConnectorInstance}). The
+   * instance delete performs the same source-tag cleanup.
+   */
   @Transactional
-  public void remove(String id) {
-    executorRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
-        .ifPresent(executor -> executorRepository.delete(executor));
+  public void remove(String id) throws ConnectorStatusException {
+    Optional<Executor> executorOptional = executorRepository.findByExecutorId(id);
+    // A started executor can never be deleted (OpenCTI parity): stop it first.
+    executorOptional
+        .filter(BaseConnectorEntity::isExternal)
+        .ifPresent(executor -> throwIfConnectorRunning(executor, executor.getUpdatedAt()));
+    if (deleteOwningConnectorInstance(id)) {
+      return;
+    }
+    executorOptional.ifPresent(
+        executor -> {
+          endpointService.removeSourceTagsForExecutor(executor.getId(), executor.getTenantId());
+          executorRepository.deleteByExecutorId(executor.getId());
+        });
   }
 
   /**

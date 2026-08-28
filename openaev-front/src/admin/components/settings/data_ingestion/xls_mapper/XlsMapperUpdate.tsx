@@ -70,7 +70,9 @@ const XlsMapperUpdate: FunctionComponent<XlsMapperUpdateProps> = ({
   }, []);
 
   if (!xlsMapper) {
-    return <Loader />;
+    // Rendered inside the update drawer: the in-element loader keeps the page-level
+    // loader styling (nav offset, viewport height) out of the drawer body.
+    return <Loader variant="inElement" />;
   }
 
   return (

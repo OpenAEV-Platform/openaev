@@ -8,7 +8,6 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID;
 import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCortexExecutorIntegration.PALOALTOCORTEX_EXECUTOR_TYPE;
-import static io.openaev.integration.impl.executors.sentinelone.SentinelOneExecutorIntegration.SENTINELONE_EXECUTOR_TYPE;
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
@@ -18,8 +17,12 @@ import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.database.audit.AuditLoggedService;
+import io.openaev.database.audit.IndexEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.AssetAgentJobSpecification;
@@ -28,8 +31,10 @@ import io.openaev.executors.model.AgentRegisterInput;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.utils.AgentUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -39,6 +44,8 @@ import jakarta.validation.constraints.NotNull;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
@@ -50,6 +57,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
@@ -59,7 +67,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Service
 @Slf4j
-public class EndpointService {
+public class EndpointService implements AuditLoggedService {
 
   private static final String ASSET_GROUP_FILTER = "assetGroups";
 
@@ -88,6 +96,7 @@ public class EndpointService {
   @Resource private OpenAEVConfig openAEVConfig;
 
   private final EndpointMapper endpointMapper;
+  private final ObjectMapper objectMapper;
 
   /** Cache of raw install/upgrade script templates keyed by platform/script name. */
   private final Map<String, String> agentScriptTemplateCache = new ConcurrentHashMap<>();
@@ -119,6 +128,8 @@ public class EndpointService {
   private final AssetService assetService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
+  private final TenantRepository tenantRepository;
+  private final ApplicationEventPublisher eventPublisher;
 
   // -- CRUD --
   public Endpoint createEndpoint(@NotNull final Endpoint endpoint) {
@@ -128,11 +139,29 @@ public class EndpointService {
   public Endpoint createEndpoint(@NotNull final EndpointInput input) {
     Endpoint endpoint = new Endpoint();
     endpoint.setUpdateAttributes(input);
-    endpoint.setIps(EndpointMapper.setIps(input.getIps()));
+    String[] ips = EndpointMapper.setIps(input.getIps());
+    endpoint.setIps(ips);
+    ensureSeenIp(endpoint);
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(input.getMacAddresses()));
     endpoint.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     endpoint.setEoL(input.isEol());
     return createEndpoint(endpoint);
+  }
+
+  public Endpoint createEndpoint(
+      @NotNull final EndpointInput input, @NotNull final String tenantId) {
+    validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
+    return createEndpoint(input);
+  }
+
+  // Rejects a linked person that is not a member of the current tenant, so an identity asset
+  // cannot reference a users row from another tenant. A blank value is a no-op (it unlinks).
+  private void validateLinkedPersonInTenant(String linkedPerson, String tenantId) {
+    if (StringUtils.isNotBlank(linkedPerson)
+        && !this.tenantRepository.existsByUserIdAndTenantId(linkedPerson, tenantId)) {
+      throw new BadRequestException(
+          "asset_linked_person must reference a user of the current tenant");
+    }
   }
 
   public Endpoint endpoint(@NotBlank final String endpointId, @NotNull final String tenantId) {
@@ -192,6 +221,25 @@ public class EndpointService {
 
   public void deleteEndpoint(@NotBlank final String endpointId) {
     this.endpointRepository.deleteById(endpointId);
+    // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
+    // must be notified explicitly (endpoint + vulnerable-endpoint docs would stay stale).
+    eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, endpointId));
+  }
+
+  /**
+   * Resolves a hostname to its IP address(es) via DNS. Returns an empty list when the hostname
+   * cannot be resolved so the caller can surface a friendly message rather than an error.
+   */
+  public List<String> resolveHostnameToIps(@NotBlank final String hostname) {
+    try {
+      return Arrays.stream(InetAddress.getAllByName(hostname))
+          .map(InetAddress::getHostAddress)
+          .distinct()
+          .toList();
+    } catch (UnknownHostException e) {
+      log.warn("Could not resolve hostname '{}': {}", hostname, e.getMessage());
+      return List.of();
+    }
   }
 
   public Endpoint getEndpoint(@NotBlank final String endpointId, @NotNull final String tenantId) {
@@ -257,6 +305,9 @@ public class EndpointService {
   }
 
   public Page<Endpoint> searchManagedEndpoints(SearchPaginationInput searchPaginationInput) {
+    if (searchPaginationInput.getFilterGroup() == null) {
+      searchPaginationInput.setFilterGroup(Filters.FilterGroup.defaultFilterGroup());
+    }
     Specification<Endpoint> finalSpec =
         buildAdditionalEndpointSpecifications(searchPaginationInput);
     Filters.FilterMode mode = searchPaginationInput.getFilterGroup().getMode();
@@ -327,8 +378,10 @@ public class EndpointService {
       @NotBlank final String endpointId,
       @NotNull final EndpointInput input,
       @NotNull final String tenantId) {
+    validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
     Endpoint toUpdate = this.endpoint(endpointId, tenantId);
     toUpdate.setUpdateAttributes(input);
+    ensureSeenIp(toUpdate);
     toUpdate.setEoL(input.isEol());
     toUpdate.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     return updateEndpoint(toUpdate);
@@ -373,11 +426,9 @@ public class EndpointService {
         setUpdatedEndpointAttributes(endpointToSave, inputToSave);
         // Ensure the endpoint tenant is always consistent with the executor's tenant.
         // Guards against stale cross-tenant data created before TenantContext was set correctly.
-        endpointToSave.setTenant(inputToSave.getExecutor().getTenant());
+        endpointToSave.setTenant(new Tenant(inputToSave.getExecutor().getTenantId()));
         agentToUpdate.setAsset(endpointToSave);
         agentToUpdate.setLastSeen(inputToSave.getLastSeen());
-        // TODO: Making this function transactional is not helping to solve tags
-        // addSourceTagToEndpoint(endpointToSave, inputToSave);
         endpointsToSave.add(endpointToSave);
         agentsToSave.add(agentToUpdate);
         inputs.removeIf(
@@ -411,8 +462,6 @@ public class EndpointService {
             agentToSave = new Agent();
             setNewAgentAttributes(inputToSave, agentToSave);
             setUpdatedAgentAttributes(agentToSave, inputToSave, endpointToUpdate);
-            // TODO: Making this function transactional is not helping to solve tags
-            // addSourceTagToEndpoint(endpointToUpdate, inputToSave);
             endpointsToSave.add(endpointToUpdate);
             agentsToSave.add(agentToSave);
             inputs.removeIf(
@@ -431,8 +480,6 @@ public class EndpointService {
         endpointToSave.setMacAddresses(inputToUpdate.getMacAddresses());
         // Set tenant explicitly so TenantBaseListener is not needed for this background path.
         endpointToSave.setTenant(new Tenant(tenantId));
-        // TODO: Making this function transactional is not helping to solve tags
-        // addSourceTagToEndpoint(endpointToSave, inputToUpdate);
         endpointsToSave.add(endpointToSave);
         agentToSave = new Agent();
         setNewAgentAttributes(inputToUpdate, agentToSave);
@@ -440,9 +487,28 @@ public class EndpointService {
         agentsToSave.add(agentToSave);
       }
     }
-    // Save all in database
+
     assetService.saveAllAssets(endpointsToSave);
     List<Agent> savedAgents = agentService.saveAllAgents(agentsToSave);
+
+    // Update source tags after both endpoints and agents are saved
+    if (!savedAgents.isEmpty()) {
+      List<Agent> inactiveAgents = new ArrayList<>();
+      for (Agent agent : savedAgents) {
+        if (!(agent.getAsset() instanceof Endpoint endpoint) || agent.getExecutor() == null) {
+          continue;
+        }
+        if (agent.isActive()) {
+          addSourceTagToEndpoint(endpoint, agent.getExecutor());
+        } else {
+          inactiveAgents.add(agent);
+        }
+      }
+      if (!inactiveAgents.isEmpty()) {
+        removeSourceTagsFromAgentEndpoints(inactiveAgents);
+      }
+    }
+
     log.info(
         ":::::> syncAgentsEndpoints saved: endpoints={}, agents={}, tenantId={}",
         endpointsToSave.stream()
@@ -458,7 +524,7 @@ public class EndpointService {
   @Transactional
   public Endpoint register(final EndpointRegisterInput input, @NotNull final String tenantId)
       throws IOException {
-    AgentRegisterInput agentInput = toAgentEndpoint(input, tenantId);
+    AgentRegisterInput agentInput = toAgentEndpoint(input);
     Agent agent;
     // Check if agents exist (because we can find X openaev agent on an endpoint)
     List<Agent> existingAgents =
@@ -512,7 +578,13 @@ public class EndpointService {
           assetAgentJob.setCommand(
               generateUpgradeCommand(
                   endpoint.getPlatform().name(),
-                  input.getInstallationMode(),
+                  // Normalise/validate against the known installation modes before it reaches the
+                  // resource-path resolution in loadAgentScriptTemplate (avoids
+                  // java/path-injection): the raw value here comes straight from the register
+                  // request body.
+                  input.getInstallationMode() == null
+                      ? null
+                      : AgentUtils.getSupportedInstallationMode(input.getInstallationMode()),
                   input.getInstallationDirectory(),
                   input.getServiceName(),
                   agent.getTenant().getId()));
@@ -551,47 +623,153 @@ public class EndpointService {
   }
 
   private void addSourceTagToEndpoint(Endpoint endpoint, AgentRegisterInput input) {
-    Set<Tag> existingTags =
-        endpoint.getTags() != null ? new HashSet<>(endpoint.getTags()) : new HashSet<>();
-    existingTags.removeIf(t -> t.getName() != null && t.getName().startsWith("source:"));
-    String tagName = "source:" + input.getExecutor().getName().toLowerCase();
-    Optional<Tag> tag = tagRepository.findByName(tagName);
+    addSourceTagToEndpoint(endpoint, input.getExecutor());
+  }
+
+  private void addSourceTagToEndpoint(Endpoint endpoint, Executor executor) {
+    Set<Tag> existingTags = loadEndpointTags(endpoint);
+    String tagName = getExecutorSourceTagName(executor);
+    String tenantId = endpoint.getTenant().getId();
+
+    // Check if the tag already exists on this endpoint, if so, nothing to do.
+    boolean alreadyHasTag = existingTags.stream().anyMatch(t -> tagName.equals(t.getName()));
+    if (alreadyHasTag) {
+      return;
+    }
+
+    // Find or create the tag entity scoped by tenant, then add to the endpoint
+    Optional<Tag> tag = tagRepository.findByNameAndTenantId(tagName, tenantId);
     if (tag.isEmpty()) {
       Tag newTag = new Tag();
-      newTag.setColor(input.getExecutor().getBackgroundColor());
+      newTag.setColor(executor.getBackgroundColor());
       newTag.setName(tagName);
+      newTag.setTenant(endpoint.getTenant());
       tagRepository.save(newTag);
       existingTags.add(newTag);
     } else {
       existingTags.add(tag.get());
     }
     endpoint.setTags(existingTags);
+    endpointRepository.save(endpoint);
+  }
+
+  /**
+   * Remove source tags from endpoints for a collection of agents. Each agent's executor tag will be
+   * removed from its associated endpoint.
+   *
+   * @param agents the agents whose executor source tags should be removed from their endpoints
+   */
+  public void removeSourceTagsFromAgentEndpoints(Collection<Agent> agents) {
+    if (agents == null || agents.isEmpty()) {
+      return;
+    }
+
+    // Group executors by endpoint
+    Map<String, List<Executor>> executorsByEndpointId =
+        agents.stream()
+            .filter(agent -> agent.getExecutor() != null && agent.getAsset() != null)
+            .collect(
+                Collectors.groupingBy(
+                    agent -> agent.getAsset().getId(),
+                    Collectors.mapping(Agent::getExecutor, Collectors.toList())));
+
+    if (executorsByEndpointId.isEmpty()) {
+      return;
+    }
+
+    // Batch load all endpoints
+    List<Endpoint> endpoints =
+        fromIterable(endpointRepository.findAllById(executorsByEndpointId.keySet()));
+
+    // Remove tags per endpoint and collect modified ones
+    List<Endpoint> modifiedEndpoints = new ArrayList<>();
+    for (Endpoint endpoint : endpoints) {
+      Set<Tag> existingTags = loadEndpointTags(endpoint);
+      if (existingTags.isEmpty()) {
+        continue;
+      }
+      List<Executor> executors = executorsByEndpointId.get(endpoint.getId());
+      boolean modified = false;
+      for (Executor executor : executors) {
+        String tagName = getExecutorSourceTagName(executor);
+        if (existingTags.removeIf(t -> t.getName() != null && t.getName().equals(tagName))) {
+          modified = true;
+        }
+      }
+      if (modified) {
+        endpoint.setTags(existingTags);
+        endpoint.setUpdatedAt(now());
+        modifiedEndpoints.add(endpoint);
+      }
+    }
+
+    // Batch save all modified endpoints
+    if (!modifiedEndpoints.isEmpty()) {
+      endpointRepository.saveAll(modifiedEndpoints);
+    }
+  }
+
+  private String getExecutorSourceTagName(Executor executor) {
+    return "source:" + executor.getName().toLowerCase(Locale.ROOT);
+  }
+
+  /**
+   * Remove the source tag for a specific executor from all endpoints that have agents for it.
+   * Called when an executor is deleted to clean up orphaned tags.
+   *
+   * @param executorId the executor ID whose agents' endpoints should be cleaned
+   * @param tenantId the tenant scope
+   */
+  public void removeSourceTagsForExecutor(String executorId, String tenantId) {
+    List<Agent> agents = agentService.getAgentsByExecutorIdAndTenantId(executorId, tenantId);
+    removeSourceTagsFromAgentEndpoints(agents);
+  }
+
+  /**
+   * Load endpoint tags from the database. This is used to check for existing tags before adding a
+   * new source tag.
+   */
+  private Set<Tag> loadEndpointTags(Endpoint endpoint) {
+    if (endpoint.getId() == null) {
+      return new HashSet<>();
+    }
+    return new HashSet<>(
+        tagRepository.findByAssetIdAndTenantId(endpoint.getId(), endpoint.getTenant().getId()));
   }
 
   private Agent updateExistingEndpointAndManageAgent(Endpoint endpoint, AgentRegisterInput input) {
     setUpdatedEndpointAttributes(endpoint, input);
     addSourceTagToEndpoint(endpoint, input);
+    Agent agent = createOrUpdateAgent(endpoint, input);
     updateEndpoint(endpoint);
-    return createOrUpdateAgent(endpoint, input);
+    return agent;
   }
 
   private Agent updateExistingAgent(Agent agent, AgentRegisterInput input) {
     Endpoint endpoint = (Endpoint) agent.getAsset();
+    // Capture significant state before mutation
+    Map<String, Object> before = endpoint.significantState(objectMapper);
+
     setUpdatedEndpointAttributes(endpoint, input);
     addSourceTagToEndpoint(endpoint, input);
-    updateEndpoint(endpoint);
     setUpdatedAgentAttributes(agent, input, endpoint);
-    return agentService.createOrUpdateAgent(agent);
+    updateEndpoint(endpoint);
+
+    // Suppress audit logging for heartbeat-only updates (no significant endpoint change)
+    suppressAuditIfUnchanged(before, endpoint.significantState(objectMapper));
+
+    return agent;
   }
 
   private Agent updateExistingEndpointAndCreateAgent(Endpoint endpoint, AgentRegisterInput input) {
     setUpdatedEndpointAttributes(endpoint, input);
     addSourceTagToEndpoint(endpoint, input);
-    updateEndpoint(endpoint);
     Agent agent = new Agent();
     setNewAgentAttributes(input, agent);
     setUpdatedAgentAttributes(agent, input, endpoint);
-    return agentService.createOrUpdateAgent(agent);
+    endpoint.getAgents().add(agent);
+    updateEndpoint(endpoint);
+    return agent;
   }
 
   private Agent createOrUpdateAgent(Endpoint endpoint, AgentRegisterInput input) {
@@ -614,7 +792,10 @@ public class EndpointService {
       setNewAgentAttributes(input, agent);
     }
     setUpdatedAgentAttributes(agent, input, endpoint);
-    return agentService.createOrUpdateAgent(agent);
+    if (!endpoint.getAgents().contains(agent)) {
+      endpoint.getAgents().add(agent);
+    }
+    return agent;
   }
 
   private void setUpdatedEndpointAttributes(Endpoint endpoint, AgentRegisterInput input) {
@@ -649,35 +830,28 @@ public class EndpointService {
     endpoint.setIps(input.getIps());
     endpoint.setSeenIp(input.getSeenIp());
     endpoint.setMacAddresses(input.getMacAddresses());
-    endpoint.setTenant(input.getExecutor().getTenant());
-    addSourceTagToEndpoint(endpoint, input);
-    createEndpoint(endpoint);
+    endpoint.setTenant(new Tenant(input.getExecutor().getTenantId()));
     Agent agent = new Agent();
-    setUpdatedAgentAttributes(agent, input, endpoint);
     setNewAgentAttributes(input, agent);
-    return agentService.createOrUpdateAgent(agent);
+    setUpdatedAgentAttributes(agent, input, endpoint);
+    endpoint.getAgents().add(agent);
+    createEndpoint(endpoint);
+    addSourceTagToEndpoint(endpoint, input);
+    return agent;
   }
 
   private void setNewAgentAttributes(AgentRegisterInput input, Agent agent) {
-    // External reference needs to be the id for Crowdstrike and SentinelOne for the batch "execute
-    // scripts"
-    if (CROWDSTRIKE_EXECUTOR_TYPE.equals(input.getExecutor().getType())
-        || SENTINELONE_EXECUTOR_TYPE.equals(input.getExecutor().getType())) {
-      agent.setId(input.getExternalReference());
-    }
     agent.setPrivilege(input.isElevated() ? Agent.PRIVILEGE.admin : Agent.PRIVILEGE.standard);
     agent.setDeploymentMode(
         input.isService() ? Agent.DEPLOYMENT_MODE.service : Agent.DEPLOYMENT_MODE.session);
     agent.setExecutedByUser(input.getExecutedByUser());
     agent.setExecutor(input.getExecutor());
-    agent.setTenant(input.getExecutor().getTenant());
+    agent.setTenant(new Tenant(input.getExecutor().getTenantId()));
   }
 
-  private AgentRegisterInput toAgentEndpoint(
-      EndpointRegisterInput input, @NotNull String tenantId) {
+  private AgentRegisterInput toAgentEndpoint(EndpointRegisterInput input) {
     AgentRegisterInput agentInput = new AgentRegisterInput();
-    agentInput.setExecutor(
-        executorRepository.findByIdAndTenantId(OPENAEV_EXECUTOR_ID, tenantId).orElse(null));
+    agentInput.setExecutor(executorRepository.findByExecutorId(OPENAEV_EXECUTOR_ID).orElse(null));
     agentInput.setLastSeen(Instant.now());
     agentInput.setExternalReference(input.getExternalReference());
     agentInput.setIps(input.getIps());
@@ -927,6 +1101,7 @@ public class EndpointService {
    * @return the created or updated Endpoint entity
    */
   public Endpoint upsertEndpoint(EndpointInput input, @NotNull String tenantId) {
+    validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
     Optional<Endpoint> endpoint = findExistingEndpoint(input, tenantId);
     if (endpoint.isPresent()) {
       Endpoint endpointToUpdate = endpoint.get();
@@ -939,17 +1114,56 @@ public class EndpointService {
               .distinct()
               .toList();
       endpointToUpdate.setTags(iterableToSet(tagRepository.findAllById(tags)));
-      endpointToUpdate.setArch(input.getArch());
-      endpointToUpdate.setPlatform(input.getPlatform());
-      // Optional fields
+      // Optional fields: only override when provided so category inputs that omit
+      // platform/arch (web app, cloud, ...) do not reset existing values to Unknown.
+      if (input.getArch() != null) {
+        endpointToUpdate.setArch(input.getArch());
+      }
+      if (input.getPlatform() != null) {
+        endpointToUpdate.setPlatform(input.getPlatform());
+      }
       if (input.getIps() != null) {
-        endpointToUpdate.setIps(EndpointMapper.setIps(input.getIps()));
+        String[] ips = EndpointMapper.setIps(input.getIps());
+        endpointToUpdate.setIps(ips);
+        ensureSeenIp(endpointToUpdate);
       }
       if (input.getHostname() != null) {
         endpointToUpdate.setHostname(input.getHostname());
       }
       if (input.getMacAddresses() != null) {
         endpointToUpdate.setMacAddresses(input.getMacAddresses());
+      }
+      // Categorization: only override when provided so an existing classification is preserved.
+      if (input.getCategory() != null) {
+        endpointToUpdate.setCategory(input.getCategory());
+      }
+      if (input.getSubcategory() != null) {
+        endpointToUpdate.setSubcategory(input.getSubcategory());
+      }
+      if (input.getCriticality() != null) {
+        endpointToUpdate.setCriticality(input.getCriticality());
+      }
+      if (input.getInternetFacing() != null) {
+        endpointToUpdate.setInternetFacing(input.getInternetFacing());
+      }
+      if (input.getCloudProvider() != null) {
+        endpointToUpdate.setCloudProvider(input.getCloudProvider());
+      }
+      if (input.getCloudNativeType() != null) {
+        endpointToUpdate.setCloudNativeType(input.getCloudNativeType());
+      }
+      if (input.getCloudRegion() != null) {
+        endpointToUpdate.setCloudRegion(input.getCloudRegion());
+      }
+      if (input.getUrl() != null) {
+        endpointToUpdate.setUrl(input.getUrl());
+      }
+      if (input.getMetadata() != null && !input.getMetadata().isEmpty()) {
+        endpointToUpdate.setMetadata(input.getMetadata());
+      }
+      // A blank value unlinks (the setter normalizes it to null); null preserves the existing link.
+      if (input.getLinkedPerson() != null) {
+        endpointToUpdate.setLinkedPerson(input.getLinkedPerson());
       }
       return updateEndpoint(endpointToUpdate);
     }
@@ -996,5 +1210,12 @@ public class EndpointService {
       if (!found.isEmpty()) return Optional.of(found.getFirst());
     }
     return Optional.empty();
+  }
+
+  /** Ensures seenIp is populated from the first available IP when not already set. */
+  private void ensureSeenIp(Endpoint endpoint) {
+    if (endpoint.getSeenIp() == null && endpoint.getIps() != null && endpoint.getIps().length > 0) {
+      endpoint.setSeenIp(endpoint.getIps()[0]);
+    }
   }
 }

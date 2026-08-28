@@ -5,11 +5,12 @@ import { type FunctionComponent } from 'react';
 import { type InjectHelper } from '../../../../../actions/injects/inject-helper';
 import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
 import Chart from '../../../../../components/Chart';
-import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
-import { type Exercise, type InjectExpectation, type Team } from '../../../../../utils/api-types';
+import { type Exercise, type InjectExpectationOutput, type Team } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
+import { sampleHorizontalBarHeight, sampleHorizontalBarSeries } from '../../../../../utils/SampleCharts';
+import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { computeTeamsColors } from './DistributionUtils';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
@@ -27,13 +28,13 @@ const ExerciseDistributionScoreByTeamInPercentage: FunctionComponent<Props> = ({
   }));
 
   const teamsTotalScores = R.pipe(
-    R.filter((n: InjectExpectation) => !R.isEmpty(n.inject_expectation_results) && n?.inject_expectation_team),
+    R.filter((n: InjectExpectationOutput) => !R.isEmpty(n.inject_expectation_results) && n?.inject_expectation_team),
     R.groupBy(R.prop('inject_expectation_team')),
     R.toPairs,
-    R.map((n: [string, InjectExpectation[]]) => ({
+    R.map((n: [string, InjectExpectationOutput[]]) => ({
       ...teamsMap[n[0]],
       team_total_score: R.sum(
-        R.map((o: InjectExpectation) => o.inject_expectation_score, n[1]),
+        R.map((o: InjectExpectationOutput) => o.inject_expectation_score, n[1]),
       ),
     })),
   )(injectExpectations);
@@ -65,26 +66,24 @@ const ExerciseDistributionScoreByTeamInPercentage: FunctionComponent<Props> = ({
     },
   ];
 
+  // Dashboard convention: charts without real data render a greyed-out sample
+  // (with a "Sample" chip) instead of a bare empty message.
+  const isSample = teamsTotalScores.length === 0;
+  const sampleLabels = ['Blue team', 'SOC', 'CERT'];
+
   return (
-    <>
-      {teamsTotalScores.length > 0 ? (
-        <Chart
-          id="exercise_distribution_score_by_team"
-          options={horizontalBarsChartOptions({ theme })}
-          series={percentScoreByTeamData}
-          type="bar"
-          width="100%"
-          height={50 + sortedTeamsByPercentScore.length * 50}
-        />
-      ) : (
-        <Empty
-          id="exercise_distribution_score_by_team"
-          message={t(
-            'No data to display or the simulation has not started yet',
-          )}
-        />
-      )}
-    </>
+    <SamplePreview active={isSample}>
+      <Chart
+        id="exercise_distribution_score_by_team"
+        options={horizontalBarsChartOptions({ theme })}
+        series={isSample
+          ? sampleHorizontalBarSeries(t('Percent of reached score'), sampleLabels, theme, [85, 62, 38])
+          : percentScoreByTeamData}
+        type="bar"
+        width="100%"
+        height={isSample ? sampleHorizontalBarHeight(sampleLabels) : 50 + sortedTeamsByPercentScore.length * 50}
+      />
+    </SamplePreview>
   );
 };
 

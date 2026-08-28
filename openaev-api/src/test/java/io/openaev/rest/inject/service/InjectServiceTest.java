@@ -3,6 +3,7 @@ package io.openaev.rest.inject.service;
 import static java.time.Instant.now;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -11,13 +12,13 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
-import io.openaev.database.raw.RawInject;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.injectors.email.service.ImapService;
 import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.collector.service.CollectorService;
@@ -25,7 +26,6 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetGroupService;
@@ -34,6 +34,8 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.TagRuleService;
 import io.openaev.service.UserService;
+import io.openaev.service.chaining.ConditionService;
+import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -41,6 +43,7 @@ import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
@@ -62,6 +65,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -129,7 +133,15 @@ class InjectServiceTest {
 
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
 
-  @Spy private InjectorContractContentUtils injectorContractContentUtils;
+  @Mock private StepTargetingService stepTargetingService;
+
+  @Mock private ConditionService conditionService;
+
+  @Spy
+  private InjectorContractContentUtils injectorContractContentUtils =
+      new InjectorContractContentUtils(ObjectMapperHelper.openAEVJsonMapper());
+
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   ObjectMapper mapper;
 
@@ -138,12 +150,17 @@ class InjectServiceTest {
 
   @BeforeEach
   void setUp() {
-    mapper = new ObjectMapper();
+    // InjectStatusService serializes the inject (Instant / Optional fields) into the SSE
+    // BaseEvent payload on status transitions, so the mapper needs the JSR-310/JDK8 modules.
+    mapper = new ObjectMapper().findAndRegisterModules();
     ReflectionTestUtils.setField(injectService, "mapper", mapper);
+    ReflectionTestUtils.setField(injectStatusService, "mapper", mapper);
+    ReflectionTestUtils.setField(injectStatusService, "auditLogger", Optional.empty());
     ReflectionTestUtils.setField(
         injectService,
         "healthCheckUtils",
-        new HealthCheckUtils(new ExecutorUtils(assetAgentJobRepository)));
+        new HealthCheckUtils(
+            new ExecutorUtils(assetAgentJobRepository), stepTargetingService, conditionService));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -152,7 +169,10 @@ class InjectServiceTest {
             payloadMapper,
             injectExpectationMapper,
             injectUtils,
-            new HealthCheckUtils(new ExecutorUtils(assetAgentJobRepository))));
+            new HealthCheckUtils(
+                new ExecutorUtils(assetAgentJobRepository),
+                stepTargetingService,
+                conditionService)));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
@@ -288,10 +308,14 @@ class InjectServiceTest {
     t0.setId("team0");
     Asset a0 = new Asset();
     a0.setId("asset0");
+    InjectorContract technicalContract =
+        buildContractWithContentFields("teams", "assets", "asset_groups");
     Inject i1 = new Inject();
     i1.setId("inject1");
+    i1.setInjectorContract(technicalContract);
     Inject i2 = new Inject();
     i2.setId("inject2");
+    i2.setInjectorContract(technicalContract);
     i1.setTeams(new ArrayList<>(List.of(t0)));
     i1.setAssets(new ArrayList<>(List.of(a0)));
 
@@ -321,7 +345,7 @@ class InjectServiceTest {
     List<Asset> aList = List.of(a1, a2);
 
     when(teamRepository.findAllById(any())).thenReturn(tList);
-    when(assetService.assets(any())).thenReturn(aList);
+    when(assetService.assets(anyList())).thenReturn(aList);
 
     // Expected results
     Inject i1updated = new Inject();
@@ -351,6 +375,124 @@ class InjectServiceTest {
     assertTrue(updatedInjects.getFirst().getAssets().containsAll(aList));
     assertTrue(updatedInjects.get(1).getTeams().containsAll(tList));
     assertTrue(updatedInjects.get(1).getAssets().containsAll(aList));
+  }
+
+  @DisplayName(
+      "Test bulk update injects with mixed contract types only applies asset operations to contracts declaring asset fields")
+  @Test
+  void given_injects_with_mixed_contract_types_should_apply_asset_operations_per_contract_fields() {
+    // Arrange
+    Team t1 = new Team();
+    t1.setId("team1");
+    Asset a0 = new Asset();
+    a0.setId("asset0");
+    Asset a1 = new Asset();
+    a1.setId("asset1");
+    AssetGroup ag0 = new AssetGroup();
+    ag0.setId("assetGroup0");
+    AssetGroup ag1 = new AssetGroup();
+    ag1.setId("assetGroup1");
+
+    // (a) Executor-backed payload contract declaring assets and asset_groups fields
+    InjectorContract payloadContract =
+        buildContractWithContentFields("assets", "asset_groups", "expectations");
+    payloadContract.setNeedsExecutor(true);
+    Inject payloadInject = buildInjectForBulkUpdate("payloadInject", payloadContract, a0, ag0);
+
+    // (b) Agentless technical contract (Nmap/Nuclei-like): needs_executor is false but the
+    // contract content declares assets and asset_groups fields, so asset operations MUST apply
+    InjectorContract agentlessContract =
+        buildContractWithContentFields("assets", "asset_groups", "expectations");
+    agentlessContract.setNeedsExecutor(false);
+    Inject agentlessInject =
+        buildInjectForBulkUpdate("agentlessInject", agentlessContract, a0, ag0);
+
+    // (c) Email-like contract without any asset field: asset operations must be skipped
+    InjectorContract emailContract =
+        buildContractWithContentFields("teams", "subject", "body", "expectations");
+    emailContract.setNeedsExecutor(false);
+    Inject emailInject = buildInjectForBulkUpdate("emailInject", emailContract, a0, ag0);
+
+    // (d) Inject without any contract: asset operations must be skipped
+    Inject contractlessInject = buildInjectForBulkUpdate("contractlessInject", null, a0, ag0);
+
+    List<Inject> injectsToUpdate =
+        List.of(payloadInject, agentlessInject, emailInject, contractlessInject);
+
+    InjectBulkUpdateOperation teamsOp = new InjectBulkUpdateOperation();
+    teamsOp.setField(InjectBulkUpdateSupportedFields.TEAMS);
+    teamsOp.setOperation(InjectBulkUpdateSupportedOperations.ADD);
+    teamsOp.setValues(List.of("team1"));
+    InjectBulkUpdateOperation assetsOp = new InjectBulkUpdateOperation();
+    assetsOp.setField(InjectBulkUpdateSupportedFields.ASSETS);
+    assetsOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetsOp.setValues(List.of("asset1"));
+    InjectBulkUpdateOperation assetGroupsOp = new InjectBulkUpdateOperation();
+    assetGroupsOp.setField(InjectBulkUpdateSupportedFields.ASSET_GROUPS);
+    assetGroupsOp.setOperation(InjectBulkUpdateSupportedOperations.REPLACE);
+    assetGroupsOp.setValues(List.of("assetGroup1"));
+
+    List<InjectBulkUpdateOperation> operations = List.of(teamsOp, assetsOp, assetGroupsOp);
+
+    when(teamRepository.findAllById(any())).thenReturn(List.of(t1));
+    when(assetService.assets(anyList())).thenReturn(List.of(a1));
+    when(assetGroupService.assetGroups(anyList())).thenReturn(List.of(ag1));
+    when(injectRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // Act
+    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+
+    // Assert
+    assertNotNull(updatedInjects);
+    assertEquals(4, updatedInjects.size());
+
+    Inject updatedPayload = updatedInjects.getFirst();
+    Inject updatedAgentless = updatedInjects.get(1);
+    Inject updatedEmail = updatedInjects.get(2);
+    Inject updatedContractless = updatedInjects.get(3);
+
+    // Teams are applied to every inject, whatever the contract type
+    assertEquals(List.of(t1), updatedPayload.getTeams());
+    assertEquals(List.of(t1), updatedAgentless.getTeams());
+    assertEquals(List.of(t1), updatedEmail.getTeams());
+    assertEquals(List.of(t1), updatedContractless.getTeams());
+
+    // Assets and asset groups are applied to the executor-backed payload inject...
+    assertEquals(List.of(a1), updatedPayload.getAssets());
+    assertEquals(List.of(ag1), updatedPayload.getAssetGroups());
+
+    // ... AND to the agentless technical inject, since its contract declares asset fields
+    assertEquals(List.of(a1), updatedAgentless.getAssets());
+    assertEquals(List.of(ag1), updatedAgentless.getAssetGroups());
+
+    // ... but skipped for the email inject (no asset fields) and the contract-less inject
+    assertEquals(List.of(a0), updatedEmail.getAssets());
+    assertEquals(List.of(ag0), updatedEmail.getAssetGroups());
+    assertEquals(List.of(a0), updatedContractless.getAssets());
+    assertEquals(List.of(ag0), updatedContractless.getAssetGroups());
+  }
+
+  /** Builds an injector contract whose content declares the given field keys. */
+  private InjectorContract buildContractWithContentFields(String... fieldKeys) {
+    InjectorContract contract = new InjectorContract();
+    String fields =
+        Arrays.stream(fieldKeys)
+            .map(key -> "{\"key\":\"" + key + "\",\"type\":\"text\"}")
+            .collect(java.util.stream.Collectors.joining(","));
+    contract.setContent("{\"fields\":[" + fields + "]}");
+    return contract;
+  }
+
+  /** Builds an inject pre-populated with one asset and one asset group for bulk update tests. */
+  private Inject buildInjectForBulkUpdate(
+      String id, InjectorContract contract, Asset initialAsset, AssetGroup initialAssetGroup) {
+    Inject inject = new Inject();
+    inject.setId(id);
+    inject.setInjectorContract(contract);
+    inject.setTeams(new ArrayList<>());
+    inject.setAssets(new ArrayList<>(List.of(initialAsset)));
+    inject.setAssetGroups(new ArrayList<>(List.of(initialAssetGroup)));
+    return inject;
   }
 
   @DisplayName("Test bulk update injects with empty operations")
@@ -712,7 +854,7 @@ class InjectServiceTest {
     InjectInput injectInput = new InjectInput();
     injectInput.setTitle("Test inject");
     injectInput.setInjectorContract(injectorContractId);
-    // injectorId is NOT set — auto-resolve from contract
+    // injectorId is NOT set - auto-resolve from contract
     injectInput.setDependsDuration(0L);
 
     Scenario scenario = new Scenario();
@@ -785,6 +927,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
 
@@ -794,7 +937,7 @@ class InjectServiceTest {
 
     // MOCK
     when(smtpService.isServiceAvailable()).thenReturn(false);
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -821,6 +964,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
 
@@ -830,7 +974,7 @@ class InjectServiceTest {
 
     // MOCK
     when(imapService.isServiceAvailable()).thenReturn(false);
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -856,10 +1000,11 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
     inject.getInjectorContract().get().setNeedsExecutor(true);
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -886,14 +1031,15 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     ObjectNode expectationDetection = mapper.createObjectNode();
     expectationDetection.put(
-        "expectation_type", InjectExpectation.EXPECTATION_TYPE.DETECTION.toString());
+        "expectation_type", BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.toString());
 
     ObjectNode expectationPrevention = mapper.createObjectNode();
     expectationPrevention.put(
-        "expectation_type", InjectExpectation.EXPECTATION_TYPE.PREVENTION.toString());
+        "expectation_type", BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.toString());
 
     ArrayNode expectationsArray = mapper.createArrayNode();
     expectationsArray.add(expectationDetection);
@@ -904,7 +1050,7 @@ class InjectServiceTest {
     inject.setContent(content);
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -933,6 +1079,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
     inject
         .getInjectorContract()
         .get()
@@ -940,7 +1087,7 @@ class InjectServiceTest {
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     Injector nmapInjector = new Injector();
     nmapInjector.setId("testNmap");
     nmapInjector.setType("openaev_nmap");
@@ -961,6 +1108,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
 
@@ -969,7 +1117,7 @@ class InjectServiceTest {
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NMAP});
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -995,6 +1143,7 @@ class InjectServiceTest {
         InjectFixture.getInjectForEmailContract(
             InjectorContractFixture.createPayloadInjectorContractWithFieldsContent(
                 InjectorFixture.createDefaultPayloadInjector(), null, List.of()));
+    inject.setTenant(new Tenant("test-tenant-id"));
 
     inject.setInjector(inject.getInjectorContract().get().getFirstInjector());
 
@@ -1003,7 +1152,7 @@ class InjectServiceTest {
         .setDependencies(new ExternalServiceDependency[] {ExternalServiceDependency.NUCLEI});
 
     // MOCK
-    when(collectorService.securityPlatformCollectors()).thenReturn(List.of());
+    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
     when(injectorService.findAll()).thenReturn(List.of());
 
     // RUN
@@ -1154,56 +1303,6 @@ class InjectServiceTest {
       assertEquals(simulationId, simulationIdCaptor.getValue());
       assertEquals(teamIds, teamIdsCaptor.getValue());
       verifyNoMoreInteractions(injectRepository);
-    }
-  }
-
-  /* ============================================================
-   * Find raw injects
-   * ============================================================ */
-  @Nested
-  @DisplayName("findRawByIds")
-  class FindRawByIdsTests {
-
-    @Captor private ArgumentCaptor<List<String>> idsCaptor;
-
-    private static Stream<Arguments> testCases() {
-      String id1 = UUID.randomUUID().toString();
-      String id2 = UUID.randomUUID().toString();
-      String id3 = UUID.randomUUID().toString();
-
-      RawInject rawInject1 = mock(RawInject.class);
-      RawInject rawInject2 = mock(RawInject.class);
-
-      return Stream.of(
-          Arguments.of(
-              "multiple IDs returning multiple injects",
-              List.of(id1, id2, id3),
-              List.of(rawInject1, rawInject2),
-              2),
-          Arguments.of(
-              "multiple IDs returning single inject", List.of(id1, id2), List.of(rawInject1), 1),
-          Arguments.of("single ID", List.of(id1), List.of(rawInject1), 1),
-          Arguments.of("empty IDs list", Collections.emptyList(), Collections.emptyList(), 0),
-          Arguments.of(
-              "IDs with no matching injects", List.of(id1, id2), Collections.emptyList(), 0));
-    }
-
-    @ParameterizedTest(name = "should handle {0}")
-    @MethodSource("testCases")
-    void shouldReturnRawInjects(
-        String name, List<String> ids, List<RawInject> expected, int expectedSize) {
-      // Prepare
-      when(injectRepository.findRawByIds(ids)).thenReturn(expected);
-
-      // Act
-      List<RawInject> result = injectService.findRawByIds(ids);
-
-      // Assert
-      verify(injectRepository).findRawByIds(idsCaptor.capture());
-      assertEquals(ids, idsCaptor.getValue());
-      assertNotNull(result);
-      assertEquals(expectedSize, result.size());
-      assertEquals(expected, result);
     }
   }
 }

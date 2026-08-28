@@ -13,9 +13,12 @@ import { buildSearchPagination } from '../../../../components/common/queryable/Q
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import { useFormatter } from '../../../../components/i18n';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
+import { LESSONS_TEMPLATES_BASE_URL } from '../../../../constants/BaseUrls';
 import { type LessonsTemplate, type SearchPaginationInput } from '../../../../utils/api-types';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { SETTINGS_LABEL } from '../../nav/config/settings.config';
+import CustomizationMenu from '../../settings/CustomizationMenu';
 import CreateLessonsTemplate from './CreateLessonsTemplate';
 
 const useStyles = makeStyles()(() => ({
@@ -64,80 +67,91 @@ const LessonsTemplates = () => {
   };
 
   return (
-    <>
-      <Breadcrumbs
-        variant="list"
-        elements={[{ label: t('Components') }, {
-          label: t('Lessons learned'),
-          current: true,
-        }]}
-      />
-      <PaginationComponent
-        fetch={searchLessonsTemplatesToLoad}
-        searchPaginationInput={searchPaginationInput}
-        setContent={setLessonTemplates}
-      />
-      <List>
-        <ListItem
-          classes={{ root: classes.itemHead }}
-          divider={false}
-          style={{ paddingTop: 0 }}
-        >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponent
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
-                searchPaginationInput={searchPaginationInput}
-                setSearchPaginationInput={setSearchPaginationInput}
-              />
-            )}
-          />
-          <ListItemSecondaryAction />
-        </ListItem>
-        {loading
-          ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
-          : lessonTemplates.map((lessonsTemplate) => {
-              return (
-                <ListItemButton
-                  key={lessonsTemplate.lessonstemplate_id}
-                  classes={{ root: classes.item }}
-                  divider
-                  component={Link}
-                  to={`/admin/components/lessons/${lessonsTemplate.lessonstemplate_id}`}
-                >
-                  <ListItemIcon>
-                    <SchoolOutlined color="primary" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={(
-                      <div style={bodyItemsStyles.bodyItems}>
-                        {headers.map(header => (
-                          <div
-                            key={header.field}
-                            style={{
-                              ...bodyItemsStyles.bodyItem,
-                              ...inlineStyles[header.field],
-                            }}
-                          >
-                            {header.value(lessonsTemplate)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  />
-                  <ListItemSecondaryAction>
-                    <ChevronRightOutlined />
-                  </ListItemSecondaryAction>
-                </ListItemButton>
-              );
-            })}
-      </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-        <CreateLessonsTemplate onCreate={result => setLessonTemplates([result, ...lessonTemplates])} />
-      </Can>
-    </>
+    <div style={{ display: 'flex' }}>
+      <div style={{ flexGrow: 1 }}>
+        <Breadcrumbs
+          variant="list"
+          elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Customization') }, {
+            label: t('Lessons learned'),
+            current: true,
+          }]}
+        />
+        <PaginationComponent
+          fetch={searchLessonsTemplatesToLoad}
+          searchPaginationInput={searchPaginationInput}
+          setContent={setLessonTemplates}
+          createButton={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+              <CreateLessonsTemplate onCreate={result => setLessonTemplates([result, ...lessonTemplates])} />
+            </Can>
+          )}
+        />
+        <List>
+          <ListItem
+            classes={{ root: classes.itemHead }}
+            divider={false}
+            style={{ paddingTop: 0 }}
+          >
+            <ListItemIcon />
+            <ListItemText
+              primary={(
+                <SortHeadersComponent
+                  headers={headers}
+                  inlineStylesHeaders={inlineStyles}
+                  searchPaginationInput={searchPaginationInput}
+                  setSearchPaginationInput={setSearchPaginationInput}
+                />
+              )}
+            />
+            <ListItemSecondaryAction />
+          </ListItem>
+          {loading
+            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
+            : lessonTemplates.map((lessonsTemplate) => {
+                return (
+                  <ListItemButton
+                    key={lessonsTemplate.lessonstemplate_id}
+                    classes={{ root: classes.item }}
+                    divider
+                    component={Link}
+                    to={`${LESSONS_TEMPLATES_BASE_URL}/${lessonsTemplate.lessonstemplate_id}`}
+                  >
+                    <ListItemIcon>
+                      <SchoolOutlined color="primary" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={(
+                        <div style={bodyItemsStyles.bodyItems}>
+                          {headers.map(header => (
+                            <div
+                              key={header.field}
+                              style={{
+                                ...bodyItemsStyles.bodyItem,
+                                ...inlineStyles[header.field],
+                              }}
+                            >
+                              {header.value(lessonsTemplate)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    />
+                    {/* Flex wrapper: the svg otherwise sits on the text baseline, leaving
+                        descent space below and pushing the icon a few px above center. */}
+                    <ListItemSecondaryAction sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    >
+                      <ChevronRightOutlined />
+                    </ListItemSecondaryAction>
+                  </ListItemButton>
+                );
+              })}
+        </List>
+      </div>
+      <CustomizationMenu />
+    </div>
   );
 };
 

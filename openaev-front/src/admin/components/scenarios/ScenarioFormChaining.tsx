@@ -12,7 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -24,6 +24,7 @@ import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { type PlatformSettings, type ScenarioInput } from '../../../utils/api-types';
 import { zodImplement } from '../../../utils/Zod';
+import DefaultKillChainSelectField from '../common/filters/DefaultKillChainSelectField';
 import { scenarioCategories } from './constants';
 
 interface Props {
@@ -33,6 +34,9 @@ interface Props {
   disabled?: boolean;
   initialValues: ScenarioInput;
   isChaining?: boolean;
+  /** Full-width companion action rendered at the very end of the form, right above the Cancel /
+   *  Create buttons (e.g. the "Generate with AI" or "Scenario assistant" post-creation toggle). */
+  footerSlot?: ReactNode;
 }
 
 const ScenarioFormChaining: FunctionComponent<Props> = ({
@@ -42,6 +46,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
   initialValues,
   disabled,
   isChaining = false,
+  footerSlot,
 }) => {
   // Standard hooks
   const theme = useTheme();
@@ -63,6 +68,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
         scenario_category: z.string().optional(),
         scenario_main_focus: z.string().optional(),
         scenario_severity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+        scenario_default_kill_chain: z.string().optional(),
         scenario_subtitle: z.string().optional(),
         scenario_description: z.string().optional(),
         scenario_tags: z.string().array().optional(),
@@ -160,28 +166,40 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
               </MenuItem>
             </SelectField>
           </div>
-          <SelectField
-            variant="standard"
-            fullWidth={true}
-            name="scenario_severity"
-            label={t('Severity')}
-            error={!!errors.scenario_severity}
-            control={control}
-            defaultValue={initialValues.scenario_severity}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'row',
+            gap: 20,
+          }}
           >
-            <MenuItem key="low" value="low">
-              {t('Low')}
-            </MenuItem>
-            <MenuItem key="medium" value="medium">
-              {t('Medium')}
-            </MenuItem>
-            <MenuItem key="high" value="high">
-              {t('High')}
-            </MenuItem>
-            <MenuItem key="critical" value="critical">
-              {t('Critical')}
-            </MenuItem>
-          </SelectField>
+            <SelectField
+              variant="standard"
+              fullWidth={true}
+              name="scenario_severity"
+              label={t('Severity')}
+              error={!!errors.scenario_severity}
+              control={control}
+              defaultValue={initialValues.scenario_severity}
+            >
+              <MenuItem key="low" value="low">
+                {t('Low')}
+              </MenuItem>
+              <MenuItem key="medium" value="medium">
+                {t('Medium')}
+              </MenuItem>
+              <MenuItem key="high" value="high">
+                {t('High')}
+              </MenuItem>
+              <MenuItem key="critical" value="critical">
+                {t('Critical')}
+              </MenuItem>
+            </SelectField>
+            <DefaultKillChainSelectField<ScenarioInput>
+              name="scenario_default_kill_chain"
+              control={control}
+              defaultValue={initialValues.scenario_default_kill_chain}
+            />
+          </div>
           <TextField
             variant="standard"
             fullWidth
@@ -318,6 +336,9 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
             </AccordionDetails>
           </Accordion>
         )}
+        {/* Full-width companion action at the end of the form (post-creation toggle), shown once a
+            mode is picked so it clearly follows the whole form rather than a single card. */}
+        {footerSlot}
         <div style={{
           display: 'flex',
           justifyContent: 'flex-end',
@@ -325,7 +346,8 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
         }}
         >
           <Button
-            variant="contained"
+            variant="outlined"
+            color="primary"
             onClick={handleClose}
             disabled={isSubmitting}
           >
@@ -333,7 +355,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
           </Button>
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             type="submit"
             disabled={!isDirty || isSubmitting}
           >

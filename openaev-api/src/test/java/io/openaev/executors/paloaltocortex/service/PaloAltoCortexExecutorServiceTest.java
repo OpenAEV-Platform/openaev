@@ -5,15 +5,16 @@ import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCorte
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Executor;
-import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.model.AgentRegisterInput;
@@ -45,6 +46,8 @@ public class PaloAltoCortexExecutorServiceTest {
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
 
+  @Mock private TenantScopedTransaction tenantTx;
+
   @InjectMocks private PaloAltoCortexExecutorService paloAltoCortexExecutorService;
 
   @InjectMocks private PaloAltoCortexExecutorContextService paloAltoCortexExecutorContextService;
@@ -58,7 +61,16 @@ public class PaloAltoCortexExecutorServiceTest {
     paloAltoCortexExecutor = new Executor();
     paloAltoCortexExecutor.setName(PALOALTOCORTEX_EXECUTOR_NAME);
     paloAltoCortexExecutor.setType(PALOALTOCORTEX_EXECUTOR_TYPE);
-    paloAltoCortexExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    paloAltoCortexExecutor.setTenantId(TenantContext.getCurrentTenant());
+    // The service wraps run() in tenantTx.execute(...): make the mock actually invoke the
+    // supplied work, otherwise doRun() never happens and the tests below have nothing to verify.
+    lenient()
+        .when(tenantTx.execute(any(), any(java.util.function.Supplier.class)))
+        .thenAnswer(
+            invocation -> {
+              java.util.function.Supplier<?> work = invocation.getArgument(1);
+              return work.get();
+            });
   }
 
   @Test

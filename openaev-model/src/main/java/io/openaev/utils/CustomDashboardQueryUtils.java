@@ -41,6 +41,8 @@ public class CustomDashboardQueryUtils {
     final Instant now = Instant.now();
 
     switch (widgetTimeRange) {
+      case ALL_TIME:
+        return Instant.EPOCH;
       case LAST_DAY:
         return now.minus(24, ChronoUnit.HOURS);
       case LAST_WEEK:
@@ -62,6 +64,8 @@ public class CustomDashboardQueryUtils {
         CustomDashboardTimeRange dashboardTimeRange =
             fromValue(parameters.get(timeRangeParameterId));
         switch (dashboardTimeRange) {
+          case ALL_TIME:
+            return Instant.EPOCH;
           case LAST_DAY:
             return now.minus(24, ChronoUnit.HOURS);
           case LAST_WEEK:

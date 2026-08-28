@@ -13,14 +13,23 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.expectations.ExpectationsDriftService;
+import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
+import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
+import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.raw.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ComcheckSpecification;
 import io.openaev.database.specification.ExerciseLogSpecification;
+import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.importer.ImportResult;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
@@ -36,9 +45,9 @@ import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -58,7 +67,6 @@ import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -66,6 +74,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -93,6 +102,8 @@ public class ExerciseApi extends RestBehavior {
   private final EvaluationRepository evaluationRepository;
   private final KillChainPhaseRepository killChainPhaseRepository;
   private final GrantRepository grantRepository;
+  private final CommunicationRepository communicationRepository;
+  private final InjectorContractRepository injectorContractRepository;
   // endregion
 
   // region services
@@ -111,7 +122,9 @@ public class ExerciseApi extends RestBehavior {
   private final UserService userService;
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
-  private final PreviewFeatureService previewFeatureService;
+  private final ExpectationsDriftService expectationsDriftService;
+  private final EnterpriseEditionService enterpriseEditionService;
+  private final LicenseCacheManager licenseCacheManager;
 
   // endregion
 
@@ -120,13 +133,81 @@ public class ExerciseApi extends RestBehavior {
     EXERCISE_URI + "/{exerciseId}/healthchecks",
     TENANT_EXERCISE_URI + "/{exerciseId}/healthchecks"
   })
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public List<HealthCheck> streamHealthChecks(@PathVariable @NotBlank final String exerciseId) {
+  public List<HealthCheck> streamHealthChecks(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
     return exerciseService.runChecks(exerciseId);
+  }
+
+  // endregion
+
+  // region expectations drift
+  @Operation(
+      summary = "Get the expectation drift report of a simulation",
+      description =
+          "Compares the predefined expectations of the injector contracts with the expectations"
+              + " stored inside the simulation injects")
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/expectations-drift",
+    TENANT_EXERCISE_URI + "/{exerciseId}/expectations-drift"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SIMULATION)
+  public ExpectationsDriftOutput exerciseExpectationsDrift(
+      @PathVariable @NotBlank final String exerciseId) {
+    return expectationsDriftService.exerciseDrift(exerciseId);
+  }
+
+  @Operation(
+      summary = "Realign the expectations of the simulation injects onto their contracts",
+      description =
+          "Overwrites the expectations of every drifted inject with the predefined expectations"
+              + " currently exposed by its injector contract, as a tracked massive operation")
+  // SUPPORTS (not REQUIRED) on purpose: the realignment runs chunk by chunk in the service's own
+  // short transactions, wrapped in a massive-operation scope (header progress indicator +
+  // per-entity stream event suppression) that must cover each commit-time flush.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @PostMapping({
+    EXERCISE_URI + "/{exerciseId}/expectations-drift/realign",
+    TENANT_EXERCISE_URI + "/{exerciseId}/expectations-drift/realign"
+  })
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION)
+  public ExpectationsRealignOutput realignExerciseExpectations(
+      @PathVariable @NotBlank final String exerciseId) {
+    return expectationsDriftService.realignExercise(exerciseId);
+  }
+
+  @Operation(
+      summary = "Dismiss or restore the expectation drift warning of a simulation",
+      description =
+          "Acknowledges that the drifted expectations were customized on purpose: the warning is"
+              + " downgraded to a discreet indicator. Persisted in database so the dismissal is"
+              + " shared between users, and reset on realignment")
+  @PutMapping({
+    EXERCISE_URI + "/{exerciseId}/expectations-drift/dismiss",
+    TENANT_EXERCISE_URI + "/{exerciseId}/expectations-drift/dismiss"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION)
+  public ExpectationsDriftOutput dismissExerciseExpectationsDrift(
+      @PathVariable @NotBlank final String exerciseId,
+      @Valid @RequestBody final ExpectationsDriftDismissInput input) {
+    return expectationsDriftService.dismissExerciseDrift(exerciseId, input.dismissed());
   }
 
   // endregion
@@ -357,9 +438,13 @@ public class ExerciseApi extends RestBehavior {
             .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(input.getPlayersIds());
-    team.getUsers().addAll(fromIterable(teamUsers));
+    // Reserved service/connector accounts are system users, never players: silently drop them so
+    // team membership stays consistent with the player lists that hide them.
+    List<User> playersToAdd = ReservedKeyValidator.excludeReservedUsers(teamUsers);
+    team.getUsers().addAll(playersToAdd);
     teamRepository.save(team);
-    return exerciseService.enablePlayers(exerciseId, team, input.getPlayersIds());
+    return exerciseService.enablePlayers(
+        exerciseId, team, playersToAdd.stream().map(User::getId).toList());
   }
 
   @PutMapping({
@@ -424,10 +509,14 @@ public class ExerciseApi extends RestBehavior {
     }
     Exercise savedExercise = this.exerciseService.createExercise(exercise);
 
-    // If the chaining feature flag is enabled and the engine is "chaining", create and link a
-    // workflow to the simulation
-    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-        && Boolean.TRUE.equals(input.getIsChaining())) {
+    // If the engine is chaining, create and link a workflow to the simulation.
+    if (Boolean.TRUE.equals(input.getIsChaining())) {
+      // Chaining is an Enterprise Edition feature: reject the creation of a chaining simulation
+      // when the enterprise license is inactive
+      if (enterpriseEditionService.isEnterpriseLicenseInactive(
+          licenseCacheManager.getEnterpriseEditionInfo())) {
+        throw new EnterpriseEditionException("Enterprise Edition license required");
+      }
       workflowService.creationWorkflow(savedExercise);
     }
 
@@ -476,9 +565,17 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @Deprecated(since = "1.16.0")
   public Exercise deprecatedUpdateExerciseStart(
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateStartDateInput input)
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (throwIfExerciseNotLaunchable's Enterprise gate reads each
+      // targeted agent's executor).
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ExerciseUpdateStartDateInput input)
       throws InputValidationException {
-    return this.updateExerciseStart(exerciseId, input);
+    // Calls the shared, non-@Transactional helper directly rather than the sibling endpoint
+    // method: an intra-class call to a @Transactional method would bypass the Spring proxy
+    // (self-invocation), silently losing this transaction/scope.
+    return doUpdateExerciseStart(exerciseId, input);
   }
 
   @PutMapping({
@@ -491,7 +588,17 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseStart(
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateStartDateInput input)
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (throwIfExerciseNotLaunchable's Enterprise gate reads each
+      // targeted agent's executor).
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ExerciseUpdateStartDateInput input)
+      throws InputValidationException {
+    return doUpdateExerciseStart(exerciseId, input);
+  }
+
+  private Exercise doUpdateExerciseStart(String exerciseId, ExerciseUpdateStartDateInput input)
       throws InputValidationException {
     Exercise exercise = exerciseService.exercise(exerciseId);
     if (!exercise.getStatus().equals(ExerciseStatus.SCHEDULED)) {
@@ -565,7 +672,14 @@ public class ExerciseApi extends RestBehavior {
   public Exercise updateExerciseLessons(
       @PathVariable String exerciseId, @Valid @RequestBody LessonsInput input) {
     Exercise exercise = exerciseService.exercise(exerciseId);
-    exercise.setLessonsAnonymized(input.isLessonsAnonymized());
+    // Partial update: absent fields keep their current value (older API consumers
+    // only send lessons_anonymized and must not reset the enabled flag).
+    if (input.getLessonsAnonymized() != null) {
+      exercise.setLessonsAnonymized(input.getLessonsAnonymized());
+    }
+    if (input.getLessonsEnabled() != null) {
+      exercise.setLessonsEnabled(input.getLessonsEnabled());
+    }
     return exerciseRepository.save(exercise);
   }
 
@@ -579,6 +693,21 @@ public class ExerciseApi extends RestBehavior {
     exerciseService.deleteById(exerciseId);
   }
 
+  @Operation(
+      description = "Bulk delete of simulations",
+      tags = {"Simulations"})
+  @LogExecutionTime
+  @DeleteMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
+  // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
+  // (chunked, with deadlock retry) - a request-wide transaction would defeat that and deadlock
+  // against concurrent inject expectation updates.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SIMULATION)
+  public List<String> bulkDeleteExercises(
+      @RequestBody @Valid final ExerciseBulkProcessingInput input) {
+    return exerciseService.bulkDelete(input);
+  }
+
   @GetMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
   @AccessControl(
       resourceId = "#exerciseId",
@@ -588,9 +717,17 @@ public class ExerciseApi extends RestBehavior {
   public SimulationDetails exercise(@PathVariable String exerciseId) {
     // We get the raw exercise
     RawSimulationIndexing rawSimulation = exerciseService.rawSimulation(exerciseId);
-    // We get the injects linked to this exercise
-    List<RawInject> rawInjects =
-        injectRepository.findRawByIds(rawSimulation.getInject_ids().stream().distinct().toList());
+    // We get aggregated inject metadata: platforms, comms count, kill chain phases
+    long communicationsNumber = communicationRepository.countByExerciseId(exerciseId);
+    List<KillChainPhase> killChainPhases =
+        killChainPhaseRepository.findDistinctByExerciseId(exerciseId);
+    List<String> platforms =
+        injectorContractRepository.findDistinctPlatformsByExerciseId(exerciseId).stream()
+            .filter(Objects::nonNull)
+            .flatMap(Arrays::stream)
+            .distinct()
+            .map(Enum::name)
+            .toList();
     // We get the tuple exercise/team/user
     List<RawExerciseTeamUser> listRawExerciseTeamUsers =
         exerciseTeamUserRepository.rawByExerciseIds(List.of(exerciseId));
@@ -606,17 +743,6 @@ public class ExerciseApi extends RestBehavior {
     Map<String, List<RawGrant>> rawGrants =
         grantRepository.rawByExerciseIds(List.of(exerciseId)).stream()
             .collect(Collectors.groupingBy(RawGrant::getGrant_name));
-    // We get all the kill chain phases
-    List<KillChainPhase> killChainPhase =
-        StreamSupport.stream(
-                killChainPhaseRepository
-                    .findAllById(
-                        rawInjects.stream()
-                            .flatMap(rawInject -> rawInject.getInject_kill_chain_phases().stream())
-                            .toList())
-                    .spliterator(),
-                false)
-            .collect(Collectors.toList());
 
     // We create objectives and fill them with evaluations
     List<Objective> objectives =
@@ -645,16 +771,9 @@ public class ExerciseApi extends RestBehavior {
 
     // We create an ExerciseDetails object and populate it
     SimulationDetails detail = fromRawExercise(rawSimulation, listExerciseTeamUsers, objectives);
-    detail.setPlatforms(
-        rawInjects.stream()
-            .flatMap(inject -> inject.getInject_platforms().stream())
-            .distinct()
-            .toList());
-    detail.setCommunicationsNumber(
-        rawInjects.stream()
-            .mapToLong(rawInject -> rawInject.getInject_communications().size())
-            .sum());
-    detail.setKillChainPhases(killChainPhase);
+    detail.setPlatforms(platforms);
+    detail.setCommunicationsNumber(communicationsNumber);
+    detail.setKillChainPhases(killChainPhases);
     if (rawGrants.get(Grant.GRANT_TYPE.OBSERVER.name()) != null) {
       detail.setObservers(
           rawGrants.get(Grant.GRANT_TYPE.OBSERVER.name()).stream()
@@ -750,7 +869,12 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
   public Exercise changeExerciseStatus(
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateStatusInput input)
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (throwIfExerciseNotLaunchable's Enterprise gate reads each
+      // targeted agent's executor).
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ExerciseUpdateStatusInput input)
       throws ChainingException {
     ExerciseStatus status = input.getStatus();
     return exerciseService.changeExerciseStatus(status, exerciseId);
@@ -861,13 +985,18 @@ public class ExerciseApi extends RestBehavior {
       @RequestParam(required = false) final boolean isWithTeams,
       @RequestParam(required = false) final boolean isWithPlayers,
       @RequestParam(required = false) final boolean isWithVariableValues,
+      @RequestParam(required = false, defaultValue = "true") final boolean isWithScopeDefinition,
       HttpServletResponse response)
       throws IOException {
     Exercise exercise = exerciseService.exercise(exerciseId);
     int exportOptionsMask = ExportOptions.mask(isWithPlayers, isWithTeams, isWithVariableValues);
+    boolean isChaining = workflowService.isSimulationChaining(exerciseId);
 
-    byte[] zippedExport = exportService.exportExerciseToZip(exercise, exportOptionsMask);
-    String zipName = exportService.getZipFileName(exercise, exportOptionsMask);
+    byte[] zippedExport =
+        exportService.exportExerciseToZip(exercise, exportOptionsMask, isWithScopeDefinition);
+    String zipName =
+        exportService.getZipFileName(
+            exercise, exportOptionsMask, isChaining, isWithScopeDefinition);
 
     response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
     response.addHeader(HttpHeaders.CONTENT_TYPE, "application/zip");
@@ -880,8 +1009,13 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping({EXERCISE_URI + "/import", TENANT_EXERCISE_URI + "/import"})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public void exerciseImport(@RequestPart("file") MultipartFile file) throws Exception {
-    importService.handleFileImport(file, null, null);
+  public ImportResult exerciseImport(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (the V1_DataImporter resolves InjectorContract#getFirstInjector() and
+      // InjectorService#injectorTypeExists(...), both v2 tenant-scoped through the injectors
+      // table; without a scope, imported injects silently lose their injector).
+      TxCtx ctx, @RequestPart("file") MultipartFile file) throws Exception {
+    return importService.handleFileImport(file, null, null);
   }
 
   @PostMapping({
@@ -976,7 +1110,9 @@ public class ExerciseApi extends RestBehavior {
       summary = "Get endpoints. Can only be called if the user has access to the given simulation.",
       description = "Get all endpoints used by injects for a given simulation")
   @Transactional
-  public List<Endpoint> endpoints(@PathVariable String exerciseId) {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
+  public List<Endpoint> endpoints(TxCtx ctx, @PathVariable String exerciseId) {
     return this.endpointService.endpointsForSimulation(exerciseId);
   }
 
@@ -993,7 +1129,10 @@ public class ExerciseApi extends RestBehavior {
       summary =
           "Get endpoints by ids. Can only be called if the user has access to the given simulation.",
       description = "Get all endpoints by ids used by injects for a given simulation")
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
   public List<EndpointOutput> endpointsByIds(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @RequestBody @Valid @NotNull final List<String> endpointIds) {
     return this.endpointService.endpointsByIdsForSimulation(exerciseId, endpointIds);

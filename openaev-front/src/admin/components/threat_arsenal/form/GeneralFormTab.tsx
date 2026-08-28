@@ -7,6 +7,7 @@ import TextFieldController from '../../../../components/fields/TextFieldControll
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import type { Domain } from '../../../../utils/api-types';
+import ExpectationSecurityPlatformsField from './ExpectationSecurityPlatformsField';
 
 const GeneralFormTab = () => {
   const { t } = useFormatter();
@@ -48,6 +49,7 @@ const GeneralFormTab = () => {
         required={true}
         multiple={true}
       />
+      <ExpectationSecurityPlatformsField />
     </>
   );
 };

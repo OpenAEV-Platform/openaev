@@ -3,14 +3,28 @@ package io.openaev.service.connectors;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
+import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Output> {
+public abstract class AbstractConnectorService<
+    T extends BaseConnectorEntity & TenantIdBase, Output> {
+
+  /**
+   * An external connector that pinged within this window is considered running. Mirrors the
+   * frontend liveliness threshold (LIVELINESS_THRESHOLD_MS): external connectors re-register every
+   * ~40s, so two minutes without a heartbeat means the process is down.
+   */
+  public static final Duration ACTIVE_HEARTBEAT_WINDOW = Duration.ofMinutes(2);
+
   protected final ConnectorType connectorType;
   protected final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   protected final CatalogConnectorService catalogConnectorService;
@@ -34,8 +48,20 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
 
   protected abstract T getConnectorById(String id);
 
+  /**
+   * Maps a connector entity to its output DTO.
+   *
+   * @param connector the connector entity (may be Hibernate-managed: implementations must never
+   *     mutate it, see {@link #toConnectorOutput})
+   * @param displayName the resolved display name to expose (instance-configured name when the
+   *     connector is deployed through the Integration Manager, entity name otherwise)
+   * @param catalogConnector the matching catalog entry, if any
+   * @param instance the owning connector instance, if any
+   * @param existingConnector false for pending connectors not yet registered
+   */
   protected abstract Output mapToOutput(
       T connector,
+      String displayName,
       CatalogConnector catalogConnector,
       ConnectorInstance instance,
       boolean existingConnector);
@@ -63,19 +89,28 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
     return map;
   }
 
-  private Output toExistingConnectorOutput(
-      T connector, Map<String, ConnectorInstance> instanceMap) {
-    ConnectorInstance instance = instanceMap.get(connector.getId());
+  private Output toConnectorOutput(T connector, ConnectorInstance instance) {
     boolean isVerified = instance != null;
     CatalogConnector catalogConnector =
         isVerified && instance instanceof ConnectorInstancePersisted
             ? ((ConnectorInstancePersisted) instance).getCatalogConnector()
             : catalogConnectorService.findBySlug(connector.getType()).orElse(null);
-    // Override connector name with instance-specific name (e.g. EXECUTOR_NAME) if present
+    // The instance-configured name is a pure display concern: resolve it into the DTO without
+    // touching the managed entity. Calling connector.setName() here dirties the entity, and the
+    // open-in-view session flushes that UPDATE at response commit (outside the controller's
+    // read-only transaction, via the spring-session save) - a connector deleted or re-registered
+    // in between then makes the flush fail with StaleStateException and the GET returns a 500
+    // (issue #7092, regression of #6469).
+    String displayName = connector.getName();
     if (instance instanceof ConnectorInstancePersisted persistedInstance) {
-      getConfiguredConnectorName(persistedInstance).ifPresent(connector::setName);
+      displayName = getConfiguredConnectorName(persistedInstance).orElse(displayName);
     }
-    return mapToOutput(connector, catalogConnector, instance, true);
+    return mapToOutput(connector, displayName, catalogConnector, instance, true);
+  }
+
+  private Output toExistingConnectorOutput(
+      T connector, Map<String, ConnectorInstance> instanceMap) {
+    return toConnectorOutput(connector, instanceMap.get(connector.getId()));
   }
 
   private T createExternalConnector(String collectorId, ConnectorInstancePersisted instance) {
@@ -111,6 +146,49 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
         .findFirst();
   }
 
+  private Map<String, ConnectorInstance> buildInstanceMap() {
+    List<ConnectorInstancePersisted> instancesPersisted =
+        this.connectorInstanceService.getAllConnectorInstancesPersistedByConnectorType(
+            connectorType);
+    List<ConnectorInstanceInMemory> instancesInMemory =
+        this.connectorInstanceService.getConnectorInstancesInMemoryByConnectorType(connectorType);
+    return mapInstancesByConnectorId(
+        Stream.concat(instancesPersisted.stream(), instancesInMemory.stream())
+            .collect(Collectors.toList()));
+  }
+
+  /**
+   * Builds the Output DTO for a single connector, including its instance context (in-memory
+   * auto-start instance or persisted instance), so single-resource GET endpoints expose the same
+   * status information as the list endpoints.
+   *
+   * @param id the connector entity ID
+   * @return the connector output
+   * @throws ElementNotFoundException if the connector is not visible in the current tenant scope
+   */
+  public Output getConnectorOutput(String id) {
+    T connector = getConnectorById(id);
+    if (connector == null) {
+      throw new ElementNotFoundException("Connector not found with id: " + id);
+    }
+    return toConnectorOutput(connector, findInstanceForConnector(id, connector.getTenantId()));
+  }
+
+  private ConnectorInstance findInstanceForConnector(String connectorId, String tenantId) {
+    for (ConnectorInstanceInMemory instance :
+        connectorInstanceService.getConnectorInstancesInMemoryByConnectorType(connectorType)) {
+      if (connectorId.equals(getConnectorIdFromInstance(instance))) {
+        return instance;
+      }
+    }
+    // The persisted lookup uses a native query that bypasses the Hibernate tenant filter, so it
+    // must be scoped to the connector's tenant explicitly (the same connector ID can exist in
+    // several tenants).
+    return connectorInstanceService
+        .findPersistedByConnectorId(connectorType, connectorId, tenantId)
+        .orElse(null);
+  }
+
   /**
    * Retrieves all connectors including those pending deployment. Pending collectors are identified
    * through their connector instances that exist but haven't yet been registered in the
@@ -122,17 +200,21 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
    * @return list of connectors
    */
   public Iterable<Output> getConnectorsOutput(boolean includeNext) {
-    List<T> connectors = getAllConnectors();
-    List<ConnectorInstancePersisted> instancesPersisted =
-        this.connectorInstanceService.getAllConnectorInstancesPersistedByConnectorType(
-            connectorType);
-    List<ConnectorInstanceInMemory> instancesInMemory =
-        this.connectorInstanceService.getConnectorInstancesInMemoryByConnectorType(connectorType);
+    return buildConnectorsOutput(getAllConnectors(), includeNext);
+  }
 
-    Map<String, ConnectorInstance> instancesByConnectorIdMap =
-        mapInstancesByConnectorId(
-            Stream.concat(instancesPersisted.stream(), instancesInMemory.stream())
-                .collect(Collectors.toList()));
+  /**
+   * Builds the output DTOs from an already-resolved connector list. Split out from {@link
+   * #getConnectorsOutput(boolean)} so callers that resolve the tenant scope explicitly (e.g. from
+   * an authorized {@link io.openaev.context.TxCtx}) can supply the connectors themselves instead of
+   * relying on the ambient transaction scope.
+   *
+   * @param connectors the connectors to expose (already scoped to the caller's authorized tenants)
+   * @param includeNext Include or not pending connector
+   * @return list of connector outputs
+   */
+  protected Iterable<Output> buildConnectorsOutput(List<T> connectors, boolean includeNext) {
+    Map<String, ConnectorInstance> instancesByConnectorIdMap = buildInstanceMap();
 
     List<Output> result = new ArrayList<>();
 
@@ -155,6 +237,7 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
                 result.add(
                     mapToOutput(
                         newConnector,
+                        newConnector.getName(),
                         entry.getValue().getCatalogConnector(),
                         entry.getValue(),
                         false));
@@ -171,18 +254,35 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
    * @return connector instance ID and catalog connector ID if available, null values if not found
    */
   public ConnectorIds getConnectorRelationsId(String connectorId) {
+    return getConnectorRelationsId(getConnectorById(connectorId), connectorId);
+  }
+
+  /**
+   * Same as {@link #getConnectorRelationsId(String)} but with the connector already resolved by the
+   * caller. Split out so callers that resolve the connector from an authorized {@link
+   * io.openaev.context.TxCtx} (e.g. in-memory connectors with no repository-backed tenant filter)
+   * can supply it themselves instead of relying on the ambient transaction scope.
+   *
+   * @param connector the already-resolved connector (may be {@code null} if not registered)
+   * @param connectorId the connector identifier
+   * @return connector instance ID and catalog connector ID if available, null values if not found
+   */
+  protected ConnectorIds getConnectorRelationsId(T connector, String connectorId) {
     ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
         connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
             this.connectorType.getIdKeyName(), connectorId);
     if (relatedIds != null) {
-      boolean registered = getConnectorById(connectorId) != null;
+      boolean registered = connector != null;
       return catalogConnectorMapper.toConnectorIds(
           relatedIds.getCatalogConnectorId(), relatedIds.getConnectorInstanceId(), registered);
     }
 
+    if (connector == null) {
+      return catalogConnectorMapper.toConnectorIds(null, null, false);
+    }
+
     // Connector already deployed without catalog, we will try to search matching catalog comparing
     // connectorType and catalogSlug
-    T connector = getConnectorById(connectorId);
     CatalogConnector catalogConnector =
         catalogConnectorService.findBySlug(connector.getType()).orElse(null);
     if (catalogConnector != null) {
@@ -191,5 +291,131 @@ public abstract class AbstractConnectorService<T extends BaseConnectorEntity, Ou
 
     // If nothing match this collector is manually deployed
     return catalogConnectorMapper.toConnectorIds(null, null, true);
+  }
+
+  /**
+   * Tenant-scoped variant of {@link #getConnectorRelationsId(String)}.
+   *
+   * <p>Tenant safety: {@code connector_instances}/{@code connector_instance_configurations} are now
+   * on v2 isolation (activated #6408). This variant still passes {@code tenantId} explicitly to the
+   * lookup on purpose, not as a leftover v1 workaround: this method is also called with a specific
+   * connector's OWN tenant while iterating a broader ambient scope (see {@code
+   * CalderaSettingsService#getCalderaSettings}, which loops over {@code executors()} and resolves
+   * each executor's tenant independently) - the automatic inspector scoping alone would not narrow
+   * to that one tenant in that case.
+   *
+   * @param connectorId the connector identifier
+   * @param tenantId the requesting tenant, resolved by the caller from the request's single-tenant
+   *     scope, or from the specific connector when iterating a broader scope
+   * @return connector instance ID and catalog connector ID if available, null values if not found
+   * @throws ElementNotFoundException if the connector is not visible in the requesting tenant's
+   *     scope (wrong tenant, or the id does not exist at all)
+   */
+  public ConnectorIds getConnectorRelationsId(String connectorId, String tenantId) {
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
+        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+            this.connectorType.getIdKeyName(), connectorId, tenantId);
+    T connector = getConnectorById(connectorId);
+    if (relatedIds != null) {
+      boolean registered = connector != null;
+      return catalogConnectorMapper.toConnectorIds(
+          relatedIds.getCatalogConnectorId(), relatedIds.getConnectorInstanceId(), registered);
+    }
+
+    if (connector == null) {
+      // Not visible in the requesting tenant's scope (wrong tenant, or the id does not exist at
+      // all): 404, so the API does not leak whether the id exists in another tenant. The frontend
+      // (ConnectorLayout) relies on this 404 to notify and redirect.
+      throw new ElementNotFoundException("Connector not found with id: " + connectorId);
+    }
+
+    // Connector already deployed without catalog, we will try to search matching catalog comparing
+    // connectorType and catalogSlug
+    CatalogConnector catalogConnector =
+        catalogConnectorService.findBySlug(connector.getType()).orElse(null);
+    if (catalogConnector != null) {
+      return catalogConnectorMapper.toConnectorIds(catalogConnector.getId(), null, true);
+    }
+
+    // If nothing match this connector is manually deployed
+    return catalogConnectorMapper.toConnectorIds(null, null, true);
+  }
+
+  /**
+   * Rejects the deletion of a connector that is still running (OpenCTI parity: a started connector
+   * can never be deleted, it must be stopped first).
+   *
+   * <p>Two cases, mirroring the frontend gating:
+   *
+   * <ul>
+   *   <li>deployed through the Integration Manager: the owning instance decides - deletion is only
+   *       allowed once a stop has been requested ({@code requestedStatus == stopping}) or is
+   *       effective ({@code currentStatus == stopped});
+   *   <li>unmanaged external connector: the registration heartbeat decides - a ping within {@link
+   *       #ACTIVE_HEARTBEAT_WINDOW} means the container is alive and must be stopped (externally)
+   *       before the row can be removed. Deleting an active row is futile anyway: the connector
+   *       re-registers on its next heartbeat.
+   * </ul>
+   *
+   * @param connector the connector entity being deleted
+   * @param lastHeartbeat the connector's last registration heartbeat ({@code updatedAt})
+   */
+  protected void throwIfConnectorRunning(T connector, Instant lastHeartbeat)
+      throws BadRequestException {
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
+        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+            this.connectorType.getIdKeyName(), connector.getId(), connector.getTenantId());
+    if (relatedIds != null && relatedIds.getConnectorInstanceId() != null) {
+      connectorInstanceService.throwIfInstanceRunning(relatedIds.getConnectorInstanceId());
+      return;
+    }
+    if (lastHeartbeat != null
+        && lastHeartbeat.isAfter(Instant.now().minus(ACTIVE_HEARTBEAT_WINDOW))) {
+      throw new BadRequestException(
+          "The "
+              + this.connectorType.name().toLowerCase(Locale.ROOT)
+              + " "
+              + connector.getName()
+              + " is still running (last heartbeat "
+              + lastHeartbeat
+              + "): stop it before deleting it");
+    }
+  }
+
+  /**
+   * Deletes the connector instance that owns this connector, when the connector was deployed
+   * through the Integration Manager.
+   *
+   * <p>The instance list is the desired state the XTM Composer polls, and the composer only tears a
+   * deployment down when its id disappears from that list. Deleting the connector entity alone
+   * therefore leaves the container running against a connector that no longer exists - and the
+   * container recreates the entity on its next registration heartbeat, so the deletion looks like
+   * it silently failed. The instance delete removes the connector entity too, hence the return
+   * value: callers must not delete the row again.
+   *
+   * <p>Tenant safety: the owning instance is resolved with an explicit tenant predicate (native
+   * queries bypass the Hibernate tenant filter) and only when the connector itself is visible in
+   * the current tenant, so a foreign or crafted connector id can never tear down another tenant's
+   * deployment.
+   *
+   * @param connectorId the collector / injector / executor id being deleted
+   * @return true when an instance was found and deleted, so the connector row is already gone
+   */
+  protected boolean deleteOwningConnectorInstance(String connectorId)
+      throws ConnectorStatusException {
+    T connector = getConnectorById(connectorId);
+    if (connector == null) {
+      // Not a connector of the current tenant (or not registered): nothing to tear down here,
+      // the caller's tenant-scoped row delete decides what happens.
+      return false;
+    }
+    ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase relatedIds =
+        connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+            this.connectorType.getIdKeyName(), connectorId, connector.getTenantId());
+    if (relatedIds == null || relatedIds.getConnectorInstanceId() == null) {
+      return false;
+    }
+    connectorInstanceService.deleteById(relatedIds.getConnectorInstanceId());
+    return true;
   }
 }

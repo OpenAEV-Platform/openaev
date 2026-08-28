@@ -1,5 +1,6 @@
-import { HubOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { AutoAwesome, PlayCircleOutlineOutlined } from '@mui/icons-material';
+import { Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -15,6 +16,7 @@ import ItemTargets from '../../../components/ItemTargets';
 import Loader from '../../../components/Loader';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type ExercisesGlobalScoresOutput, type ExerciseSimple, type ExpectationResultsByType } from '../../../utils/api-types';
+import { type UseEntityToggle } from '../../../utils/hooks/useEntityToggle';
 import AtomicTestingResult from '../atomic_testings/atomic_testing/AtomicTestingResult';
 import ExerciseStatus from './simulation/ExerciseStatus';
 
@@ -69,6 +71,9 @@ interface Props {
   secondaryAction?: (exercise: ExerciseSimple) => ReactNode;
   loading: boolean;
   isGlobalScoreAsync?: boolean;
+  // Optional bulk selection support (checkboxes + toolbar replacing the sort headers)
+  entityToggle?: UseEntityToggle<ExerciseSimple>;
+  toolBar?: ReactNode;
 }
 
 const SimulationList: FunctionComponent<Props> = ({
@@ -79,12 +84,15 @@ const SimulationList: FunctionComponent<Props> = ({
   secondaryAction,
   loading,
   isGlobalScoreAsync = false,
+  entityToggle,
+  toolBar,
 }) => {
   // Standard hooks
   const { classes } = useStyles();
+  const theme = useTheme();
   const bodyItemsStyles = useBodyItemsStyles();
   const inlineStyles = getInlineStyles(variant);
-  const { nsdt, vnsdt } = useFormatter();
+  const { t, nsdt, vnsdt } = useFormatter();
 
   const [loadingGlobalScores, setLoadingGlobalScores] = useState(true);
   const [globalScores, setGlobalScores] = useState<Record<string, ExpectationResultsByType[]>>();
@@ -111,7 +119,7 @@ const SimulationList: FunctionComponent<Props> = ({
     },
     {
       field: 'exercise_start_date',
-      label: 'Start date',
+      label: 'Start time',
       isSortable: true,
       value: (exercise: ExerciseSimple) => {
         if (!exercise.exercise_start_date) {
@@ -164,24 +172,47 @@ const SimulationList: FunctionComponent<Props> = ({
           <ListItem
             classes={{ root: classes.itemHead }}
             divider={false}
-            style={{ paddingTop: 0 }}
-            secondaryAction={<>&nbsp;</>}
+            sx={entityToggle && entityToggle.numberOfSelectedElements > 0
+              ? {
+                  // Massive-operations toolbar: symmetric vertical padding keeps the
+                  // checkbox and actions vertically centered in the accent band.
+                  backgroundColor: 'background.accent',
+                  paddingBlock: 0.5,
+                }
+              : { paddingTop: 0 }}
+            {...(!entityToggle || entityToggle.numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
           >
-            <ListItemIcon />
-            <ListItemText
-              primary={(
-                <SortHeadersComponentV2
-                  headers={headers}
-                  inlineStylesHeaders={inlineStyles}
-                  sortHelpers={queryableHelpers.sortHelpers}
+            {entityToggle && (
+              <ListItemIcon style={{ minWidth: 40 }}>
+                <Checkbox
+                  edge="start"
+                  checked={entityToggle.selectAll}
+                  disableRipple
+                  onChange={entityToggle.handleToggleSelectAll}
                 />
-              )}
-            />
+              </ListItemIcon>
+            )}
+            {entityToggle && entityToggle.numberOfSelectedElements > 0 ? (
+              <ListItemText primary={toolBar} />
+            ) : (
+              <>
+                <ListItemIcon />
+                <ListItemText
+                  primary={(
+                    <SortHeadersComponentV2
+                      headers={headers}
+                      inlineStylesHeaders={inlineStyles}
+                      sortHelpers={queryableHelpers.sortHelpers}
+                    />
+                  )}
+                />
+              </>
+            )}
           </ListItem>
         )}
       {
         loading
-          ? <PaginatedListLoader Icon={HubOutlined} headers={headers} headerStyles={inlineStyles} />
+          ? <PaginatedListLoader Icon={PlayCircleOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={!!entityToggle} />
           : exercises.map((exercise: ExerciseSimple) => (
               <ListItem
                 key={exercise.exercise_id}
@@ -194,8 +225,35 @@ const SimulationList: FunctionComponent<Props> = ({
                   component={Link}
                   to={`/admin/simulations/${exercise.exercise_id}`}
                 >
+                  {entityToggle && (
+                    <ListItemIcon
+                      style={{ minWidth: 40 }}
+                      onClick={event => entityToggle.onToggleEntity(exercise, event)}
+                    >
+                      <Checkbox
+                        edge="start"
+                        checked={
+                          (entityToggle.selectAll && !(exercise.exercise_id in (entityToggle.deSelectedElements || {})))
+                          || exercise.exercise_id in (entityToggle.selectedElements || {})
+                        }
+                        disableRipple
+                      />
+                    </ListItemIcon>
+                  )}
+                  {/* Leading icon doubles as the durable Normal/Autonomous marker: an autonomous
+                      simulation keeps the AI glyph even after its run row is torn down. */}
                   <ListItemIcon>
-                    <HubOutlined color="primary" />
+                    {exercise.exercise_autonomous
+                      ? (
+                          <Tooltip title={t('Autonomous (AI-driven) run')}>
+                            <AutoAwesome sx={{ color: theme.palette.ai?.main ?? theme.palette.primary.main }} />
+                          </Tooltip>
+                        )
+                      : (
+                          <Tooltip title={t('Normal (operator-driven) simulation')}>
+                            <PlayCircleOutlineOutlined color="primary" />
+                          </Tooltip>
+                        )}
                   </ListItemIcon>
                   <ListItemText
                     primary={(

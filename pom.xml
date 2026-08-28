@@ -1,17 +1,16 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version='1.0' encoding='UTF-8'?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.15</version>
+        <version>3.5.16</version>
     </parent>
 
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>2.260622.0</version>
+    <version>3.260827.0</version>
     <packaging>pom</packaging>
 
     <name>OpenAEV platform</name>
@@ -26,16 +25,30 @@
         <gson.version>2.14.0</gson.version>
         <validation-api.version>2.0.1.Final</validation-api.version>
         <commons-io.version>2.22.0</commons-io.version>
-        <commons-validator.version>1.10.1</commons-validator.version>
+        <commons-validator.version>1.11.0</commons-validator.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
         <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
-        <pyroscope.version>2.6.0</pyroscope.version>
-        <spring-security-crypto.version>6.5.11</spring-security-crypto.version>
-        <bouncycastle.version>1.84</bouncycastle.version>
-        <netty.version>4.1.135.Final</netty.version>
+        <pyroscope.version>2.9.1</pyroscope.version>
+        <bouncycastle.version>1.85.2</bouncycastle.version>
+        <jackson-bom.version>2.22.2</jackson-bom.version>
+        <netty.version>4.2.17.Final</netty.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
-        <tools-jackson-core.version>3.1.4</tools-jackson-core.version>
-        <tomcat.version>10.1.55</tomcat.version>
+        <tools-jackson-core.version>3.2.2</tools-jackson-core.version>
+        <tomcat.version>10.1.59</tomcat.version>
+        <!-- Override Spring Boot BOM: httpcore5-h2 HTTP/2 HPACK DoS CVE-2026-54428 -->
+        <httpcore5.version>5.4.3</httpcore5.version>
+        <velocity-engine-core.version>2.4.1</velocity-engine-core.version>
+        <opensaml.version>5.2.3</opensaml.version>
+        <logback.version>1.6.3</logback.version>
+        <log4j2.version>2.26.1</log4j2.version>
+        <httpclient5.version>5.6.4</httpclient5.version>
+        <kotlin.version>2.1.21</kotlin.version>
+        <hikaricp.version>7.0.2</hikaricp.version>
+        <opentelemetry.version>1.65.0</opentelemetry.version>
+        <amqp-client.version>5.35.0</amqp-client.version>
+        <rabbit-amqp-client.version>${amqp-client.version}</rabbit-amqp-client.version>
+        <micrometer.version>1.17.1</micrometer.version>
+        <micrometer-tracing.version>1.7.1</micrometer-tracing.version>
     </properties>
 
     <distributionManagement>
@@ -59,7 +72,7 @@
                 <enabled>false</enabled>
             </snapshots>
         </repository>
-        <!-- OpenSAML (org.opensaml:opensaml-saml-impl) is only published here, not on Central -->
+        <!-- The org.opensaml and net.shibboleth artifacts are only published here, not on Central -->
         <repository>
             <id>shibboleth-releases</id>
             <name>Shibboleth Releases</name>
@@ -107,6 +120,44 @@
                 <artifactId>jackson-core</artifactId>
                 <version>${tools-jackson-core.version}</version>
             </dependency>
+            <!-- jackson-databind 3.x lags core and resolves transitively to 3.0.0; pin to the
+                 core train (3.2.1) to fix CVE-2026-54512/54513 (Critical) and CVE-2026-59889 -->
+            <dependency>
+                <groupId>tools.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${tools-jackson-core.version}</version>
+            </dependency>
+            <!-- Not managed by the Spring Boot BOM; a deep transitive still pulls 1.0.5.
+                 Pin explicitly so CVE-2026-9563 (JSON parser DoS) stays fixed regardless of path. -->
+            <dependency>
+                <groupId>org.eclipse.parsson</groupId>
+                <artifactId>parsson</artifactId>
+                <version>1.1.9</version>
+            </dependency>
+            <!-- opensaml-saml-impl pulls velocity-engine-core 2.3.x, which shades commons-io 2.8.0 and triggers
+                 CVE-2024-47554 in dependency scanning (not exploitable here: XmlStreamReader absent). Velocity 2.4.x removes the shaded commons-io. -->
+            <dependency>
+                <groupId>org.apache.velocity</groupId>
+                <artifactId>velocity-engine-core</artifactId>
+                <version>${velocity-engine-core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.opensaml</groupId>
+                <artifactId>opensaml-saml-api</artifactId>
+                <version>${opensaml.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.opensaml</groupId>
+                <artifactId>opensaml-saml-impl</artifactId>
+                <version>${opensaml.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>${opentelemetry.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
@@ -119,7 +170,7 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
-            <version>42.7.11</version>
+            <version>42.7.13</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
@@ -146,7 +197,6 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-crypto</artifactId>
-            <version>${spring-security-crypto.version}</version>
         </dependency>
     </dependencies>
 
@@ -179,7 +229,7 @@
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
-                <version>3.7.0</version>
+                <version>3.10.0</version>
                 <configuration>
                     <java>
                         <includes>
@@ -203,5 +253,6 @@
         <module>openaev-model</module>
         <module>openaev-framework</module>
         <module>openaev-api</module>
+        <module>openaev-maven-plugin</module>
     </modules>
 </project>

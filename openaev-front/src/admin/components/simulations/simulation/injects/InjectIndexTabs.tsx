@@ -14,7 +14,6 @@ const useStyles = makeStyles()(theme => ({
   item: {
     height: 30,
     fontSize: 13,
-    float: 'left',
     paddingRight: theme.spacing(1),
   },
 }));
@@ -58,7 +57,13 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
   };
 
   return (
-    <Tabs value={tabValue}>
+    <Tabs
+      value={tabValue}
+      sx={{
+        borderBottom: 1,
+        borderColor: 'divider',
+      }}
+    >
       <Tab
         component={Link}
         to={computePath(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}`)}
@@ -68,9 +73,9 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
       />
       <Tab
         component={Link}
-        to={computePath(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/detail`)}
-        value={`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/detail`}
-        label={t('Inject Execution details')}
+        to={computePath(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/execution_details`)}
+        value={`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/execution_details`}
+        label={t('Execution details')}
         className={classes.item}
       />
       {injectResultOverview.inject_injector_contract?.injector_contract_payload && (
@@ -78,7 +83,7 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
           component={Link}
           to={computePath(`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/payload_info`)}
           value={`/admin/simulations/${exercise.exercise_id}/injects/${injectResultOverview.inject_id}/payload_info`}
-          label={t('Action info')}
+          label={t('Action details')}
           className={classes.item}
         />
       )}
@@ -111,6 +116,11 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
             </Box>
           )}
           className={classes.item}
+          // The theme forces `text-transform: lowercase` on `.MuiTab-root` and
+          // relies on a `::first-letter` uppercase trick that can't reach text
+          // nested in the flex label. Neutralise it on the root so the already
+          // capitalised, translated label renders verbatim ("Remediations").
+          sx={{ textTransform: 'none' }}
         />
       )}
     </Tabs>

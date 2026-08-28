@@ -1,7 +1,7 @@
 import { type Dispatch } from 'redux';
 
-import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
-import { type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
+import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall } from '../../utils/Action';
+import { type AssetBulkProcessingInput, type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
 import { arrayOfEndpoints, endpoint } from './asset-schema';
 
 const ENDPOINT_URI = '/api/endpoints';
@@ -34,6 +34,38 @@ export const searchEndpoints = (searchPaginationInput: SearchPaginationInput) =>
   return simplePostCall(uri, data);
 };
 
+// Unified asset inventory: returns EVERY asset type (endpoints, AI targets, identities, cloud /
+// web / network / generic). Endpoints keep their agents/platform; other types list with those
+// empty. Filters/sorts must reference base asset fields (no endpoint-only platform/arch facets).
+export const searchAssets = (searchPaginationInput: SearchPaginationInput) => {
+  return simplePostCall('/api/assets/search', searchPaginationInput);
+};
+
+// Generic delete for the unified inventory: removes any asset type (endpoint, AI target, or any
+// other category) by id. Security platforms are rejected server-side (managed in their own area).
+export const deleteAsset = (assetId: string) => {
+  return simpleDelCall(`/api/assets/${assetId}`);
+};
+
+// Bulk delete for the unified inventory: explicit id list or search input (select-all with
+// optional exclusions). Security platforms are always excluded server-side.
+export const bulkDeleteAssets = (input: AssetBulkProcessingInput) => {
+  return simpleDelCall('/api/assets', { data: input });
+};
+
+// Generic asset overview for the unified detail page: returns any asset type with its
+// category-relevant fields (endpoints keep agents/platform; AI targets expose connection metadata).
+export const fetchAssetOverview = (assetId: string) => {
+  return simpleCall(`/api/assets/${assetId}`);
+};
+
+// "Injects played" for the asset detail page: every inject (atomic testing or simulation inject)
+// that concerns the asset - targeted directly, through an asset group (static or dynamic) or
+// evidenced by the expectations persisted at execution time. Same scope as the posture score.
+export const searchInjectsForAsset = (assetId: string, searchPaginationInput: SearchPaginationInput) => {
+  return simplePostCall(`/api/assets/${assetId}/injects/search`, searchPaginationInput);
+};
+
 export const findEndpoints = (endpointIds: string[]) => {
   const data = endpointIds;
   const uri = `${ENDPOINT_URI}/find`;
@@ -58,12 +90,27 @@ export const searchEndpointByIdAsOption = (ids: string[]) => {
   return simplePostCall(`${ENDPOINT_URI}/options`, ids);
 };
 
+export const resolveHostnameToIps = (hostname: string) => {
+  return simpleCall(`${ENDPOINT_URI}/resolve`, { params: { hostname } });
+};
+
 export const searchEndpointLinkedToFindingsAsOption = (searchText: string = '', sourceId: string = '') => {
   const params = {
     searchText,
     sourceId,
   };
   return simpleCall(`${ENDPOINT_URI}/findings/options`, { params });
+};
+
+// Filter options over the WHOLE asset inventory (endpoints, AI targets, cloud / web / network /
+// generic assets). Findings can attach to any asset - agentless web applications included - so
+// filter builders such as notification trigger criteria must propose every asset.
+export const searchAssetsAsOption = (searchText: string = '') => {
+  return simpleCall('/api/assets/options', { params: { searchText } });
+};
+
+export const searchAssetsByIdAsOption = (ids: string[]) => {
+  return simplePostCall('/api/assets/options', ids);
 };
 
 export const importEndpoints = (file: FormData, csvType: string) => {

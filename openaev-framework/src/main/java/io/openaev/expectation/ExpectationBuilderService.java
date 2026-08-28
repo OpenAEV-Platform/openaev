@@ -1,8 +1,8 @@
 package io.openaev.expectation;
 
-import static io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE.*;
+import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
 
-import io.openaev.database.model.InjectExpectation.EXPECTATION_TYPE;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.model.inject.form.Expectation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -51,14 +51,8 @@ public class ExpectationBuilderService {
   /** Default name for article/channel expectations. */
   public static final String ARTICLE_NAME = "Expect targets to read the article(s)";
 
-  /** Default name for text expectations. */
-  public static final String TEXT_NAME = "Simple expectation";
-
   /** Default name for manual expectations. */
   public static final String MANUAL_NAME = "Manual expectation";
-
-  /** Default name for document expectations. */
-  public static final String DOCUMENT_NAME = "A document must be sent / uploaded";
 
   /** Default score for all expectations (100%). */
   public static final Double DEFAULT_EXPECTATION_SCORE = 100.0;
@@ -72,7 +66,11 @@ public class ExpectationBuilderService {
    */
   public Expectation buildPreventionExpectation() {
     return buildExpectation(
-        PREVENTION, PREVENTION_NAME, expectationPropertiesConfig.getPreventionExpirationTime());
+        PREVENTION,
+        PREVENTION_NAME,
+        expectationPropertiesConfig.getPreventionExpirationTime(),
+        false,
+        false);
   }
 
   /**
@@ -82,7 +80,11 @@ public class ExpectationBuilderService {
    */
   public Expectation buildDetectionExpectation() {
     return buildExpectation(
-        DETECTION, DETECTION_NAME, expectationPropertiesConfig.getDetectionExpirationTime());
+        DETECTION,
+        DETECTION_NAME,
+        expectationPropertiesConfig.getDetectionExpirationTime(),
+        false,
+        false);
   }
 
   /**
@@ -94,7 +96,9 @@ public class ExpectationBuilderService {
     return buildExpectation(
         VULNERABILITY,
         VULNERABILITY_NAME,
-        expectationPropertiesConfig.getVulnerabilityExpirationTime());
+        expectationPropertiesConfig.getVulnerabilityExpirationTime(),
+        false,
+        false);
   }
 
   /**
@@ -102,9 +106,13 @@ public class ExpectationBuilderService {
    *
    * @return a configured challenge expectation
    */
-  public Expectation buildChallengeExpectation() {
+  public Expectation buildPredefinedChallengeExpectation() {
     return buildExpectation(
-        CHALLENGE, CHALLENGE_NAME, expectationPropertiesConfig.getChallengeExpirationTime());
+        CHALLENGE,
+        CHALLENGE_NAME,
+        expectationPropertiesConfig.getChallengeExpirationTime(),
+        false,
+        true);
   }
 
   /**
@@ -112,18 +120,9 @@ public class ExpectationBuilderService {
    *
    * @return a configured article expectation
    */
-  public Expectation buildArticleExpectation() {
+  public Expectation buildPredefinedArticleExpectation() {
     return buildExpectation(
-        ARTICLE, ARTICLE_NAME, expectationPropertiesConfig.getArticleExpirationTime());
-  }
-
-  /**
-   * Builds a text expectation with default configuration.
-   *
-   * @return a configured text expectation
-   */
-  public Expectation buildTextExpectation() {
-    return buildExpectation(TEXT, TEXT_NAME, expectationPropertiesConfig.getManualExpirationTime());
+        ARTICLE, ARTICLE_NAME, expectationPropertiesConfig.getArticleExpirationTime(), false, true);
   }
 
   /**
@@ -134,17 +133,7 @@ public class ExpectationBuilderService {
    */
   public Expectation buildManualExpectation() {
     return buildExpectation(
-        MANUAL, MANUAL_NAME, expectationPropertiesConfig.getManualExpirationTime(), true);
-  }
-
-  /**
-   * Builds a document upload expectation with default configuration.
-   *
-   * @return a configured document expectation
-   */
-  public Expectation buildDocumentExpectation() {
-    return buildExpectation(
-        DOCUMENT, DOCUMENT_NAME, expectationPropertiesConfig.getManualExpirationTime());
+        MANUAL, MANUAL_NAME, expectationPropertiesConfig.getManualExpirationTime(), true, false);
   }
 
   /**
@@ -157,17 +146,18 @@ public class ExpectationBuilderService {
    * @return a configured expectation
    */
   private Expectation buildExpectation(
-      EXPECTATION_TYPE type, String name, long expirationTime, boolean multiSelectable) {
+      EXPECTATION_TYPE type,
+      String name,
+      long expirationTime,
+      boolean multiSelectable,
+      boolean isPredefined) {
     Expectation expectation = new Expectation();
     expectation.setType(type);
     expectation.setName(name);
     expectation.setScore(DEFAULT_EXPECTATION_SCORE);
     expectation.setExpirationTime(expirationTime);
     expectation.setMultiSelectable(multiSelectable);
+    expectation.setPredefined(isPredefined);
     return expectation;
-  }
-
-  private Expectation buildExpectation(EXPECTATION_TYPE type, String name, long expirationTime) {
-    return buildExpectation(type, name, expirationTime, false);
   }
 }

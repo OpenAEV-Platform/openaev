@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 
+import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.raw.RawInject;
 import io.openaev.database.raw.RawInjectIndexing;
@@ -51,7 +52,45 @@ public interface InjectRepository
 
   Optional<Inject> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
+  /**
+   * Updates only an inject's {@code updated_at} timestamp, through Hibernate so the tenant
+   * statement inspector covers it (a previous raw-JDBC helper bypassed it). Returns the number of
+   * rows updated.
+   */
+  @Modifying
+  @Query("UPDATE Inject i SET i.updatedAt = :updatedAt WHERE i.id = :id")
+  @Transactional
+  int updateUpdatedAt(@Param("id") @NotNull String id, @Param("updatedAt") Instant updatedAt);
+
+  /**
+   * Resolves the owning tenant of each given inject in one native, filter-exempt query, for
+   * background consumers that group a cross-tenant batch by tenant without an ambient {@code
+   * TenantContext} (mirrors {@code StepRepository.findTenantIdByStepId}, #6904). A native query is
+   * not rewritten by the Hibernate tenant {@code @Filter}, so the result is context-free. Each row
+   * is {@code [inject_id, tenant_id]}; an unknown inject is simply absent from the result.
+   */
+  @Query(
+      value = "SELECT i.inject_id, i.tenant_id FROM injects i WHERE i.inject_id IN :injectIds",
+      nativeQuery = true)
+  List<Object[]> findTenantIdsByInjectIds(@Param("injectIds") Collection<String> injectIds);
+
   // -- SIMULATION --
+
+  /**
+   * Count of a simulation's injects still progressing through execution (status in the given
+   * in-flight set: QUEUING / PENDING / EXECUTING). Zero means nothing is in flight - no step whose
+   * result the orchestrator could still be legitimately awaiting. Used by the autonomous idle/stall
+   * watchdog to exempt a silent-but-legitimate {@code await_finding} park (a slow step is still
+   * running) from being settled. An inject with no status row yet (DRAFT / never launched) is
+   * deliberately not counted: the inner join on {@code status} drops it, and it is not in flight so
+   * it cannot justify the orchestrator's silence.
+   */
+  @Query(
+      "SELECT COUNT(i) FROM Inject i WHERE i.exercise.id = :exerciseId "
+          + "AND i.status.name IN :statuses")
+  long countByExerciseIdAndStatusNameIn(
+      @Param("exerciseId") String exerciseId,
+      @Param("statuses") Collection<ExecutionStatus> statuses);
 
   List<Inject> findByExerciseId(@NotNull String exerciseId);
 
@@ -71,54 +110,105 @@ public interface InjectRepository
 
   @Query(
       value =
-          "SELECT f.inject_id, f.inject_title, f.inject_scenario, f.inject_exercise, f.inject_created_at, f.inject_updated_at,f.tenant_id, f.inject_injector_contract, ic.injector_contract_updated_at, ins.tracking_sent_date, "
-              + "array_union_agg(ic.injector_contract_platforms) FILTER ( WHERE ic.injector_contract_platforms IS NOT NULL ) as inject_platforms, "
-              + "array_agg(icap.attack_pattern_id) FILTER ( WHERE icap.attack_pattern_id IS NOT NULL ) as inject_attack_patterns, "
-              + "array_agg(ap.phase_id) FILTER ( WHERE ap.phase_id IS NOT NULL ) as inject_kill_chain_phases, "
-              + "array_agg(idp.inject_children_id) FILTER ( WHERE idp.inject_children_id IS NOT NULL ) as inject_children, "
-              + "array_agg(idp.inject_children_id) FILTER ( WHERE idp.inject_children_id IS NOT NULL ) as attack_pattern_children, "
-              + "array_agg(icap_children.attack_pattern_id) FILTER (WHERE icap_children.attack_pattern_id IS NOT NULL) AS attack_patterns_children,"
-              + "MAX(ins.status_name) as inject_status_name, "
-              + "array_agg(it.tag_id) FILTER ( WHERE it.tag_id IS NOT NULL ) as inject_tags, "
-              + "array_agg(ia.asset_id) FILTER ( WHERE ia.asset_id IS NOT NULL ) as inject_assets, "
-              + "array_agg(iag.asset_group_id) FILTER ( WHERE iag.asset_group_id IS NOT NULL ) as inject_asset_groups, "
-              + "array_agg(ite.team_id) FILTER ( WHERE ite.team_id IS NOT NULL ) || "
-              + "array_agg(et.team_id) FILTER ( WHERE et.team_id IS NOT NULL ) || "
-              + "array_agg(st.team_id) FILTER ( WHERE st.team_id IS NOT NULL ) as inject_teams " // The deduplication is not done here but in the Set<String> of RawInjectIndexing
-              + "FROM injects f "
-              + "LEFT JOIN injects_statuses ins ON ins.status_inject = f.inject_id "
-              + "LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = f.inject_injector_contract "
-              + "LEFT JOIN injectors_contracts_attack_patterns icap ON icap.injector_contract_id = ic.injector_contract_id "
-              + "LEFT JOIN attack_patterns_kill_chain_phases ap ON ap.attack_pattern_id = icap.attack_pattern_id "
-              + "LEFT JOIN injects_dependencies idp ON idp.inject_parent_id = f.inject_id "
-              + "LEFT JOIN injects inject_children ON inject_children.inject_id = idp.inject_children_id "
-              + "LEFT JOIN injectors_contracts ic_children ON ic_children.injector_contract_id = inject_children.inject_injector_contract "
-              + "LEFT JOIN injectors_contracts_attack_patterns icap_children ON icap_children.injector_contract_id = ic_children.injector_contract_id "
-              + "LEFT JOIN injects_tags it ON it.inject_id = f.inject_id "
-              + "LEFT JOIN injects_assets ia ON ia.inject_id = f.inject_id "
-              + "LEFT JOIN injects_asset_groups iag ON iag.inject_id = f.inject_id "
-              + "LEFT JOIN injects_teams ite ON ite.inject_id = f.inject_id "
-              + "LEFT JOIN exercises_teams et ON et.exercise_id = f.inject_exercise AND f.inject_all_teams "
-              + "LEFT JOIN scenarios_teams st ON st.scenario_id = f.inject_scenario AND f.inject_all_teams "
-              // Semi-join on a UNION of independently index-backed branches: the previous flat
-              // OR across joined tables (plus a GREATEST sort) forced a sequential scan of the
-              // whole join product on every indexing tick.
-              + "WHERE f.inject_id IN ("
-              + "    SELECT i2.inject_id FROM injects i2 WHERE i2.inject_updated_at > :from "
-              + "    UNION "
-              + "    SELECT i2.inject_id FROM injects i2 "
-              + "      JOIN injectors_contracts c2 ON c2.injector_contract_id = i2.inject_injector_contract "
-              + "      WHERE c2.injector_contract_updated_at > :from "
-              + "    UNION "
-              + "    SELECT d2.inject_parent_id FROM injects_dependencies d2 "
-              + "      WHERE d2.dependency_updated_at > :from "
-              + "    UNION "
-              + "    SELECT d2.inject_parent_id FROM injects_dependencies d2 "
-              + "      JOIN injects child2 ON child2.inject_id = d2.inject_children_id "
-              + "      JOIN injectors_contracts c2 ON c2.injector_contract_id = child2.inject_injector_contract "
-              + "      WHERE c2.injector_contract_updated_at > :from "
-              + ") "
-              + "GROUP BY f.inject_id, f.inject_updated_at, ic.injector_contract_updated_at, ins.tracking_sent_date ORDER BY GREATEST(f.inject_updated_at, ic.injector_contract_updated_at) ASC LIMIT :limit;",
+          """
+    WITH changed_injects AS (
+        SELECT i2.inject_id FROM injects i2 WHERE i2.inject_updated_at > :from
+        UNION
+        SELECT i2.inject_id FROM injects i2
+          JOIN injectors_contracts c2 ON c2.injector_contract_id = i2.inject_injector_contract
+                                     AND c2.tenant_id = i2.tenant_id
+          WHERE c2.injector_contract_updated_at > :from
+        UNION
+        SELECT d2.inject_parent_id FROM injects_dependencies d2
+          WHERE d2.dependency_updated_at > :from
+        UNION
+        SELECT d2.inject_parent_id FROM injects_dependencies d2
+          JOIN injects child2 ON child2.inject_id = d2.inject_children_id
+          JOIN injectors_contracts c2 ON c2.injector_contract_id = child2.inject_injector_contract
+                                     AND c2.tenant_id = child2.tenant_id
+          WHERE c2.injector_contract_updated_at > :from
+    ),
+    ranked_injects AS (
+        -- sort_ts is the indexing sort key AND the cursor value (InjectHandler copies it to
+        -- EsInject.base_updated_at, which EsIndexingUtils.computeNewCursor advances on). It must
+        -- therefore cover EVERY trigger of changed_injects: the inject itself, its contract, and
+        -- its dependency rows / child contracts. A trigger missing from the key would give the row
+        -- a sort_ts <= :from: the batch order could put stale keys last, letting the cursor stall
+        -- or regress and freeze inject indexing (0 injects after the full-reindex migration).
+        -- Filtering on sort_ts > :from then guarantees strict cursor progress (mirrors
+        -- InjectExpectationRepository.ranked_expectations).
+        SELECT r.inject_id, r.sort_ts
+        FROM (
+            SELECT ci.inject_id,
+                   GREATEST(
+                     f.inject_updated_at,
+                     COALESCE(ic.injector_contract_updated_at, f.inject_updated_at),
+                     COALESCE(dep.dependency_ts, f.inject_updated_at)
+                   ) AS sort_ts
+            FROM changed_injects ci
+            JOIN injects f ON f.inject_id = ci.inject_id
+            LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = f.inject_injector_contract
+                                            AND ic.tenant_id = f.tenant_id
+            LEFT JOIN LATERAL (
+                SELECT MAX(GREATEST(d.dependency_updated_at,
+                                    COALESCE(cc.injector_contract_updated_at, d.dependency_updated_at))) AS dependency_ts
+                FROM injects_dependencies d
+                JOIN injects child ON child.inject_id = d.inject_children_id
+                LEFT JOIN injectors_contracts cc ON cc.injector_contract_id = child.inject_injector_contract
+                                                AND cc.tenant_id = child.tenant_id
+                WHERE d.inject_parent_id = f.inject_id
+            ) dep ON TRUE
+        ) r
+        WHERE r.sort_ts > :from
+        ORDER BY r.sort_ts ASC
+        LIMIT :limit
+    )
+    SELECT f.inject_id, f.inject_title, f.inject_scenario, f.inject_exercise,
+      f.inject_created_at, f.inject_updated_at, f.tenant_id, f.inject_injector_contract,
+      ri.sort_ts AS inject_sort_ts,
+      ic.injector_contract_updated_at, ins.tracking_sent_date,
+      ic.injector_contract_platforms as inject_platforms,
+      (SELECT array_agg(icap.attack_pattern_id)
+       FROM injectors_contracts_attack_patterns icap
+       WHERE icap.injector_contract_id = ic.injector_contract_id) as inject_attack_patterns,
+      (SELECT array_agg(ap.phase_id)
+       FROM injectors_contracts_attack_patterns icap
+       JOIN attack_patterns_kill_chain_phases ap ON ap.attack_pattern_id = icap.attack_pattern_id
+       WHERE icap.injector_contract_id = ic.injector_contract_id) as inject_kill_chain_phases,
+      (SELECT array_agg(idp.inject_children_id)
+       FROM injects_dependencies idp
+       WHERE idp.inject_parent_id = f.inject_id) as inject_children,
+      (SELECT array_agg(idp.inject_children_id)
+       FROM injects_dependencies idp
+       WHERE idp.inject_parent_id = f.inject_id) as attack_pattern_children,
+      (SELECT array_agg(icap_c.attack_pattern_id)
+       FROM injects_dependencies idp
+       JOIN injects child ON child.inject_id = idp.inject_children_id
+       JOIN injectors_contracts ic_c ON ic_c.injector_contract_id = child.inject_injector_contract
+                                    AND ic_c.tenant_id = child.tenant_id
+       JOIN injectors_contracts_attack_patterns icap_c ON icap_c.injector_contract_id = ic_c.injector_contract_id
+       WHERE idp.inject_parent_id = f.inject_id) as attack_patterns_children,
+      ins.status_name as inject_status_name,
+      (SELECT array_agg(it.tag_id)
+       FROM injects_tags it WHERE it.inject_id = f.inject_id) as inject_tags,
+      (SELECT array_agg(ia.asset_id)
+       FROM injects_assets ia WHERE ia.inject_id = f.inject_id) as inject_assets,
+      (SELECT array_agg(iag.asset_group_id)
+       FROM injects_asset_groups iag WHERE iag.inject_id = f.inject_id) as inject_asset_groups,
+      (SELECT array_agg(x.team_id) FROM (
+        SELECT ite.team_id FROM injects_teams ite WHERE ite.inject_id = f.inject_id
+        UNION ALL
+        SELECT et.team_id FROM exercises_teams et WHERE et.exercise_id = f.inject_exercise AND f.inject_all_teams
+        UNION ALL
+        SELECT st.team_id FROM scenarios_teams st WHERE st.scenario_id = f.inject_scenario AND f.inject_all_teams
+      ) x) as inject_teams
+    FROM injects f
+    JOIN ranked_injects ri ON ri.inject_id = f.inject_id
+    LEFT JOIN injects_statuses ins ON ins.status_inject = f.inject_id
+    LEFT JOIN injectors_contracts ic ON ic.injector_contract_id = f.inject_injector_contract
+                                    AND ic.tenant_id = f.tenant_id
+    ORDER BY ri.sort_ts ASC
+    """,
       nativeQuery = true)
   List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
@@ -330,6 +420,25 @@ public interface InjectRepository
 
   // -- TEAM --
 
+  /**
+   * Bumps all injects of an exercise so the incremental search-engine indexer refreshes their
+   * denormalized team linkage (inject_teams, all-teams derivation, expectation team sides).
+   */
+  @Modifying
+  @Query(
+      value = "UPDATE injects SET inject_updated_at = now() WHERE inject_exercise = :exerciseId",
+      nativeQuery = true)
+  @Transactional
+  void touchUpdatedAtByExerciseId(@Param("exerciseId") String exerciseId);
+
+  /** Same as {@link #touchUpdatedAtByExerciseId(String)} for scenario injects. */
+  @Modifying
+  @Query(
+      value = "UPDATE injects SET inject_updated_at = now() WHERE inject_scenario = :scenarioId",
+      nativeQuery = true)
+  @Transactional
+  void touchUpdatedAtByScenarioId(@Param("scenarioId") String scenarioId);
+
   @Modifying
   @Query(
       value =
@@ -388,6 +497,24 @@ public interface InjectRepository
   List<String> findContentsByInjectIds(@NotBlank Set<String> injectIds);
 
   /**
+   * Exercise id + raw inject content for every exercise inject whose content references a
+   * content-based target: an AI target ({@code "ai_target"} key) or a raw manual target ({@code
+   * "target_selector" = "manual"}). Feeds the simulation list "Target" column: these targets are
+   * content references (not JPA relations like injects_assets), so the plain asset join never
+   * surfaces them. The LIKE guards keep the scan to relevant rows; the keys are parsed Java-side
+   * (via InjectContentUtils) to stay in lockstep with the execution path.
+   */
+  @Query(
+      value =
+          "SELECT i.inject_exercise, i.inject_content FROM injects i "
+              + "WHERE i.inject_exercise IN :exerciseIds "
+              + "AND (i.inject_content LIKE '%\"ai_target\"%' "
+              + "OR i.inject_content LIKE '%\"target_selector\"%') "
+              + "AND i.tenant_id = :#{#tenantContext.currentTenant}",
+      nativeQuery = true)
+  List<Object[]> findContentTargetContentsByExerciseIds(Set<String> exerciseIds);
+
+  /**
    * Check if an Inject exists by its ID without loading the entity. This is useful for because of
    * the cascade configuration
    *
@@ -405,6 +532,19 @@ public interface InjectRepository
    */
   boolean existsByIdAndScenarioIsNullAndExerciseIsNull(String id);
 
+  @Query(
+      value =
+          "SELECT i.inject_id FROM injects i "
+              + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "JOIN payloads p ON ic.injector_contract_payload = p.payload_id "
+              + "WHERE p.payload_type = '"
+              + DNS_RESOLUTION_TYPE
+              + "' "
+              + "AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  List<String> findInjectIdsWithDnsResolutionContractsByScenarioId(
+      @Param("scenarioId") String scenarioId);
+
   @Modifying
   @Query(
       value =
@@ -418,6 +558,19 @@ public interface InjectRepository
               + "AND i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllInjectsWithDnsResolutionContractsByScenarioId(
+      @Param("scenarioId") String scenarioId);
+
+  @Query(
+      value =
+          "SELECT i.inject_id FROM injects i "
+              + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "JOIN payloads p ON ic.injector_contract_payload = p.payload_id "
+              + "WHERE p.payload_type = '"
+              + FILE_DROP_TYPE
+              + "' "
+              + "AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  List<String> findInjectIdsWithFileDropContractsByScenarioId(
       @Param("scenarioId") String scenarioId);
 
   @Modifying
@@ -434,6 +587,16 @@ public interface InjectRepository
       nativeQuery = true)
   void deleteAllInjectsWithFileDropContractsByScenarioId(@Param("scenarioId") String scenarioId);
 
+  @Query(
+      value =
+          "SELECT DISTINCT i.inject_id FROM injects i "
+              + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "JOIN injectors_contracts_vulnerabilities icv ON ic.injector_contract_id = icv.injector_contract_id "
+              + "WHERE i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  List<String> findInjectIdsWithVulnerableContractsByScenarioId(
+      @Param("scenarioId") String scenarioId);
+
   @Modifying
   @Query(
       value =
@@ -444,6 +607,16 @@ public interface InjectRepository
               + "AND i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllInjectsWithVulnerableContractsByScenarioId(@Param("scenarioId") String scenarioId);
+
+  @Query(
+      value =
+          "SELECT DISTINCT i.inject_id FROM injects i "
+              + "JOIN injectors_contracts ic ON i.inject_injector_contract = ic.injector_contract_id "
+              + "JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
+              + "WHERE i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  List<String> findInjectIdsWithAttackPatternContractsByScenarioId(
+      @Param("scenarioId") String scenarioId);
 
   @Modifying
   @Query(
@@ -457,12 +630,47 @@ public interface InjectRepository
   void deleteAllInjectsWithAttackPatternContractsByScenarioId(
       @Param("scenarioId") String scenarioId);
 
+  @Query(
+      value =
+          "SELECT i.inject_id FROM injects i WHERE i.inject_injector_contract = :injectorContract AND i.inject_scenario = :scenarioId",
+      nativeQuery = true)
+  List<String> findInjectIdsByScenarioIdAndInjectorContract(
+      @Param("injectorContract") String injectorContract, @Param("scenarioId") String scenarioId);
+
   @Modifying
   @Query(
       value =
           "DELETE FROM injects i WHERE i.inject_injector_contract = :injectorContract AND i.inject_scenario = :scenarioId",
       nativeQuery = true)
   void deleteAllByScenarioIdAndInjectorContract(String injectorContract, String scenarioId);
+
+  // Injects that would be cascade-deleted at the DATABASE level (injects.inject_injector_contract
+  // references injectors_contracts ON DELETE CASCADE) when the given contracts are deleted. Used
+  // to notify the search engine of the doomed inject documents BEFORE the delete, since no JPA
+  // lifecycle event fires for DB-level cascades.
+  // Tenant-scoped: contract ids are shared across tenants (built-in contracts are seeded with the
+  // same UUIDs in every tenant), so without the tenant predicate this would return other tenants'
+  // inject ids and de-index their documents.
+  @Query(
+      value =
+          "SELECT i.inject_id FROM injects i "
+              + "WHERE i.inject_injector_contract IN (:contractIds) AND i.tenant_id = :tenantId",
+      nativeQuery = true)
+  List<String> findInjectIdsByInjectorContractIds(
+      @Param("contractIds") Collection<String> contractIds, @Param("tenantId") String tenantId);
+
+  // Same purpose for payload deletion: payloads cascade to injectors_contracts, which cascade to
+  // injects — two DB-level hops with zero JPA lifecycle events. Tenant-scoped like above (the
+  // contract join must also match on tenant_id since injectors_contracts has a composite key).
+  @Query(
+      value =
+          "SELECT i.inject_id FROM injects i "
+              + "JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract "
+              + "AND ic.tenant_id = i.tenant_id "
+              + "WHERE ic.injector_contract_payload = :payloadId AND i.tenant_id = :tenantId",
+      nativeQuery = true)
+  List<String> findInjectIdsByPayloadId(
+      @Param("payloadId") String payloadId, @Param("tenantId") String tenantId);
 
   @EntityGraph(attributePaths = {"expectations", "injectorContract"})
   @Query("SELECT i FROM Inject i WHERE i.id IN :ids")

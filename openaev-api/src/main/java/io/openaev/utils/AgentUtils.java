@@ -136,8 +136,12 @@ public class AgentUtils {
    * @see #isValidAgent(Inject, Agent)
    */
   public static List<Agent> getActiveAgents(Asset asset, Inject inject) {
-    return ((Endpoint) Hibernate.unproxy(asset))
-        .getAgents().stream().filter(agent -> isValidAgent(inject, agent)).toList();
+    // Only endpoints carry agents. Asset groups may now resolve non-endpoint assets (AI targets,
+    // identities, ...); those have no agents and must not be cast to Endpoint.
+    if (!(Hibernate.unproxy(asset) instanceof Endpoint endpoint)) {
+      return List.of();
+    }
+    return endpoint.getAgents().stream().filter(agent -> isValidAgent(inject, agent)).toList();
   }
 
   /**

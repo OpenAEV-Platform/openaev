@@ -77,7 +77,14 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - Prefer unidirectional relationships
 - `@Transactional` does NOT work on self-calls (Spring proxy bypass)
 - Background tasks: explicit `@Transactional` (no OSIV outside controllers)
-- `deleteById()` does a SELECT first — use native `@Query @Modifying` for perf-critical deletes
+- `deleteById()` does a SELECT first — use native `@Query @Modifying` for perf-critical deletes, but only when the entity is not `@Indexable`, `@AuditDiffTracked`, or streamed: a native or bulk delete skips the listener chain, so the search index, audit log, and activity stream are not updated (see `orm.instructions.md`)
+- **Never mutate a managed entity in a read path — `readOnly = true` does NOT make it safe**:
+  with OSIV the Hibernate session outlives the controller's read-only transaction, and any later
+  read-write transaction on the same thread (e.g. the spring-session JDBC save at response commit)
+  flushes the dirtied entity. If the row was deleted/changed in between, the flush fails with
+  `StaleStateException` and the GET returns a 500 (issue #7092, regression of #6469). Resolve
+  display-only values into the output DTO (pass them as mapper parameters) instead of calling
+  setters on managed entities.
 
 ## Services
 
@@ -104,3 +111,11 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 ## Formatting (Spotless)
 
 - **After editing Java files**, run `.\scripts\hooks\format-java.ps1` (Windows) or `./scripts/hooks/format-java.sh` (Unix). Output: `OK` = success.
+
+## Code Comments
+
+- **Don't comment the obvious**: never add a comment that merely restates what the code already
+  makes clear (e.g. `// Safe: newConnector is transient, not managed by Hibernate` when it's
+  created with `new Connector()`). Comments should explain *why*, not *what*.
+- **Don't duplicate computed values**: compute once (e.g. `String logoFilename = getLogoFilename()`)
+  and pass as an argument — never repeat the same `.formatted(...)` expression in multiple places.

@@ -7,6 +7,7 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.finding.form.FindingInput;
+import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.helper.RestBehavior;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -34,6 +35,17 @@ public class FindingApi extends RestBehavior {
       resourceType = ResourceType.FINDING)
   public ResponseEntity<Finding> finding(@PathVariable @NotNull final String id) {
     return ResponseEntity.ok(this.findingService.finding(id));
+  }
+
+  @GetMapping({FINDING_URI + "/{id}/summary", TENANT_FINDING_URI + "/{id}/summary"})
+  @Transactional
+  @AccessControl(
+      resourceId = "#id",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.FINDING)
+  public ResponseEntity<FindingSummaryOutput> findingSummary(
+      @PathVariable @NotNull final String id) {
+    return ResponseEntity.ok(this.findingService.findingSummary(id));
   }
 
   @PostMapping({FINDING_URI, TENANT_FINDING_URI})

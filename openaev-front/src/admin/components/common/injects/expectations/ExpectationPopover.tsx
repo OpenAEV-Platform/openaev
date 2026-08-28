@@ -6,7 +6,7 @@ import Dialog from '../../../../../components/common/dialog/Dialog';
 import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
-import { type InjectExpectation, type PlatformSettings } from '../../../../../utils/api-types';
+import { type InjectExpectationOutput, type PlatformSettings } from '../../../../../utils/api-types';
 import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { PermissionsContext } from '../../Context';
@@ -41,7 +41,7 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
   const [openEdit, setOpenEdit] = useState(false);
 
   // Hook must be called at the top level of the component
-  const defaultExpirationTime = useExpectationExpirationTime(expectation.expectation_type as InjectExpectation['inject_expectation_type']);
+  const defaultExpirationTime = useExpectationExpirationTime(expectation.expectation_type as InjectExpectationOutput['inject_expectation_type']);
 
   const getExpirationTime = (expirationTime: number): number => {
     if (expirationTime !== null && expirationTime !== undefined) {
@@ -57,6 +57,10 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
     expectation_score: expectation.expectation_score ?? settings.expectation_manual_default_score_value,
     expectation_expectation_group: expectation.expectation_expectation_group ?? false,
     expectation_expiration_time: getExpirationTime(expectation.expectation_expiration_time),
+    expectation_is_predefined: expectation.expectation_is_predefined ?? false,
+    // Carry the existing expected security platforms so the update form pre-fills them instead of
+    // showing "Any security platform" - omitting them here also wiped the selection on save.
+    expectation_expected_security_platform_types: expectation.expectation_expected_security_platform_types ?? [],
   };
 
   // Edition
@@ -71,6 +75,9 @@ const ExpectationPopover: FunctionComponent<ExpectationPopoverProps> = ({
       expectation_expiration_time: data.expiration_time_days * 3600 * 24
         + data.expiration_time_hours * 3600
         + data.expiration_time_minutes * 60,
+      // The contract-declared display order is not part of the edit form: carry it through so
+      // editing a predefined expectation (e.g. a phishing step) keeps its place in the chain.
+      expectation_order: expectation.expectation_order,
     };
     handleUpdate(values, index);
     handleCloseEdit();

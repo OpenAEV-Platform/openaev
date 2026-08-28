@@ -4,8 +4,10 @@ import static io.openaev.api.chaining.ChainingApi.TENANT_CHAINING_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -16,8 +18,11 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exercise.form.CreateExerciseInput;
 import io.openaev.rest.inject.form.InjectInput;
@@ -42,6 +47,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -75,15 +81,20 @@ class ChainingIntegrationTest extends IntegrationTest {
   @MockitoBean private DocumentService documentService;
   @MockitoBean private InjectService injectService;
   @MockitoBean private io.openaev.executors.Executor executor;
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
   @MockitoSpyBean private UserService userService;
   @Autowired private TestUserHolder testUserHolder;
   String injectInputJson;
   InjectorContract injectorContractSaved;
+  Asset savedAsset;
 
   @BeforeEach
   void beforeEach() throws Exception {
+    when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+    when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+
     Injector injector = InjectorFixture.createDefaultPayloadInjector();
     Injector injectorSaved = injectorRepository.save(injector);
 
@@ -91,12 +102,12 @@ class ChainingIntegrationTest extends IntegrationTest {
     injectorContract.addInjector(injectorSaved);
     injectorContractSaved = injectorContractRepository.save(injectorContract);
     // Link on the owning side and save to persist the join table
-    injectorSaved.getContracts().add(injectorContractSaved);
+    injectorSaved.linkContract(injectorContractSaved);
     injectorRepository.save(injectorSaved);
 
     doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
-    doReturn(new ArrayList<>()).when(assetService).assets(any());
+    doReturn(new ArrayList<>()).when(assetService).assets(anyList());
     doReturn(new HashSet<>()).when(tagService).tagSet(any());
     doReturn(null).when(documentService).document(any());
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
@@ -113,6 +124,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
     Asset asset = AssetFixture.createDefaultAsset("AssetTest");
     asset = injectTestHelper.forceSaveAsset(asset);
+    savedAsset = asset;
 
     injectInputJson =
         """
@@ -141,6 +153,7 @@ class ChainingIntegrationTest extends IntegrationTest {
   }
 
   @Nested
+  @Transactional
   @DisplayName("Scenario chaining integration tests")
   public class ScenarioChainingIntegrationTests {
 
@@ -187,7 +200,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       assertNull(
           workflowTemplate.getSimulation(), "The Workflow TEMPLATE must not have a simulation");
       // Timeout defaults must be set on creation
-      assertFalse(workflowTemplate.isTimeoutEnabled(), "Timeout must be disabled by default");
+      assertTrue(workflowTemplate.isTimeoutEnabled(), "Timeout must be enabled by default");
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           workflowTemplate.getTimeoutSeconds(),
@@ -453,6 +466,21 @@ class ChainingIntegrationTest extends IntegrationTest {
       step.setDataStep(injectInput);
       step.setConditions(List.of());
       stepService.createStepTemplates(workflowTemplate, List.of(step));
+
+      // Add an ASSET scope rule so that scopeService.getValidAssets() returns savedAsset
+      // and hasAssetTargets becomes true, which triggers inject creation in the external-injector
+      // branch.
+      WorkflowScopeRuleInput assetScopeRule =
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue(savedAsset.getId())
+              .build();
+      workflowService.updateWorkflowConfiguration(
+          workflowTemplate.getId(),
+          WorkflowConfigurationInput.builder().workflowScopeRules(List.of(assetScopeRule)).build());
+      // Override the asset mock so the scope service resolves the rule to savedAsset
+      doReturn(List.of(savedAsset)).when(assetService).assets(any(Specification.class));
       String simulation =
           mvc.perform(
                   post(tenantUri(
@@ -479,7 +507,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       Workflow workflowRun = executionWorkflows.getFirst();
       // Retrieve the inject created from the step
       Step createdStep =
-          stepService.findAllStepExecutedByWorkflowRunId(workflowRun.getId()).stream()
+          stepService.findAllStepActiveByWorkflowRunId(workflowRun.getId()).stream()
               .findFirst()
               .orElseThrow(() -> new AssertionError("Step not found"));
       if (createdStep.getStatus() == StepStatus.READY) {
@@ -595,6 +623,7 @@ class ChainingIntegrationTest extends IntegrationTest {
   }
 
   @Nested
+  @Transactional
   @DisplayName("Simulation chaining integration tests")
   public class SimulationChainingIntegrationTests {
 
@@ -629,7 +658,7 @@ class ChainingIntegrationTest extends IntegrationTest {
           workflowTemplate.getScenario(),
           "Template workflow for simulation must not link scenario");
       // Timeout defaults must be set on creation
-      assertFalse(workflowTemplate.isTimeoutEnabled(), "Timeout must be disabled by default");
+      assertTrue(workflowTemplate.isTimeoutEnabled(), "Timeout must be enabled by default");
       assertEquals(
           WorkflowService.DEFAULT_TIMEOUT_SECONDS,
           workflowTemplate.getTimeoutSeconds(),

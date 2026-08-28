@@ -46,6 +46,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceUnitTest {
@@ -70,6 +71,11 @@ class ExerciseServiceUnitTest {
   @Mock private InjectExpectationRepository injectExpectationRepository;
   @Mock private ArticleRepository articleRepository;
   @Mock private ExerciseRepository exerciseRepository;
+
+  @Mock
+  private io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService
+      attackPathExecutionService;
+
   @Mock private TeamRepository teamRepository;
   @Mock private UserRepository userRepository;
   @Mock private ExerciseTeamUserRepository exerciseTeamUserRepository;
@@ -80,6 +86,7 @@ class ExerciseServiceUnitTest {
 
   @Mock private WorkflowService workflowService;
   @Mock private LessonsService lessonsService;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @Spy @InjectMocks private ExerciseService mockedExerciseService;
 
@@ -207,12 +214,12 @@ class ExerciseServiceUnitTest {
             ExpectationType.DETECTION,
             new ExpectationResultsByType(
                 ExpectationType.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.DETECTION, scores)),
             ExpectationType.PREVENTION,
             new ExpectationResultsByType(
                 ExpectationType.PREVENTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.PREVENTION, scores)));
 
     assertFalse(mockedExerciseService.isThereAScoreDegradation(resultsMap, resultsMap));
@@ -228,24 +235,24 @@ class ExerciseServiceUnitTest {
             ExpectationType.DETECTION,
             new ExpectationResultsByType(
                 ExpectationType.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.DETECTION, scores)),
             ExpectationType.PREVENTION,
             new ExpectationResultsByType(
                 ExpectationType.PREVENTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.PREVENTION, lowerScores)));
     Map<ExpectationType, ExpectationResultsByType> secondLastResultsMap =
         Map.of(
             ExpectationType.DETECTION,
             new ExpectationResultsByType(
                 ExpectationType.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.DETECTION, scores)),
             ExpectationType.PREVENTION,
             new ExpectationResultsByType(
                 ExpectationType.PREVENTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.PREVENTION, scores)));
     assertTrue(
         mockedExerciseService.isThereAScoreDegradation(lastResultsMap, secondLastResultsMap));
@@ -260,24 +267,24 @@ class ExerciseServiceUnitTest {
             ExpectationType.DETECTION,
             new ExpectationResultsByType(
                 ExpectationType.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.DETECTION, scores)),
             ExpectationType.HUMAN_RESPONSE,
             new ExpectationResultsByType(
                 ExpectationType.HUMAN_RESPONSE,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.PREVENTION, lowerScores)));
     Map<ExpectationType, ExpectationResultsByType> secondLastResultsMap =
         Map.of(
             ExpectationType.DETECTION,
             new ExpectationResultsByType(
                 ExpectationType.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.DETECTION, scores)),
             ExpectationType.HUMAN_RESPONSE,
             new ExpectationResultsByType(
                 ExpectationType.HUMAN_RESPONSE,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.PREVENTION, scores)));
     assertFalse(
         mockedExerciseService.isThereAScoreDegradation(lastResultsMap, secondLastResultsMap));
@@ -292,24 +299,24 @@ class ExerciseServiceUnitTest {
             ExpectationType.DETECTION,
             new ExpectationResultsByType(
                 ExpectationType.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.DETECTION, scores)),
             ExpectationType.HUMAN_RESPONSE,
             new ExpectationResultsByType(
                 ExpectationType.PREVENTION,
-                InjectExpectation.EXPECTATION_STATUS.PENDING,
+                BaseInjectExpectation.EXPECTATION_STATUS.PENDING,
                 getResultDetail(ExpectationType.PREVENTION, lowerScores)));
     Map<ExpectationType, ExpectationResultsByType> secondLastResultsMap =
         Map.of(
             ExpectationType.DETECTION,
             new ExpectationResultsByType(
                 ExpectationType.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.DETECTION, scores)),
             ExpectationType.PREVENTION,
             new ExpectationResultsByType(
                 ExpectationType.PREVENTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 getResultDetail(ExpectationType.PREVENTION, scores)));
   }
 
@@ -340,7 +347,6 @@ class ExerciseServiceUnitTest {
       doReturn(saved).when(mockedExerciseService).createExercise(exercise);
       Exercise result;
       if (chaining) {
-        doNothing().when(workflowService).isPreviewFeatureChainingEnable();
         result = mockedExerciseService.createSimulationChaining(exercise);
       } else {
         result = mockedExerciseService.createExercise(exercise);

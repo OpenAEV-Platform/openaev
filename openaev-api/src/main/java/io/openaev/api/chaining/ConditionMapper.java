@@ -6,6 +6,8 @@ import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
+import io.openaev.database.model.PrimitiveType;
+import io.openaev.utils.ConditionKeyTypesUtils;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -82,10 +84,10 @@ public class ConditionMapper {
     return ConditionOutput.builder()
         .id(c.getId())
         .key(c.getKey())
-        .keyType(c.getKeyType())
-        .keySubtype(c.getKeySubtype())
+        .keyTypes(c.getKeyTypes())
         .type(c.getType() != null ? c.getType().name() : null)
         .value(c.getValue())
+        .caseSensitive(c.isCaseSensitive())
         .conditionParentId(parentId)
         .mappingType(c.getMappingType())
         .build();
@@ -115,13 +117,19 @@ public class ConditionMapper {
     Objects.requireNonNull(input, "condition create input must not be null");
 
     return Condition.builder()
+        .name(input.getName())
         .key(input.getKey())
-        .keyType(input.getKeyType())
-        .keySubtype(input.getKeySubtype())
+        .keyTypes(resolveKeyTypes(input))
         .type(input.getType())
         .value(input.getValue())
+        .caseSensitive(input.isCaseSensitive())
         .conditionParent(conditionParent)
         .mappingType(resolveMappingType(input))
         .build();
+  }
+
+  private static List<PrimitiveType> resolveKeyTypes(ConditionCreateInput input) {
+    return ConditionKeyTypesUtils.normalizeForConditionType(
+        input.getKeyTypes(), input.getType(), input.getMappingType());
   }
 }

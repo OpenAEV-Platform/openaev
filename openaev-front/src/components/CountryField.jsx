@@ -18,7 +18,6 @@ const styles = () => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
 });
 
 class CountryFieldComponent extends Component {
@@ -35,6 +34,8 @@ class CountryFieldComponent extends Component {
           label={t('Country')}
           options={countryOptions()}
           style={{ marginTop: 20 }}
+          // Country is optional: the clear icon is the only way to empty it.
+          disableClearable={false}
           renderOption={(props, option) => (
             <Box component="li" {...props} key={option.id}>
               <div className={classes.icon}>
@@ -43,7 +44,6 @@ class CountryFieldComponent extends Component {
               <div className={classes.text}>{option.label}</div>
             </Box>
           )}
-          classes={{ clearIndicator: classes.autoCompleteIndicator }}
         />
       </div>
     );

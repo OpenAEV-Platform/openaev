@@ -18,6 +18,8 @@ import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ClassicHttpResponse;
+import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.springframework.stereotype.Service;
@@ -58,16 +60,23 @@ public class SentinelOneExecutorClient {
   }
 
   private void setAllAgentsFromFilter(String filter, Set<SentinelOneAgent> agents) {
-    ResponseAgent responseAgent = getSentinelOneAgents(filter);
+    setAllAgentsFromFilter(filter, null, agents, new HashSet<>());
+  }
+
+  private void setAllAgentsFromFilter(
+      String filter, String cursor, Set<SentinelOneAgent> agents, Set<String> visitedCursors) {
+    String pageFilter = cursor == null ? filter : filter + CURSOR_PARAM + cursor;
+    ResponseAgent responseAgent = getSentinelOneAgents(pageFilter);
     if (responseAgent.getErrors() != null && !responseAgent.getErrors().isEmpty()) {
-      logErrors(responseAgent.getErrors(), "uri: " + AGENTS_URI + filter);
+      logErrors(responseAgent.getErrors(), "uri: " + AGENTS_URI + pageFilter);
     } else {
       if (responseAgent.getData() != null) {
         agents.addAll(responseAgent.getData());
       }
-      if (responseAgent.getPagination().getNextCursor() != null) {
-        setAllAgentsFromFilter(
-            filter + CURSOR_PARAM + responseAgent.getPagination().getNextCursor(), agents);
+      SentinelOnePagination pagination = responseAgent.getPagination();
+      String nextCursor = pagination == null ? null : pagination.getNextCursor();
+      if (nextCursor != null && visitedCursors.add(nextCursor)) {
+        setAllAgentsFromFilter(filter, nextCursor, agents, visitedCursors);
       }
     }
   }
@@ -106,14 +115,14 @@ public class SentinelOneExecutorClient {
   /**
    * Execute a payload through SentinelOne API executeScript
    *
-   * @param agentsId to use for the payload
+   * @param agentExternalReference to use for the payload
    * @param scriptId to use for the payload
    * @param command to use for the payload
    */
-  public void executeScript(List<String> agentsId, String scriptId, String command) {
+  public void executeScript(String agentExternalReference, String scriptId, String command) {
     try {
       SentinelOneFilter filter = new SentinelOneFilter();
-      filter.setUuids(agentsId);
+      filter.setUuids(List.of(agentExternalReference));
       SentinelOneData data = new SentinelOneData();
       data.setScriptId(scriptId);
       data.setInputParams(command);
@@ -136,15 +145,25 @@ public class SentinelOneExecutorClient {
     }
   }
 
+  private String handleResponse(ClassicHttpResponse response, String target)
+      throws IOException, ParseException {
+    if (response.getCode() == 401) {
+      log.error("SentinelOne authentication failed: API key is invalid or expired (HTTP 401).");
+      throw new ClientProtocolException(
+          "SentinelOne authentication failed on: " + target + " (HTTP 401)");
+    }
+    return EntityUtils.toString(response.getEntity());
+  }
+
   private String get(@NotBlank final String uri) throws IOException {
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientCustom()) {
       HttpGet httpGet = new HttpGet(this.config.getApiUrl() + uri);
       // Headers
       httpGet.addHeader("Authorization", "Bearer " + this.config.getApiKey());
-      return httpClient.execute(httpGet, response -> EntityUtils.toString(response.getEntity()));
+      return httpClient.execute(httpGet, response -> handleResponse(response, uri));
     } catch (IOException e) {
       throw new ClientProtocolException(
-          "Unexpected response for HTTP GET SentinelOne on: " + uri, e);
+          "Unexpected response for HTTP GET SentinelOne on: " + uri + " - " + e.getMessage(), e);
     }
   }
 
@@ -158,7 +177,7 @@ public class SentinelOneExecutorClient {
       // Body
       StringEntity entity = new StringEntity(this.objectMapper.writeValueAsString(body));
       httpPost.setEntity(entity);
-      return httpClient.execute(httpPost, response -> EntityUtils.toString(response.getEntity()));
+      return httpClient.execute(httpPost, response -> handleResponse(response, uri));
     } catch (IOException e) {
       throw new ClientProtocolException("Unexpected response for HTTP POST SentinelOne", e);
     }

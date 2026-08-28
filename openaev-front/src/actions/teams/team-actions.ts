@@ -6,9 +6,10 @@ import {
   postReferential,
   putReferential,
   simpleCall,
+  simpleDelCall,
   simplePostCall,
 } from '../../utils/Action';
-import { type SearchPaginationInput, type Team, type TeamCreateInput, type TeamUpdateInput, type User } from '../../utils/api-types';
+import { type SearchPaginationInput, type Team, type TeamBulkProcessingInput, type TeamCreateInput, type TeamUpdateInput, type User } from '../../utils/api-types';
 import * as schema from '../Schema';
 
 const TEAMS_URI = '/api/teams';
@@ -34,6 +35,13 @@ export const findTeams = (teamIds: string[]) => {
   return simplePostCall(uri, data);
 };
 
+// "Injects played" for the team detail page: every inject (atomic testing or simulation inject)
+// that concerns the team - targeted directly or evidenced by the table-top expectations persisted
+// at execution time. Same scope as the team expectation counters.
+export const searchInjectsForTeam = (teamId: string, searchPaginationInput: SearchPaginationInput) => {
+  return simplePostCall(`${TEAMS_URI}/${teamId}/injects/search`, searchPaginationInput);
+};
+
 export const fetchTeamPlayers = (teamId: Team['team_id']) => (dispatch: Dispatch) => {
   const uri = `${TEAMS_URI}/${teamId}/players`;
   return getReferential(schema.arrayOfUsers, uri)(dispatch);
@@ -57,6 +65,10 @@ export const addTeam = (data: TeamCreateInput) => (dispatch: Dispatch) => {
 export const deleteTeam = (teamId: Team['team_id']) => (dispatch: Dispatch) => {
   const uri = `${TEAMS_URI}/${teamId}`;
   return delReferential(uri, 'teams', teamId)(dispatch);
+};
+
+export const bulkDeleteTeams = (input: TeamBulkProcessingInput) => {
+  return simpleDelCall(TEAMS_URI, { data: input });
 };
 
 export const searchTeamsAsOption = (searchText: string = '', sourceId: string = '', inputFilterOption: string = '') => {

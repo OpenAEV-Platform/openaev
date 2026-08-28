@@ -71,6 +71,7 @@ const InjectTeamsList: FunctionComponent<Props> = ({ readOnly = false, hideEnabl
       divider
       secondaryAction={!allTeams && (
         <TeamPopover
+          inline
           team={team}
           onRemoveTeamFromInject={onRemoveTeam}
           disabled={readOnly}

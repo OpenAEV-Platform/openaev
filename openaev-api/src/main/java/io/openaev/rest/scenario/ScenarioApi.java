@@ -11,13 +11,23 @@ import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.api.expectations.ExpectationsDriftService;
+import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
+import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
+import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
+import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.BulkOperationContext;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
+import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.healthcheck.dto.HealthCheck;
+import io.openaev.importer.ImportResult;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
@@ -29,9 +39,9 @@ import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.scenario.form.*;
 import io.openaev.rest.scenario.response.ScenarioOutput;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
@@ -53,6 +63,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -81,7 +92,10 @@ public class ScenarioApi extends RestBehavior {
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
   private final StepService stepService;
-  private final PreviewFeatureService previewFeatureService;
+  private final ExpectationsDriftService expectationsDriftService;
+  private final AutonomousRunService autonomousRunService;
+  private final EnterpriseEditionService enterpriseEditionService;
+  private final LicenseCacheManager licenseCacheManager;
 
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
@@ -109,10 +123,14 @@ public class ScenarioApi extends RestBehavior {
     }
     Scenario savedScenario = this.scenarioService.createScenario(scenario);
 
-    // If the chaining feature flag is enabled and the engine is "chaining", create and link a
-    // workflow to the scenario
-    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-        && Boolean.TRUE.equals(input.getIsChaining())) {
+    // If the engine is chaining, create and link a workflow to the scenario.
+    if (Boolean.TRUE.equals(input.getIsChaining())) {
+      // Chaining is an Enterprise Edition feature: reject the creation of a chaining scenario
+      // when the enterprise license is inactive
+      if (enterpriseEditionService.isEnterpriseLicenseInactive(
+          licenseCacheManager.getEnterpriseEditionInfo())) {
+        throw new EnterpriseEditionException("Enterprise Edition license required");
+      }
       workflowService.creationWorkflow(savedScenario);
     }
 
@@ -123,29 +141,47 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
-  @Transactional
+  // SUPPORTS (not REQUIRED) on purpose: the creation runs in the service's own transaction,
+  // wrapped in a massive-operation scope (per-entity stream event suppression) that must cover the
+  // commit-time flush - the arsenal selection can create thousands of injects.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public Scenario createScenarioWithInjectorContracts(
-      @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
-    return this.scenarioService.createScenarioWithInjectorContracts(
-        TenantContext.getCurrentTenant(),
-        inputs.getScenarioInput(),
-        inputs.getInjectorContractSearchPaginationInput(),
-        inputs.getLocale());
+      // TxCtx is still declared so the resolver injects the request scope; there is no real
+      // transaction here to write the GUC into (SUPPORTS), so it is passed down manually into
+      // ScenarioService's own @Transactional method.
+      TxCtx ctx, @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
+    return BulkOperationContext.runSuppressed(
+        () ->
+            this.scenarioService.createScenarioWithInjectorContracts(
+                ctx,
+                TenantContext.getCurrentTenant(),
+                inputs.getScenarioInput(),
+                inputs.getInjectorContractSearchPaginationInput(),
+                inputs.getLocale()));
   }
 
   @PutMapping({
     SCENARIO_URI + "/with-injector-contracts",
     TENANT_SCENARIO_URI + "/with-injector-contracts"
   })
-  @Transactional
+  // SUPPORTS (not REQUIRED) on purpose: the update runs in the service's own transaction, wrapped
+  // in a massive-operation scope (per-entity stream event suppression) that must cover the
+  // commit-time flush - the arsenal selection can create thousands of injects.
+  @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public List<Scenario> updateScenariosWithInjectorContracts(
-      @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
-    return this.scenarioService.updateScenariosWithInjectorContracts(
-        inputs.getScenarioIds(),
-        inputs.getInjectorContractSearchPaginationInput(),
-        inputs.getLocale());
+      // TxCtx is still declared so the resolver injects the request scope; there is no real
+      // transaction here to write the GUC into (SUPPORTS), so it is passed down manually into
+      // ScenarioService's own @Transactional method.
+      TxCtx ctx, @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
+    return BulkOperationContext.runSuppressed(
+        () ->
+            this.scenarioService.updateScenariosWithInjectorContracts(
+                ctx,
+                inputs.getScenarioIds(),
+                inputs.getInjectorContractSearchPaginationInput(),
+                inputs.getLocale()));
   }
 
   @PostMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
@@ -200,13 +236,78 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/healthchecks",
     TENANT_SCENARIO_URI + "/{scenarioId}/healthchecks"
   })
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public List<HealthCheck> streamHealthChecks(@PathVariable @NotBlank final String scenarioId) {
+  public List<HealthCheck> streamHealthChecks(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     return scenarioService.runChecks(scenarioId);
+  }
+
+  @Operation(
+      summary = "Get the expectation drift report of a scenario",
+      description =
+          "Compares the predefined expectations of the injector contracts with the expectations"
+              + " stored inside the scenario injects")
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/expectations-drift",
+    TENANT_SCENARIO_URI + "/{scenarioId}/expectations-drift"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SCENARIO)
+  public ExpectationsDriftOutput scenarioExpectationsDrift(
+      @PathVariable @NotBlank final String scenarioId) {
+    return expectationsDriftService.scenarioDrift(scenarioId);
+  }
+
+  @Operation(
+      summary = "Realign the expectations of the scenario injects onto their contracts",
+      description =
+          "Overwrites the expectations of every drifted inject with the predefined expectations"
+              + " currently exposed by its injector contract, as a tracked massive operation")
+  // SUPPORTS (not REQUIRED) on purpose: the realignment runs chunk by chunk in the service's own
+  // short transactions, wrapped in a massive-operation scope (header progress indicator +
+  // per-entity stream event suppression) that must cover each commit-time flush.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @PostMapping({
+    SCENARIO_URI + "/{scenarioId}/expectations-drift/realign",
+    TENANT_SCENARIO_URI + "/{scenarioId}/expectations-drift/realign"
+  })
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SCENARIO)
+  public ExpectationsRealignOutput realignScenarioExpectations(
+      @PathVariable @NotBlank final String scenarioId) {
+    return expectationsDriftService.realignScenario(scenarioId);
+  }
+
+  @Operation(
+      summary = "Dismiss or restore the expectation drift warning of a scenario",
+      description =
+          "Acknowledges that the drifted expectations were customized on purpose: the warning is"
+              + " downgraded to a discreet indicator. Persisted in database so the dismissal is"
+              + " shared between users, and reset on realignment")
+  @PutMapping({
+    SCENARIO_URI + "/{scenarioId}/expectations-drift/dismiss",
+    TENANT_SCENARIO_URI + "/{scenarioId}/expectations-drift/dismiss"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SCENARIO)
+  public ExpectationsDriftOutput dismissScenarioExpectationsDrift(
+      @PathVariable @NotBlank final String scenarioId,
+      @Valid @RequestBody final ExpectationsDriftDismissInput input) {
+    return expectationsDriftService.dismissScenarioDrift(scenarioId, input.dismissed());
   }
 
   @PutMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
@@ -237,8 +338,30 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SCENARIO)
-  public void deleteScenario(@PathVariable @NotBlank final String scenarioId) {
+  public void deleteScenario(TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
+    // Tear down the autonomous run's coordination first (409 if it is still active), then delete
+    // the scenario. Finished simulations are NOT deleted - they detach and remain as history, like
+    // any chained simulation. No-op for manual scenarios.
+    this.autonomousRunService.deleteForScenario(scenarioId);
     this.scenarioService.deleteScenario(scenarioId);
+  }
+
+  @Operation(
+      description = "Bulk delete of scenarios",
+      tags = {"Scenarios"})
+  @LogExecutionTime
+  @DeleteMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
+  // SUPPORTS (not REQUIRED): the processor requires @Transactional on every REST endpoint, but
+  // a request-wide transaction would defeat the chunked independent commits (and used to
+  // deadlock in production against concurrent inject expectation updates). TxCtx is still
+  // declared so the resolver injects the request scope; the real GUC is set on each chunk
+  // transaction in BulkDeleteChunkRunner.call(TxCtx, ...), which is what makes autonomous_*
+  // (tenant-active) rows visible to deleteForScenarioForce.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SCENARIO)
+  public List<String> bulkDeleteScenarios(
+      TxCtx ctx, @RequestBody @Valid final ScenarioBulkProcessingInput input) {
+    return this.scenarioService.bulkDeleteScenarios(ctx, input);
   }
 
   // -- TAGS --
@@ -271,10 +394,16 @@ public class ScenarioApi extends RestBehavior {
       @RequestParam(required = false) final boolean isWithTeams,
       @RequestParam(required = false) final boolean isWithPlayers,
       @RequestParam(required = false) final boolean isWithVariableValues,
+      @RequestParam(required = false, defaultValue = "true") final boolean isWithScopeDefinition,
       HttpServletResponse response)
       throws IOException {
     this.scenarioService.exportScenario(
-        scenarioId, isWithTeams, isWithPlayers, isWithVariableValues, response);
+        scenarioId,
+        isWithTeams,
+        isWithPlayers,
+        isWithVariableValues,
+        isWithScopeDefinition,
+        response);
   }
 
   // -- IMPORT --
@@ -282,8 +411,13 @@ public class ScenarioApi extends RestBehavior {
   @PostMapping({SCENARIO_URI + "/import", TENANT_SCENARIO_URI + "/import"})
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
-  public void importScenario(@RequestPart("file") @NotNull MultipartFile file) throws Exception {
-    this.importService.handleFileImport(file, null, null);
+  public ImportResult importScenario(
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (the V1_DataImporter resolves InjectorContract#getFirstInjector() and
+      // InjectorService#injectorTypeExists(...), both v2 tenant-scoped through the injectors
+      // table; without a scope, imported injects silently lose their injector).
+      TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file) throws Exception {
+    return this.importService.handleFileImport(file, null, null);
   }
 
   // -- TEAMS --
@@ -425,10 +559,21 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
   public Scenario updateScenarioRecurrence(
+      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // v2-active executors table (throwIfScenarioNotLaunchable's Enterprise gate reads each
+      // targeted agent's executor).
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioRecurrenceInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    if (input.getRecurrenceStart() != null) {
+    // Scheduling itself is a Community Edition feature, but the Enterprise executor gate still
+    // applies: without it, scheduling would bypass the licence check enforced on manual launches
+    // (scheduled executions deliberately skip the gate at run time). Gate on both fields: a
+    // recurrence expression with a null start date still triggers scheduled execution.
+    boolean schedules =
+        input.getRecurrenceStart() != null
+            || (input.getRecurrence() != null && !input.getRecurrence().isBlank());
+    if (schedules) {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
     }
     scenario.setUpdateAttributes(input);
@@ -484,7 +629,14 @@ public class ScenarioApi extends RestBehavior {
   public Scenario updateScenarioLessons(
       @PathVariable String scenarioId, @Valid @RequestBody LessonsInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    scenario.setLessonsAnonymized(input.isLessonsAnonymized());
+    // Partial update: absent fields keep their current value (older API consumers
+    // only send lessons_anonymized and must not reset the enabled flag).
+    if (input.getLessonsAnonymized() != null) {
+      scenario.setLessonsAnonymized(input.getLessonsAnonymized());
+    }
+    if (input.getLessonsEnabled() != null) {
+      scenario.setLessonsEnabled(input.getLessonsEnabled());
+    }
     return scenarioRepository.save(scenario);
   }
 
@@ -497,13 +649,17 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SCENARIO)
-  public Exercise createRunningExerciseFromScenario(@PathVariable @NotBlank final String scenarioId)
-      throws ChainingException {
+  public Exercise createRunningExerciseFromScenario(
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Exercise simulation;
 
-    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-        && workflowService.isScenarioChaining(scenarioId)) {
+    if (workflowService.isScenarioChaining(scenarioId)) {
+      // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario
+      // stale: clear a settled run so the scenario reverts to its normal overview / hero (the AI
+      // plan or run outcome is no longer the latest activity). No-op when the scenario carries no
+      // run or the feature is off, and never tears down a still-active run.
+      autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId);
       simulation =
           scenarioToExerciseService.toExercise(
               scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
@@ -607,7 +763,9 @@ public class ScenarioApi extends RestBehavior {
       summary = "Get endpoints. Can only be called if the user has access to the given scenario.",
       description = "Get all endpoints used by injects for a given scenario")
   @Transactional
-  public List<Endpoint> endpoints(@PathVariable String scenarioId) {
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
+  public List<Endpoint> endpoints(TxCtx ctx, @PathVariable String scenarioId) {
     return this.endpointService.endpointsForScenario(scenarioId);
   }
 
@@ -624,7 +782,10 @@ public class ScenarioApi extends RestBehavior {
       summary =
           "Get endpoints by ids. Can only be called if the user has access to the given scenario.",
       description = "Get all endpoints by ids used by injects for a given scenario")
+  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
+  // executors table (each endpoint's agents eager-load their executor).
   public List<EndpointOutput> endpointsByIds(
+      TxCtx ctx,
       @PathVariable String scenarioId,
       @RequestBody @Valid @NotNull final List<String> endpointIds) {
     return this.endpointService.endpointsByIdsForScenario(scenarioId, endpointIds);

@@ -18,6 +18,7 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TagRepository;
+import io.openaev.rest.asset_group.form.AssetGroupBulkProcessingInput;
 import io.openaev.rest.asset_group.form.AssetGroupInput;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -285,6 +286,98 @@ class AssetGroupApiTest extends IntegrationTest {
 
     // --ASSERT--
     assertTrue(assetGroupRepository.findById(assetGroup.getId()).isEmpty());
+  }
+
+  @Nested
+  @DisplayName("DELETE /api/asset_groups - bulk delete")
+  class BulkDeleteAssetGroups {
+
+    @Test
+    @DisplayName("Given explicit asset group ids, should delete only those asset groups")
+    @WithMockUser(isAdmin = true)
+    void given_explicitAssetGroupIds_should_deleteOnlyThoseAssetGroups() throws Exception {
+      // -- PREPARE --
+      AssetGroup toDelete1 = assetGroupRepository.save(createDefaultAssetGroup("Bulk delete 1"));
+      AssetGroup toDelete2 = assetGroupRepository.save(createDefaultAssetGroup("Bulk delete 2"));
+      AssetGroup toKeep = assetGroupRepository.save(createDefaultAssetGroup("Bulk keep"));
+
+      AssetGroupBulkProcessingInput input = new AssetGroupBulkProcessingInput();
+      input.setAssetGroupIdsToProcess(List.of(toDelete1.getId(), toDelete2.getId()));
+
+      // -- EXECUTE --
+      String response =
+          mvc.perform(
+                  delete(ASSET_GROUP_URI)
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ASSERT --
+      assertEquals(2, new JSONArray(response).length());
+      assertTrue(assetGroupRepository.findById(toDelete1.getId()).isEmpty());
+      assertTrue(assetGroupRepository.findById(toDelete2.getId()).isEmpty());
+      assertTrue(assetGroupRepository.findById(toKeep.getId()).isPresent());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a search input with ignored ids, should delete matching asset groups except the ignored ones")
+    @WithMockUser(isAdmin = true)
+    void given_searchInputWithIgnoredIds_should_deleteMatchingAssetGroupsExceptIgnored()
+        throws Exception {
+      // -- PREPARE --
+      AssetGroup toDelete = assetGroupRepository.save(createDefaultAssetGroup("Bulkwipe one"));
+      AssetGroup toIgnore = assetGroupRepository.save(createDefaultAssetGroup("Bulkwipe two"));
+      AssetGroup unrelated = assetGroupRepository.save(createDefaultAssetGroup("Unrelated"));
+
+      AssetGroupBulkProcessingInput input = new AssetGroupBulkProcessingInput();
+      input.setSearchPaginationInput(PaginationFixture.simpleTextSearch("Bulkwipe"));
+      input.setAssetGroupIdsToIgnore(List.of(toIgnore.getId()));
+
+      // -- EXECUTE --
+      mvc.perform(
+              delete(ASSET_GROUP_URI)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ASSERT --
+      assertTrue(assetGroupRepository.findById(toDelete.getId()).isEmpty());
+      assertTrue(assetGroupRepository.findById(toIgnore.getId()).isPresent());
+      assertTrue(assetGroupRepository.findById(unrelated.getId()).isPresent());
+    }
+
+    @Test
+    @DisplayName("Given both explicit ids and a search input, should return a bad request")
+    @WithMockUser(isAdmin = true)
+    void given_bothIdsAndSearchInput_should_returnBadRequest() throws Exception {
+      // -- PREPARE --
+      AssetGroupBulkProcessingInput input = new AssetGroupBulkProcessingInput();
+      input.setAssetGroupIdsToProcess(List.of("some-id"));
+      input.setSearchPaginationInput(PaginationFixture.simpleTextSearch("some text"));
+
+      // -- EXECUTE & ASSERT --
+      mvc.perform(
+              delete(ASSET_GROUP_URI)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is4xxClientError());
+    }
   }
 
   @DisplayName("Given no existing assetGroup, should throw an exception")
@@ -599,11 +692,11 @@ class AssetGroupApiTest extends IntegrationTest {
               List.of(Endpoint.PLATFORM_ARCH.arm64.name()),
               List.of("windowsArm")),
           Arguments.of(
-              "endpoint_hostname",
+              "asset_hostname",
               "contains",
               List.of("win-host"),
               List.of("windowsX86", "windowsArm")),
-          Arguments.of("endpoint_ips", "contains", List.of("10.0.1"), List.of("linuxX86")));
+          Arguments.of("asset_ips", "contains", List.of("10.0.1"), List.of("linuxX86")));
     }
   }
 

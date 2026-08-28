@@ -1,15 +1,16 @@
-import { Alert, Button, InputLabel, MenuItem, Select as MUISelect, TextField as MuiTextField, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, InputLabel, MenuItem, Select as MUISelect, TextField as MuiTextField, TextField, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
-import { type SubmitHandler, useForm } from 'react-hook-form';
+import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import { type LoggedHelper } from '../../../../../actions/helper';
 import { useFormatter } from '../../../../../components/i18n';
+import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
 import ScaleBar from '../../../../../components/scalebar/ScaleBar';
 import { useHelper } from '../../../../../store';
-import { type InjectExpectation, type PlatformSettings } from '../../../../../utils/api-types';
+import { type InjectExpectationOutput, type PlatformSettings } from '../../../../../utils/api-types';
 import { splitDuration } from '../../../../../utils/Time';
-import { type ExpectationInput, type ExpectationInputForm } from './Expectation';
+import { type ExpectationInput, type ExpectationInputForm, SECURITY_PLATFORM_TYPES } from './Expectation';
 import { formProps, infoMessage } from './ExpectationFormUtils';
 import { isTechnicalExpectation } from './ExpectationUtils';
 import ExpectationGroupField from './field/ExpectationGroupField';
@@ -41,14 +42,12 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 interface Props {
-  predefinedExpectations: ExpectationInput[];
   availableExpectations: ExpectationInput[];
   onSubmit: SubmitHandler<ExpectationInputForm>;
   handleClose: () => void;
 }
 
 const ExpectationFormCreate: FunctionComponent<Props> = ({
-  predefinedExpectations = [],
   availableExpectations = [],
   onSubmit,
   handleClose,
@@ -58,10 +57,10 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
 
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const availableTypes = Array.from(new Set(availableExpectations.map(e => e.expectation_type)));
-  const initialType = availableTypes[0] ?? predefinedExpectations[0]?.expectation_type ?? 'MANUAL';
+  const initialType = availableTypes[0] ?? 'MANUAL';
   const [expectationType, setExpectationType] = useState<string>(initialType);
 
-  const expectationExpirationTime = useExpectationExpirationTime(expectationType as InjectExpectation['inject_expectation_type']);
+  const expectationExpirationTime = useExpectationExpirationTime(initialType as InjectExpectationOutput['inject_expectation_type']);
 
   const getExpectationDefaultScoreByType = (expectationType: string): number => {
     if (expectationType === 'MANUAL') {
@@ -72,8 +71,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   };
 
   const computeValuesFromType = (type: string): ExpectationInputForm => {
-    const expectationDefinition = predefinedExpectations.find(pe => pe.expectation_type === type)
-      ?? availableExpectations.find(pe => pe.expectation_type === type);
+    const expectationDefinition = availableExpectations.find(pe => pe.expectation_type === type);
     if (expectationDefinition) {
       const expirationTime = splitDuration(expectationDefinition.expectation_expiration_time || 0);
       return {
@@ -84,9 +82,12 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
           ? expectationDefinition.expectation_score
           : getExpectationDefaultScoreByType(expectationDefinition.expectation_type),
         expectation_expectation_group: expectationDefinition.expectation_expectation_group ?? false,
+        expectation_expected_security_platform_types:
+          expectationDefinition.expectation_expected_security_platform_types ?? [],
         expiration_time_days: Number.parseInt(expirationTime.days, 10),
         expiration_time_hours: Number.parseInt(expirationTime.hours, 10),
         expiration_time_minutes: Number.parseInt(expirationTime.minutes, 10),
+        expectation_is_predefined: expectationDefinition.expectation_is_predefined,
       };
     }
     const expirationTime = splitDuration(expectationExpirationTime || 0);
@@ -96,9 +97,11 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
       expectation_description: '',
       expectation_score: getExpectationDefaultScoreByType(expectationType),
       expectation_expectation_group: false,
+      expectation_expected_security_platform_types: [],
       expiration_time_days: Number.parseInt(expirationTime.days, 10),
       expiration_time_hours: Number.parseInt(expirationTime.hours, 10),
       expiration_time_minutes: Number.parseInt(expirationTime.minutes, 10),
+      expectation_is_predefined: false,
     };
   };
 
@@ -126,7 +129,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
     if (watchType) {
       reset(computeValuesFromType(watchType));
     }
-  }, [watchType, reset, predefinedExpectations, availableExpectations]);
+  }, [watchType, reset, availableExpectations]);
 
   useEffect(() => {
     if (!watchType && initialType) {
@@ -236,18 +239,69 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
           },
         }}
       />
+      {isTechnicalExpectation(watchType) && (
+        <div className={classes.marginTop_2}>
+          <InputLabel id="expected-platforms-label" shrink>
+            {t('Expected security platforms')}
+          </InputLabel>
+          <Controller
+            name="expectation_expected_security_platform_types"
+            control={control}
+            render={({ field }) => (
+              <MUISelect
+                labelId="expected-platforms-label"
+                multiple
+                displayEmpty
+                variant="standard"
+                fullWidth
+                value={field.value ?? []}
+                onChange={event => field.onChange(event.target.value)}
+                renderValue={(selected) => {
+                  const values = selected as string[];
+                  if (values.length === 0) {
+                    return (
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        {t('Any security platform')}
+                      </Typography>
+                    );
+                  }
+                  return (
+                    <Box sx={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 0.5,
+                    }}
+                    >
+                      {values.map(type => <ItemSecurityPlatformType key={type} type={type} />)}
+                    </Box>
+                  );
+                }}
+              >
+                {SECURITY_PLATFORM_TYPES.map(type => (
+                  <MenuItem key={type} value={type}>
+                    <ItemSecurityPlatformType type={type} />
+                  </MenuItem>
+                ))}
+              </MUISelect>
+            )}
+          />
+        </div>
+      )}
       {(watchType !== 'VULNERABILITY') && (
         <ExpectationGroupField isTechnicalExpectation={isTechnicalExpectation(watchType)} control={control} />
       )}
       <div className={classes.buttons}>
         <Button
+          variant="outlined"
+          color="primary"
           onClick={handleClose}
           disabled={isSubmitting}
         >
           {t('Cancel')}
         </Button>
         <Button
-          color="secondary"
+          variant="contained"
+          color="primary"
           type="submit"
           disabled={!isValid || isSubmitting}
         >

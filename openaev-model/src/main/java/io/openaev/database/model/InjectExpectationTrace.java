@@ -33,7 +33,7 @@ public class InjectExpectationTrace implements Base {
   @JsonSerialize(using = MonoIdSerializer.class)
   @JsonProperty("inject_expectation_trace_expectation")
   @Schema(implementation = String.class)
-  private InjectExpectation injectExpectation;
+  private BaseInjectExpectation injectExpectation;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "inject_expectation_trace_source_id")

@@ -25,6 +25,75 @@
         // vulnerabilityAlerts is disabled since it can cause problems by skipping minimumReleaseAge, schedule and others constraints
         enabled: false,
     },
+    // These properties only override the Spring Boot BOM: no dependency declares the artifacts,
+    // so the maven manager has nothing to track and the pins rot silently. They were all added by
+    // hand for CVEs, which makes them the ones that must not drift.
+    customManagers: [
+        {
+            customType: 'regex',
+            managerFilePatterns: ['/^pom\.xml$/'],
+            matchStrings: ['<jackson-bom\.version>(?<currentValue>.*?)</jackson-bom\.version>'],
+            depNameTemplate: 'com.fasterxml.jackson:jackson-bom',
+            datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
+        },
+        {
+            customType: 'regex',
+            managerFilePatterns: ['/^pom\.xml$/'],
+            matchStrings: ['<tomcat\.version>(?<currentValue>.*?)</tomcat\.version>'],
+            depNameTemplate: 'org.apache.tomcat.embed:tomcat-embed-core',
+            datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
+        },
+        {
+            customType: 'regex',
+            managerFilePatterns: ['/^pom\.xml$/'],
+            matchStrings: ['<log4j2\.version>(?<currentValue>.*?)</log4j2\.version>'],
+            depNameTemplate: 'org.apache.logging.log4j:log4j-bom',
+            datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
+        },
+        {
+            customType: 'regex',
+            managerFilePatterns: ['/^pom\.xml$/'],
+            matchStrings: ['<logback\.version>(?<currentValue>.*?)</logback\.version>'],
+            depNameTemplate: 'ch.qos.logback:logback-classic',
+            datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
+        },
+        {
+            customType: 'regex',
+            managerFilePatterns: ['/^pom\.xml$/'],
+            matchStrings: ['<httpcore5\.version>(?<currentValue>.*?)</httpcore5\.version>'],
+            depNameTemplate: 'org.apache.httpcomponents.core5:httpcore5',
+            datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
+        },
+        {
+            customType: 'regex',
+            managerFilePatterns: ['/^pom\.xml$/'],
+            matchStrings: ['<hikaricp\.version>(?<currentValue>.*?)</hikaricp\.version>'],
+            depNameTemplate: 'com.zaxxer:HikariCP',
+            datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
+        },
+        {
+            customType: 'regex',
+            managerFilePatterns: ['/^pom\.xml$/'],
+            matchStrings: ['<micrometer\.version>(?<currentValue>.*?)</micrometer\.version>'],
+            depNameTemplate: 'io.micrometer:micrometer-bom',
+            datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
+        },
+        {
+            customType: 'regex',
+            managerFilePatterns: ['/^pom\.xml$/'],
+            matchStrings: ['<micrometer-tracing\.version>(?<currentValue>.*?)</micrometer-tracing\.version>'],
+            depNameTemplate: 'io.micrometer:micrometer-tracing-bom',
+            datasourceTemplate: 'maven',
+            versioningTemplate: 'maven',
+        },
+    ],
     packageRules: [
         {
             description: 'Disable updates of internal packages',
@@ -35,32 +104,6 @@
             matchPackageNames: [
                 '/^io\\.openaev:/',
             ],
-        },
-        // swagger-annotations-jakarta must stay aligned with swagger-core embedded in springdoc-openapi 2.6.0.
-        // Versions > 2.2.43 cause /api-docs to return invalid schema. Requires Spring Boot 3.4+ and springdoc 2.7+ upgrade first.
-        {
-            description: 'Pin swagger-annotations-jakarta until springdoc 2.7+ upgrade',
-            matchDatasources: [
-                'maven'
-            ],
-            matchPackageNames: [
-                'io.swagger.core.v3:swagger-annotations-jakarta'
-            ],
-            allowedVersions: '<=2.2.43',
-            enabled: true,
-        },
-        // springdoc-openapi 2.7+ requires Spring Boot 3.4+ (uses LiteWebJarsResourceResolver from Spring Framework 6.2).
-        // Blocked until Spring Boot is upgraded from 3.3.7.
-        {
-            description: 'Pin springdoc-openapi until Spring Boot 3.4+ upgrade',
-            matchDatasources: [
-                'maven'
-            ],
-            matchPackageNames: [
-                '/^org\\.springdoc:/'
-            ],
-            allowedVersions: '<=2.6.0',
-            enabled: true,
         },
         {
             description: 'apexcharts >= 5 uses a commercial license (not MIT). Block major updates.',

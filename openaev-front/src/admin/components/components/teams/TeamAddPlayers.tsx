@@ -1,262 +1,142 @@
-import { Add, PersonOutlined } from '@mui/icons-material';
-import {
-  Avatar,
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Fab,
-  Grid,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-} from '@mui/material';
-import * as R from 'ramda';
-import { type FunctionComponent, useContext, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
+import { PersonOutlined } from '@mui/icons-material';
+import { type FunctionComponent, useContext, useMemo, useState } from 'react';
 
-import { type OrganizationHelper, type UserHelper } from '../../../../actions/helper';
-import { fetchPlayers } from '../../../../actions/users/User';
-import Transition from '../../../../components/common/Transition';
+import { type OrganizationHelper } from '../../../../actions/helper';
+import { searchPlayers } from '../../../../actions/players/player-actions';
+import { fetchTeamPlayers } from '../../../../actions/teams/team-actions';
+import ButtonCreate from '../../../../components/common/ButtonCreate';
+import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
+import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
+import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
+import SelectListPicker, { type SelectListPickerElements } from '../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
-import SearchFilter from '../../../../components/SearchFilter';
 import { useHelper } from '../../../../store';
-import { type Organization, type Team, type User } from '../../../../utils/api-types';
+import { type Organization, type PlayerOutput, type Team, type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { type Option } from '../../../../utils/Option';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
-import { resolveUserName, truncate } from '../../../../utils/String';
+import { resolveUserName } from '../../../../utils/String';
 import { TeamContext } from '../../common/Context';
-import TagsFilter from '../../common/filters/TagsFilter';
 import CreatePlayer from '../../teams/players/CreatePlayer';
 import { type UserStore } from '../../teams/players/Player';
-
-const useStyles = makeStyles()(theme => ({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: 30,
-  },
-  box: {
-    width: '100%',
-    minHeight: '100%',
-    padding: 20,
-    border: `1px dashed ${theme.palette.divider}`,
-  },
-  chip: { margin: '0 10px 10px 0' },
-}));
 
 interface Props {
   addedUsersIds: UserStore['user_id'][];
   teamId: Team['team_id'];
 }
 
-type UserStoreExtended = UserStore & {
-  organization_name: Organization['organization_name'];
-  organization_description: Organization['organization_description'];
-};
-
 const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => {
-  const dispatch = useAppDispatch();
   const { t } = useFormatter();
-  const { classes } = useStyles();
+  const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
-  const [keyword, setKeyword] = useState('');
   const [usersIds, setUsersIds] = useState<UserStore['user_id'][]>([]);
-  const [tags, setTags] = useState<Option[]>([]);
 
   const { onAddUsersTeam } = useContext(TeamContext);
 
-  const { usersMap, organizationsMap }: {
-    organizationsMap: Record<string, Organization>;
-    usersMap: Record<string, UserStore>;
-  } = useHelper((helper: UserHelper & OrganizationHelper) => ({
-    usersMap: helper.getUsersMap(),
-    organizationsMap: helper.getOrganizationsMap(),
-  }));
+  const { organizationsMap }: { organizationsMap: Record<string, Organization> } = useHelper(
+    (helper: OrganizationHelper) => ({ organizationsMap: helper.getOrganizationsMap() }),
+  );
 
-  useDataLoader(() => {
-    dispatch(fetchPlayers());
-  });
+  const toggleUser = (userId: string) => {
+    if (usersIds.includes(userId)) {
+      setUsersIds(usersIds.filter(id => id !== userId));
+    } else {
+      setUsersIds([...usersIds, userId]);
+    }
+  };
 
-  const filterByKeyword = (n: UserStoreExtended) => keyword === ''
-    || (n.user_email || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1
-    || (n.user_firstname || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1
-    || (n.user_lastname || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1
-    || (n.user_phone || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1
-    || (n.organization_name || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1
-    || (n.organization_description || '').toLowerCase().indexOf(keyword.toLowerCase()) !== -1;
-  const filteredUsers = R.pipe(
-    R.map((u: UserStore) => ({
-      organization_name:
-        u.user_organization ? (organizationsMap[u.user_organization]?.organization_name ?? '-') : '-',
-      organization_description:
-        u.user_organization
-          ? (organizationsMap[u.user_organization]?.organization_description
-            ?? '-')
-          : '-',
-      ...u,
-    })),
-    R.filter(
-      (n: UserStoreExtended) => tags.length === 0
-        || R.any(
-          (filter: Option['id']) => R.includes(filter, n.user_tags),
-          R.pluck('id', tags),
-        ),
-    ),
-    R.filter(filterByKeyword),
-    R.take(10),
-  )(R.values(usersMap));
+  const handleClose = () => {
+    setOpen(false);
+    setUsersIds([]);
+  };
 
   const submitAddUsers = async () => {
     await onAddUsersTeam?.(teamId, usersIds);
-    setOpen(false);
-    setKeyword('');
-    setUsersIds([]);
+    // The players picker is server-paginated, so newly added users may not be
+    // in the Redux users map yet; without this refresh the team players list
+    // (getTeamUsers) silently drops them until the drawer is reopened.
+    await dispatch(fetchTeamPlayers(teamId));
+    handleClose();
   };
+
+  // Headers
+  const elements: SelectListPickerElements<PlayerOutput> = useMemo(() => ({
+    icon: { value: () => <PersonOutlined /> },
+    headers: [
+      {
+        field: 'user_email',
+        label: 'Name',
+        isSortable: true,
+        value: (user: PlayerOutput) => resolveUserName(user),
+        width: 50,
+      },
+      {
+        field: 'user_organization_name',
+        label: 'Organization',
+        value: (user: PlayerOutput) =>
+          (user.user_organization ? (organizationsMap[user.user_organization]?.organization_name ?? '-') : '-'),
+        width: 25,
+      },
+      {
+        field: 'user_tags',
+        label: 'Tags',
+        value: (user: PlayerOutput) => <ItemTags variant="list" limit={1} tags={user.user_tags} />,
+        width: 25,
+      },
+    ],
+  }), [organizationsMap]);
+
+  // Pagination
+  const [players, setPlayers] = useState<PlayerOutput[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { queryableHelpers, searchPaginationInput } = useQueryable(buildSearchPagination({}));
+  const paginationComponent = (
+    <PaginationComponentV2
+      fetch={searchPlayers}
+      searchPaginationInput={searchPaginationInput}
+      setContent={setPlayers}
+      setLoading={setIsLoading}
+      entityPrefix="user"
+      availableFilterNames={['user_tags']}
+      queryableHelpers={queryableHelpers}
+    />
+  );
 
   return (
     <div>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
-        <Fab
-          onClick={() => setOpen(true)}
-          color="primary"
-          aria-label="Add"
-          className={classes.createButton}
-        >
-          <Add />
-        </Fab>
+        <ButtonCreate onClick={() => setOpen(true)} label={t('Add players in this team')} />
       </Can>
-      <Dialog
+      {/* Inline dialog: TeamPlayers itself renders in a drawer (never drawer over drawer). */}
+      <SelectListPicker<PlayerOutput>
         open={open}
-        slots={{ transition: Transition }}
-        onClose={() => {
-          setOpen(false);
-          setKeyword('');
-          setUsersIds([]);
-        }}
-        fullWidth
-        maxWidth="lg"
-        slotProps={{
-          paper: {
-            elevation: 1,
-            sx: {
-              minHeight: 580,
-              maxHeight: 580,
-            },
-          },
-        }}
-      >
-        <DialogTitle>{t('Add players in this team')}</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 8 }}>
-              <Grid container spacing={3}>
-                <Grid size={{ xs: 6 }}>
-                  <SearchFilter
-                    onChange={(value?: string) => setKeyword(value || '')}
-                    fullWidth
-                  />
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <TagsFilter
-                    onAddTag={(value: Option) => {
-                      if (value) {
-                        setTags([value]);
-                      }
-                    }}
-                    onClearTag={() => setTags([])}
-                    currentTags={tags}
-                    fullWidth
-                  />
-                </Grid>
-              </Grid>
-              <List>
-                {filteredUsers.map((user: UserStoreExtended) => {
-                  const disabled = usersIds.includes(user.user_id)
-                    || addedUsersIds.includes(user.user_id);
-                  return (
-                    (
-                      <ListItemButton
-                        key={user.user_id}
-                        disabled={disabled}
-                        divider
-                        dense
-                        onClick={() => setUsersIds([...usersIds, user.user_id])}
-                      >
-                        <ListItemIcon>
-                          <PersonOutlined />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={resolveUserName(user)}
-                          secondary={user.organization_name}
-                        />
-                        <ItemTags variant="reduced-view" tags={user.user_tags} />
-                      </ListItemButton>
-                    )
-                  );
-                })}
-                <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
-                  <CreatePlayer
-                    inline
-                    onCreate={(user: User) => {
-                      setUsersIds([...usersIds, user.user_id]);
-                      dispatch(fetchPlayers());
-                    }}
-                  />
-                </Can>
-              </List>
-            </Grid>
-            <Grid size={{ xs: 4 }}>
-              <Box className={classes.box}>
-                {usersIds.map((userId) => {
-                  const user = usersMap[userId];
-                  const userGravatar = R.propOr('-', 'user_gravatar', user);
-                  return (
-                    <Chip
-                      key={userId}
-                      onDelete={() => {
-                        setUsersIds(usersIds.filter(id => id !== userId));
-                      }}
-                      label={user && truncate(resolveUserName(user), 22)}
-                      avatar={(
-                        <Avatar
-                          src={userGravatar}
-                          sx={{
-                            height: '32px',
-                            width: '32px',
-                          }}
-                        />
-                      )}
-                      classes={{ root: classes.chip }}
-                    />
-                  );
-                })}
-              </Box>
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            setOpen(false);
-            setKeyword('');
-            setUsersIds([]);
-          }}
-          >
-            {t('Cancel')}
-          </Button>
-          <Button color="secondary" onClick={submitAddUsers}>
-            {t('Add')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onClose={handleClose}
+        onSubmit={submitAddUsers}
+        title={t('Add players in this team')}
+        submitLabel={t('Add')}
+        inline
+        headerComponent={paginationComponent}
+        values={players}
+        elements={elements}
+        sortHelpers={queryableHelpers.sortHelpers}
+        selectedIds={usersIds}
+        lockedIds={addedUsersIds}
+        onToggle={toggleUser}
+        getId={element => element.user_id}
+        isLoading={isLoading}
+        buttonComponent={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
+            <CreatePlayer
+              inline
+              onCreate={(user: User) => {
+                setPlayers(prev => [user as unknown as PlayerOutput, ...prev]);
+                setUsersIds(prev => [...prev, user.user_id]);
+              }}
+            />
+          </Can>
+        )}
+      />
     </div>
   );
 };

@@ -11,7 +11,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.model.Expectation;
+import io.openaev.expectation.Expectation;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
@@ -33,10 +33,6 @@ class InjectExpectationServiceTest extends IntegrationTest {
   private static final String INJECTION_NAME = "AMSI Bypass - AMSI InitFailed";
 
   // Saved entities for test setup
-  @Autowired private InjectComposer injectComposer;
-  @Autowired private InjectExpectationComposer injectExpectationComposer;
-  @Autowired private AgentComposer agentComposer;
-  @Autowired private EndpointComposer endpointComposer;
   @Autowired private InjectorFixture injectorFixture;
 
   @Autowired private InjectExpectationRepository injectExpectationRepository;
@@ -66,8 +62,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
     injectorContract.addInjector(savedInjector);
 
     savedInjectorContract = injectorContractRepository.save(injectorContract);
-    savedInjector.getContracts().add(savedInjectorContract);
-    savedInjector.setNewEntity(false);
+    savedInjector.linkContract(savedInjectorContract);
     injectorRepository.save(savedInjector);
     savedAsset = assetRepository.save(AssetFixture.createDefaultAsset("asset name"));
     savedCollector =
@@ -326,7 +321,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
 
-    List<InjectExpectation> agentExpectations =
+    List<TechnicalInjectExpectation> agentExpectations =
         Stream.concat(
                 injectExpectationRepository
                     .findAllByInjectAndAgent(savedInject.getId(), savedAgent.getId())
@@ -334,13 +329,15 @@ class InjectExpectationServiceTest extends IntegrationTest {
                 injectExpectationRepository
                     .findAllByInjectAndAgent(savedInject.getId(), savedAgent1.getId())
                     .stream())
+            .filter(expectation -> expectation instanceof TechnicalInjectExpectation)
+            .map(expectation -> (TechnicalInjectExpectation) expectation)
             .toList();
     assertEquals(2, agentExpectations.size());
     Map<String, InjectExpectationUpdateInput> inputsById =
         agentExpectations.stream()
             .collect(
                 Collectors.toMap(
-                    InjectExpectation::getId,
+                    BaseInjectExpectation::getId,
                     expectation ->
                         InjectExpectationUpdateInput.builder()
                             .collectorId(savedCollector.getId())
@@ -358,7 +355,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
     // -- ASSERT --
     // Agent level: every expectation carries the collector result and a success score, exactly as
     // the per-item computeTechnicalExpectation path would have produced
-    List<InjectExpectation> updatedAgentExpectations =
+    List<BaseInjectExpectation> updatedAgentExpectations =
         Stream.concat(
                 injectExpectationRepository
                     .findAllByInjectAndAgent(savedInject.getId(), savedAgent.getId())
@@ -377,7 +374,7 @@ class InjectExpectationServiceTest extends IntegrationTest {
 
     // Parent propagation: the asset and asset group expectations are recomputed once per distinct
     // parent and end up successful since all their children succeeded
-    Map<String, List<InjectExpectation>> parents =
+    Map<String, List<TechnicalInjectExpectation>> parents =
         Stream.concat(
                 injectExpectationRepository
                     .findAllByInjectAndAsset(savedInject.getId(), savedAsset.getId())
@@ -385,6 +382,8 @@ class InjectExpectationServiceTest extends IntegrationTest {
                 injectExpectationRepository
                     .findAllByInjectAndAssetGroup(savedInject.getId(), savedAssetGroup.getId())
                     .stream())
+            .filter(TechnicalInjectExpectation.class::isInstance)
+            .map(TechnicalInjectExpectation.class::cast)
             .collect(
                 Collectors.groupingBy(
                     expectation ->

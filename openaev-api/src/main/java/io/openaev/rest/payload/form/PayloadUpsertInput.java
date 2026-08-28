@@ -49,10 +49,16 @@ public class PayloadUpsertInput {
 
   @JsonProperty("payload_expectations")
   @NotNull
-  private InjectExpectation.EXPECTATION_TYPE[] expectations =
-      new InjectExpectation.EXPECTATION_TYPE[] {
-        InjectExpectation.EXPECTATION_TYPE.PREVENTION, InjectExpectation.EXPECTATION_TYPE.DETECTION
+  private BaseInjectExpectation.EXPECTATION_TYPE[] expectations =
+      new BaseInjectExpectation.EXPECTATION_TYPE[] {
+        BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+        BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
       };
+
+  @JsonProperty("payload_expected_security_platforms")
+  private java.util.Map<
+          BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+      expectedSecurityPlatforms = new java.util.HashMap<>();
 
   @JsonProperty("payload_description")
   private String description;

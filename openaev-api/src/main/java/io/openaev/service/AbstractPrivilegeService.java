@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public abstract class AbstractPrivilegeService {
 
-  protected final RoleService roleService;
+  protected final TenantRoleService tenantRoleService;
   protected final TenantGroupService tenantGroupService;
   protected final UserService userService;
   protected final TenantUserService tenantUserService;
@@ -35,18 +35,18 @@ public abstract class AbstractPrivilegeService {
 
   protected Role createWellKnownRole(String tenantId) {
     String id = getUUIDFromName(getRoleId(), tenantId);
-    Optional<Role> role = roleService.findById(id);
+    Optional<Role> role = tenantRoleService.findByIdAndTenant(id, tenantId);
     if (role.isEmpty()) {
-      return roleService.createRoleInternal(
+      return tenantRoleService.createRoleInternal(
           id, getRoleName(), getRoleDescription(), getRoleCapabilities(), tenantId);
     }
-    return roleService.updateRoleInternal(
-        id, getRoleName(), getRoleDescription(), getRoleCapabilities());
+    return tenantRoleService.updateRoleInternal(
+        id, getRoleName(), getRoleDescription(), getRoleCapabilities(), tenantId);
   }
 
   protected Group createWellKnownGroupWithRole(Role role, String tenantId) {
     String groupId = getUUIDFromName(getGroupId(), tenantId);
-    Optional<Group> group = tenantGroupService.findById(groupId);
+    Optional<Group> group = tenantGroupService.findByIdAndTenant(groupId, tenantId);
 
     TenantGroupCreateInput input = new TenantGroupCreateInput();
     input.setName(getGroupName());
@@ -55,7 +55,7 @@ public abstract class AbstractPrivilegeService {
 
     List<Role> roles = new ArrayList<>(List.of(role));
     if (group.isPresent()) {
-      return tenantGroupService.updateGroupInfoWithRoles(group.get(), input, roles);
+      return tenantGroupService.updateInternalGroupWithRoles(group.get(), input, roles);
     }
     return tenantGroupService.createInternalGroupWithRole(groupId, input, roles, tenantId);
   }

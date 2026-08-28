@@ -2,7 +2,34 @@ import type { FieldValues } from 'react-hook-form';
 import { z, type ZodType } from 'zod/v4';
 
 import { type Translate } from '../../../../components/i18n';
+import type { Inject } from '../../../../utils/api-types';
 import type { ContractElement } from '../../../../utils/api-types-custom';
+
+/**
+ * Distinct targeting counts across a list of injects: how many unique assets
+ * and asset groups are directly targeted. Drives the usage-aware hero stats
+ * of scenarios and simulations (technical dimension).
+ */
+export const countDistinctInjectTargets = (injects: Inject[]): {
+  assets: number;
+  assetGroups: number;
+  /** Distinct targeted asset group ids: asset groups carry no scenario /
+   * simulation scope on their ES documents, so the hero-stat drill-down
+   * scopes the results list with this explicit id list instead. */
+  assetGroupIds: string[];
+} => {
+  const assets = new Set<string>();
+  const assetGroups = new Set<string>();
+  injects.forEach((inject) => {
+    (inject.inject_assets ?? []).forEach(id => assets.add(id));
+    (inject.inject_asset_groups ?? []).forEach(id => assetGroups.add(id));
+  });
+  return {
+    assets: assets.size,
+    assetGroups: assetGroups.size,
+    assetGroupIds: [...assetGroups],
+  };
+};
 
 export const isInjectContentType = (type: ContractElement['type']) => type !== 'asset' && type !== 'team' && type !== 'asset-group' && type !== 'article' && type !== 'challenge' && type !== 'attachment';
 
@@ -81,6 +108,7 @@ export const getValidatingRule = (field: ContractElement, t: Translate) => {
     case 'select':
     case 'choice':
     case 'dependency-select':
+    case 'ai-target':
       rule = z.string().min(1, { message: t('Required') });
       break;
 

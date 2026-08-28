@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -140,6 +141,27 @@ public class ExerciseApiTest extends IntegrationTest {
     String newExerciseId = JsonPath.read(response, "$.exercise_id");
     Exercise newExercise = this.exerciseRepository.findById(newExerciseId).orElseThrow();
     assertEquals(customDashboardSaved.getId(), newExercise.getCustomDashboard().getId());
+  }
+
+  @DisplayName("Create chained exercise fails without enterprise edition")
+  @Test
+  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  void given_chainedExerciseCreationWithoutEE_should_fail() throws Exception {
+    // Arrange
+    CreateExerciseInput exerciseInput = new CreateExerciseInput();
+    exerciseInput.setName("My chained exercise");
+    exerciseInput.setIsChaining(true);
+
+    // Act & Assert
+    this.mvc
+        .perform(
+            post(EXERCISE_URI)
+                .content(asJsonString(exerciseInput))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.message").value("LICENSE_RESTRICTION"));
   }
 
   @Nested
@@ -710,7 +732,9 @@ public class ExerciseApiTest extends IntegrationTest {
       input.setDependsDuration(0L);
 
       // -- EXECUTE --
-      InjectOutput result = simulationInjectApi.createInjectForExercise(exerciseId, input);
+      InjectOutput result =
+          simulationInjectApi.createInjectForExercise(
+              TxCtx.forTenant(exercise.getTenant().getId()), exerciseId, input);
 
       // -- ASSERT --
       assertNotNull(result, "La réponse ne doit pas être null");
@@ -730,7 +754,9 @@ public class ExerciseApiTest extends IntegrationTest {
       input.setDependsDuration(0L);
 
       // -- EXECUTE --
-      InjectOutput result = simulationInjectApi.createInjectForExercise(exerciseId, input);
+      InjectOutput result =
+          simulationInjectApi.createInjectForExercise(
+              TxCtx.forTenant(exercise.getTenant().getId()), exerciseId, input);
 
       // -- ASSERT --
       assertNotNull(result);
@@ -747,12 +773,15 @@ public class ExerciseApiTest extends IntegrationTest {
       input.setInjectorContract(validInjectorContractId);
       input.setDependsDuration(0L);
 
-      InjectOutput original = simulationInjectApi.createInjectForExercise(exerciseId, input);
+      InjectOutput original =
+          simulationInjectApi.createInjectForExercise(
+              TxCtx.forTenant(exercise.getTenant().getId()), exerciseId, input);
       String originalInjectId = original.getId();
 
       // -- EXECUTE --
       InjectOutput result =
-          simulationInjectApi.duplicateInjectForExercise(exerciseId, originalInjectId);
+          simulationInjectApi.duplicateInjectForExercise(
+              TxCtx.forTenant(exercise.getTenant().getId()), exerciseId, originalInjectId);
 
       // -- ASSERT --
       assertNotNull(result, "La réponse ne doit pas être null");

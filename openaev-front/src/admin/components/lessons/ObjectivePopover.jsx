@@ -1,9 +1,10 @@
 import { MoreVert } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Menu, MenuItem } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { Component } from 'react';
 
+import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
 import inject18n from '../../../components/i18n';
 import { LessonContext } from '../common/Context';
@@ -77,10 +78,12 @@ class ObjectivePopoverComponent extends Component {
         <IconButton
           onClick={this.handlePopoverOpen.bind(this)}
           aria-haspopup="true"
-          size="large"
+          size="small"
+          color="primary"
+          sx={{ borderRadius: 1 }}
           disabled={this.props.isReadOnly}
         >
-          <MoreVert />
+          <MoreVert fontSize="small" />
         </IconButton>
         <Menu
           anchorEl={this.state.anchorEl}
@@ -106,32 +109,26 @@ class ObjectivePopoverComponent extends Component {
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={this.handleCloseDelete.bind(this)}>
+            <Button variant="outlined" color="primary" onClick={this.handleCloseDelete.bind(this)}>
               {t('Cancel')}
             </Button>
-            <Button color="secondary" onClick={this.submitDelete.bind(this)}>
+            <Button variant="contained" color="primary" onClick={this.submitDelete.bind(this)}>
               {t('Delete')}
             </Button>
           </DialogActions>
         </Dialog>
-        <Dialog
-          TransitionComponent={Transition}
+        <Drawer
           open={this.state.openEdit}
-          onClose={this.handleCloseEdit.bind(this)}
-          fullWidth
-          maxWidth="md"
-          PaperProps={{ elevation: 1 }}
+          handleClose={this.handleCloseEdit.bind(this)}
+          title={t('Update the objective')}
         >
-          <DialogTitle>{t('Update the objective')}</DialogTitle>
-          <DialogContent>
-            <ObjectiveForm
-              initialValues={initialValues}
-              editing
-              onSubmit={this.onSubmitEdit.bind(this)}
-              handleClose={this.handleCloseEdit.bind(this)}
-            />
-          </DialogContent>
-        </Dialog>
+          <ObjectiveForm
+            initialValues={initialValues}
+            editing
+            onSubmit={this.onSubmitEdit.bind(this)}
+            handleClose={this.handleCloseEdit.bind(this)}
+          />
+        </Drawer>
       </div>
     );
   }

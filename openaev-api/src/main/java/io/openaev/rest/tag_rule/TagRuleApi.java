@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -56,7 +57,10 @@ public class TagRuleApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The TagRule")})
   public TagRuleOutput findTagRule(
       @PathVariable @NotBlank @Schema(description = "ID of the tag rule") final String tagRuleId) {
-    return tagRuleService.findById(tagRuleId).map(tagRuleMapper::toTagRuleOutput).orElse(null);
+    return tagRuleService
+        .findById(tagRuleId, TenantContext.getCurrentTenant())
+        .map(tagRuleMapper::toTagRuleOutput)
+        .orElse(null);
   }
 
   @LogExecutionTime
@@ -85,7 +89,7 @@ public class TagRuleApi extends RestBehavior {
       })
   public void deleteTagRule(
       @PathVariable @NotBlank @Schema(description = "ID of the tag rule") final String tagRuleId) {
-    tagRuleService.deleteTagRule(tagRuleId);
+    tagRuleService.deleteTagRule(tagRuleId, TenantContext.getCurrentTenant());
   }
 
   @LogExecutionTime
@@ -120,7 +124,11 @@ public class TagRuleApi extends RestBehavior {
       @PathVariable @NotBlank @Schema(description = "ID of the tag rule") final String tagRuleId,
       @Valid @RequestBody final TagRuleInput input) {
     return tagRuleMapper.toTagRuleOutput(
-        tagRuleService.updateTagRule(tagRuleId, input.getTagName(), input.getAssetGroups()));
+        tagRuleService.updateTagRule(
+            tagRuleId,
+            input.getTagName(),
+            input.getAssetGroups(),
+            TenantContext.getCurrentTenant()));
   }
 
   @LogExecutionTime

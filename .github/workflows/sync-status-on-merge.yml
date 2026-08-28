@@ -1,0 +1,39 @@
+name: "[OpenAEV] Sync Project Status on PR Merge"
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ closed ]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to be (re)processed manually'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  sync-status:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: "Generate a token"
+        id: generate-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
+          private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
+
+      - name: Sync status
+        uses: FiligranHQ/filigran-ci-tools/actions/sync-status-on-merge@main
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+          pr-number: ${{ github.event.inputs.pr_number || '' }}
+          project-owner: "OpenAEV-Platform"
+          project-number: "2"

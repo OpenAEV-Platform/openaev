@@ -16,6 +16,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -23,10 +24,11 @@ import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
@@ -41,6 +43,7 @@ import java.util.*;
 import org.junit.jupiter.api.*;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
@@ -83,17 +86,18 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private UserService userService;
   @Mock private TenantSettingsService tenantSettingsService;
   @Mock private CustomDashboardService customDashboardService;
-  @Mock private InjectorContractService injectorContractService;
   @InjectMocks private ScenarioService scenarioService;
   @Autowired private ScenarioService scenarioServiceBean;
   @Autowired private ScenarioMapper scenarioMapper;
 
   @Mock private WorkflowService workflowService;
-  @Autowired private PreviewFeatureService previewFeatureService;
+  @Mock private WorkflowExportInitializer workflowExportInitializer;
 
   @Mock private LicenseCacheManager licenseCacheManager;
   @Autowired private ExerciseMapper exerciseMapper;
   @Mock private ActionMetricCollector actionMetricCollector;
+  @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
+  @Mock private ObjectProvider<AutonomousRunService> autonomousRunServiceProvider;
 
   private static String USER_ID;
   private static String TEAM_ID;
@@ -124,13 +128,15 @@ class ScenarioServiceTest extends IntegrationTest {
             userService,
             tenantSettingsService,
             customDashboardService,
-            injectorContractService,
             injectRepository,
             lessonsCategoryRepository,
             tagRepository,
             healthCheckUtils,
             scenarioMapper,
-            workflowService);
+            workflowService,
+            workflowExportInitializer,
+            bulkDeleteExecutor,
+            autonomousRunServiceProvider);
   }
 
   @AfterAll
@@ -573,7 +579,7 @@ class ScenarioServiceTest extends IntegrationTest {
           ExternalServiceDependency.SMTP, ExternalServiceDependency.IMAP
         });
     InjectorContract injectorContract = InjectorContractFixture.createDefaultInjectorContract();
-    injectorContract.getInjectors().clear();
+    injectorContract.clearInjectors();
     injectorContract.addInjector(injector);
 
     Inject inject = InjectFixture.createInject(injectorContract, "test");

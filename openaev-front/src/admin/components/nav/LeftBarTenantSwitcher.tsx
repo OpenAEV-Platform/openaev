@@ -64,6 +64,13 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
   }, [isSelected, switchUserTenant, t]);
 
   const displayName = currentUserTenant?.tenant_name ?? t('No tenant');
+  const tenants = userTenants ?? [];
+
+  // The switcher (and the EE chip it hosts) only makes sense when the user
+  // can actually switch, i.e. has access to more than one tenant.
+  if (tenants.length <= 1) {
+    return null;
+  }
 
   return (
     <>
@@ -74,12 +81,21 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
           disabled={switching}
           dense
           data-testid="tenant-switcher"
-          sx={theme => ({
-            height: 35,
-            paddingRight: theme.spacing(0.25),
-          })}
+          // Shared left-menu row styling (16px dimmed icon, row height): the
+          // switcher must read exactly like the regular rows. Only the right
+          // padding is tightened for the unfold-more affordance.
+          sx={[
+            leftMenuStyle.menuItemSx,
+            theme => ({ paddingRight: theme.spacing(0.25) }),
+          ]}
         >
-          <ListItemIcon style={{ ...leftMenuStyle.listItemIcon }}>
+          {/* Half the regular rows' 8px icon-text gap: the switcher label sits
+              next to a wider glyph and reads better slightly tighter. */}
+          <ListItemIcon style={{
+            ...leftMenuStyle.listItemIcon,
+            marginRight: 4,
+          }}
+          >
             {switching ? <Loader variant="inElement" size="xs" /> : <HomeWorkOutlined />}
           </ListItemIcon>
           {navOpen && (
@@ -125,7 +141,7 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
         }}
       >
         <MenuList dense>
-          {(userTenants ?? []).map((tenant) => {
+          {tenants.map((tenant) => {
             const selected = isSelected(tenant);
             return (
               <MenuItem
@@ -149,11 +165,6 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
               </MenuItem>
             );
           })}
-          {(userTenants ?? []).length === 0 && (
-            <MenuItem disabled>
-              <ListItemText primary={t('No tenant available')} />
-            </MenuItem>
-          )}
         </MenuList>
       </Popover>
     </>

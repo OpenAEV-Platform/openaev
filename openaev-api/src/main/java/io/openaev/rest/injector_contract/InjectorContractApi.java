@@ -5,6 +5,9 @@ import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ResourceType;
@@ -14,8 +17,10 @@ import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateMappingInput;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.rest.injector_contract.output.InjectorContractAuthorCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
+import io.openaev.rest.injector_contract.output.InjectorContractFacetCountsOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,11 +42,14 @@ public class InjectorContractApi extends RestBehavior {
   private static final String TENANT_INJECTOR_CONTRACT_URL = TENANT_PREFIX + "/injector_contracts";
 
   private final InjectorContractService injectorContractService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping({INJECTOR_CONTRACT_URL, TENANT_INJECTOR_CONTRACT_URL})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
-  public Iterable<RawInjectorsContracts> injectContracts() {
+  // ctx is unused directly: TenantScopeTransactionAspect reads it to scope the transaction, which
+  // the eager injectorLinks -> injector fetch behind this contract read needs (#7026-class gap).
+  public Iterable<RawInjectorsContracts> injectContracts(TxCtx ctx) {
     return injectorContractService.getAllRawInjectContracts();
   }
 
@@ -69,8 +77,10 @@ public class InjectorContractApi extends RestBehavior {
   @PostMapping({INJECTOR_CONTRACT_URL + "/search", TENANT_INJECTOR_CONTRACT_URL + "/search"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
+  // ctx scopes the tuple query's explicit injector join (ctx.injectorJoin() in
+  // InjectorContractService#mapFull), which resolves against the activated injectors table.
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
-      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+      TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
@@ -99,6 +109,44 @@ public class InjectorContractApi extends RestBehavior {
   }
 
   /**
+   * Platform, kill-chain-phase and payload-status facet counts under the current filters, powering
+   * the live count badges of the inject-contract picker sidebar (the domain and author facets have
+   * their own endpoints).
+   */
+  @Operation(summary = "Platform, kill chain phase and status facet counts for the contract picker")
+  @PostMapping({
+    INJECTOR_CONTRACT_URL + "/facet-counts",
+    TENANT_INJECTOR_CONTRACT_URL + "/facet-counts"
+  })
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
+  public InjectorContractFacetCountsOutput getFacetCounts(
+      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    SearchPaginationInput filtered = handleArchitectureFilter(input);
+    return new InjectorContractFacetCountsOutput(
+        injectorContractService.getPlatformCounts(filtered),
+        injectorContractService.getKillChainPhaseCounts(filtered),
+        injectorContractService.getStatusCounts(filtered));
+  }
+
+  /**
+   * Author facet counts under the current filters, so the inject-contract picker sidebar can show
+   * every author and grey out the zero-count ones (mirrors the Threat Arsenal author facet).
+   */
+  @Operation(summary = "Author facet counts for the inject contract picker")
+  @PostMapping({
+    INJECTOR_CONTRACT_URL + "/author-counts",
+    TENANT_INJECTOR_CONTRACT_URL + "/author-counts"
+  })
+  @Transactional
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
+  public List<InjectorContractAuthorCountOutput> getAuthorCounts(
+      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    SearchPaginationInput filtered = handleArchitectureFilter(input);
+    return injectorContractService.getAuthorCounts(filtered);
+  }
+
+  /**
    * Retrieves a specific injector contract by ID.
    *
    * @param injectorContractId the contract ID or external ID
@@ -113,7 +161,8 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  public InjectorContract injectorContract(@PathVariable String injectorContractId) {
+  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
+  public InjectorContract injectorContract(TxCtx ctx, @PathVariable String injectorContractId) {
     return injectorContractService.injectorContract(injectorContractId);
   }
 
@@ -127,7 +176,8 @@ public class InjectorContractApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR_CONTRACT)
   public InjectorContract createInjectorContract(
-      @Valid @RequestBody InjectorContractAddInput input) {
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody InjectorContractAddInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
     return injectorContractService.createNewInjectorContract(input);
   }
 
@@ -147,7 +197,9 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
+  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
   public InjectorContract updateInjectorContract(
+      TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateInput input) {
     return injectorContractService.updateInjectorContract(injectorContractId, input);
@@ -169,7 +221,9 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
+  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
   public InjectorContract updateInjectorContractMapping(
+      TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateMappingInput input) {
     return injectorContractService.updateInjectorContractTTPDomainsAndTags(
@@ -192,7 +246,8 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  public void deleteInjectorContract(@PathVariable String injectorContractId) {
+  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
+  public void deleteInjectorContract(TxCtx ctx, @PathVariable String injectorContractId) {
     this.injectorContractService.deleteInjectorContract(injectorContractId);
   }
 }

@@ -13,6 +13,7 @@ import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.ExerciseRepository;
@@ -31,7 +32,6 @@ import io.openaev.rest.helper.ValidationErrorBag;
 import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.InjectOutput;
-import io.openaev.rest.inject.service.BatchingInjectStatusService;
 import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectExecutionService;
 import io.openaev.rest.inject.service.InjectExportService;
@@ -41,6 +41,7 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.UserService;
+import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.targets.TargetService;
 import io.openaev.utils.FilterUtilsJpa;
@@ -273,6 +274,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public Page<InjectTarget> injectTargetSearch(
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetType,
       @Valid @RequestBody SearchPaginationInput input) {
@@ -394,10 +396,13 @@ public class InjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
+  // TxCtx scopes the transaction so the legacy-ingestion path can reach security_coverages
+  // (v2-activated) through InjectExpectationService's vulnerability verdict / security-coverage
+  // send-job propagation, same as the agent-callback overload below.
   public void injectExecutionCallback(
-      @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
+      TxCtx ctx, @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
-    injectExecutionCallback(null, injectId, input);
+    doInjectExecutionCallback(ctx, null, injectId, input);
   }
 
   @PostMapping({
@@ -425,14 +430,21 @@ public class InjectApi extends RestBehavior {
             description =
                 "The inject to update was not in a valid state in regards to the requested action. Retry in a few seconds."),
       })
-  // fixme: remove or adapt for LEGACY_INGESTION_EXECUTION_TRACE
-  // @WorkflowUpdateEvent(injectId = "#injectId")
+  // TxCtx scopes the transaction so the legacy (non-queued) path can reach security_coverages
+  // (v2-activated), read via InjectExpectationService's vulnerability verdict propagation into
+  // SecurityCoverageSendJobService#shouldCreateCoverageSendJob (exercise.getSecurityCoverage()).
   public void injectExecutionCallback(
+      TxCtx ctx,
       @PathVariable
           String agentId, // must allow null because http injector used also this method to work.
       @PathVariable String injectId,
       @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
+    doInjectExecutionCallback(ctx, agentId, injectId, input);
+  }
+
+  private void doInjectExecutionCallback(
+      TxCtx ctx, String agentId, String injectId, InjectExecutionInput input) throws IOException {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LEGACY_INGESTION_EXECUTION_TRACE)
         && injectTraceQueueService != null) {
       InjectExecutionCallback injectExecutionCallback =
@@ -488,6 +500,9 @@ public class InjectApi extends RestBehavior {
               mediaType = "application/json",
               schema = @Schema(implementation = ValidationErrorBag.class)))
   public InjectOutput updateInject(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectInput input) {
@@ -539,41 +554,6 @@ public class InjectApi extends RestBehavior {
         .limit(size.orElse(MAX_NEXT_INJECTS))
         // Collect the result
         .toList();
-  }
-
-  @Operation(
-      description = "Bulk update of injects",
-      tags = {"Injects"})
-  @Transactional(rollbackFor = Exception.class)
-  @PutMapping({INJECT_URI, TENANT_INJECT_URI})
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.INJECT)
-  @LogExecutionTime
-  public List<Inject> bulkUpdateInject(@RequestBody @Valid final InjectBulkUpdateInputs input) {
-
-    // Control and format inputs
-    List<Inject> injectsToUpdate =
-        getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.PLANNER);
-
-    // Bulk update
-    return this.injectService.bulkUpdateInject(injectsToUpdate, input.getUpdateOperations());
-  }
-
-  @Operation(
-      description = "Bulk delete of injects",
-      tags = {"injects-api"})
-  @Transactional(rollbackFor = Exception.class)
-  @DeleteMapping({INJECT_URI, TENANT_INJECT_URI})
-  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.INJECT)
-  @LogExecutionTime
-  public List<Inject> bulkDelete(@RequestBody @Valid final InjectBulkProcessingInput input) {
-
-    // Control and format inputs
-    List<Inject> injectsToDelete =
-        getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.PLANNER);
-
-    // Bulk delete
-    this.injectService.deleteAllByIds(injectsToDelete.stream().map(Inject::getId).toList());
-    return injectsToDelete;
   }
 
   // -- OPTION --
@@ -651,6 +631,21 @@ public class InjectApi extends RestBehavior {
   public InjectStatusOutput getInjectStatusWithGlobalExecutionTraces(
       @RequestParam String injectId) {
     return this.injectService.getInjectStatusWithGlobalExecutionTraces(injectId);
+  }
+
+  @Operation(
+      description =
+          "Get InjectStatus with the complete execution log (orchestration traces plus every"
+              + " agent's traces)")
+  @Transactional
+  @GetMapping({INJECT_URI + "/status-all-traces", TENANT_INJECT_URI + "/status-all-traces"})
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
+  @LogExecutionTime
+  public InjectStatusOutput getInjectStatusWithAllExecutionTraces(@RequestParam String injectId) {
+    return this.injectService.getInjectStatusWithAllExecutionTraces(injectId);
   }
 
   @Operation(description = "Get detection remediation by inject based on the payload definition")

@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,22 +13,32 @@ import java.time.Instant;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "executors")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Executor extends BaseConnectorEntity implements TenantBase {
+@EntityListeners({ModelBaseListener.class})
+@IdClass(ConnectorCompositeId.class)
+/**
+ * Fully on v2 tenant isolation (TenantStatementInspector + can_access_tenant). The v1
+ * {@code @Filter("tenantFilter")} and {@code TenantIdBaseListener} were removed at go-live: the
+ * inspector scopes every query, and write attribution is explicit via TenantWriteScopeResolver. Do
+ * not re-add either.
+ */
+public class Executor extends BaseConnectorEntity implements TenantIdBase {
 
   @Id
   @Column(name = "executor_id")
   @JsonProperty("executor_id")
   @NotBlank
   private String id;
+
+  @Id
+  @Column(name = "tenant_id")
+  @JsonIgnore
+  private String tenantId;
 
   @Column(name = "executor_name")
   @JsonProperty("executor_name")
@@ -57,19 +66,6 @@ public class Executor extends BaseConnectorEntity implements TenantBase {
   @Column(name = "executor_background_color")
   @JsonProperty("executor_background_color")
   private String backgroundColor;
-
-  @ManyToOne
-  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
-  @JsonIgnore
-  private Tenant tenant;
-
-  /**
-   * Read-only mapping of the physical tenant_id column. Needed so that Hibernate can resolve {@code
-   * referencedColumnName = "tenant_id"} in {@code @JoinFormula} from Agent → Executor.
-   */
-  @Column(name = "tenant_id", insertable = false, updatable = false)
-  @JsonIgnore
-  private String tenantId;
 
   @Column(name = "executor_created_at")
   @JsonProperty("executor_created_at")

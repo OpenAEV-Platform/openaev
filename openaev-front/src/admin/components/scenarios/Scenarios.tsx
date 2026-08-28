@@ -1,11 +1,10 @@
-import { MovieFilterOutlined } from '@mui/icons-material';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButtonGroup } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, useMemo, useState } from 'react';
+import { RouteOutlined } from '@mui/icons-material';
+import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButtonGroup } from '@mui/material';
+import { type CSSProperties, useContext, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchScenarios } from '../../../actions/scenarios/scenario-actions';
+import { bulkDeleteScenarios, searchScenarios } from '../../../actions/scenarios/scenario-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import ExportButton from '../../../components/common/ExportButton';
 import { initSorting } from '../../../components/common/queryable/Page';
@@ -19,16 +18,18 @@ import ItemCategory from '../../../components/ItemCategory';
 import ItemSeverity from '../../../components/ItemSeverity';
 import ItemTags from '../../../components/ItemTags';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
-import PlatformIcon from '../../../components/PlatformIcon';
+import PlatformIconGroup from '../../../components/PlatformIconGroup';
 import { type Scenario, type SearchPaginationInput } from '../../../utils/api-types';
 import useAuth from '../../../utils/hooks/useAuth';
-import { Can } from '../../../utils/permissions/permissionsContext';
+import useEntityToggle from '../../../utils/hooks/useEntityToggle';
+import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
 import ImportFromHubButton from '../common/ImportFromHubButton';
+import ToolBar from '../common/ToolBar';
 import ImportUploaderScenario from './ImportUploaderScenario';
 import ScenarioPopover from './scenario/ScenarioPopover';
 import ScenarioStatus from './scenario/ScenarioStatus';
+import ScenarioType, { SCENARIO_TYPE_CHAINED, SCENARIO_TYPE_TIME_BASED, type ScenarioTypeValue } from './scenario/ScenarioType';
 import ScenarioCreation from './ScenarioCreation';
 
 const useStyles = makeStyles()(() => ({
@@ -37,12 +38,13 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
-  scenario_name: { width: '25%' },
+  scenario_name: { width: '22%' },
   scenario_severity: { width: '8%' },
   scenario_category: { width: '12%' },
-  scenario_recurrence: { width: '12%' },
+  scenario_type: { width: '12%' },
+  scenario_recurrence: { width: '10%' },
   scenario_platforms: { width: '10%' },
-  scenario_tags: { width: '18%' },
+  scenario_tags: { width: '16%' },
   scenario_updated_at: { width: '10%' },
 };
 
@@ -51,11 +53,9 @@ const Scenarios = () => {
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
-  const theme = useTheme();
   const { isXTMHubAccessible } = useAuth();
-
   const [loading, setLoading] = useState<boolean>(true);
-  const isChainingFeatureEnabled = isFeatureEnabled('INJECT_CHAINING');
+  const [reloadCount, setReloadCount] = useState<number>(0);
 
   // Headers
   const headers = useMemo(() => [
@@ -90,6 +90,19 @@ const Scenarios = () => {
       ),
     },
     {
+      field: 'scenario_type',
+      label: 'Type',
+      // Derived engine facet (no single sortable column), mirroring the backend ScenarioSpecification:
+      // a scenario carrying a chaining workflow template is Chained, otherwise it is a classic
+      // Time-based scenario. Autonomy is a launch-time MODE now, not a scenario type.
+      isSortable: false,
+      value: (scenario: Scenario) => {
+        const workflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id;
+        const type: ScenarioTypeValue = workflowId ? SCENARIO_TYPE_CHAINED : SCENARIO_TYPE_TIME_BASED;
+        return <ScenarioType type={type} variant="list" />;
+      },
+    },
+    {
       field: 'scenario_recurrence',
       label: 'Status',
       isSortable: false,
@@ -99,27 +112,9 @@ const Scenarios = () => {
       field: 'scenario_platforms',
       label: 'Platforms',
       isSortable: false,
-      value: (scenario: Scenario) => {
-        const platforms = scenario.scenario_platforms ?? [];
-        if (platforms.length === 0) {
-          return <PlatformIcon platform={t('No inject in this scenario')} tooltip width={25} />;
-        }
-        return (
-          <>
-            {platforms.map(
-              (platform: string) => (
-                <PlatformIcon
-                  key={platform}
-                  platform={platform}
-                  tooltip
-                  width={20}
-                  marginRight={theme.spacing(2)}
-                />
-              ),
-            )}
-          </>
-        );
-      },
+      value: (scenario: Scenario) => (
+        <PlatformIconGroup platforms={scenario.scenario_platforms} />
+      ),
     },
     {
       field: 'scenario_tags',
@@ -133,7 +128,7 @@ const Scenarios = () => {
       isSortable: true,
       value: (scenario: Scenario) => nsdt(scenario.scenario_updated_at),
     },
-  ], []);
+  ], [t, nsdt]);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
 
@@ -146,6 +141,7 @@ const Scenarios = () => {
     'scenario_recurrence',
     'scenario_severity',
     'scenario_tags',
+    'scenario_type',
     'scenario_updated_at',
   ];
 
@@ -176,6 +172,33 @@ const Scenarios = () => {
     return searchScenarios(input).finally(() => setLoading(false));
   };
 
+  // Bulk selection
+  const ability = useContext(AbilityContext);
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  const {
+    selectedElements,
+    deSelectedElements,
+    selectAll,
+    handleClearSelectedElements,
+    handleToggleSelectAll,
+    onToggleEntity,
+    numberOfSelectedElements,
+  } = useEntityToggle<Scenario>('scenario', scenarios, queryableHelpers.paginationHelpers.getTotalElements());
+
+  const bulkDelete = () => {
+    bulkDeleteScenarios({
+      search_pagination_input: selectAll ? searchPaginationInput : undefined,
+      scenario_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
+      scenario_ids_to_ignore: Object.keys(deSelectedElements),
+    }).then((result) => {
+      const deletedIds: string[] = result.data ?? [];
+      const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
+      setScenarios(scenarios.filter(s => !deletedIds.includes(s.scenario_id)));
+      queryableHelpers.paginationHelpers.handleChangeTotalElements(newTotal);
+      handleClearSelectedElements();
+    });
+  };
+
   return (
     <>
       <Breadcrumbs
@@ -187,13 +210,14 @@ const Scenarios = () => {
       />
       <PaginationComponentV2
         fetch={search}
+        reloadContentCount={reloadCount}
         searchPaginationInput={searchPaginationInput}
         setContent={setScenarios}
         entityPrefix="scenario"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1}>
+          <Box display="flex" gap={1} alignItems="center">
             {
               isXTMHubAccessible && (
                 <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
@@ -207,33 +231,76 @@ const Scenarios = () => {
                 exportProps={exportProps}
               />
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-                <ImportUploaderScenario />
+                <ImportUploaderScenario refresh={() => setReloadCount(count => count + 1)} />
               </Can>
             </ToggleButtonGroup>
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
+              <ScenarioCreation />
+            </Can>
           </Box>
         )}
       />
       <List>
         <ListItem
           classes={{ root: classes.itemHead }}
-          style={{ paddingTop: 0 }}
-          secondaryAction={<>&nbsp;</>}
+          sx={numberOfSelectedElements > 0
+            ? {
+                // Massive-operations toolbar: symmetric vertical padding keeps the
+                // checkbox and actions vertically centered in the accent band.
+                backgroundColor: 'background.accent',
+                paddingBlock: 0.5,
+              }
+            : { paddingTop: 0 }}
+          {...(numberOfSelectedElements === 0 ? { secondaryAction: <>&nbsp;</> } : {})}
         >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
+          {canManage && (
+            <ListItemIcon style={{ minWidth: 40 }}>
+              <Checkbox
+                edge="start"
+                checked={selectAll}
+                disableRipple
+                onChange={handleToggleSelectAll}
               />
-            )}
-          />
+            </ListItemIcon>
+          )}
+          {numberOfSelectedElements > 0 ? (
+            <ListItemText
+              primary={(
+                <ToolBar
+                  numberOfSelectedElements={numberOfSelectedElements}
+                  handleClearSelectedElements={handleClearSelectedElements}
+                  handleBulkDelete={bulkDelete}
+                  canManage={canManage}
+                  deleteConfirmationSingular={t('Do you want to delete this scenario?')}
+                  deleteConfirmationPlural={t('Do you want to delete these {count} scenarios?', { count: String(numberOfSelectedElements) })}
+                />
+              )}
+            />
+          ) : (
+            <>
+              <ListItemIcon />
+              <ListItemText
+                primary={(
+                  <SortHeadersComponentV2
+                    headers={headers}
+                    inlineStylesHeaders={inlineStyles}
+                    sortHelpers={queryableHelpers.sortHelpers}
+                  />
+                )}
+              />
+            </>
+          )}
         </ListItem>
         {
           loading
-            ? <PaginatedListLoader Icon={MovieFilterOutlined} headers={headers} headerStyles={inlineStyles} />
+            ? <PaginatedListLoader Icon={RouteOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox={canManage} />
             : scenarios.map((scenario: Scenario) => {
+                const isScenarioChaining = !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id;
+                // A chained scenario owns its attack-path logic and is never duplicated by hand
+                // (its metadata stays editable); a time-based one may also be duplicated.
+                const scenarioActions: ('Duplicate' | 'Update' | 'Delete' | 'Export')[] = isScenarioChaining
+                  ? ['Update', 'Export', 'Delete']
+                  : ['Duplicate', 'Export', 'Delete'];
                 return (
                   <ListItem
                     key={scenario.scenario_id}
@@ -241,7 +308,7 @@ const Scenarios = () => {
                     secondaryAction={(
                       <ScenarioPopover
                         scenario={scenario}
-                        actions={isChainingFeatureEnabled && !!(scenario as unknown as Record<string, unknown>).scenario_workflow_id ? ['Delete'] : ['Duplicate', 'Export', 'Delete']}
+                        actions={scenarioActions}
                         onDelete={(result) => {
                           setScenarios(scenarios.filter(e => (e.scenario_id !== result)));
                           setSearchPaginationInput(prev => ({
@@ -259,8 +326,23 @@ const Scenarios = () => {
                       to={`/admin/scenarios/${scenario.scenario_id}`}
                       classes={{ root: classes.item }}
                     >
+                      {canManage && (
+                        <ListItemIcon
+                          style={{ minWidth: 40 }}
+                          onClick={event => onToggleEntity(scenario, event)}
+                        >
+                          <Checkbox
+                            edge="start"
+                            checked={
+                              (selectAll && !(scenario.scenario_id in (deSelectedElements || {})))
+                              || scenario.scenario_id in (selectedElements || {})
+                            }
+                            disableRipple
+                          />
+                        </ListItemIcon>
+                      )}
                       <ListItemIcon>
-                        <MovieFilterOutlined color="primary" />
+                        <RouteOutlined color="primary" />
                       </ListItemIcon>
                       <ListItemText
                         primary={(
@@ -285,9 +367,6 @@ const Scenarios = () => {
               })
         }
       </List>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-        <ScenarioCreation />
-      </Can>
     </>
   );
 };

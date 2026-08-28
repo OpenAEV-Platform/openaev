@@ -43,7 +43,6 @@ export const entitiesInitializer = Map({
     lessonscategorys: Map({}),
     lessonsquestions: Map({}),
     lessonsanswers: Map({}),
-    reports: Map({}),
     variables: Map({}),
     killchainphases: Map({}),
     attackpatterns: Map({}),
@@ -54,6 +53,7 @@ export const entitiesInitializer = Map({
     injectors: Map({}),
     collectors: Map({}),
     executors: Map({}),
+    secretsproviders: Map({}),
     mitigations: Map({}),
     agents: Map({}),
     domains: Map({}),
@@ -62,6 +62,9 @@ export const entitiesInitializer = Map({
     platform_capabilities: Map({}),
     tenant_capabilities: Map({}),
     tenantXtmHubRegistrations: Map({}),
+    notifications: Map({}),
+    phishinglandingpages: Map({}),
+    phishingemailtemplates: Map({}),
   }),
 });
 
@@ -175,6 +178,22 @@ const referential = (state: any = Map({}), action: any = {}) => {
         );
       }
       return state;
+    }
+    // Batched form used by the SSE pipeline: the whole delete backlog is
+    // applied in a single reducer pass / subscriber notification instead of
+    // one dispatch per deleted entity. Payload: Array<{ id, type }>.
+    case Constants.DATA_DELETE_BATCH_SUCCESS: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (action.payload ?? []).reduce((acc: any, { id, type }: {
+        id: string;
+        type: string;
+      }) => {
+        const entityMap = acc.getIn(['entities', type]);
+        if (entityMap) {
+          return acc.setIn(['entities', type], entityMap.delete(id));
+        }
+        return acc;
+      }, state);
     }
     case Constants.DATA_FETCH_ERROR: {
       if (action.payload.status === 401) {

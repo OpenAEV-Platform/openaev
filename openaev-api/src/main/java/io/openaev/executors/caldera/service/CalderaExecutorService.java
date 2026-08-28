@@ -6,6 +6,9 @@ import static io.openaev.utils.time.TimeUtils.toInstant;
 import static java.time.Instant.now;
 
 import com.cronutils.utils.VisibleForTesting;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Agent.DEPLOYMENT_MODE;
 import io.openaev.database.model.Agent.PRIVILEGE;
@@ -36,7 +39,7 @@ public class CalderaExecutorService implements Runnable {
   private final InjectorService injectorService;
   private final PlatformSettingsService platformSettingsService;
   private final AgentService agentService;
-
+  private final TenantScopedTransaction tenantTx;
   private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
@@ -64,7 +67,8 @@ public class CalderaExecutorService implements Runnable {
       EndpointService endpointService,
       InjectorService injectorService,
       PlatformSettingsService platformSettingsService,
-      AgentService agentService) {
+      AgentService agentService,
+      TenantScopedTransaction tenantTx) {
     this.client = client;
     this.endpointService = endpointService;
     this.calderaExecutorContextService = calderaExecutorContextService;
@@ -72,10 +76,30 @@ public class CalderaExecutorService implements Runnable {
     this.platformSettingsService = platformSettingsService;
     this.agentService = agentService;
     this.executor = executor;
+    this.tenantTx = tenantTx;
   }
 
   @Override
   public void run() {
+    try {
+      tenantTx.execute(
+          TxCtx.forTenant(executor.getTenantId()),
+          () -> {
+            // Bridge for v1 tables (Tag, Asset, Agent, AssetGroup) still relying on
+            // TenantContext via HibernateFilterTransactionAspect: this Runnable executes on the
+            // shared scheduler thread pool outside any HTTP request, so TenantContext is never
+            // set here otherwise and falls back to the default tenant, silently scoping the v1
+            // Hibernate filter to the wrong tenant.
+            TenantContext.setCurrentTenant(executor.getTenantId());
+            doRun();
+            return null;
+          });
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  private void doRun() {
     try {
       log.info("Running Caldera executor endpoints gathering...");
       // The executor only retrieve "main" agents (without the keyword "executor")
@@ -101,8 +125,7 @@ public class CalderaExecutorService implements Runnable {
   private void registerAgentEndpoint(AgentRegisterInput input) {
     // Check if agent exists (only 1 agent can be found for Caldera)
     List<Agent> existingAgents =
-        agentService.findByExternalReference(
-            input.getExternalReference(), executor.getTenant().getId());
+        agentService.findByExternalReference(input.getExternalReference(), executor.getTenantId());
     if (!existingAgents.isEmpty()) {
       Agent existingAgent = existingAgents.getFirst();
       if (input.isActive()) {
@@ -115,7 +138,7 @@ public class CalderaExecutorService implements Runnable {
       // Check if endpoint exists
       List<Endpoint> existingEndpoints =
           endpointService.findEndpointByHostnameAndAtLeastOneIp(
-              input.getHostname(), input.getIps(), executor.getTenant().getId());
+              input.getHostname(), input.getIps(), executor.getTenantId());
       if (existingEndpoints.size() == 1) {
         updateExistingEndpointAndManageAgent(existingEndpoints.getFirst(), input);
       } else {
@@ -167,7 +190,7 @@ public class CalderaExecutorService implements Runnable {
     agent.setDeploymentMode(input.isService() ? DEPLOYMENT_MODE.service : DEPLOYMENT_MODE.session);
     agent.setExecutedByUser(input.getExecutedByUser());
     agent.setExecutor(input.getExecutor());
-    agent.setTenant(executor.getTenant());
+    agent.setTenant(new Tenant(executor.getTenantId()));
   }
 
   private void updateExistingEndpointAndManageAgent(Endpoint endpoint, AgentRegisterInput input) {
@@ -203,7 +226,7 @@ public class CalderaExecutorService implements Runnable {
     endpoint.setArch(input.getArch());
     endpoint.setHostname(input.getHostname());
     endpoint.setIps(input.getIps());
-    endpoint.setTenant(executor.getTenant());
+    endpoint.setTenant(new Tenant(executor.getTenantId()));
     endpointService.createEndpoint(endpoint);
     Agent agent = new Agent();
     setUpdatedAgentAttributes(agent, input, endpoint);

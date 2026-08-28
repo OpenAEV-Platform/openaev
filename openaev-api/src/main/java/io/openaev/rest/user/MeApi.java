@@ -106,7 +106,8 @@ public class MeApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
-  public User updatePassword(@Valid @RequestBody UpdateMePasswordInput input)
+  public User updatePassword(
+      @Valid @RequestBody UpdateMePasswordInput input, HttpServletRequest httpRequest)
       throws InputValidationException {
     User user =
         userRepository
@@ -114,7 +115,11 @@ public class MeApi extends RestBehavior {
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
     if (userService.isUserPasswordValid(user, input.getCurrentPassword())) {
       user.setPassword(userService.encodeUserPassword(input.getPassword()));
-      return userRepository.save(user);
+      User savedUser = userRepository.save(user);
+      // Security: a password change kills every other live session of the user; the session
+      // that performed the change stays alive.
+      sessionManager.invalidateOtherUserSessions(user.getId(), httpRequest.getSession().getId());
+      return savedUser;
     } else {
       throw new InputValidationException("user_current_password", "Bad current password");
     }

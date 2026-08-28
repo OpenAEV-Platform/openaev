@@ -9,10 +9,13 @@ import static java.time.Instant.now;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.DefaultOpenAEVPrincipal;
+import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.SessionHelper;
 import io.openaev.config.SessionManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TagRepository;
@@ -24,6 +27,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.user.form.login.ResetUserInput;
 import io.openaev.rest.user.form.user.ChangePasswordInput;
+import io.openaev.service.account.PrivilegeEscalationValidator;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.ReferenceResolver;
@@ -36,6 +40,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,6 +54,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -97,6 +103,7 @@ public class UserService {
   private MailingService mailingService;
   private final RandomUtils randomUtils;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final TenantScopedTransaction tenantTx;
 
   /** Cache for admin users to improve lookup performance. */
   private Cache adminCache;
@@ -129,6 +136,7 @@ public class UserService {
       throw new DataIntegrityViolationException(
           "User with email " + input.email() + " already exists");
     }
+    PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), false);
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
@@ -137,10 +145,13 @@ public class UserService {
         new ArrayList<>(
             referenceResolver.resolve(
                 input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
+    // The user's id is generated on save (UUID generator), not before: evict only after
+    // persisting, using the saved user's id, or evictForUser is called with a null key.
+    User createdUser = createUser(user, input.plainPassword(), UUID.randomUUID().toString());
     if (!CollectionUtils.isEmpty(input.tenantIds())) {
-      tenantMembershipCacheManager.evictForUser(user.getId(), input.tenantIds());
+      tenantMembershipCacheManager.evictForUser(createdUser.getId(), input.tenantIds());
     }
-    return createUser(user, input.plainPassword(), UUID.randomUUID().toString());
+    return createdUser;
   }
 
   /** Creates a user for internal/technical purposes (SSO login, connector provisioning). */
@@ -162,9 +173,8 @@ public class UserService {
     if (StringUtils.hasLength(password)) {
       user.setPassword(this.encodeUserPassword(password));
     }
-    List<Group> assignableGroups =
-        groupRepository.findAll(GroupSpecification.defaultUserAssignablePlatform());
-    user.setGroups(assignableGroups);
+    // Creation enters every scope at once: platform, plus each tenant attached in the input.
+    assignAutoAssignGroups(user, user.getTenants().stream().map(Tenant::getId).toList(), true);
     User savedUser = userRepository.save(user);
     this.createUserToken(savedUser, token);
     return savedUser;
@@ -172,8 +182,12 @@ public class UserService {
 
   // -- READ --
 
-  /** Returns a user by ID (platform scope, no tenant filtering). */
-  @Transactional(readOnly = true)
+  /**
+   * Returns a user by ID (platform scope, no tenant filtering).
+   *
+   * <p>No {@code @Transactional} here: {@code userRepository.findById(...)} already runs under its
+   * own Spring Data JPA transaction.
+   */
   public User user(@NotBlank final String userId) {
     return userRepository
         .findById(userId)
@@ -223,17 +237,22 @@ public class UserService {
         existing.getTenants() != null
             ? existing.getTenants().stream().map(Tenant::getId).toList()
             : List.of();
-    existing.setUpdateAttributes(input);
-    existing.setTags(
-        referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
-    existing.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), existing.isAdmin());
+    applyProfile(existing, input);
     existing.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(
                 input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
-    if (StringUtils.hasLength(input.plainPassword())) {
-      existing.setPassword(this.encodeUserPassword(input.plainPassword()));
-    }
+    // Only tenants the user just joined trigger auto-assignment: re-applying it to tenants he
+    // already belonged to would restore groups deliberately removed from within those tenants.
+    List<String> currentTenantIds = existing.getTenants().stream().map(Tenant::getId).toList();
+    List<String> attachedTenantIds =
+        currentTenantIds.stream().filter(tenantId -> !oldTenantIds.contains(tenantId)).toList();
+    assignAutoAssignGroups(existing, attachedTenantIds, false);
+    // Symmetrically, a membership must not outlive the tenant attachment that granted it.
+    List<String> detachedTenantIds =
+        oldTenantIds.stream().filter(tenantId -> !currentTenantIds.contains(tenantId)).toList();
+    revokeTenantGroups(existing, detachedTenantIds);
     User savedUser = userRepository.save(existing);
     // Evict cache for old tenants (removed memberships) and new tenants (added memberships)
     List<String> newTenantIds = input.tenantIds() != null ? input.tenantIds() : List.of();
@@ -242,6 +261,16 @@ public class UserService {
     tenantMembershipCacheManager.evictForUser(userId, allAffectedTenants);
     sessionManager.refreshUserSessions(savedUser);
     return savedUser;
+  }
+
+  public void applyProfile(User user, UserInput input) {
+    user.setFirstname(input.firstname());
+    user.setLastname(input.lastname());
+    user.setPhone(input.phone());
+    user.setPhone2(input.phone2());
+    user.setPgpKey(input.pgpKey());
+    user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
+    user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
   }
 
   /**
@@ -293,6 +322,10 @@ public class UserService {
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
       String username = user.getName() != null ? user.getName() : user.getEmail();
+      // Background @Async path (no ambient transaction, no v2 scope): sendEmail resolves the
+      // tenant-scoped injectors table for the email notifier, and this reset flow is anonymous/
+      // global (login only, no tenant selector), so it always uses the platform default tenant's
+      // email integration, matching MailingService's own 3-arg overload default.
       if ("fr".equals(input.getLang())) {
         String subject = "Code de récupération OpenAEV: " + resetToken;
         String body =
@@ -302,7 +335,9 @@ public class UserService {
                 + "Nous avons reçu une demande de réinitialisation de votre mot de passe OpenAEV.</br>"
                 + "Entrez le code de réinitialisation du mot de passe suivant : "
                 + resetToken;
-        mailingService.sendEmail(subject, body, List.of(user));
+        tenantTx.execute(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> mailingService.sendEmail(subject, body, List.of(user)));
       } else {
         String subject = "OpenAEV account recovery code: " + resetToken;
         String body =
@@ -312,7 +347,9 @@ public class UserService {
                 + "A request has been made to reset your OpenAEV password.</br>"
                 + "Enter the following password recovery code: "
                 + resetToken;
-        mailingService.sendEmail(subject, body, List.of(user));
+        tenantTx.execute(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> mailingService.sendEmail(subject, body, List.of(user)));
       }
       // Store in memory reset token
       synchronized (resetTokenMap) {
@@ -356,6 +393,8 @@ public class UserService {
     synchronized (resetTokenMap) {
       resetTokenMap.remove(userId);
     }
+    // Security: a password reset kills every live session of the user
+    sessionManager.invalidateUserSession(userId);
     return savedUser;
   }
 
@@ -449,6 +488,19 @@ public class UserService {
     return this.userRepository.findByToken(token);
   }
 
+  /**
+   * Returns the currently authenticated user, or {@code null} when the execution context has no
+   * authenticated user (startup datapacks, scenario imports, scheduled jobs). Use this instead of
+   * {@link #currentUser()} in code paths that may run outside an authenticated request.
+   */
+  public User currentUserOrNull() {
+    OpenAEVPrincipal principal = SessionHelper.currentUser();
+    if (principal instanceof OpenAEVAnonymous) {
+      return null;
+    }
+    return this.userRepository.findById(principal.getId()).orElse(null);
+  }
+
   public User currentUser() {
     User user;
     // If we don't have the cache, we get it
@@ -506,5 +558,81 @@ public class UserService {
 
   public Optional<User> findByEmailIgnoreCase(String email) {
     return userRepository.findByEmailIgnoreCase(email);
+  }
+
+  /**
+   * Grants the auto-assign groups of the given tenants to an already persisted user. Used when a
+   * user joins a tenant outside of the create/update flows, i.e. when attached from a tenant
+   * screen.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void assignAutoAssignGroups(
+      @NotBlank final String userId, @NotNull final Collection<String> tenantIds) {
+    if (tenantIds.isEmpty()) {
+      return;
+    }
+    User user = user(userId);
+    assignAutoAssignGroups(user, tenantIds, false);
+    userRepository.save(user);
+  }
+
+  /**
+   * Grants the default-assign groups of the scopes the user just entered: the platform scope at
+   * creation, plus every tenant freshly attached. Scopes the user already belonged to are skipped,
+   * so a group deliberately removed from a user is never re-granted by a later update. Never
+   * removes an existing group membership.
+   */
+  private void assignAutoAssignGroups(
+      User user, Collection<String> tenantIds, boolean includePlatformScope) {
+    if (!includePlatformScope && tenantIds.isEmpty()) {
+      return;
+    }
+    Specification<Group> spec =
+        includePlatformScope ? GroupSpecification.defaultUserAssignablePlatform() : null;
+    for (String tenantId : tenantIds) {
+      Specification<Group> tenantSpec = GroupSpecification.defaultUserAssignableTenant(tenantId);
+      spec = spec == null ? tenantSpec : spec.or(tenantSpec);
+    }
+    List<Group> applicableGroups = groupRepository.findAll(spec);
+    if (applicableGroups.isEmpty()) {
+      return;
+    }
+    List<Group> current = new ArrayList<>(user.getUnscopedGroups());
+    for (Group group : applicableGroups) {
+      if (!current.contains(group)) {
+        current.add(group);
+      }
+    }
+    user.setGroups(current);
+  }
+
+  /**
+   * Revokes the groups of the given tenants from an already persisted user. Used when a user leaves
+   * a tenant outside of the update flow, i.e. when detached from a tenant screen.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void revokeTenantGroups(
+      @NotBlank final String userId, @NotNull final Collection<String> tenantIds) {
+    if (tenantIds.isEmpty()) {
+      return;
+    }
+    User user = user(userId);
+    revokeTenantGroups(user, tenantIds);
+    User savedUser = userRepository.save(user);
+    sessionManager.refreshUserSessions(savedUser);
+  }
+
+  /**
+   * Drops every group scoped to a tenant the user just left: a group grants capabilities inside its
+   * own tenant only, so keeping it would leave access to a tenant the user no longer belongs to.
+   * Platform groups and the groups of the remaining tenants are untouched.
+   */
+  private void revokeTenantGroups(User user, Collection<String> tenantIds) {
+    if (tenantIds.isEmpty()) {
+      return;
+    }
+    user.getUnscopedGroups()
+        .removeIf(
+            group -> group.getTenant() != null && tenantIds.contains(group.getTenant().getId()));
   }
 }

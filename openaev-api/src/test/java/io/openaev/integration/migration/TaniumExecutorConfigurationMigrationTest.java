@@ -6,6 +6,7 @@ import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.Tenant;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.integration.impl.executors.tanium.TaniumExecutorIntegrationFactory;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -64,7 +65,7 @@ public class TaniumExecutorConfigurationMigrationTest {
                   TaniumExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      taniumExecutorConfigurationMigration.migrate();
+      taniumExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -88,7 +89,7 @@ public class TaniumExecutorConfigurationMigrationTest {
                   TaniumExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      taniumExecutorConfigurationMigration.migrate();
+      taniumExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
@@ -149,27 +150,22 @@ public class TaniumExecutorConfigurationMigrationTest {
     @Autowired private CatalogConnectorComposer catalogConnectorComposer;
 
     @Test
-    @DisplayName("Resulting instance is stopped")
-    public void whenConfigIsEnabled_resultingInstanceIsStopped() throws Exception {
+    @DisplayName("No instance is seeded")
+    public void whenConfigIsDisabled_noInstanceIsSeeded() throws Exception {
       catalogConnectorComposer
           .forCatalogConnector(
               CatalogConnectorFixture.createCatalogConnectorWithClassName(
                   TaniumExecutorIntegrationFactory.class.getCanonicalName()))
           .persist();
 
-      taniumExecutorConfigurationMigration.migrate();
+      taniumExecutorConfigurationMigration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       Optional<CatalogConnector> connector =
           catalogConnectorService.findByFactoryClassName(
               TaniumExecutorIntegrationFactory.class.getCanonicalName());
       assertThat(connector).isPresent();
-
-      ConnectorInstancePersisted instance =
-          connectorInstanceService.findAllByCatalogConnector(connector.get()).getFirst();
-
-      assertThat(instance).isInstanceOf(ConnectorInstancePersisted.class);
-      assertThat(instance.getRequestedStatus())
-          .isEqualTo(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+      assertThat(connector.get().isPropertiesMigrated()).isTrue();
+      assertThat(connectorInstanceService.findAllByCatalogConnector(connector.get())).isEmpty();
     }
   }
 }

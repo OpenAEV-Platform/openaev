@@ -19,14 +19,16 @@ import Transition from '../Transition';
 interface ExportOptionsProps {
   title: string;
   open: boolean;
+  isChaining?: boolean;
   onCancel: () => void;
   onClose: () => void;
-  onSubmit: (withPlayer: boolean, withTeams: boolean, withVariableValues: boolean) => void;
+  onSubmit: (withPlayer: boolean, withTeams: boolean, withVariableValues: boolean, withScopeDefinition: boolean) => void;
 }
 
 const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
   title,
   open,
+  isChaining = false,
   onCancel,
   onClose,
   onSubmit,
@@ -42,8 +44,11 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
   const [exportVariableValues, setExportVariableValues] = useState(false);
   const handleToggleExportVariableValues = () => setExportVariableValues(!exportVariableValues);
 
+  const [exportScopeDefinition, setExportScopeDefinition] = useState(false);
+  const handleToggleExportScopeDefinition = () => setExportScopeDefinition(!exportScopeDefinition);
+
   const doSubmit = () => {
-    onSubmit(exportPlayers, exportTeams, exportVariableValues);
+    onSubmit(exportPlayers, exportTeams, exportVariableValues, exportScopeDefinition);
   };
 
   return (
@@ -68,30 +73,37 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
             <TableBody>
               <TableRow>
                 <TableCell>
-                  {t('Injects (including attached files)')}
+                  {isChaining
+                    ? t('Actions & Events')
+                    : t('Injects (including attached files)')}
                 </TableCell>
                 <TableCell style={{ textAlign: 'center' }}>
                   <Checkbox checked={true} disabled={true} />
                 </TableCell>
               </TableRow>
-              <TableRow>
-                <TableCell>{t('Teams')}</TableCell>
-                <TableCell style={{ textAlign: 'center' }}>
-                  <Checkbox
-                    checked={exportTeams}
-                    onChange={handleToggleExportTeams}
-                  />
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>{t('Players')}</TableCell>
-                <TableCell style={{ textAlign: 'center' }}>
-                  <Checkbox
-                    checked={exportPlayers}
-                    onChange={handleToggleExportPlayers}
-                  />
-                </TableCell>
-              </TableRow>
+              {!isChaining && (
+                <TableRow>
+                  <TableCell>{t('Teams')}</TableCell>
+                  <TableCell style={{ textAlign: 'center' }}>
+                    <Checkbox
+                      checked={exportTeams}
+                      onChange={handleToggleExportTeams}
+                    />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!isChaining
+                && (
+                  <TableRow>
+                    <TableCell>{t('Players')}</TableCell>
+                    <TableCell style={{ textAlign: 'center' }}>
+                      <Checkbox
+                        checked={exportPlayers}
+                        onChange={handleToggleExportPlayers}
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
               <TableRow>
                 <TableCell>{t('Variable values')}</TableCell>
                 <TableCell style={{ textAlign: 'center' }}>
@@ -101,13 +113,24 @@ const ExportOptionsDialog: FunctionComponent<ExportOptionsProps> = ({
                   />
                 </TableCell>
               </TableRow>
+              {isChaining && (
+                <TableRow>
+                  <TableCell>{t('Scope definition')}</TableCell>
+                  <TableCell style={{ textAlign: 'center' }}>
+                    <Checkbox
+                      checked={exportScopeDefinition}
+                      onChange={handleToggleExportScopeDefinition}
+                    />
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </TableContainer>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onCancel}>{t('Cancel')}</Button>
-        <Button color="secondary" onClick={doSubmit}>
+        <Button variant="outlined" color="primary" onClick={onCancel}>{t('Cancel')}</Button>
+        <Button variant="contained" color="primary" onClick={doSubmit}>
           {t('Export')}
         </Button>
       </DialogActions>

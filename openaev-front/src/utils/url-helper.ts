@@ -42,6 +42,24 @@ export const stripDetailSegments = (pathname: string): string => {
 // ---------------------------------------------------------------------------
 
 /**
+ * Returns the value only when it is a syntactically valid http(s) URL,
+ * otherwise undefined. Guards against a misconfigured (or otherwise
+ * unexpected) platform URL - e.g. a `javascript:` scheme - ever reaching
+ * an anchor href.
+ */
+export const toHttpUrl = (value: string | undefined): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  try {
+    const { protocol } = new URL(value);
+    return protocol === 'http:' || protocol === 'https:' ? value : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
  * Returns the current pathname stripped of APP_BASE_PATH.
  */
 const getAppRelativePath = (): string => {
@@ -148,21 +166,12 @@ const TENANT_EXEMPT_PREFIXES = [
   '/api/platform-groups',
   '/api/platform-roles',
   '/api/platform-users',
+  '/api/platform-sessions',
   '/api/capabilities',
   '/api/xtmhub/contact-us',
   '/api/xtmhub/auto-register',
-  '/api/xtm-composer',
   '/api/schemas',
   '/api/engine',
-  '/api/catalog-connector',
-];
-
-/**
- * API path patterns (regex) that are NEVER tenant-scoped.
- * Used for platform endpoints whose prefix overlaps with tenant-scoped ones.
- */
-const TENANT_EXEMPT_PATTERNS = [
-  /^\/api\/users\/[^/]+\/password$/,
 ];
 
 /**
@@ -176,9 +185,6 @@ export const buildTenantApiPath = (uri: string): string => {
     return uri;
   }
   if (TENANT_EXEMPT_PREFIXES.some(prefix => uri.startsWith(prefix))) {
-    return uri;
-  }
-  if (TENANT_EXEMPT_PATTERNS.some(pattern => pattern.test(uri))) {
     return uri;
   }
 

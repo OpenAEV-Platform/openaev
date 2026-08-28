@@ -14,12 +14,14 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVReaderBuilder;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.InjectImporter;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.EndpointRepository;
@@ -43,6 +45,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,6 +54,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestExecutionListeners;
 
@@ -122,7 +126,8 @@ public class MapperServiceTest extends IntegrationTest {
             .toList());
     when(importMapperRepository.save(any())).thenReturn(importMapper);
     // -- EXECUTE --
-    ImportMapper importMapperResponse = mapperService.createAndSaveImportMapper(importMapperInput);
+    ImportMapper importMapperResponse =
+        mapperService.createAndSaveImportMapper("tenant-test", importMapperInput);
 
     // -- ASSERT --
     assertNotNull(importMapperResponse);
@@ -383,13 +388,86 @@ public class MapperServiceTest extends IntegrationTest {
     input.setImporters(List.of());
 
     // Act
-    mapperService.importMappers(List.of(input));
+    mapperService.importMappers("tenant-test", List.of(input));
 
     // Assert
     ArgumentCaptor<List<ImportMapper>> captor = ArgumentCaptor.forClass(List.class);
     verify(importMapperRepository).saveAll(captor.capture());
     assertEquals(1, captor.getValue().size());
     assertTrue(captor.getValue().get(0).getName().endsWith(Constants.IMPORTED_OBJECT_NAME_SUFFIX));
+    assertEquals("tenant-test", captor.getValue().get(0).getTenant().getId());
+  }
+
+  @DisplayName("createImportMapper without a resolved tenant falls back to the thread-local")
+  @Test
+  void given_noWriteScope_should_lookUpContractsUnderTheThreadLocal() {
+    // The single-argument overload is the transient dry-run path (no TxCtx resolved): it must use
+    // the ambient TenantContext, not crash, so the test-import flow keeps working.
+    TenantContext.setCurrentTenant("ambient-tenant");
+    try {
+      ImportMapperAddInput input = new ImportMapperAddInput();
+      input.setName("mapper");
+      input.setInjectTypeColumn("A");
+      InjectImporterAddInput importer = new InjectImporterAddInput();
+      importer.setInjectTypeValue("x");
+      importer.setInjectorContractId("contract-1");
+      importer.setRuleAttributes(List.of());
+      input.setImporters(List.of(importer));
+      when(injectorContractRepository.findAllById(any())).thenReturn(List.of());
+
+      ImportMapper built = mapperService.createImportMapper(input);
+
+      assertNotNull(built);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<Iterable<InjectorContractId>> captor = ArgumentCaptor.forClass(Iterable.class);
+      verify(injectorContractRepository).findAllById(captor.capture());
+      List<String> tenants =
+          StreamSupport.stream(captor.getValue().spliterator(), false)
+              .map(InjectorContractId::getTenantId)
+              .distinct()
+              .toList();
+      assertEquals(List.of("ambient-tenant"), tenants);
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  @DisplayName("createImportMapper resolves the importer contracts under the write-scope tenant")
+  @Test
+  void given_writeScopeTenant_should_lookUpContractsUnderThatTenant_notTheThreadLocal() {
+    // The ambient thread-local is deliberately a different tenant than the write scope, to prove
+    // the
+    // lookup follows the resolved scope and not TenantContext (the v1 thread-local that v2
+    // retires).
+    TenantContext.setCurrentTenant("ambient-tenant");
+    try {
+      ImportMapperAddInput input = new ImportMapperAddInput();
+      input.setName("mapper");
+      input.setInjectTypeColumn("A");
+      InjectImporterAddInput importer = new InjectImporterAddInput();
+      importer.setInjectTypeValue("x");
+      importer.setInjectorContractId("contract-1");
+      importer.setRuleAttributes(List.of());
+      input.setImporters(List.of(importer));
+      when(injectorContractRepository.findAllById(any())).thenReturn(List.of());
+
+      mapperService.createAndSaveImportMapper("write-scope-tenant", input);
+
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<Iterable<InjectorContractId>> captor = ArgumentCaptor.forClass(Iterable.class);
+      verify(injectorContractRepository).findAllById(captor.capture());
+      List<String> tenants =
+          StreamSupport.stream(captor.getValue().spliterator(), false)
+              .map(InjectorContractId::getTenantId)
+              .distinct()
+              .toList();
+      assertEquals(
+          List.of("write-scope-tenant"),
+          tenants,
+          "importer contracts must be looked up under the write-scope tenant, not the thread-local");
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
   }
 
   @DisplayName(
@@ -443,7 +521,8 @@ public class MapperServiceTest extends IntegrationTest {
     org.springframework.mock.web.MockHttpServletResponse response =
         new org.springframework.mock.web.MockHttpServletResponse();
 
-    when(injectorContractRepository.findAll(any())).thenReturn(List.of(injectorContract));
+    when(injectorContractRepository.findAll(any(Specification.class)))
+        .thenReturn(List.of(injectorContract));
 
     // Act
     mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
@@ -453,7 +532,7 @@ public class MapperServiceTest extends IntegrationTest {
     assertTrue(
         response
             .getHeader("Content-Disposition")
-            .startsWith("attachment; filename=InjectorContracts"));
+            .startsWith("attachment; filename=ThreatArsenalItems"));
 
     List<String[]> csvRows =
         new CSVReaderBuilder(new StringReader(response.getContentAsString())).build().readAll();
@@ -493,7 +572,8 @@ public class MapperServiceTest extends IntegrationTest {
     org.springframework.mock.web.MockHttpServletResponse response =
         new org.springframework.mock.web.MockHttpServletResponse();
 
-    when(injectorContractRepository.findAll(any())).thenReturn(List.of(injectorContract));
+    when(injectorContractRepository.findAll(any(Specification.class)))
+        .thenReturn(List.of(injectorContract));
 
     // Act
     mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
@@ -525,7 +605,7 @@ public class MapperServiceTest extends IntegrationTest {
     SearchPaginationInput input = new SearchPaginationInput();
     org.springframework.mock.web.MockHttpServletResponse response =
         new org.springframework.mock.web.MockHttpServletResponse();
-    when(endpointRepository.findAll(any())).thenReturn(List.of());
+    when(endpointRepository.findAll(any(Specification.class))).thenReturn(List.of());
 
     // Act
     mapperService.exportMappersCsv(CsvType.ENDPOINTS, input, response);
@@ -544,7 +624,8 @@ public class MapperServiceTest extends IntegrationTest {
         new org.springframework.mock.web.MockHttpServletResponse();
     RuntimeException repositoryException = new RuntimeException("boom");
 
-    when(injectorContractRepository.findAll(any())).thenThrow(repositoryException);
+    when(injectorContractRepository.findAll(any(Specification.class)))
+        .thenThrow(repositoryException);
 
     // Act
     RuntimeException thrown =

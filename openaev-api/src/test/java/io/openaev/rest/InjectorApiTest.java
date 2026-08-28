@@ -7,7 +7,7 @@ import static io.openaev.utils.fixtures.CatalogConnectorFixture.createDefaultCat
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createConnectorInstanceConfiguration;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createDefaultConnectorInstance;
 import static io.openaev.utils.fixtures.InjectorFixture.createDefaultInjector;
-import static io.openaev.utils.fixtures.InjectorFixture.createInjector;
+import static io.openaev.utils.fixtures.InjectorFixture.createDefaultInjectorCreateInput;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -43,6 +44,7 @@ import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -196,6 +198,17 @@ public class InjectorApiTest extends IntegrationTest {
   @Nested
   @DisplayName("Related injectors ids")
   class GetRelatedInjectorIds {
+
+    @BeforeEach
+    void grantCurrentUserDefaultTenant() {
+      // Fixture injectors are created under the ambient default tenant (TenantContext falls back
+      // to it); the related-ids endpoint now requires a single-tenant scope to safely look up
+      // connector_instance_configurations (still v1, native query), so the mock user needs real
+      // membership in that tenant.
+      tenantHelper.grantCapabilitiesInTenant(
+          Tenant.DEFAULT_TENANT_UUID, Set.of(Capability.ACCESS_TENANT_SETTINGS));
+    }
+
     @Test
     @DisplayName(
         "Given injector managed by XTM Composer, should return linked connector instance ID and catalog ID")
@@ -269,6 +282,20 @@ public class InjectorApiTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
   class RegisterExternalInjector {
 
+    private String tenantId;
+
+    @BeforeEach
+    void grantCurrentUserATenant() throws Exception {
+      // The mock user's default group carries no explicit tenant membership, so a create under
+      // the ambient default tenant path is refused (TenantAccessDeniedException). Grant real
+      // membership in a fresh tenant instead, same pattern as TenantIsolationApi below.
+      tenantId =
+          tenantHelper
+              .createTenantWithCapabilities(
+                  "Register External Injector", Set.of(Capability.MANAGE_TENANT_SETTINGS))
+              .getId();
+    }
+
     @Test
     @DisplayName(
         "Should register a new external injector with contracts and return RabbitMQ connection info")
@@ -292,7 +319,7 @@ public class InjectorApiTest extends IntegrationTest {
       // -- ACT --
       String response =
           mvc.perform(
-                  multipart(INJECT0R_URI)
+                  multipart("/api/tenants/" + tenantId + "/injectors")
                       .file(buildInputPart(input))
                       .file(buildEmptyIconPart())
                       .accept(MediaType.APPLICATION_JSON)
@@ -308,8 +335,7 @@ public class InjectorApiTest extends IntegrationTest {
       assertThatJson(response).inPath("connection.port").isNotNull();
       assertThatJson(response).inPath("listen").isString().contains("_injector_" + injectorId);
 
-      Optional<Injector> persisted =
-          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+      Optional<Injector> persisted = injectorRepository.findByInjectorId(injectorId);
       assertThat(persisted).isPresent();
       assertThat(persisted.get().isExternal()).isTrue();
       assertThat(persisted.get().getName()).isEqualTo("External Injector");
@@ -322,6 +348,59 @@ public class InjectorApiTest extends IntegrationTest {
           injectorContractRepository.findByInjectorsContaining(persisted.get());
       assertThat(contracts).hasSize(1);
       assertThat(contracts.getFirst().getId()).isEqualTo(contractId);
+    }
+
+    @Test
+    @DisplayName("Should store external contract content as-is when argumentType is absent")
+    void shouldRegisterExternalInjectorWithoutArgumentTypeInContractContent() throws Exception {
+      String injectorId = "ext-injector-without-argument-type";
+      String injectorType = "openaev_ext_no_argument_type";
+      String contractId = "ext-contract-no-argument-type";
+
+      InjectorContractInput contract = new InjectorContractInput();
+      contract.setId(contractId);
+      contract.setLabels(Map.of("en", "Contract without argumentType"));
+      contract.setContent(
+          """
+          {
+            "fields": [
+              {
+                "key": "target",
+                "label": "target",
+                "type": "text",
+                "mandatory": true,
+                "defaultValue": "srv-01"
+              }
+            ]
+          }
+          """);
+
+      InjectorCreateInput input = new InjectorCreateInput();
+      input.setId(injectorId);
+      input.setName("External Injector Without Argument Type");
+      input.setType(injectorType);
+      input.setCategory("attack");
+      input.setPayloads(false);
+      input.setContracts(List.of(contract));
+
+      mvc.perform(
+              multipart("/api/tenants/" + tenantId + "/injectors")
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      Optional<Injector> persisted = injectorRepository.findByInjectorId(injectorId);
+      assertThat(persisted).isPresent();
+
+      List<InjectorContract> contracts =
+          injectorContractRepository.findByInjectorsContaining(persisted.get());
+      assertThat(contracts).hasSize(1);
+      String storedContent = contracts.getFirst().getContent();
+      String fieldKey = JsonPath.read(storedContent, "$.fields[0].key");
+      assertThat(fieldKey).isEqualTo("target");
+      assertThat(storedContent).doesNotContain("argumentType");
     }
 
     @Test
@@ -339,7 +418,7 @@ public class InjectorApiTest extends IntegrationTest {
       initialInput.setContracts(List.of(buildContractInput("upsert-contract-1")));
 
       mvc.perform(
-              multipart(INJECT0R_URI)
+              multipart("/api/tenants/" + tenantId + "/injectors")
                   .file(buildInputPart(initialInput))
                   .file(buildEmptyIconPart())
                   .accept(MediaType.APPLICATION_JSON)
@@ -355,7 +434,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       // -- ACT --
       mvc.perform(
-              multipart(INJECT0R_URI)
+              multipart("/api/tenants/" + tenantId + "/injectors")
                   .file(buildInputPart(updateInput))
                   .file(buildEmptyIconPart())
                   .with(csrf())
@@ -363,8 +442,7 @@ public class InjectorApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      Optional<Injector> persisted =
-          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+      Optional<Injector> persisted = injectorRepository.findByInjectorId(injectorId);
       assertThat(persisted).isPresent();
       assertThat(persisted.get().getName()).isEqualTo("Updated Name");
       assertThat(persisted.get().getCategory()).isEqualTo("updated-category");
@@ -387,7 +465,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       // -- ACT --
       mvc.perform(
-              multipart(INJECT0R_URI)
+              multipart("/api/tenants/" + tenantId + "/injectors")
                   .file(buildInputPart(input))
                   .file(buildEmptyIconPart())
                   .accept(MediaType.APPLICATION_JSON)
@@ -395,8 +473,7 @@ public class InjectorApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      Optional<Injector> persisted =
-          injectorRepository.findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant());
+      Optional<Injector> persisted = injectorRepository.findByInjectorId(injectorId);
       assertThat(persisted).isPresent();
       assertThat(persisted.get().isExternal()).isTrue();
       assertThat(persisted.get().getExecutorCommands()).isNullOrEmpty();
@@ -405,39 +482,29 @@ public class InjectorApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "Should delete dummy injector and reassign its contracts to the new injector on registration")
-    void shouldDeleteDummyInjectorAndReassignContracts() throws Exception {
+        "Should adopt an injector-less contract (starter-pack import) on injector registration")
+    void shouldAdoptInjectorlessContractOnRegistration() throws Exception {
       // -- ARRANGE --
-      String injectorType = "openaev_dummy_test";
-      String dummyId = injectorType + "_dummy";
-      String dummyType = injectorType + "_dummy";
-
-      // Create a dummy injector (simulating what createOrGetDummyInjector does)
-      Injector dummyInjector = createInjector(dummyId, "Dummy " + injectorType, dummyType);
-      injectorRepository.save(dummyInjector);
-
-      // Create an injector contract linked to the dummy injector
-      InjectorContract dummyContract = InjectorContractFixture.createDefaultInjectorContract();
-      dummyContract.getInjectors().clear();
-      dummyContract.addInjector(dummyInjector);
-      em.persist(dummyContract);
-      injectorContractRepository.save(dummyContract);
-      dummyInjector.getContracts().add(dummyContract);
-      injectorRepository.save(dummyInjector);
+      // Simulate a starter-pack import: the contract exists without any injector link
+      InjectorContract orphanContract = InjectorContractFixture.createDefaultInjectorContract();
+      orphanContract.clearInjectors();
+      em.persist(orphanContract);
+      injectorContractRepository.save(orphanContract);
       em.flush();
 
-      String dummyContractId = dummyContract.getId();
-      String realInjectorId = "real-injector-for-dummy";
+      String orphanContractId = orphanContract.getId();
+      String realInjectorId = "real-injector-for-orphan";
 
       InjectorCreateInput input = new InjectorCreateInput();
       input.setId(realInjectorId);
       input.setName("Real Injector");
-      input.setType(injectorType);
-      input.setContracts(List.of(buildContractInput("real-contract-1")));
+      input.setType("openaev_orphan_test");
+      // The real injector registers a contract with the SAME id as the imported one
+      input.setContracts(List.of(buildContractInput(orphanContractId)));
 
       // -- ACT --
       mvc.perform(
-              multipart(INJECT0R_URI)
+              multipart("/api/tenants/" + tenantId + "/injectors")
                   .file(buildInputPart(input))
                   .file(buildEmptyIconPart())
                   .accept(MediaType.APPLICATION_JSON)
@@ -445,21 +512,16 @@ public class InjectorApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      assertThat(injectorRepository.findByIdAndTenantId(dummyId, TenantContext.getCurrentTenant()))
-          .isEmpty();
-
-      Optional<Injector> realInjector =
-          injectorRepository.findByIdAndTenantId(realInjectorId, TenantContext.getCurrentTenant());
+      Optional<Injector> realInjector = injectorRepository.findByInjectorId(realInjectorId);
       assertThat(realInjector).isPresent();
       assertThat(realInjector.get().isExternal()).isTrue();
 
-      Optional<InjectorContract> reassignedContract =
-          injectorContractRepository.findById(dummyContractId);
-      assertThat(reassignedContract).isPresent();
-      assertThat(reassignedContract.get().getInjectors())
+      Optional<InjectorContract> adoptedContract =
+          injectorContractRepository.findById(orphanContractId);
+      assertThat(adoptedContract).isPresent();
+      assertThat(adoptedContract.get().getInjectors())
           .extracting(Injector::getId)
-          .contains(realInjectorId)
-          .doesNotContain(dummyId);
+          .contains(realInjectorId);
     }
 
     @Test
@@ -484,7 +546,7 @@ public class InjectorApiTest extends IntegrationTest {
       // -- ACT --
       String firstResponse =
           mvc.perform(
-                  multipart(INJECT0R_URI)
+                  multipart("/api/tenants/" + tenantId + "/injectors")
                       .file(buildInputPart(firstInput))
                       .file(buildEmptyIconPart())
                       .accept(MediaType.APPLICATION_JSON)
@@ -496,7 +558,7 @@ public class InjectorApiTest extends IntegrationTest {
 
       String secondResponse =
           mvc.perform(
-                  multipart(INJECT0R_URI)
+                  multipart("/api/tenants/" + tenantId + "/injectors")
                       .file(buildInputPart(secondInput))
                       .file(buildEmptyIconPart())
                       .accept(MediaType.APPLICATION_JSON)
@@ -639,9 +701,65 @@ public class InjectorApiTest extends IntegrationTest {
           .as("Inject should have an injector (not null)")
           .isNotNull();
 
-      assertThat(reloadedInject.getInjector().getTenant().getId())
+      assertThat(reloadedInject.getInjector().getTenantId())
           .as("Injector should belong to tenant A")
           .isEqualTo(tenantA);
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant Isolation API")
+  @WithMockUser
+  class TenantIsolationApi {
+
+    // The cross-tenant "created in X must not appear in Y's list" case is covered by
+    // InjectorHttpIsolationTest#listUnderTenantAReturnsOnlyA / #underTenantBPath instead of here:
+    // this test class is @Transactional at the class level, so a single test method touching two
+    // DIFFERENT tenant paths hits the TenantScopeTransactionAspect nesting guard (a scoped
+    // transaction must not redefine its TxCtx mid-transaction). The isolation test class is not
+    // @Transactional and gives each tenant path its own committed transaction instead.
+
+    @Test
+    @DisplayName("Injector created in tenant X should appear in tenant X list")
+    void given_injectorInTenantX_should_appearInTenantXList() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.MANAGE_TENANT_SETTINGS, Capability.ACCESS_TENANT_SETTINGS));
+
+      InjectorCreateInput input =
+          createDefaultInjectorCreateInput(
+              "tenant-x-injector-visible",
+              "Tenant X Injector Visible",
+              "tenant_x_visible_type",
+              "tenant-x-visible-contract");
+
+      mvc.perform(
+              multipart("/api/tenants/" + tenantX.getId() + "/injectors")
+                  .file(buildInputPart(input))
+                  .file(buildEmptyIconPart())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      em.flush();
+      em.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/" + tenantX.getId() + "/injectors")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      List<String> injectorIds = JsonPath.read(response, "$[*].injector_id");
+      assertThat(injectorIds).contains(input.getId());
     }
   }
 

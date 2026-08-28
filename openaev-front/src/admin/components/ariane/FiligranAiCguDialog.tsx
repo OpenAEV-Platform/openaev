@@ -67,12 +67,15 @@ const FiligranAiCguDialog: React.FC<FiligranAiCguDialogProps> = ({ open, onClose
       </DialogContent>
       <DialogActions>
         <Button
+          variant="outlined"
+          color="primary"
           onClick={() => handleSubmit('disabled')}
         >
           {t('Decline')}
         </Button>
         <Button
-          color="secondary"
+          variant="contained"
+          color="primary"
           onClick={() => handleSubmit('enabled')}
           disabled={!isChecked || !canManage}
         >

@@ -1,8 +1,8 @@
+import { RichTextEditor } from '@filigran/rich-text-editor';
 import { InputLabel } from '@mui/material';
 
 // eslint-disable-next-line import/no-cycle
 import TextFieldAskAI from '../../admin/components/common/form/TextFieldAskAI';
-import CKEditor from '../CKEditor';
 
 const SimpleRichTextField = (props) => {
   const {
@@ -29,14 +29,14 @@ const SimpleRichTextField = (props) => {
       >
         {label}
       </InputLabel>
-      <CKEditor
+      <RichTextEditor
+        variant="outlined"
         data={value}
         onChange={(_, editor) => {
           onChange(editor.getData());
         }}
         onBlur={onBlur}
         disabled={disabled}
-        toolbarDropdownSize="386px" // set a size for the ckeditor items toolbar to avoid it to be cut off when overflowing
       />
       {askAi && (
         <TextFieldAskAI

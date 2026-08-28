@@ -4,8 +4,12 @@ import static io.openaev.executors.ExecutorHelper.UNIX_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.ExecutorHelper.WINDOWS_CLEAN_PAYLOADS_COMMAND;
 import static io.openaev.executors.utils.ExecutorUtils.getAgentsFromOS;
 
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Executor;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
 import io.openaev.service.AgentService;
@@ -21,29 +25,51 @@ public class CrowdStrikeGarbageCollectorService implements Runnable {
   private final CrowdStrikeExecutorConfig config;
   private final CrowdStrikeExecutorContextService crowdStrikeExecutorContextService;
   private final AgentService agentService;
-  private final String executorId;
+  private final Executor executor;
+  private final TenantScopedTransaction tenantTx;
 
   public CrowdStrikeGarbageCollectorService(
       CrowdStrikeExecutorConfig config,
       CrowdStrikeExecutorContextService crowdStrikeExecutorContextService,
       AgentService agentService,
-      String executorId) {
+      Executor executor,
+      TenantScopedTransaction tenantTx) {
     this.config = config;
     this.crowdStrikeExecutorContextService = crowdStrikeExecutorContextService;
     this.agentService = agentService;
-    this.executorId = executorId;
+    this.executor = executor;
+    this.tenantTx = tenantTx;
   }
 
   @Override
   public void run() {
-    List<Agent> agents = this.agentService.getAgentsByExecutorId(executorId);
+    try {
+      tenantTx.execute(
+          TxCtx.forTenant(executor.getTenantId()),
+          () -> {
+            // Bridge for v1 tables (Tag, Asset, Agent, AssetGroup) still relying on
+            // TenantContext via HibernateFilterTransactionAspect: this Runnable executes on the
+            // shared scheduler thread pool outside any HTTP request, so TenantContext is never
+            // set here otherwise and falls back to the default tenant, silently scoping the v1
+            // Hibernate filter to the wrong tenant.
+            TenantContext.setCurrentTenant(executor.getTenantId());
+            doRun();
+            return null;
+          });
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  private void doRun() {
+    List<Agent> agents = this.agentService.getAgentsByExecutorId(executor.getId());
     if (!agents.isEmpty()) {
       List<CrowdStrikeAction> actions = new ArrayList<>();
       log.info("Running CrowdStrike executor garbage collector on " + agents.size() + " agents");
       List<Agent> windowsAgents = getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.Windows);
-      if (!windowsAgents.isEmpty()) {
+      for (Agent agent : windowsAgents) {
         CrowdStrikeAction action = new CrowdStrikeAction();
-        action.setAgents(windowsAgents);
+        action.setAgentExternalReference(agent.getExternalReference());
         action.setScriptName(this.config.getWindowsScriptName());
         action.setCommandEncoded(
             Base64.getEncoder()
@@ -54,9 +80,9 @@ public class CrowdStrikeGarbageCollectorService implements Runnable {
       List<Agent> unixAgents = new ArrayList<>();
       unixAgents.addAll(getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.Linux));
       unixAgents.addAll(getAgentsFromOS(agents, Endpoint.PLATFORM_TYPE.MacOS));
-      if (!unixAgents.isEmpty()) {
+      for (Agent agent : unixAgents) {
         CrowdStrikeAction action = new CrowdStrikeAction();
-        action.setAgents(unixAgents);
+        action.setAgentExternalReference(agent.getExternalReference());
         action.setScriptName(this.config.getUnixScriptName());
         action.setCommandEncoded(
             Base64.getEncoder()

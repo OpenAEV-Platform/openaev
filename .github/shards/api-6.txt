@@ -1,0 +1,14 @@
+io/openaev/api/detection_remediation/**/*Test.java
+io/openaev/architecture/**/*Test.java
+io/openaev/injector_contract/**/*Test.java
+io/openaev/logging/**/*Test.java
+io/openaev/opencti/**/*Test.java
+io/openaev/rest/custom_dashboard/**/*Test.java
+io/openaev/rest/exercise/**/*Test.java
+io/openaev/rest/group/**/*Test.java
+io/openaev/rest/inject_expectation/**/*Test.java
+io/openaev/rest/injector_contract/**/*Test.java
+io/openaev/rest/payload/**/*Test.java
+io/openaev/service/utils/**/*Test.java
+io/openaev/sso/**/*Test.java
+io/openaev/validator/**/*Test.java

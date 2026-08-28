@@ -6,8 +6,9 @@ import static io.openaev.utils.ExpectationUtils.HUMAN_EXPECTATION;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
 
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Collector;
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.TechnicalInjectExpectation;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
@@ -20,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,45 +35,40 @@ public class ExpectationsExpirationManagerService {
 
   public static final String EXPIRED = "Expired";
 
+  private static final int BATCH_SIZE = 1000;
+
   @Transactional(rollbackFor = Exception.class)
-  public void computeExpectations() {
+  public void computeExpectations(String tenantId) {
     Collector collector = this.collectorService.collector(config.getId());
-    // Get all the expectations we will update (max of 10k)
-    Page<InjectExpectation> expectations = this.injectExpectationService.expectationsNotFill();
-    // We're making a loop on 10 calls max to avoid staying in an infinite loop
-    for (int i = 1; i < 10 && expectations.getTotalElements() > 0; i++) {
-      List<InjectExpectation> updated = new ArrayList<>();
-      this.processAgentExpectations(expectations.toList(), collector);
-      this.processRemainingExpectations(expectations.toList(), collector, updated);
-
-      // Updating all the expectations following the process
-      this.injectExpectationService.updateAll(updated);
-
-      // Get the next expectations that need to be processed (still max of 10k)
-      expectations = this.injectExpectationService.expectationsNotFill();
+    List<BaseInjectExpectation> expectations =
+        this.injectExpectationService.expectationsNotFillAndExpired(tenantId, BATCH_SIZE);
+    log.debug(
+        "Found {} pending expired expectations for tenant {} (expirationTime={}s, assetExpirationTime={}s)",
+        expectations.size(),
+        tenantId,
+        config.getExpirationTime(),
+        config.getExpirationTimeForAsset());
+    List<BaseInjectExpectation> updated = new ArrayList<>();
+    this.processAgentExpectations(expectations, collector);
+    this.processRemainingExpectations(expectations, collector, updated);
+    this.injectExpectationService.updateAll(updated);
+    if (!expectations.isEmpty()) {
+      log.debug("Expired {} expectations for tenant {}", expectations.size(), tenantId);
     }
   }
 
   // -- PRIVATE --
   private void processAgentExpectations(
-      @NotNull final List<InjectExpectation> expectations, @NotNull final Collector collector) {
-    List<InjectExpectation> expiredExpectations = new ArrayList<>();
+      @NotNull final List<BaseInjectExpectation> expectations, @NotNull final Collector collector) {
+    List<TechnicalInjectExpectation> expiredExpectations = new ArrayList<>();
     Map<String, InjectExpectationUpdateInput> inputsById = new LinkedHashMap<>();
-    for (InjectExpectation expectation : expectations) {
-      if (!ExpectationUtils.isAgentExpectation(expectation) || !isExpired(expectation)) {
+    for (BaseInjectExpectation expectation : expectations) {
+      if (!(expectation instanceof TechnicalInjectExpectation technicalExpectation)
+          || !ExpectationUtils.isAgentExpectation(technicalExpectation)) {
         continue;
       }
-      InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
-      if (ExpectationType.VULNERABILITY.toString().equals(expectation.getType().toString())) {
-        input.setIsSuccess(true);
-        input.setResult(computeSuccessMessage(expectation.getType()));
-        expireEmptyResults(expectation.getResults(), expectation.getExpectedScore(), EXPIRED);
-      } else {
-        input.setIsSuccess(false);
-        input.setResult(computeFailedMessage(expectation.getType()));
-        expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
-      }
-      expiredExpectations.add(expectation);
+      InjectExpectationUpdateInput input = buildExpirationInput(expectation);
+      expiredExpectations.add(technicalExpectation);
       inputsById.put(expectation.getId(), input);
     }
     // Batched: one save for all agent expirations plus one propagation per distinct parent,
@@ -83,28 +78,82 @@ public class ExpectationsExpirationManagerService {
   }
 
   private void processRemainingExpectations(
-      @NotNull final List<InjectExpectation> expectations,
+      @NotNull final List<BaseInjectExpectation> expectations,
       @NotNull final Collector collector,
-      @NotNull final List<InjectExpectation> updated) {
-    List<InjectExpectation> remainingExpectations =
+      @NotNull final List<BaseInjectExpectation> updated) {
+    List<BaseInjectExpectation> remainingExpectations =
         expectations.stream().filter(exp -> exp.getScore() == null).toList();
-    remainingExpectations.forEach(
+
+    // PARENT technical expectations (asset level with agent children, asset group level) must
+    // ALWAYS be derived from their children, never force-failed with a direct "Expired" result:
+    // when a security platform already answered the agents (e.g. Microsoft Defender green
+    // PREVENTED/DETECTED) but the parent score is still null at expiration time, force-failing the
+    // parent permanently cements a wrong "Not prevented"/"Not detected" verdict on the asset while
+    // its agents show green, corrupting every statistic built on the parent rows. Recompute them
+    // from children instead; asset parents first so asset group parents read fresh asset scores.
+    List<TechnicalInjectExpectation> assetParents = new ArrayList<>();
+    List<TechnicalInjectExpectation> assetGroupParents = new ArrayList<>();
+    List<BaseInjectExpectation> directlyAnswerable = new ArrayList<>();
+    for (BaseInjectExpectation expectation : remainingExpectations) {
+      if (expectation instanceof TechnicalInjectExpectation technicalExpectation
+          && injectExpectationService.isParentTechnicalExpectation(technicalExpectation)) {
+        if (ExpectationUtils.isAssetGroupExpectation(technicalExpectation)) {
+          assetGroupParents.add(technicalExpectation);
+        } else {
+          assetParents.add(technicalExpectation);
+        }
+      } else {
+        directlyAnswerable.add(expectation);
+      }
+    }
+    // Genuine leaves (human expectations, agentless assets / AI targets) are answered directly
+    // with the type's default verdict (failed, except VULNERABILITY where silence means "Not
+    // vulnerable"). Processed FIRST so parent recomputation below reads the final leaf scores
+    // (an asset group may aggregate agentless asset leaves).
+    directlyAnswerable.forEach(
         expectation -> {
-          if (isExpired(expectation)) {
-            InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
-            input.setIsSuccess(false);
-            input.setResult(computeFailedMessage(expectation.getType()));
-            expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
-            if (HUMAN_EXPECTATION.contains(expectation.getType())) {
-              updated.add(
-                  injectExpectationService.computeInjectExpectationForHumanResponse(
-                      expectation, input, collector));
-            } else {
-              updated.add(
-                  injectExpectationService.computeInjectExpectationForAgentOrAssetAgentless(
-                      expectation, input, collector));
-            }
+          InjectExpectationUpdateInput input = buildExpirationInput(expectation);
+          if (HUMAN_EXPECTATION.contains(expectation.getType())) {
+            updated.add(
+                injectExpectationService.computeInjectExpectationForHumanResponse(
+                    expectation, input, collector));
+          } else if (expectation instanceof TechnicalInjectExpectation technicalExpectation) {
+            updated.add(
+                injectExpectationService.computeInjectExpectationForAgentOrAssetAgentless(
+                    technicalExpectation, input, collector));
           }
         });
+
+    assetParents.forEach(
+        parent ->
+            updated.addAll(injectExpectationService.recomputeParentTechnicalExpectation(parent)));
+    assetGroupParents.forEach(
+        parent ->
+            updated.addAll(injectExpectationService.recomputeParentTechnicalExpectation(parent)));
+  }
+
+  /**
+   * Builds the expiration verdict for an unanswered expectation, honoring the type's signal
+   * polarity: silence means FAILURE for detection/prevention/human expectations (nothing was
+   * prevented, detected or validated within the window), but SUCCESS for VULNERABILITY (no scanner
+   * reported a finding, so the target defaults to "Not vulnerable"). Empty per-source result rows
+   * are expired with the matching score.
+   *
+   * @param expectation the expired, unanswered expectation
+   * @return the update input carrying the expiration verdict
+   */
+  private InjectExpectationUpdateInput buildExpirationInput(
+      @NotNull final BaseInjectExpectation expectation) {
+    InjectExpectationUpdateInput input = new InjectExpectationUpdateInput();
+    if (ExpectationType.VULNERABILITY.toString().equals(expectation.getType().toString())) {
+      input.setIsSuccess(true);
+      input.setResult(computeSuccessMessage(expectation.getType()));
+      expireEmptyResults(expectation.getResults(), expectation.getExpectedScore(), EXPIRED);
+    } else {
+      input.setIsSuccess(false);
+      input.setResult(computeFailedMessage(expectation.getType()));
+      expireEmptyResults(expectation.getResults(), FAILED_SCORE_VALUE, EXPIRED);
+    }
+    return input;
   }
 }

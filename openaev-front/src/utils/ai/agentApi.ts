@@ -42,12 +42,16 @@ export const fetchAgentsForIntent = async (intent: string): Promise<AgentOption[
  * CSRF is bootstrapped through the shared `ensureCsrf` helper from `network.ts`.
  *
  * @param signal - optional AbortSignal to cancel the stream
+ * @param intent - optional feature intent, forwarded for telemetry only: the backend maps known
+ *   feature intents to the same backend-agnostic per-feature usage counter as the legacy AI
+ *   endpoints. It never influences routing.
  */
 export const callAgentStream = async (
   agentSlug: string,
   content: string,
   onChunk: (partialContent: string) => void,
   signal?: AbortSignal,
+  intent?: string,
 ): Promise<AgentResponse> => {
   // Bootstrap the XSRF-TOKEN cookie if missing — reuses the shared network.ts helper so that
   // cookie name, decoding and bootstrap behaviour stay in sync with axios callers.
@@ -64,6 +68,7 @@ export const callAgentStream = async (
     body: JSON.stringify({
       agent_slug: agentSlug,
       content,
+      ...(intent ? { intent } : {}),
     }),
     signal,
   });

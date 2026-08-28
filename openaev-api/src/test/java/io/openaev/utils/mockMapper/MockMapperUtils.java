@@ -4,6 +4,7 @@ import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.InjectImporter;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.RuleAttribute;
+import io.openaev.database.model.Tenant;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Map;
@@ -18,6 +19,7 @@ public class MockMapperUtils {
     importMapper.setUpdateDate(Instant.now());
     importMapper.setCreationDate(Instant.now());
     importMapper.setInjectTypeColumn("A");
+    importMapper.setTenant(new Tenant(UUID.randomUUID().toString()));
     importMapper.setInjectImporters(new ArrayList<>());
 
     importMapper.getInjectImporters().add(createInjectImporter());

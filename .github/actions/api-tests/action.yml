@@ -2,99 +2,68 @@ name: API Tests
 description: >
   Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, MinIO),
   download pre-compiled artifacts, and run API tests for a single shard.
-  Requires job-level env vars: EXPLICITLY_SHARDED_TESTS,
+  Requires job-level env vars:
   SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME,
   SPRING_DATASOURCE_PASSWORD, MINIO_ENDPOINT, MINIO_PORT, ENGINE_URL,
   OPENBAS_RABBITMQ_HOSTNAME, GH_TOKEN.
 
 inputs:
   includes:
-    description: 'Surefire test include patterns (multi-line) or "catchall"'
+    description: >
+      "shardfile" to read .github/shards/api-<shard>.txt, "catchall" to run
+      everything no shard file claims, or literal multi-line Surefire patterns.
     required: true
   excludes:
     description: "Surefire test exclude patterns (multi-line, optional)"
     required: false
     default: ""
   shard:
-    description: Shard number (used for artifact naming)
+    description: Shard number (selects the shard file and names artifacts)
     required: true
   shard-name:
     description: Shard display name
     required: true
+  search-engine:
+    description: "Search engine type: elasticsearch or opensearch"
+    required: false
+    default: "elasticsearch"
+  search-engine-image:
+    description: "Docker image for the search engine (default from openaev-dev/docker-compose.yml)"
+    required: false
+    default: ""
+  artifact-suffix:
+    description: "Suffix appended to artifact names to avoid conflicts (e.g. '-opensearch')"
+    required: false
+    default: ""
 
 runs:
   using: composite
   steps:
-    - name: Start all services (non-blocking)
-      shell: bash
-      run: |
-        docker run -d --name pgsql \
-          -p 5432:5432 \
-          -e POSTGRES_USER=openaev \
-          -e POSTGRES_PASSWORD=openaev \
-          -e POSTGRES_DB=openaev \
-          postgres:17-alpine \
-          -c max_connections=1000
-        docker run -d --name elasticsearch \
-          -p 9200:9200 \
-          -e discovery.type=single-node \
-          -e xpack.security.enabled=false \
-          -e "ES_JAVA_OPTS=-Xms2g -Xmx2g" \
-          docker.elastic.co/elasticsearch/elasticsearch:8.18.3
-        docker run -d --name rabbitmq \
-          -p 5672:5672 \
-          -p 15672:15672 \
-          -e RABBITMQ_DEFAULT_USER=guest \
-          -e RABBITMQ_DEFAULT_PASS=guest \
-          rabbitmq:4.1-management
-        docker run -d --name minio \
-          -p 11000:9000 \
-          -e MINIO_ROOT_USER=minioadmin \
-          -e MINIO_ROOT_PASSWORD=minioadmin \
-          minio/minio:RELEASE.2025-06-13T11-33-47Z server /data
-
-        echo "🔍 Verifying containers started..."
-        for name in pgsql elasticsearch rabbitmq minio; do
-          if ! docker inspect --format='{{.State.Running}}' "$name" 2>/dev/null | grep -q true; then
-            echo "❌ Container '$name' failed to start"
-            docker logs "$name" 2>/dev/null || true
-            exit 1
-          fi
-        done
-        echo "✅ All containers started"
+    - name: Start service containers
+      uses: ./.github/actions/start-dev-services
+      with:
+        search-engine: ${{ inputs.search-engine }}
+        search-engine-image: ${{ inputs.search-engine-image }}
 
     - name: Set up Java 21
-      uses: actions/setup-java@v5
+      uses: actions/setup-java@v6
       with:
         java-version: "21"
         distribution: temurin
         cache: maven
 
     - name: Wait for compiled artifacts
+      uses: ./.github/actions/wait-for-artifacts
+      with:
+        artifact-names: |
+          backend-compiled
+          api-build-output
+        producer-job-names: Backend Compile
+        wait-seconds: "600"
+
+    - name: Clear cached OpenAEV artifacts
       shell: bash
       run: |
-        echo "⏳ Waiting for backend-compile artifacts (services booting in parallel)..."
-        for i in $(seq 1 120); do
-          # Check if backend-compile has failed — abort immediately
-          COMPILE_CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs" \
-            --jq '[.jobs[] | select(.name | test("Backend Compile")) | .conclusion] | first' 2>/dev/null || echo "")
-          if [ "$COMPILE_CONCLUSION" = "failure" ] || [ "$COMPILE_CONCLUSION" = "cancelled" ]; then
-            echo "❌ Backend Compile job $COMPILE_CONCLUSION — aborting"
-            exit 1
-          fi
-          NAMES=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
-            --jq '[.artifacts[].name]' 2>/dev/null || echo "[]")
-          if echo "$NAMES" | grep -q '"api-build-output"'; then
-            echo "✅ Artifacts available (after ~$((i * 5))s)"
-            break
-          fi
-          if [ "$i" -eq 120 ]; then
-            echo "❌ Timed out waiting for artifacts (10 min)"
-            exit 1
-          fi
-          echo "  Attempt $i/120 — not ready, retrying in 5s..."
-          sleep 5
-        done
         # Remove any cached openaev artifacts to prevent "file exists"
         # errors when extracting the freshly compiled artifact.
         rm -rf ~/.m2/repository/io/openaev/
@@ -172,12 +141,12 @@ runs:
         done
         docker exec pgsql pg_isready -U openaev || { echo "❌ PostgreSQL failed to start"; exit 1; }
 
-        echo "⏳ Waiting for Elasticsearch..."
+        echo "⏳ Waiting for ${{ inputs.search-engine }}..."
         for i in $(seq 1 30); do
           curl -sf http://localhost:9200/_cluster/health && break
           sleep 2
         done
-        curl -sf http://localhost:9200/_cluster/health || { echo "❌ Elasticsearch failed to start"; exit 1; }
+        curl -sf http://localhost:9200/_cluster/health || { echo "❌ ${{ inputs.search-engine }} failed to start"; exit 1; }
 
         echo "⏳ Waiting for RabbitMQ..."
         for i in $(seq 1 30); do
@@ -201,12 +170,29 @@ runs:
       env:
         SHARD_INCLUDES: ${{ inputs.includes }}
         SHARD_EXCLUDES: ${{ inputs.excludes }}
+        SHARD: ${{ inputs.shard }}
       run: |
+        set -euo pipefail
+        SHARD_DIR=.github/shards
+
         if [ "$SHARD_INCLUDES" = "catchall" ]; then
-          echo "$EXPLICITLY_SHARDED_TESTS" > /tmp/surefire-excludes.txt
+          # Excludes are derived from the shard files, so they can never drift
+          # out of sync and silently drop a package from the run.
+          cat "$SHARD_DIR"/api-*.txt > /tmp/surefire-excludes.txt
           echo "surefire_arg=-Dsurefire.excludesFile=/tmp/surefire-excludes.txt" >> "$GITHUB_OUTPUT"
-          echo "🔄 Catch-all shard: running all tests NOT assigned to shards 1–3"
+          echo "🔄 Catch-all shard: everything not claimed by $SHARD_DIR/api-*.txt"
           cat /tmp/surefire-excludes.txt
+        elif [ "$SHARD_INCLUDES" = "shardfile" ]; then
+          SHARD_FILE="$SHARD_DIR/api-${SHARD}.txt"
+          if [ ! -f "$SHARD_FILE" ]; then
+            echo "❌ Shard file not found: $SHARD_FILE"
+            ls -la "$SHARD_DIR" 2>/dev/null || echo "  $SHARD_DIR does not exist"
+            exit 1
+          fi
+          cp "$SHARD_FILE" /tmp/surefire-includes.txt
+          echo "surefire_arg=-Dsurefire.includesFile=/tmp/surefire-includes.txt" >> "$GITHUB_OUTPUT"
+          echo "📋 Shard $SHARD include patterns (from $SHARD_FILE):"
+          cat /tmp/surefire-includes.txt
         else
           echo "$SHARD_INCLUDES" > /tmp/surefire-includes.txt
           ARGS="-Dsurefire.includesFile=/tmp/surefire-includes.txt"
@@ -257,6 +243,6 @@ runs:
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7
       with:
-        name: jacoco-exec-shard-${{ inputs.shard }}
+        name: jacoco-exec-shard-${{ inputs.shard }}${{ inputs.artifact-suffix }}
         path: openaev-api/target/jacoco.exec
         if-no-files-found: error

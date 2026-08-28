@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -46,7 +47,11 @@ public class HealthCheckApi extends RestBehavior {
   @Operation(
       summary = "Run an healthcheck ",
       description = "Tries to connect to dependencies (DB/Minio/RabbitMQ)")
-  @Transactional
+  // NOT_SUPPORTED: this endpoint performs external network I/O (RabbitMQ, MinIO). Opening a
+  // transaction here pins a Hikari connection for the whole request, which exhausts the pool
+  // when a dependency is slow (frequent LB probes x 30s+ waits). The DB check runs in its own
+  // short-lived repository transaction instead.
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Service is healthy"),

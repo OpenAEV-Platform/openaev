@@ -1,8 +1,6 @@
-import { BarChartOutlined, ReorderOutlined, ViewTimelineOutlined } from '@mui/icons-material';
-import { GridLegacy, Paper, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { type FunctionComponent, useMemo, useState } from 'react';
+import { Box, GridLegacy } from '@mui/material';
+import { type FunctionComponent, useContext, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { fetchExerciseChallenges } from '../../../../../actions/challenge-action';
 import { type ArticlesHelper } from '../../../../../actions/channels/article-helper';
@@ -14,6 +12,8 @@ import { testInject } from '../../../../../actions/inject_test/simulation-inject
 import { type TeamsHelper } from '../../../../../actions/teams/team-helper';
 import { fetchVariablesForExercise } from '../../../../../actions/variables/variable-actions';
 import { type VariablesHelper } from '../../../../../actions/variables/variable-helper';
+import ButtonCreate from '../../../../../components/common/ButtonCreate';
+import { SectionBlock } from '../../../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type Exercise } from '../../../../../utils/api-types';
@@ -26,12 +26,14 @@ import {
   ChallengeContext,
   InjectTestContext,
   type InjectTestContextType,
+  PermissionsContext,
   TeamContext,
   ViewModeContext,
 } from '../../../common/Context';
 import InjectDistributionByTeam from '../../../common/injects/InjectDistributionByTeam';
 import InjectDistributionByType from '../../../common/injects/InjectDistributionByType';
 import Injects from '../../../common/injects/Injects';
+import InjectsListButtons from '../../../common/injects/InjectsListButtons';
 import articleContextForExercise from '../articles/articleContextForExercise';
 import ExerciseDistributionScoreByTeamInPercentage from '../overview/ExerciseDistributionScoreByTeamInPercentage';
 import ExerciseDistributionScoreOverTimeByInjectorContract from '../overview/ExerciseDistributionScoreOverTimeByInjectorContract';
@@ -39,19 +41,9 @@ import ExerciseDistributionScoreOverTimeByTeam from '../overview/ExerciseDistrib
 import ExerciseDistributionScoreOverTimeByTeamInPercentage from '../overview/ExerciseDistributionScoreOverTimeByTeamInPercentage';
 import teamContextForExercise from '../teams/teamContextForExercise';
 
-const useStyles = makeStyles()(() => ({
-  paperChart: {
-    position: 'relative',
-    padding: '0 20px 0 0',
-    overflow: 'hidden',
-    height: '100%',
-  },
-}));
-
 const ExerciseInjects: FunctionComponent = () => {
   // Standard hooks
   const { t } = useFormatter();
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const availableButtons = ['chain', 'list', 'distribution'];
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
@@ -65,6 +57,8 @@ const ExerciseInjects: FunctionComponent = () => {
     localStorage.setItem('scenario_or_exercise_view_mode', mode);
     setViewMode(mode);
   };
+
+  const { permissions } = useContext(PermissionsContext);
 
   const { exercise, teams, articles, variables } = useHelper(
     (helper: ExercisesHelper & ArticlesHelper & ChallengeHelper & VariablesHelper & TeamsHelper) => {
@@ -108,7 +102,7 @@ const ExerciseInjects: FunctionComponent = () => {
                     teams={teams}
                     articles={articles}
                     variables={variables}
-                    uriVariable={`/admin/simulations/${exerciseId}/definition`}
+                    uriVariable={`/admin/simulations/${exerciseId}/injects`}
                   />
                 </InjectTestContext.Provider>
               </ChallengeContext.Provider>
@@ -117,44 +111,34 @@ const ExerciseInjects: FunctionComponent = () => {
         </ArticleContext.Provider>
       )}
       {viewMode === 'distribution' && (
-        <div style={{ marginTop: -12 }}>
-          <ToggleButtonGroup
-            size="small"
-            exclusive={true}
-            style={{ float: 'right' }}
-            aria-label="Change view mode"
+        <div>
+          {/* Mirror the exact top-right button group of the list/chain views
+              (switcher + Create) so switching modes never moves the buttons
+              around. Creation needs the list context, so the button stays
+              visible but disabled here. The wrapper reproduces the metrics of
+              PaginationComponentV2's top bar (-10px pull-up and the 52px row
+              height set by the pagination control) so the buttons sit at the
+              exact same pixel position in every mode. */}
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              marginTop: '-10px',
+              minHeight: 52,
+              marginBottom: 1,
+            }}
           >
-            <Tooltip title={t('List view')}>
-              <ToggleButton
-                value="list"
-                onClick={() => handleViewMode('list')}
-                selected={false}
-                aria-label="List view mode"
-              >
-                <ReorderOutlined fontSize="small" color="primary" />
-              </ToggleButton>
-            </Tooltip>
-            <Tooltip title={t('Interactive view')}>
-              <ToggleButton
-                value="chain"
-                onClick={() => handleViewMode('chain')}
-                selected={false}
-                aria-label="Interactive view mode"
-              >
-                <ViewTimelineOutlined fontSize="small" color="primary" />
-              </ToggleButton>
-            </Tooltip>
-            <Tooltip title={t('Distribution view')}>
-              <ToggleButton
-                value="distribution"
-                onClick={() => handleViewMode('distribution')}
-                selected={true}
-                aria-label="Distribution view mode"
-              >
-                <BarChartOutlined fontSize="small" color="inherit" />
-              </ToggleButton>
-            </Tooltip>
-          </ToggleButtonGroup>
+            <Box display="flex" gap={1} alignItems="center">
+              <InjectsListButtons
+                availableButtons={availableButtons}
+                setViewMode={handleViewMode}
+              />
+              {permissions.canManage && (
+                <ButtonCreate disabled onClick={() => {}} />
+              )}
+            </Box>
+          </Box>
           <GridLegacy container spacing={3}>
             <GridLegacy container item spacing={3}>
               <GridLegacy
@@ -165,12 +149,9 @@ const ExerciseInjects: FunctionComponent = () => {
                   flexDirection: 'column',
                 }}
               >
-                <Typography variant="h4">
-                  {t('Distribution of injects by type')}
-                </Typography>
-                <Paper variant="outlined" classes={{ root: classes.paperChart }}>
+                <SectionBlock title={t('Distribution of injects by type')}>
                   <InjectDistributionByType exerciseId={exerciseId} />
-                </Paper>
+                </SectionBlock>
               </GridLegacy>
               <GridLegacy
                 item
@@ -180,12 +161,9 @@ const ExerciseInjects: FunctionComponent = () => {
                   flexDirection: 'column',
                 }}
               >
-                <Typography variant="h4">
-                  {t('Distribution of injects by team')}
-                </Typography>
-                <Paper variant="outlined" classes={{ root: classes.paperChart }}>
+                <SectionBlock title={t('Distribution of injects by team')}>
                   <InjectDistributionByTeam exerciseId={exerciseId} />
-                </Paper>
+                </SectionBlock>
               </GridLegacy>
               <GridLegacy
                 item
@@ -195,14 +173,9 @@ const ExerciseInjects: FunctionComponent = () => {
                   flexDirection: 'column',
                 }}
               >
-                <Typography variant="h4">
-                  {t('Distribution of expectations by inject type')}
-                  {' '}
-                  (%)
-                </Typography>
-                <Paper variant="outlined" classes={{ root: classes.paperChart }}>
+                <SectionBlock title={`${t('Distribution of expectations by inject type')} (%)`}>
                   <ExerciseDistributionScoreByTeamInPercentage exerciseId={exerciseId} />
-                </Paper>
+                </SectionBlock>
               </GridLegacy>
               <GridLegacy
                 item
@@ -212,12 +185,9 @@ const ExerciseInjects: FunctionComponent = () => {
                   flexDirection: 'column',
                 }}
               >
-                <Typography variant="h4">
-                  {t('Distribution of expected total score by inject type')}
-                </Typography>
-                <Paper variant="outlined" classes={{ root: classes.paperChart }}>
+                <SectionBlock title={t('Distribution of expected total score by inject type')}>
                   <ExerciseDistributionScoreOverTimeByInjectorContract exerciseId={exerciseId} />
-                </Paper>
+                </SectionBlock>
               </GridLegacy>
               <GridLegacy
                 item
@@ -227,12 +197,9 @@ const ExerciseInjects: FunctionComponent = () => {
                   flexDirection: 'column',
                 }}
               >
-                <Typography variant="h4">
-                  {t('Distribution of expectations by team')}
-                </Typography>
-                <Paper variant="outlined" classes={{ root: classes.paperChart }}>
+                <SectionBlock title={t('Distribution of expectations by team')}>
                   <ExerciseDistributionScoreOverTimeByTeam exerciseId={exerciseId} />
-                </Paper>
+                </SectionBlock>
               </GridLegacy>
               <GridLegacy
                 item
@@ -242,12 +209,9 @@ const ExerciseInjects: FunctionComponent = () => {
                   flexDirection: 'column',
                 }}
               >
-                <Typography variant="h4">
-                  {t('Distribution of expected total score by team')}
-                </Typography>
-                <Paper variant="outlined" classes={{ root: classes.paperChart }}>
+                <SectionBlock title={t('Distribution of expected total score by team')}>
                   <ExerciseDistributionScoreOverTimeByTeamInPercentage exerciseId={exerciseId} />
-                </Paper>
+                </SectionBlock>
               </GridLegacy>
             </GridLegacy>
           </GridLegacy>

@@ -1,14 +1,23 @@
 package io.openaev.injects.Expectation;
 
-import static io.openaev.database.model.InjectExpectationSignature.*;
+import static io.openaev.utils.ExpectationSignatureUtils.*;
 import static io.openaev.utils.ExpectationUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.*;
-import io.openaev.model.expectation.DetectionExpectation;
-import io.openaev.model.expectation.PreventionExpectation;
+import io.openaev.database.model.Agent;
+import io.openaev.database.model.Asset;
+import io.openaev.database.model.AssetCategory;
+import io.openaev.database.model.Endpoint;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.Injector;
+import io.openaev.database.model.InjectorContract;
+import io.openaev.expectation.DetectionExpectation;
+import io.openaev.expectation.ExpectationSignature;
+import io.openaev.expectation.PreventionExpectation;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.utils.fixtures.*;
 import java.util.*;
@@ -26,6 +35,9 @@ class ExpectationUtilsTest extends IntegrationTest {
     // -- PREPARE --
     Endpoint endpoint = EndpointFixture.createEndpoint();
     InjectorContract injectorContract = InjectorContractFixture.createDefaultInjectorContract();
+    // An OAEV implant runs through the agent, so its contract needs an executor: this is what makes
+    // getPreventionExpectationsByAsset / getDetectionExpectationsByAsset build the per-agent rows.
+    injectorContract.setNeedsExecutor(true);
     Inject inject = InjectFixture.createTechnicalInject(injectorContract, "Inject", endpoint);
     inject.setId("injectId");
 
@@ -43,7 +55,7 @@ class ExpectationUtilsTest extends IntegrationTest {
             List.of(agent),
             ExpectationFixture.createExpectation(),
             new HashMap<>(),
-            inject.getId());
+            inject);
 
     List<DetectionExpectation> detectionExpectations =
         getDetectionExpectationsByAsset(
@@ -52,14 +64,12 @@ class ExpectationUtilsTest extends IntegrationTest {
             List.of(agent),
             ExpectationFixture.createExpectation(),
             new HashMap<>(),
-            inject.getId());
+            inject);
 
     // -- ASSERT --
-    InjectExpectationSignature signature =
-        InjectExpectationSignature.builder()
-            .type(EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME)
-            .value("oaev-implant-injectId-agent-agentId")
-            .build();
+    ExpectationSignature signature =
+        new ExpectationSignature(
+            EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME, "oaev-implant-injectId-agent-agentId");
 
     assertEquals(2, preventionExpectations.size());
     assertEquals(2, detectionExpectations.size());
@@ -71,7 +81,7 @@ class ExpectationUtilsTest extends IntegrationTest {
         signature,
         preventionExpectations.stream()
             .filter(expectation -> expectation.getAgent() != null)
-            .flatMap(prev -> prev.getInjectExpectationSignatures().stream())
+            .flatMap(prev -> prev.getExpectationSignatures().stream())
             .toList()
             .getFirst());
 
@@ -79,7 +89,7 @@ class ExpectationUtilsTest extends IntegrationTest {
         signature,
         detectionExpectations.stream()
             .filter(expectation -> expectation.getAgent() != null)
-            .flatMap(det -> det.getInjectExpectationSignatures().stream())
+            .flatMap(det -> det.getExpectationSignatures().stream())
             .toList()
             .getFirst());
   }
@@ -124,11 +134,10 @@ class ExpectationUtilsTest extends IntegrationTest {
             null);
 
     // -- ASSERT --
-    InjectExpectationSignature signature =
-        InjectExpectationSignature.builder()
-            .type(EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME)
-            .value("oaev-implant-caldera-injectId-agent-agentParentId")
-            .build();
+    ExpectationSignature signature =
+        new ExpectationSignature(
+            EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME,
+            "oaev-implant-caldera-injectId-agent-agentParentId");
 
     assertEquals(2, preventionExpectations.size());
     assertEquals(2, detectionExpectations.size());
@@ -140,7 +149,7 @@ class ExpectationUtilsTest extends IntegrationTest {
         signature,
         preventionExpectations.stream()
             .filter(expectation -> expectation.getAgent() != null)
-            .flatMap(prev -> prev.getInjectExpectationSignatures().stream())
+            .flatMap(prev -> prev.getExpectationSignatures().stream())
             .toList()
             .getFirst());
 
@@ -148,7 +157,7 @@ class ExpectationUtilsTest extends IntegrationTest {
         signature,
         detectionExpectations.stream()
             .filter(expectation -> expectation.getAgent() != null)
-            .flatMap(det -> det.getInjectExpectationSignatures().stream())
+            .flatMap(det -> det.getExpectationSignatures().stream())
             .toList()
             .getFirst());
   }
@@ -163,6 +172,10 @@ class ExpectationUtilsTest extends IntegrationTest {
     endpoint.setSeenIp(fakeSeenIPV6);
 
     InjectorContract injectorContract = InjectorContractFixture.createDefaultInjectorContract();
+    // An OAEV implant runs through the agent, so its contract needs an executor: this is what makes
+    // getPreventionExpectationsByAsset build the per-agent row carrying the signatures asserted
+    // here.
+    injectorContract.setNeedsExecutor(true);
     Inject inject = InjectFixture.createTechnicalInject(injectorContract, "Inject", endpoint);
     inject.setId("injectId");
 
@@ -190,7 +203,7 @@ class ExpectationUtilsTest extends IntegrationTest {
             List.of(agent),
             ExpectationFixture.createExpectation(),
             targetValues,
-            inject.getId());
+            inject);
 
     List<String> preventionSourceIpv4SignatureValues = new ArrayList<>();
     List<String> preventionSourceIpv6SignatureValues = new ArrayList<>();
@@ -202,7 +215,7 @@ class ExpectationUtilsTest extends IntegrationTest {
         .filter(expectation -> expectation.getAgent() != null)
         .toList()
         .getFirst()
-        .getInjectExpectationSignatures()
+        .getExpectationSignatures()
         .forEach(
             signature -> {
               switch (signature.getType()) {
@@ -232,5 +245,137 @@ class ExpectationUtilsTest extends IntegrationTest {
     assertEquals(1, preventionTargetHostnamesSignatureValues.size());
     assertEquals(targetHostname, preventionTargetHostnamesSignatureValues.getFirst());
     assertEquals(target2Ip, preventionTargetIpv4SignatureValues.getFirst());
+  }
+
+  private Inject injectWithInjector(Injector injector) {
+    Inject inject = new Inject();
+    inject.setInjector(injector);
+    return inject;
+  }
+
+  @Test
+  @DisplayName("Endpoint targeted by a payload injector needs no agentless expectation")
+  void given_endpointWithPayloadInjector_should_notNeedAgentlessExpectation() {
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    endpoint.setAgents(List.of());
+    Inject inject = injectWithInjector(InjectorFixture.createDefaultPayloadInjector());
+
+    assertFalse(isAgentlessAssetExpectationNecessary(endpoint, inject));
+  }
+
+  @Test
+  @DisplayName(
+      "Endpoint with no agent targeted by a non-payload injector needs an agentless expectation")
+  void given_endpointWithoutAgentAndNonPayloadInjector_should_needAgentlessExpectation() {
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    endpoint.setAgents(List.of());
+    Inject inject =
+        injectWithInjector(InjectorFixture.createInjector("injectorId", "manual", "manual"));
+
+    assertTrue(isAgentlessAssetExpectationNecessary(endpoint, inject));
+  }
+
+  @Test
+  @DisplayName("Endpoint carrying an agent needs no agentless expectation")
+  void given_endpointWithAgentAndNonPayloadInjector_should_notNeedAgentlessExpectation() {
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    Agent agent = AgentFixture.createAgent(endpoint, "ext");
+    agent.setId("agentId");
+    endpoint.setAgents(List.of(agent));
+    Inject inject =
+        injectWithInjector(InjectorFixture.createInjector("injectorId", "manual", "manual"));
+
+    assertFalse(isAgentlessAssetExpectationNecessary(endpoint, inject));
+  }
+
+  @Test
+  @DisplayName(
+      "Endpoint whose only agent is inactive still needs an agentless expectation for a non-payload"
+          + " injector")
+  void given_endpointWithOnlyInactiveAgentAndNonPayloadInjector_should_needAgentlessExpectation() {
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    // A network scanner (Nuclei, Nmap...) reaches the endpoint regardless of agent health: a dead
+    // agent must not swallow the asset-level expectation (the endpoint would otherwise get no
+    // expectation at all - no active agent children, no agentless parent).
+    Agent inactiveAgent = AgentFixture.createInactiveAgent();
+    inactiveAgent.setId("inactiveAgentId");
+    inactiveAgent.setAsset(endpoint);
+    endpoint.setAgents(List.of(inactiveAgent));
+    Inject inject =
+        injectWithInjector(InjectorFixture.createInjector("injectorId", "manual", "manual"));
+
+    assertTrue(isAgentlessAssetExpectationNecessary(endpoint, inject));
+  }
+
+  @Test
+  @DisplayName("AI target asset always needs an agentless expectation, even for a payload injector")
+  void given_aiTargetAssetWithPayloadInjector_should_needAgentlessExpectation() {
+    Asset aiTarget = new Asset();
+    aiTarget.setId("aiTargetId");
+    aiTarget.setName("LLM firewall target");
+    aiTarget.setCategory(AssetCategory.AI_TARGET);
+    // The ai-redteam injector is payload-based, yet an AI target carries no agent: the asset
+    // itself is the validation target, so it must still get an asset-level expectation.
+    Inject inject = injectWithInjector(InjectorFixture.createDefaultPayloadInjector());
+
+    assertTrue(isAgentlessAssetExpectationNecessary(aiTarget, inject));
+  }
+
+  @Test
+  @DisplayName("A null asset never needs an agentless expectation")
+  void given_nullAsset_should_notNeedAgentlessExpectation() {
+    Inject inject = injectWithInjector(InjectorFixture.createDefaultPayloadInjector());
+
+    assertFalse(isAgentlessAssetExpectationNecessary(null, inject));
+  }
+
+  @Test
+  @DisplayName(
+      "Network (non-agent) inject on an endpoint carrying an agent builds ONLY an asset-level"
+          + " detection/prevention expectation, never a per-agent one")
+  void
+      given_nonAgentInjectOnEndpointWithAgent_should_buildOnlyAssetLevelDetectionPreventionExpectation() {
+    // Regression for the chained-execution fan-out: a network scanner (Nmap, Netexec...) never
+    // runs on the OAEV agent, yet chaining pins it onto agent-bearing endpoints. Building a
+    // per-agent detection/prevention row per scoped endpoint let a single host + time-window
+    // security-platform alert be attributed to every endpoint (even endpoints with no EDR). The
+    // verdict must stay at the asset level - exactly what atomic testing and normal simulations do.
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    Agent agent = AgentFixture.createAgent(endpoint, "ext");
+    agent.setId("agentId");
+    endpoint.setAgents(List.of(agent));
+
+    // A non-payload injector => injectRunsThroughAgents(inject) == false.
+    Inject inject =
+        injectWithInjector(InjectorFixture.createInjector("injectorId", "manual", "manual"));
+    inject.setId("injectId");
+
+    AssetToExecute assetToExecute = new AssetToExecute(endpoint, true, List.of());
+
+    // Even though the buggy call site would pass the endpoint's active agents as "executed
+    // agents", the fix must ignore them for a non-agent inject.
+    List<PreventionExpectation> preventionExpectations =
+        getPreventionExpectationsByAsset(
+            OAEV_IMPLANT,
+            assetToExecute,
+            List.of(agent),
+            ExpectationFixture.createExpectation(),
+            new HashMap<>(),
+            inject);
+
+    List<DetectionExpectation> detectionExpectations =
+        getDetectionExpectationsByAsset(
+            OAEV_IMPLANT,
+            assetToExecute,
+            List.of(agent),
+            ExpectationFixture.createExpectation(),
+            new HashMap<>(),
+            inject);
+
+    assertEquals(1, preventionExpectations.size());
+    assertNull(preventionExpectations.getFirst().getAgent());
+
+    assertEquals(1, detectionExpectations.size());
+    assertNull(detectionExpectations.getFirst().getAgent());
   }
 }

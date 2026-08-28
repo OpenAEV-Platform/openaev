@@ -93,7 +93,37 @@ public class Exercise implements GrantableBase, TenantBase {
   @Column(name = "exercise_severity")
   @Enumerated(EnumType.STRING)
   @JsonProperty("exercise_severity")
+  // Filterable for parity with scenario_severity (enum values are exposed automatically)
+  @Queryable(filterable = true, sortable = true)
   private SEVERITY severity;
+
+  /**
+   * Kill chain (by name, e.g. "mitre-attack") displayed first in the overview's kill chain results.
+   * Null means automatic (ATT&CK first); blank input (the UI's "Automatic" option) is normalized to
+   * null on write. A user's own selection, remembered in local storage, still overrides this
+   * default.
+   */
+  @Getter
+  @Setter(NONE)
+  @Column(name = "exercise_default_kill_chain")
+  @JsonProperty("exercise_default_kill_chain")
+  private String defaultKillChain;
+
+  public void setDefaultKillChain(String defaultKillChain) {
+    // The UI sends "" for "Automatic": normalize so null is the only automatic marker in DB.
+    this.defaultKillChain =
+        (defaultKillChain == null || defaultKillChain.isBlank()) ? null : defaultKillChain;
+  }
+
+  /**
+   * Whether the expectation-drift warning was dismissed for this simulation (the drifted
+   * expectations were customized on purpose). Persisted in database so the dismissal is shared
+   * between users. Reset on realignment so a future drift surfaces the full warning again.
+   */
+  @Getter
+  @Column(name = "exercise_expectations_drift_dismissed")
+  @JsonProperty("exercise_expectations_drift_dismissed")
+  private boolean expectationsDriftDismissed;
 
   @Column(name = "exercise_pause_date")
   @JsonIgnore
@@ -172,6 +202,24 @@ public class Exercise implements GrantableBase, TenantBase {
   @JsonProperty("exercise_lessons_anonymized")
   private boolean lessonsAnonymized = false;
 
+  // Opt-in module flag: the lessons learned tab is only surfaced when enabled.
+  @Getter
+  @Column(name = "exercise_lessons_enabled")
+  @JsonProperty("exercise_lessons_enabled")
+  private boolean lessonsEnabled = false;
+
+  /**
+   * Durable marker that this simulation was created by an autonomous (orchestrator-driven) run. It
+   * survives the teardown of the {@code autonomous_runs} row (rebuild / relaunch supersede), so the
+   * simulations history and the simulation hero can keep telling Normal from Autonomous long after
+   * the run itself is gone.
+   */
+  @Getter
+  @Column(name = "exercise_autonomous")
+  @JsonProperty("exercise_autonomous")
+  @Queryable(filterable = true, sortable = true)
+  private boolean autonomous = false;
+
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
@@ -200,6 +248,16 @@ public class Exercise implements GrantableBase, TenantBase {
   }
 
   // STIX
+  // Intentionally EAGER, not the usual FetchType.LAZY default: SecurityCoverageSendJobService's
+  // shouldCreateCoverageSendJob() gates on `exercise.getSecurityCoverage() != null`. A lazy
+  // @ManyToOne builds its proxy purely from the FK column, with NO query and therefore no
+  // TenantStatementInspector involvement, so that null-check would silently bypass tenant scoping
+  // (a proxy for another tenant's row would come back non-null even with app.current_tenants
+  // empty). EAGER performs the read as a JOIN in the same query, which the inspector DOES rewrite,
+  // so the null-check stays scope-honest. See
+  // TenantActiveTableAccessArchTest#security_coverages_exercise_association_access_is_reviewed and
+  // SecurityCoverageTenantScopeTest#SendJobCreationGateRequiresScope (this is exactly what that
+  // test proves).
   @Getter
   @ManyToOne
   @JoinColumn(name = "exercise_security_coverage")

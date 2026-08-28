@@ -6,11 +6,15 @@ import static io.openaev.utils.JsonUtils.gson;
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
+import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
+import io.openaev.database.repository.StepConditionRow;
 import io.openaev.database.repository.StepRepository;
+import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.utils.ConditionKeyTypesUtils;
 import io.openaev.utils.ConditionUtils;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
@@ -30,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Transactional(rollbackFor = Exception.class)
 public class ConditionService {
+  private static final String OPTIONAL_MISSING_SOURCE_KEY = "OPTIONAL_MISSING";
 
   private final WorkflowStateService workflowStateService;
 
@@ -37,8 +42,10 @@ public class ConditionService {
 
   private final ConditionRepository conditionRepository;
   private final StepRepository stepRepository;
+  private final WorkflowRepository workflowRepository;
 
   // -- CONDITION TREE CREATE --
+
   /**
    * Creates a condition tree from an {@link EventInput} payload.
    *
@@ -56,8 +63,10 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
-
+    validateConditionInputKeyTypes(conditionInputs);
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
+
+    assertLogicMapEditable(input.getWorkflowId());
 
     Condition root =
         Condition.builder()
@@ -65,8 +74,7 @@ public class ConditionService {
             .name(input.getName())
             .description(input.getDescription())
             .type(rootInput.getType())
-            .keyType(rootInput.getKeyType())
-            .keySubtype(rootInput.getKeySubtype())
+            .keyTypes(resolveInputKeyTypes(rootInput))
             .mappingType(resolveMappingType(rootInput))
             .build();
 
@@ -85,6 +93,17 @@ public class ConditionService {
           }
         },
         null);
+  }
+
+  /**
+   * Rejects a logic-map mutation when the workflow's owning simulation is no longer editable (not
+   * SCHEDULED). No-op for scenario-owned workflows or unknown/blank workflow ids. See ADR-005.
+   */
+  private void assertLogicMapEditable(String workflowId) {
+    if (workflowId == null || workflowId.isBlank()) {
+      return;
+    }
+    workflowRepository.findById(workflowId).ifPresent(WorkflowEditability::assertLogicMapEditable);
   }
 
   /**
@@ -110,13 +129,15 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
-
+    validateConditionInputKeyTypes(conditionInputs);
     List<ConditionCreateInput> rootInputs = findRootConditionInputs(conditionInputs);
 
-    // Multiple roots are only allowed when all roots are MAPPER conditions
+    // Allow one event/filter root plus any number of mapper roots.
+    // In chaining, mapper conditions are independent root mappings.
     if (rootInputs.size() > 1) {
-      boolean allMapper = rootInputs.stream().allMatch(r -> r.getType() == ConditionType.MAPPER);
-      if (!allMapper) {
+      long nonMapperRootCount =
+          rootInputs.stream().filter(r -> r.getType() != ConditionType.MAPPER).count();
+      if (nonMapperRootCount > 1) {
         throw new IllegalArgumentException(
             "New step (TEMPLATE): Only 1 condition can be first parent");
       }
@@ -222,6 +243,7 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE UPDATE --
+
   /**
    * Replaces an existing condition tree: updates root metadata and rebuilds child conditions.
    *
@@ -239,22 +261,30 @@ public class ConditionService {
     if (conditionInputs == null || conditionInputs.isEmpty()) {
       throw new BadRequestException("At least one condition is required");
     }
-
+    validateConditionInputKeyTypes(conditionInputs);
     Condition root = findConditionRootById(conditionRootId);
     ConditionCreateInput rootInput = findRootConditionInput(conditionInputs);
+
+    assertLogicMapEditable(root.getWorkflowId());
+    if (!Objects.equals(root.getWorkflowId(), input.getWorkflowId())) {
+      assertLogicMapEditable(input.getWorkflowId());
+    }
 
     root.setName(input.getName());
     root.setDescription(input.getDescription());
     root.setWorkflowId(input.getWorkflowId());
     root.setType(rootInput.getType());
-    root.setKeyType(rootInput.getKeyType());
-    root.setKeySubtype(rootInput.getKeySubtype());
+    root.setKeyTypes(resolveInputKeyTypes(rootInput));
     root.setMappingType(resolveMappingType(rootInput));
 
     if (root.getConditionChildren() != null) {
       root.getConditionChildren().clear();
     }
-    if (root.getConditionSteps() != null) {
+
+    // Only clear step links if stepIds is explicitly provided (non-null);
+    // null means "preserve existing links" (frontend may not send step_ids on simple edits)
+    boolean hasExplicitStepIds = input.getStepIds() != null;
+    if (hasExplicitStepIds && root.getConditionSteps() != null) {
       root.getConditionSteps().clear();
     }
 
@@ -268,7 +298,7 @@ public class ConditionService {
           return child;
         },
         (condition, isRoot) -> {
-          if (isRoot) {
+          if (isRoot && hasExplicitStepIds) {
             linkStepsToRoot(condition, input.getStepIds());
           }
         },
@@ -276,6 +306,7 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE GET --
+
   /**
    * Finds a condition tree root by its ID.
    *
@@ -296,16 +327,23 @@ public class ConditionService {
   }
 
   /**
-   * Returns all event condition tree roots for a given workflow, excluding mapper conditions.
+   * Finds a condition by id, returning {@code null} instead of throwing when no condition has that
+   * id (unlike {@link #findConditionRootById}, which throws). It returns whatever condition carries
+   * the id REGARDLESS of its position in the tree - a root or a child leaf alike - and never
+   * inspects root-ness; deciding whether the condition is acceptable (a root, an AND/OR event, on
+   * the right workflow, ...) is left entirely to the caller. Used by callers that VALIDATE an
+   * untrusted, caller-supplied condition id (e.g. an autonomous step's {@code event_id}) and
+   * produce their own precise error rather than a generic not-found.
    *
-   * @param workflowId the workflow identifier
-   * @return list of root event conditions for that workflow
+   * @param conditionId the condition id to look up
+   * @return the condition (root or child), or {@code null} when no condition has that id
    */
   @Transactional(readOnly = true)
-  public List<Condition> findEventRootsByWorkflowId(String workflowId) {
-    return conditionRepository.findAllByWorkflowIdAndConditionParentIsNull(workflowId).stream()
-        .filter(c -> !conditionUtils.isMapperCondition(c))
-        .toList();
+  public Condition findConditionByIdOrNull(String conditionId) {
+    if (conditionId == null || conditionId.isBlank()) {
+      return null;
+    }
+    return conditionRepository.findById(conditionId).orElse(null);
   }
 
   /**
@@ -321,6 +359,61 @@ public class ConditionService {
   }
 
   /**
+   * Returns all non-MAPPER conditions (roots AND descendants) for a given workflow.
+   *
+   * @param workflowId the workflow identifier
+   * @return flat list of all non-MAPPER conditions belonging to the workflow
+   */
+  @Transactional(readOnly = true)
+  public List<Condition> findAllNonMapperConditionsByWorkflowId(String workflowId) {
+    return conditionRepository.findAllByWorkflowIdAndTypeNot(workflowId, ConditionType.MAPPER);
+  }
+
+  /**
+   * Returns complete event outputs for a workflow, with full condition trees resolved from a flat
+   * query. This avoids reliance on lazy-loaded {@code conditionChildren} collections, which may not
+   * be initialized in a cold read transaction.
+   *
+   * @param workflowId the workflow identifier
+   * @return list of fully populated {@link EventOutput} DTOs
+   */
+  @Transactional(readOnly = true)
+  public List<EventOutput> findEventsByWorkflowId(String workflowId) {
+    List<Condition> all =
+        conditionRepository.findAllByWorkflowIdAndTypeNot(workflowId, ConditionType.MAPPER);
+
+    // Index children by parent id for O(1) lookups
+    Map<String, List<Condition>> childrenByParentId = new HashMap<>();
+    for (Condition c : all) {
+      Condition parent = c.getConditionParent();
+      if (parent != null) {
+        childrenByParentId.computeIfAbsent(parent.getId(), k -> new ArrayList<>()).add(c);
+      }
+    }
+
+    List<Condition> roots = all.stream().filter(c -> c.getConditionParent() == null).toList();
+
+    List<EventOutput> events = new ArrayList<>();
+    for (Condition root : roots) {
+      List<Condition> subtree = new ArrayList<>();
+      collectSubtree(root, childrenByParentId, subtree);
+      events.add(ConditionMapper.toOutput(root, subtree));
+    }
+    return events;
+  }
+
+  private static void collectSubtree(
+      Condition node, Map<String, List<Condition>> childrenByParentId, List<Condition> acc) {
+    acc.add(node);
+    List<Condition> children = childrenByParentId.get(node.getId());
+    if (children != null) {
+      for (Condition child : children) {
+        collectSubtree(child, childrenByParentId, acc);
+      }
+    }
+  }
+
+  /**
    * Returns all persisted conditions across workflows.
    *
    * @return list of all conditions
@@ -331,6 +424,7 @@ public class ConditionService {
   }
 
   // -- CONDITION TREE DELETE --
+
   /**
    * Deletes a condition tree root and all its children (cascade).
    *
@@ -341,9 +435,12 @@ public class ConditionService {
       throw new BadRequestException("conditionRootId must not be null or blank");
     }
 
-    if (!conditionRepository.existsById(conditionRootId)) {
-      throw new EntityNotFoundException("Condition not found: " + conditionRootId);
-    }
+    Condition condition =
+        conditionRepository
+            .findById(conditionRootId)
+            .orElseThrow(
+                () -> new EntityNotFoundException("Condition not found: " + conditionRootId));
+    assertLogicMapEditable(condition.getWorkflowId());
     conditionRepository.deleteById(conditionRootId);
   }
 
@@ -362,10 +459,11 @@ public class ConditionService {
    * Deletes conditions linked to a given step, excluding specific condition IDs. Rules: - Always
    * remove the current condition-step link for this step. - Delete the condition only if, after
    * unlinking, it has no more condition-step links and no children. - Conditions whose IDs are in
-   * {@code excludedConditionIds} are unlinked but never deleted, so they can be re-linked later.
+   * {@code excludedConditionIds}, and every descendant of those, are left completely untouched: not
+   * unlinked, not saved, not deleted.
    *
    * @param stepId step identifier
-   * @param excludedConditionIds condition IDs to preserve (unlink only, never delete)
+   * @param excludedConditionIds root condition IDs to preserve, subtree included
    */
   public void deleteAllConditionsByStepId(String stepId, List<String> excludedConditionIds) {
     List<Condition> conditions = findAllConditionsByStepId(stepId);
@@ -373,16 +471,25 @@ public class ConditionService {
       return;
     }
 
+    // Null entries are dropped defensively: the caller's list is API input.
     Set<String> excluded =
-        excludedConditionIds == null ? Set.of() : new HashSet<>(excludedConditionIds);
+        excludedConditionIds == null
+            ? Set.of()
+            : excludedConditionIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 
     for (Condition condition : conditions) {
-      unlinkFromStep(condition, stepId);
-      Condition persisted = conditionRepository.save(condition);
-
-      if (excluded.contains(persisted.getId())) {
+      // A preserved condition is left completely untouched, subtree included. Its children are
+      // linked to this step too - createConditionTree links every node of an event's tree, the root
+      // with is_root=true and the leaves with is_root=false - while the caller only ever names the
+      // ROOT ids it keeps. Unlinking a leaf and then deleting it (it has no other link and no
+      // children of its own) left the surviving parent referencing a deleted instance, and the step
+      // merge that follows failed the whole save with ObjectDeletedException.
+      if (isPreserved(condition, excluded)) {
         continue;
       }
+
+      unlinkFromStep(condition, stepId);
+      Condition persisted = conditionRepository.save(condition);
 
       boolean hasNoStepLinks =
           persisted.getConditionSteps() == null || persisted.getConditionSteps().isEmpty();
@@ -391,6 +498,57 @@ public class ConditionService {
       if (hasNoStepLinks && hasNoChildren) {
         conditionRepository.delete(persisted);
       }
+    }
+  }
+
+  /**
+   * Whether the condition is named in the excluded ids, or descends from a condition that is, so
+   * preserving a condition preserves the whole tree hanging off it.
+   *
+   * <p>Callers name the ROOT conditions they keep (a step's {@code step_condition_ids}), but an
+   * event's leaves are separate rows linked to the same step, so preservation has to be derived by
+   * walking up the parent chain rather than trusted from the input. The walk stays on entities
+   * already in the persistence context (every node of a linked tree is linked to the step itself,
+   * and reading a lazy parent's id does not initialize its proxy), so no per-node repository lookup
+   * is needed. The visited set makes the walk terminate even on a corrupted parent chain forming a
+   * cycle.
+   */
+  private boolean isPreserved(Condition condition, Set<String> excludedConditionIds) {
+    if (excludedConditionIds.isEmpty()) {
+      return false;
+    }
+    Set<String> visited = new HashSet<>();
+    for (Condition current = condition;
+        current != null && current.getId() != null && visited.add(current.getId());
+        current = current.getConditionParent()) {
+      if (excludedConditionIds.contains(current.getId())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Deletes EVERY condition belonging to a workflow: root event/trigger trees, their children, and
+   * step-scoped MAPPER conditions alike (children and step links cascade from the roots).
+   *
+   * <p>The condition-side complement of a full step wipe. Per-step cleanup ({@link
+   * #deleteAllConditionsByStepId(String)}) only deletes a condition once it has no more step links
+   * AND no children, so an event/trigger tree - a root condition with children - always survived a
+   * "reset everything" pass and lingered as an orphan on the logic map after the steps were gone.
+   * Used by the autonomous rebuild/reset paths; deliberately skips the logic-map editability
+   * assertion because those paths reset workflows that may still be flagged keep-alive.
+   *
+   * @param workflowId the workflow whose conditions must all be removed
+   */
+  public void deleteAllConditionsByWorkflowId(String workflowId) {
+    if (workflowId == null || workflowId.isBlank()) {
+      return;
+    }
+    List<Condition> roots =
+        conditionRepository.findAllByWorkflowIdAndConditionParentIsNull(workflowId);
+    if (!roots.isEmpty()) {
+      conditionRepository.deleteAll(roots);
     }
   }
 
@@ -427,6 +585,26 @@ public class ConditionService {
     return conditionRepository.findAllLinkedToStepId(stepId);
   }
 
+  /**
+   * Batched variant of {@link #findAllConditionsByStepId(String)}: retrieves the conditions linked
+   * to any of the given steps in a single query and groups them by step id, so callers iterating
+   * over many steps (e.g. launch validation over a workflow's templates) avoid an N+1 pattern.
+   *
+   * @param stepIds step identifiers
+   * @return conditions grouped by step id; steps without conditions are absent from the map
+   */
+  @Transactional(readOnly = true)
+  public Map<String, List<Condition>> findAllConditionsByStepIds(Set<String> stepIds) {
+    if (stepIds == null || stepIds.isEmpty()) {
+      return Map.of();
+    }
+    return conditionRepository.findAllLinkedToStepIdIn(stepIds).stream()
+        .collect(
+            Collectors.groupingBy(
+                StepConditionRow::stepTemplateId,
+                Collectors.mapping(StepConditionRow::condition, Collectors.toList())));
+  }
+
   // -- CONDITION EVALUATION --
 
   /**
@@ -445,7 +623,7 @@ public class ConditionService {
 
     // No condition means direct execution:
     if (conditionTemplate == null || conditionTemplate.isEmpty()) {
-      return List.of(new ExecutionBatch(input, new ArrayList<>()));
+      return List.of(new ExecutionBatch(input, new ArrayList<>(), null));
     }
 
     // DEPEND_ON CONDITIONS
@@ -457,7 +635,7 @@ public class ConditionService {
     if (!dependOnConditions.isEmpty()) {
       if (!evaluateDependOnConditions(dependOnConditions, workflowRun)) {
         log.debug(
-            "Depend-on conditions not satisfied for step template {}",
+            "[Chaining] Depend-on conditions not satisfied for step template {}",
             nextStepTemplateToExecute.getId());
         return Collections.emptyList();
       }
@@ -485,7 +663,7 @@ public class ConditionService {
 
     // No mapper means direct execution with the original input
     if (mapperConditions.isEmpty()) {
-      return List.of(new ExecutionBatch(input, new ArrayList<>()));
+      return List.of(new ExecutionBatch(input, new ArrayList<>(), null));
     }
 
     return prepareInputsForStepExecution(nextStepTemplateToExecute, workflowRun, mapperConditions);
@@ -509,7 +687,8 @@ public class ConditionService {
     for (Condition condition : dependOnConditions) {
       String dependentStepTemplateId = condition.getValue();
       if (dependentStepTemplateId == null || dependentStepTemplateId.isBlank()) {
-        log.error("DEPEND_ON condition has no step template ID value: {}", condition.getId());
+        log.error(
+            "[Chaining] DEPEND_ON condition has no step template ID value: {}", condition.getId());
         return false;
       }
 
@@ -519,7 +698,7 @@ public class ConditionService {
 
       if (!executed) {
         log.debug(
-            "DEPEND_ON not satisfied: step template {} has not been executed in workflow run {}",
+            "[Chaining] DEPEND_ON not satisfied: step template {} has not been executed in workflow run {}",
             dependentStepTemplateId,
             workflowRun.getId());
         return false;
@@ -568,10 +747,10 @@ public class ConditionService {
     for (Condition filterCondition : filterConditions) {
       if (!isFilterTreeSatisfied(filterCondition, contextSupplier)) {
         log.info(
-            "[Chaining] Filter tree NOT satisfied: rootId={}, rootType={}, rootKeyType={}, childrenCount={}",
+            "[Chaining] Filter tree NOT satisfied: rootId={}, rootType={}, rootKeyTypes={}, childrenCount={}",
             filterCondition.getId(),
             filterCondition.getType(),
-            filterCondition.getKeyType(),
+            filterCondition.getKeyTypes(),
             filterCondition.getConditionChildren() != null
                 ? filterCondition.getConditionChildren().size()
                 : 0);
@@ -603,7 +782,12 @@ public class ConditionService {
     // AND node: all children must be satisfied
     if (condition.getType() == ConditionType.AND) {
       if (condition.getConditionChildren() == null || condition.getConditionChildren().isEmpty()) {
-        return true;
+        // A childless AND cannot be produced by any creation path: an action with no condition
+        // creates no Condition at all, and an AND group is always created with >=1 child. This case
+        // means an abnormal/corrupted condition tree.
+        // The fail-safe is to keep the gate closed, and so, we return false here.
+        // Consistent with the empty-OR case, which also returns false.
+        return false;
       }
       return condition.getConditionChildren().stream()
           .allMatch(child -> isFilterTreeSatisfied(child, contextSupplier));
@@ -629,9 +813,9 @@ public class ConditionService {
             .anyMatch(val -> conditionUtils.evaluateLeafCondition(val, condition));
     if (!result) {
       log.info(
-          "[Chaining] Filter leaf NOT satisfied: type={}, keyType={}, conditionValue={}, resolvedValues={}",
+          "[Chaining] Filter leaf NOT satisfied: type={}, keyTypes={}, conditionValue={}, resolvedValues={}",
           condition.getType(),
-          condition.getKeyType(),
+          condition.getKeyTypes(),
           condition.getValue(),
           valuesToCheck);
     }
@@ -655,18 +839,16 @@ public class ConditionService {
   private List<String> resolveAllFilterValues(
       Condition condition, WorkflowStateEntries globalEntries, WorkflowStateEntries localEntries) {
 
-    String key =
-        condition.getKeyType() != null ? condition.getKeyType().name() : condition.getKey();
-
     List<String> candidates = new ArrayList<>();
+    for (String key : resolveConditionKeyNames(condition)) {
+      // 1. Try local state pool (step-specific accumulated values from propagation)
+      Set<String> localValues = getAllValuesFromEntries(localEntries, key);
+      candidates.addAll(localValues);
 
-    // 1. Try local state pool (step-specific accumulated values from propagation)
-    Set<String> localValues = getAllValuesFromEntries(localEntries, key);
-    candidates.addAll(localValues);
-
-    // 2. Try global state pool (finding pool from other actions)
-    Set<String> globalValues = getAllValuesFromEntries(globalEntries, key);
-    candidates.addAll(globalValues);
+      // 2. Try global state pool (finding pool from other actions)
+      Set<String> globalValues = getAllValuesFromEntries(globalEntries, key);
+      candidates.addAll(globalValues);
+    }
 
     return candidates;
   }
@@ -687,16 +869,6 @@ public class ConditionService {
       return input.getValues();
     }
     return Set.of();
-  }
-
-  /**
-   * Creates a DEPEND_ON condition for a step template dependency.
-   *
-   * @param idStepFromTemplate identifier of the dependent step template
-   * @return the DEPEND_ON condition
-   */
-  public Condition isDependOn(String idStepFromTemplate) {
-    return ConditionFactory.dependOn(idStepFromTemplate);
   }
 
   /**
@@ -761,8 +933,19 @@ public class ConditionService {
     conditionRepository.save(root);
   }
 
+  private void validateConditionInputKeyTypes(List<ConditionCreateInput> conditionInputs) {
+    for (ConditionCreateInput conditionInput : conditionInputs) {
+      List<PrimitiveType> rawKeyTypes =
+          ConditionKeyTypesUtils.normalize(conditionInput.getKeyTypes());
+      if (conditionInput.getType() != ConditionType.MAPPER && rawKeyTypes.size() > 1) {
+        throw new BadRequestException(
+            "Only mapper conditions can define multiple condition_key_types");
+      }
+    }
+  }
+
   /**
-   * Identifies the root condition input — the one with no parent reference.
+   * Identifies the root condition input, the one with no parent reference.
    *
    * <p>For non-MAPPER conditions, exactly one root is expected. For MAPPER conditions, multiple
    * roots are allowed (each mapper is independent).
@@ -781,7 +964,7 @@ public class ConditionService {
   }
 
   /**
-   * Identifies all root condition inputs — those with no parent reference.
+   * Identifies all root condition inputs, those with no parent reference.
    *
    * <p>For MAPPER conditions, multiple roots are allowed since each mapper is an independent
    * mapping. For other condition types, the caller should validate that exactly one root exists.
@@ -865,8 +1048,9 @@ public class ConditionService {
    * <p>For each mapper on the template, this method collects candidate values from the relevant
    * partition (GLOBAL or LOCAL), computes the Cartesian product of all dynamic values, merges
    * DEFAULT mapper values, and keeps only combinations that satisfy required execution keys. Unique
-   * combinations are tracked via hash to avoid duplicate executions, persisted into LOCAL state,
-   * and returned as ready-to-run input batches with resolved mapper conditions.
+   * combinations are tracked via hash to avoid duplicate executions and returned as ready-to-run
+   * input batches with resolved mapper conditions. Hashes are only prepared in memory here and are
+   * committed later by the caller through .
    *
    * @param stepTemplate step template for which input combinations are generated
    * @param workflowRun active workflow run used to resolve global/local workflow states
@@ -877,7 +1061,7 @@ public class ConditionService {
 
     // No mappers means a default execution batch
     if (mappers.isEmpty()) {
-      return List.of(new ConditionService.ExecutionBatch(null, List.of()));
+      return List.of(new ConditionService.ExecutionBatch(null, List.of(), null));
     }
 
     // Fetch and Parse State
@@ -887,22 +1071,18 @@ public class ConditionService {
     MapperInputPreparation preparation =
         prepareMapperInputs(mappers, context.localEntries(), context.globalEntries());
 
+    // Invalid dynamic mapper definitions cannot produce executable combinations.
     if (preparation.hasMissingDynamicValues()) {
       return Collections.emptyList();
     }
 
-    Set<String> requiredKeys = extractRequiredExecutionKeys(mappers);
-
-    // Build execution batches which be used as input for the step execution.
+    // Build execution batches used as inputs for step execution.
+    // Hashes are not committed here. The caller commits only hashes of batches
+    // that actually proceed (i.e. are not rate-limited) via commitHashes().
     List<ExecutionBatch> batches =
         buildExecutionBatches(
-            mappers,
-            context.localEntries(),
-            preparation.dynamicPairs(),
-            preparation.staticValues(),
-            requiredKeys);
+            mappers, context.localEntries(), context.globalEntries(), preparation);
 
-    saveLocalState(context);
     return batches;
   }
 
@@ -930,116 +1110,422 @@ public class ConditionService {
     return gson.fromJson(json, WorkflowStateEntries.class);
   }
 
-  /** Syncs the POJO back to the entity and saves it. */
-  private void saveLocalState(WorkflowContext context) {
-    if (context.localStateEntity() == null) {
-      return;
+  /**
+   * Returns the set of execution hashes already committed in the local workflow state for the given
+   * step template. These are the input combinations (or per-target combinations) that have already
+   * been turned into READY steps and must not be executed again.
+   *
+   * @param stepTemplate the step template whose local state stores the hash set
+   * @param workflowRun the running workflow
+   * @return the committed hash set, or an empty set if no local state exists yet
+   */
+  public Set<String> getCommittedHashes(Step stepTemplate, Workflow workflowRun) {
+    WorkflowState localState =
+        workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun);
+    if (localState == null) {
+      return Set.of();
     }
-    String json = gson.toJson(context.localEntries());
-    context.localStateEntity().setEntries(json);
-    workflowStateService.save(context.localStateEntity());
-  }
-
-  /** Returns the set of key-type names that must be present in every execution combo. */
-  private Set<String> extractRequiredExecutionKeys(List<Condition> mappers) {
-    return mappers.stream()
-        .filter(mapper -> mapper.getMappingType() != MappingType.DEFAULT)
-        .map(mapper -> mapper.getKeyType().name())
-        .collect(Collectors.toSet());
+    WorkflowStateEntries entries = deserializeEntries(localState.getEntries());
+    Set<String> hashExecution = entries.getHashExecution();
+    return hashExecution != null ? hashExecution : Set.of();
   }
 
   /**
-   * Collects candidate values for each mapper: DEFAULT values go to staticValues, GLOBAL/LOCAL
-   * values go to dynamic pairs. Returns early if any dynamic mapper has no values.
+   * Commits the given execution hashes into the local workflow state for the step template,
+   * preventing those input combinations from being re-executed in the future.
+   *
+   * <p>Only hashes of batches that were actually turned into READY steps should be committed.
+   * Batches that were delayed (e.g. due to rate limiting) must <b>not</b> have their hash committed
+   * so that they can be retried later.
+   *
+   * @param stepTemplate the step template whose local state stores the hash set
+   * @param workflowRun the running workflow
+   * @param hashes the set of hashes to commit
+   */
+  public void commitHashes(Step stepTemplate, Workflow workflowRun, Set<String> hashes) {
+    if (hashes == null || hashes.isEmpty()) {
+      return;
+    }
+    WorkflowState localState =
+        workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun);
+    if (localState == null) {
+      return;
+    }
+    WorkflowStateEntries entries = deserializeEntries(localState.getEntries());
+    entries.getHashExecution().addAll(hashes);
+    localState.setEntries(gson.toJson(entries));
+    workflowStateService.save(localState);
+  }
+
+  /**
+   * Prepares mapper inputs.
+   *
+   * <p>DEFAULT values are stored as static values. Dynamic mapper values are collected from their
+   * source pool when available. Missing dynamic values are allowed because correlated data may
+   * still produce valid batches.
    */
   private MapperInputPreparation prepareMapperInputs(
       List<Condition> mappers,
       WorkflowStateEntries localEntries,
       WorkflowStateEntries globalEntries) {
     List<List<WorkflowStateEntries.Pair>> allPairsList = new ArrayList<>();
-    Map<String, String> staticValues = new HashMap<>();
+    List<DynamicMapperContext> dynamicMappers = new ArrayList<>();
+    Map<String, String> defaultValues = new HashMap<>();
 
     for (Condition mapper : mappers) {
-      String key = mapper.getKeyType().name();
-
       if (mapper.getMappingType() == MappingType.DEFAULT) {
-        staticValues.put(key, mapper.getValue());
+        // DEFAULT: value is static, no state lookup needed.
+        // Stored in defaultValues so it is included in every batch's inputString.
+        // If blank, skip — the injector contract default for that field is preserved.
+        String key = resolveMapperTargetKey(mapper);
+        String value = mapper.getValue();
+        if (key != null && !key.isBlank() && value != null && !value.isBlank()) {
+          defaultValues.put(key, value);
+        }
         continue;
       }
 
-      Set<String> values =
-          (mapper.getMappingType() == MappingType.GLOBAL)
-              ? globalEntries.getInputByKey(key).getValues()
-              : localEntries.getInputByKey(key).getValues();
-
-      if (values == null || values.isEmpty()) {
-        return new MapperInputPreparation(List.of(), Map.of(), true);
+      List<String> sourceKeys = resolveMapperSourceKeys(mapper);
+      if (sourceKeys.isEmpty()) {
+        log.warn("[Chaining] Skipping mapper {} because keyTypes are missing", mapper.getId());
+        return new MapperInputPreparation(List.of(), List.of(), Map.of(), true);
       }
 
-      allPairsList.add(
-          values.stream().map(value -> new WorkflowStateEntries.Pair(key, value)).toList());
+      DynamicMapperContext mapperContext =
+          new DynamicMapperContext(mapper, sourceKeys, mapper.getMappingType());
+      List<WorkflowStateEntries.Pair> pairs =
+          resolveMapperPairs(mapperContext, localEntries, globalEntries);
+      if (!pairs.isEmpty()) {
+        allPairsList.add(pairs);
+      }
+      dynamicMappers.add(mapperContext);
     }
 
-    return new MapperInputPreparation(allPairsList, staticValues, false);
+    return new MapperInputPreparation(allPairsList, dynamicMappers, defaultValues, false);
   }
 
   /**
-   * Computes the Cartesian product of dynamic values, filters duplicates via hash, merges static
-   * values, and returns ready-to-run execution batches.
+   * Builds execution batches in two steps.
+   *
+   * <p>Step 1 uses correlated tuples when there are at least 2 dynamic keys. Covered keys come from
+   * the tuple. Missing keys are completed from LOCAL or GLOBAL pools based on MappingType.
+   *
+   * <p>Step 2 runs the fallback cartesian product after step 1. Dedup removes duplicate combos.
+   *
+   * <p>DEFAULT values are added at the end for every batch. Hashes are not committed here. The
+   * caller commits them with {@code commitHashes()}.
    */
   private List<ConditionService.ExecutionBatch> buildExecutionBatches(
       List<Condition> mappers,
       WorkflowStateEntries localEntries,
-      List<List<WorkflowStateEntries.Pair>> allPairsList,
-      Map<String, String> staticValues,
-      Set<String> requiredKeys) {
+      WorkflowStateEntries globalEntries,
+      MapperInputPreparation preparation) {
 
-    List<List<WorkflowStateEntries.Pair>> product = localEntries.cartesianProduct(allPairsList);
     List<ConditionService.ExecutionBatch> batches = new ArrayList<>();
+    Set<String> pendingHashes = new HashSet<>();
+    // Step 1: correlated-first (useful only with >= 2 dynamic mappers)
+    if (preparation.dynamicMappers().size() >= 2) {
+      WorkflowStateEntries correlatedPool =
+          preparation.hasAnyLocal() ? localEntries : globalEntries;
+      Set<String> candidateKeys =
+          preparation.dynamicMappers().stream()
+              .flatMap(mapper -> mapper.sourceKeys().stream())
+              .collect(Collectors.toSet());
+      List<WorkflowStateEntries.Correlated> candidates =
+          correlatedPool.findCandidateCorrelated(candidateKeys);
 
-    for (List<WorkflowStateEntries.Pair> comboPairs : product) {
-      Map<String, String> comboMap = new TreeMap<>();
-      comboPairs.forEach(pair -> comboMap.put(pair.key(), pair.value()));
+      for (WorkflowStateEntries.Correlated tuple : candidates) {
+        List<List<WorkflowStateEntries.Pair>> perMapperPairs = new ArrayList<>();
+        boolean skipTuple = false;
 
-      if (!localEntries.comboContainAllExecutionKeys(requiredKeys, comboMap)) {
-        continue;
+        for (DynamicMapperContext mapperContext : preparation.dynamicMappers()) {
+          List<WorkflowStateEntries.Pair> coveredPairs =
+              tuple.getValues().stream()
+                  .filter(pair -> mapperContext.sourceKeys().contains(pair.key()))
+                  .toList();
+          if (!coveredPairs.isEmpty()) {
+            perMapperPairs.add(coveredPairs);
+            continue;
+          }
+
+          List<WorkflowStateEntries.Pair> fallbackPairs =
+              resolveMapperPairs(mapperContext, localEntries, globalEntries);
+          if (fallbackPairs.isEmpty()) {
+            skipTuple = true;
+            break;
+          }
+          perMapperPairs.add(fallbackPairs);
+        }
+
+        if (skipTuple) {
+          continue;
+        }
+
+        for (List<WorkflowStateEntries.Pair> comboPairs :
+            localEntries.cartesianProduct(perMapperPairs)) {
+          tryAddBatch(comboPairs, preparation, localEntries, mappers, pendingHashes, batches);
+        }
       }
+    }
 
-      String hash = localEntries.hashCombo(comboMap);
-      if (localEntries.getHashExecution().contains(hash)) {
-        continue;
-      }
-
-      Map<String, String> fullInput = new HashMap<>(comboMap);
-      fullInput.putAll(staticValues);
-
-      List<Condition> resolvedMappers =
-          mappers.stream()
-              .map(mapperTemplate -> toResolvedMapper(mapperTemplate, fullInput))
-              .collect(Collectors.toList());
-
-      batches.add(new ConditionService.ExecutionBatch(gson.toJson(fullInput), resolvedMappers));
-      localEntries.getHashExecution().add(hash);
+    // Step 2: fallback cartesian (always runs; dedup skips duplicates from step 1)
+    for (List<WorkflowStateEntries.Pair> comboPairs :
+        localEntries.cartesianProduct(preparation.dynamicPairs())) {
+      tryAddBatch(comboPairs, preparation, localEntries, mappers, pendingHashes, batches);
     }
 
     return batches;
   }
 
-  /** Creates a resolved copy of a mapper condition with its value filled from the input map. */
-  private Condition toResolvedMapper(Condition template, Map<String, String> fullInput) {
+  /**
+   * Builds the combo map exposed as the batch's {@code inputString}, keyed by source type name.
+   *
+   * <p>This is purely a display/lookup structure (e.g. for filter conditions reading a value by
+   * type). It intentionally may collapse several dynamic mappers sharing the same source type into
+   * one entry; hashing and per-mapper value resolution never rely on it (see {@link #comboIdentity}
+   * and {@link #resolveMapperRuntimeValue}), so that collapsing can no longer cause combinations to
+   * be dropped or duplicated.
+   */
+  private Map<String, String> toComboMap(List<WorkflowStateEntries.Pair> pairs) {
+    Map<String, String> combo = new TreeMap<>();
+    pairs.stream()
+        .filter(pair -> pair.value() != null)
+        .forEach(pair -> combo.put(pair.key(), pair.value()));
+    return combo;
+  }
+
+  /**
+   * Builds a map keyed by each dynamic mapper's position, holding the value picked for it in this
+   * combination.
+   *
+   * <p>{@code comboPairs} has exactly one entry per mapper in {@code dynamicMappers}, in the same
+   * order (see {@link #buildExecutionBatches}). Keying by position instead of by source type name
+   * keeps every mapper's chosen value distinct, even when two mappers share the same source type.
+   * Previously, collapsing by type name silently merged "swapped" combinations (e.g.
+   * mapper1=A/mapper2=B vs mapper1=B/mapper2=A) into the same hash, which caused some valid
+   * combinations to be dropped and others to be re-attempted as duplicates.
+   */
+  private Map<String, String> comboIdentity(List<WorkflowStateEntries.Pair> comboPairs) {
+    Map<String, String> identity = new TreeMap<>();
+    for (int i = 0; i < comboPairs.size(); i++) {
+      identity.put("mapper#" + i, comboPairs.get(i).value());
+    }
+    return identity;
+  }
+
+  private List<WorkflowStateEntries.Pair> resolveMapperPairs(
+      DynamicMapperContext mapperContext,
+      WorkflowStateEntries localEntries,
+      WorkflowStateEntries globalEntries) {
+    List<WorkflowStateEntries.Pair> pairs = new ArrayList<>();
+    Set<String> seenValues = new HashSet<>();
+    for (String sourceKey : mapperContext.sourceKeys()) {
+      Set<String> values = new LinkedHashSet<>();
+      Set<String> directValues =
+          resolveValuesByMappingType(
+              sourceKey, mapperContext.mappingType(), localEntries, globalEntries);
+      if (directValues != null) {
+        values.addAll(directValues);
+      }
+      values.addAll(
+          resolveCorrelatedValuesByMappingType(
+              sourceKey, mapperContext.mappingType(), localEntries, globalEntries));
+      if (values == null || values.isEmpty()) {
+        continue;
+      }
+      for (String value : values) {
+        if (seenValues.add(value)) {
+          pairs.add(new WorkflowStateEntries.Pair(sourceKey, value));
+        }
+      }
+    }
+
+    // A defined value can be set on a mapper independently of any linked primitive type(s), and
+    // must keep being used as one more candidate even after type(s) are linked — it should never
+    // be silently discarded just because the mapper is no longer MappingType.DEFAULT. Skip it if
+    // it's already present in the pool (would otherwise generate two combinations with the exact
+    // same effective value for this mapper).
+    String definedValue = mapperContext.mapper().getValue();
+    if (definedValue != null && !definedValue.isBlank() && seenValues.add(definedValue)) {
+      String targetKey = resolveMapperTargetKey(mapperContext.mapper());
+      pairs.add(
+          new WorkflowStateEntries.Pair(
+              targetKey != null ? targetKey : "DEFINED_VALUE", definedValue));
+    }
+
+    if (pairs.isEmpty()) {
+      String sourceKey =
+          mapperContext.sourceKeys().isEmpty()
+              ? OPTIONAL_MISSING_SOURCE_KEY
+              : mapperContext.sourceKeys().getFirst();
+      pairs.add(new WorkflowStateEntries.Pair(sourceKey, null));
+    }
+
+    return pairs;
+  }
+
+  private Set<String> resolveCorrelatedValuesByMappingType(
+      String key,
+      MappingType mappingType,
+      WorkflowStateEntries localEntries,
+      WorkflowStateEntries globalEntries) {
+    WorkflowStateEntries sourceEntries =
+        mappingType == MappingType.GLOBAL ? globalEntries : localEntries;
+    if (sourceEntries.getCorrelated() == null || sourceEntries.getCorrelated().isEmpty()) {
+      return Set.of();
+    }
+    return sourceEntries.getCorrelated().stream()
+        .flatMap(tuple -> tuple.getValues().stream())
+        .filter(pair -> key.equals(pair.key()))
+        .map(WorkflowStateEntries.Pair::value)
+        .filter(Objects::nonNull)
+        .filter(value -> !value.isBlank())
+        .collect(Collectors.toCollection(LinkedHashSet::new));
+  }
+
+  /**
+   * Resolves input values for a key from the correct state pool based on mapping type.
+   *
+   * <p>GLOBAL values come from workflow global state. LOCAL and other dynamic types are read from
+   * the step local state.
+   */
+  private Set<String> resolveValuesByMappingType(
+      String key,
+      MappingType mappingType,
+      WorkflowStateEntries localEntries,
+      WorkflowStateEntries globalEntries) {
+    return mappingType == MappingType.GLOBAL
+        ? globalEntries.getInputByKey(key).getValues()
+        : localEntries.getInputByKey(key).getValues();
+  }
+
+  /**
+   * Adds one batch if valid and not duplicated.
+   *
+   * <p>Skips combos that miss required keys or are already known by hash. Static DEFAULT values are
+   * merged after dedup.
+   */
+  private void tryAddBatch(
+      List<WorkflowStateEntries.Pair> comboPairs,
+      MapperInputPreparation preparation,
+      WorkflowStateEntries localEntries,
+      List<Condition> mappers,
+      Set<String> pendingHashes,
+      List<ExecutionBatch> batches) {
+
+    if (!coversAllDynamicMappers(comboPairs, preparation.dynamicMappers())) {
+      return;
+    }
+
+    String hash = localEntries.hashCombo(comboIdentity(comboPairs));
+    if (localEntries.getHashExecution().contains(hash) || pendingHashes.contains(hash)) {
+      return;
+    }
+
+    Map<String, String> fullInput = new HashMap<>(toComboMap(comboPairs));
+    fullInput.putAll(preparation.defaultValues());
+
+    List<Condition> resolvedMappers =
+        mappers.stream()
+            .map(template -> toResolvedMapper(template, preparation.dynamicMappers(), comboPairs))
+            .collect(Collectors.toList());
+
+    batches.add(new ConditionService.ExecutionBatch(gson.toJson(fullInput), resolvedMappers, hash));
+    pendingHashes.add(hash);
+  }
+
+  /**
+   * A combo built from a mapper cartesian product always has exactly one pair per dynamic mapper,
+   * in the same order as {@code dynamicMappers}. If a dynamic mapper had no candidate value at all,
+   * it is missing from {@code comboPairs} entirely (see {@link #buildExecutionBatches}), so a plain
+   * size comparison is enough to detect incomplete combos.
+   */
+  private boolean coversAllDynamicMappers(
+      List<WorkflowStateEntries.Pair> comboPairs, List<DynamicMapperContext> dynamicMappers) {
+    return comboPairs.size() == dynamicMappers.size();
+  }
+
+  /** Creates a resolved copy of a mapper condition with its value filled from the combo. */
+  private Condition toResolvedMapper(
+      Condition template,
+      List<DynamicMapperContext> dynamicMappers,
+      List<WorkflowStateEntries.Pair> comboPairs) {
     Condition resolved = new Condition();
     resolved.setType(ConditionType.MAPPER);
-    resolved.setKey(template.getKey());
-    resolved.setKeyType(template.getKeyType());
+    resolved.setKey(resolveMapperTargetKey(template));
+    resolved.setKeyTypes(template.getKeyTypes());
     resolved.setMappingType(template.getMappingType());
     resolved.setDescription(template.getDescription());
-    resolved.setKeySubtype(template.getKeySubtype());
     resolved.setName(template.getName());
     resolved.setWorkflowId(template.getWorkflowId());
     resolved.setCreationDate(Instant.now());
     resolved.setUpdateDate(Instant.now());
-    resolved.setValue(fullInput.get(template.getKeyType().name()));
+    String value = resolveMapperRuntimeValue(template, dynamicMappers, comboPairs);
+    if (value != null) {
+      resolved.setValue(value);
+    } else if (template.getMappingType() == MappingType.DEFAULT) {
+      // DEFAULT mapper with no keyTypes: value is already known statically.
+      resolved.setValue(template.getValue());
+    }
     return resolved;
+  }
+
+  /**
+   * Resolves the value picked for one specific dynamic mapper in this combo.
+   *
+   * <p>Looks up {@code template}'s own position in {@code dynamicMappers} (by reference, since
+   * dynamic mappers are the very same {@link Condition} instances passed to {@link
+   * #prepareInputsForStepExecution}) and returns the matching entry in {@code comboPairs}. This
+   * guarantees each mapper reads back exactly the value chosen for it, even when another mapper
+   * shares the same source type.
+   */
+  private String resolveMapperRuntimeValue(
+      Condition template,
+      List<DynamicMapperContext> dynamicMappers,
+      List<WorkflowStateEntries.Pair> comboPairs) {
+    for (int i = 0; i < dynamicMappers.size() && i < comboPairs.size(); i++) {
+      if (dynamicMappers.get(i).mapper() == template) {
+        return comboPairs.get(i).value();
+      }
+    }
+    return null;
+  }
+
+  private String resolveMapperTargetKey(Condition mapper) {
+    if (mapper.getKey() != null && !mapper.getKey().isBlank()) {
+      return mapper.getKey();
+    }
+    List<String> sourceKeys = resolveMapperSourceKeys(mapper);
+    return sourceKeys.isEmpty() ? null : sourceKeys.getFirst();
+  }
+
+  private List<String> resolveMapperSourceKeys(Condition mapper) {
+    if (mapper.getKeyTypes() != null && !mapper.getKeyTypes().isEmpty()) {
+      return mapper.getKeyTypes().stream()
+          .filter(Objects::nonNull)
+          .map(PrimitiveType::name)
+          .distinct()
+          .toList();
+    }
+    return List.of();
+  }
+
+  private List<PrimitiveType> resolveInputKeyTypes(ConditionCreateInput input) {
+    return ConditionKeyTypesUtils.normalizeForConditionType(
+        input.getKeyTypes(), input.getType(), input.getMappingType());
+  }
+
+  private List<String> resolveConditionKeyNames(Condition condition) {
+    if (condition.getKeyTypes() != null && !condition.getKeyTypes().isEmpty()) {
+      return condition.getKeyTypes().stream()
+          .filter(Objects::nonNull)
+          .map(PrimitiveType::name)
+          .toList();
+    }
+    if (condition.getKey() != null) {
+      return List.of(condition.getKey());
+    }
+    return List.of();
   }
 
   /**
@@ -1047,13 +1533,24 @@ public class ConditionService {
    *
    * @param inputString resolved JSON input used to create a READY step
    * @param usedMappers mapper conditions used to build this input
+   * @param hash deduplication hash for this input combination (nullable for non-mapper batches)
    */
-  public record ExecutionBatch(String inputString, List<Condition> usedMappers) {}
+  public record ExecutionBatch(String inputString, List<Condition> usedMappers, String hash) {}
 
   private record MapperInputPreparation(
       List<List<WorkflowStateEntries.Pair>> dynamicPairs,
-      Map<String, String> staticValues,
-      boolean hasMissingDynamicValues) {}
+      List<DynamicMapperContext> dynamicMappers,
+      Map<String, String> defaultValues,
+      boolean hasMissingDynamicValues) {
+
+    /** True when at least one dynamic mapper is LOCAL. */
+    boolean hasAnyLocal() {
+      return dynamicMappers.stream().anyMatch(mapper -> mapper.mappingType() == MappingType.LOCAL);
+    }
+  }
+
+  private record DynamicMapperContext(
+      Condition mapper, List<String> sourceKeys, MappingType mappingType) {}
 
   private record WorkflowContext(
       WorkflowState localStateEntity,

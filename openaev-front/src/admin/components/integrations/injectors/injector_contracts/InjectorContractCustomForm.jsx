@@ -1,17 +1,11 @@
-import {
-  Button,
-  GridLegacy,
-  Switch,
-  TextField as MUITextField,
-  Typography,
-} from '@mui/material';
+import { RichTextEditor } from '@filigran/rich-text-editor';
+import { Button, GridLegacy, Switch, TextField as MUITextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
 import { useState } from 'react';
 import { Field, Form } from 'react-final-form';
 
-import CKEditor from '../../../../../components/CKEditor';
 import DomainsAutocompleteField from '../../../../../components/DomainsAutocompleteField.tsx';
 import OldTextField from '../../../../../components/fields/OldTextField';
 import { useFormatter } from '../../../../../components/i18n';
@@ -47,8 +41,9 @@ const InjectorContractForm = (props) => {
       case 'textarea':
         return field.richText
           ? (
-              <CKEditor
-                data={!R.isNil(fields[field.key]?.defaultValue) ? fields[field.key].defaultValue : field.defaultValue}
+              <RichTextEditor
+                variant="outlined"
+                data={(!R.isNil(fields[field.key]?.defaultValue) ? fields[field.key].defaultValue : field.defaultValue) ?? ''}
                 onChange={(_, editor) => {
                   setFields({
                     ...fields,
@@ -208,13 +203,14 @@ const InjectorContractForm = (props) => {
               onClick={handleClose}
               style={{ marginRight: theme.spacing(2) }}
               disabled={submitting}
-              variant="contained"
+              variant="outlined"
+              color="primary"
             >
               {t('Cancel')}
             </Button>
 
             <Button
-              color="secondary"
+              color="primary"
               type="submit"
               variant="contained"
               disabled={submitting}

@@ -1,17 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, TextField as MuiTextField, Typography } from '@mui/material';
+import { InfoOutlined } from '@mui/icons-material';
+import { Box, TextField as MuiTextField, Typography } from '@mui/material';
 import { type FunctionComponent, useContext } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { makeStyles } from 'tss-react/mui';
 import { z } from 'zod';
 
 import { type SecurityPlatformHelper } from '../../../../../../actions/assets/asset-helper';
 import { fetchSecurityPlatforms } from '../../../../../../actions/assets/securityPlatform-actions';
 import { updateInjectExpectation } from '../../../../../../actions/Exercise';
-import ExpandableText from '../../../../../../components/common/ExpandableText';
 import SecurityPlatformField from '../../../../../../components/fields/SecurityPlatformField';
 import { useFormatter } from '../../../../../../components/i18n';
-import ItemStatus from '../../../../../../components/ItemStatus';
 import { useHelper } from '../../../../../../store';
 import { type InjectExpectationResult, type SecurityPlatform } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
@@ -21,16 +19,7 @@ import RestrictionAccess from '../../../../../../utils/permissions/RestrictionAc
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import { zodImplement } from '../../../../../../utils/Zod';
 import { type InjectExpectationsStore } from '../../../../common/injects/expectations/Expectation';
-
-const useStyles = makeStyles()(theme => ({
-  marginTop_2: { marginTop: theme.spacing(2) },
-  buttons: {
-    display: 'flex',
-    placeContent: 'end',
-    gap: theme.spacing(2),
-    marginTop: theme.spacing(2),
-  },
-}));
+import { isAssetExpectation } from '../../../../common/injects/expectations/ExpectationUtils';
 
 interface FormProps {
   expectation: InjectExpectationsStore;
@@ -39,8 +28,9 @@ interface FormProps {
   onUpdate?: () => void;
 }
 
+// Fields-only form: the hosting dialog owns the header (name, type, status)
+// and the actions bar, which submits through the "expectationForm" form id.
 const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps> = ({ expectation, result, sourceIds = [], onUpdate }) => {
-  const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
@@ -67,7 +57,7 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
     register,
     control,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<{
     expectation_score: number;
     security_platform: string;
@@ -86,23 +76,23 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
     },
   });
 
-  // Security Platform Options
-  const filterOptions = (n: SecurityPlatform) => (n.asset_external_reference === null && !sourceIds.includes(n.asset_id));
+  // Security Platform Options. Only propose platforms whose type matches the
+  // expectation's expected security platform types (EDR, SIEM, ...). An empty /
+  // missing list means "any platform" (legacy behaviour), so we do not filter.
+  const expectedPlatformTypes = expectation.inject_expectation_expected_security_platforms ?? [];
+  const filterOptions = (n: SecurityPlatform) => (
+    n.asset_external_reference === null
+    && !sourceIds.includes(n.asset_id)
+    && (expectedPlatformTypes.length === 0 || expectedPlatformTypes.includes(n.security_platform_type))
+  );
+
+  // Asset (endpoint) expectations aggregate their agents: a manual result added
+  // here is written on every agent of the endpoint. Surface that so the behavior
+  // is not surprising (mirrors the team -> players notice on manual expectations).
+  const appliesToAllAgents = isAssetExpectation(expectation);
 
   return (
     <form id="expectationForm" onSubmit={handleSubmit(onSubmit)}>
-      {result && (
-        <div style={{ float: 'right' }}>
-          <ItemStatus label={result?.result} status={result?.result} />
-        </div>
-      )}
-      <Typography variant="h3">{t('Name')}</Typography>
-      {expectation.inject_expectation_name}
-      <div className={classes.marginTop_2}>
-        <Typography variant="h3">{t('Description')}</Typography>
-        <ExpandableText source={expectation.inject_expectation_description} limit={120} />
-      </div>
-
       <Can not I={ACTIONS.ACCESS} a={SUBJECTS.SECURITY_PLATFORMS}>
         <RestrictionAccess restrictedField="security platforms" />
       </Can>
@@ -118,13 +108,12 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
             fieldOnChange={onChange}
             errors={errors}
             filterOptions={filterOptions}
-            style={{ marginTop: 20 }}
+            style={{}}
             editing={!!result}
           />
         )}
       />
       <MuiTextField
-        className={classes.marginTop_2}
         variant="standard"
         fullWidth
         label={t('Score')}
@@ -132,17 +121,32 @@ const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps
         error={!!errors.expectation_score}
         helperText={errors.expectation_score?.message ?? `${t('Expected score:')} ${expectation.inject_expectation_expected_score}`}
         slotProps={{ htmlInput: { ...register('expectation_score', { valueAsNumber: true }) } }}
+        sx={{ marginTop: 2.5 }}
       />
 
-      <div className={classes.buttons}>
-        <Button
-          type="submit"
-          disabled={isSubmitting}
-          variant="contained"
+      {appliesToAllAgents && (
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          marginTop: 2.5,
+        }}
         >
-          {t('Validate')}
-        </Button>
-      </div>
+          <InfoOutlined sx={{
+            fontSize: 16,
+            color: 'text.secondary',
+            flexShrink: 0,
+          }}
+          />
+          <Typography sx={{
+            fontSize: 12,
+            color: 'text.secondary',
+          }}
+          >
+            {t('The result added here will also be applied to all agents of this endpoint')}
+          </Typography>
+        </Box>
+      )}
     </form>
   );
 };

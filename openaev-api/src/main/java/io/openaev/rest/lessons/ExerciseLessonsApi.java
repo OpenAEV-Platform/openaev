@@ -7,6 +7,7 @@ import static java.time.Instant.now;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.LessonsAnswerSpecification;
@@ -62,8 +63,9 @@ public class ExerciseLessonsApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
+  // TxCtx scopes the template lookup so a cross-tenant template is not found. Not used directly.
   public Iterable<LessonsCategory> applyExerciseLessonsTemplate(
-      @PathVariable String exerciseId, @PathVariable String lessonsTemplateId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String lessonsTemplateId) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
@@ -344,7 +346,11 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void sendExerciseLessons(
-      @PathVariable String exerciseId, @Valid @RequestBody LessonsSendInput input) {
+      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for the transaction (MailingService#sendEmail resolves the email injector contract's
+      // linked injector, v2 tenant-scoped through the injectors table; without a scope the
+      // association is empty and the send throws IllegalStateException).
+      TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody LessonsSendInput input) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())

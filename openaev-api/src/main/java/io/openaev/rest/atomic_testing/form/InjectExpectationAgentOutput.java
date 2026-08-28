@@ -4,7 +4,7 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.InjectExpectationResult;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -22,7 +22,7 @@ public class InjectExpectationAgentOutput {
 
   @NotNull
   @JsonProperty("inject_expectation_type")
-  private InjectExpectation.EXPECTATION_TYPE type;
+  private BaseInjectExpectation.EXPECTATION_TYPE type;
 
   @NotBlank
   @JsonProperty("inject_expectation_id")
@@ -38,7 +38,7 @@ public class InjectExpectationAgentOutput {
   private Double score;
 
   @JsonProperty("inject_expectation_status")
-  public InjectExpectation.EXPECTATION_STATUS status;
+  public BaseInjectExpectation.EXPECTATION_STATUS status;
 
   @JsonProperty("inject_expiration_time")
   @NotNull
@@ -52,6 +52,12 @@ public class InjectExpectationAgentOutput {
 
   @JsonProperty("inject_expectation_asset")
   private String assetId; // id
+
+  // Required by the frontend store selector (getInjectExpectationsByAssetAndInject), which
+  // filters normalized entities by inject id: without it the endpoint (asset) target-results
+  // view never matches anything and the security-platform breakdown stays empty.
+  @JsonProperty("inject_expectation_inject")
+  private String injectId; // id
 
   @JsonProperty("inject_expectation_agent")
   private String agentId; // id

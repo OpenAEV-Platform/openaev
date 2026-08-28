@@ -22,6 +22,7 @@ import io.openaev.engine.query.EsSeries;
 import io.openaev.engine.query.EsSeriesData;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.utils.CustomDashboardTimeRange;
 import io.openaev.utils.SecurityCoverageUtils;
 import io.openaev.utils.mapper.RawUserAuthMapper;
@@ -78,6 +79,7 @@ public class AttackPatternService {
   private final UserRepository userRepository;
   private final EngineService engineService;
   private final RawUserAuthMapper rawUserAuthMapper;
+  private final AiMetricCollector aiMetricCollector;
 
   /**
    * Call the TTP Extraction AI Webservice to analyze files and text input.
@@ -198,23 +200,23 @@ public class AttackPatternService {
         List.of(
             coverageSeries(
                 COVERAGE_PREVENTION_SUCCESS,
-                InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 simulationIds),
             coverageSeries(
                 COVERAGE_PREVENTION_FAILED,
-                InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                InjectExpectation.EXPECTATION_STATUS.FAILED,
+                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.FAILED,
                 simulationIds),
             coverageSeries(
                 COVERAGE_DETECTION_SUCCESS,
-                InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
                 simulationIds),
             coverageSeries(
                 COVERAGE_DETECTION_FAILED,
-                InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                InjectExpectation.EXPECTATION_STATUS.FAILED,
+                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                BaseInjectExpectation.EXPECTATION_STATUS.FAILED,
                 simulationIds)));
 
     List<EsSeries> series =
@@ -303,8 +305,8 @@ public class AttackPatternService {
 
   private static WidgetConfigurationWithSeries.Series coverageSeries(
       String name,
-      InjectExpectation.EXPECTATION_TYPE type,
-      InjectExpectation.EXPECTATION_STATUS status,
+      BaseInjectExpectation.EXPECTATION_TYPE type,
+      BaseInjectExpectation.EXPECTATION_STATUS status,
       List<String> simulationIds) {
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
@@ -484,6 +486,9 @@ public class AttackPatternService {
   public List<String> searchAttackPatternWithTTPAIWebservice(
       List<MultipartFile> files, String text, String agentSlug) {
     validateInputs(files, text);
+    // Telemetry: one TTP extraction, counted before the routing branch so the
+    // metric is identical whichever backend (legacy webservice or XTM One) serves it.
+    aiMetricCollector.recordTtpExtraction();
     try {
       String responseBody;
       if (xtmOneConfig.isConfigured()) {

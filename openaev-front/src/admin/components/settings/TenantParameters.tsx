@@ -1,4 +1,4 @@
-import { ListItem, ListItemText, Paper, Switch, TextField, Typography } from '@mui/material';
+import { ListItem, ListItemText, Paper, Switch } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 
@@ -11,6 +11,7 @@ import {
   updateTenantSettings,
 } from '../../../actions/settings/tenant-settings-action';
 import Breadcrumbs from '../../../components/Breadcrumbs';
+import { SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../components/i18n';
 import ItemCopy from '../../../components/ItemCopy';
 import { useHelper } from '../../../store';
@@ -116,7 +117,7 @@ const TenantParameters = () => {
             flexDirection: 'column',
           }}
           >
-            <Typography variant="h4">{t('Configuration')}</Typography>
+            <SectionLabel>{t('Configuration')}</SectionLabel>
             <Paper
               variant="outlined"
               style={{
@@ -143,7 +144,7 @@ const TenantParameters = () => {
             flexDirection: 'column',
           }}
           >
-            <Typography variant="h4">{t('OpenAEV platform')}</Typography>
+            <SectionLabel>{t('OpenAEV platform')}</SectionLabel>
             <PlatformInfoPanel
               settings={settings}
               topContent={(
@@ -160,9 +161,6 @@ const TenantParameters = () => {
               )}
               bottomContent={(
                 <>
-                  <ListItem divider>
-                    <TextField fullWidth label={t('Filigran support key')} variant="standard" disabled />
-                  </ListItem>
                   <ListItem>
                     <ListItemText primary={(
                       <span style={{
@@ -194,7 +192,7 @@ const TenantParameters = () => {
         }}
         >
           <div>
-            <Typography variant="h4">{t('Dark theme')}</Typography>
+            <SectionLabel>{t('Dark theme')}</SectionLabel>
             <Paper variant="outlined" style={{ padding: theme.spacing(2) }}>
               <ThemeForm
                 onSubmit={onUpdateDarkTheme}
@@ -204,7 +202,7 @@ const TenantParameters = () => {
             </Paper>
           </div>
           <div>
-            <Typography variant="h4">{t('Light theme')}</Typography>
+            <SectionLabel>{t('Light theme')}</SectionLabel>
             <Paper variant="outlined" style={{ padding: theme.spacing(2) }}>
               <ThemeForm
                 onSubmit={onUpdateLightTheme}
@@ -214,7 +212,7 @@ const TenantParameters = () => {
             </Paper>
           </div>
           <div>
-            <Typography variant="h4">{t('Tools')}</Typography>
+            <SectionLabel>{t('Tools')}</SectionLabel>
             <ToolsPanel settings={settings} />
           </div>
         </div>

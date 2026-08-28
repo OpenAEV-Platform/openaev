@@ -1,12 +1,11 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version='1.0' encoding='UTF-8'?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>2.260622.0</version>
+        <version>3.260827.0</version>
     </parent>
 
     <artifactId>openaev-api</artifactId>
@@ -14,16 +13,21 @@
     <description>OpenAEV api</description>
 
     <properties>
-        <commons-collections4.version>4.5.0</commons-collections4.version>
+        <commons-collections4.version>4.6.0</commons-collections4.version>
         <commons-email.version>1.5</commons-email.version>
         <springdoc.version>2.8.16</springdoc.version>
         <springdoc-plugin.version>1.5</springdoc-plugin.version>
         <cron-utils.version>9.2.1</cron-utils.version>
         <apache-poi.version>5.5.1</apache-poi.version>
         <opencsv-version>5.12.0</opencsv-version>
-        <opentelemetry.version>1.63.0</opentelemetry.version>
-        <elasticsearch.version>8.19.16</elasticsearch.version>
-        <opentelemetry-semconv.version>1.42.0</opentelemetry-semconv.version>
+        <elasticsearch.version>8.19.20</elasticsearch.version>
+        <opentelemetry-semconv.version>1.43.0</opentelemetry-semconv.version>
+        <!-- Not managed by the Spring Boot BOM; pinned here. Apache-2.0. -->
+        <datasource-proxy.version>1.11.0</datasource-proxy.version>
+        <!-- Server-side report rendering (headless Chromium). Apache-2.0. -->
+        <playwright.version>1.62.0</playwright.version>
+        <!-- Azure credential status validation. Aligned with openaev-model's azure-core-management. MIT. -->
+        <azure-identity.version>1.18.5</azure-identity.version>
     </properties>
 
     <profiles>
@@ -32,28 +36,21 @@
         </profile>
     </profiles>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>io.opentelemetry</groupId>
-                <artifactId>opentelemetry-bom</artifactId>
-                <version>${opentelemetry.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
     <dependencies>
         <dependency>
             <groupId>io.openaev</groupId>
             <artifactId>openaev-framework</artifactId>
-            <version>2.260622.0</version>
+            <version>3.260827.0</version>
         </dependency>
         <dependency>
             <groupId>co.elastic.clients</groupId>
             <artifactId>elasticsearch-java</artifactId>
             <version>${elasticsearch.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-identity</artifactId>
+            <version>${azure-identity.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -70,16 +67,18 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
-            <version>3.5.15</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-freemarker</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.session</groupId>
+            <artifactId>spring-session-jdbc</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
-            <version>3.5.15</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -199,7 +198,15 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.6.0-jre</version>
+            <version>33.7.1-jre</version>
+        </dependency>
+        <!-- Playwright drives an in-container headless Chromium to render reports (PDF/HTML).
+             On dev machines the browser bundle is downloaded automatically on first use; the
+             production images pre-install it at PLAYWRIGHT_BROWSERS_PATH (see Dockerfiles). -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>${playwright.version}</version>
         </dependency>
         <!-- OpenTelemetry -->
         <dependency>
@@ -234,7 +241,15 @@
         <dependency>
             <groupId>org.mock-server</groupId>
             <artifactId>mockserver-netty</artifactId>
-            <version>5.15.0</version>
+            <version>7.6.0</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- MockServer exposes Prometheus metrics and reaches for SpanContextSupplier on every
+             request. micrometer-registry-prometheus only brings tracer-common, so the class is
+             missing and the Netty pipeline dies on each control plane call. -->
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>prometheus-metrics-tracer-initializer</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -248,14 +263,18 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>1.5.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.34</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
-            <version>1.5.34</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback.contrib</groupId>
@@ -270,7 +289,7 @@
         <dependency>
             <groupId>net.javacrumbs.json-unit</groupId>
             <artifactId>json-unit-assertj</artifactId>
-            <version>5.1.2</version>
+            <version>6.2.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -286,6 +305,26 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
+        <!-- Debug mode: correlation ids in the MDC via Micrometer Tracing (Brave bridge, from the
+             Spring Boot BOM). Aligning on the OpenTelemetry bridge is deferred (ADR 0002): the
+             metrics-only OpenTelemetry bean blocks it, a metrics-owner change. Apache-2.0. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-brave</artifactId>
+        </dependency>
+        <!-- Debug mode: SQL statement logging with timing and masked parameters. Apache-2.0. -->
+        <dependency>
+            <groupId>net.ttddyy</groupId>
+            <artifactId>datasource-proxy</artifactId>
+            <version>${datasource-proxy.version}</version>
+        </dependency>
+        <!-- Must match the version Spring Data JPA uses (declared provided/optional there),
+             otherwise its native-query handling breaks at startup. -->
+        <dependency>
+            <groupId>com.github.jsqlparser</groupId>
+            <artifactId>jsqlparser</artifactId>
+            <version>5.3</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -299,7 +338,7 @@
                         <path>
                             <groupId>io.openaev</groupId>
                             <artifactId>openaev-annotation-processor</artifactId>
-                            <version>${project.version}</version>
+                            <version>${project.parent.version}</version>
                         </path>
                         <path>
                             <groupId>org.projectlombok</groupId>
@@ -374,6 +413,13 @@
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
+                        <configuration>
+                            <!-- jsqlparser ships a huge generated parser JaCoCo cannot instrument
+                                 (MethodTooLargeException); excluding it keeps the class loadable. -->
+                            <excludes>
+                                <exclude>net/sf/jsqlparser/**</exclude>
+                            </excludes>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>report</id>
@@ -411,6 +457,19 @@
                     <outputDir>.</outputDir>
                     <skip>true</skip>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.openaev</groupId>
+                <artifactId>openaev-maven-plugin</artifactId>
+                <version>${project.parent.version}</version>
+                <executions>
+                    <execution>
+                        <id>new-migration</id>
+                        <goals>
+                            <goal>migration</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

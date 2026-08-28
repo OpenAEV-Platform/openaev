@@ -91,7 +91,6 @@ const TextFieldController = ({
             helperText={!noHelperText && error ? error.message : null}
             multiline={multiline}
             rows={rows}
-            aria-label={label}
             disabled={disabled}
             placeholder={placeholder}
             style={style}
@@ -104,7 +103,7 @@ const TextFieldController = ({
                   ? {
                       endAdornment: (
                         <IconButton
-                          disabled={writeOnly && isOriginalValue}
+                          disabled={disabled || (writeOnly && isOriginalValue)}
                           aria-label={
                             showPassword ? 'Hide the password' : 'Display the password'
                           }

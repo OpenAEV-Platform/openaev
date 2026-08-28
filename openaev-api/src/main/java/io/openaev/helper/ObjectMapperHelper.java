@@ -2,10 +2,13 @@ package io.openaev.helper;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.fasterxml.jackson.datatype.hibernate6.Hibernate6Module;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.openaev.database.audit.AuditStateCapturable;
 
 /**
  * Helper class for creating pre-configured Jackson ObjectMapper instances.
@@ -41,6 +44,14 @@ public final class ObjectMapperHelper {
     mapper.registerModule(new Hibernate6Module());
     mapper.registerModule(new Jdk8Module());
     mapper.registerModule(new JavaTimeModule());
+    // Register a passthrough filter for the audit state filter declared on Base via @JsonFilter.
+    // This ensures normal serialization (API responses, WebSocket) is not affected.
+    // The actual filtering logic is applied only in AuditStateCapturable's cached ObjectMapper
+    // copy.
+    mapper.setFilterProvider(
+        new SimpleFilterProvider()
+            .addFilter(
+                AuditStateCapturable.AUDIT_STATE_FILTER, SimpleBeanPropertyFilter.serializeAll()));
     return mapper;
   }
 }

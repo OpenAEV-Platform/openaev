@@ -36,6 +36,19 @@ public class GrantService {
     return hasGrant(resourceId, user, GRANT_TYPE.LAUNCHER);
   }
 
+  /**
+   * Lists every grantable resource id the user can at least read (OBSERVER grant or higher),
+   * regardless of the resource type. Used to filter listings of entities that reference grantable
+   * resources by id (e.g. reporting templates built around a scenario or simulation).
+   *
+   * @param user the user whose grants are resolved
+   * @return the distinct resource ids the user holds a read grant on
+   */
+  public List<String> findReadGrantedResourceIds(@NotNull final User user) {
+    return this.grantRepository.resourceIdsByUserIdAndNameIn(
+        user.getId(), GRANT_TYPE.OBSERVER.andHigher());
+  }
+
   private boolean hasGrant(
       @NotBlank final String resourceId,
       @NotNull final User user,
@@ -81,12 +94,7 @@ public class GrantService {
       Group group,
       @NotBlank String resourceId,
       @NotNull GRANT_RESOURCE_TYPE resourceType) {
-    Grant grant = new Grant();
-    grant.setName(name);
-    grant.setGroup(group);
-    grant.setResourceId(resourceId);
-    grant.setGrantResourceType(resourceType);
-    return grantRepository.save(grant);
+    return grantRepository.save(Grant.of(name, group, resourceId, resourceType));
   }
 
   public List<Grant> duplicateGrants(

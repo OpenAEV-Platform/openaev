@@ -1,15 +1,14 @@
 import {
-  Groups,
-  ImportantDevices,
-  Language,
-  WebAsset,
+  CloudOutlined,
+  GroupsOutlined,
+  ImportantDevicesOutlined,
+  LockOutlined,
+  MailOutline,
+  PublicOutlined,
+  SmartToyOutlined,
+  StorageOutlined,
+  WebAssetOutlined,
 } from '@mui/icons-material';
-import {
-  Cloud,
-  Database,
-  Lock,
-  Mail,
-} from 'mdi-material-ui';
 import { type ReactElement } from 'react';
 
 import { type Domain } from '../../../../utils/api-types';
@@ -17,14 +16,15 @@ import { TO_CLASSIFY } from '../../../../utils/domains/domainUtils';
 import { type IconBarElement } from './IconBar-model';
 
 const DOMAIN_ICON_MAP: Record<string, () => ReactElement> = {
-  'Endpoint': () => <ImportantDevices />,
-  'Network': () => <Language />,
-  'Web App': () => <WebAsset />,
-  'E-mail Infiltration': () => <Mail />,
-  'Data Exfiltration': () => <Database />,
-  'URL Filtering': () => <Lock />,
-  'Cloud': () => <Cloud />,
-  'Tabletop': () => <Groups />,
+  'Endpoint': () => <ImportantDevicesOutlined />,
+  'Network': () => <PublicOutlined />,
+  'Web App': () => <WebAssetOutlined />,
+  'E-mail Infiltration': () => <MailOutline />,
+  'Data Exfiltration': () => <StorageOutlined />,
+  'URL Filtering': () => <LockOutlined />,
+  'Cloud': () => <CloudOutlined />,
+  'Artificial Intelligence': () => <SmartToyOutlined />,
+  'Tabletop': () => <GroupsOutlined />,
 };
 
 const buildIconBarElements = (

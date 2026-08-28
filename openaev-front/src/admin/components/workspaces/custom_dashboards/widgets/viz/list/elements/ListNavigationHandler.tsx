@@ -1,23 +1,26 @@
 import qs from 'qs';
-import { type NavigateFunction } from 'react-router';
 
 import { generateFilterId } from '../../../../../../../../components/common/queryable/filter/FilterUtils';
 import { buildSearchPagination } from '../../../../../../../../components/common/queryable/QueryableUtils';
 import {
+  ASSET_BASE_URL,
+  ASSET_GROUP_BASE_URL,
   ATOMIC_BASE_URL,
-  ENDPOINT_BASE_URL,
+  FINDING_BASE_URL,
   SCENARIO_BASE_URL,
   SIMULATION_BASE_URL,
+  TEAM_BASE_URL,
 } from '../../../../../../../../constants/BaseUrls';
 import {
   type EsBase,
-  type EsFinding,
   type EsInject, type EsInjectExpectation,
   type EsVulnerableEndpoint,
 } from '../../../../../../../../utils/api-types';
 import { getTargetTypeFromInjectExpectation } from './ListColumnConfig';
 
-type NavigationHandler = (element: EsBase, navigate: NavigateFunction) => void;
+// URL builders (not navigate callbacks): rows render as real router links so
+// ctrl/cmd+click and middle-click open the target in a new tab everywhere.
+type NavigationUrlBuilder = (element: EsBase) => string;
 
 const getInjectDetailUrl = (injectElement: EsInject): string => {
   let injectUrl = `${ATOMIC_BASE_URL}/${injectElement.base_id}`;
@@ -39,12 +42,14 @@ const getInjectDetailUrl = (injectElement: EsInject): string => {
   return injectUrl;
 };
 
-const navigationHandlers: Record<string, NavigationHandler> = {
-  'endpoint': (element, navigate) => {
-    navigate(`${ENDPOINT_BASE_URL}/${element.base_id}`);
-  },
+const navigationUrlBuilders: Record<string, NavigationUrlBuilder> = {
+  'asset': element => `${ASSET_BASE_URL}/${element.base_id}`,
 
-  'vulnerable-endpoint': (element, navigate) => {
+  'asset-group': element => `${ASSET_GROUP_BASE_URL}/${element.base_id}`,
+
+  'team': element => `${TEAM_BASE_URL}/${element.base_id}`,
+
+  'vulnerable-endpoint': (element) => {
     const craftedFilter = btoa(qs.stringify({
       ...buildSearchPagination({
         filterGroup: {
@@ -62,57 +67,33 @@ const navigationHandlers: Record<string, NavigationHandler> = {
       }),
       key: 'endpoint-findings',
     }, { allowEmptyArrays: true }));
-    navigate(`${ENDPOINT_BASE_URL}/${(element as EsVulnerableEndpoint).vulnerable_endpoint_id}?query=${craftedFilter}`);
+    return `${ASSET_BASE_URL}/${(element as EsVulnerableEndpoint).vulnerable_endpoint_id}?query=${craftedFilter}`;
   },
 
-  'scenario': (element, navigate) => {
-    navigate(`${SCENARIO_BASE_URL}/${element.base_id}`);
-  },
+  'scenario': element => `${SCENARIO_BASE_URL}/${element.base_id}`,
 
-  'simulation': (element, navigate) => {
-    navigate(`${SIMULATION_BASE_URL}/${element.base_id}`);
-  },
+  'simulation': element => `${SIMULATION_BASE_URL}/${element.base_id}`,
 
-  'inject': (element, navigate) => {
-    navigate(getInjectDetailUrl(element as EsInject));
-  },
+  'inject': element => getInjectDetailUrl(element as EsInject),
 
-  'expectation-inject': (element, navigate) => {
+  'expectation-inject': (element) => {
     const expectation = element as EsInjectExpectation;
     const injectUrl = expectation.base_simulation_side == null
       ? `${ATOMIC_BASE_URL}/${expectation.base_inject_side}`
       : `${SIMULATION_BASE_URL}/${expectation.base_simulation_side}/injects/${expectation.base_inject_side}`;
     const target = getTargetTypeFromInjectExpectation(expectation);
-    navigate(`${injectUrl}?expectation_id=${expectation.base_id}&target=${target.type}`);
+    return `${injectUrl}?expectation_id=${expectation.base_id}&target=${target.type}`;
   },
 
-  'finding': (element, navigate) => {
-    const findingElement = element as EsFinding;
-    const craftedFilter = btoa(qs.stringify({
-      ...buildSearchPagination({
-        filterGroup: {
-          mode: 'and',
-          filters: [
-            {
-              id: generateFilterId(),
-              key: 'finding_type',
-              operator: 'eq',
-              mode: 'or',
-              values: [findingElement.finding_type ?? ''],
-            },
-          ],
-        },
-        textSearch: findingElement.finding_value ?? '',
-      }),
-      key: 'atm-findings',
-    }, { allowEmptyArrays: true }));
-
-    const baseUrl = (findingElement.base_simulation_side != null && findingElement.base_simulation_side != '')
-      ? `${SIMULATION_BASE_URL}/${findingElement.base_simulation_side}/injects/${findingElement.base_inject_side}/findings`
-      : `${ATOMIC_BASE_URL}/${findingElement.base_inject_side}/findings`;
-
-    navigate(`${baseUrl}?query=${craftedFilter}&open=${findingElement.base_id}`);
-  },
+  // Findings have their own full-page overview: always land there instead of
+  // the owning inject (the overview exposes the related injects as pivots).
+  'finding': element => `${FINDING_BASE_URL}/${element.base_id}`,
 };
 
-export default navigationHandlers;
+/** Returns the detail URL for an ES element, or null when the entity has no overview. */
+export const getNavigationUrl = (element: EsBase): string | null => {
+  const builder = navigationUrlBuilders[element.base_entity ?? ''];
+  return builder ? builder(element) : null;
+};
+
+export default navigationUrlBuilders;

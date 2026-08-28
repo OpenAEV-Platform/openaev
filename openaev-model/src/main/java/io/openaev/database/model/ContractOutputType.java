@@ -7,6 +7,9 @@ public enum ContractOutputType {
   @JsonProperty("text")
   Text("text"),
 
+  @JsonProperty("action_output")
+  ActionOutput("action_output"),
+
   @JsonProperty("number")
   Number("number"),
 
@@ -31,8 +34,14 @@ public enum ContractOutputType {
   @JsonProperty("username")
   Username("username"),
 
+  @JsonProperty("email")
+  Email("email"),
+
   @JsonProperty("share")
   Share("share"),
+
+  @JsonProperty("file")
+  File("file"),
 
   @JsonProperty("admin_username")
   AdminUsername("admin_username"),
@@ -69,7 +78,7 @@ public enum ContractOutputType {
   Asset("asset"),
 
   @JsonProperty("expectation_signature")
-  ExpectationSignature("expectation_signature ");
+  ExpectationSignature("expectation_signature");
 
   private final String label;
 

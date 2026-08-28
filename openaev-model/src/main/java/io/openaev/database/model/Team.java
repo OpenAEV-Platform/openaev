@@ -232,7 +232,7 @@ public class Team implements TenantBase {
   @OneToMany(mappedBy = "team", fetch = FetchType.LAZY)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonProperty("team_inject_expectations")
-  private List<InjectExpectation> injectExpectations = new ArrayList<>();
+  private List<TableTopInjectExpectation> injectExpectations = new ArrayList<>();
 
   @JsonProperty("team_injects_expectations_number")
   @Schema(description = "Number of expectations linked to this team")
@@ -246,7 +246,7 @@ public class Team implements TenantBase {
   public double getInjectExpectationsTotalScore() {
     return getInjectExpectations().stream()
         .filter((inject) -> inject.getScore() != null)
-        .mapToDouble(InjectExpectation::getScore)
+        .mapToDouble(BaseInjectExpectation::getScore)
         .sum();
   }
 
@@ -262,7 +262,7 @@ public class Team implements TenantBase {
         .collect(
             Collectors.groupingBy(
                 expectation -> expectation.getExercise().getId(),
-                Collectors.summingDouble(InjectExpectation::getScore)));
+                Collectors.summingDouble(BaseInjectExpectation::getScore)));
   }
 
   @JsonProperty("team_injects_expectations_total_expected_score")
@@ -271,7 +271,7 @@ public class Team implements TenantBase {
   public double getInjectExpectationsTotalExpectedScore() {
     return getInjectExpectations().stream()
         .filter(expectation -> Objects.nonNull(expectation.getExpectedScore()))
-        .mapToDouble(InjectExpectation::getExpectedScore)
+        .mapToDouble(BaseInjectExpectation::getExpectedScore)
         .sum();
   }
 
@@ -284,7 +284,7 @@ public class Team implements TenantBase {
         .collect(
             Collectors.groupingBy(
                 expectation -> expectation.getExercise().getId(),
-                Collectors.summingDouble(InjectExpectation::getExpectedScore)));
+                Collectors.summingDouble(BaseInjectExpectation::getExpectedScore)));
   }
 
   // endregion

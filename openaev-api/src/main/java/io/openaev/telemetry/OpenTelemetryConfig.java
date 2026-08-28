@@ -33,6 +33,8 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Locale;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -163,6 +165,15 @@ public class OpenTelemetryConfig {
                 stringKey("service.instance.creation"),
                 ZonedDateTime.of(creationDate, ZoneId.systemDefault()).toInstant().toString());
 
+    // Optional deployment tags (telemetry.tags property / TELEMETRY_TAGS env var,
+    // normalized to a canonical sorted/lowercased comma string). One resource
+    // attribute on every export so analytics can slice any metric by deployment
+    // dimension (e.g. "saas,eu-west"). Omitted entirely when not configured.
+    String telemetryTags = normalizeTelemetryTags(environment.getProperty("telemetry.tags"));
+    if (!telemetryTags.isEmpty()) {
+      resourceBuilder.put(stringKey("filigran.telemetry.tags"), telemetryTags);
+    }
+
     try {
       String hostAddress = InetAddress.getLocalHost().getHostAddress();
       resourceBuilder.putAll(Attributes.of(ServerAttributes.SERVER_ADDRESS, hostAddress));
@@ -175,5 +186,20 @@ public class OpenTelemetryConfig {
 
   private String getRequiredProperty(@NotBlank final String key) {
     return requireNonNull(environment.getProperty(key), "Property " + key + " must not be null");
+  }
+
+  /**
+   * Normalizes the deployment tags configured via {@code telemetry.tags} ({@code TELEMETRY_TAGS}):
+   * split on ",", trim, lowercase, drop empties, dedupe, sort, re-join. Shared Filigran contract
+   * (same normalization in OpenCTI and XTM One) so an identical tag set always produces the
+   * identical string in the analytics warehouse.
+   */
+  public static String normalizeTelemetryTags(String rawTags) {
+    return Arrays.stream((rawTags == null ? "" : rawTags).split(","))
+        .map(tag -> tag.trim().toLowerCase(Locale.ROOT))
+        .filter(tag -> !tag.isEmpty())
+        .distinct()
+        .sorted()
+        .collect(Collectors.joining(","));
   }
 }

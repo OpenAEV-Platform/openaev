@@ -1,10 +1,11 @@
 import { lazy } from 'react';
 import { Route, Routes, useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { fetchChannel } from '../../../../actions/channels/channel-action';
 import { type ChannelsHelper } from '../../../../actions/channels/channel-helper';
+import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { errorWrapper } from '../../../../components/Error';
+import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
 import { useHelper } from '../../../../store';
@@ -13,12 +14,10 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import ChannelHeader from './ChannelHeader';
 
-const useStyles = makeStyles()(() => ({ root: { flexGrow: 1 } }));
-
 const Channel = lazy(() => import('./Channel'));
 
 const Index = () => {
-  const { classes } = useStyles();
+  const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const { channelId } = useParams() as { channelId: ChannelType['channel_id'] };
   const { channel } = useHelper((helper: ChannelsHelper) => ({ channel: helper.getChannel(channelId) }));
@@ -27,9 +26,27 @@ const Index = () => {
   });
   if (channel) {
     return (
-      <div className={classes.root}>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+      }}
+      >
+        <Breadcrumbs
+          variant="object"
+          elements={[
+            { label: t('Components') },
+            {
+              label: t('Channels'),
+              link: '/admin/components/channels',
+            },
+            {
+              label: channel.channel_name,
+              current: true,
+            },
+          ]}
+        />
         <ChannelHeader />
-        <div className="clearfix" />
         <Routes>
           <Route path="" element={errorWrapper(Channel)()} />
           {/* Not found */}

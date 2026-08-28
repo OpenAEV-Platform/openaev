@@ -80,9 +80,8 @@ public class ChannelContract extends Contractor {
     // Media pressure injects expose both article and manual expectations.
     ContractExpectations expectationsField =
         expectationsField(
-            List.of(this.expectationBuilderService.buildArticleExpectation()),
             List.of(
-                this.expectationBuilderService.buildArticleExpectation(),
+                this.expectationBuilderService.buildPredefinedArticleExpectation(),
                 this.expectationBuilderService.buildManualExpectation()));
     List<ContractElement> publishInstance =
         contractBuilder()

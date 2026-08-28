@@ -211,6 +211,17 @@ const InjectorContracts = () => {
         searchPaginationInput={searchPaginationInput}
         setContent={handleContractsLoaded}
         exportProps={exportProps}
+        createButton={injector?.injector_custom_contracts ? (
+          <CreateInjectorContract
+            injector={injector}
+            injectorContracts={injectorContracts}
+            killChainPhasesMap={killChainPhasesMap}
+            attackPatternsMap={attackPatternsMap}
+            onCreated={() => {
+              setSearchPaginationInput({ ...searchPaginationInput });
+            }}
+          />
+        ) : null}
       />
       <div className="clearfix" />
       <List classes={{ root: classes.list }}>
@@ -311,7 +322,7 @@ const InjectorContracts = () => {
                     style={inlineStyles.attack_patterns}
                   >
                     {injectorContract.injector_contract_attack_patterns?.length
-                      ? injectorContract.injector_contract_attack_patterns
+                      ? Array.from(new Set(injectorContract.injector_contract_attack_patterns))
                           .map((n) => {
                             const pattern = attackPatternsMap[n];
                             return pattern
@@ -340,17 +351,6 @@ const InjectorContracts = () => {
           </ListItem>
         ))}
       </List>
-      {injector?.injector_custom_contracts && (
-        <CreateInjectorContract
-          injector={injector}
-          injectorContracts={injectorContracts}
-          killChainPhasesMap={killChainPhasesMap}
-          attackPatternsMap={attackPatternsMap}
-          onCreated={() => {
-            setSearchPaginationInput({ ...searchPaginationInput });
-          }}
-        />
-      )}
     </div>
   );
 };

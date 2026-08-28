@@ -66,6 +66,7 @@ export type ContractType
     | 'expectation'
     | 'asset'
     | 'asset-group'
+    | 'ai-target'
     | 'payload'
     | 'targeted-asset' | 'password';
 
@@ -79,6 +80,7 @@ export interface ContractElement {
   key: string;
   mandatory: boolean;
   type: ContractType;
+  argumentType?: string;
   label: string;
   readOnly: boolean;
   mandatoryGroups?: string[];
@@ -97,7 +99,6 @@ export interface ContractElement {
   defaultValue: any;
   richText?: boolean;
   tupleFilePrefix?: string;
-  predefinedExpectations?: ExpectationInput[];
   availableExpectations?: ExpectationInput[];
   dependencyField?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -7,7 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
@@ -22,8 +27,10 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.EndpointService;
 import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.fixtures.*;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -34,10 +41,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 public class ExecutionExecutorServiceTest {
@@ -49,8 +54,12 @@ public class ExecutionExecutorServiceTest {
   @Mock private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   @Mock private ConnectorInstanceRepository connectorInstanceRepository;
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
+  @Mock private AgentRepository agentRepository;
+  @Mock private EndpointService endpointService;
+  @Mock private AuditLogger auditLogger;
+  @Mock private ActionMetricCollector actionMetricCollector;
 
-  @InjectMocks private ExecutionExecutorService executorService;
+  private ExecutionExecutorService executorService;
   @Mock private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   @BeforeEach
@@ -67,11 +76,21 @@ public class ExecutionExecutorServiceTest {
             null,
             null,
             null,
+            endpointService,
+            null,
             null);
-    ReflectionTestUtils.setField(
-        executorService, "connectorInstanceService", connectorInstanceService);
-    ReflectionTestUtils.setField(
-        executorService, "executorUtils", new ExecutorUtils(assetAgentJobRepository));
+    executorService =
+        new ExecutionExecutorService(
+            managerFactory,
+            executionTraceRepository,
+            injectStatusRepository,
+            injectService,
+            new ExecutorUtils(assetAgentJobRepository),
+            endpointService,
+            connectorInstanceService,
+            serviceAccountPrivilegeService,
+            actionMetricCollector,
+            Optional.of(auditLogger));
   }
 
   @Test
@@ -225,6 +244,41 @@ public class ExecutionExecutorServiceTest {
   }
 
   @Test
+  void test_saveDistributionTrace_withAgents_savesGlobalInfoTrace() {
+    // Init datas
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    endpoint.setId("endpoint-1");
+    Agent agent = AgentFixture.createDefaultAgentSession();
+    agent.setAsset(endpoint);
+    endpoint.setAgents(List.of(agent));
+    InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
+    // Run method to test
+    executorService.saveDistributionTrace(new HashSet<>(Set.of(agent)), injectStatus);
+    // Asserts
+    ArgumentCaptor<ExecutionTrace> executionTrace = ArgumentCaptor.forClass(ExecutionTrace.class);
+    verify(executionTraceRepository).save(executionTrace.capture());
+    // Global trace: no agent and no context identifiers so it surfaces in the "Execution details"
+    // tab timeline.
+    assertThat(executionTrace.getValue().getAgent()).isNull();
+    assertThat(executionTrace.getValue().getIdentifiers()).isEmpty();
+    assertEquals(ExecutionTraceStatus.INFO, executionTrace.getValue().getStatus());
+    assertEquals(ExecutionTraceAction.START, executionTrace.getValue().getAction());
+    assertEquals(
+        "Distributing inject to 1 agent(s) across 1 endpoint(s)",
+        executionTrace.getValue().getMessage());
+  }
+
+  @Test
+  void test_saveDistributionTrace_withoutAgents_savesNothing() {
+    // Init datas
+    InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
+    // Run method to test
+    executorService.saveDistributionTrace(new HashSet<>(), injectStatus);
+    // Asserts
+    verify(executionTraceRepository, never()).save(any(ExecutionTrace.class));
+  }
+
+  @Test
   void saveAgentErrorTrace() {
     // Init datas
     Endpoint endpoint = EndpointFixture.createEndpoint();
@@ -276,8 +330,8 @@ public class ExecutionExecutorServiceTest {
       ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase ids =
           mock(ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase.class);
       when(ids.getConnectorInstanceId()).thenReturn(instance.getId());
-      when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValue(
-              "EXECUTOR_ID", executorId))
+      when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+              eq("EXECUTOR_ID"), eq(executorId), anyString()))
           .thenReturn(ids);
       when(connectorInstanceRepository.findById(instance.getId()))
           .thenReturn(Optional.of(instance));
@@ -295,6 +349,9 @@ public class ExecutionExecutorServiceTest {
       executor.setExternal(true);
 
       Inject inject = createInjectWithActiveAgent(executor);
+      Exercise exercise = ExerciseFixture.createDefaultCrisisExercise();
+      exercise.setId("simulation-1");
+      inject.setExercise(exercise);
 
       Manager manager = mock(Manager.class);
       when(managerFactory.getManager(anyString())).thenReturn(manager);
@@ -316,7 +373,8 @@ public class ExecutionExecutorServiceTest {
 
       // Assert
       verify(connectorInstanceConfigurationRepository)
-          .findInstanceAndCatalogIdsByKeyValue("EXECUTOR_ID", executor.getId());
+          .findInstanceAndCatalogIdsByKeyValueAndTenantId(
+              eq("EXECUTOR_ID"), eq(executor.getId()), anyString());
       verify(manager).requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class));
       verify(mockContextService)
           .launchBatchExecutorSubprocess(eq(inject), any(), any(), anyString());
@@ -327,6 +385,70 @@ public class ExecutionExecutorServiceTest {
       ArgumentCaptor<InjectStatus> statusCaptor = ArgumentCaptor.forClass(InjectStatus.class);
       verify(injectStatusRepository).save(statusCaptor.capture());
       assertThat(statusCaptor.getValue().getExpectedAgentCount()).isEqualTo(1);
+
+      ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+      verify(auditLogger).logEvent(eventCaptor.capture());
+      AuditEvent event = eventCaptor.getValue();
+      assertThat(event.getEventType()).isEqualTo(EventType.EXECUTION);
+      assertThat(event.getEventScope()).isEqualTo(AuditEventScope.INJECT_QUEUED);
+      assertThat(event.getEventStatus()).isEqualTo(EventStatus.SUCCESS);
+      assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
+      assertThat(event.getResourceType()).isEqualTo(ResourceType.INJECT);
+      assertThat(event.getResourceId()).isEqualTo(inject.getId());
+      assertThat(event.getMessage())
+          .isEqualTo(
+              "Inject '%s' executing on '%s' agent(s)"
+                  .formatted(inject.getTitle(), executor.getName()));
+      assertThat(event.getContextData().get("inject_id")).isEqualTo(inject.getId());
+      assertThat(event.getContextData().get("inject_name")).isEqualTo(inject.getTitle());
+      assertThat(event.getContextData().get("executor_id")).isEqualTo(executor.getId());
+      assertThat(event.getContextData().get("executor_type")).isEqualTo(executor.getType());
+      assertThat(event.getContextData().get("agent_ids")).isInstanceOf(List.class);
+      assertThat((List<?>) event.getContextData().get("agent_ids")).hasSize(1);
+      assertThat(event.getContextData().get("simulation_id")).isEqualTo(exercise.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "Given active agent without simulation, should log executing event without simulation id")
+    void given_activeAgentWithoutSimulation_should_logExecutingEventWithoutSimulationId()
+        throws Exception {
+      // Arrange
+      Executor executor = new Executor();
+      executor.setId("executor-no-simulation");
+      executor.setName("CrowdStrike");
+      executor.setType("openaev_crowdstrike");
+      executor.setExternal(true);
+
+      Inject inject = createInjectWithActiveAgent(executor);
+      inject.setExercise(null);
+
+      Manager manager = mock(Manager.class);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
+
+      ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
+      connectorInstance.setId("instance-no-simulation");
+      stubFindByExecutorId(executor.getId(), connectorInstance);
+
+      ExecutorContextService mockContextService = mock(ExecutorContextService.class);
+      when(manager.requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class)))
+          .thenReturn(mockContextService);
+      when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
+          .thenReturn(List.of());
+      when(serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
+          .thenReturn("token");
+
+      // Act
+      executorService.launchExecutorContext(inject);
+
+      // Assert
+      ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+      verify(auditLogger).logEvent(eventCaptor.capture());
+      AuditEvent event = eventCaptor.getValue();
+      assertThat(event.getEventScope()).isEqualTo(AuditEventScope.INJECT_QUEUED);
+      assertThat(event.getOrigin()).isEqualTo(AuditEventOrigin.SYSTEM);
+      assertThat(event.getContextData().get("executor_id")).isEqualTo(executor.getId());
+      assertThat(event.getContextData()).doesNotContainKey("simulation_id");
     }
 
     @Test
@@ -450,6 +572,23 @@ public class ExecutionExecutorServiceTest {
           .launchExecutorSubprocess(eq(inject), any(Endpoint.class), eq(agent1), anyString());
       verify(mockCtx2)
           .launchExecutorSubprocess(eq(inject), any(Endpoint.class), eq(agent2), anyString());
+
+      ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
+      verify(auditLogger, times(2)).logEvent(eventCaptor.capture());
+      List<AuditEvent> events = eventCaptor.getAllValues();
+      assertThat(events)
+          .allSatisfy(
+              event -> assertThat(event.getEventScope()).isEqualTo(AuditEventScope.INJECT_QUEUED));
+      assertThat(events).extracting(AuditEvent::getResourceId).containsOnly(inject.getId());
+      List<String> queuedAgentIds =
+          events.stream()
+              .map(event -> event.getContextData().get("agent_ids"))
+              .filter(List.class::isInstance)
+              .map(value -> (List<?>) value)
+              .flatMap(List::stream)
+              .map(String::valueOf)
+              .toList();
+      assertThat(queuedAgentIds).containsExactlyInAnyOrder(agent1.getId(), agent2.getId());
     }
   }
 }

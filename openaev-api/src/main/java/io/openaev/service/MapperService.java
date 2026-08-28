@@ -86,13 +86,24 @@ public class MapperService {
    * @param importMapperAddInput The input from the call
    * @return The created ImportMapper
    */
-  public ImportMapper createAndSaveImportMapper(ImportMapperAddInput importMapperAddInput) {
-    ImportMapper importMapper = createImportMapper(importMapperAddInput);
-
+  public ImportMapper createAndSaveImportMapper(
+      String tenantId, ImportMapperAddInput importMapperAddInput) {
+    ImportMapper importMapper = createImportMapper(importMapperAddInput, tenantId);
+    // Attribute the new row to the tenant resolved from the request scope (B3), rather than relying
+    // on the v1 listener's default. The query inspector does not attribute INSERT ... VALUES.
+    importMapper.setTenant(new Tenant(tenantId));
     return importMapperRepository.save(importMapper);
   }
 
+  // No write scope resolved (e.g. the transient test-import dry run): fall back to the
+  // thread-local.
+  // The persisted create/import paths pass the resolved tenant via the overload below.
   public ImportMapper createImportMapper(ImportMapperAddInput importMapperAddInput) {
+    return createImportMapper(importMapperAddInput, TenantContext.getCurrentTenant());
+  }
+
+  public ImportMapper createImportMapper(
+      ImportMapperAddInput importMapperAddInput, String tenantId) {
     ImportMapper importMapper = new ImportMapper();
     importMapper.setUpdateAttributes(importMapperAddInput);
     importMapper.setInjectImporters(new ArrayList<>());
@@ -101,7 +112,8 @@ public class MapperService {
         getMapOfInjectorContracts(
             importMapperAddInput.getImporters().stream()
                 .map(InjectImporterAddInput::getInjectorContractId)
-                .toList());
+                .toList(),
+            tenantId);
 
     importMapperAddInput
         .getImporters()
@@ -139,7 +151,9 @@ public class MapperService {
   public ImportMapper getDuplicateImportMapper(@NotBlank String importMapperId) {
     if (StringUtils.isNotBlank(importMapperId)) {
       ImportMapper importMapperOrigin =
-          importMapperRepository.findById(UUID.fromString(importMapperId)).orElseThrow();
+          importMapperRepository
+              .findById(UUID.fromString(importMapperId))
+              .orElseThrow(ElementNotFoundException::new);
       ImportMapper importMapper =
           CopyObjectListUtils.copyObjectWithoutId(importMapperOrigin, ImportMapper.class);
       importMapper.setName(duplicateString(importMapperOrigin.getName()));
@@ -181,11 +195,14 @@ public class MapperService {
     importMapper.setUpdateAttributes(importMapperUpdateInput);
     importMapper.setUpdateDate(Instant.now());
 
+    // Resolve the importer contracts under the mapper's own tenant (it was found within the
+    // request scope), not the ambient thread-local.
     Map<String, InjectorContract> mapInjectorContracts =
         getMapOfInjectorContracts(
             importMapperUpdateInput.getImporters().stream()
                 .map(InjectImporterUpdateInput::getInjectorContractId)
-                .toList());
+                .toList(),
+            importMapper.getTenant().getId());
 
     updateInjectImporter(
         importMapperUpdateInput.getImporters(),
@@ -201,13 +218,11 @@ public class MapperService {
    * @param ids The ids of the injector contracts we want
    * @return The map of injector contracts by ids
    */
-  private Map<String, InjectorContract> getMapOfInjectorContracts(List<String> ids) {
+  private Map<String, InjectorContract> getMapOfInjectorContracts(
+      List<String> ids, String tenantId) {
     return stream(
             injectorContractRepository
-                .findAllById(
-                    ids.stream()
-                        .map(s -> new InjectorContractId(s, TenantContext.getCurrentTenant()))
-                        .toList())
+                .findAllById(ids.stream().map(s -> new InjectorContractId(s, tenantId)).toList())
                 .spliterator(),
             false)
         .collect(Collectors.toMap(InjectorContract::getId, Function.identity()));
@@ -334,7 +349,7 @@ public class MapperService {
   /**
    * Export CSV with options and return the file
    *
-   * @param CsvType used to know which entity list we want to export
+   * @param csvType used to know which entity list we want to export
    * @param input used to know which filter we want to apply to get the entity list to export
    * @param response used to return the file
    */
@@ -350,8 +365,10 @@ public class MapperService {
           new CsvExportConfig<>(
               "Endpoints", EndpointExportImport.class, this::getEndpointsToExport);
       case INJECTOR_CONTRACTS ->
+          // User-facing filename: threat arsenal wording, never the technical
+          // "injector contract" name.
           new CsvExportConfig<>(
-              "InjectorContracts",
+              "ThreatArsenalItems",
               InjectorContractExport.class,
               this::getInjectorContractsToExport);
       default ->
@@ -537,7 +554,7 @@ public class MapperService {
    * Import CSV with options
    *
    * @param file file to import
-   * @param targetType entity to know which columns format we use for the import
+   * @param csvType entity to know which columns format we use for the import
    * @throws Exception exception if problem during the import
    */
   public void importMappersCsv(MultipartFile file, CsvType csvType) throws Exception {
@@ -636,13 +653,15 @@ public class MapperService {
     return strategy;
   }
 
-  public void importMappers(List<ImportMapperAddInput> mappers) {
+  public void importMappers(String tenantId, List<ImportMapperAddInput> mappers) {
     importMapperRepository.saveAll(
         mappers.stream()
-            .map(this::createImportMapper)
+            .map(m -> createImportMapper(m, tenantId))
             .peek(
-                (m) ->
-                    m.setName(m.getName() + "%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX)))
+                (m) -> {
+                  m.setName(m.getName() + "%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX));
+                  m.setTenant(new Tenant(tenantId));
+                })
             .toList());
   }
 }

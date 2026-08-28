@@ -47,17 +47,26 @@ public class TestIntegrationFactoryInitThrows extends IntegrationFactory {
   }
 
   @Override
-  protected void runMigrations() throws Exception {
+  protected void runMigrations(String tenantId) throws Exception {
     throw new RuntimeException("%s: deliberate throw!".formatted(this.getClassName()));
+  }
+
+  private String getLogoFilename() {
+    return "%s-logo.png".formatted(getClassName());
+  }
+
+  @Override
+  protected void ensureCatalogLogo() throws Exception {
+    fileService.uploadCatalogLogo(
+        FileService.CONNECTORS_LOGO_PATH,
+        getLogoFilename(),
+        getClass().getResourceAsStream("/img/icon-default.png"));
   }
 
   @Override
   protected void insertCatalogEntry() throws Exception {
-    String logoFilename = "%s-logo.png".formatted(getClassName());
-    fileService.uploadCatalogLogo(
-        FileService.CONNECTORS_LOGO_PATH,
-        logoFilename,
-        getClass().getResourceAsStream("/img/icon-default.png"));
+    ensureCatalogLogo();
+    String logoFilename = getLogoFilename();
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("Test Integration Init Throws");
     connector.setSlug(getClassName());

@@ -1,4 +1,4 @@
-import { HubOutlined, ReportProblemOutlined } from '@mui/icons-material';
+import { BugReportOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -46,6 +46,7 @@ const Vulnerabilities = () => {
   // Filter
   const availableFilterNames = [
     'vulnerability_external_id',
+    'vulnerability_vuln_status',
   ];
   const [vulnerabilities, setVulnerabilities] = useState<VulnerabilitySimple[]>([]);
   const [searchParams] = useSearchParams();
@@ -74,7 +75,7 @@ const Vulnerabilities = () => {
       label: 'CVSS',
       isSortable: true,
       value: (vulnerability: VulnerabilitySimple) => (
-        <CVSSBadge score={vulnerability.vulnerability_cvss_v31}></CVSSBadge>
+        <CVSSBadge score={vulnerability.vulnerability_cvss_v31} variant="inList" />
       ),
     },
     {
@@ -102,6 +103,13 @@ const Vulnerabilities = () => {
           availableFilterNames={availableFilterNames}
           queryableHelpers={queryableHelpers}
           entityPrefix="vulnerability"
+          topBarButtons={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
+              <CreateVulnerability
+                onCreate={(result: VulnerabilitySimple) => setVulnerabilities([result, ...vulnerabilities])}
+              />
+            </Can>
+          )}
         />
         <List>
           <ListItem
@@ -121,7 +129,7 @@ const Vulnerabilities = () => {
             />
           </ListItem>
 
-          {loading ? <PaginatedListLoader Icon={HubOutlined} headers={headers} headerStyles={inlineStyles} /> : vulnerabilities.map(vulnerability => (
+          {loading ? <PaginatedListLoader Icon={BugReportOutlined} headers={headers} headerStyles={inlineStyles} /> : vulnerabilities.map(vulnerability => (
             <ListItem
               key={vulnerability.vulnerability_id}
               divider
@@ -139,7 +147,7 @@ const Vulnerabilities = () => {
                 onClick={() => setSelectedVulnerability(vulnerability)}
               >
                 <ListItemIcon>
-                  <ReportProblemOutlined />
+                  <BugReportOutlined color="primary" />
                 </ListItemIcon>
                 <ListItemText
                   primary={(
@@ -162,17 +170,12 @@ const Vulnerabilities = () => {
             </ListItem>
           ))}
         </List>
-        <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-          <CreateVulnerability
-            onCreate={(result: VulnerabilitySimple) => setVulnerabilities([result, ...vulnerabilities])}
-          />
-        </Can>
         <Drawer
           open={!!selectedVulnerability}
           handleClose={() => setSelectedVulnerability(null)}
           title={selectedVulnerability?.vulnerability_external_id ?? ''}
-          additionalTitle={selectedVulnerability?.vulnerability_cvss_v31 ? 'CVSS' : undefined}
-          additionalChipLabel={selectedVulnerability?.vulnerability_cvss_v31.toFixed(1)}
+          additionalTitle={selectedVulnerability?.vulnerability_cvss_v31 != null ? 'CVSS' : undefined}
+          additionalChipLabel={selectedVulnerability?.vulnerability_cvss_v31?.toFixed(1)}
         >
           {selectedVulnerability && (
             <VulnerabilityDetail

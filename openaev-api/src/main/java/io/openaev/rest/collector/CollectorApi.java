@@ -3,9 +3,13 @@ package io.openaev.rest.collector;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.ConnectorCompositeId;
+import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
@@ -16,6 +20,7 @@ import io.openaev.rest.collector.form.CollectorUpdateInput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.FileService;
+import io.openaev.service.exception.ConnectorStatusException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -27,10 +32,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.io.IOUtils;
-import org.springframework.http.CacheControl;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +48,7 @@ public class CollectorApi extends RestBehavior {
   private final CollectorService collectorService;
   private final CollectorRepository collectorRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   private final FileService fileService;
 
@@ -53,14 +57,17 @@ public class CollectorApi extends RestBehavior {
   @Operation(
       summary = "Retrieve collectors",
       description = "Retrieve all collectors and pending collectors if includeNext is true")
-  @Transactional
+  @Transactional(readOnly = true)
   @ApiResponse(
       responseCode = "200",
       content =
           @Content(
               mediaType = "application/json",
               array = @ArraySchema(schema = @Schema(implementation = CollectorOutput.class))))
+  // TxCtx is resolved from the request and applied by the transaction aspect; it scopes this read
+  // to the caller's tenants. The handler does not use it directly.
   public Iterable<CollectorOutput> collectors(
+      TxCtx ctx,
       @Parameter(
               name = "includeNext",
               description = "Include collectors pending deployment",
@@ -70,7 +77,7 @@ public class CollectorApi extends RestBehavior {
     return collectorService.collectorsOutput(includeNext);
   }
 
-  private Collector updateCollector(
+  private Collector applyCollectorUpdate(
       Collector collector,
       String type,
       String name,
@@ -91,13 +98,16 @@ public class CollectorApi extends RestBehavior {
   }
 
   @GetMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#collectorId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.COLLECTOR)
-  public Collector getCollector(@PathVariable String collectorId) {
-    return collectorService.collector(collectorId);
+  // Collector uses a composite PK (collector_id, tenant_id); the same ID exists per tenant.
+  // Require a selector so findByCollectorId never returns multiple rows under a multi-tenant scope.
+  public CollectorOutput getCollector(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) {
+    return collectorService.collectorOutput(collectorId);
   }
 
   @GetMapping({
@@ -110,8 +120,11 @@ public class CollectorApi extends RestBehavior {
       resourceType = ResourceType.COLLECTOR)
   @Operation(summary = "Retrieve collector related ids")
   @Transactional
-  public ConnectorIds getCollectorRelatedIds(@PathVariable String collectorId) {
-    return collectorService.getCollectorRelationsId(collectorId);
+  // Composite PK: require a tenant selector to avoid NonUniqueResultException on the ID lookup.
+  public ConnectorIds getCollectorRelatedIds(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return collectorService.getCollectorRelationsId(collectorId, tenantId);
   }
 
   // -- IMAGE --
@@ -125,17 +138,8 @@ public class CollectorApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get collector image by type")
   @Transactional
-  public ResponseEntity<byte[]> getCollectorImage(@PathVariable String collectorType)
-      throws IOException {
-    Optional<InputStream> fileStream = fileService.getCollectorImage(collectorType);
-    if (fileStream.isPresent()) {
-      try (InputStream is = fileStream.get()) {
-        return ResponseEntity.ok()
-            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-            .body(IOUtils.toByteArray(is));
-      }
-    }
-    return ResponseEntity.notFound().build();
+  public ResponseEntity<InputStreamResource> getCollectorImage(@PathVariable String collectorType) {
+    return this.fileService.getConnectorImage(ConnectorType.COLLECTOR, collectorType);
   }
 
   @GetMapping(
@@ -147,21 +151,16 @@ public class CollectorApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get collector image by collector id")
   @Transactional
-  public ResponseEntity<byte[]> getCollectorImageById(@PathVariable String collectorId)
-      throws IOException {
-    Optional<Collector> collector = collectorRepository.findById(collectorId);
+  // Composite PK: require a tenant selector to avoid NonUniqueResultException on the ID lookup.
+  public ResponseEntity<InputStreamResource> getCollectorImageById(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String collectorId) throws IOException {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    Optional<Collector> collector =
+        collectorRepository.findById(ConnectorCompositeId.of(collectorId, tenantId));
     if (collector.isEmpty()) {
       return ResponseEntity.notFound().build();
     }
-    Optional<InputStream> fileStream = fileService.getCollectorImage(collector.get().getType());
-    if (fileStream.isPresent()) {
-      try (InputStream is = fileStream.get()) {
-        return ResponseEntity.ok()
-            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES))
-            .body(IOUtils.toByteArray(is));
-      }
-    }
-    return ResponseEntity.notFound().build();
+    return this.fileService.getConnectorImage(ConnectorType.COLLECTOR, collector.get().getType());
   }
 
   @PutMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
@@ -170,16 +169,40 @@ public class CollectorApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.COLLECTOR)
   @Transactional(rollbackFor = Exception.class)
+  // Composite PK: require a tenant selector so the update targets exactly one row.
   public Collector updateCollector(
-      @PathVariable String collectorId, @Valid @RequestBody CollectorUpdateInput input) {
-    Collector collector = collectorService.collector(collectorId);
-    return updateCollector(
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String collectorId,
+      @Valid @RequestBody CollectorUpdateInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    Collector collector = collectorService.collector(collectorId, tenantId);
+    return applyCollectorUpdate(
         collector,
         collector.getType(),
         collector.getName(),
         collector.getPeriod(),
         input.getLastExecution(),
         collector.getSecurityPlatform() != null ? collector.getSecurityPlatform().getId() : null);
+  }
+
+  @DeleteMapping({COLLECTOR_URI + "/{collectorId}", TENANT_COLLECTOR_URI + "/{collectorId}"})
+  @AccessControl(
+      resourceId = "#collectorId",
+      actionPerformed = Action.DELETE,
+      resourceType = ResourceType.COLLECTOR)
+  @Operation(
+      summary = "Delete a collector",
+      description =
+          "Removes a registered collector. A started collector is rejected (stop it first): a"
+              + " managed one needs a stop requested on its instance, an unmanaged one must have"
+              + " stopped pinging - an active collector re-registers on its next heartbeat"
+              + " anyway.")
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteCollector(@RequireTenantSelector TxCtx ctx, @PathVariable String collectorId)
+      throws ConnectorStatusException {
+    // Enforce a single-tenant write scope (400 on ambiguous selector) before issuing the delete.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    collectorService.deleteCollector(collectorId, tenantId);
   }
 
   @PostMapping(
@@ -189,22 +212,25 @@ public class CollectorApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.COLLECTOR)
   @Transactional(rollbackFor = Exception.class)
   public Collector registerCollector(
+      TxCtx ctx,
       @Valid @RequestPart("input") CollectorCreateInput input,
       @RequestPart("icon") Optional<MultipartFile> file) {
     try {
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       InputStream iconStream =
           file.isPresent() && "image/png".equals(file.get().getContentType())
               ? file.get().getInputStream()
               : null;
       return collectorService.register(
-          TenantContext.getCurrentTenant(),
+          tenantId,
           input.getId(),
           input.getType(),
           input.getName(),
           true,
           input.getPeriod(),
           input.getSecurityPlatform(),
-          iconStream);
+          iconStream,
+          input.getAuthor());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

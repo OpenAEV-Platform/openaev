@@ -3,7 +3,7 @@ package io.openaev.utils.object;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.database.audit.EntityDiffContext;
+import io.openaev.database.audit.AuditLogContext;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -19,14 +19,14 @@ public class ObjectDiffUtils {
    * @return a JsonNode array of diff entries, or {@code null} if snapshots is null/empty
    */
   public static JsonNode computeEntityDiffsNode(
-      Map<String, EntityDiffContext.EntitySnapshot> snapshots, ObjectMapper objectMapper) {
+      Map<String, AuditLogContext.EntitySnapshot> snapshots, ObjectMapper objectMapper) {
     if (snapshots == null || snapshots.isEmpty()) return null;
 
     List<EntityDiffEntry> entries =
         snapshots.entrySet().stream()
             .map(
                 e -> {
-                  EntityDiffContext.EntitySnapshot s = e.getValue();
+                  AuditLogContext.EntitySnapshot s = e.getValue();
                   List<FieldChange> changes = computeFieldChanges(s.before(), s.after());
                   return new EntityDiffEntry(e.getKey(), s.entityType(), s.operation(), changes);
                 })

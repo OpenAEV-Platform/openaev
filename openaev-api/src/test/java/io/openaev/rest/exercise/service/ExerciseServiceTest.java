@@ -8,6 +8,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.repository.*;
+import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
@@ -15,9 +16,11 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.*;
 import io.openaev.service.FileService;
 import io.openaev.service.LessonsService;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.fixtures.*;
@@ -38,6 +41,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
@@ -81,15 +85,17 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
-  @Mock private PreviewFeatureService previewFeatureService;
   @Mock private WorkflowService workflowService;
   @Mock private GrantService grantService;
   @Mock private ExerciseTeamUserService exerciseTeamUserService;
   @Mock private io.openaev.healthcheck.utils.HealthCheckUtils healthCheckUtils;
   @Mock private UrlAccessTokenService urlAccessTokenService;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @Mock private InjectExpectationMapper injectExpectationMapper;
-
+  @Mock private AttackPathExecutionIngestionService attackPathExecutionService;
+  @Mock private AutonomousRunRepository autonomousRunRepository;
+  @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
   @InjectMocks private ExerciseService mockedExerciseService;
   @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private StepService stepService;
@@ -118,6 +124,7 @@ class ExerciseServiceTest extends IntegrationTest {
             injectExpectationRepository,
             articleRepository,
             exerciseRepository,
+            bulkDeleteExecutor,
             injectStatusRepository,
             pauseRepository,
             lessonsQuestionRepository,
@@ -132,11 +139,13 @@ class ExerciseServiceTest extends IntegrationTest {
             injectExpectationMapper,
             scenarioRecurrenceService,
             workflowService,
-            previewFeatureService,
             pauseExerciseService,
             fileService,
             stepService,
-            healthCheckUtils);
+            healthCheckUtils,
+            eventPublisher,
+            attackPathExecutionService,
+            autonomousRunRepository);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

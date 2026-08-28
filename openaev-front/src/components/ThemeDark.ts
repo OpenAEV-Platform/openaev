@@ -1,4 +1,4 @@
-import { buttonClasses, type ThemeOptions } from '@mui/material';
+import { alpha, buttonClasses, darken, lighten, type ThemeOptions } from '@mui/material';
 
 import LogoCollapsed from '../static/images/logo_dark.png';
 import LogoText from '../static/images/logo_text_dark.png';
@@ -6,14 +6,28 @@ import { hexToRGB } from '../utils/Colors';
 import { fileUri } from '../utils/Environment';
 import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
 
-const EE_COLOR = '#00f1bd';
+// Aligned with OpenCTI's dark theme (opencti-front/src/components/ThemeDark.ts):
+// same default palette, typography, and component overrides, so both platforms
+// share a single visual language. OpenAEV-specific tokens (labelChipMap,
+// xtmhub, widgets, background.code / paperInCard) are kept on top.
+const EE_COLOR = '#00f18d';
 
 export const THEME_DARK_DEFAULT_BACKGROUND = '#070d19';
+const THEME_DARK_DEFAULT_BODY_END_GRADIENT = '#08101D';
 const THEME_DARK_DEFAULT_PRIMARY = '#0fbcff';
-const THEME_DARK_DEFAULT_SECONDARY = '#00f1bd';
+const THEME_DARK_DEFAULT_SECONDARY = '#00f18d';
 const THEME_DARK_DEFAULT_ACCENT = '#0f1e38';
 const THEME_DARK_DEFAULT_PAPER = '#09101e';
 const THEME_DARK_DEFAULT_NAV = '#070d19';
+const THEME_DARK_DEFAULT_TEXT = '#F2F2F3';
+export const THEME_DARK_DIALOG_BACKGROUND = '#0F1D34';
+
+const getAppBodyGradientEndColor = (background: string | null): string => {
+  if (background && background !== THEME_DARK_DEFAULT_BACKGROUND) {
+    return lighten(background, 0.05);
+  }
+  return THEME_DARK_DEFAULT_BODY_END_GRADIENT;
+};
 
 const ThemeDark = (
   logo: string | null = null,
@@ -24,40 +38,50 @@ const ThemeDark = (
   primary: string | null = null,
   secondary: string | null = null,
   accent: string | null = null,
-  text_color = '#ffffff',
+  text_color = THEME_DARK_DEFAULT_TEXT,
 ): ThemeOptions => ({
   logo: logo || fileUri(LogoText),
   logo_collapsed: logo_collapsed || fileUri(LogoCollapsed),
   borderRadius: 4,
+  // OpenCTI-aligned top bar height (68px): every toolbar spacer in the app
+  // follows it through theme.mixins.toolbar.
+  mixins: { toolbar: { minHeight: 68 } },
   palette: {
     mode: 'dark',
     common: {
       white: '#ffffff',
       black: '#000000',
-      grey: '#7A7C85',
-      lightGrey: '#ffffffb3',
+      grey: '#95969D',
+      lightGrey: '#E4E5E7',
     },
     error: {
-      main: '#f44336',
-      dark: '#c62828',
+      main: '#F14337',
+      dark: '#881106',
     },
-    warn: { main: '#ffa726' },
+    warn: { main: '#E6700F' },
     dangerZone: {
-      main: '#f6685e',
-      light: '#fbc2be',
-      dark: '#f44336',
+      main: '#F44336',
+      light: '#F8958C',
+      dark: '#881106',
       contrastText: '#000000',
     },
-    success: { main: '#03a847' },
+    success: {
+      main: '#17AB1F',
+      dark: '#094E0B',
+    },
     warning: { main: '#ffa726' },
-    primary: { main: primary || THEME_DARK_DEFAULT_PRIMARY },
+    primary: {
+      main: primary || THEME_DARK_DEFAULT_PRIMARY,
+      light: primary ? alpha(primary, 0.08) : '#B2ECFF',
+    },
     secondary: { main: secondary || THEME_DARK_DEFAULT_SECONDARY },
-    gradient: { main: '#00f1bd' },
+    gradient: { main: '#00f18d' },
     border: {
       primary: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.3),
-      secondary: hexToRGB(secondary || THEME_DARK_DEFAULT_SECONDARY, 0.3),
+      secondary: '#424751',
       pagination: hexToRGB('#ffffff', 0.5),
       paper: hexToRGB('#ffffff', 0.12),
+      main: '#252A35',
     },
     pagination: { main: '#ffffff' },
     chip: { main: '#ffffff' },
@@ -77,14 +101,15 @@ const ThemeDark = (
         }],
     ]),
     ai: {
-      main: '#9575cd',
-      light: '#d1c4e9',
-      dark: '#673ab7',
+      main: '#B286FF',
+      light: '#D6C2FA',
+      dark: '#5E1AD5',
       contrastText: '#000000',
+      background: 'rgba(28, 47, 73, 0.94)',
     },
     ee: {
       main: EE_COLOR,
-      contrastText: '#ffffff',
+      contrastText: THEME_DARK_DEFAULT_TEXT,
       background: hexToRGB(EE_COLOR, 0.2),
       lightBackground: hexToRGB(EE_COLOR, 0.08),
     },
@@ -95,8 +120,146 @@ const ThemeDark = (
       nav: nav || THEME_DARK_DEFAULT_NAV,
       accent: accent || THEME_DARK_DEFAULT_ACCENT,
       shadow: 'rgba(200, 200, 200, 0.15)',
+      // the only way for now to know if we should apply the paper color or not
+      secondary: paper === THEME_DARK_DEFAULT_PAPER
+        ? '#0C1524'
+        : (paper ?? '#0C1524'),
+      // Compare the RESOLVED nav (param is null when no custom theme is set), so
+      // the default install gets the lighter '#0f1d34' drawer blue instead of
+      // darken('#0f1d34', 0.5) - the latter made every drawer body near-black.
+      drawer: (nav ?? THEME_DARK_DEFAULT_NAV) === THEME_DARK_DEFAULT_NAV
+        ? '#0f1d34'
+        : darken(nav ?? THEME_DARK_DEFAULT_NAV, 0.5),
+      disabled: '#363B46',
+      gradient: {
+        start: background || THEME_DARK_DEFAULT_BACKGROUND,
+        end: getAppBodyGradientEndColor(background),
+      },
       code: accent || THEME_DARK_DEFAULT_ACCENT,
       paperInCard: paper || THEME_DARK_DEFAULT_PAPER,
+    },
+    // NOTE: unlike OpenCTI we deliberately keep MUI's muted text.secondary:
+    // OpenAEV components use `text.secondary` pervasively for muted labels,
+    // while OpenCTI reserves muting for `text.tertiary`.
+    text: {
+      tertiary: '#848592',
+      light: '#AFB0B6',
+      disabled: '#75829A',
+    },
+    leftBar: {
+      header: { itemBackground: '#253348' },
+      popoverItem: '#070D19',
+      hover: '#253348',
+      text: '#F2F2F3',
+    },
+    severity: {
+      critical: '#EE3838',
+      high: '#E6700F',
+      medium: '#E1B823',
+      low: '#16AD34',
+      info: '#1565c0',
+      none: '#424242',
+      default: '#1C2F49',
+    },
+    designSystem: {
+      primary: {
+        main: '#0FBCFF',
+        light: '#B2ECFF',
+        dark: '#007399',
+      },
+      secondary: {
+        main: '#00F1BD',
+        light: '#BDFFED',
+        dark: '#009474',
+      },
+      destructive: {
+        main: '#F44336',
+        light: '#F8958C',
+        dark: '#881106',
+      },
+      ia: {
+        main: '#B286FF',
+        light: '#D6C2FA',
+        dark: '#5E1AD5',
+      },
+      background: {
+        main: '#070D19',
+        bg1: '#0C1524',
+        bg2: '#0D182A',
+        bg3: '#253348',
+        bg4: '#1C2F49',
+        disabled: '#363B46',
+      },
+      border: {
+        main: '#2B3447',
+        border1: '#424751',
+        border2: '#1C253A',
+      },
+      gradient: {
+        background: 'linear-gradient(100.35deg, #070D19 0%, #08101d 100%)',
+        ia: 'linear-gradient(90deg, #D6C2FA 0.67%, #B286FF 100.67%)',
+        focus: 'linear-gradient(90deg, #0FBCFF -3.68%, #00F1BD 106.62%)',
+      },
+      alert: {
+        info: {
+          primary: '#4DCCFF',
+          secondary: '#004C66',
+        },
+        success: {
+          primary: '#17AB1F',
+          secondary: '#094E0B',
+          tertiary: '#75F8B9',
+        },
+        alert: {
+          primary: '#F2BE3A',
+          secondary: '#573E05',
+        },
+        warning: {
+          primary: '#E6700F',
+          secondary: '#884106',
+        },
+        error: {
+          primary: '#F14337',
+          secondary: '#881106',
+        },
+      },
+      tertiary: {
+        grey: {
+          400: '#95969D',
+          700: '#494A50',
+          800: '#313235',
+        },
+        blue: {
+          500: '#0099CC',
+          900: '#003242',
+        },
+        darkBlue: {
+          300: '#7587FF',
+          500: '#0F2DFF',
+        },
+        turquoise: {
+          600: '#00BD94',
+          800: '#005744',
+        },
+        green: {
+          400: '#41E149',
+          600: '#17AB1F',
+          800: '#094E0B',
+        },
+        red: {
+          100: '#FBCBC5',
+          200: '#F8958C',
+          400: '#F14337',
+          500: '#E51E10',
+          600: '#B8180A',
+          700: '#881106',
+        },
+        orange: {
+          400: '#F2933A',
+          500: '#E6700F',
+        },
+        yellow: { 400: '#F2BE3A' },
+      },
     },
     widgets: {
       securityDomains: {
@@ -111,6 +274,7 @@ const ThemeDark = (
       },
     },
   },
+  tag: { overflowColor: primary || THEME_DARK_DEFAULT_PRIMARY },
   typography: {
     fontFamily: '"IBM Plex Sans", sans-serif',
     body2: {
@@ -127,63 +291,104 @@ const ThemeDark = (
       color: text_color,
     },
     h1: {
-      margin: '0 0 10px 0',
-      padding: 0,
-      fontWeight: 400,
-      fontSize: 22,
-      fontFamily: '"Geologica", sans-serif',
-      color: text_color,
+      'margin': '0 0 10px 0',
+      'padding': 0,
+      'fontWeight': 400,
+      'fontSize': 22,
+      'fontFamily': '"Geologica", sans-serif',
+      'color': text_color,
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
     },
     h2: {
-      margin: '0 0 10px 0',
-      padding: 0,
-      fontWeight: 500,
-      fontSize: 16,
-      textTransform: 'uppercase',
-      fontFamily: '"Geologica", sans-serif',
-      color: text_color,
+      'margin': '0 0 10px 0',
+      'padding': 0,
+      'fontWeight': 500,
+      'fontSize': 16,
+      'fontFamily': '"Geologica", sans-serif',
+      'color': text_color,
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
     },
     h3: {
-      margin: '0 0 10px 0',
-      padding: 0,
-      fontWeight: 400,
-      fontSize: 13,
-      fontFamily: '"Geologica", sans-serif',
-      color: text_color,
+      'margin': '0 0 10px 0',
+      'padding': 0,
+      'fontWeight': 400,
+      'fontSize': 13,
+      'fontFamily': '"Geologica", sans-serif',
+      'color': text_color,
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
     },
     h4: {
-      height: 15,
-      margin: '0 0 10px 0',
-      padding: 0,
-      textTransform: 'uppercase',
-      fontSize: 12,
-      fontWeight: 500,
-      color: text_color,
+      'height': 15,
+      'margin': '0 0 10px 0',
+      'padding': 0,
+      'fontSize': 12,
+      'fontWeight': 500,
+      'color': text_color,
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
     },
     h5: {
-      fontWeight: 400,
-      fontSize: 13,
-      textTransform: 'uppercase',
-      marginTop: -4,
-      color: text_color,
+      'fontWeight': 700,
+      'fontSize': 16,
+      'color': text_color,
+      'fontFamily': '"Geologica", sans-serif',
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
     },
     h6: {
-      fontWeight: 400,
-      fontSize: 18,
-      color: text_color,
-      fontFamily: '"Geologica", sans-serif',
+      'fontWeight': 600,
+      'fontSize': 14,
+      'color': text_color,
+      'fontFamily': '"Geologica", sans-serif',
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
     },
     subtitle2: {
-      fontWeight: 400,
-      fontSize: 18,
-      color: text_color,
+      'fontWeight': 400,
+      'fontSize': 18,
+      'color': text_color,
+      'textTransform': 'lowercase',
+      '&::first-letter': { textTransform: 'uppercase' },
+    },
+  },
+  button: {
+    sizes: {
+      default: {
+        height: '36px',
+        padding: '8px 16px',
+        minWidth: '36px',
+        width: '36px',
+        fontSize: '14px',
+        fontWeight: 600,
+        lineHeight: '21px',
+        iconSize: '16px',
+      },
+      small: {
+        height: '26px',
+        padding: '4px 12px',
+        minWidth: '26px',
+        width: '26px',
+        fontSize: '13px',
+        fontWeight: 600,
+        lineHeight: '21px',
+        iconSize: '14px',
+      },
     },
   },
   components: {
     MuiAccordion: { defaultProps: { slotProps: { transition: { unmountOnExit: true } } } },
     MuiButton: {
+      defaultProps: { disableElevation: true },
       styleOverrides: {
         root: {
+          // Sentence-case buttons everywhere (aligned with OpenCTI), instead of
+          // MUI's default ALL-CAPS. Labels render exactly as written.
+          // Weight 600 matches OpenCTI's design-system button typography.
+          'textTransform': 'none',
+          'fontWeight': 600,
           [`&.${buttonClasses.outlined}.${buttonClasses.sizeSmall}`]: { padding: '4px 9px' },
           '&.icon-outlined': {
             'borderColor': hexToRGB('#ffffff', 0.15),
@@ -195,12 +400,73 @@ const ThemeDark = (
             },
           },
         },
+        // Outlined primary (used by every Cancel/dismiss button) mirrors OpenCTI's
+        // "secondary" design-system button: neutral grey border + primary-colored
+        // label, not a bright primary-colored border.
+        outlinedPrimary: ({ theme }) => ({
+          'borderColor': theme.palette.border.main,
+          '&:hover': {
+            borderColor: theme.palette.border.main,
+            backgroundColor: alpha(theme.palette.primary.main, 0.15),
+          },
+        }),
+      },
+    },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          backgroundImage: 'none',
+          backgroundColor: paper === THEME_DARK_DEFAULT_PAPER
+            ? THEME_DARK_DIALOG_BACKGROUND
+            : (paper ?? THEME_DARK_DIALOG_BACKGROUND),
+          borderRadius: 4,
+        },
+      },
+    },
+    MuiDialogTitle: { defaultProps: { variant: 'h5' } },
+    MuiDialogActions: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          // Aligned with OpenCTI: even gap between buttons, generous top gap from
+          // the content, and matching right/bottom padding so buttons never sit
+          // flush against the dialog edge.
+          'gap': theme.spacing(1),
+          'padding': theme.spacing(0, 3, 3, 3),
+          'marginTop': theme.spacing(3),
+          'marginLeft': 0,
+          '& .MuiButton-root': { textTransform: 'none' },
+          // Override the default margin-left
+          '& > :not(style) ~ :not(style)': { marginLeft: 0 },
+        }),
+      },
+    },
+    MuiToggleButtonGroup: {
+      defaultProps: { size: 'small' },
+      styleOverrides: {
+        root: {
+          'height': 36,
+          '& .MuiTouchRipple-root': { display: 'none' },
+          '& .MuiToggleButton-root': {
+            'border': '1px solid #2B3447',
+            'color': primary,
+            '&:focus-visible': {
+              outline: 'none',
+              boxShadow: '0 0 0 2px #BDFFED',
+            },
+            '&.Mui-selected': { backgroundColor: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.25) },
+            '&:hover:not(.Mui-selected)': { backgroundColor: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.15) },
+          },
+        },
       },
     },
     MuiTooltip: {
       styleOverrides: {
         tooltip: { backgroundColor: 'rgba(0,0,0,0.7)' },
         arrow: { color: 'rgba(0,0,0,0.7)' },
+        popper: {
+          'textTransform': 'lowercase',
+          '&::first-letter': { textTransform: 'uppercase' },
+        },
       },
     },
     MuiFormControl: {
@@ -209,20 +475,44 @@ const ThemeDark = (
     },
     MuiTextField: {
       defaultProps: { variant: 'standard' },
-      styleOverrides: { root: { color: text_color } },
+      styleOverrides: {
+        root: {
+          'color': text_color,
+          // Shrink = when at the top of the input in small size.
+          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: '#AFB0B6' },
+        },
+      },
     },
     MuiSelect: {
       defaultProps: { variant: 'standard' },
-      styleOverrides: { root: { color: text_color } },
+      styleOverrides: {
+        root: {
+          'color': text_color,
+          '& fieldset': { border: 'none' },
+        },
+        outlined: {
+          backgroundColor: paper === THEME_DARK_DEFAULT_PAPER
+            ? '#0C1524'
+            : (paper ?? '#0C1524'),
+        },
+      },
     },
     MuiPaper: { styleOverrides: { root: { color: text_color } } },
+    // Design-system icon buttons are squared (4px radius) - never MUI's
+    // default circle/oval ripple.
+    MuiIconButton: { styleOverrides: { root: { borderRadius: 4 } } },
     MuiCssBaseline: {
       styleOverrides: {
         html: {
           scrollbarColor: `${background || THEME_DARK_DEFAULT_BACKGROUND} ${accent || THEME_DARK_DEFAULT_ACCENT}`,
           scrollbarWidth: 'thin',
+          background: `linear-gradient(100deg, ${background || THEME_DARK_DEFAULT_BACKGROUND} 0%, ${getAppBodyGradientEndColor(background)} 100%)`,
+          backgroundAttachment: 'fixed',
+          backgroundColor: background || THEME_DARK_DEFAULT_BACKGROUND,
         },
         body: {
+          'background': `linear-gradient(100deg, ${background || THEME_DARK_DEFAULT_BACKGROUND} 0%, ${getAppBodyGradientEndColor(background)} 100%)`,
+          'backgroundAttachment': 'fixed',
           'scrollbarColor': `${background || THEME_DARK_DEFAULT_BACKGROUND} ${accent || THEME_DARK_DEFAULT_ACCENT}`,
           'scrollbarWidth': 'thin',
           'html': { WebkitFontSmoothing: 'auto' },
@@ -267,14 +557,14 @@ const ThemeDark = (
           },
           '.error .w-md-editor': {
             'border': '0 !important',
-            'borderBottom': '2px solid #f44336 !important',
+            'borderBottom': '2px solid #F14337 !important',
             '&:hover': {
               border: '0 !important',
-              borderBottom: '2px solid #f44336 !important',
+              borderBottom: '2px solid #F14337 !important',
             },
             '&:focus': {
               border: '0 !important',
-              borderBottom: '2px solid #f44336 !important',
+              borderBottom: '2px solid #F14337 !important',
             },
           },
           '.w-md-editor-toolbar': {
@@ -334,9 +624,59 @@ const ThemeDark = (
         },
       },
     },
-    MuiTypography: { styleOverrides: { root: { color: text_color } } },
+    MuiTypography: {
+      styleOverrides: {
+        root: {
+          color: text_color,
+          textTransform: 'none',
+        },
+      },
+    },
     MuiInputBase: { styleOverrides: { root: { color: text_color } } },
-    MuiChip: { styleOverrides: { root: { color: text_color } } },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          // Design system: chips are square-ish (4px), never pill-shaped
+          'borderRadius': 4,
+          'color': text_color,
+          'textTransform': 'lowercase',
+          '&::first-letter': { textTransform: 'uppercase' },
+        },
+        label: {
+          'textTransform': 'lowercase',
+          '&::first-letter': { textTransform: 'uppercase' },
+          // The label has overflow hidden: a line-height smaller than the font's
+          // ascent + descent clips glyphs at the bottom ("g", "p", ...). Chips
+          // vertically center their label, so 'normal' is always safe here.
+          'lineHeight': 'normal',
+        },
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          'textTransform': 'lowercase',
+          'display': 'inline-block',
+          '&::first-letter': { textTransform: 'uppercase' },
+        },
+      },
+    },
+    MuiFab: { styleOverrides: { root: { textTransform: 'none' } } },
+    MuiAutocomplete: {
+      styleOverrides: {
+        root: {
+          // Shrink = when at the top of the input in small size.
+          '& .MuiFormLabel-root:not(.MuiInputLabel-shrink):not(.Mui-error)': { color: '#AFB0B6' },
+          '& .MuiOutlinedInput-root': {
+            // the only way for now to know if we should apply the paper color or not
+            'backgroundColor': paper === THEME_DARK_DEFAULT_PAPER
+              ? '#0C1524'
+              : (paper ?? '#0C1524'),
+            '& fieldset': { borderColor: 'transparent' },
+          },
+        },
+      },
+    },
   },
 });
 

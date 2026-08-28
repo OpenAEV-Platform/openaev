@@ -9,38 +9,47 @@ import {
   tenantHomeDashboardEntities,
   tenantHomeDashboardSeries,
   tenantHomeWidgetToEntitiesRuntime,
-  updateTenantSettings,
 } from '../../actions/settings/tenant-settings-action';
 import { useHelper } from '../../store';
-import { type TenantSettingsOutput } from '../../utils/api-types';
+import { type TenantSettingsOutput, type User } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
-import { Can } from '../../utils/permissions/permissionsContext';
-import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
+import DefaultHomeDashboard from './default_dashboard/DefaultHomeDashboard';
 import CustomDashboardWrapper from './workspaces/custom_dashboards/CustomDashboardWrapper';
-import NoDashboardComponent from './workspaces/custom_dashboards/NoDashboardComponent';
-import SelectDashboardButton from './workspaces/custom_dashboards/SelectDashboardButton';
+import XtmHubDialogPermissionRequired from './xtm_hub/dialog/permission-required/XtmHubDialogPermissionRequired';
 
 const Home = () => {
   const dispatch = useAppDispatch();
-  const { tenantSettings }: { tenantSettings: TenantSettingsOutput } = useHelper((helper: LoggedHelper) => ({ tenantSettings: helper.getTenantSettings() }));
+  const { tenantSettings, me }: {
+    tenantSettings: TenantSettingsOutput;
+    me: User;
+  } = useHelper((helper: LoggedHelper) => ({
+    tenantSettings: helper.getTenantSettings(),
+    me: helper.getMe(),
+  }));
 
   useDataLoader(() => {
     dispatch(fetchPlatformParameters());
     dispatch(fetchTenantSettings());
   });
 
-  const handleSelectNewDashboard = async (dashboardId: string) => {
-    await updateTenantSettings({
-      ...tenantSettings,
-      platform_home_dashboard: dashboardId,
-    });
-    dispatch(fetchTenantSettings());
-  };
+  // Resolution order: built-in platform default, overridden by the tenant
+  // setting, overridden by the user profile preference. The backend resolves
+  // user preference over the tenant setting for the widget data endpoints.
+  const resolvedDashboardId = me?.user_home_dashboard || tenantSettings.platform_home_dashboard;
+  if (!resolvedDashboardId) {
+    return (
+      <>
+        <XtmHubDialogPermissionRequired />
+        <DefaultHomeDashboard />
+      </>
+    );
+  }
 
   const configuration = {
-    customDashboardId: tenantSettings.platform_home_dashboard,
+    customDashboardId: resolvedDashboardId,
     paramLocalStorageKey: 'custom-dashboard-home',
+    resultsSource: { source: 'tenant' as const },
     fetchCustomDashboard: fetchTenantHomeDashboard,
     fetchCount: tenantHomeDashboardCount,
     fetchAverage: tenantHomeDashboardAverage,
@@ -51,21 +60,13 @@ const Home = () => {
   };
 
   return (
-    <CustomDashboardWrapper
-      configuration={configuration}
-      noDashboardSlot={(
-        <NoDashboardComponent
-          actionComponent={(
-            <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
-              <SelectDashboardButton
-                variant="text"
-                handleApplyChange={handleSelectNewDashboard}
-              />
-            </Can>
-          )}
-        />
-      )}
-    />
+    <>
+      <XtmHubDialogPermissionRequired />
+      <CustomDashboardWrapper
+        configuration={configuration}
+        noDashboardSlot={<DefaultHomeDashboard />}
+      />
+    </>
   );
 };
 

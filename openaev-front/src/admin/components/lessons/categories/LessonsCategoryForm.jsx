@@ -58,6 +58,8 @@ const LessonsCategoryForm = (props) => {
           }}
           >
             <Button
+              variant="outlined"
+              color="primary"
               onClick={handleClose}
               style={{ marginRight: 10 }}
               disabled={submitting}
@@ -65,7 +67,8 @@ const LessonsCategoryForm = (props) => {
               {t('Cancel')}
             </Button>
             <Button
-              color="secondary"
+              variant="contained"
+              color="primary"
               type="submit"
               disabled={submitting || Object.keys(errors).length > 0}
             >

@@ -1,4 +1,4 @@
-import { delReferential, getReferential, postReferential, putReferential, simplePostCall } from '../../utils/Action';
+import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
 import * as schema from '../Schema';
 
 // region players
@@ -26,9 +26,16 @@ export const findUsers = (userIds) => {
   return simplePostCall(uri, data);
 };
 
-export const addUser = data => dispatch => postReferential(schema.user, '/api/users', data)(dispatch);
+export const searchPlayersAsOption = (searchText = '') => {
+  const params = { searchText };
+  return simpleCall('/api/players/options', { params });
+};
 
-export const updateUserPassword = (userId, data) => dispatch => putReferential(schema.user, `/api/users/${userId}/password`, data)(dispatch);
+export const searchPlayerByIdAsOption = (ids) => {
+  return simplePostCall('/api/players/options', ids);
+};
+
+export const addUser = data => dispatch => postReferential(schema.user, '/api/users', data)(dispatch);
 
 export const updateUser = (userId, data) => dispatch => putReferential(schema.user, `/api/users/${userId}`, data)(dispatch);
 

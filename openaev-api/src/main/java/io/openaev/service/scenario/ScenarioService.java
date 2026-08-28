@@ -13,6 +13,7 @@ import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.constants.Constants.ARTICLES;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
@@ -23,9 +24,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
@@ -33,12 +36,15 @@ import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
+import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.export.Mixins;
+import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
@@ -47,19 +53,22 @@ import io.openaev.rest.exercise.exports.VariableWithValueMixin;
 import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
+import io.openaev.rest.scenario.form.ScenarioBulkProcessingInput;
 import io.openaev.rest.scenario.form.ScenarioInput;
 import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.settings.TenantSettingsService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
@@ -96,6 +105,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.validation.annotation.Validated;
 
 @RequiredArgsConstructor
@@ -103,6 +113,7 @@ import org.springframework.validation.annotation.Validated;
 @Slf4j
 @Validated
 public class ScenarioService {
+  private static final ObjectMapper objectMapper = new ObjectMapper();
 
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
@@ -136,7 +147,6 @@ public class ScenarioService {
   private final UserService userService;
   private final TenantSettingsService tenantSettingsService;
   private final CustomDashboardService customDashboardService;
-  private final InjectorContractService injectorContractService;
 
   private final InjectRepository injectRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
@@ -146,6 +156,16 @@ public class ScenarioService {
 
   private final ScenarioMapper scenarioMapper;
   private final WorkflowService workflowService;
+  private final WorkflowExportInitializer workflowExportInitializer;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
+
+  // Lazy (ObjectProvider) to break the AutonomousRunService -> ScenarioService constructor cycle:
+  // the bulk scenario-delete path uses it to tear down each scenario's autonomous run (single
+  // delete is wired at the API layer), so bulk-deleting an autonomous scenario never orphans its
+  // autonomous_runs row or leaves its XTM One orchestration running.
+  private final org.springframework.beans.factory.ObjectProvider<
+          io.openaev.service.autonomous.AutonomousRunService>
+      autonomousRunServiceProvider;
 
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
@@ -155,7 +175,6 @@ public class ScenarioService {
   @Transactional
   public Scenario createScenarioChaining(@NotNull final Scenario scenario)
       throws ChainingException {
-    workflowService.isPreviewFeatureChainingEnable();
 
     computeEmails(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
@@ -167,6 +186,10 @@ public class ScenarioService {
 
   @Transactional
   public Scenario createScenarioWithInjectorContracts(
+      // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for this transaction (the arsenal selection resolves injector contracts and their linked
+      // injector, both v2 tenant-scoped through the injectors table).
+      TxCtx ctx,
       @NotBlank final String tenantId,
       @NotNull final ScenarioInput scenarioInput,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
@@ -180,6 +203,9 @@ public class ScenarioService {
 
   @Transactional
   public List<Scenario> updateScenariosWithInjectorContracts(
+      // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
+      // for this transaction (same reason as createScenarioWithInjectorContracts above).
+      TxCtx ctx,
       @NotNull final List<String> scenarioIds,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
@@ -398,7 +424,6 @@ public class ScenarioService {
   }
 
   public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
-    ObjectMapper objectMapper = new ObjectMapper();
     RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
     if (rawScenario == null) {
       throw new ElementNotFoundException("Scenario not found");
@@ -500,6 +525,86 @@ public class ScenarioService {
     this.scenarioRepository.deleteById(scenarioId);
   }
 
+  /**
+   * Bulk delete of scenarios, either from an explicit list of ids or from a search input
+   * (select-all with optional exclusions). Only scenarios the user is allowed to manage are
+   * deleted.
+   *
+   * <p>Deliberately NOT transactional as a whole: the scope is resolved in a short read
+   * transaction, then scenarios are deleted in small independent chunks (with deadlock retry). A
+   * single all-encompassing transaction used to hold row locks on {@code exercises} (dirtied by the
+   * {@code @PreRemove} scenario-reference nulling) for minutes, deadlocking against concurrent
+   * inject expectation updates and tripping Hikari's connection-leak detection.
+   *
+   * @param input the bulk processing input (ids or search input, plus ids to ignore)
+   * @return the list of deleted scenario ids
+   */
+  public List<String> bulkDeleteScenarios(
+      TxCtx ctx, @NotNull final ScenarioBulkProcessingInput input) {
+    if ((CollectionUtils.isEmpty(input.getScenarioIdsToProcess())
+            && input.getSearchPaginationInput() == null)
+        || (!CollectionUtils.isEmpty(input.getScenarioIdsToProcess())
+            && input.getSearchPaginationInput() != null)) {
+      throw new BadRequestException(
+          "Either scenario_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+    }
+    User currentUser = userService.currentUser();
+    List<String> scenarioIdsToDelete =
+        bulkDeleteExecutor.resolveInTransaction(
+            ctx,
+            () -> {
+              Specification<Scenario> specification;
+              if (input.getSearchPaginationInput() != null) {
+                SearchPaginationInput searchPaginationInput = input.getSearchPaginationInput();
+                // Same specification chain as the list search: custom filters (recurrence) +
+                // filter group + text search, so the deletion scope matches exactly what the user
+                // sees in the list.
+                UnaryOperator<Specification<Scenario>> customSpecification =
+                    handleCustomFilter(searchPaginationInput);
+                specification =
+                    customSpecification.apply(
+                        FilterUtilsJpa.<Scenario>computeFilterGroupJpa(
+                                searchPaginationInput.getFilterGroup())
+                            .and(computeSearchJpa(searchPaginationInput.getTextSearch())));
+              } else {
+                specification = SpecificationUtils.hasIdIn(input.getScenarioIdsToProcess());
+              }
+              if (!CollectionUtils.isEmpty(input.getScenarioIdsToIgnore())) {
+                List<String> idsToIgnore = input.getScenarioIdsToIgnore();
+                specification =
+                    specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+              }
+              // Restrict to scenarios the user is granted to plan on (no-op for admins and users
+              // with the delete capability)
+              specification =
+                  specification.and(
+                      SpecificationUtils.hasGrantAccess(
+                          currentUser.getId(),
+                          currentUser.isAdminOrBypass(),
+                          currentUser.getCapabilities().contains(Capability.DELETE_ASSESSMENT),
+                          Grant.GRANT_TYPE.PLANNER));
+              return this.scenarioRepository.findAll(specification).stream()
+                  .map(Scenario::getId)
+                  .toList();
+            });
+    List<String> deletedIds =
+        bulkDeleteExecutor.deleteInChunks(
+            ctx,
+            "scenarios",
+            scenarioIdsToDelete,
+            chunk -> {
+              // Tear the autonomous run (simulation + timeline + XTM orchestration) down first,
+              // inside the same chunk transaction, so an autonomous scenario is never left with an
+              // orphaned autonomous_runs row after a bulk delete. No-op for manual scenarios.
+              io.openaev.service.autonomous.AutonomousRunService autonomousRunService =
+                  this.autonomousRunServiceProvider.getObject();
+              chunk.forEach(autonomousRunService::deleteForScenarioForce);
+              this.scenarioRepository.deleteAll(this.scenarioRepository.findAllById(chunk));
+            });
+    log.info("Bulk deleted {} scenarios by user {}", deletedIds.size(), currentUser.getId());
+    return deletedIds;
+  }
+
   // -- EXPORT --
 
   @Transactional
@@ -508,10 +613,14 @@ public class ScenarioService {
       final boolean isWithTeams,
       final boolean isWithPlayers,
       final boolean isWithVariableValues,
+      final boolean isWithScopeDefinition,
       HttpServletResponse response)
       throws IOException {
     ObjectMapper objectMapper = ObjectMapperHelper.openAEVJsonMapper();
     Scenario scenario = this.scenario(scenarioId);
+    boolean isChaining = workflowService.isScenarioChaining(scenarioId);
+    List<Inject> exportedInjects =
+        isChaining ? new ArrayList<>() : new ArrayList<>(scenario.getInjects());
 
     // Start exporting scenario
     ScenarioFileExport scenarioFileExport = new ScenarioFileExport();
@@ -542,27 +651,49 @@ public class ScenarioService {
       objectMapper.addMixIn(Variable.class, VariableMixin.class);
     }
 
-    // Add Documents
-    List<Document> documentExports = new ArrayList<>();
-    documentExports.addAll(scenario.getDocuments());
-    documentExports.addAll(
-        scenario.getInjects().stream()
-            .flatMap(
-                inject -> {
-                  if (inject.getPayload().isEmpty()) {
-                    return Stream.of();
-                  }
-                  Payload pl = inject.getPayload().get();
-                  return pl.getAttachedDocument().isPresent()
-                      ? Stream.of(pl.getAttachedDocument().get())
-                      : Stream.of();
-                })
-            .toList());
+    // Add Documents — collect from:
+    // 1. documents directly attached to the scenario
+    // 2. documents directly attached to injects (InjectDocument)
+    // 3. payload's attached document (e.g., FileDrop)
+    // 4. documents referenced by Document-type payload arguments in inject content
+    List<Document> documentExports =
+        Stream.of(
+                scenario.getDocuments().stream(),
+                exportedInjects.stream()
+                    .flatMap(
+                        inject -> inject.getDocuments().stream().map(InjectDocument::getDocument)),
+                exportedInjects.stream()
+                    .flatMap(
+                        inject -> {
+                          if (inject.getPayload().isEmpty()) {
+                            return Stream.of();
+                          }
+                          Payload pl = inject.getPayload().get();
+                          return pl.getAttachedDocument().isPresent()
+                              ? Stream.of(pl.getAttachedDocument().get())
+                              : Stream.of();
+                        }),
+                exportedInjects.stream()
+                    .flatMap(
+                        inject -> {
+                          if (inject.getPayload().isEmpty() || inject.getContent() == null) {
+                            return Stream.of();
+                          }
+                          ObjectNode content = inject.getContent();
+                          return inject.getPayload().get().getArguments().stream()
+                              .filter(arg -> PrimitiveType.Document == arg.getType())
+                              .map(arg -> content.path(arg.getKey()))
+                              .filter(node -> node.isTextual() && hasText(node.asText()))
+                              .map(node -> documentRepository.findById(node.asText()))
+                              .flatMap(Optional::stream);
+                        }))
+            .flatMap(s -> s)
+            .distinct()
+            .collect(Collectors.toCollection(ArrayList::new));
 
     scenarioFileExport.setDocuments(documentExports);
     objectMapper.addMixIn(Document.class, Mixins.Document.class);
-    scenarioTags.addAll(
-        scenario.getDocuments().stream().flatMap(doc -> doc.getTags().stream()).toList());
+    scenarioTags.addAll(documentExports.stream().flatMap(doc -> doc.getTags().stream()).toList());
     List<String> documentIds =
         new ArrayList<>(documentExports.stream().map(Document::getId).toList());
 
@@ -602,21 +733,23 @@ public class ScenarioService {
 
     // Add Injects
     objectMapper.addMixIn(Inject.class, Mixins.Inject.class);
-    scenarioFileExport.setInjects(scenario.getInjects());
-    scenario
-        .getInjects()
-        .forEach(
-            inject -> {
-              scenarioTags.addAll(inject.getTags());
-              inject
-                  .getInjectorContract()
-                  .ifPresent(
-                      injectorContract -> {
-                        if (injectorContract.getPayload() != null) {
-                          scenarioTags.addAll(injectorContract.getTags());
-                        }
-                      });
-            });
+    scenarioFileExport.setInjects(exportedInjects);
+    exportedInjects.forEach(
+        inject -> {
+          scenarioTags.addAll(inject.getTags());
+          inject
+              .getInjectorContract()
+              .ifPresent(
+                  injectorContract -> {
+                    if (injectorContract.getPayload() != null) {
+                      scenarioTags.addAll(injectorContract.getTags());
+                      injectorContract.getPayload().getOutputParsers().stream()
+                          .flatMap(parser -> parser.getContractOutputElements().stream())
+                          .flatMap(element -> element.getTags().stream())
+                          .forEach(scenarioTags::add);
+                    }
+                  });
+        });
 
     // Add Articles
     objectMapper.addMixIn(Article.class, Mixins.Article.class);
@@ -645,9 +778,31 @@ public class ScenarioService {
             .map(Document::getId)
             .toList());
 
+    // Add Workflow (chaining) if present — scope definition is optional
+    Optional<Workflow> workflowOpt =
+        workflowService.findWorkflowTemplateByScenarioIdForExport(scenarioId);
+    workflowOpt.ifPresent(
+        workflow -> {
+          workflowExportInitializer.initialize(workflow, isWithScopeDefinition);
+          if (isChaining) {
+            scenarioTags.addAll(workflowExportInitializer.collectWorkflowTags(workflow));
+          }
+          scenarioFileExport.setWorkflow(workflow);
+        });
+
     // Tags
     scenarioFileExport.setTags(scenarioTags.stream().distinct().toList());
     objectMapper.addMixIn(Tag.class, Mixins.Tag.class);
+
+    objectMapper.addMixIn(
+        Workflow.class,
+        isWithScopeDefinition
+            ? Mixins.WorkflowExport.class
+            : Mixins.WorkflowExportWithoutScope.class);
+    objectMapper.addMixIn(WorkflowScopeRule.class, Mixins.WorkflowScopeRuleExport.class);
+    objectMapper.addMixIn(ScopeVariable.class, Mixins.ScopeVariableExport.class);
+    objectMapper.addMixIn(Step.class, Mixins.StepExport.class);
+    objectMapper.addMixIn(Condition.class, Mixins.ConditionExport.class);
 
     // Add Attackpattern and kill chain phases
     objectMapper.addMixIn(KillChainPhase.class, Mixins.KillChainPhase.class);
@@ -656,7 +811,7 @@ public class ScenarioService {
     objectMapper.addMixIn(Payload.class, Mixins.Payload.class);
 
     // load the killchainphases
-    scenario.getInjects().stream()
+    exportedInjects.stream()
         .map(Inject::getInjectorContract)
         .filter(Optional::isPresent)
         .map(Optional::get)
@@ -667,14 +822,24 @@ public class ScenarioService {
         .forEach(attackPattern -> Hibernate.initialize(attackPattern.getKillChainPhases()));
 
     // Build the response
-    String infos =
-        "("
-            + (isWithTeams ? "with_teams" : "no_teams")
-            + " & "
-            + (isWithPlayers ? "with_players" : "no_players")
-            + " & "
-            + (isWithVariableValues ? "with_variable_values" : "no_variable_values")
-            + ")";
+    String infos;
+    if (isChaining) {
+      infos =
+          "("
+              + (isWithVariableValues ? "with_variable_values" : "no_variable_values")
+              + " & "
+              + (isWithScopeDefinition ? "with_scope_definition" : "no_scope_definition")
+              + ")";
+    } else {
+      infos =
+          "("
+              + (isWithTeams ? "with_teams" : "no_teams")
+              + " & "
+              + (isWithPlayers ? "with_players" : "no_players")
+              + " & "
+              + (isWithVariableValues ? "with_variable_values" : "no_variable_values")
+              + ")";
+    }
 
     String zipName = (scenario.getName() + "_" + now().toString()) + "_" + infos + ".zip";
     response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + zipName);
@@ -684,8 +849,10 @@ public class ScenarioService {
     ZipEntry zipEntry = new ZipEntry(scenario.getName() + ".json");
     zipEntry.setComment(EXPORT_ENTRY_SCENARIO);
     zipExport.putNextEntry(zipEntry);
-    zipExport.write(
-        objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(scenarioFileExport));
+    ObjectNode exportNode = objectMapper.valueToTree(scenarioFileExport);
+    workflowExportInitializer.enrichWorkflowStepDataForExport(
+        exportNode, "scenario_workflow", objectMapper);
+    zipExport.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(exportNode));
     zipExport.closeEntry();
     // Add the documents
     documentIds.stream()
@@ -724,6 +891,10 @@ public class ScenarioService {
     this.injectRepository.removeTeamsForScenario(scenarioId, teamIds);
     // Remove all association between lessons learned and teams
     this.lessonsCategoryRepository.removeTeamsForScenario(scenarioId, teamIds);
+    // The join-table deletes above are native queries that bypass JPA timestamps: bump the
+    // scenario and its injects so the incremental indexer refreshes the denormalized team sides.
+    this.scenarioRepository.touchUpdatedAt(scenarioId);
+    this.injectRepository.touchUpdatedAtByScenarioId(scenarioId);
     return teamService.find(fromIds(teamIds));
   }
 
@@ -743,6 +914,10 @@ public class ScenarioService {
       this.injectRepository.removeTeamsForScenario(scenarioId, removedTeamIdsList);
       this.lessonsCategoryRepository.removeTeamsForScenario(scenarioId, removedTeamIdsList);
     }
+    // Team changes alter the denormalized inject_teams of the scenario's injects (including
+    // all-teams injects, derived from scenarios_teams): bump the injects so the incremental
+    // indexer refreshes them (the native join-table mutations bypass JPA timestamps).
+    this.injectRepository.touchUpdatedAtByScenarioId(scenarioId);
 
     // Replace teams from a scenario
     List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));
@@ -778,9 +953,13 @@ public class ScenarioService {
             .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     Iterable<User> teamUsers = userRepository.findAllById(playerIds);
-    team.getUsers().addAll(fromIterable(teamUsers));
+    // Reserved service/connector accounts are system users, never players: silently drop them so
+    // team membership stays consistent with the player lists that hide them.
+    List<User> playersToAdd = ReservedKeyValidator.excludeReservedUsers(teamUsers);
+    team.getUsers().addAll(playersToAdd);
     Team savedTeam = teamRepository.save(team);
-    return this.enablePlayers(scenarioId, savedTeam, playerIds);
+    return this.enablePlayers(
+        scenarioId, savedTeam, playersToAdd.stream().map(User::getId).toList());
   }
 
   public Scenario enableAddScenarioTeamPlayer(
@@ -904,6 +1083,7 @@ public class ScenarioService {
     scenarioDuplicate.setSubtitle(scenario.getSubtitle());
     scenarioDuplicate.setHeader(scenario.getHeader());
     scenarioDuplicate.setMainFocus(scenario.getMainFocus());
+    scenarioDuplicate.setDefaultKillChain(scenario.getDefaultKillChain());
     scenarioDuplicate.setFrom(scenario.getFrom());
     scenarioDuplicate.setFromName(scenario.getFromName());
     scenarioDuplicate.setExternalUrl(scenario.getExternalUrl());

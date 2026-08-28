@@ -7,8 +7,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
@@ -20,6 +22,7 @@ import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.utils.fixtures.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +43,9 @@ public class SentinelOneExecutorServiceTest {
   @Mock private EndpointService endpointService;
   @Mock private AgentService agentService;
   @Mock private ExecutorService executorService;
+  @Mock private OpenAEVConfig openAEVConfig;
+
+  @Mock private TenantScopedTransaction tenantTx;
 
   @InjectMocks private SentinelOneExecutorService sentinelOneExecutorService;
 
@@ -54,7 +60,16 @@ public class SentinelOneExecutorServiceTest {
     sentinelOneExecutor = new Executor();
     sentinelOneExecutor.setName(SENTINELONE_EXECUTOR_NAME);
     sentinelOneExecutor.setType(SENTINELONE_EXECUTOR_TYPE);
-    sentinelOneExecutor.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    sentinelOneExecutor.setTenantId(TenantContext.getCurrentTenant());
+    // The service wraps run() in tenantTx.execute(...): make the mock actually invoke the
+    // supplied work, otherwise doRun() never happens and the tests below have nothing to verify.
+    lenient()
+        .when(tenantTx.execute(any(), any(java.util.function.Supplier.class)))
+        .thenAnswer(
+            invocation -> {
+              java.util.function.Supplier<?> work = invocation.getArgument(1);
+              return work.get();
+            });
   }
 
   @Test
@@ -117,21 +132,73 @@ public class SentinelOneExecutorServiceTest {
         List.of(AgentFixture.createAgent(EndpointFixture.createEndpoint(), "12345"));
     InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
     when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
+    when(openAEVConfig.getBaseUrlForAgent()).thenReturn("http://localhost:8080");
     // Run method to test
     sentinelOneExecutorContextService.launchBatchExecutorSubprocess(
         inject, new HashSet<>(agents), injectStatus, "token");
     // Executor scheduled so we have to wait before the execution
     Thread.sleep(1000);
     // Asserts
-    ArgumentCaptor<List<String>> agentIds = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<String> agentId = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<String> commandEncoded = ArgumentCaptor.forClass(String.class);
-    verify(client)
-        .executeScript(agentIds.capture(), scriptName.capture(), commandEncoded.capture());
-    assertEquals(1, agentIds.getValue().size());
+    verify(client).executeScript(agentId.capture(), scriptName.capture(), commandEncoded.capture());
+    assertEquals("12345", agentId.getValue());
     assertEquals("1234567890", scriptName.getValue());
-    assertEquals(
-        "JABhAGcAZQBuAHQASQBEAD0AJgAgACcAQwA6AFwAUAByAG8AZwByAGEAbQAgAEYAaQBsAGUAcwBcAFMAZQBuAHQAaQBuAGUAbABPAG4AZQBcAFMAZQBuAHQAaQBuAGUAbAAgAEEAZwBlAG4AdAAgACoAXABTAGUAbgB0AGkAbgBlAGwAQwB0AGwALgBlAHgAZQAnACAAYQBnAGUAbgB0AF8AaQBkADsAeAA4ADYAXwA2ADQA",
-        commandEncoded.getValue());
+    // The inject command must be shipped as-is: no implant cleanup is inlined, otherwise the
+    // SentinelOne remote script queue saturates and injects time out (regression guard).
+    String decodedWindows =
+        new String(
+            Base64.getDecoder().decode(commandEncoded.getValue()), StandardCharsets.UTF_16LE);
+    assertEquals("x86_64", decodedWindows);
+    assertEquals("eAA4ADYAXwA2ADQA", commandEncoded.getValue());
+  }
+
+  @Test
+  void test_launchBatchExecutorSubprocess_sentinelone_unix()
+      throws JsonProcessingException, InterruptedException {
+    // Init datas
+    when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(null);
+    doNothing().when(enterpriseEditionService).throwEEExecutorService(any(), any(), any());
+    when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
+    when(config.getUnixScriptId()).thenReturn("unixScript");
+    Command payloadCommand = PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami");
+    Injector injector = InjectorFixture.createDefaultPayloadInjector();
+    Map<String, String> executorCommands = new HashMap<>();
+    executorCommands.put(
+        Endpoint.PLATFORM_TYPE.Linux.name() + "." + Endpoint.PLATFORM_ARCH.x86_64, "linuxcmd");
+    injector.setExecutorCommands(executorCommands);
+    Inject inject =
+        InjectFixture.createTechnicalInject(
+            InjectorContractFixture.createPayloadInjectorContractWithDefaultDomain(
+                injector, payloadCommand),
+            "Inject",
+            EndpointFixture.createEndpointWithPlatform("linux-ep", Endpoint.PLATFORM_TYPE.Linux));
+    inject.setId("injectId");
+    List<Agent> agents =
+        List.of(
+            AgentFixture.createAgent(
+                EndpointFixture.createEndpointWithPlatform(
+                    "linux-ep", Endpoint.PLATFORM_TYPE.Linux),
+                "12345"));
+    InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
+    when(executorService.manageWithoutPlatformAgents(agents, injectStatus)).thenReturn(agents);
+    when(openAEVConfig.getBaseUrlForAgent()).thenReturn("http://localhost:8080");
+    // Run method to test
+    sentinelOneExecutorContextService.launchBatchExecutorSubprocess(
+        inject, new HashSet<>(agents), injectStatus, "token");
+    // Executor scheduled so we have to wait before the execution
+    Thread.sleep(1000);
+    // Asserts
+    ArgumentCaptor<String> agentId = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<String> scriptName = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<String> commandEncoded = ArgumentCaptor.forClass(String.class);
+    verify(client).executeScript(agentId.capture(), scriptName.capture(), commandEncoded.capture());
+    assertEquals("12345", agentId.getValue());
+    assertEquals("unixScript", scriptName.getValue());
+    // Unix command is UTF-8 encoded and shipped without any inlined cleanup (regression guard).
+    String decodedUnix =
+        new String(Base64.getDecoder().decode(commandEncoded.getValue()), StandardCharsets.UTF_8);
+    assertEquals("linuxcmd", decodedUnix);
   }
 }

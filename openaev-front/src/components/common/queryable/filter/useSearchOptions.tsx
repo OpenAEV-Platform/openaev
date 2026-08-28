@@ -2,12 +2,13 @@ import { type AxiosResponse } from 'axios';
 import { useState } from 'react';
 
 import { searchAssetGroupAsOption, searchAssetGroupLinkedToFindingsAsOption } from '../../../../actions/asset_groups/assetgroup-action';
-import { searchEndpointAsOption, searchEndpointLinkedToFindingsAsOption } from '../../../../actions/assets/endpoint-actions';
+import { searchAssetsAsOption, searchEndpointAsOption, searchEndpointLinkedToFindingsAsOption } from '../../../../actions/assets/endpoint-actions';
 import { searchSecurityPlatformAsOption } from '../../../../actions/assets/securityPlatform-actions';
 import { searchAttackPatternsByNameAsOption } from '../../../../actions/AttackPattern';
 import { searchCustomDashboardAsOptions } from '../../../../actions/custom_dashboards/customdashboard-action';
 import { searchDomainsByNameAsOption } from '../../../../actions/domains/domain-actions';
 import { searchExerciseLinkedToFindingsAsOption } from '../../../../actions/exercises/exercise-action';
+import { searchInjectorContracts } from '../../../../actions/InjectorContracts';
 import { searchInjectorsByNameAsOption } from '../../../../actions/injectors/injector-action';
 import { searchInjectLinkedToFindingsAsOption, searchTargetOptions } from '../../../../actions/injects/inject-action';
 import { searchKillChainPhasesByNameAsOption } from '../../../../actions/kill_chain_phases/killChainPhase-action';
@@ -17,9 +18,14 @@ import { searchScenarioSimulationsAsOption } from '../../../../actions/scenarios
 import { searchSimulationAsOptions } from '../../../../actions/simulations/simulation-action';
 import { searchTagAsOption } from '../../../../actions/tags/tag-action';
 import { searchTeamsAsOption } from '../../../../actions/teams/team-actions';
+import { searchPlayersAsOption } from '../../../../actions/users/User';
+import { humanizeEnum } from '../../../../admin/components/assets/asset-categories';
 import ContractOutputElementType, { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../../../../admin/components/findings/ContractOutputElementType';
+import { scenarioCategories } from '../../../../admin/components/scenarios/constants';
+import { type AssetOptionOutput, type InjectorContract } from '../../../../utils/api-types';
 import { type GroupOption, type Option } from '../../../../utils/Option';
 import { useFormatter } from '../../../i18n';
+import { initSorting, type Page } from '../Page';
 import { CUSTOM_DASHBOARD, SCENARIO_SIMULATIONS, SCENARIOS, SIMULATIONS } from './constants';
 
 export interface SearchOptionsConfig {
@@ -30,9 +36,17 @@ export interface SearchOptionsConfig {
 
 const useSearchOptions = () => {
   // Standard hooks
-  const { t } = useFormatter();
+  const { t, tPick } = useFormatter();
 
-  const [options, setOptions] = useState<GroupOption[] | Option[]>([]);
+  const [options, setOptionsState] = useState<GroupOption[] | Option[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Every resolution path (including empty results) must land here so the
+  // autocomplete never shows an endless "Loading...".
+  const setOptions = (newOptions: GroupOption[] | Option[]) => {
+    setOptionsState(newOptions);
+    setLoading(false);
+  };
 
   const handleOptions = (response: AxiosResponse<GroupOption[] | Option[]>, defaultValues: GroupOption[] | undefined) => {
     if (defaultValues && defaultValues.length > 0) {
@@ -47,7 +61,37 @@ const useSearchOptions = () => {
 
   const searchOptions = (config: SearchOptionsConfig, search: string = '') => {
     const { filterKey, contextId = '' } = config;
+    setLoading(true);
     switch (filterKey) {
+      // Single polymorphic "Author" filter: one autocomplete listing persons,
+      // teams and organizations, grouped by type.
+      case 'action_author':
+        Promise.all([
+          searchPlayersAsOption(search),
+          searchTeamsAsOption(search),
+          searchOrganizationsByNameAsOption(search),
+        ]).then(([players, teams, organizations]) => {
+          const grouped: GroupOption[] = [
+            ...players.data.map((o: Option) => ({
+              ...o,
+              group: t('Persons'),
+            })),
+            ...teams.data.map((o: Option) => ({
+              ...o,
+              group: t('Teams'),
+            })),
+            ...organizations.data.map((o: Option) => ({
+              ...o,
+              group: t('Organizations'),
+            })),
+          ];
+          if (config.defaultValues && config.defaultValues.length > 0) {
+            setOptions([...config.defaultValues, ...grouped]);
+          } else {
+            setOptions(grouped);
+          }
+        });
+        break;
       case SIMULATIONS:
       case 'base_simulation_side':
         searchSimulationAsOptions(search).then((response) => {
@@ -79,6 +123,7 @@ const useSearchOptions = () => {
       case 'action_domains':
       case 'injector_contract_domains':
       case 'inject_contract_domains':
+      case 'base_security_domains_side':
         searchDomainsByNameAsOption(search).then((response) => {
           setOptions(response.data);
         });
@@ -110,6 +155,9 @@ const useSearchOptions = () => {
       case 'team_tags':
       case 'finding_tags':
       case 'user_tags':
+      case 'document_tags':
+      case 'challenge_tags':
+      case 'secret_reference_tags':
       case 'base_tags_side':
         searchTagAsOption(search).then((response) => {
           setOptions(response.data);
@@ -131,7 +179,42 @@ const useSearchOptions = () => {
         });
         break;
       case 'finding_assets':
-        searchEndpointLinkedToFindingsAsOption(search, contextId).then((response) => {
+        // Contextual findings tabs (inject / simulation / scenario / asset) narrow the options to
+        // assets already linked to findings in that context. Without a context (global findings
+        // page, notification trigger criteria) the whole asset inventory must be proposed:
+        // findings can attach to any asset - including ones with no finding yet when the filter
+        // targets future events (triggers).
+        if (contextId) {
+          searchEndpointLinkedToFindingsAsOption(search, contextId).then((response) => {
+            setOptions(response.data);
+          }).catch(() => setOptions([]));
+        } else {
+          // The inventory can hold thousands of assets: group the returned page by asset
+          // category (Host, Web application, AI target...) so the picker stays readable.
+          // On failure (e.g. 403 without ASSETS access) resolve to an empty list so the
+          // autocomplete never shows an endless "Loading...".
+          searchAssetsAsOption(search).then((response: AxiosResponse<AssetOptionOutput[]>) => {
+            const grouped: GroupOption[] = response.data
+              .map(option => ({
+                id: option.id ?? '',
+                label: option.label ?? '',
+                group: option.category ? t(humanizeEnum(option.category)) : t('Other'),
+              }))
+              .sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
+            setOptions(grouped);
+          }).catch(() => setOptions([]));
+        }
+        break;
+      case 'finding_teams':
+      case 'user_teams':
+        searchTeamsAsOption(search).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'finding_users':
+      case 'secret_reference_created_by':
+      case 'asset_linked_person':
+        searchPlayersAsOption(search).then((response) => {
           setOptions(response.data);
         });
         break;
@@ -186,11 +269,45 @@ const useSearchOptions = () => {
         });
         break;
       case 'scenario_category':
+        // Merge the predefined platform categories with the distinct values
+        // found on existing scenarios, so the picker offers values even on a
+        // fresh platform (and free-typed custom categories still show up).
         searchScenarioCategoryAsOption(search).then((response: { data: Option[] }) => {
-          setOptions(response.data.map(d => ({
-            id: d.id,
-            label: t(d.label),
-          })));
+          const predefined = Array.from(scenarioCategories.entries())
+            .map(([id, label]) => ({
+              id,
+              label: t(label),
+            }))
+            .filter(option => !search || option.label.toLowerCase().includes(search.toLowerCase()));
+          const existing = response.data
+            .filter(d => !scenarioCategories.has(d.id))
+            .map(d => ({
+              id: d.id,
+              label: t(d.label),
+            }));
+          setOptions([...predefined, ...existing].sort((a, b) => a.label.localeCompare(b.label)));
+        });
+        break;
+      case 'inject_type':
+        // The inject_type filter matches injector contract label text: offer the
+        // existing contract labels as options (the filter value is the label itself).
+        searchInjectorContracts({
+          textSearch: search,
+          page: 0,
+          size: 100,
+          sorts: initSorting('injector_contract_labels'),
+        }).then((result: { data: Page<InjectorContract> }) => {
+          const labels = Array.from(new Set(
+            result.data.content
+              .map(contract => tPick(contract.injector_contract_labels))
+              .filter(label => !!label),
+          ));
+          setOptions(labels
+            .sort((a, b) => a.localeCompare(b))
+            .map(label => ({
+              id: label,
+              label,
+            })));
         });
         break;
       case 'user_organization':
@@ -199,6 +316,21 @@ const useSearchOptions = () => {
             id: d.id,
             label: t(d.label),
           })));
+        });
+        break;
+      case 'payload_author_user':
+        searchPlayersAsOption(search).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'payload_author_team':
+        searchTeamsAsOption(search).then((response) => {
+          setOptions(response.data);
+        });
+        break;
+      case 'payload_author_organization':
+        searchOrganizationsByNameAsOption(search).then((response) => {
+          setOptions(response.data);
         });
         break;
       case CUSTOM_DASHBOARD:
@@ -217,6 +349,9 @@ const useSearchOptions = () => {
         });
         break;
       default:
+        // No dedicated fetcher for this key: resolve to an explicit empty list
+        // so the picker shows "No available options" instead of loading forever.
+        setOptions([]);
     }
   };
 
@@ -224,6 +359,7 @@ const useSearchOptions = () => {
     options,
     setOptions,
     searchOptions,
+    loading,
   };
 };
 

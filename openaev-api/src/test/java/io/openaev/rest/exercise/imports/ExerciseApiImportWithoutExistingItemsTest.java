@@ -165,7 +165,7 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
 
   private byte[] doExport(ExerciseComposer.Composer composer) throws Exception {
     Exercise exercise = composer.persist().get();
-    return exportService.exportExerciseToZip(exercise, FULL_EXPORT_OPTIONS);
+    return exportService.exportExerciseToZip(exercise, FULL_EXPORT_OPTIONS, true);
   }
 
   @DisplayName(
@@ -851,7 +851,8 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
     entityManager.clear();
 
     for (Document expected : documentComposer.generatedItems) {
-      Optional<Document> docFromDb = documentRepository.findByName(expected.getName());
+      Optional<Document> docFromDb =
+          documentRepository.findFirstByNameOrderByIdAsc(expected.getName());
       if (docFromDb.isEmpty()) {
         Assertions.fail("Document " + expected.getName() + " not found");
       }

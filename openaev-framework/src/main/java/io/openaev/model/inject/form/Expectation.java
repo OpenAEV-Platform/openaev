@@ -1,7 +1,11 @@
 package io.openaev.model.inject.form;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.InjectExpectation;
+import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.SecurityPlatform;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Data;
 
 /**
@@ -20,11 +24,14 @@ import lombok.Data;
  * @see io.openaev.expectation.ExpectationBuilderService
  */
 @Data
+@JsonAutoDetect(
+    getterVisibility = JsonAutoDetect.Visibility.NONE,
+    isGetterVisibility = JsonAutoDetect.Visibility.NONE)
 public class Expectation {
 
   /** The type of expectation to create. */
   @JsonProperty("expectation_type")
-  private InjectExpectation.EXPECTATION_TYPE type;
+  private BaseInjectExpectation.EXPECTATION_TYPE type;
 
   /** Display name for this expectation. */
   @JsonProperty("expectation_name")
@@ -54,5 +61,29 @@ public class Expectation {
    * single selection.
    */
   @JsonProperty("expectation_is_multi_selectable")
-  private boolean isMultiSelectable;
+  private boolean multiSelectable;
+
+  @JsonProperty("expectation_is_predefined")
+  private boolean predefined;
+
+  /**
+   * Optional display order of this expectation within its inject, ascending. Lets a contract
+   * declare the logical sequence of its expectations (e.g. a phishing action orders its human steps
+   * email {@literal ->} link {@literal ->} submission) instead of relying on an incidental
+   * alphabetical sort. {@code null} means unordered - the reader then falls back to name / id, so
+   * every other contract is unaffected.
+   */
+  @JsonProperty("expectation_order")
+  private Integer order;
+
+  /**
+   * Security platform types expected to fulfil this expectation.
+   *
+   * <p>When non-empty, the platform focuses the detection/prevention result on collectors of those
+   * types only (instead of every connected security platform). An empty list means "any security
+   * platform" (unchanged behaviour), and is typical for MANUAL expectations.
+   */
+  @JsonProperty("expectation_expected_security_platform_types")
+  private List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedSecurityPlatformTypes =
+      new ArrayList<>();
 }

@@ -4,6 +4,7 @@ import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -82,6 +83,7 @@ public class ConditionUtils {
       return true;
     }
     String target = filter.getValue();
+    boolean caseSensitive = filter.isCaseSensitive();
 
     switch (type) {
       case IS_NULL:
@@ -89,15 +91,26 @@ public class ConditionUtils {
       case IS_NOT_NULL:
         return actualValue != null;
       case EQ:
-        return actualValue != null && actualValue.equalsIgnoreCase(target);
+        return actualValue != null
+            && (caseSensitive ? actualValue.equals(target) : actualValue.equalsIgnoreCase(target));
       case NEQ:
-        return actualValue != null && !actualValue.equalsIgnoreCase(target);
+        return actualValue != null
+            && (caseSensitive
+                ? !actualValue.equals(target)
+                : !actualValue.equalsIgnoreCase(target));
       case IN, NIN:
         if (actualValue == null || target == null) {
           return false;
         }
-        List<String> targetList = Arrays.asList(target.split("\\s*,\\s*"));
-        boolean contains = targetList.stream().anyMatch(actualValue::equalsIgnoreCase);
+        String normalizedActualValue =
+            caseSensitive ? actualValue : actualValue.toLowerCase(Locale.ROOT);
+        List<String> normalizedTargets =
+            Arrays.stream(target.split(","))
+                .map(String::trim)
+                .filter(candidate -> !candidate.isBlank())
+                .map(candidate -> caseSensitive ? candidate : candidate.toLowerCase(Locale.ROOT))
+                .toList();
+        boolean contains = normalizedTargets.stream().anyMatch(normalizedActualValue::contains);
         return (type == ConditionType.IN) == contains;
       case GT, GTE, LT, LTE:
         return handleNumericComparison(actualValue, target, type);
@@ -107,15 +120,20 @@ public class ConditionUtils {
   }
 
   /**
-   * Checks whether a value matches any leaf condition in the condition tree, ignoring AND/OR
-   * logical grouping. This is used for propagation (deciding which values are relevant to an
+   * Checks whether a value matches any same-key-type leaf condition in the condition tree, ignoring
+   * AND/OR logical grouping. This is used for propagation (deciding which values are relevant to an
    * event), not for full evaluation (deciding if the event is fully satisfied).
+   *
+   * <p>A leaf is only checked when it targets {@code keyTypeName}: e.g. a "host is not null" leaf
+   * must never be satisfied by a port value, or unrelated values leak into the event's pool.
    *
    * @param value the value to check
    * @param node the condition tree node to inspect
-   * @return {@code true} if the value satisfies at least one leaf condition in the tree
+   * @param keyTypeName the {@link io.openaev.database.model.PrimitiveType#name()} (e.g. "Port",
+   *     "Host") the {@code value} was extracted for
+   * @return {@code true} if the value satisfies at least one same-key-type leaf condition
    */
-  public boolean matchesAnyLeafCondition(String value, Condition node) {
+  public boolean matchesAnyLeafCondition(String value, Condition node, String keyTypeName) {
     if (node == null || node.getType() == null) {
       return false;
     }
@@ -123,7 +141,13 @@ public class ConditionUtils {
     if (node.getType() == ConditionType.AND || node.getType() == ConditionType.OR) {
       return node.getConditionChildren() != null
           && node.getConditionChildren().stream()
-              .anyMatch(child -> matchesAnyLeafCondition(value, child));
+              .anyMatch(child -> matchesAnyLeafCondition(value, child, keyTypeName));
+    }
+    // A leaf only applies to the key type(s) it was configured for.
+    if (node.getKeyTypes() != null
+        && !node.getKeyTypes().isEmpty()
+        && node.getKeyTypes().stream().noneMatch(kt -> kt.name().equals(keyTypeName))) {
+      return false;
     }
     // For leaf nodes, delegate to the existing leaf evaluator
     return evaluateLeafCondition(value, node);

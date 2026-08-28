@@ -11,17 +11,23 @@ public enum ResourceType {
   USER,
   TEAM,
   ATOMIC_TESTING,
-  NOTIFICATION_RULE,
+  NOTIFICATION_TRIGGER,
+  NOTIFIER,
+  NOTIFICATION,
   @Deprecated(
       since = "Remove after closing https://github.com/OpenAEV-Platform/client-python/issues/211")
   PAYLOAD,
   THREAT_ARSENAL,
   RESOURCE_TYPE,
   SECURITY_PLATFORM,
+  CREDENTIAL,
   DOCUMENT,
   CHANNEL,
+  PHISHING_LANDING_PAGE,
+  PHISHING_EMAIL_TEMPLATE,
   FINDING,
   DASHBOARD,
+  REPORT,
   PLATFORM_SETTING,
   LESSON_LEARNED,
   CHALLENGE,
@@ -46,6 +52,7 @@ public enum ResourceType {
   EVALUATION,
   CATALOG,
   CONNECTOR_INSTANCE_LOG,
+  SECRET_PROVIDER,
   TENANT,
   TENANT_SETTING,
   PLATFORM_ROLE,
@@ -58,6 +65,9 @@ public enum ResourceType {
   WORKFLOW,
   STEP,
   CONDITION,
+  // Auth related
+  SESSION,
+  PLATFORM_SESSION,
   SKIP_RBAC; // Used to skip RBAC checks.
 
   public static ResourceType fromString(@NotNull String name) {

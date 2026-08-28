@@ -1,6 +1,7 @@
 package io.openaev.integration.impl.executors.openaev;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
@@ -23,6 +24,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   private final ComponentRequestEngine componentRequestEngine;
   private final AssetAgentJobRepository assetAgentJobRepository;
   private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  private final OpenAEVConfig openAEVConfig;
 
   public OpenAEVExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -31,12 +33,14 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
       ComponentRequestEngine componentRequestEngine,
       AssetAgentJobRepository assetAgentJobRepository,
       HttpClientFactory httpClientFactory,
-      ServiceAccountPrivilegeService serviceAccountPrivilegeService) {
+      ServiceAccountPrivilegeService serviceAccountPrivilegeService,
+      OpenAEVConfig openAEVConfig) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.executorService = executorService;
     this.componentRequestEngine = componentRequestEngine;
     this.assetAgentJobRepository = assetAgentJobRepository;
     this.serviceAccountPrivilegeService = serviceAccountPrivilegeService;
+    this.openAEVConfig = openAEVConfig;
   }
 
   @Override
@@ -45,7 +49,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
   }
 
   @Override
-  protected void runMigrations() throws Exception {
+  protected void runMigrations(String tenantId) throws Exception {
     // noop
   }
 
@@ -70,12 +74,14 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
         connectorInstanceService,
         assetAgentJobRepository,
         componentRequestEngine,
-        serviceAccountPrivilegeService);
+        serviceAccountPrivilegeService,
+        openAEVConfig);
   }
 
   @Override
   public void registerConnectorForTenant(String tenantId) throws Exception {
     executorService.register(
+        tenantId,
         OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID,
         OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_TYPE,
         OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME,

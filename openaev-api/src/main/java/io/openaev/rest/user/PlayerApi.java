@@ -11,18 +11,29 @@ import io.openaev.config.SessionManager;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
+import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.user.form.player.PlayerBulkProcessingInput;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
+import io.openaev.service.InjectSearchService;
 import io.openaev.service.UserService;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,6 +52,7 @@ public class PlayerApi extends RestBehavior {
   private final TagRepository tagRepository;
   private final UserService userService;
   private final PlayerService playerService;
+  private final InjectSearchService injectSearchService;
 
   @GetMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLAYER)
@@ -59,6 +71,28 @@ public class PlayerApi extends RestBehavior {
   public Page<PlayerOutput> players(
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return this.playerService.playerPagination(searchPaginationInput);
+  }
+
+  /**
+   * "Injects played" for the person detail page: every inject (atomic testing or simulation inject)
+   * that concerns this player, whether it was targeted through one of the player's teams or
+   * evidenced by the player-level expectations persisted at execution time. Resolved server-side so
+   * the page does not need to load every team of the platform to build the scope.
+   */
+  @LogExecutionTime
+  @PostMapping({
+    PLAYER_URI + "/{userId}/injects/search",
+    TENANT_PLAYER_URI + "/{userId}/injects/search"
+  })
+  @AccessControl(
+      resourceId = "#userId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.PLAYER)
+  @Transactional(readOnly = true)
+  public Page<InjectResultOutput> searchInjectsForPlayer(
+      @PathVariable @NotBlank final String userId,
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+    return injectSearchService.getPageOfInjectResultsForPlayer(userId, searchPaginationInput);
   }
 
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})
@@ -84,11 +118,24 @@ public class PlayerApi extends RestBehavior {
   public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
-    user.setUpdateAttributes(input);
+    ReservedKeyValidator.validateUserEmailPattern(user.getEmail());
+    if (user.isAdmin() && !userService.currentUser().isAdmin()) {
+      throw new ForbiddenException("Only an administrator can update a platform administrator");
+    }
+    applyProfile(user, input);
+    return userRepository.save(user);
+  }
+
+  private void applyProfile(User user, PlayerInput input) {
+    user.setFirstname(input.getFirstname());
+    user.setLastname(input.getLastname());
+    user.setPhone(input.getPhone());
+    user.setPhone2(input.getPhone2());
+    user.setPgpKey(input.getPgpKey());
+    user.setCountry(input.getCountry());
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     user.setOrganization(
         updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
-    return userRepository.save(user);
   }
 
   @DeleteMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
@@ -98,6 +145,63 @@ public class PlayerApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PLAYER)
   public void deletePlayer(@PathVariable String userId) {
+    User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    // Mirror the bulk deletion guards: platform administrator accounts and the
+    // current user can never be removed through the players API.
+    if (user.isAdmin()) {
+      throw new ForbiddenException(
+          "Platform administrator accounts cannot be deleted through the players API");
+    }
+    if (user.getId().equals(userService.currentUser().getId())) {
+      throw new ForbiddenException("You cannot delete your own account");
+    }
     userService.delete(userId);
+  }
+
+  @ApiResponses(
+      value = {@ApiResponse(responseCode = "200", description = "The ids of the deleted players")})
+  @Operation(
+      summary = "Bulk delete players",
+      description =
+          "Deletes players either from an explicit id list (user_ids_to_process) or from a select-all search scope (search_pagination_input) - the two are mutually exclusive. user_ids_to_ignore removes ids from a select-all scope. The current user, admin users and reserved service accounts are always excluded server-side.")
+  @LogExecutionTime
+  @DeleteMapping({PLAYER_URI, TENANT_PLAYER_URI})
+  // SUPPORTS (not REQUIRED): the service deletes in small independent chunk transactions with
+  // deadlock retry; a request-wide transaction would force everything back into one transaction.
+  @Transactional(propagation = Propagation.SUPPORTS)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
+  public List<String> bulkDeletePlayers(@RequestBody @Valid final PlayerBulkProcessingInput input) {
+    return playerService.bulkDeletePlayers(input);
+  }
+
+  // -- OPTIONS (for the shared filter autocomplete: id + display name) --
+
+  private static final int OPTIONS_LIMIT = 50;
+
+  @GetMapping({PLAYER_URI + "/options", TENANT_PLAYER_URI + "/options"})
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
+  public List<FilterUtilsJpa.Option> optionsByName(
+      @RequestParam(required = false) final String searchText) {
+    String search = searchText == null ? "" : searchText.toLowerCase();
+    return fromIterable(userRepository.findAll()).stream()
+        .filter(
+            user ->
+                search.isEmpty()
+                    || user.getNameOrEmail().toLowerCase().contains(search)
+                    || user.getEmail().toLowerCase().contains(search))
+        .sorted(Comparator.comparing(User::getNameOrEmail, String.CASE_INSENSITIVE_ORDER))
+        .limit(OPTIONS_LIMIT)
+        .map(user -> new FilterUtilsJpa.Option(user.getId(), user.getNameOrEmail()))
+        .toList();
+  }
+
+  @PostMapping({PLAYER_URI + "/options", TENANT_PLAYER_URI + "/options"})
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
+  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+    return fromIterable(userRepository.findAllById(ids)).stream()
+        .map(user -> new FilterUtilsJpa.Option(user.getId(), user.getNameOrEmail()))
+        .toList();
   }
 }

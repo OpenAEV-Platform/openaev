@@ -2,8 +2,11 @@ package io.openaev.utils.mapper;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
+import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
+import io.openaev.utils.TargetType;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -25,14 +28,29 @@ public class FindingMapper {
 
   public AggregatedFindingOutput toAggregatedFindingOutput(
       Finding finding, List<Asset> relatedAssets) {
+    return toAggregatedFindingOutput(
+        finding, relatedAssets, finding.getCreationDate(), finding.getUpdateDate());
+  }
+
+  /**
+   * Aggregated (deduplicated by type + value) output. The representative {@code finding} row is the
+   * most recent occurrence in the group (greatest {@code updateDate}, tie-broken by smallest id -
+   * see {@code FindingSpecification.distinctTypeValueWithFilter}), so its own {@code updateDate}
+   * already matches the group last seen; its {@code creationDate}, however, is that single
+   * occurrence's, so callers must still pass the group-wide first/last seen explicitly.
+   */
+  public AggregatedFindingOutput toAggregatedFindingOutput(
+      Finding finding, List<Asset> relatedAssets, Instant firstSeen, Instant lastSeen) {
     return AggregatedFindingOutput.builder()
         .id(finding.getId())
         .value(finding.getValue())
         .type(finding.getType())
-        .creationDate(finding.getCreationDate())
-        .endpoints(
+        .creationDate(firstSeen)
+        .updateDate(lastSeen)
+        // Findings can attach to ANY asset type (agentless websites, AI targets, cloud/network
+        // assets), so no instanceof Endpoint filtering here.
+        .assets(
             relatedAssets.stream()
-                .filter(asset -> asset instanceof Endpoint)
                 .map(endpointMapper::toEndpointSimple)
                 .collect(Collectors.toSet()))
         .build();
@@ -43,9 +61,9 @@ public class FindingMapper {
         .id(finding.getId())
         .value(finding.getValue())
         .type(finding.getType())
-        .endpoints(
+        .updateDate(finding.getUpdateDate())
+        .assets(
             finding.getAssets().stream()
-                .filter(asset -> asset instanceof Endpoint)
                 .map(asset -> endpointMapper.toEndpointSimple(asset))
                 .collect(Collectors.toSet()))
         .assetGroups(
@@ -62,6 +80,28 @@ public class FindingMapper {
                 .map(Exercise::getScenario)
                 .map(scenario -> scenarioMapper.toScenarioSimple(scenario))
                 .orElse(null))
+        // Teams and persons attached to this occurrence (e.g. phishing credential findings): the
+        // occurrence list needs them to show WHO was impacted, not only which machine.
+        .teams(
+            finding.getTeams().stream()
+                .map(
+                    team ->
+                        TargetSimple.builder()
+                            .id(team.getId())
+                            .name(team.getName())
+                            .type(TargetType.TEAMS)
+                            .build())
+                .collect(Collectors.toSet()))
+        .users(
+            finding.getUsers().stream()
+                .map(
+                    user ->
+                        TargetSimple.builder()
+                            .id(user.getId())
+                            .name(user.getNameOrEmail())
+                            .type(TargetType.PLAYERS)
+                            .build())
+                .collect(Collectors.toSet()))
         .creationDate(finding.getCreationDate())
         .build();
   }

@@ -29,15 +29,23 @@ import org.springframework.transaction.annotation.Transactional;
 public class StepService {
 
   private final InjectExecutionStep injectExecutionStep;
+  private final StepTargetingService stepTargetingService;
 
   private final InjectService injectService;
   private final ConditionService conditionService;
+  private final StepAutoLinkService stepAutoLinkService;
   private final QueueChainingService queueChainingService;
+  private final SimulationRateLimitService simulationRateLimitService;
 
   private final StepRepository stepRepository;
 
+  static final List<StepStatus> ACTIVE_STEP_STATUS = List.of(StepStatus.READY, StepStatus.RUN);
+
   /**
    * Create a single step template.
+   *
+   * <p>When no condition list is provided at all, the contract auto-links are applied. An explicit
+   * list — even empty — means the caller already picked its links and is kept untouched.
    *
    * @param workflow workflow linked to the step template
    * @param stepInput input to create the step template
@@ -46,6 +54,10 @@ public class StepService {
   @Transactional(rollbackFor = Exception.class)
   public Step createStepTemplate(Workflow workflow, StepsCreateInput.StepInput stepInput)
       throws ChainingException {
+    WorkflowEditability.assertLogicMapEditable(workflow);
+    if (stepInput.getConditions() == null) {
+      stepInput.setConditions(stepAutoLinkService.buildAutoLinkConditions(stepInput.getDataStep()));
+    }
     ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
     Step step =
         actionStep
@@ -56,6 +68,279 @@ public class StepService {
     stepConditionTemplate(stepInput.getConditions(), workflow.getId(), step);
     conditionService.linkExistingConditionsToStep(step, stepInput.getConditionIds());
     return step;
+  }
+
+  /**
+   * Creates an INJECT_EXECUTION step template idempotently, reusing an existing twin instead of
+   * minting a duplicate.
+   *
+   * <p>Autonomous (AI-driven) runs author their attack path by calling this repeatedly. The
+   * orchestrator - or a retried/replayed tool call, or a re-run decision cycle - can legitimately
+   * request the <b>same</b> inject step many times. Left unguarded, every call minted a new
+   * template and the next workflow evaluation turned each into its own inject, producing the
+   * observed duplicate storm (hundreds of identical injects materialising in seconds). The chaining
+   * engine's per-target dedup cannot catch this: each template carries its own committed-hash local
+   * state, so N templates for the same inject are N distinct, individually-valid executions.
+   *
+   * <p>Idempotency key = the baked inject {@code data} (identical for an identical {@link
+   * io.openaev.rest.inject.form.InjectInput} within a run) plus the kill-chain parent (the {@code
+   * DEPEND_ON} step template id, {@code null} for a root). A match is reused ONLY while it is still
+   * <b>pending</b> - it has not yet spawned a run step - because that is the signature of the
+   * storm: a burst of identical author calls before the workflow first evaluates them. Once a twin
+   * has executed, a fresh author of the same inject is a deliberate <b>re-run</b> (e.g. the agent
+   * tried a step, saw no finding, edited the payload/injector contract in place - leaving the
+   * inject data byte-identical - and wants to fire it again) and MUST mint a new template so it
+   * actually runs again. This is the boundary that lets the guard kill the duplicate storm without
+   * ever blocking the normal try -> tweak -> re-fire loop. On a miss a new template is created
+   * exactly as {@link #createStepTemplate}; the candidate is built once via the action step's
+   * {@code create} (needed to compute {@code data}) and only persisted on a miss, so a hit performs
+   * no writes.
+   *
+   * @param workflow the workflow template to author on
+   * @param stepInput the inject step input (its {@code conditions} carry the DEPEND_ON on a miss)
+   * @param dependOnParentTemplateId the kill-chain parent step template id, or {@code null} for
+   *     root
+   * @return the existing pending twin on a hit, or the newly created template on a miss
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Step createInjectStepTemplateIdempotent(
+      Workflow workflow, StepsCreateInput.StepInput stepInput, String dependOnParentTemplateId)
+      throws ChainingException {
+    ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
+    Step candidate =
+        actionStep
+            .create(stepInput, workflow)
+            .orElseThrow(() -> new ChainingException("Failed to create step (TEMPLATE)"));
+
+    String candidateData = candidate.getData();
+    String normalizedParent = normalizeDependOnParent(dependOnParentTemplateId);
+    // The EVENT linkage is part of the idempotency identity. When this author REUSES an existing
+    // event by id (stepInput.conditionIds), only a pending twin ALREADY linked to exactly that
+    // event may collapse this call: otherwise a same-inject / same-parent step authored under a
+    // DIFFERENT event (or none) would swallow the call, silently drop the requested event_id, and
+    // mislead the scenario mirror into twinning the wrong event. A fresh-event / no-event author
+    // (empty conditionIds) keeps the historical data + parent identity, so the duplicate-storm
+    // guard for replayed identical authors is unchanged.
+    Set<String> requestedEventIds =
+        stepInput.getConditionIds() == null
+            ? Set.of()
+            : stepInput.getConditionIds().stream()
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toSet());
+    Optional<Step> existing =
+        findAllStepTemplateByWorkflow(workflow.getId()).stream()
+            .filter(s -> StepActionClass.INJECT_EXECUTION.equals(s.getStepAction()))
+            .filter(s -> Objects.equals(s.getData(), candidateData))
+            .filter(
+                s -> Objects.equals(normalizeDependOnParent(dependOnParentOf(s)), normalizedParent))
+            // Same inject + same parent but a DIFFERENT reused event is NOT the same step.
+            .filter(
+                s -> requestedEventIds.isEmpty() || linkedEventRootIds(s).equals(requestedEventIds))
+            // Collapse a duplicate ONLY while the twin is still pending (no run step yet). A twin
+            // that already executed means this author is a deliberate re-run and must create a new
+            // template - never block the try -> tweak -> re-fire loop.
+            .filter(s -> !stepRepository.existsByStepTemplateId(s.getId()))
+            .findFirst();
+    if (existing.isPresent()) {
+      log.info(
+          "[Chaining] Idempotent author: reusing pending inject step template {} on workflow {} "
+              + "instead of creating a duplicate (storm guard).",
+          existing.get().getId(),
+          workflow.getId());
+      return existing.get();
+    }
+
+    Step step = saveStep(candidate);
+    stepConditionTemplate(stepInput.getConditions(), workflow.getId(), step);
+    conditionService.linkExistingConditionsToStep(step, stepInput.getConditionIds());
+    return step;
+  }
+
+  private static String normalizeDependOnParent(String parentTemplateId) {
+    return (parentTemplateId != null && !parentTemplateId.isBlank()) ? parentTemplateId : null;
+  }
+
+  private String dependOnParentOf(Step template) {
+    return dependOnParentTemplateId(template.getId());
+  }
+
+  /**
+   * Returns the DEPEND_ON parent step template id of a step template (the step it runs AFTER), or
+   * {@code null} for a root step. Exposed so the autonomous read path can surface the kill-chain
+   * graph to the orchestrator by step template id.
+   *
+   * @param stepTemplateId the step template to inspect
+   * @return the parent step template id, or {@code null} for a root step
+   */
+  public String dependOnParentTemplateId(String stepTemplateId) {
+    return conditionService.findAllConditionsByStepId(stepTemplateId).stream()
+        .filter(c -> c.getType() == ConditionType.DEPEND_ON)
+        .map(Condition::getValue)
+        .filter(v -> v != null && !v.isBlank())
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * The set of AND/OR finding-event ROOT condition ids linked to a step template. Part of the
+   * idempotency identity in {@link #createInjectStepTemplateIdempotent}: reusing a DIFFERENT event
+   * by id must never collapse onto a same-inject / same-parent twin authored under another event.
+   * Filters on root-ness (no parent) so a linked event leaf or a nested AND/OR group is never
+   * mistaken for the event root.
+   *
+   * @param step the step template to inspect
+   * @return the linked event root ids (empty when the step has no finding event)
+   */
+  private Set<String> linkedEventRootIds(Step step) {
+    return conditionService.findAllConditionsByStepId(step.getId()).stream()
+        .filter(c -> c.getConditionParent() == null)
+        .filter(c -> c.getType() == ConditionType.AND || c.getType() == ConditionType.OR)
+        .map(Condition::getId)
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * Updates an existing INJECT_EXECUTION step template's baked inject data IN PLACE, preserving its
+   * id and its conditions (its DEPEND_ON kill-chain parent). This is how the AI orchestrator edits
+   * a step it already authored - change the payload / target / injector contract / title of the
+   * SAME step - instead of authoring a duplicate. The new inject definition is recomputed exactly
+   * as {@link #createStepTemplate} would (so targeting, tags, documents and defaults resolve the
+   * same way), then only the {@code data} column is swapped on the existing template. Conditions
+   * are intentionally left untouched so the attack-path edges stay intact.
+   *
+   * @param stepTemplateId the id of the step template to update
+   * @param stepInput the new inject step input
+   * @return the updated step template
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Step updateInjectStepTemplateData(
+      String stepTemplateId, StepsCreateInput.StepInput stepInput) throws ChainingException {
+    Step existing =
+        stepRepository
+            .findById(stepTemplateId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Step template not found. Step template ID: " + stepTemplateId));
+    if (!StepActionClass.INJECT_EXECUTION.equals(existing.getStepAction())) {
+      throw new ChainingException(
+          "Step template " + stepTemplateId + " is not an inject-execution step");
+    }
+    ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
+    Step candidate =
+        actionStep
+            .create(stepInput, existing.getWorkflow())
+            .orElseThrow(() -> new ChainingException("Failed to rebuild step data (TEMPLATE)"));
+    existing.setData(candidate.getData());
+    return saveStep(existing);
+  }
+
+  /**
+   * Trigger-aware sibling of {@link #updateInjectStepTemplateData(String,
+   * StepsCreateInput.StepInput)}: updates the baked inject data AND replaces the step's
+   * finding-trigger conditions (event root + leaf filters + MAPPER bindings), while PRESERVING any
+   * DEPEND_ON ordering parent so the kill-chain edge stays intact. This is how the AI orchestrator
+   * CORRECTS a mis-wired finding-driven step (change what it fires on / consumes) in place, instead
+   * of re-authoring a duplicate or moving it in the chain.
+   *
+   * <p>Deliberately does NOT assert {@link WorkflowEditability}: the orchestrator is the author of
+   * an autonomous run's workflow, exactly like {@link #createInjectStepTemplateIdempotent}. The
+   * condition swap mirrors the manual full-replace strategy in {@code updateStep} - delete the
+   * non-preserved conditions, clear the step-side links, recreate from input, re-link the preserved
+   * DEPEND_ON root.
+   *
+   * <p>When {@code stepInput.getConditionIds()} names EXISTING event roots to reuse (the
+   * event-sharing path: a step corrected to fire on an event that already exists), those roots and
+   * their whole subtree are PRESERVED across the delete (never unlinked, so a shared event other
+   * steps depend on is never dropped) and then linked to this step, exactly the {@code
+   * condition_ids} channel {@link #createInjectStepTemplateIdempotent} uses. The link is
+   * idempotent, so re-passing an already-linked event is a no-op.
+   *
+   * @param stepTemplateId the id of the step template to update
+   * @param stepInput the new inject step input (data); its {@code conditionIds} name existing event
+   *     roots to reuse
+   * @param triggerConditions the finding-trigger + mapper conditions to install (an empty list
+   *     clears the trigger while keeping DEPEND_ON and any reused event links)
+   * @return the updated step template
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Step updateInjectStepTemplateDataAndTrigger(
+      String stepTemplateId,
+      StepsCreateInput.StepInput stepInput,
+      List<ConditionCreateInput> triggerConditions)
+      throws ChainingException {
+    Step existing =
+        stepRepository
+            .findById(stepTemplateId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Step template not found. Step template ID: " + stepTemplateId));
+    if (!StepActionClass.INJECT_EXECUTION.equals(existing.getStepAction())) {
+      throw new ChainingException(
+          "Step template " + stepTemplateId + " is not an inject-execution step");
+    }
+    ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
+    Step candidate =
+        actionStep
+            .create(stepInput, existing.getWorkflow())
+            .orElseThrow(() -> new ChainingException("Failed to rebuild step data (TEMPLATE)"));
+    existing.setData(candidate.getData());
+
+    List<String> preservedDependOnIds =
+        conditionService.findAllConditionsByStepId(stepTemplateId).stream()
+            .filter(condition -> condition.getType() == ConditionType.DEPEND_ON)
+            .map(Condition::getId)
+            .toList();
+    // Existing event roots the caller asked to reuse are preserved across the delete alongside the
+    // DEPEND_ON parent, so rebuilding this step's trigger never unlinks - let alone deletes - a
+    // shared event that other steps still fire on. deleteAllConditionsByStepId preserves the whole
+    // subtree of every excluded root, so the event's leaves survive too.
+    List<String> reusedEventIds =
+        stepInput.getConditionIds() == null
+            ? List.of()
+            : stepInput.getConditionIds().stream()
+                .filter(id -> id != null && !id.isBlank())
+                .toList();
+    List<String> preserved = new ArrayList<>(preservedDependOnIds);
+    preserved.addAll(reusedEventIds);
+    conditionService.deleteAllConditionsByStepId(stepTemplateId, preserved);
+    if (existing.getConditionSteps() != null) {
+      existing.getConditionSteps().clear();
+    }
+    stepConditionTemplate(triggerConditions, existing.getWorkflow().getId(), existing);
+    conditionService.linkExistingConditionsToStep(existing, preservedDependOnIds);
+    // Link the reused event roots (idempotent: a re-passed, still-linked event is a no-op; a newly
+    // chosen event is linked fresh). This is how an updated step attaches to a SHARED event.
+    conditionService.linkExistingConditionsToStep(existing, reusedEventIds);
+    return saveStep(existing);
+  }
+
+  /**
+   * Deletes an INJECT_EXECUTION step template and its conditions on behalf of the AI orchestrator,
+   * WITHOUT the manual {@link WorkflowEditability} guard (the orchestrator is the author of an
+   * autonomous run's workflow, exactly like {@link #createInjectStepTemplateIdempotent}). Used to
+   * PRUNE a mis-authored finding-driven step. Executed run steps stay as history (their {@code
+   * stepTemplate} reference is nulled by the on-delete policy), so pruning a template never
+   * rewrites what already ran.
+   *
+   * @param stepTemplateId the id of the step template to delete
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteInjectStepTemplate(String stepTemplateId) throws ChainingException {
+    Step existing =
+        stepRepository
+            .findById(stepTemplateId)
+            .orElseThrow(
+                () ->
+                    new ElementNotFoundException(
+                        "Step template not found. Step template ID: " + stepTemplateId));
+    if (!StepActionClass.INJECT_EXECUTION.equals(existing.getStepAction())) {
+      throw new ChainingException(
+          "Step template " + stepTemplateId + " is not an inject-execution step");
+    }
+    conditionService.deleteAllConditionsByStepId(stepTemplateId);
+    stepRepository.delete(existing);
   }
 
   /**
@@ -90,41 +375,126 @@ public class StepService {
 
   /**
    * Evaluates conditions for a step template and creates READY execution steps for each valid
-   * batch. Returns an empty list when conditions defer execution.
+   * batch. Batches that exceed the configured rate limit are pushed into the delay queue instead of
+   * being executed immediately. Only hashes of actually created steps are committed.
    *
    * @param nextStepTemplateToExecute step template to ready
    * @param workflowRun the running workflow
    * @param input json input for the execution step
-   * @return created ready execution steps
+   * @param pendingCount number of steps already scheduled in the current evaluation cycle but not
+   *     yet reflected in the database
+   * @return created ready execution steps (does not include delayed batches)
    */
+  @Transactional(rollbackFor = Exception.class)
   public List<Step> createReadySteps(
-      Step nextStepTemplateToExecute, Workflow workflowRun, String input) throws ChainingException {
+      Step nextStepTemplateToExecute, Workflow workflowRun, String input, int pendingCount)
+      throws ChainingException {
 
-    // If no condition mapper and step already executed, we skip the step to avoid to execute it
-    // again
-    if (!conditionService.hasConditionMapper(nextStepTemplateToExecute)
-        && isStepAlreadyExecutedOnce(nextStepTemplateToExecute.getId(), workflowRun.getId())) {
-      return List.of();
-    }
-
-    ActionStep actionStep =
-        factoryAction(nextStepTemplateToExecute.getStepAction(), nextStepTemplateToExecute.getId());
-
+    // Re-load the step template within this transaction so lazy collections can be initialized.
+    // The parameter may be a detached entity loaded outside any session (e.g. from a Quartz job).
     Step persistedTemplate =
         findByIdAndStatus(nextStepTemplateToExecute.getId(), StepStatus.TEMPLATE);
+
+    ActionStep actionStep =
+        factoryAction(persistedTemplate.getStepAction(), persistedTemplate.getId());
 
     List<ConditionService.ExecutionBatch> executionBatches =
         conditionService.checkCondition(persistedTemplate, workflowRun, input);
 
-    if (executionBatches == null) {
+    if (executionBatches == null || executionBatches.isEmpty()) {
       return List.of();
     }
 
-    List<Step> stepReadys = new ArrayList<>();
-    for (ConditionService.ExecutionBatch batch : executionBatches) {
-      stepReadys.add(createReadyStepFromBatch(actionStep, persistedTemplate, workflowRun, batch));
+    // Expand each condition batch into one batch per scope target so that each READY step handles
+    // exactly one inject → one execution unit. The injector-vs-payload targeting policy (external
+    // injectors also expand per manual IP target) is owned by expandTargetBatches, so StepService
+    // stays agnostic here.
+    if (StepActionClass.INJECT_EXECUTION.equals(persistedTemplate.getStepAction())) {
+      executionBatches =
+          injectExecutionStep.expandTargetBatches(executionBatches, workflowRun, persistedTemplate);
+      if (executionBatches.isEmpty()) {
+        return List.of();
+      }
+
+      // Every INJECT_EXECUTION batch MUST carry a stable, non-null dedup hash so it is committed
+      // below and skipped on the next scheduling cycle. Two paths produce a null hash: a step with
+      // no mapper (a DEPEND_ON-only step, i.e. any step the orchestrator chains via
+      // parent_step_template_id) and a step whose scope resolves to no asset (expandTargetBatches
+      // then returns the original batch untouched, e.g. a team-targeted human step or an inject
+      // that bakes its own asset). With a null hash the batch is never committed and the step
+      // re-readies -> re-executes on EVERY evaluation cycle, spawning a storm of duplicate injects.
+      // Fall back to a deterministic hash derived from the step template and the resolved input so
+      // the step readies exactly once per (template, run), just like an asset-expanded batch does
+      // via its per-target hash. Mapper batches already carry a non-null combo hash and are
+      // untouched, so legitimate per-upstream-value re-execution still works.
+      executionBatches =
+          executionBatches.stream()
+              .map(batch -> ensureNonNullBatchHash(batch, persistedTemplate))
+              .toList();
+
+      // Per-target deduplication: expanded batches carry a per-target hash (combo + target).
+      // The combo-level dedup in prepareInputsForStepExecution runs BEFORE expansion and only
+      // knows the combo hash, so it cannot skip individual targets already executed. Load the
+      // committed hashes once and drop batches whose target was already turned into a READY step,
+      // preventing the same inject from being re-executed on every scheduling cycle.
+      Set<String> committedTargetHashes =
+          conditionService.getCommittedHashes(persistedTemplate, workflowRun);
+      if (!committedTargetHashes.isEmpty()) {
+        executionBatches =
+            executionBatches.stream()
+                .filter(batch -> !committedTargetHashes.contains(batch.hash()))
+                .toList();
+        if (executionBatches.isEmpty()) {
+          return List.of();
+        }
+      }
     }
+    List<Step> stepReadys = new ArrayList<>();
+    Set<String> committedHashes = new HashSet<>();
+    int localPending = pendingCount;
+
+    for (ConditionService.ExecutionBatch batch : executionBatches) {
+      // Guard: rate limit — if the rate limit is reached, delay this batch with its
+      // resolved input. The hash is NOT committed so the batch can be retried later.
+      if (simulationRateLimitService.delayIfRateLimitReached(
+          persistedTemplate, batch.inputString(), workflowRun, localPending)) {
+        continue;
+      }
+
+      stepReadys.add(createReadyStepFromBatch(actionStep, persistedTemplate, workflowRun, batch));
+
+      if (batch.hash() != null) {
+        committedHashes.add(batch.hash());
+      }
+      localPending++;
+    }
+
+    // Commit only the hashes of batches that were actually turned into READY steps.
+    conditionService.commitHashes(persistedTemplate, workflowRun, committedHashes);
+
     return stepReadys;
+  }
+
+  /**
+   * Guarantees a batch has a non-null deduplication hash. Returns the batch unchanged when it
+   * already carries one (mapper combos, per-target expanded batches); otherwise returns a copy with
+   * a deterministic hash built from the step template id and the resolved input. This is what stops
+   * a no-mapper / no-scope-asset INJECT_EXECUTION step (e.g. a DEPEND_ON step the orchestrator
+   * chained, or a team-targeted / asset-baked inject) from re-readying and re-executing on every
+   * evaluation cycle: the fallback hash is committed once, so the step readies exactly once per
+   * (template, run). String.hashCode is spec-defined and deterministic, so the key is stable across
+   * cycles and JVMs.
+   */
+  private ConditionService.ExecutionBatch ensureNonNullBatchHash(
+      ConditionService.ExecutionBatch batch, Step template) {
+    if (batch.hash() != null) {
+      return batch;
+    }
+    String input = batch.inputString() != null ? batch.inputString() : "";
+    String fallbackHash =
+        "direct:" + template.getId() + ":" + Integer.toHexString(input.hashCode());
+    return new ConditionService.ExecutionBatch(
+        batch.inputString(), batch.usedMappers(), fallbackHash);
   }
 
   /**
@@ -207,15 +577,13 @@ public class StepService {
   }
 
   /**
-   * Returns {@code true} if at least one executed step references the given step template, meaning
-   * this template has already been executed at least once in the given workflow run.
+   * Count active step by status
    *
-   * @param stepTemplateId the ID of the step template to check
-   * @param workflowRunId the ID of the workflow run to scope the check
-   * @return {@code true} if the step template has been executed at least once in that run
+   * @param workflowRunId id of the executed workflow
+   * @return long
    */
-  public boolean isStepAlreadyExecutedOnce(String stepTemplateId, String workflowRunId) {
-    return stepRepository.existsByStepTemplateIdAndWorkflowId(stepTemplateId, workflowRunId);
+  public long countActiveSteps(String workflowRunId) {
+    return stepRepository.countActiveSteps(workflowRunId, ACTIVE_STEP_STATUS);
   }
 
   /**
@@ -291,6 +659,10 @@ public class StepService {
   @Transactional(rollbackFor = Exception.class)
   List<Step> copyStepsTemplate(List<Step> stepsFrom, Workflow workflowTo) {
     List<Step> stepsCopied = new ArrayList<>();
+    // Shared across every step copied in this call so that a single condition/event linked to
+    // several source steps (e.g. one "event" root shared by 3 actions) is copied exactly once
+    // and reused (re-linked) for the other steps, instead of being duplicated per step.
+    Map<String, Condition> copiedConditionsByOriginalId = new HashMap<>();
     for (Step step : stepsFrom) {
       String data = step.getData();
       if (workflowTo.getSimulation() != null) {
@@ -310,7 +682,7 @@ public class StepService {
               .build();
 
       copy = saveStep(copy);
-      copyStepConditionTemplate(step, copy);
+      copyStepConditionTemplate(step, copy, copiedConditionsByOriginalId);
       stepsCopied.add(copy);
     }
     return stepsCopied;
@@ -319,36 +691,69 @@ public class StepService {
   /**
    * Copies the condition tree from a source step to a target step, preserving parent hierarchy.
    *
+   * <p>Root conditions already copied for a previous step in the same {@link #copyStepsTemplate}
+   * call (tracked via {@code copiedConditionsByOriginalId}) are reused instead of duplicated, so
+   * that a condition/event shared across multiple source steps stays shared in the copy too.
+   *
    * @param step source step with conditions
    * @param stepCopied target step to attach copied conditions to
+   * @param copiedConditionsByOriginalId map of original condition id -> already-copied condition,
+   *     shared across all steps copied in the same {@link #copyStepsTemplate} call
    */
   @Transactional(rollbackFor = Exception.class)
-  void copyStepConditionTemplate(Step step, Step stepCopied) {
-    List<Condition> conditions = conditionService.findAllConditionsByStepId(step.getId());
-    if (conditions == null || conditions.isEmpty()) {
+  void copyStepConditionTemplate(
+      Step step, Step stepCopied, Map<String, Condition> copiedConditionsByOriginalId) {
+    // Roots linked to this step (source of truth for which trees to copy)
+    List<Condition> linkedConditions = conditionService.findAllConditionsByStepId(step.getId());
+    if (linkedConditions == null || linkedConditions.isEmpty()) {
       return;
     }
     List<Condition> rootConditions =
-        conditions.stream().filter(condition -> condition.getConditionParent() == null).toList();
+        linkedConditions.stream()
+            .filter(condition -> condition.getConditionParent() == null)
+            .toList();
 
     if (rootConditions.isEmpty()) {
       throw new IllegalArgumentException(
           "New step (TEMPLATE): At least 1 condition must be a root (no parent)");
     }
 
-    // Multiple roots are only allowed when all roots are MAPPER conditions
+    // Allow one event/filter root plus any number of mapper roots.
+    // This happens when a step has one linked event root and one or more action mappings.
     if (rootConditions.size() > 1) {
-      boolean allMapper =
-          rootConditions.stream().allMatch(c -> c.getType() == ConditionType.MAPPER);
-      if (!allMapper) {
+      long nonMapperRootCount =
+          rootConditions.stream().filter(c -> c.getType() != ConditionType.MAPPER).count();
+      if (nonMapperRootCount > 1) {
         throw new IllegalArgumentException(
             "New step (TEMPLATE): Only 1 condition can be first parent");
       }
     }
 
-    Map<String, Condition> temporaryIdAndSaveId = new HashMap<>();
+    // Full set of the source workflow's non-MAPPER conditions, to resolve children by parent id
+    // independent of conditions_steps linkage (Event-API links only the root to the step).
+    List<Condition> allSourceConditions =
+        conditionService.findAllNonMapperConditionsByWorkflowId(step.getWorkflow().getId());
+
+    Map<String, List<Condition>> temporaryConditions =
+        allSourceConditions.stream()
+            .filter(condition -> condition.getConditionParent() != null)
+            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
+
+    // Local view of the shared map, plus the subset of roots that are newly copied during this
+    // call (as opposed to reused from a previous step) — only newly copied roots need their
+    // children traversed/copied below.
+    Map<String, Condition> temporaryIdAndSaveId = copiedConditionsByOriginalId;
+    List<Condition> newlyCopiedRootConditions = new ArrayList<>();
 
     for (Condition firstCondition : rootConditions) {
+      Condition alreadyCopied = temporaryIdAndSaveId.get(firstCondition.getId());
+      if (alreadyCopied != null) {
+        // This condition (and its subtree) was already copied for another step sharing it —
+        // reuse it instead of duplicating, so the sharing is preserved in the copy.
+        conditionService.linkToStep(alreadyCopied, stepCopied, true);
+        continue;
+      }
+
       Step stepFrom =
           firstCondition.getStepFrom() == null
               ? null
@@ -358,7 +763,13 @@ public class StepService {
           Condition.builder()
               .type(firstCondition.getType())
               .key(firstCondition.getKey())
+              .keyTypes(firstCondition.getKeyTypes())
               .value(firstCondition.getValue())
+              .caseSensitive(firstCondition.isCaseSensitive())
+              .mappingType(firstCondition.getMappingType())
+              .name(firstCondition.getName())
+              .description(firstCondition.getDescription())
+              .workflowId(stepCopied.getWorkflow().getId())
               .stepFrom(stepFrom)
               .build();
 
@@ -366,15 +777,11 @@ public class StepService {
       first = conditionService.saveCondition(first);
 
       temporaryIdAndSaveId.put(firstCondition.getId(), first);
+      newlyCopiedRootConditions.add(firstCondition);
     }
 
-    Map<String, List<Condition>> temporaryConditions =
-        conditions.stream()
-            .filter(condition -> condition.getConditionParent() != null)
-            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
-
     Queue<String> currentId = new LinkedList<>();
-    rootConditions.forEach(rc -> currentId.add(rc.getId()));
+    newlyCopiedRootConditions.forEach(rc -> currentId.add(rc.getId()));
 
     while (!currentId.isEmpty()) {
       String currentTemporaryId = currentId.poll();
@@ -392,13 +799,25 @@ public class StepService {
             Condition.builder()
                 .type(condition.getType())
                 .key(condition.getKey())
+                .keyTypes(condition.getKeyTypes())
                 .value(condition.getValue())
+                .caseSensitive(condition.isCaseSensitive())
+                .mappingType(condition.getMappingType())
+                .name(condition.getName())
+                .workflowId(stepCopied.getWorkflow().getId())
                 .conditionParent(temporaryIdAndSaveId.get(condition.getConditionParent().getId()))
                 .stepFrom(stepFromCondition)
                 .build();
 
         conditionService.linkToStep(current, stepCopied, false);
         current = conditionService.saveCondition(current);
+
+        // Keep the in-memory graph consistent for API mapping (mirrors persistConditionTree)
+        Condition parent = current.getConditionParent();
+        if (parent.getConditionChildren() == null) {
+          parent.setConditionChildren(new ArrayList<>());
+        }
+        parent.getConditionChildren().add(current);
 
         temporaryIdAndSaveId.put(condition.getId(), current);
 
@@ -440,6 +859,67 @@ public class StepService {
   }
 
   /**
+   * Re-aligns the asset perimeter baked into every asset-centric INJECT_EXECUTION step template of
+   * a workflow with the workflow scope.
+   *
+   * <p>Actions do not own their asset targets: in the chaining logic map the asset perimeter is
+   * defined once by the workflow scope and merely <i>copied</i> into {@code
+   * step.data.inject_assets} when the action is configured.
+   *
+   * @param workflow the workflow whose step templates must be realigned
+   * @param scopedAssetIds the current in-scope asset IDs (denylist already applied)
+   * @return the number of step templates actually rewritten
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public int syncScopeAssetsOnStepTemplates(Workflow workflow, List<String> scopedAssetIds) {
+    List<Step> updated = new ArrayList<>();
+    for (Step template : findAllStepTemplateByWorkflow(workflow.getId())) {
+      if (!StepActionClass.INJECT_EXECUTION.equals(template.getStepAction())
+          || template.getData() == null
+          || !stepTargetingService.isAssetCentric(template)) {
+        continue;
+      }
+      String newData = withScopeAssets(template, scopedAssetIds);
+      if (newData != null) {
+        template.setData(newData);
+        updated.add(template);
+      }
+    }
+    if (!updated.isEmpty()) {
+      saveSteps(updated);
+      log.debug(
+          "[Chaining] Realigned {} step template(s) of workflow {} on the {} in-scope asset(s)",
+          updated.size(),
+          workflow.getId(),
+          scopedAssetIds.size());
+    }
+    return updated.size();
+  }
+
+  /**
+   * Returns the step data with {@code inject_assets} replaced by the given asset IDs, or {@code
+   * null} when the data is already up to date (or cannot be parsed) so the caller skips the write.
+   */
+  private String withScopeAssets(Step template, List<String> scopedAssetIds) {
+    try {
+      JsonObject dataObject = JsonParser.parseString(template.getData()).getAsJsonObject();
+      JsonArray assets = new JsonArray();
+      scopedAssetIds.forEach(assets::add);
+      if (assets.equals(dataObject.get("inject_assets"))) {
+        return null;
+      }
+      dataObject.add("inject_assets", assets);
+      return dataObject.toString();
+    } catch (Exception e) {
+      log.warn(
+          "[Chaining] Failed to realign scope assets on step template {}: {}",
+          template.getId(),
+          e.getMessage());
+      return null;
+    }
+  }
+
+  /**
    * Find all step templates.
    *
    * @return list of all step templates
@@ -461,6 +941,8 @@ public class StepService {
     // Retrieve the existing step template from a database
     Step existing = findStepTemplateById(stepId);
 
+    WorkflowEditability.assertLogicMapEditable(existing.getWorkflow());
+
     // Resolve the correct ActionStep implementation based on input action type
     ActionStep actionStep = factoryAction(stepInput.getStepAction(), stepId);
 
@@ -480,16 +962,22 @@ public class StepService {
     existing.setData(updatedCandidate.getData());
     existing.setInput(updatedCandidate.getInput());
     existing.setOutputParser(updatedCandidate.getOutputParser());
-    Step updated = saveStep(existing);
 
     // Remove all existing conditions (full replace strategy),
     // but preserve conditions referenced by conditionIds so they can be re-linked
-    conditionService.deleteAllConditionsByStepId(stepId, stepInput.getConditionIds());
+    conditionService.deleteAllConditionsByStepId(
+        stepId, stepInput.getConditionIds() != null ? stepInput.getConditionIds() : List.of());
+
+    // Clear the step-side collection to stay consistent with the condition-side unlinking above.
+    // linkExistingConditionsToStep below will recreate the preserved links.
+    if (existing.getConditionSteps() != null) {
+      existing.getConditionSteps().clear();
+    }
 
     // Recreate conditions from input (same logic as create)
-    stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), updated);
-    conditionService.linkExistingConditionsToStep(updated, stepInput.getConditionIds());
-    return updated;
+    stepConditionTemplate(stepInput.getConditions(), stepInput.getWorkflowId(), existing);
+    conditionService.linkExistingConditionsToStep(existing, stepInput.getConditionIds());
+    return saveStep(existing);
   }
 
   /**
@@ -513,6 +1001,7 @@ public class StepService {
   @Transactional(rollbackFor = Exception.class)
   public void deleteStepTemplate(String stepId) {
     Step step = findStepTemplateById(stepId);
+    WorkflowEditability.assertLogicMapEditable(step.getWorkflow());
     conditionService.deleteAllConditionsByStepId(stepId);
     stepRepository.delete(step);
   }
@@ -575,11 +1064,8 @@ public class StepService {
    * @param injectId inject id to find step id
    * @return optional step id
    */
-  public String findStepIdByInjectId(final String injectId) {
-    return stepRepository
-        .findStepIdByInjectId(injectId)
-        .orElseThrow(
-            () -> new ElementNotFoundException("Step id not found for inject id : " + injectId));
+  public Optional<String> findStepIdByInjectId(final String injectId) {
+    return stepRepository.findStepIdByInjectId(injectId);
   }
 
   /**
@@ -600,26 +1086,24 @@ public class StepService {
   }
 
   /**
-   * Returns all RUN and READY steps for a given workflow execution.
+   * Returns all active steps for a given workflow execution.
    *
    * @param id workflow run ID
-   * @return list of steps currently executing or ready
+   * @return list of steps active
    */
-  public List<Step> findAllStepExecutedByWorkflowRunId(String id) {
-    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(
-        id, List.of(StepStatus.RUN, StepStatus.READY));
+  public List<Step> findAllStepActiveByWorkflowRunId(String id) {
+    return stepRepository.findAllStepByWorkflow_IdAndStatusIn(id, ACTIVE_STEP_STATUS);
   }
 
   /**
-   * Ends all active steps (READY or RUN) for the given workflow run.
+   * Ends all active steps for the given workflow run.
    *
    * @param workflowId the workflow run ID
    * @return number of steps terminated
    */
   public int endActiveStepsByWorkflowId(String workflowId) {
     List<Step> activeSteps =
-        stepRepository.findAllStepByWorkflow_IdAndStatusIn(
-            workflowId, List.of(StepStatus.READY, StepStatus.RUN));
+        stepRepository.findAllStepByWorkflow_IdAndStatusIn(workflowId, ACTIVE_STEP_STATUS);
     for (Step step : activeSteps) {
       step.setStatus(StepStatus.END);
     }

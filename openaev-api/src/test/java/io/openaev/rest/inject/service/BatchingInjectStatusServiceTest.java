@@ -3,6 +3,7 @@ package io.openaev.rest.inject.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
@@ -12,12 +13,12 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
+import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
-import jakarta.persistence.EntityManager;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
-import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -28,7 +29,6 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("BatchingInjectStatusService Tests")
@@ -38,8 +38,7 @@ class BatchingInjectStatusServiceTest {
   @Mock private AgentRepository agentRepository;
   @Mock private StructuredOutputUtils structuredOutputUtils;
   @Mock private InjectExecutionService injectExecutionService;
-  @Mock private EntityManager entityManager;
-  @Mock private Session session;
+  @Mock private TenantScopedTransaction tenantTx;
 
   @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
 
@@ -55,8 +54,26 @@ class BatchingInjectStatusServiceTest {
     // that exercise the requeue path. Tests that want to exercise the null-guard branch can
     // override this via service.setInjectTraceQueueService(null).
     service.setInjectTraceQueueService(injectTraceQueueService);
-    ReflectionTestUtils.setField(service, "entityManager", entityManager);
-    when(entityManager.unwrap(Session.class)).thenReturn(session);
+    // The batch now scopes each callback under its inject's tenant. Resolve every inject to one
+    // test
+    // tenant so grouping collapses to a single scope, and run the scoped work inline. Lenient
+    // because
+    // the empty-batch test never reaches the projection or the primitive.
+    lenient()
+        .when(injectRepository.findTenantIdsByInjectIds(any()))
+        .thenAnswer(
+            invocation -> {
+              Collection<String> ids = invocation.getArgument(0);
+              return ids.stream().map(id -> new Object[] {id, "tenant-test"}).toList();
+            });
+    lenient()
+        .doAnswer(
+            invocation -> {
+              invocation.getArgument(1, Runnable.class).run();
+              return null;
+            })
+        .when(tenantTx)
+        .execute(any(), any(Runnable.class));
   }
 
   private Inject createInjectWithPendingStatus(String injectId) {
@@ -386,9 +403,6 @@ class BatchingInjectStatusServiceTest {
     @Test
     @DisplayName("should handle empty callback list gracefully")
     void shouldHandleEmptyCallbackList() {
-      when(injectRepository.findAllByIdWithExpectations(anyList())).thenReturn(List.of());
-      when(agentRepository.findAllById(anyList())).thenReturn(List.of());
-
       List<InjectExecutionCallback> result = service.handleInjectExecutionCallback(List.of());
 
       assertTrue(result.isEmpty());

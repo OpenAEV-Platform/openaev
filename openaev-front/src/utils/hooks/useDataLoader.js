@@ -4,6 +4,9 @@ import { useEffect } from 'react';
 import { DATA_DELETE_SUCCESS } from '../../constants/ActionTypes';
 import { store } from '../../store';
 import { buildUri } from '../Action';
+import { ingestBulkOperation } from '../bulkOperations';
+import { SseActionBatcher } from '../sse/SseActionBatcher';
+import { evaluateWatchdogTick } from '../sse/watchdogPolicy';
 
 const EVENT_TRY_DELAY = 1500;
 const EVENT_PING_MAX_TIME = 5000;
@@ -18,25 +21,60 @@ const ERROR_30S_DELAY = 30000;
 let pristine = true;
 let sseClient;
 let lastPingDate = new Date().getTime();
+let lastWatchdogTickAt = new Date().getTime();
 let reconnectTimeoutId;
 const listeners = new Map();
+// Feature-scoped subscribers to named stream event types, keyed by type. Kept at module level
+// alongside the single EventSource so they survive — and are re-attached to — every reconnection.
+const streamEventSubscribers = new Map();
+// One stable listener per type, so a type is attached at most once per connection (attaching per
+// subscriber would deliver an event twice to a type that already had one). It reads the subscriber
+// set at event time rather than closing over it, so subscribing and unsubscribing mid-connection
+// take effect immediately.
+const streamEventDispatchers = new Map();
+const dispatcherFor = (type) => {
+  let dispatcher = streamEventDispatchers.get(type);
+  if (dispatcher === undefined) {
+    dispatcher = (event) => {
+      streamEventSubscribers.get(type)?.forEach((handler) => {
+        try {
+          handler(event);
+        } catch {
+          // A subscriber must never break the SSE processing of this tab.
+        }
+      });
+    };
+    streamEventDispatchers.set(type, dispatcher);
+  }
+  return dispatcher;
+};
 
 const SSE_BATCH_INTERVAL = 200;
 const IDLE_CALLBACK_TIMEOUT = 1000;
-let pendingActions = [];
+// Coalesced per-entity backlog of SSE events awaiting dispatch. Bounded by the
+// number of distinct entities touched (last snapshot wins), never by raw event
+// volume - critical for background tabs where flush timers are throttled but
+// SSE network events keep arriving for many minutes.
+const batcher = new SseActionBatcher();
+// Set when the backlog overflowed (typically during a long background period):
+// the buffered events were dropped and a full reload of every registered
+// loader replaces them as soon as the tab is visible again.
+let needsResync = false;
 let batchTimeoutId;
 let idleCallbackId;
 let autoReConnectIntervalId;
 
 const drainPendingActions = () => {
-  const actions = pendingActions;
-  pendingActions = [];
-  actions.forEach(action => store.dispatch(action));
+  batcher.drain().forEach(action => store.dispatch(action));
+};
+
+const reloadAllListeners = () => {
+  [...listeners.keys()].forEach(load => load());
 };
 
 const flushPendingActions = () => {
   batchTimeoutId = undefined;
-  if (pendingActions.length === 0) return;
+  if (batcher.size === 0) return;
   if (typeof requestIdleCallback !== 'function') {
     drainPendingActions();
     return;
@@ -52,8 +90,7 @@ const flushPendingActions = () => {
   }, { timeout: IDLE_CALLBACK_TIMEOUT });
 };
 
-const scheduleBatchedDispatch = (action) => {
-  pendingActions.push(action);
+const scheduleBatchedDispatch = () => {
   // Timer handles are compared against undefined (not truthiness) since a valid
   // handle can be 0 in some implementations/polyfills.
   if (batchTimeoutId === undefined) {
@@ -61,7 +98,7 @@ const scheduleBatchedDispatch = (action) => {
   }
 };
 
-const cancelPendingBatches = () => {
+const cancelScheduledFlush = () => {
   if (batchTimeoutId !== undefined) {
     clearTimeout(batchTimeoutId);
     batchTimeoutId = undefined;
@@ -73,8 +110,45 @@ const cancelPendingBatches = () => {
     cancelIdleCallback(idleCallbackId);
     idleCallbackId = undefined;
   }
-  pendingActions = [];
 };
+
+const cancelPendingBatches = () => {
+  cancelScheduledFlush();
+  batcher.clear();
+};
+
+// Drop the (now stale) backlog and refetch everything the mounted components
+// need. Used when the coalesced backlog overflowed its cap: replaying that
+// much history through the store is slower than a fresh API load.
+const resyncNow = () => {
+  needsResync = false;
+  cancelPendingBatches();
+  reloadAllListeners();
+};
+
+const isDocumentHidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
+
+// Flush (or resync) as soon as the tab becomes visible again: the throttled
+// timers may not have drained the backlog for many minutes, and doing it right
+// on the visibility transition keeps the refocused page snappy. Also reset the
+// ping clock so the watchdog never mistakes the background period for a dead
+// connection (which would close/reopen the EventSource and refetch every
+// mounted loader on every tab switch).
+const handleVisibilityChange = () => {
+  if (isDocumentHidden()) return;
+  if (listeners.size === 0) return;
+  lastPingDate = new Date().getTime();
+  if (needsResync) {
+    resyncNow();
+  } else if (batcher.size > 0) {
+    cancelScheduledFlush();
+    drainPendingActions();
+  }
+};
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+}
 
 const useDataLoader = (loader = () => {}, refetchArg = []) => {
   const sseConnect = () => {
@@ -96,6 +170,7 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
     // remounted) would make the autoReConnect check fire immediately and loop
     // before the first ping of the new connection arrives.
     lastPingDate = new Date().getTime();
+    lastWatchdogTickAt = new Date().getTime();
     sseClient = new EventSource(buildUri('/api/stream'), { withCredentials: true });
     autoReConnectIntervalId = setInterval(() => {
       if (listeners.size === 0) {
@@ -104,7 +179,18 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
         return;
       }
       const current = new Date().getTime();
-      if (current - lastPingDate > EVENT_PING_MAX_TIME) {
+      const decision = evaluateWatchdogTick({
+        now: current,
+        lastPingDate,
+        lastTickAt: lastWatchdogTickAt,
+        hidden: isDocumentHidden(),
+        tickInterval: EVENT_TRY_DELAY,
+        pingMaxTime: EVENT_PING_MAX_TIME,
+      });
+      lastWatchdogTickAt = current;
+      if (decision === 'reset-ping-clock') {
+        lastPingDate = current;
+      } else if (decision === 'reconnect') {
         clearInterval(autoReConnectIntervalId);
         autoReConnectIntervalId = undefined;
         if (sseClient != null) {
@@ -115,20 +201,31 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
     }, EVENT_TRY_DELAY);
     sseClient.addEventListener('open', () => {
       pristine = false;
-      [...listeners.keys()].forEach(load => load());
+      // The full reload below supersedes anything still buffered (or dropped)
+      // from the previous connection.
+      needsResync = false;
+      cancelPendingBatches();
+      reloadAllListeners();
     });
     sseClient.addEventListener('message', (event) => {
+      // Once a full resync is pending (the backlog overflowed while the tab
+      // was hidden), individual events are stale: skip even the parse work.
+      if (needsResync) return;
       const data = JSON.parse(event.data);
       if (data.listened) {
+        // A malformed event (missing schema/id - e.g. a backend entity whose @Id
+        // lives deeper in its class hierarchy than the event builder inspects)
+        // must never throw out of the SSE handler: it would flood the console
+        // with uncaught errors, one per mutation, while a running simulation
+        // streams. Skip it - the initial fetch and later reloads reconcile.
+        if (!data.attribute_schema || !data.attribute_id) {
+          // eslint-disable-next-line no-console
+          console.warn('[SSE] Skipping malformed stream event (missing schema or id attribute)', data);
+          return;
+        }
+        const entityId = data.instance[data.attribute_id];
         if (data.event_type === DATA_DELETE_SUCCESS) {
-          const payload = {
-            id: data.instance[data.attribute_id],
-            type: data.attribute_schema,
-          };
-          scheduleBatchedDispatch({
-            type: DATA_DELETE_SUCCESS,
-            payload,
-          });
+          batcher.addDelete(data.attribute_schema, entityId);
         } else {
           const schemaInfo = { idAttribute: data.attribute_id };
           const schemas = new schema.Entity(
@@ -137,12 +234,49 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
             schemaInfo,
           );
           const dataNormalize = normalize(data.instance, schemas);
-          scheduleBatchedDispatch({
-            type: data.event_type,
-            payload: dataNormalize,
-          });
+          batcher.addUpsert(data.event_type, data.attribute_schema, entityId, dataNormalize);
+        }
+        if (batcher.isOverCap()) {
+          cancelPendingBatches();
+          needsResync = true;
+          if (!isDocumentHidden()) {
+            // Overflow while visible (extreme burst): resync immediately.
+            // While hidden, the resync waits for the visibility transition so
+            // a background tab never hammers the API.
+            resyncNow();
+          }
+          return;
+        }
+        scheduleBatchedDispatch();
+      }
+    });
+    // Massive operations do not stream one event per mutated entity (which used to force a
+    // refresh per delete on every open screen): they emit aggregated progress snapshots instead.
+    // The header indicator renders them live, and the data of mounted screens is refreshed
+    // exactly once, when an operation reaches a terminal state.
+    sseClient.addEventListener('bulk-operation', (event) => {
+      // A malformed payload must never break the SSE processing of this tab: skip it, the
+      // periodic seed endpoint reconciles the indicator anyway.
+      let justFinished = false;
+      try {
+        justFinished = ingestBulkOperation(JSON.parse(event.data));
+      } catch {
+        return;
+      }
+      if (justFinished) {
+        if (isDocumentHidden()) {
+          // Hidden tab: defer the reload to the visibility transition, like the
+          // backlog-overflow resync, so background tabs never hammer the API.
+          needsResync = true;
+        } else {
+          resyncNow();
         }
       }
+    });
+    // Feature-scoped stream events (see subscribeStreamEvent): one dispatcher per type, re-attached
+    // to every new connection, so a subscriber never has to know the connection was recycled.
+    streamEventSubscribers.forEach((handlers, type) => {
+      sseClient.addEventListener(type, dispatcherFor(type));
     });
     sseClient.addEventListener('ping', () => {
       lastPingDate = new Date().getTime();
@@ -186,6 +320,7 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
           autoReConnectIntervalId = undefined;
         }
         cancelPendingBatches();
+        needsResync = false;
         if (sseClient != null) {
           sseClient.close();
         }
@@ -193,6 +328,44 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
       }
     };
   }, refetchArg);
+};
+
+/**
+ * Subscribes to a named event type on the shared platform stream and returns its unsubscribe.
+ *
+ * A feature that only needs a "something changed, refetch" nudge uses this instead of opening its
+ * own connection: the handler is attached to the current EventSource and re-attached to every later
+ * one, so reconnections are invisible to the caller. Handlers are per-type and isolated — one that
+ * throws never breaks the tab's SSE processing.
+ */
+export const subscribeStreamEvent = (type, handler) => {
+  const handlers = streamEventSubscribers.get(type) ?? new Set();
+  const isFirstOfType = handlers.size === 0;
+  handlers.add(handler);
+  streamEventSubscribers.set(type, handlers);
+  if (sseClient !== undefined && isFirstOfType) {
+    // Live connection, first subscriber of this type: attach the dispatcher once. Later subscribers
+    // ride the same one, and the reconnect path attaches it to every subsequent connection.
+    sseClient.addEventListener(type, dispatcherFor(type));
+  }
+  return () => {
+    handlers.delete(handler);
+    // The dispatcher stays attached: it is a no-op with no subscribers, and keeping it means the next
+    // subscriber of this type is reached on the current connection without re-attaching.
+  };
+};
+
+/**
+ * Whether the shared stream is currently delivering: the server pings every second, so a ping older
+ * than the watchdog threshold means the connection is effectively down. Callers that treat the
+ * stream as a nudge use this to decide how hard they must poll as a safety net; an environment with
+ * no EventSource at all is never healthy.
+ */
+export const isStreamHealthy = () => {
+  if (typeof EventSource === 'undefined' || sseClient === undefined) {
+    return false;
+  }
+  return new Date().getTime() - lastPingDate < EVENT_PING_MAX_TIME;
 };
 
 export default useDataLoader;

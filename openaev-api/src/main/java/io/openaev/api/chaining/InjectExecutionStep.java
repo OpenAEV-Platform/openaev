@@ -4,7 +4,6 @@ import static io.openaev.database.model.Command.COMMAND_TYPE;
 import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.Executable.EXECUTABLE_TYPE;
 import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
-import static io.openaev.service.chaining.StepService.setField;
 import static io.openaev.utils.JsonUtils.gson;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -12,7 +11,9 @@ import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.google.gson.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
@@ -20,28 +21,37 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.execution.ExecutionContext;
+import io.openaev.execution.ExecutionContextService;
 import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.StructuredOutputUtils;
-import io.openaev.rest.injector_contract.InjectorContractContentUtils;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
+import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.chaining.WorkflowStateService;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
+import io.openaev.utils.IpAddressUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import jakarta.validation.constraints.NotBlank;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -58,7 +68,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>Creating step templates and ready steps
- *   <li>Serializing/deserializing step data (InjectInput → Inject)
+ *   <li>Serializing/deserializing step data (InjectInput -> Inject)
  *   <li>Executing injects using {@link Executor}
  *   <li>Updating step output with execution traces
  *   <li>Handling inject statuses and errors
@@ -81,6 +91,13 @@ public class InjectExecutionStep implements ActionStep {
   private final ConditionService conditionService;
   private final WorkflowStateService workflowStateService;
   private final ScopeService scopeService;
+  private final StepTargetingService stepTargetingService;
+  private final AttackPathExecutionIngestionService attackPathIngestion;
+  private final AttackPathFindingIngestionService attackPathFindingIngestion;
+  private final InjectExpectationService injectExpectationService;
+  private final ExecutableInjectService executableInjectService;
+  private final ExerciseTeamUserService exerciseTeamUserService;
+  private final ExecutionContextService executionContextService;
 
   private final InjectorContractRepository injectorContractRepository;
 
@@ -148,13 +165,16 @@ public class InjectExecutionStep implements ActionStep {
     // CALL BY when new input or start simulation
     Step readyStep = new Step();
     readyStep.setWorkflow(workflowRun);
-    readyStep.setData(stepTemplate.getData());
     readyStep.setStepTemplate(stepTemplate);
     // TODO manage input from output paser from payload or nuclei or nmap
     readyStep.setInput(input);
     readyStep.setStatus(StepStatus.READY);
     readyStep.setStepAction(StepActionClass.INJECT_EXECUTION);
     readyStep.setLimitExecution(stepTemplate.getLimitExecution());
+
+    // Bake the per-target information (produced by expandTargetBatches) into the step data so
+    // that run() can execute a single pre-configured inject without re-resolving scope.
+    readyStep.setData(bakeTargetIntoStepData(stepTemplate.getData(), input));
 
     return Optional.of(readyStep);
   }
@@ -174,7 +194,6 @@ public class InjectExecutionStep implements ActionStep {
     // CALL BY QUEUE READY
     Inject inject = getInjectFromDataStep(readyStep);
     // CREATE & SAVE INJECT
-
     inject = injectService.createInject(inject);
     String injectId = inject.getId();
     InjectorContract injectorContract =
@@ -187,11 +206,16 @@ public class InjectExecutionStep implements ActionStep {
                             + readyStep.getId()));
     prepareGetStatusPayloadFromInject(injectorContract);
 
-    try {
-      String data = setInjectId(inject.getId(), readyStep.getData());
-      readyStep.setData(data);
+    recordAttackPathExecution(readyStep, inject);
 
-      // EXECUTE INJECT
+    try {
+      readyStep.setData(setInjectId(injectId, readyStep.getData()));
+      // Resolve the audience recipients (email/SMS players) from the inject's targeted teams and
+      // the workflow scope's players. The standard queue path does this via InjectHelper; the
+      // chaining path must do it here or the executor sees zero users and fails with "Email needs
+      // at least one user". Asset/IP-centric injects have no teams, so this yields an empty list
+      // and their behavior is unchanged.
+      List<ExecutionContext> users = resolveAudienceRecipients(inject, readyStep);
       ExecutableInject executableInject =
           new ExecutableInject(
               true,
@@ -200,16 +224,222 @@ public class InjectExecutionStep implements ActionStep {
               inject.getTeams(),
               inject.getAssets(),
               inject.getAssetGroups(),
-              List.of()); // TODO Check users?
+              users,
+              true);
 
       // TODO Check add documents? Executable Payloads
       // executableInject.addDirectAttachment(inject.getDocuments());
 
       executor.directExecute(executableInject);
+
       return Optional.of(readyStep);
     } catch (Exception e) {
       throw new ChainingException(
           "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
+    }
+  }
+
+  /**
+   * Resolves the recipient execution contexts for an audience-centric (email/SMS) chaining inject
+   * from its targeted teams and the workflow scope's individual players.
+   *
+   * <p>A scope team chosen in the chaining Configure-action drawer - or pulled in by the scope
+   * audience fallback of {@link #getInjectFromDataStep(Step)} - is only in the workflow allowlist,
+   * not attached to the simulation audience with enabled players, so its members must first be
+   * enabled on the simulation (mirrors the autonomous path). All-teams injects already target the
+   * simulation audience, so only explicitly-targeted teams need enabling. Recipients are then built
+   * from the targeted teams' members (deduplicated by user); resolving from the member set avoids
+   * relying on a possibly-stale {@code exercise_teams_users} collection inside this transaction,
+   * and scope teams have no per-player disable concept, so every member is a valid recipient -
+   * unless the player is denylisted in the workflow scope, which excludes them whatever team they
+   * belong to.
+   *
+   * <p>Individual players placed in the workflow scope are added as direct recipients (with the
+   * "Direct execution" team label, like ad-hoc inject testing) when the step has no explicit
+   * audience configured in the drawer and no MAPPER condition feeding its audience (upstream
+   * findings mapped into the raw "recipients" field): the drawer stays authoritative when the
+   * operator picked an audience there, and a mapper-fed audience must not be widened with the
+   * scope's players.
+   *
+   * <p>Asset/IP-centric injects (nmap, payloads) have no teams and never consume scope players, so
+   * this returns an empty list and their execution is unchanged. Findings mapped as raw recipients
+   * (no team) are handled downstream by the email executor from the inject content, not here.
+   */
+  private List<ExecutionContext> resolveAudienceRecipients(Inject inject, Step readyStep) {
+    Exercise exercise = inject.getExercise();
+    if (exercise == null) {
+      return List.of();
+    }
+    List<Team> teams = inject.isAllTeams() ? exercise.getTeams() : inject.getTeams();
+    if (teams == null) {
+      teams = List.of();
+    }
+
+    Workflow workflow = readyStep.getWorkflow();
+    List<User> scopePlayers =
+        workflow != null
+                && !stepTargetingService.isAssetCentric(readyStep)
+                && !stepTargetingService.hasExplicitAudience(readyStep)
+                && !stepTargetingService.hasTargetFeedingMapperConditions(readyStep, false)
+            ? scopeService.getValidPlayers(workflow.getId())
+            : List.<User>of();
+
+    if (teams.isEmpty() && scopePlayers.isEmpty()) {
+      return List.of();
+    }
+
+    // A player denylisted in the workflow scope never receives an audience-centric inject, even
+    // as a member of a targeted team. Resolved BEFORE enabling the teams on the simulation so a
+    // denied player is never persisted into the exercise_teams_users audience either - exclusion
+    // from team expansion, not just from this inject's recipients. Scope players are already
+    // denylist-filtered upstream.
+    Set<String> deniedPlayerIds =
+        workflow != null ? scopeService.getDeniedPlayerIds(workflow.getId()) : Set.of();
+
+    if (!inject.isAllTeams() && !teams.isEmpty()) {
+      exerciseTeamUserService.enableTargetedTeamMembers(
+          exercise.getId(), teams.stream().map(Team::getId).toList(), deniedPlayerIds);
+    }
+
+    Map<String, ExecutionContext> byUser = new LinkedHashMap<>();
+    for (Team team : teams) {
+      for (User user : team.getUsers()) {
+        if (deniedPlayerIds.contains(user.getId())) {
+          continue;
+        }
+        byUser.computeIfAbsent(
+            user.getId(),
+            id -> executionContextService.executionContext(user, inject, team.getName()));
+      }
+    }
+    for (User player : scopePlayers) {
+      byUser.computeIfAbsent(
+          player.getId(),
+          id -> executionContextService.executionContext(player, inject, "Direct execution"));
+    }
+    return new ArrayList<>(byUser.values());
+  }
+
+  /**
+   * Records the run's attack-path rows, non-fatal. The whole ingestion (resolution + write) runs
+   * inside {@code onRun}, which opens its own tenant-scoped REQUIRES_NEW transaction, so a failure
+   * here is caught and logged and can never roll the inject execution back. Recover around this
+   * boundary, never inside {@code onRun} (activate-tenant-table skill).
+   */
+  private void recordAttackPathExecution(Step readyStep, Inject inject) {
+    try {
+      attackPathIngestion.onRun(inject, readyStep, this.getCommand(inject));
+    } catch (Exception e) {
+      log.warn("Attack-path ingestion skipped for inject {} (non-fatal)", inject.getId(), e);
+    }
+  }
+
+  /**
+   * Pushes the step's expectation verdicts onto the attack-path projection, non-fatal like the two
+   * ingestion hooks around it. The write opens its own tenant-scoped REQUIRES_NEW transaction, so a
+   * failure here is caught and logged and can never roll the step update back. Runs on every
+   * execution event; the updates are guarded, so replaying the same results matches zero rows - and
+   * a write that touched nothing publishes no nudge.
+   */
+  private void syncAttackPathVerdicts(Inject inject, List<BaseInjectExpectation> expectations) {
+    try {
+      Map<String, AttackPathExecutionIngestionService.ExecutionExpectationResults>
+          expectationResults =
+              attackPathIngestion.getExpectationByEndpointIndex(inject, expectations);
+      attackPathIngestion.updateExpectationByExecutionIndex(inject, expectationResults);
+      attackPathIngestion.upsertExecutionCollectors(inject, expectations);
+    } catch (Exception e) {
+      log.warn("Attack-path verdict sync skipped for inject {} (non-fatal)", inject.getId(), e);
+    }
+  }
+
+  /**
+   * Copies the inject's findings onto the attack-path snapshot, non-fatal. The copy opens its own
+   * tenant-scoped REQUIRES_NEW transaction, so a failure here is caught and logged and can never
+   * roll the step update back. Runs on every execution event; the copy is idempotent.
+   */
+  private void recordAttackPathFindings(Step stepRun, Inject inject) {
+    try {
+      attackPathFindingIngestion.copyFindings(inject, stepRun);
+    } catch (Exception e) {
+      log.warn("Attack-path findings copy skipped for inject {} (non-fatal)", inject.getId(), e);
+    }
+  }
+
+  /**
+   * Copies the run's output-only values (contract outputs flagged {@code
+   * contract_output_element_is_finding = false}) onto the attack-path snapshot, so the map shows
+   * every output the chaining used, not only the ones persisted as findings (ADR-004), non-fatal,
+   * mirroring {@link #recordAttackPathFindings}.
+   */
+  private void recordAttackPathOutputs(
+      Step stepRun, Inject inject, List<Map<String, JsonElement>> output) {
+    try {
+      JsonObject parsed = extractDataFromParsed(output);
+      if (parsed.size() == 0) {
+        return;
+      }
+      Map<String, io.openaev.database.model.ContractOutputType> typeByKey = new HashMap<>();
+      Map<String, Boolean> isFindingByKey = new HashMap<>();
+      collectOutputElements(inject, typeByKey, isFindingByKey);
+
+      List<AttackPathFindingIngestionService.OutputValue> values = new ArrayList<>();
+      for (String key : parsed.keySet()) {
+        Boolean isFinding = isFindingByKey.get(key);
+        io.openaev.database.model.ContractOutputType type = typeByKey.get(key);
+        // Only output-only (is_finding=false), typed outputs form a row; findings are handled by
+        // the finding copy, untyped outputs cannot form a (type, field) row.
+        if (isFinding == null || isFinding || type == null) {
+          continue;
+        }
+        JsonElement valuesNode = parsed.get(key);
+        if (valuesNode == null || !valuesNode.isJsonArray()) {
+          continue;
+        }
+        for (JsonElement value : valuesNode.getAsJsonArray()) {
+          if (value == null || value.isJsonNull() || !value.isJsonPrimitive()) {
+            continue;
+          }
+          values.add(
+              new AttackPathFindingIngestionService.OutputValue(
+                  type.getLabel(), key, value.getAsString()));
+        }
+      }
+      if (!values.isEmpty()) {
+        attackPathFindingIngestion.copyOutputs(inject, stepRun, values);
+      }
+    } catch (Exception e) {
+      log.warn("Attack-path outputs copy skipped for inject {} (non-fatal)", inject.getId(), e);
+    }
+  }
+
+  /**
+   * Collects the inject's contract output elements, indexing their contract output type and their
+   * {@code is_finding} flag by output key. Mirrors {@link #buildTypeMappingsFromInject}: the
+   * payload path uses the non-filtered accessor (so non-finding outputs are included), the
+   * injector-contract path uses {@code isFindingCompatible} as the flag.
+   */
+  private void collectOutputElements(
+      Inject inject,
+      Map<String, io.openaev.database.model.ContractOutputType> typeByKey,
+      Map<String, Boolean> isFindingByKey) {
+    if (inject.getPayload().isPresent()) {
+      Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
+      injectorContractContentUtils
+          .getAllContractOutputs(outputParsers, false)
+          .forEach(
+              out -> {
+                typeByKey.put(out.getKey(), out.getType());
+                isFindingByKey.put(out.getKey(), out.isFinding());
+              });
+    } else if (inject.getInjectorContract().isPresent()) {
+      injectorContractContentUtils
+          .getAllContractOutputs(inject.getInjectorContract().get())
+          .forEach(
+              out -> {
+                typeByKey.put(out.getField(), out.getType());
+                isFindingByKey.put(out.getField(), out.isFindingCompatible());
+              });
     }
   }
 
@@ -246,7 +476,16 @@ public class InjectExecutionStep implements ActionStep {
     // GET INJECT
     String data = stepRun.getData();
     String injectId = StepService.getField(data, "inject_id");
+
+    if (injectId == null || injectId.isBlank()) {
+      log.info("No inject ID found for step ID: {}", stepRun.getId());
+      return Optional.empty();
+    }
+
     Inject inject = injectService.inject(injectId);
+
+    // COPY FINDINGS onto the attack-path snapshot (per event, idempotent, non-fatal)
+    recordAttackPathFindings(stepRun, inject);
 
     // GET INJECT STATUS
     InjectStatus injectStatus = inject.getStatus().orElse(null);
@@ -255,16 +494,18 @@ public class InjectExecutionStep implements ActionStep {
     if (injectStatus != null) {
       // FORMAT EXECUTION TRACE TO OUTPUT STEP
       formatExecutionTracesToOutput(injectStatus, output);
+      attackPathIngestion.updateTerminalView(inject);
+
+      // FORMAT INJECT STATUS TO OUTPUT STEP
+      formatStatusToOutput(inject, output);
     }
 
-    // TODO FORMAT INJECT STATUS TO OUTPUT STEP
-    formatStatusToOutput(output);
-    // TODO FORMAT COLLECTOR EXPECTATION TO OUTPUT STEP
-    formatCollectorExpectationToOutput(output);
-    // TODO FORMAT EXPIRATION MANAGER TO OUTPUT STEP
-    formatExpirationManagerToOutput(output);
-    // TODO FORMAT MANUAL UPDATE TO OUTPUT STEP
-    formatManualUpdateToOutput(output);
+    // FORMAT EXPECTATION TO OUTPUT STEP
+    List<BaseInjectExpectation> expectations = formatExpectationToOutput(inject, output);
+
+    // SYNC the same verdicts onto the attack-path projection, keyed by execution row: per event,
+    // guarded (a replay writes nothing) and version-stamped so the change reaches the delta read.
+    syncAttackPathVerdicts(inject, expectations);
 
     // UPDATE step output
     if (!output.isEmpty()) {
@@ -276,11 +517,13 @@ public class InjectExecutionStep implements ActionStep {
       stepRun.setOutput(jsonObject.toString());
       // PROPAGATE state changes into engine if parsed output is present
       processOutputAndStateSync(stepRun, output, inject);
+      // COPY output-only values (is_finding=false) onto the attack-path snapshot
+      recordAttackPathOutputs(stepRun, inject, output);
 
       return Optional.of(stepRun);
     }
 
-    log.info("Inject output not found. ID:  {}", injectId);
+    log.info("[Chaining] Inject output not found. ID:  {}", injectId);
     return Optional.empty();
   }
 
@@ -289,63 +532,107 @@ public class InjectExecutionStep implements ActionStep {
    */
   private void processOutputAndStateSync(
       Step stepRun, List<Map<String, JsonElement>> output, Inject inject) {
-    boolean hasParsedData = output.stream().anyMatch(map -> map.containsKey("parsed"));
-
-    if (hasParsedData) {
-      Map<String, List<String>> outputData = extractDataFromParsed(output);
-
-      if (!outputData.isEmpty()) {
-        Workflow workflowRun = stepRun.getWorkflow();
-
-        Map<String, ContractOutputType> fieldTypeMap = buildFieldTypeMapFromInject(inject);
-        // Sync global state with the execution output, which may trigger chained steps to become
-        // READY
-        workflowStateService.syncState(gson.toJsonTree(outputData), fieldTypeMap, workflowRun);
-      }
+    JsonObject outputData = extractDataFromParsed(output);
+    if (outputData.isEmpty()) {
+      return;
     }
+
+    Workflow workflowRun = stepRun.getWorkflow();
+    Map<String, ChainingMappedType> outputTypeMappings = buildTypeMappingsFromInject(inject);
+    // Sync global state with execution output values mapped to chaining primitive/complex types.
+    workflowStateService.syncState(outputData, outputTypeMappings, workflowRun);
   }
 
-  /** Extracts key-value pairs from structured "parsed" output entries. */
-  private Map<String, List<String>> extractDataFromParsed(List<Map<String, JsonElement>> output) {
-    Map<String, List<String>> result = new HashMap<>();
+  /** Extracts structured "parsed" output entries into normalized arrays by key. */
+  private JsonObject extractDataFromParsed(List<Map<String, JsonElement>> output) {
+    JsonObject result = new JsonObject();
 
-    try {
-      for (Map<String, JsonElement> entry : output) {
-        if (entry.containsKey("parsed")) {
-          JsonObject parsed = entry.get("parsed").getAsJsonObject();
-
-          for (String key : parsed.keySet()) {
-            JsonElement element = parsed.get(key);
-            if (element == null || !element.isJsonArray()) {
-              continue;
-            }
-            JsonArray valuesArray = element.getAsJsonArray();
-            for (JsonElement item : valuesArray) {
-              if (item.isJsonPrimitive()) {
-                result.computeIfAbsent(key, k -> new ArrayList<>()).add(item.getAsString());
-              }
-            }
-          }
-        }
+    for (Map<String, JsonElement> entry : output) {
+      JsonElement parsedElement = entry.get("parsed");
+      if (parsedElement == null || !parsedElement.isJsonObject()) {
+        continue;
       }
-    } catch (Exception e) {
-      log.error("Failed to parse structured output for synchronize global State", e);
-      return Collections.emptyMap();
+
+      JsonObject parsed = parsedElement.getAsJsonObject();
+      for (Map.Entry<String, JsonElement> parsedEntry : parsed.entrySet()) {
+        addParsedValues(result, parsedEntry.getKey(), parsedEntry.getValue());
+      }
     }
     return result;
   }
 
+  private void addParsedValues(JsonObject result, String key, JsonElement parsedValueElement) {
+    if (parsedValueElement == null || parsedValueElement.isJsonNull()) {
+      return;
+    }
+    JsonArray target =
+        result.has(key) && result.get(key).isJsonArray()
+            ? result.getAsJsonArray(key)
+            : new JsonArray();
+    if (!result.has(key)) {
+      result.add(key, target);
+    }
+    if (parsedValueElement.isJsonArray()) {
+      for (JsonElement item : parsedValueElement.getAsJsonArray()) {
+        addParsedValue(target, item);
+      }
+      return;
+    }
+    addParsedValue(target, parsedValueElement);
+  }
+
+  private void addParsedValue(JsonArray target, JsonElement item) {
+    if (item == null || item.isJsonNull()) {
+      return;
+    }
+    target.add(item.deepCopy());
+  }
+
   /**
-   * Ends a step and checks whether the workflow can be marked as finished.
+   * Moves the step from RUN to END once the inject is terminal (EXECUTED/PARTIAL/ERROR) and has
+   * both execution traces and fully resolved expectations. Called on every ExternalUpdateEvent
+   * since any event may be the one completing the step.
    *
    * @param stepRun the step to end
-   * @param workflow the workflow containing the step
    */
   @Override
-  public void end(Step stepRun, Workflow workflow) {
-    // todo Condition end of step
-    // todo check if every output has been received
-    // Get all step with id workflow = X if all end workflow = END;
+  public void end(Step stepRun) throws ChainingException {
+    if (!StepStatus.RUN.equals(stepRun.getStatus())) {
+      return;
+    }
+
+    String data = stepRun.getData();
+    String injectId = StepService.getField(data, "inject_id");
+    if (injectId == null || injectId.isBlank()) {
+      log.info("No inject ID found for step ID: {}", stepRun.getId());
+      return;
+    }
+
+    Inject inject = injectService.inject(injectId);
+    InjectStatus injectStatus = inject.getStatus().orElse(null);
+    if (injectStatus == null || injectStatus.getName() == null) {
+      return;
+    }
+
+    boolean injectIsTerminal =
+        injectStatus.getName().isSuccess() || injectStatus.getName().isError();
+    if (!injectIsTerminal) {
+      return;
+    }
+
+    List<BaseInjectExpectation> expectations = injectExpectationService.findAllByInjectId(injectId);
+
+    boolean hasExecutionTraces = !injectStatus.getTraces().isEmpty();
+    boolean allExpectationsResolved =
+        expectations.stream().noneMatch(expectation -> expectation.getResults().isEmpty());
+
+    if (hasExecutionTraces && allExpectationsResolved) {
+      log.info(
+          "[Chaining] Step {} output matches inject terminal status {}. Moving step to END.",
+          stepRun.getId(),
+          injectStatus.getName());
+      stepRun.setStatus(StepStatus.END);
+    }
   }
 
   // -------------------
@@ -380,6 +667,16 @@ public class InjectExecutionStep implements ActionStep {
           "Data step of new step (TEMPLATE) do not contain injector contract");
     }
 
+    // #7418: verify the referenced injector contract still exists in this tenant BEFORE baking it
+    // into the step snapshot, under a pessimistic share lock so authoring serializes with the
+    // contract-delete transaction (there is no FK from step_data to the contract for a database
+    // cascade to protect this). Resolve the id straight from the step data (InjectInput carries the
+    // scalar inject_injector_contract) - the same id run() bakes and resolves - so authoring and
+    // execution can never drift. A missing contract is an invalid client-provided reference, so it
+    // is rejected as a 400 (BadRequestException), matching the threat-arsenal 400-not-404
+    // precedent.
+    assertInjectorContractExists(data.getInjectorContract());
+
     if ((simulation == null && scenario == null) || (simulation != null && scenario != null)) {
       throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
     }
@@ -387,8 +684,7 @@ public class InjectExecutionStep implements ActionStep {
     InjectorContract injectorContract =
         this.injectorContractService.injectorContract(data.getInjectorContract());
 
-    Injector injector =
-        injectUtils.resolveInjectorReference(data.getInjectorId(), injectorContract);
+    Injector injector = injectUtils.resolveInjector(data.getInjectorId(), injectorContract);
     Inject inject = data.toInject(injectorContract, injector);
     inject.setUser(this.userService.currentUser());
 
@@ -444,8 +740,7 @@ public class InjectExecutionStep implements ActionStep {
     // if inject content is null we add the defaults from the injector contract
     // this is the case when creating an inject from OpenCti
     if (inject.getContent() == null || inject.getContent().isEmpty()) {
-      inject.setContent(
-          injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract));
+      inject.setContent(resolveBaseInjectContent(inject, injectorContract));
     }
     ObjectMapper om =
         new ObjectMapper()
@@ -455,6 +750,31 @@ public class InjectExecutionStep implements ActionStep {
       return om.writeValueAsString(inject);
     } catch (JsonProcessingException e) {
       throw new ChainingException("New step (TEMPLATE): Error processing Inject to JSON", e);
+    }
+  }
+
+  /**
+   * Rejects authoring a chaining step against an injector contract that no longer exists in the
+   * current tenant (#7418). The existence check takes a pessimistic share lock ({@code FOR SHARE})
+   * so it serializes with the contract-delete transaction: if the delete committed first the lookup
+   * finds nothing and we reject; if authoring locks the row first, the delete - and its #7413
+   * chaining-step sweep - waits for this transaction to commit and then sees the new step. The lock
+   * only serializes when the row exists, which is exactly the window that mattered.
+   *
+   * @param injectorContractId the injector contract id referenced by the step data
+   * @throws BadRequestException if no such contract exists in the current tenant (400, not 404: an
+   *     invalid client-provided reference, per the threat-arsenal precedent)
+   */
+  private void assertInjectorContractExists(String injectorContractId) {
+    boolean exists =
+        injectorContractRepository
+            .lockContractIdForAuthoring(injectorContractId, TenantContext.getCurrentTenant())
+            .isPresent();
+    if (!exists) {
+      throw new BadRequestException(
+          "Injector contract not found: "
+              + injectorContractId
+              + ". It may have been deleted; refresh and rebuild the step.");
     }
   }
 
@@ -481,8 +801,8 @@ public class InjectExecutionStep implements ActionStep {
    * <p>Each mapping contains:
    *
    * <ul>
-   *   <li>{@code key} – the target input key
-   *   <li>{@code path} – the JSON path to extract the value
+   *   <li>{@code key} - the target input key
+   *   <li>{@code path} - the JSON path to extract the value
    * </ul>
    *
    * @param conditions the list of conditions to process
@@ -499,10 +819,11 @@ public class InjectExecutionStep implements ActionStep {
 
         Map<String, Object> input = new HashMap<>();
         input.put("key", condition.getKey());
-        input.put("keyType", condition.getKeyType() != null ? condition.getKeyType().name() : null);
         input.put(
-            "keySubtype",
-            condition.getKeySubtype() != null ? condition.getKeySubtype().name() : null);
+            "keyTypes",
+            condition.getKeyTypes() != null
+                ? condition.getKeyTypes().stream().map(Enum::name).toList()
+                : List.of());
         input.put("path", condition.getValue());
         input.put("mappingType", condition.getMappingType());
         input.put("id_step_from", condition.getStepFrom());
@@ -517,12 +838,245 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
-   * @param injectId id of inject
-   * @param dataStep json of inject
-   * @return json updated
+   * Expands condition batches into per-target batches by resolving scope assets and, for external
+   * injectors, IPs.
+   *
+   * <p>Each original batch is duplicated once per in-scope asset and, for external injectors, once
+   * per in-scope manual target (raw IP, including IPv4/IPv6 produced by upstream actions). The
+   * target is embedded in the batch {@code inputString} under {@code "_target"} so that {@link
+   * #ready} can bake it into the step data for {@link #run} to consume.
+   *
+   * <p>Manual (IP) targets only make sense for external injectors, which can target a raw IP.
+   * Payload-based injects run on an agent/endpoint, so they are expanded per asset only. This
+   * injector-vs-payload decision is owned by {@link StepTargetingService} so callers stay agnostic.
+   *
+   * @param batches original condition batches to expand
+   * @param workflowRun the running workflow (provides the scope)
+   * @param stepTemplate the step template being expanded (used to detect payload vs injector)
    */
+  public List<ConditionService.ExecutionBatch> expandTargetBatches(
+      List<ConditionService.ExecutionBatch> batches, Workflow workflowRun, Step stepTemplate) {
+
+    String workflowId = workflowRun.getId();
+
+    // Audience-centric injects (email, SMS, ...) target teams and players "among the scope",
+    // never the scope's assets or raw IPs. Skip the per-target fan-out entirely so run() executes
+    // a single inject against its resolved audience instead of one bogus asset-targeted inject per
+    // scoped asset (which fails email with "needs at least one user").
+    if (!stepTargetingService.isAssetCentric(stepTemplate)) {
+      return batches;
+    }
+
+    List<Asset> validAssets = scopeService.getValidAssets(workflowId);
+
+    // Manual (raw IP) targets - including IPv4/IPv6 produced by upstream actions - only apply to
+    // external injectors. Payload-based injects run on an agent/endpoint, so expand per asset only.
+    List<String> validManualTargets =
+        stepTargetingService.hasPayload(stepTemplate)
+            ? List.of()
+            : scopeService.getValidManualTargetsFromScopeAndGlobalState(workflowId);
+
+    if (validAssets.isEmpty() && validManualTargets.isEmpty()) {
+      return batches;
+    }
+
+    // For each condition batch, produce one new batch per target (asset or IP).
+    // Each batch becomes one READY step -> one inject -> one execution unit.
+    // The target is embedded in the inputString under "_target" so that ready() can
+    // persist it into step.data, and getInjectFromDataStep() can apply it at run time.
+    List<ConditionService.ExecutionBatch> expanded = new ArrayList<>();
+    for (ConditionService.ExecutionBatch batch : batches) {
+      // Deduplicate assets that may appear via multiple scope rules
+      Map<String, Asset> uniqueAssets = new LinkedHashMap<>();
+      validAssets.forEach(a -> uniqueAssets.put(a.getId(), a));
+
+      // One batch per asset (denylist already applied by ScopeService)
+      for (Asset asset : uniqueAssets.values()) {
+        JsonObject target = new JsonObject();
+        target.addProperty("type", "ASSET");
+        target.addProperty("assetId", asset.getId());
+        expanded.add(
+            new ConditionService.ExecutionBatch(
+                addTargetToInput(batch.inputString(), target),
+                batch.usedMappers(),
+                perTargetHash(batch.hash(), asset.getId())));
+      }
+
+      // One batch per manual data
+      Set<String> uniqueManualTargets = new LinkedHashSet<>(validManualTargets);
+      for (String manualTarget : uniqueManualTargets) {
+        if (IpAddressUtils.isIpv4Subnet(manualTarget)
+            || IpAddressUtils.isIpv6Subnet(manualTarget)) {
+          continue;
+        }
+        JsonObject target = new JsonObject();
+        target.addProperty("type", "MANUAL");
+        target.addProperty("manual", manualTarget);
+        expanded.add(
+            new ConditionService.ExecutionBatch(
+                addTargetToInput(batch.inputString(), target),
+                batch.usedMappers(),
+                perTargetHash(batch.hash(), manualTarget)));
+      }
+    }
+    return expanded;
+  }
+
+  /**
+   * Builds a deterministic per-target deduplication hash for an expanded batch by combining the
+   * original combo hash (nullable, for non-mapper batches) with the target identifier (asset ID or
+   * manual target value). This keeps each (mapper combo, target) pair uniquely deduplicated so an
+   * already-executed target is never re-created, while a delayed (rate-limited) sibling target can
+   * still be retried independently.
+   *
+   * @param comboHash original batch hash (may be {@code null} when the batch has no mapper)
+   * @param targetId the target identifier this expanded batch is bound to
+   * @return a non-null hash unique to the (combo, target) pair
+   */
+  private String perTargetHash(String comboHash, String targetId) {
+    return (comboHash != null ? comboHash : "") + ":" + targetId;
+  }
+
+  /** Embeds a {@code "_target"} entry into the batch input JSON. */
+  private String addTargetToInput(String inputJson, JsonObject target) {
+    JsonObject input =
+        (inputJson == null || inputJson.isBlank())
+            ? new JsonObject()
+            : JsonParser.parseString(inputJson).getAsJsonObject();
+    input.add("_target", target);
+    return input.toString();
+  }
+
+  private String bakeTargetIntoStepData(String templateData, String input) {
+    if (input == null || input.isBlank()) {
+      return templateData;
+    }
+    try {
+      JsonObject parsedInput = JsonParser.parseString(input).getAsJsonObject();
+      JsonElement targetElement = parsedInput.get("_target");
+      if (targetElement == null || targetElement.isJsonNull()) {
+        return templateData;
+      }
+      JsonObject dataObj = JsonParser.parseString(templateData).getAsJsonObject();
+      dataObj.add("_chaining_target", targetElement);
+      return dataObj.toString();
+    } catch (Exception e) {
+      log.warn("Failed to bake target into step data, falling back to template data", e);
+      return templateData;
+    }
+  }
+
+  /**
+   * Reads {@code "_chaining_target"} from step data and applies it to the inject before execution.
+   *
+   * <ul>
+   *   <li>ASSET: sets a single asset and, for external injectors, rewrites the content target
+   *       fields (targets_assets, target_selector, targets/IPs).
+   *   <li>MANUAL: sets manual targeting in content and clears asset fields.
+   *   <li>No target present: inject runs with its template defaults.
+   * </ul>
+   *
+   * @return {@code true} if a target was found and applied, {@code false} otherwise
+   */
+  private boolean applyChainingTarget(Inject inject, String stepData, boolean isExternalInjector) {
+    if (stepData == null) {
+      return false;
+    }
+    JsonElement targetElement;
+    try {
+      targetElement = JsonParser.parseString(stepData).getAsJsonObject().get("_chaining_target");
+    } catch (Exception e) {
+      log.warn("Failed to read _chaining_target from step data", e);
+      return false;
+    }
+    if (targetElement == null || targetElement.isJsonNull() || !targetElement.isJsonObject()) {
+      return false;
+    }
+
+    JsonObject target = targetElement.getAsJsonObject();
+    String type = target.has("type") ? target.get("type").getAsString() : null;
+
+    if ("ASSET".equals(type)) {
+      String assetId = target.has("assetId") ? target.get("assetId").getAsString() : null;
+      if (assetId == null) {
+        return false;
+      }
+      Asset asset = assetService.asset(assetId);
+      inject.setAssets(List.of(asset));
+      inject.setAssetGroups(List.of());
+      if (isExternalInjector) {
+        ObjectNode content =
+            inject.getContent() != null
+                ? inject.getContent().deepCopy()
+                : mapper.createObjectNode();
+        content.remove("targets");
+        content.remove("targets_assets");
+        content.remove("target_selector");
+        applyScopeTargetsToContent(content, List.of(asset));
+        inject.setContent(content);
+      }
+      return true;
+    } else if ("MANUAL".equals(type)) {
+      String manualTarget = target.has("manual") ? target.get("manual").getAsString() : null;
+      if (manualTarget == null) {
+        return false;
+      }
+      ObjectNode content =
+          inject.getContent() != null ? inject.getContent().deepCopy() : mapper.createObjectNode();
+      content.put("target_selector", "manual");
+      content.put("targets", manualTarget);
+      content.remove("targets_assets");
+      inject.setContent(content);
+      inject.setAssets(List.of());
+      inject.setAssetGroups(List.of());
+      return true;
+    }
+    return false;
+  }
+
+  /** Stores the created inject ID into the step data JSON. */
   private String setInjectId(String injectId, String dataStep) {
-    return setField(dataStep, "inject_id", injectId);
+    JsonObject jsonObject = JsonParser.parseString(dataStep).getAsJsonObject();
+    jsonObject.addProperty("inject_id", injectId);
+    return jsonObject.toString();
+  }
+
+  private String getCommand(Inject inject) {
+    Optional<InjectorContract> injectorContract = inject.getInjectorContract();
+    if (injectorContract.isEmpty()) {
+      return "";
+    }
+    if (!(injectorContract.get().getPayload() instanceof Command command)) {
+      return "";
+    }
+
+    String resolvedCommand = command.getContent();
+    if (resolvedCommand == null || resolvedCommand.isBlank()) {
+      return "";
+    }
+
+    List<PayloadArgument> args = command.getArguments();
+    if (args == null || args.isEmpty()) {
+      return resolvedCommand;
+    }
+
+    // Resolve each #{argumentKey} the same way a real execution does (inject content first,
+    // falling back to the payload argument's default value) - see
+    // ExecutableInjectService#resolveArgumentsForDisplay, also used by InjectExecutionResultService
+    // for the live terminal view (#7110). Otherwise the attack-path snapshot freezes the default
+    // value instead of what was actually run.
+    ObjectNode convertedContent = injectorContract.get().getConvertedContent();
+    JsonNode fields = convertedContent == null ? null : convertedContent.get("fields");
+    List<ObjectNode> injectorContractContentFields =
+        fields == null
+            ? List.of()
+            : StreamSupport.stream(fields.spliterator(), false)
+                .map(ObjectNode.class::cast)
+                .toList();
+    ObjectNode injectContent =
+        inject.getContent() != null ? inject.getContent() : JsonNodeFactory.instance.objectNode();
+    return executableInjectService.resolveArgumentsForDisplay(
+        resolvedCommand, args, injectorContractContentFields, injectContent);
   }
 
   /**
@@ -579,10 +1133,44 @@ public class InjectExecutionStep implements ActionStep {
       // GET INJECT FROM JSON
       Inject inject = om.readValue(step.getData(), Inject.class);
 
-      // Ensure dependsDuration has a default value — it is a legacy scheduling field
+      // Ensure dependsDuration has a default value - it is a legacy scheduling field
       // that may not be present in the serialized step data but has a @NotNull constraint.
       if (inject.getDependsDuration() == null) {
         inject.setDependsDuration(0L);
+      }
+
+      // Resolve and re-parent the document links deserialized from the step data. The element
+      // deserializer only produces id-carrying stubs (a query inside it would cost one database
+      // round trip per attachment), so all referenced documents are resolved here through a
+      // single JPQL query: unlike a primary-key find, the query goes through Hibernate's enabled
+      // filters, so tenantFilter applies and a stale or crafted step referencing a deleted or
+      // foreign-tenant document degrades to "no attachment" instead of failing the step.
+      // Surviving links are re-parented because the @MapsId composite id needs both associations
+      // before run() cascade-persists this inject.
+      List<InjectDocument> injectDocuments = inject.getDocuments();
+      if (injectDocuments != null && !injectDocuments.isEmpty()) {
+        injectDocuments.removeIf(Objects::isNull);
+        Set<String> documentIds =
+            injectDocuments.stream()
+                .map(link -> link.getDocument() == null ? null : link.getDocument().getId())
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<String, Document> resolvedDocuments =
+            documentIds.isEmpty()
+                ? Map.of()
+                : em.createQuery("select d from Document d where d.id in :ids", Document.class)
+                    .setParameter("ids", documentIds)
+                    .getResultStream()
+                    .collect(Collectors.toMap(Document::getId, document -> document));
+        injectDocuments.removeIf(
+            link ->
+                link.getDocument() == null
+                    || !resolvedDocuments.containsKey(link.getDocument().getId()));
+        injectDocuments.forEach(
+            link -> {
+              link.setDocument(resolvedDocuments.get(link.getDocument().getId()));
+              link.setInject(inject);
+            });
       }
 
       ObjectMapper mapper = new ObjectMapper();
@@ -620,39 +1208,88 @@ public class InjectExecutionStep implements ActionStep {
       // GET INJECTOR
       JsonNode injectorNode = root.path("inject_injector");
 
-      // INJECTOR ID FROM JSON NULL
-      if ((injectorNode.isMissingNode() || injectorNode.asText().isEmpty())) {
+      // A missing field, an explicit JSON null (JsonNode#asText() on a NullNode returns the
+      // literal string "null", not "", so it must be checked separately) and an empty string all
+      // mean "no explicit injector id was serialized into the step data" - the normal case for a
+      // payload-based inject, whose injector is auto-resolved from the injector contract's linked
+      // injector(s), exactly like InjectService/AtomicTestingService/SimulationInjectApi do when
+      // creating/updating an inject with no explicit injectorId.
+      String injectorId =
+          (injectorNode.isMissingNode() || injectorNode.isNull() || injectorNode.asText().isEmpty())
+              ? null
+              : injectorNode.asText();
 
+      // injectors is v2-active and run() is already tenant-scoped by StepEventService. Resolve
+      // the injector explicitly by (id, tenant) through InjectUtils rather than the deserialized
+      // association, whose composite join relies on the step data's tenant_id and returns null
+      // when it is absent (then setInjector/NPE re-queues the step forever).
+      Injector injector;
+      try {
+        injector = injectUtils.resolveInjector(injectorId, injectorContract);
+      } catch (Exception e) {
+        throw new ChainingException(
+            "Injector not found for injectorId "
+                + injectorId
+                + " and step (READY) ID "
+                + step.getId());
+      }
+      if (injector == null) {
         throw new ChainingException(
             "Injector not found for injectorContractId "
                 + injectorContract.getId()
                 + " and step (READY) ID "
                 + step.getId());
-
-        // GET INJECTOR FROM DB
-      } else {
-
-        String injectorId = injectorNode.asText();
-        Injector injector = inject.getInjector();
-
-        try {
-          Hibernate.initialize(inject.getInjector());
-        } catch (Exception e) {
-          throw new ChainingException(
-              "Injector not found for injectorId "
-                  + injectorId
-                  + " and step (READY) ID "
-                  + step.getId());
-        }
-        injector.setTenant(injectorContract.getTenant());
-        inject.setInjector(injector);
       }
+      inject.setInjector(injector);
 
       // Modify payload arguments with inputs from step
-      ObjectNode updatedContent = updateContentWithInputs(step, injectorContract.getContent());
-      inject.setContent(updatedContent);
+      ObjectNode updatedContent =
+          updateContentWithInputs(step, resolveBaseInjectContent(inject, injectorContract));
 
-      inject.setAssets(scopeService.getValidAssets(step.getWorkflow().getId()));
+      // Add expectations
+      ObjectNode contentWithExpectations =
+          injectorContractContentUtils.setExpectations(injectorContract, updatedContent);
+      inject.setContent(contentWithExpectations);
+
+      // Apply the per-target info baked in by ready() (asset or IP from scope) - but ONLY for
+      // asset/IP-centric injects. Audience-centric contracts (email, SMS, ...) target the teams
+      // configured on the inject "among the scope"; the workflow scope's assets are irrelevant to
+      // them, and forcing one here rewrites target_selector to "assets" and leaves the inject with
+      // zero recipients ("Email needs at least one user"). Their configured teams round-trip via
+      // inject_teams and must be left untouched.
+      // Classified snapshot-first (same classifier as batch expansion, recipient resolution and
+      // launch validation) so a live-contract change after the step was authored cannot make
+      // execution diverge from what was expanded and validated.
+      boolean assetCentric = stepTargetingService.isAssetCentric(step);
+      if (assetCentric) {
+        // Expansion sets _chaining_target -> one asset per step (external injectors also expand
+        // per manual IP target). If no target was baked in (e.g. no assets in scope), fall back to
+        // all scope assets so the executor can still distribute across every scoped endpoint.
+        boolean targetApplied =
+            applyChainingTarget(inject, step.getData(), !stepTargetingService.hasPayload(step));
+        if (!targetApplied && step.getWorkflow() != null) {
+          List<Asset> scopedAssets = scopeService.getValidAssets(step.getWorkflow().getId());
+          if (scopedAssets != null && !scopedAssets.isEmpty()) {
+            inject.setAssets(scopedAssets);
+          }
+        }
+      } else if (step.getWorkflow() != null
+          && !inject.isAllTeams()
+          && (inject.getTeams() == null || inject.getTeams().isEmpty())
+          && !stepTargetingService.hasTargetFeedingMapperConditions(step, false)) {
+        // Audience fallback (tabletop compatibility): no audience was picked in the
+        // Configure-action drawer, so consume the workflow scope's audience instead of failing
+        // with zero recipients. Scope teams become the inject's targeted teams (persisted, so
+        // reporting shows them); scope players are resolved at run() time into direct recipients
+        // by resolveAudienceRecipients, as they are not a team relation. Skipped when a MAPPER
+        // condition feeds the audience (raw recipients consumed by the email executor) from
+        // upstream outputs: the mapped audience is authoritative and must not be widened with
+        // every scoped team.
+        List<Team> scopeTeams = scopeService.getValidTeams(step.getWorkflow().getId());
+        if (!scopeTeams.isEmpty()) {
+          inject.setTeams(new ArrayList<>(scopeTeams));
+        }
+      }
 
       return inject;
 
@@ -662,24 +1299,57 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
+   * Updates the inject content JSON with scope-resolved asset targets.
+   *
+   * <p>Sets {@code targets_assets} (asset IDs) for asset-aware injectors, {@code target_selector}
+   * to {@code "assets"}, and {@code targets} with the comma-separated IPs extracted from scoped
+   * {@link Endpoint} assets so that IP-based injectors (nmap, nuclei) also receive valid targets.
+   */
+  private void applyScopeTargetsToContent(ObjectNode content, List<Asset> scopedAssets) {
+    if (scopedAssets.isEmpty()) {
+      return;
+    }
+    List<String> assetIds = scopedAssets.stream().map(Asset::getId).toList();
+    content.set("targets_assets", mapper.valueToTree(assetIds));
+    content.put("target_selector", "assets");
+
+    List<String> ips = new ArrayList<>();
+    for (Asset asset : scopedAssets) {
+      if (asset instanceof Endpoint endpoint) {
+        if (endpoint.getIps() != null && endpoint.getIps().length > 0) {
+          ips.addAll(Arrays.asList(endpoint.getIps()));
+        }
+        if (endpoint.getSeenIp() != null && !endpoint.getSeenIp().isEmpty()) {
+          ips.add(endpoint.getSeenIp());
+        }
+      }
+    }
+    List<String> distinctIps =
+        ips.stream().filter(ip -> ip != null && !ip.isEmpty()).distinct().toList();
+    if (!distinctIps.isEmpty()) {
+      content.put("targets", String.join(",", distinctIps));
+    }
+  }
+
+  /**
    * Merges step input values into injector contract content to build runtime payload arguments.
    *
-   * <p>This method reads the current contract content JSON, fetches input values resolved during
-   * chaining from {@link Step#getInput()}, then maps those values to contract keys using MAPPER
-   * conditions. The resulting JSON is used as inject content for execution.
+   * <p>This method starts from the resolved base inject content, fetches input values resolved
+   * during chaining from {@link Step#getInput()}, then maps those values to contract keys using
+   * MAPPER conditions. The resulting JSON is used as inject content for execution.
    *
    * @param step the READY step containing resolved input values used as payload arguments
-   * @param contentJson base injector contract content JSON
+   * @param baseContent base inject content JSON
    * @return updated contract content with mapped input values injected; empty object if parsing
    *     fails
    */
-  private ObjectNode updateContentWithInputs(Step step, @NotBlank String contentJson) {
-    if (contentJson == null || contentJson.isBlank()) {
+  private ObjectNode updateContentWithInputs(Step step, ObjectNode baseContent) {
+    if (baseContent == null) {
       return mapper.createObjectNode();
     }
 
     try {
-      ObjectNode contentNode = (ObjectNode) mapper.readTree(contentJson);
+      ObjectNode contentNode = baseContent.deepCopy();
 
       String inputJson = step.getInput();
       if (inputJson == null || inputJson.isEmpty() || "{}".equals(inputJson)) {
@@ -692,16 +1362,20 @@ public class InjectExecutionStep implements ActionStep {
           .filter(conditionUtils::isMapperCondition)
           .forEach(mapping -> applyMapping(contentNode, mapping, inputValues));
 
-      // FIXME: this is probably a draft for something, adding this fixme to keep track of it
-      conditionService.findAllConditionsByStepId(step.getId()).stream()
-          .filter(conditionUtils::isMapperCondition)
-          .toList();
-
       return contentNode;
 
     } catch (JsonProcessingException e) {
       return mapper.createObjectNode();
     }
+  }
+
+  private ObjectNode resolveBaseInjectContent(Inject inject, InjectorContract injectorContract) {
+    if (inject != null && inject.getContent() != null && !inject.getContent().isEmpty()) {
+      return inject.getContent();
+    }
+    ObjectNode defaults =
+        injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract);
+    return defaults != null ? defaults : mapper.createObjectNode();
   }
 
   /**
@@ -713,11 +1387,36 @@ public class InjectExecutionStep implements ActionStep {
    * @param inputValues the source JSON containing the values to map
    */
   private void applyMapping(ObjectNode contentNode, Condition mapping, JsonNode inputValues) {
-    String inputKey = mapping.getKeyType().name(); // e.g., "IPv4"
     String targetJsonKey = mapping.getKey();
 
-    if (inputValues.has(inputKey)) {
-      contentNode.set(targetJsonKey, inputValues.get(inputKey));
+    // Prefer the value already resolved for this specific mapper during chaining (see
+    // ConditionService#toResolvedMapper). This is required when several mappers share the same
+    // key type(s): looking the value up from `inputValues` by type alone can't tell them apart and
+    // would collapse them onto the same shared source value. Values only known once the batch is
+    // expanded per target (e.g. "_target"-derived fields) are not resolved at that stage, so they
+    // still fall through to the inputValues lookup below.
+    if (targetJsonKey != null && mapping.getValue() != null && !mapping.getValue().isBlank()) {
+      contentNode.set(targetJsonKey, TextNode.valueOf(mapping.getValue()));
+      return;
+    }
+
+    List<String> keyTypes =
+        mapping.getKeyTypes() != null && !mapping.getKeyTypes().isEmpty()
+            ? mapping.getKeyTypes().stream().map(Enum::name).toList()
+            : List.of();
+    if (keyTypes.isEmpty()) {
+      if (mapping.getMappingType() != MappingType.DEFAULT) {
+        log.warn(
+            "[Chaining] Skipping mapper condition {} because keyTypes are empty", mapping.getId());
+      }
+      return;
+    }
+
+    for (String inputKey : keyTypes) {
+      if (inputValues.has(inputKey)) {
+        contentNode.set(targetJsonKey, inputValues.get(inputKey));
+        return;
+      }
     }
   }
 
@@ -728,9 +1427,9 @@ public class InjectExecutionStep implements ActionStep {
    * JSON-compatible maps. Each entry contains:
    *
    * <ul>
-   *   <li>{@code agent_id} – the ID of the agent that produced the trace
-   *   <li>{@code parsed} – the structured output when available
-   *   <li>{@code message} – the raw message when structured output is not available
+   *   <li>{@code agent_id} - the ID of the agent that produced the trace
+   *   <li>{@code parsed} - the structured output when available
+   *   <li>{@code message} - the raw message when structured output is not available
    * </ul>
    *
    * @param injectStatus the inject status containing execution traces
@@ -740,11 +1439,23 @@ public class InjectExecutionStep implements ActionStep {
       InjectStatus injectStatus, List<Map<String, JsonElement>> output) {
     // GET EXECUTION TRACE
     List<ExecutionTrace> traces = injectStatus.getTraces();
-    log.info("[Chaining] formatExecutionTracesToOutput — traces count: {}", traces.size());
+    log.info("[Chaining] formatExecutionTracesToOutput - traces count: {}", traces.size());
     for (ExecutionTrace trace : traces) {
       Map<String, JsonElement> map = new HashMap<>();
       if (trace.getAgent() == null) {
-        log.info("[Chaining] Trace skipped: agent is null");
+        // Network injectors (nmap, netexec, ...) execute without an on-host agent, so their traces
+        // carry no
+        // agent - but they DO carry the structured output the chaining engine decomposes into
+        // primitives
+        // to drive events. Only the agent_id enrichment is agent-specific. Dropping the whole trace
+        // here
+        // meant no port/share/... event could ever fire from a network injector's findings; keep
+        // the
+        // structured output so it still feeds the workflow state.
+        if (trace.getStructuredOutput() != null) {
+          map.put("parsed", JsonParser.parseString(trace.getStructuredOutput().toString()));
+          output.add(map);
+        }
         continue;
       }
       map.put("agent_id", gson.toJsonTree(trace.getAgent().getId()));
@@ -763,32 +1474,185 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
-  private static void formatStatusToOutput(List<Map<String, JsonElement>> output) {}
-
-  private static void formatCollectorExpectationToOutput(List<Map<String, JsonElement>> output) {}
-
-  private static void formatExpirationManagerToOutput(List<Map<String, JsonElement>> output) {}
-
-  private static void formatManualUpdateToOutput(List<Map<String, JsonElement>> output) {}
+  /**
+   * Formats the inject execution status (name + tracking dates) into the step output.
+   *
+   * @param inject the inject whose status is read
+   * @param output the output list to populate
+   */
+  private static void formatStatusToOutput(Inject inject, List<Map<String, JsonElement>> output) {
+    inject
+        .getStatus()
+        .ifPresent(
+            status -> {
+              if (status.getName() == null || status.getTrackingEndDate() == null) return;
+              Map<String, JsonElement> map = new HashMap<>();
+              map.put(
+                  "inject_status",
+                  gson.toJsonTree(status.getName() != null ? status.getName().name() : null));
+              map.put(
+                  "inject_status_tracking_end_date",
+                  gson.toJsonTree(
+                      status.getTrackingEndDate() != null
+                          ? status.getTrackingEndDate().toString()
+                          : null));
+              output.add(map);
+            });
+  }
 
   /**
-   * Builds a map of output field names to their contract types from the inject's payload or
-   * contract.
+   * Formats expectations updated by an collector or expiration or manual update into the step
+   * output. Each entry contains the expectation type, name, score, collector source ID, and - when
+   * the expectation is agent-level - the associated agent ID and asset ID.
+   *
+   * <p>Some expectations may not match an actual execution. We observed duplicate expectation
+   * entries returned without an agent_id and only with an asset_id. These entries do not correspond
+   * to real executions; they are duplicated information.
+   *
+   * @param inject the inject already loaded by the caller
+   * @param output the output list to populate
+   * @return the inject's expectations, so the caller can sync the same verdicts elsewhere without a
+   *     second read
    */
-  private Map<String, ContractOutputType> buildFieldTypeMapFromInject(Inject inject) {
-    Map<String, ContractOutputType> fieldTypeMap = new HashMap<>();
+  private List<BaseInjectExpectation> formatExpectationToOutput(
+      Inject inject, List<Map<String, JsonElement>> output) {
+    List<BaseInjectExpectation> expectations =
+        injectExpectationService.findAllByInjectId(inject.getId());
+    for (BaseInjectExpectation expectation : expectations) {
+      for (InjectExpectationResult result : expectation.getResults()) {
+        if (isTechnicalExpectation(expectation)
+            && (result.getResult() == null || result.getResult().isBlank())) {
+          continue;
+        }
+        Map<String, JsonElement> map = getExpectationOutput(expectation, result);
+        addEndpointContext(inject, expectation, map);
+        output.add(map);
+      }
+    }
+    return expectations;
+  }
+
+  private static boolean isTechnicalExpectation(BaseInjectExpectation expectation) {
+    return expectation instanceof PreventionInjectExpectation
+        || expectation instanceof DetectionInjectExpectation
+        || expectation instanceof VulnerabilityInjectExpectation;
+  }
+
+  /**
+   * Enriches an output map entry with endpoint context (agent_id, asset_id, asset_group_id, plus
+   * normalised target_type / target_id) when the expectation is a {@link
+   * TechnicalInjectExpectation} (i.e. PREVENTION or DETECTION).
+   *
+   * <p>Granularity priority:
+   *
+   * <ol>
+   *   <li>Agent-level: {@code agent != null} -> target_type=AGENT, target_id=agent.id
+   *   <li>Asset-level (no agent): {@code asset != null} -> target_type=ASSET, target_id=asset.id
+   *   <li>Asset-group-level: {@code assetGroup != null} -> target_type=ASSET_GROUP,
+   *       target_id=assetGroup.id
+   * </ol>
+   *
+   * @param inject
+   * @param expectation the expectation to inspect
+   * @param map the output map to enrich
+   */
+  private static void addEndpointContext(
+      Inject inject, BaseInjectExpectation expectation, Map<String, JsonElement> map) {
+    if (!(expectation instanceof TechnicalInjectExpectation technical)) {
+      return;
+    }
+    Agent agent = technical.getAgent();
+    Asset asset = technical.getAsset();
+    AssetGroup assetGroup = technical.getAssetGroup();
+
+    map.put("agent_id", gson.toJsonTree(agent != null ? agent.getId() : null));
+    map.put("asset_id", gson.toJsonTree(asset != null ? asset.getId() : null));
+    map.put("asset_name", gson.toJsonTree(asset != null ? asset.getName() : null));
+    map.put("asset_group_id", gson.toJsonTree(assetGroup != null ? assetGroup.getId() : null));
+
+    // Normalised target resolution for PREVENTION / DETECTION:
+    // the chaining engine uses target_type + target_id to correlate the result
+    // to the right scope without having to inspect every nullable field.
+    String targetType;
+    String targetId;
+    if (agent != null) {
+      targetType = "AGENT";
+      targetId = agent.getId();
+    } else if (asset != null) {
+      targetType = "ASSET";
+      targetId = asset.getId();
+    } else if (assetGroup != null) {
+      targetType = "ASSET_GROUP";
+      targetId = assetGroup.getId();
+    } else { // TODO
+      targetType = null;
+      targetId = null;
+    }
+    map.put("target_type", gson.toJsonTree(targetType));
+    map.put("target_id", gson.toJsonTree(targetId));
+  }
+
+  private static Map<String, JsonElement> getExpectationOutput(
+      BaseInjectExpectation expectation, InjectExpectationResult result) {
+    Map<String, JsonElement> map = new HashMap<>();
+    map.put("expectation_id", gson.toJsonTree(expectation.getId()));
+    map.put(
+        "expectation_type",
+        gson.toJsonTree(expectation.getType() != null ? expectation.getType().name() : null));
+    map.put("expectation_name", gson.toJsonTree(expectation.getName()));
+    map.put("expectation_score", gson.toJsonTree(expectation.getScore()));
+    map.put("source_type", gson.toJsonTree(result.getSourceType()));
+    map.put("source_name", gson.toJsonTree(result.getSourceName()));
+    map.put("result", gson.toJsonTree(result.getResult()));
+    return map;
+  }
+
+  /**
+   * Builds the type mapping used by the chaining engine to interpret structured output fields.
+   *
+   * <p>An injector contract (or payload) declares its output fields with a {@link
+   * ContractOutputType}, e.g. field "ports" -> PORT. The chaining engine does not work with
+   * contract types directly. Instead, {@link ChainingTypeRegistry} translates each contract type
+   * into a {@link ChainingMappedType} that tells the engine how to treat the produced values:
+   *
+   * <ul>
+   *   <li>PRIMITIVE: scalar values stored per {@link PrimitiveType} (e.g. PORT ->
+   *       PrimitiveType.Port)
+   *   <li>COMPLEX: JSON objects stored as correlated pairs (e.g. PORTSCAN -> host+port tuples)
+   *   <li>NOT_CHAINABLE: values ignored by the chaining engine entirely
+   * </ul>
+   *
+   * <p>Two sources are supported:
+   *
+   * <ul>
+   *   <li>Payload-based inject: output parsers define the fields and their types
+   *   <li>Contract-based inject: the injector contract defines the fields and their types
+   * </ul>
+   *
+   * @param inject the inject whose output fields are being mapped
+   * @return map of output field name to its resolved chaining type
+   */
+  private Map<String, ChainingMappedType> buildTypeMappingsFromInject(Inject inject) {
+    Map<String, ChainingMappedType> typeMappings = new HashMap<>();
+
     if (inject.getPayload().isPresent()) {
       Set<OutputParser> outputParsers = structuredOutputUtils.extractOutputParsers(inject);
       injectorContractContentUtils
-          .getAllContractOutputs(outputParsers)
-          .forEach(out -> fieldTypeMap.put(out.getKey(), out.getType()));
-    } else {
-      if (inject.getInjectorContract().isPresent()) {
-        injectorContractContentUtils
-            .getAllContractOutputs(inject.getInjectorContract().get())
-            .forEach(out -> fieldTypeMap.put(out.getField(), out.getType()));
-      }
+          .getAllContractOutputs(outputParsers, false)
+          .forEach(
+              out ->
+                  typeMappings.put(
+                      out.getKey(),
+                      ChainingTypeRegistry.getMappedTypeForContractOutputType(out.getType())));
+    } else if (inject.getInjectorContract().isPresent()) {
+      injectorContractContentUtils
+          .getAllContractOutputs(inject.getInjectorContract().get())
+          .forEach(
+              out ->
+                  typeMappings.put(
+                      out.getField(),
+                      ChainingTypeRegistry.getMappedTypeForContractOutputType(out.getType())));
     }
-    return fieldTypeMap;
+    return typeMappings;
   }
 }

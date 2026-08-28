@@ -57,7 +57,7 @@ public class ScopeVariable implements Base {
   @Enumerated(EnumType.STRING)
   @JsonProperty("scope_variable_type")
   @NotNull
-  private ArgumentType type;
+  private PrimitiveType type;
 
   @Column(name = "scope_variable_value")
   @JsonProperty("scope_variable_value")

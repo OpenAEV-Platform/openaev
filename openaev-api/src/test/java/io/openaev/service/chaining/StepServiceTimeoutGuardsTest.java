@@ -3,10 +3,13 @@ package io.openaev.service.chaining;
 import static org.mockito.Mockito.*;
 
 import io.openaev.api.chaining.ActionStep;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -21,11 +24,27 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class StepServiceTimeoutGuardsTest {
 
   @Mock private StepRepository stepRepository;
+  @Mock private ChainingConfig chainingConfig;
   @Mock private StepService stepService;
   @Mock private WorkflowService workflowService;
+  @Mock private QueueChainingService queueChainingService;
+  @Mock private TenantScopedTransaction tenantTx;
   @Mock private ActionStep actionStep;
 
   @Spy @InjectMocks private StepEventService stepEventService;
+
+  @BeforeEach
+  void setUp() {
+    lenient()
+        .doAnswer(
+            invocation -> {
+              Runnable work = invocation.getArgument(1);
+              work.run();
+              return null;
+            })
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Runnable.class));
+  }
 
   // ========================================================================
   // handleReadyStepEvent() / run() — guard on ended workflow

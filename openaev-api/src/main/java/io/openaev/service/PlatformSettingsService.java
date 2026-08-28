@@ -12,10 +12,12 @@ import static java.util.Optional.ofNullable;
 import io.openaev.config.EngineConfig;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.config.RunMode;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.SettingKeys;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.ee.EnterpriseEditionService;
@@ -47,7 +49,6 @@ import org.springframework.boot.autoconfigure.security.saml2.Saml2RelyingPartyPr
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -68,7 +69,8 @@ public class PlatformSettingsService {
   private final XtmHubConnectivityService xtmHubConnectivityService;
   private final XtmOneConfig xtmOneConfig;
 
-  @Autowired private TransactionTemplate transactionTemplate;
+  @Value("${server.servlet.session.timeout:1440m}")
+  private java.time.Duration sessionTimeout;
 
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
@@ -171,11 +173,26 @@ public class PlatformSettingsService {
     return this.settingRepository.save(setting);
   }
 
+  private RunMode resolveRunMode() {
+    return ofNullable(openAEVConfig.getRunMode()).orElse(RunMode.NORMAL);
+  }
+
+  private boolean shouldDisplayBanner(
+      BannerMessage.BANNER_KEYS bannerKey, Map<String, Setting> dbSettings, RunMode runMode) {
+    if (bannerKey == BannerMessage.BANNER_KEYS.SAFE_MODE_ENABLED) {
+      // Safe mode banner is driven by run-mode configuration, not by persisted banner settings.
+      return runMode == RunMode.SAFE;
+    }
+    return getValueFromMapOfSettings(dbSettings, PLATFORM_BANNER + "." + bannerKey.key()) != null;
+  }
+
   // -- FIND SETTINGS --
 
   /** Populate the public (non-sensitive) fields on any {@link PublicPlatformSettings} instance. */
   private void populatePublicSettings(
       PublicPlatformSettings settings, Map<String, Setting> dbSettings) {
+    RunMode runMode = resolveRunMode();
+
     // Auth providers
     settings.setPlatformOpenIdProviders(buildOpenIdProviders());
     settings.setPlatformSaml2Providers(buildSaml2Providers());
@@ -227,14 +244,10 @@ public class PlatformSettingsService {
     // Platform banners
     Map<String, List<String>> platformBannerByLevel = new HashMap<>();
     for (BannerMessage.BANNER_KEYS bannerKey : BannerMessage.BANNER_KEYS.values()) {
-      String value = getValueFromMapOfSettings(dbSettings, PLATFORM_BANNER + "." + bannerKey.key());
-      if (value != null) {
-        if (platformBannerByLevel.get(bannerKey.level().name()) == null) {
-          platformBannerByLevel.put(
-              bannerKey.level().name(), new ArrayList<>(Arrays.asList(bannerKey.message())));
-        } else {
-          platformBannerByLevel.get(bannerKey.level().name()).add(bannerKey.message());
-        }
+      if (shouldDisplayBanner(bannerKey, dbSettings, runMode)) {
+        platformBannerByLevel
+            .computeIfAbsent(bannerKey.level().name(), key -> new ArrayList<>())
+            .add(bannerKey.message());
       }
     }
     settings.setPlatformBannerByLevel(platformBannerByLevel);
@@ -244,6 +257,8 @@ public class PlatformSettingsService {
         ofNullable(dbSettings.get(PLATFORM_WHITEMARK.key()))
             .map(Setting::getValue)
             .orElse(PLATFORM_WHITEMARK.defaultValue()));
+    // Run mode is config-driven operational state (normal/safe), not a computed health signal.
+    settings.setPlatformRunMode(runMode);
   }
 
   /** Return only non-sensitive settings suitable for unauthenticated (public) access. */
@@ -288,6 +303,7 @@ public class PlatformSettingsService {
         ofNullable(dbSettings.get(PLATFORM_INSTANCE.key()))
             .map(Setting::getValue)
             .orElse(PLATFORM_INSTANCE.defaultValue()));
+    platformSettings.setDefaultTenantId(Tenant.DEFAULT_TENANT_UUID);
     platformSettings.setPlatformName(
         ofNullable(dbSettings.get(PLATFORM_NAME.key()))
             .map(Setting::getValue)
@@ -345,6 +361,16 @@ public class PlatformSettingsService {
         ofNullable(dbSettings.get(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.key()))
             .map(Setting::getValue)
             .orElse(XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL.defaultValue()));
+
+    // SESSION MANAGEMENT
+    platformSettings.setPlatformSessionTimeout(sessionTimeout.toMillis());
+    platformSettings.setPlatformSessionIdleTimeout(
+        openAEVConfig.getSessionIdleTimeout().toMillis());
+    platformSettings.setPlatformSessionMaxConcurrent(
+        ofNullable(dbSettings.get(PLATFORM_SESSION_MAX_CONCURRENT.key()))
+            .map(Setting::getValue)
+            .map(Integer::parseInt)
+            .orElse(Integer.parseInt(PLATFORM_SESSION_MAX_CONCURRENT.defaultValue())));
     return platformSettings;
   }
 
@@ -389,6 +415,18 @@ public class PlatformSettingsService {
     themeInput.setLogoUrlCollapsed(
         getValueFromMapOfSettings(
             dbSettings, themeType + "." + Theme.THEME_KEYS.LOGO_URL_COLLAPSED.key()));
+    themeInput.setLoginAsideColor(
+        getValueFromMapOfSettings(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_COLOR.key()));
+    themeInput.setLoginAsideGradientStart(
+        getValueFromMapOfSettings(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_START.key()));
+    themeInput.setLoginAsideGradientEnd(
+        getValueFromMapOfSettings(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_END.key()));
+    themeInput.setLoginAsideImage(
+        getValueFromMapOfSettings(
+            dbSettings, themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_IMAGE.key()));
     return themeInput;
   }
 
@@ -410,7 +448,7 @@ public class PlatformSettingsService {
     }
     settingsToSave.add(resolveFromMap(dbSettings, PLATFORM_ENTERPRISE_LICENSE.key(), certPem));
     settingRepository.saveAll(settingsToSave);
-    licenseCacheManager.refreshLicense();
+    licenseCacheManager.refreshAndNotify();
     return findSettings();
   }
 
@@ -420,6 +458,18 @@ public class PlatformSettingsService {
     List<Setting> settingsToSave = new ArrayList<>();
     settingsToSave.add(
         resolveFromMap(dbSettings, PLATFORM_WHITEMARK.key(), input.getPlatformWhitemark()));
+    settingRepository.saveAll(settingsToSave);
+    return findSettings();
+  }
+
+  public PlatformSettings updateSettingsSessions(SettingsSessionsUpdateInput input) {
+    Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
+    List<Setting> settingsToSave = new ArrayList<>();
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            PLATFORM_SESSION_MAX_CONCURRENT.key(),
+            String.valueOf(input.getPlatformSessionMaxConcurrent())));
     settingRepository.saveAll(settingsToSave);
     return findSettings();
   }
@@ -502,6 +552,26 @@ public class PlatformSettingsService {
             dbSettings,
             themeType + "." + Theme.THEME_KEYS.LOGO_LOGIN_URL.key(),
             input.getLogoLoginUrl()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_COLOR.key(),
+            input.getLoginAsideColor()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_START.key(),
+            input.getLoginAsideGradientStart()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_GRADIENT_END.key(),
+            input.getLoginAsideGradientEnd()));
+    settingsToSave.add(
+        resolveFromMap(
+            dbSettings,
+            themeType + "." + Theme.THEME_KEYS.LOGIN_ASIDE_IMAGE.key(),
+            input.getLoginAsideImage()));
 
     List<Setting> update = new ArrayList<>();
     List<String> delete = new ArrayList<>();

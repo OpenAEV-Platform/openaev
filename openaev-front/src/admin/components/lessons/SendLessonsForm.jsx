@@ -47,10 +47,7 @@ class SendLessonsFormComponent extends Component {
               name="body"
               label={t('Message')}
               fullWidth
-              style={{
-                marginTop: 20,
-                height: 300,
-              }}
+              style={{ marginTop: 20 }}
             />
             <div style={{
               float: 'right',
@@ -58,13 +55,15 @@ class SendLessonsFormComponent extends Component {
             }}
             >
               <Button
+                variant="outlined"
+                color="primary"
                 onClick={handleClose.bind(this)}
                 style={{ marginRight: 10 }}
                 disabled={submitting || Object.keys(errors).length > 0}
               >
                 {t('Cancel')}
               </Button>
-              <Button color="secondary" type="submit" disabled={submitting}>
+              <Button variant="contained" color="primary" type="submit" disabled={submitting}>
                 {t('Send')}
               </Button>
             </div>

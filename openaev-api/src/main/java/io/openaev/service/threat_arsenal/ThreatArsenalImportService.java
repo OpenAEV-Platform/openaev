@@ -4,10 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.payload.PayloadImportService;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.InjectorRepository;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.jsonapi.ZipJsonApi;
 import io.openaev.service.ZipJsonService;
+import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import jakarta.validation.constraints.NotNull;
 import java.io.ByteArrayInputStream;
@@ -30,16 +33,18 @@ public class ThreatArsenalImportService {
   private final PayloadImportService payloadImportService;
   private final ThreatArsenalMapper threatArsenalMapper;
   private final ObjectMapper objectMapper;
+  private final InjectorRepository injectorRepository;
 
-  public ThreatArsenalAction importThreatArsenalAction(@NotNull MultipartFile file)
-      throws Exception {
+  public ThreatArsenalAction importThreatArsenalAction(
+      @NotNull MultipartFile file, @NotNull String tenantId) throws Exception {
     if (isInjectorContractExport(file)) {
-      return importFromInjectorContract(file);
+      return importFromInjectorContract(file, tenantId);
     }
     return importFromPayload(file);
   }
 
-  private ThreatArsenalAction importFromInjectorContract(MultipartFile file) throws Exception {
+  private ThreatArsenalAction importFromInjectorContract(MultipartFile file, String tenantId)
+      throws Exception {
     ZipJsonService.ImportOutput<InjectorContract> response =
         injectorContractZipJsonApi.handleImport(
             file,
@@ -47,6 +52,7 @@ public class ThreatArsenalImportService {
             null,
             contract -> {
               contract.setId(UUID.randomUUID().toString());
+              contract.setTenant(new Tenant(tenantId));
               if (contract.getLabels() != null) {
                 Map<String, String> updatedLabels = new HashMap<>(contract.getLabels());
                 updatedLabels.replaceAll((key, value) -> value + " (Import)");
@@ -55,6 +61,15 @@ public class ThreatArsenalImportService {
               if (contract.getPayload() != null && contract.getPayload().getName() != null) {
                 contract.getPayload().setName(contract.getPayload().getName() + " (Import)");
               }
+              // Injector links are not part of the export (the owning-side join rows are
+              // @JsonIgnore), so an imported contract would otherwise have no injector and
+              // show up as an unregistered/orphaned action (update, duplicate and export
+              // disabled). Re-link payload-based contracts to the payload-supporting
+              // injectors, as synchroniseInjectorContractBasedOnPayload does on creation.
+              if (contract.getPayload() != null) {
+                contract.addInjectors(injectorRepository.findAllByPayloads(true));
+              }
+              InjectorContractMigrationUtils.migratePredefinedExpectations(contract);
               return contract;
             });
     return threatArsenalMapper.toThreatArsenalAction(response.persistedData());

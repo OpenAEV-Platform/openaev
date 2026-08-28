@@ -3,15 +3,18 @@ package io.openaev.rest.payload;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
-import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.payload.form.*;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.payload.service.*;
+import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.utils.mapper.PayloadMapper;
+import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -38,7 +41,7 @@ public class PayloadApi extends RestBehavior {
   private final PayloadUpdateService payloadUpdateService;
   private final PayloadUpsertService payloadUpsertService;
   private final DocumentService documentService;
-  private final CollectorService collectorsService;
+  private final DetectionRemediationService detectionRemediationService;
   private final PayloadMapper payloadMapper;
 
   @PostMapping({PAYLOAD_URI + "/search", TENANT_PAYLOAD_URI + "/search"})
@@ -68,7 +71,11 @@ public class PayloadApi extends RestBehavior {
   @PostMapping({PAYLOAD_URI, TENANT_PAYLOAD_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
-  public PayloadOutput createPayload(@Valid @RequestBody PayloadCreateInput input) {
+  public PayloadOutput createPayload(
+      // unused directly: signals the transaction aspect so the read of the v2-scoped
+      // `injectors` table inside PayloadService#synchroniseInjectorContractBasedOnPayload
+      // (via InjectorRepository#findAllByPayloads) resolves the caller's tenant scope.
+      TxCtx ctx, @Valid @RequestBody PayloadCreateInput input) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(input);
     return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
@@ -81,6 +88,8 @@ public class PayloadApi extends RestBehavior {
       resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
   public PayloadOutput updatePayload(
+      // unused directly: same reason as createPayload.
+      TxCtx ctx,
       @NotBlank @PathVariable final String payloadId,
       @Valid @RequestBody PayloadUpdateInput input) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
@@ -97,7 +106,9 @@ public class PayloadApi extends RestBehavior {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
-  public PayloadOutput duplicatePayload(@NotBlank @PathVariable final String payloadId) {
+  public PayloadOutput duplicatePayload(
+      // unused directly: same reason as createPayload.
+      TxCtx ctx, @NotBlank @PathVariable final String payloadId) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadService.duplicate(payloadId);
     return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
@@ -106,7 +117,10 @@ public class PayloadApi extends RestBehavior {
   @PostMapping({PAYLOAD_URI + "/upsert", TENANT_PAYLOAD_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
-  public Payload upsertPayload(@Valid @RequestBody PayloadUpsertInput input) {
+  public Payload upsertPayload(
+      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
+      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
+      TxCtx ctx, @Valid @RequestBody PayloadUpsertInput input) {
     return this.payloadUpsertService.upsertPayload(input);
   }
 
@@ -148,22 +162,24 @@ public class PayloadApi extends RestBehavior {
   }
 
   @GetMapping({
-    PAYLOAD_URI + "/{payloadId}/collectors",
-    TENANT_PAYLOAD_URI + "/{payloadId}/collectors"
+    PAYLOAD_URI + "/{payloadId}/security-platforms",
+    TENANT_PAYLOAD_URI + "/{payloadId}/security-platforms"
   })
   @AccessControl(
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)
-  @Operation(summary = "Get the Collectors used in a payload remediation")
+  @Operation(summary = "Get the Security platforms used in a payload remediation")
   @Transactional
   @ApiResponses(
       value = {
         @ApiResponse(
             responseCode = "200",
-            description = "The list of Collectors used in a payload remediation")
+            description = "The list of Security platforms used in a payload remediation")
       })
-  public List<Collector> collectorsFromPayload(@PathVariable String payloadId) {
-    return collectorsService.collectorsForPayload(payloadId);
+  public List<SecurityPlatformSimpleOutput> securityPlatformsFromPayload(
+      @PathVariable String payloadId) {
+    return SecurityPlatformMapper.toSimpleOutputs(
+        detectionRemediationService.securityPlatformsForPayload(payloadId));
   }
 }

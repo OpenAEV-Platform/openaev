@@ -62,11 +62,11 @@ class CapabilityTreeBuilderTest {
     // -- ASSERT --
     CapabilityOutput assessments =
         tree.stream().filter(n -> ASSESSMENT.name().equals(n.value())).findFirst().orElseThrow();
-    assertThat(assessments.scopes()).containsExactly(TENANT.name());
+    assertThat(assessments.scopes()).containsExactly(TENANT);
 
     CapabilityOutput tenants =
         tree.stream().filter(n -> TENANTS.name().equals(n.value())).findFirst().orElseThrow();
-    assertThat(tenants.scopes()).containsExactly(PLATFORM.name());
+    assertThat(tenants.scopes()).containsExactly(PLATFORM);
   }
 
   @Test
@@ -76,7 +76,7 @@ class CapabilityTreeBuilderTest {
 
     // -- ASSERT --
     assertThat(tree).anyMatch(n -> TENANTS.name().equals(n.value()));
-    assertThat(tree).anyMatch(n -> PLATFORM_USERS_GROUPS_AND_ROLES.name().equals(n.value()));
+    assertThat(tree).anyMatch(n -> SECURITY.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> ASSESSMENT.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> THREAT_ARSENALS.name().equals(n.value()));
   }
@@ -90,8 +90,8 @@ class CapabilityTreeBuilderTest {
     assertThat(tree).anyMatch(n -> ASSESSMENT.name().equals(n.value()));
     assertThat(tree).anyMatch(n -> TARGETS.name().equals(n.value()));
     assertThat(tree).anyMatch(n -> TENANT_SETTINGS.name().equals(n.value()));
+    assertThat(tree).anyMatch(n -> SECURITY.name().equals(n.value()));
     assertThat(tree).noneMatch(n -> TENANTS.name().equals(n.value()));
-    assertThat(tree).noneMatch(n -> PLATFORM_USERS_GROUPS_AND_ROLES.name().equals(n.value()));
   }
 
   @Test
@@ -107,7 +107,7 @@ class CapabilityTreeBuilderTest {
             .findFirst()
             .orElseThrow();
     assertThat(tenantSettingCategory.checkable()).isFalse();
-    assertThat(tenantSettingCategory.scopes()).containsExactly(TENANT.name());
+    assertThat(tenantSettingCategory.scopes()).containsExactly(TENANT);
 
     // ACCESS_TENANT_SETTINGS is a checkable child of the category
     CapabilityOutput accessTenantSettings =
@@ -128,6 +128,41 @@ class CapabilityTreeBuilderTest {
     // DELETE_TENANT_SETTINGS is a checkable child of MANAGE
     assertThat(manageTenantSettings.children())
         .anyMatch(n -> DELETE_TENANT_SETTINGS.name().equals(n.value()) && n.checkable());
+  }
+
+  @Test
+  @DisplayName("Tenant tree nests the users, groups and roles triad under the Security category")
+  void should_build_correct_hierarchy_for_tenant_users_groups_and_roles() {
+    // -- ACT --
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(TENANT);
+
+    // -- ASSERT --
+    CapabilityOutput category =
+        tree.stream().filter(n -> SECURITY.name().equals(n.value())).findFirst().orElseThrow();
+    assertThat(category.checkable()).isFalse();
+    assertThat(category.scopes()).containsExactly(TENANT);
+
+    // Reaching these at all proves they are not hidden: computeTree filters hidden capabilities
+    // out.
+    CapabilityOutput access =
+        category.children().stream()
+            .filter(n -> ACCESS_TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(access.checkable()).isTrue();
+    CapabilityOutput manage =
+        access.children().stream()
+            .filter(n -> MANAGE_TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(manage.checkable()).isTrue();
+    assertThat(manage.children())
+        .anyMatch(
+            n -> DELETE_TENANT_USERS_GROUPS_AND_ROLES.name().equals(n.value()) && n.checkable());
+
+    // Tenant-scoped only: the shared Security category must not carry it into the platform tree.
+    assertThat(flattenValues(CapabilityTreeBuilder.buildTree(PLATFORM)))
+        .doesNotContain(ACCESS_TENANT_USERS_GROUPS_AND_ROLES.name());
   }
 
   @Test

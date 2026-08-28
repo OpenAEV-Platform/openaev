@@ -1,9 +1,10 @@
+import { Alert } from '@mui/material';
 import { type FunctionComponent, useContext, useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { deleteExercise, duplicateExercise, updateExercise } from '../../../../actions/Exercise';
+import { deleteExercise, duplicateExercise, updateExercise, updateExerciseLessons } from '../../../../actions/Exercise';
 import { checkExerciseTagRules } from '../../../../actions/exercises/exercise-action';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
+import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
 import DialogApplyTagRule from '../../../../components/common/DialogApplyTagRule';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import DialogDuplicate from '../../../../components/common/DialogDuplicate';
@@ -19,16 +20,21 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
+import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ExerciseForm from './ExerciseForm';
-import ExerciseReports from './reports/ExerciseReports';
 
-export type ExerciseActionPopover = 'Duplicate' | 'Update' | 'Delete' | 'Export' | 'Access reports';
+type ExerciseUpdateFormInput = UpdateExerciseInput & { exercise_lessons_enabled?: boolean };
+
+export type ExerciseActionPopover = 'Duplicate' | 'Update' | 'Delete' | 'Export';
 
 interface ExercisePopoverProps {
   exercise: Exercise;
   actions: ExerciseActionPopover[];
   onDelete?: (result: string) => void;
   inList?: boolean;
+  /** Extra entries prepended into the same kebab (setup actions from the hero),
+   *  so the header exposes a single overflow menu instead of a row of icons. */
+  leadingEntries?: PopoverEntry[];
 }
 
 const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
@@ -36,6 +42,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   actions = [],
   onDelete,
   inList = false,
+  leadingEntries = [],
 }) => {
   // Standard hooks
   const { t } = useFormatter();
@@ -45,13 +52,14 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   const ability = useContext(AbilityContext);
 
   // Form
-  const initialValues: UpdateExerciseInput = {
+  const initialValues: ExerciseUpdateFormInput = {
     exercise_name: exercise.exercise_name,
     exercise_subtitle: exercise.exercise_subtitle ?? '',
     exercise_description: exercise.exercise_description,
     exercise_category: exercise.exercise_category ?? 'attack-scenario',
     exercise_main_focus: exercise.exercise_main_focus ?? 'incident-response',
     exercise_severity: exercise.exercise_severity ?? 'high',
+    exercise_default_kill_chain: exercise.exercise_default_kill_chain ?? '',
     exercise_tags: exercise.exercise_tags ?? [],
     exercise_mail_from_name: exercise.exercise_mail_from_name ?? '',
     exercise_mails_reply_to: exercise.exercise_mails_reply_to ?? [],
@@ -59,13 +67,14 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
     exercise_message_footer: exercise.exercise_message_footer ?? '',
     exercise_custom_dashboard: exercise.exercise_custom_dashboard ?? '',
     apply_tag_rule: false,
+    exercise_lessons_enabled: exercise.exercise_lessons_enabled ?? false,
   };
 
   // Edit
   const [openEdit, setOpenEdit] = useState(false);
   const handleOpenEdit = () => setOpenEdit(true);
   const handleCloseEdit = () => setOpenEdit(false);
-  const [exerciseFormData, setExerciseFormData] = useState<UpdateExerciseInput>(initialValues);
+  const [exerciseFormData, setExerciseFormData] = useState<ExerciseUpdateFormInput>(initialValues);
 
   // Delete
   const [openDelete, setOpenDelete] = useState(false);
@@ -99,25 +108,23 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   const handleOpenExport = () => setOpenExport(true);
   const handleCloseExport = () => setOpenExport(false);
 
-  // Reports
-  const [openReports, setOpenReports] = useState(false);
-  const handleOpenReports = () => setOpenReports(true);
-  const handleCloseReports = () => setOpenReports(false);
-
   // apply rule dialog
   const [openApplyRule, setOpenApplyRule] = useState(false);
   const handleOpenApplyRule = () => setOpenApplyRule(true);
   const handleCloseApplyRule = () => setOpenApplyRule(false);
 
-  const submitExport = (withPlayers: boolean, withTeams: boolean, withVariableValues: boolean) => {
+  const submitExport = (withPlayers: boolean, withTeams: boolean, withVariableValues: boolean, withScopeDefinition: boolean) => {
     const link = document.createElement('a');
-    link.href = `/api/exercises/${exercise.exercise_id}/export?isWithTeams=${withTeams}&isWithPlayers=${withPlayers}&isWithVariableValues=${withVariableValues}`;
+    link.href = buildTenantApiPath(`/api/exercises/${exercise.exercise_id}/export?isWithTeams=${withTeams}&isWithPlayers=${withPlayers}&isWithVariableValues=${withVariableValues}&isWithScopeDefinition=${withScopeDefinition}`);
     link.click();
     handleCloseExport();
   };
 
-  // Button Popover
-  const entries = [];
+  // Button Popover. Setup actions (leadingEntries) come first, then the
+  // lifecycle CRUD actions - a divider on the first CRUD entry keeps the two
+  // groups visually distinct inside the single overflow menu.
+  const entries: PopoverEntry[] = [...leadingEntries];
+  const crudStartIndex = entries.length;
   if (actions.includes('Update')) entries.push({
     label: 'Update',
     action: () => handleOpenEdit(),
@@ -134,22 +141,28 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
     action: () => handleOpenExport(),
     userRight: true,
   });
-  if (actions.includes('Access reports')) entries.push({
-    label: 'Access reports',
-    action: () => handleOpenReports(),
-    userRight: true,
-  });
   if (actions.includes('Delete')) entries.push({
     label: 'Delete',
     action: () => handleOpenDelete(),
     userRight: permissions.canManage,
   });
+  // Separate the setup group from the CRUD group when both are present. The
+  // divider goes on the first CRUD entry the user can actually see (hidden
+  // entries are filtered out by ButtonPopover).
+  const firstVisibleCrudIndex = entries.findIndex((entry, index) => index >= crudStartIndex && entry.userRight);
+  if (crudStartIndex > 0 && firstVisibleCrudIndex !== -1) {
+    entries[firstVisibleCrudIndex] = {
+      ...entries[firstVisibleCrudIndex],
+      dividerBefore: true,
+    };
+  }
 
-  const submitExerciseUpdate = (data: UpdateExerciseInput) => {
+  const submitExerciseUpdate = (data: ExerciseUpdateFormInput) => {
     const input = {
       exercise_name: data.exercise_name,
       exercise_subtitle: data.exercise_subtitle,
       exercise_severity: data.exercise_severity,
+      exercise_default_kill_chain: data.exercise_default_kill_chain,
       exercise_category: data.exercise_category,
       exercise_description: data.exercise_description,
       exercise_main_focus: data.exercise_main_focus,
@@ -161,7 +174,18 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
       exercise_custom_dashboard: data.exercise_custom_dashboard,
       apply_tag_rule: data.apply_tag_rule,
     };
-    return dispatch(updateExercise(exercise.exercise_id, input)).then(() => handleCloseEdit());
+    // The lessons learned module flag lives behind its own endpoint (partial
+    // update) so external API consumers of the general update can never
+    // accidentally reset it. Sequential on purpose: the general update saves
+    // the whole entity, so a concurrent lessons update could be overwritten.
+    return dispatch(updateExercise(exercise.exercise_id, input))
+      .then(() => {
+        const lessonsEnabled = data.exercise_lessons_enabled ?? false;
+        return lessonsEnabled !== (exercise.exercise_lessons_enabled ?? false)
+          ? dispatch(updateExerciseLessons(exercise.exercise_id, { lessons_enabled: lessonsEnabled }))
+          : Promise.resolve();
+      })
+      .then(() => handleCloseEdit());
   };
 
   const handleTagRuleChoice = (shouldApply: boolean) => {
@@ -170,7 +194,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
     handleCloseApplyRule();
   };
 
-  const onSubmit = (data: UpdateExerciseInput) => {
+  const onSubmit = (data: ExerciseUpdateFormInput) => {
     setExerciseFormData(data);
     // before updating the exercise we are checking if tag rules could apply
     // -> if yes we ask the user to apply or not apply the rules at the update
@@ -186,7 +210,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
   };
   return (
     <>
-      <ButtonPopover entries={entries} variant={inList ? 'icon' : 'toggle'} />
+      {(actions.length > 0 || leadingEntries.length > 0) && <ButtonPopover entries={entries} variant={inList ? 'icon' : 'toggle'} />}
       <Drawer
         open={openEdit}
         handleClose={handleCloseEdit}
@@ -198,6 +222,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
           disabled={permissions.readOnly}
           handleClose={handleCloseEdit}
           edit
+          isChaining={!!(exercise as unknown as { exercise_workflow_id?: string }).exercise_workflow_id}
         />
 
       </Drawer>
@@ -207,14 +232,6 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
         handleApplyRule={() => handleTagRuleChoice(true)}
         handleDontApplyRule={() => handleTagRuleChoice(false)}
       />
-      <Drawer
-        open={openReports}
-        containerStyle={{ padding: '0px' }}
-        handleClose={handleCloseReports}
-        title={t('Reports')}
-      >
-        <ExerciseReports exerciseId={exercise.exercise_id} exerciseName={exercise.exercise_name} />
-      </Drawer>
       <DialogDuplicate
         open={openDuplicate}
         handleClose={handleCloseDuplicate}
@@ -224,6 +241,7 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
       <ExportOptionsDialog
         title={t('Export the simulation')}
         open={openExport}
+        isChaining={!!(exercise as unknown as Record<string, unknown>).exercise_workflow_id}
         onCancel={handleCloseExport}
         onClose={handleCloseExport}
         onSubmit={submitExport}
@@ -233,6 +251,15 @@ const ExercisePopover: FunctionComponent<ExercisePopoverProps> = ({
         handleClose={handleCloseDelete}
         handleSubmit={submitDelete}
         text={`${t('Do you want to delete this simulation:')} ${exercise.exercise_name} ?`}
+        extraContent={
+          (exercise.exercise_status === 'RUNNING' || exercise.exercise_status === 'PAUSED')
+            ? (
+                <Alert severity="warning" sx={{ mt: 2 }}>
+                  {t('Deleting a running simulation will stop its execution.')}
+                </Alert>
+              )
+            : undefined
+        }
       />
     </>
   );

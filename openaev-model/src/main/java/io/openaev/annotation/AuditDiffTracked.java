@@ -1,5 +1,6 @@
 package io.openaev.annotation;
 
+import io.openaev.database.audit.AuditLogContext;
 import java.lang.annotation.*;
 
 /**
@@ -10,7 +11,7 @@ import java.lang.annotation.*;
  * <ul>
  *   <li>Capture a JSON snapshot of the entity at {@code @PostLoad} time (the "before" state).
  *   <li>Compute a field-level diff at {@code @PreUpdate} time and record it in {@link
- *       io.openaev.database.audit.EntityDiffContext}.
+ *       AuditLogContext}.
  * </ul>
  *
  * <p>The diff context is consumed by the audit aspect ({@code AccessControlAuditLogAspect})

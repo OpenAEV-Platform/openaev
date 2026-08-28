@@ -1,77 +1,71 @@
-import { Grid } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useState } from 'react';
-import { useOutletContext } from 'react-router';
+import { type SyntheticEvent, useMemo, useState } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type CatalogConnectorOutput } from '../../../../utils/api-types';
-import ConnectorCard from '../common/ConnectorCard';
+import { isFeatureEnabled } from '../../../../utils/utils';
+import DeployButton from '../common/DeployButton';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
-import CatalogFilters from './CatalogFilters';
-import { type CatalogContextType } from './CatalogLayout';
+import { type ConnectorItem, fromCatalogConnector } from './catalog-facets';
+import ConnectorMarketplace from './ConnectorMarketplace';
 
-const Catalog = () => {
-  // Standard hooks
-  const theme = useTheme();
+interface Props {
+  catalogConnectors: CatalogConnectorOutput[];
+  isXtmComposerUp: boolean;
+}
+
+/**
+ * The "Available" tab of the integrations page: the full connector catalog as
+ * a faceted marketplace, with the deploy flow on every card.
+ */
+const Catalog = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   const { t } = useFormatter();
-  const { catalogConnectors, isXtmComposerUp } = useOutletContext<CatalogContextType>();
-  const [filteredConnectors, setFilteredConnectors] = useState<CatalogConnectorOutput[]>(catalogConnectors);
+  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+
+  const visibleCatalogConnectors = useMemo(
+    () => (isCredentialAssetEnabled
+      ? catalogConnectors
+      : catalogConnectors.filter(connector => connector.catalog_connector_type !== 'SECRETS_PROVIDER')),
+    [catalogConnectors, isCredentialAssetEnabled],
+  );
+
+  const items = useMemo(() => visibleCatalogConnectors.map(fromCatalogConnector), [visibleCatalogConnectors]);
+  const connectorsById = useMemo(
+    () => new Map(visibleCatalogConnectors.map(connector => [connector.catalog_connector_id, connector])),
+    [visibleCatalogConnectors],
+  );
 
   const [selectedConnector, setSelectedConnector] = useState<CatalogConnectorOutput>();
   const [openCreateConnectorInstanceDrawer, setOpenCreateConnectorInstanceDrawer] = useState(false);
-  const onOpenCreateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(true);
-  const onCloseCreateConnectorInstanceDrawer = () => setOpenCreateConnectorInstanceDrawer(false);
 
-  const onDeployBtnClick = (e: SyntheticEvent, catalogConnector: CatalogConnectorOutput) => {
+  const onDeployBtnClick = (e: SyntheticEvent, item: ConnectorItem) => {
     e.preventDefault();
     e.stopPropagation();
-    setSelectedConnector(catalogConnector);
-    onOpenCreateConnectorInstanceDrawer();
+    setSelectedConnector(connectorsById.get(item.id));
+    setOpenCreateConnectorInstanceDrawer(true);
   };
 
   return (
-    <div style={{
-      display: 'grid',
-      gap: theme.spacing(2),
-    }}
-    >
-      <CatalogFilters
-        connectors={catalogConnectors}
-        onFiltered={setFilteredConnectors}
+    <>
+      <ConnectorMarketplace
+        items={items}
+        renderFooterAction={item => (
+          <DeployButton
+            onDeployBtnClick={e => onDeployBtnClick(e, item)}
+            deploymentCount={item.deployedCount}
+          />
+        )}
       />
-      <Grid container={true} spacing={3}>
-        {filteredConnectors.map((connector: CatalogConnectorOutput) => {
-          return (
-            <Grid key={connector.catalog_connector_id} size={{ xs: 4 }}>
-              <ConnectorCard
-                connector={{
-                  connectorName: connector.catalog_connector_title,
-                  connectorType: connector.catalog_connector_type,
-                  connectorLogoName: `connector-logo-${connector.catalog_connector_id}`,
-                  connectorLogoUrl: `/api/images/catalog/connectors/logos/${connector.catalog_connector_logo_url}`,
-                  connectorDescription: connector.catalog_connector_short_description,
-                  isExternal: connector.catalog_connector_manager_supported,
-                  isVerified: true,
-                  connectorUseCases: connector.catalog_connector_use_cases,
-                  connectorInstancesCount: connector.instance_deployed_count,
-                }}
-                cardActionUrl={`/admin/integrations/catalog/${connector.catalog_connector_id}`}
-                onDeployBtnClick={e => onDeployBtnClick(e, connector)}
-              />
-            </Grid>
-          );
-        })}
-      </Grid>
       <CreateConnectorInstanceDrawer
         open={openCreateConnectorInstanceDrawer}
         catalogConnectorId={selectedConnector ? selectedConnector.catalog_connector_id : ''}
         catalogConnectorSlug={selectedConnector ? selectedConnector.catalog_connector_slug : ''}
-        onClose={onCloseCreateConnectorInstanceDrawer}
+        connectorTitle={selectedConnector?.catalog_connector_title}
+        onClose={() => setOpenCreateConnectorInstanceDrawer(false)}
         connectorType={selectedConnector?.catalog_connector_type}
         disabled={!isXtmComposerUp && selectedConnector?.catalog_connector_manager_supported}
         disabledMessage={t('Deployment of this {catalogType} requires the installation of our Integration Manager.', { catalogType: selectedConnector ? selectedConnector.catalog_connector_type.toLowerCase() : '' })}
       />
-    </div>
+    </>
   );
 };
 

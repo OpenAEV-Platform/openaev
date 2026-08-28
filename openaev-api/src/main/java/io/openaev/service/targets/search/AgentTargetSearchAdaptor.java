@@ -7,11 +7,13 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.service.targets.search.specifications.SearchSpecificationUtils;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.criteria.JoinType;
 import java.util.List;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
@@ -42,6 +44,25 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
   @Override
   public Page<InjectTarget> search(SearchPaginationInput input, Inject scopedInject) {
 
+    // Agents only take part in injects whose contract runs through an executor (payloads).
+    // For executor-less contracts (Nuclei, Nmap, HTTP...) no agent is ever involved in the
+    // execution, so listing the targeted assets' agents would only show empty targets - hide
+    // the Agents tab entirely by returning an empty page. A contract belonging to a
+    // payloads-type injector always runs through agents, even when its needs-executor flag
+    // was never populated (legacy rows).
+    boolean needsExecutor =
+        scopedInject
+            .getInjectorContract()
+            .map(
+                contract ->
+                    contract.getNeedsExecutorEffective()
+                        || contract.getInjectors().stream().anyMatch(Injector::isPayloads))
+            // No resolvable contract (uninstalled connector): keep the legacy behavior.
+            .orElse(true);
+    if (!needsExecutor) {
+      return Page.empty(PageRequest.of(input.getPage(), input.getSize()));
+    }
+
     Specification<Agent> memberOfAssetGroupSpec =
         specificationUtils.compileSpecificationForAssetGroupMembership(
             scopedInject, input, joinPath);
@@ -54,6 +75,9 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
 
     Specification<Agent> tagsSpec = specificationUtils.compileSpecificationForTags(input, joinPath);
 
+    Specification<Agent> hasExecutorSpec =
+        (root, query, cb) -> cb.isNotNull(root.join("executor", JoinType.LEFT).get("id"));
+
     SearchPaginationInput translatedInput = this.translate(input, scopedInject);
 
     Page<Agent> eps =
@@ -64,24 +88,23 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
                 if (tagsSpec != null) {
                   finalSpec = tagsSpec.and(finalSpec);
                 }
-                return this.agentRepository.findAll(finalSpec, pageable);
+                return this.agentRepository.findAll(finalSpec.and(hasExecutorSpec), pageable);
               }
               Specification<Agent> finalSpec =
                   memberOfAssetGroupSpec.or(specification.and(memberOfAnyTargetGroupSpec));
               if (tagsSpec != null) {
                 finalSpec = tagsSpec.or(finalSpec);
               }
-              return this.agentRepository.findAll(finalSpec, pageable);
+              return this.agentRepository.findAll(finalSpec.and(hasExecutorSpec), pageable);
             },
             translatedInput,
             Agent.class);
 
-    return new PageImpl<>(
+    var content =
         eps.getContent().stream()
             .map(endpoint -> convertFromAgent(endpoint, scopedInject))
-            .toList(),
-        eps.getPageable(),
-        eps.getTotalElements());
+            .toList();
+    return new PageImpl<>(content, eps.getPageable(), eps.getTotalElements());
   }
 
   @Override
@@ -107,7 +130,7 @@ public class AgentTargetSearchAdaptor extends SearchAdaptorBase {
                 agent.getExecutedByUser(),
                 Set.of(),
                 agent.getAsset().getId(),
-                agent.getExecutor().getType()),
+                agent.getExecutor() != null ? agent.getExecutor().getType() : null),
         true);
   }
 }

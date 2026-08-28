@@ -10,6 +10,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.JpaUtils.arrayAggOnId;
 import static io.openaev.utils.StringUtils.duplicateString;
 import static io.openaev.utils.constants.Constants.ARTICLES;
+import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilderWithNullHandling;
 import static java.time.Duration.between;
 import static java.time.Instant.now;
@@ -23,6 +24,8 @@ import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.database.audit.IndexEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawInjectExpectationIndexing;
@@ -31,14 +34,18 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.LessonsAnswerSpecification;
 import io.openaev.database.specification.LessonsCategorySpecification;
 import io.openaev.database.specification.LessonsQuestionSpecification;
+import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.ChainingOperationNotSupportedException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.form.ExerciseBulkProcessingInput;
 import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.exercise.form.ExercisesGlobalScoresInput;
 import io.openaev.rest.exercise.response.ExercisesGlobalScoresOutput;
@@ -46,12 +53,13 @@ import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.service.ScenarioStatisticService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
+import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
@@ -78,15 +86,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
@@ -120,6 +131,7 @@ public class ExerciseService {
   private final InjectExpectationRepository injectExpectationRepository;
   private final ArticleRepository articleRepository;
   private final ExerciseRepository exerciseRepository;
+  private final BulkDeleteExecutor bulkDeleteExecutor;
   private final InjectStatusRepository injectStatusRepository;
   private final PauseRepository pauseRepository;
   private final LessonsQuestionRepository lessonsQuestionRepository;
@@ -137,7 +149,6 @@ public class ExerciseService {
   private final ScenarioRecurrenceService scenarioRecurrenceService;
 
   private final WorkflowService workflowService;
-  private final PreviewFeatureService previewFeatureService;
 
   private final PauseExerciseService pauseExerciseService;
   private final FileService fileService;
@@ -145,6 +156,13 @@ public class ExerciseService {
   private final StepService stepService;
 
   private final HealthCheckUtils healthCheckUtils;
+
+  private final ApplicationEventPublisher eventPublisher;
+
+  private final AttackPathExecutionIngestionService attackPathExecutionService;
+
+  private final io.openaev.database.repository.autonomous.AutonomousRunRepository
+      autonomousRunRepository;
 
   // region properties
   @Value("${openaev.mail.imap.enabled}")
@@ -187,8 +205,6 @@ public class ExerciseService {
   @Transactional(rollbackFor = Exception.class)
   public Exercise createSimulationChaining(@NotNull final Exercise simulation)
       throws ChainingException {
-
-    workflowService.isPreviewFeatureChainingEnable();
 
     Exercise savedSimulation = createExercise(simulation);
     workflowService.creationWorkflow(savedSimulation);
@@ -267,6 +283,7 @@ public class ExerciseService {
     exerciseDuplicate.setHeader(exerciseOrigin.getHeader());
     exerciseDuplicate.setMainFocus(exerciseOrigin.getMainFocus());
     exerciseDuplicate.setSeverity(exerciseOrigin.getSeverity());
+    exerciseDuplicate.setDefaultKillChain(exerciseOrigin.getDefaultKillChain());
     exerciseDuplicate.setSubtitle(exerciseOrigin.getSubtitle());
     exerciseDuplicate.setLogoDark(exerciseOrigin.getLogoDark());
     exerciseDuplicate.setLogoLight(exerciseOrigin.getLogoLight());
@@ -552,12 +569,84 @@ public class ExerciseService {
    *
    * @param simulationId ID of the simulation to delete
    */
+  @Transactional(rollbackFor = Exception.class)
   public void deleteById(String simulationId) {
     existsByIdAndTenantId(simulationId);
+    // Attack-path rows have no FK to the simulation, so the native exercise delete does not cascade
+    // them: clear them explicitly under the caller's tenant (same primitive as the reset path),
+    // otherwise a deleted simulation leaves orphan attack-path executions and findings behind.
+    attackPathExecutionService.deleteAllBySimulationId(
+        simulationId, TenantContext.getCurrentTenant());
     exerciseRepository.deleteById(simulationId);
+    // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
+    // must be notified explicitly or the simulation (and its cascade-deleted injects,
+    // expectations, findings...) would remain in the indexes forever.
+    eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, simulationId));
     log.info("Simulation {} deleted by user {}", simulationId, currentUser().getId());
   }
 
+  /**
+   * Bulk delete of simulations, either from an explicit list of ids or from a search input
+   * (select-all with optional exclusions). Only simulations the user is allowed to manage are
+   * deleted.
+   *
+   * <p>Deliberately NOT transactional as a whole: the scope is resolved in a short read
+   * transaction, then simulations are deleted in small independent chunks (with deadlock retry). A
+   * single all-encompassing transaction holds row locks on {@code exercises} for its whole duration
+   * and deadlocks against concurrent inject expectation updates.
+   *
+   * @param input the bulk processing input (ids or search input, plus ids to ignore)
+   * @return the list of deleted simulation ids
+   */
+  public List<String> bulkDelete(@NotNull final ExerciseBulkProcessingInput input) {
+    if ((CollectionUtils.isEmpty(input.getExerciseIdsToProcess())
+            && input.getSearchPaginationInput() == null)
+        || (!CollectionUtils.isEmpty(input.getExerciseIdsToProcess())
+            && input.getSearchPaginationInput() != null)) {
+      throw new BadRequestException(
+          "Either exercise_ids_to_process or search_pagination_input must be provided, and not both at the same time");
+    }
+    User user = userService.currentUser();
+    List<String> exerciseIdsToDelete =
+        bulkDeleteExecutor.resolveInTransaction(
+            () -> {
+              Specification<Exercise> specification;
+              if (input.getSearchPaginationInput() != null) {
+                // Same specification chain as the list search (filter group + text search), so the
+                // deletion scope matches exactly what the user sees in the list.
+                specification =
+                    FilterUtilsJpa.<Exercise>computeFilterGroupJpa(
+                            input.getSearchPaginationInput().getFilterGroup())
+                        .and(computeSearchJpa(input.getSearchPaginationInput().getTextSearch()));
+              } else {
+                specification = SpecificationUtils.hasIdIn(input.getExerciseIdsToProcess());
+              }
+              if (!CollectionUtils.isEmpty(input.getExerciseIdsToIgnore())) {
+                List<String> idsToIgnore = input.getExerciseIdsToIgnore();
+                specification =
+                    specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
+              }
+              // Restrict to simulations the user is granted to plan on (no-op for admins and users
+              // with the delete capability)
+              specification =
+                  specification.and(
+                      SpecificationUtils.hasGrantAccess(
+                          user.getId(),
+                          user.isAdminOrBypass(),
+                          user.getCapabilities().contains(Capability.DELETE_ASSESSMENT),
+                          Grant.GRANT_TYPE.PLANNER));
+              return exerciseRepository.findAll(specification).stream()
+                  .map(Exercise::getId)
+                  .toList();
+            });
+    return bulkDeleteExecutor.deleteInChunks(
+        "simulations", exerciseIdsToDelete, chunk -> chunk.forEach(this::deleteById));
+  }
+
+  // Still declares ChainingException: startWorkflowBySimulationId (chaining engine start)
+  // propagates that checked exception. The pause refusal no longer travels through it - it is now
+  // the unchecked ChainingOperationNotSupportedException, mapped to a 400 by RestBehavior instead
+  // of bubbling up unhandled as a 500.
   @Transactional(rollbackFor = Exception.class)
   public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId)
       throws ChainingException {
@@ -572,8 +661,7 @@ public class ExerciseService {
     boolean isCloseState =
         ExerciseStatus.CANCELED.equals(exercise.getStatus())
             || ExerciseStatus.FINISHED.equals(exercise.getStatus());
-    if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-        && workflowService.isSimulationChaining(exercise.getId())) {
+    if (workflowService.isSimulationChaining(exercise.getId())) {
       if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
           && ExerciseStatus.RUNNING.equals(status)) {
         workflowService.startWorkflowBySimulationId(exercise.getId());
@@ -616,15 +704,33 @@ public class ExerciseService {
       entityManager.clear();
       // Reload exercise after clearing entity manager to avoid detached entity issues
       exercise = this.exercise(exerciseId);
-      // Delete exercise transient files (communications, ...)
-      fileService.deleteDirectory(exerciseId);
-      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-          && workflowService.isSimulationChaining(exercise.getId())) {
+      // Delete exercise transient files (communications, ...) AFTER commit: this is an external
+      // MinIO/S3 call. Running it inside the transaction pinned the DB connection and every row
+      // lock taken by the deletes above for the whole duration of the object-storage roundtrips,
+      // which starved the Hikari pool platform-wide when storage was slow (simulation reset
+      // outage). Also avoids deleting files if the transaction ends up rolling back.
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              try {
+                fileService.deleteDirectory(exerciseId);
+              } catch (Exception e) {
+                log.error("Failed to delete directory for exercise {}", exerciseId, e);
+              }
+            }
+          });
+      if (workflowService.isSimulationChaining(exercise.getId())) {
         // DELETE workflow states
         workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
         // DELETE injects
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
+        // Delete attack path execution
+        this.attackPathExecutionService.deleteAllBySimulationId(
+            exercise.getId(), exercise.getTenant().getId());
+        // Clean scope rules of the simulation
+        workflowService.cleanScopeRulesSimulation(exercise.getId());
       }
       urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }
@@ -640,11 +746,10 @@ public class ExerciseService {
     // we log the pause date to be able to recompute inject dates.
     if (ExerciseStatus.PAUSED.equals(exercise.getStatus())
         && ExerciseStatus.RUNNING.equals(status)) {
-      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-          && workflowService.isSimulationChaining(exercise.getId())) {
-        throw new ChainingException(
-            "Pausing a chained simulation is not allowed yet, please contact support");
-      }
+      // Resume is deliberately NOT blocked for a chained simulation (issue #307): only pausing is
+      // unsupported by the queue-based chaining engine. A chained simulation already sitting in
+      // PAUSED (created before that block, or from a historical state) must remain resumable -
+      // the UI keeps offering its Resume button - otherwise it would be stuck forever.
       Instant lastPause = exercise.getCurrentPause().orElseThrow(ElementNotFoundException::new);
       exercise.setCurrentPause(null);
       Pause pause = new Pause();
@@ -656,9 +761,13 @@ public class ExerciseService {
     // If pause is asked, just set the pause date.
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.PAUSED.equals(status)) {
-      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)
-          && workflowService.isSimulationChaining(exercise.getId())) {
-        throw new ChainingException(
+      // Pausing a chained simulation is unsupported (issue #307): the chaining engine is
+      // queue-based and has no pause semantics. Autonomous (AI-driven) runs need first-class
+      // steering though, so the block is lifted for them: the orchestrator relies on being able
+      // to pause and resume the underlying chained simulation.
+      if (workflowService.isSimulationChaining(exercise.getId())
+          && !autonomousRunRepository.existsBySimulationId(exercise.getId())) {
+        throw new ChainingOperationNotSupportedException(
             "Pausing a chained simulation is not allowed yet, please contact support");
       }
       exercise.setCurrentPause(Instant.now());
@@ -667,23 +776,25 @@ public class ExerciseService {
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.CANCELED.equals(status)) {
       exercise.setEnd(now());
-      if (previewFeatureService.isFeatureEnabled(PreviewFeature.INJECT_CHAINING)) {
-        // End WORKFLOW + STEP + delete injects + delete workflow states
-        List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
-        if (!run.isEmpty()) {
-          List<Step> stepsToUpdate = new ArrayList<>();
-          run.forEach(
-              workflow -> {
-                workflow.setStatus(WorkflowStatus.END);
-                List<Step> steps = stepService.findAllStepExecutedByWorkflowRunId(workflow.getId());
-                steps.forEach(step -> step.setStatus(StepStatus.END));
-                stepsToUpdate.addAll(steps);
-              });
-          stepService.saveSteps(stepsToUpdate);
-          workflowService.saveAll(run);
-          workflowService.deleteWorkflowStatesBySimulationId(exercise.getId());
-          List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
-          this.injectRepository.deleteAll(injects);
+      // End WORKFLOW + STEP + delete workflow states
+      List<Workflow> run = workflowService.findWorkflowRunBySimulationId(exercise.getId());
+      if (!run.isEmpty()) {
+        workflowService.cancelSimulationEndWorkflowRun(run);
+
+        // Stopping is not resetting: it ends the run and keeps its record. A manual chained
+        // simulation used to drop ALL its injects here, which emptied the Execution screen while
+        // the attack path (whose rows are only cleared on reset) still showed the same run - the
+        // simulation looked half-erased. Clearing the executed record is the explicit Reset
+        // action's job (RUNNING/FINISHED -> SCHEDULED above), not a side effect of stopping.
+        //
+        // An autonomous (AI-driven) run additionally drops the injects the orchestrator had
+        // queued but never started: they are where the duplicate-inject storms pile up, and a
+        // never-started inject is not part of the deliverable.
+        if (autonomousRunRepository.existsBySimulationId(exercise.getId())) {
+          this.injectRepository.deleteAll(
+              this.injectRepository.findByExerciseId(exerciseId).stream()
+                  .filter(Inject::isNotExecuted)
+                  .toList());
         }
       }
     }
@@ -844,6 +955,7 @@ public class ExerciseService {
     selections.add(exerciseRoot.get("start").alias("exercise_start_date"));
     selections.add(exerciseRoot.get("end").alias("exercise_end_date"));
     selections.add(exerciseRoot.get("updatedAt").alias("exercise_updated_at"));
+    selections.add(exerciseRoot.get("autonomous").alias("exercise_autonomous"));
     selections.add(tagIdsExpression.alias("exercise_tags"));
     selections.add(injectIdsExpression.alias("exercise_injects"));
 
@@ -878,6 +990,8 @@ public class ExerciseService {
                   new HashSet<>(Arrays.asList(tuple.get("exercise_tags", String[].class))));
               exerciseSimple.setInjectIds(tuple.get("exercise_injects", String[].class));
               exerciseSimple.setWorkflowId(tuple.get("exercise_workflow_id", String.class));
+              exerciseSimple.setAutonomous(
+                  Boolean.TRUE.equals(tuple.get("exercise_autonomous", Boolean.class)));
               return exerciseSimple;
             })
         .toList();
@@ -939,8 +1053,17 @@ public class ExerciseService {
         getTeamsOrAssetsOrAssetGroupsByExerciseIds(
             assetGroupRepository.assetGroupsByExerciseIds(exerciseIds));
 
+    // AI and manual targets are content references (not JPA relations): resolved separately so
+    // the simulation list "Target" column also surfaces AI-target and manual-target injects.
+    ExerciseMapper.ContentTargetsByExerciseIds contentTargets =
+        exerciseMapper.contentTargetsByExerciseIds(exerciseIds);
+
     return new MappingsByExerciseIds(
-        teamsByExerciseIds, assetsByExerciseIds, assetGroupByExerciseIds);
+        teamsByExerciseIds,
+        assetsByExerciseIds,
+        assetGroupByExerciseIds,
+        contentTargets.aiTargets(),
+        contentTargets.manualTargets());
   }
 
   private Map<String, List<Object[]>> getTeamsOrAssetsOrAssetGroupsByExerciseIds(
@@ -957,7 +1080,9 @@ public class ExerciseService {
   private record MappingsByExerciseIds(
       Map<String, List<Object[]>> teamsByExerciseIds,
       Map<String, List<Object[]>> assetsByExerciseIds,
-      Map<String, List<Object[]>> assetGroupsByExerciseIds) {}
+      Map<String, List<Object[]>> assetGroupsByExerciseIds,
+      Map<String, List<Object[]>> aiTargetsByExerciseIds,
+      Map<String, List<Object[]>> manualTargetsByExerciseIds) {}
 
   private Map<String, List<RawInjectExpectationIndexing>> getExpectationsByExerciseId(
       Set<String> exerciseIds) {
@@ -990,6 +1115,12 @@ public class ExerciseService {
                     exercise,
                     mappingsByExerciseIds.assetGroupsByExerciseIds,
                     TargetType.ASSETS_GROUPS)
+                    .stream(),
+                getTargets(
+                    exercise, mappingsByExerciseIds.aiTargetsByExerciseIds, TargetType.AI_TARGETS)
+                    .stream(),
+                getTargets(
+                    exercise, mappingsByExerciseIds.manualTargetsByExerciseIds, TargetType.MANUAL)
                     .stream())
             .flatMap(Function.identity())
             .toList();
@@ -1035,6 +1166,10 @@ public class ExerciseService {
     this.injectService.removeTeamsForSimulation(exerciseId, teamIds);
     // Remove all association between lessons learned and teams
     this.lessonsService.removeTeamsForSimulation(exerciseId, teamIds);
+    // The join-table deletes above are native queries that bypass JPA timestamps: bump the
+    // exercise and its injects so the incremental indexer refreshes the denormalized team sides.
+    this.exerciseRepository.touchUpdatedAt(exerciseId);
+    this.injectRepository.touchUpdatedAtByExerciseId(exerciseId);
     return teamService.find(fromIds(teamIds));
   }
 
@@ -1054,6 +1189,10 @@ public class ExerciseService {
       this.injectRepository.removeTeamsForExercise(exerciseId, removedTeamIdsList);
       this.lessonsCategoryRepository.removeTeamsForExercise(exerciseId, removedTeamIdsList);
     }
+    // Team changes alter the denormalized inject_teams of the exercise's injects (including
+    // all-teams injects, derived from exercises_teams): bump the injects so the incremental
+    // indexer refreshes them (the native join-table mutations bypass JPA timestamps).
+    this.injectRepository.touchUpdatedAtByExerciseId(exerciseId);
 
     // Replace teams from exercise
     List<Team> teams = fromIterable(this.teamRepository.findAllById(targetTeamIds));
@@ -1100,6 +1239,36 @@ public class ExerciseService {
           this.exerciseTeamUserRepository.save(exerciseTeamUser);
         });
     return exercise;
+  }
+
+  /**
+   * Enables, on the given simulation, the members of every targeted team so a human-in-the-loop
+   * inject (email, SMS, credential harvesting, ...) can actually reach them. Delegates to {@link
+   * ExerciseTeamUserService#enableTargetedTeamMembers(String, List)} - the repository-only owner of
+   * this logic - so the chaining execution path can reuse it without a Spring bean cycle.
+   *
+   * @param simulationId the simulation whose audience must carry the targeted teams' players
+   * @param teamIds the ids of the teams targeted by a chained/authored step
+   */
+  public void enableTargetedTeamMembers(String simulationId, List<String> teamIds) {
+    this.exerciseTeamUserService.enableTargetedTeamMembers(simulationId, teamIds);
+  }
+
+  /**
+   * Transaction-isolated variant of {@link #enableTargetedTeamMembers} for the autonomous
+   * orchestrator's scope callback. Runs in its OWN transaction ({@link Propagation#REQUIRES_NEW})
+   * so that a repository-level failure while enabling players (e.g. the check-then-insert on {@code
+   * exercise_teams_users} racing a concurrent callback, or a team deleted mid-flight) rolls back
+   * only this enablement and can NEVER mark the caller's transaction rollback-only - a poisoned
+   * callback transaction would fail its commit and lose the run's recorded scope, which is exactly
+   * the failure class the scope callback must not have. Only for callers whose simulation already
+   * exists in committed state (the callback path); creation flows must keep using {@link
+   * #enableTargetedTeamMembers}, which joins the surrounding transaction and therefore sees a
+   * simulation created in it. See {@code AutonomousRunService#setRunScope}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+  public void enableTargetedTeamMembersIsolated(String simulationId, List<String> teamIds) {
+    this.exerciseTeamUserService.enableTargetedTeamMembers(simulationId, teamIds);
   }
 
   /**
@@ -1169,9 +1338,9 @@ public class ExerciseService {
       }
 
       // we ignore if one of the 2 expectation is still PENDING
-      if (InjectExpectation.EXPECTATION_STATUS.PENDING.equals(
+      if (BaseInjectExpectation.EXPECTATION_STATUS.PENDING.equals(
               lastSimulationResultsByType.avgResult())
-          || InjectExpectation.EXPECTATION_STATUS.PENDING.equals(
+          || BaseInjectExpectation.EXPECTATION_STATUS.PENDING.equals(
               secondLastSimulationResultsByType.avgResult())) {
         continue;
       }

@@ -1,0 +1,126 @@
+# Breaking changes and migrations
+
+This section lists breaking changes introduced in OpenAEV, per version starting with the latest.
+
+Please follow the migration guides if you need to upgrade your platform.
+
+## Breakdown per version
+
+This table regroups all the breaking changes introduced, with the corresponding version in which the change was
+implemented.
+
+| Change                                                        | Deprecated in | Changed in |
+|:--------------------------------------------------------------|:--------------|:-----------|
+| [OpenCTI / OpenAEV compatibility](#octi-oaev-compatibility)   | -             | 2.2.0      |
+| [OpenAEV encryption of secret](#openaev-encryption)           | -             | 2.1.0      |
+| [OpenAEV renaming](#openaev-renaming)                         | 1.18.20       | 2.0.0      |
+| [OpenAEV CSRF (Cross-Site Request Forgery)](#openaev-csrf)     | -             | 2.3.4      |
+| [URL access token enforcement](#url-access-token-enforcement) | -             | 2.260622.0 |
+| [Injector contract expectation format](#injector-contract-expectation-format) | -             | \[MigrationVersion\]        |
+| [Tenant users, groups and roles capabilities](#tenant-users-groups-and-roles-capabilities) | -             | \[MigrationVersion\]        |
+
+## OpenAEV 2.2.0
+
+### Introduction
+
+<a id="octi-oaev-compatibility"></a>
+
+#### Scenario generation from OpenCTI security coverage
+
+In **OpenAEV 2.2.0**, the interconnection between OpenCTI and OpenAEV requires matching major versions:
+
+- **OpenAEV 2.2.0** only works with **OpenCTI V7**
+- **OpenCTI V7** only works with **OpenAEV 2.2.0**
+
+Due to API and interconnection changes introduced in OpenCTI V7, previous versions of OpenCTI are not compatible
+with OpenAEV 2.2.0, and conversely, OpenCTI V7 is not compatible with earlier versions of OpenAEV.
+
+!!! success "Resolved in OpenAEV 2.2.1"
+
+    Backwards compatibility with older OpenCTI versions has been restored starting from **OpenAEV 2.2.1**. This breaking change only affects **OpenAEV 2.2.0**.
+
+If you are upgrading to OpenAEV 2.2.0, please make sure to upgrade both OpenCTI and OpenAEV simultaneously to avoid service disruption.
+
+For more details, see [this migration guide](breaking-changes/2.2.0-opencti-security-coverage.md)
+
+## OpenAEV 2.1.0
+
+### Introduction
+
+<a id="openaev-encryption"></a>
+#### OpenAEV encryption
+
+With the introduction of the OpenAEV catalog, built-in connectors now store their configuration in the database. To
+ensure security, secrets and passwords within these configurations must be encrypted. This requires two new mandatory
+properties to be configured.
+
+For more details, see [this migration guide](breaking-changes/2.1.0-encrypting-password.md)
+
+## OpenAEV 2.0.0
+
+### Deprecation
+
+<a id="openaev-renaming"></a>
+
+#### OpenAEV renaming
+
+Following the evolution of scope in OpenBAS (Open Breach & Attack Simulation), it was decided to rename the project to
+OpenAEV (Open Adversarial Exposure Validation).
+
+This platform allows you to entirely create custom attack scenarios to emulate on endpoints. You can even create your
+own automated tabletop crisis simulation.
+
+All those changes require manual modifications to upgrade from previous versions of OpenBAS, even if a lot have been
+automated.
+
+Take note that the first startup can be longer, all modifications have to be applied, and it can take a bit longer than
+usual.
+
+For more details, see [this migration guide](breaking-changes/2.0.0-openaev-renaming.md)
+
+## OpenAEV 2.3.4
+
+### Introduction
+
+<a id="openaev-csrf"></a>
+
+#### OpenAEV CSRF protection for frontend API calls
+
+Starting with **OpenAEV 2.3.4**, frontend-initiated API calls must include a valid CSRF token.  
+To prevent API authentication and connection issues, make sure all ecosystem components are upgraded to versions compatible with OpenAEV 2.3.4.
+
+For more details, see [this migration guide](breaking-changes/2.3.4-csrf-token-enforcement.md)
+
+## OpenAEV 2.260622.0
+
+### Introduction
+
+<a id="url-access-token-enforcement"></a>
+
+#### URL access token enforcement for email links
+
+Starting with **OpenAEV 2.260622.0**, OpenAEV no longer accepts legacy email links based on `userId` and `user` query parameters for player access flows.
+
+OpenAEV now requires token-based links using `/url/access?token=<raw-token>`, followed by a secure cookie and redirect flow.
+
+For more details, see [this migration guide](breaking-changes/2.260622.0-url-access-token-enforcement.md)
+
+## OpenAEV \[MigrationVersion\]
+
+### Introduction
+
+<a id="injector-contract-expectation-format"></a>
+
+#### Injector contract expectation format
+
+Starting with **OpenAEV \[MigrationVersion\]**, the `predefinedExpectations` list in `injector_contract_content` has been removed. All expectations are now under a single `availableExpectations` list, each with an `expectation_is_predefined` flag.
+
+For more details, see [this migration guide](breaking-changes/MigrationVersion-injector-contract-expectation-format.md)
+
+<a id="tenant-users-groups-and-roles-capabilities"></a>
+
+#### Tenant users, groups and roles capabilities
+
+Starting with **OpenAEV \[MigrationVersion\]**, managing a tenant's users, groups and roles is governed by its own *Access / Manage / Delete tenant users, groups and roles* capabilities, instead of the *tenant settings* ones which also cover collectors, injectors and tag rules. Existing roles are migrated automatically and keep the access they had.
+
+For more details, see [this migration guide](breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md)

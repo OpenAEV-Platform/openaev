@@ -17,6 +17,7 @@ import {
 } from '../../../../utils/api-types';
 import { type ContractType, type EnhancedContractElement } from '../../../../utils/api-types-custom';
 import InjectContentFieldComponent from '../../common/injects/form/InjectContentFieldComponent';
+import { CONNECTOR_NAME_KEYS } from './useConnectorInstance';
 
 interface Props {
   catalogConnectorSlug: string;
@@ -49,6 +50,9 @@ const ConnectorInstanceForm = ({
       }
       if (formatFromConf === 'EMAIL') {
         return z.string().email(t('Must be a valid email'));
+      }
+      if (formatFromConf === 'UUID') {
+        return z.string().uuid(t('Must be a valid UUID'));
       }
 
       switch (typeFromConf) {
@@ -130,7 +134,11 @@ const ConnectorInstanceForm = ({
   };
 
   const formatKeyToLabel = (key: string): string => {
+    // Keys are SCREAMING_SNAKE_CASE (e.g. EXECUTOR_TANIUM_API_URL); lowercase first
+    // so an already-uppercase key becomes proper Title Case ("Executor Tanium Api Url")
+    // instead of staying all-caps.
     return key
+      .toLowerCase()
       .replace(/_/g, ' ')
       .replace(/\b\w/g, char => char.toUpperCase());
   };
@@ -215,7 +223,7 @@ const ConnectorInstanceForm = ({
     }> = [];
 
     configurationFields.forEach((field, index) => {
-      if (['COLLECTOR_NAME', 'INJECTOR_NAME', 'EXECUTOR_NAME'].includes(field.configuration_key)) {
+      if (CONNECTOR_NAME_KEYS.includes(field.configuration_key)) {
         nameFieldIndex = index;
         return;
       }
@@ -251,17 +259,21 @@ const ConnectorInstanceForm = ({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '100%',
           gap: theme.spacing(2),
         }}
         id="connectorInstanceForm"
         onSubmit={handleSubmitWithoutDefault}
       >
+        {/* The display name is a regular catalog configuration (COLLECTOR_NAME /
+            INJECTOR_NAME / EXECUTOR_NAME): the update endpoint merges it like any
+            other config and the Integration Manager redeploys the container with
+            the new name, so it is editable - it was only ever disabled by
+            accident in the original composer feature. */}
         <TextFieldController
           name={`connector_instance_configurations.${nameFieldIndex}.configuration_value`}
           label={t('Display name')}
           required
-          disabled={disabled || isEditing}
+          disabled={disabled}
         />
         <TextField id="catalog-connector-slug" label={t('Instance name')} disabled defaultValue={catalogConnectorSlug} />
         {requiredFields.map(({ index, field, definition }) => (
@@ -333,27 +345,30 @@ const ConnectorInstanceForm = ({
           </>
         )}
 
+        {/* In-flow action buttons right after the form content, like every
+            other drawer form in the app (no bottom-pinned footer). */}
         <div style={{
-          marginTop: 'auto',
           display: 'flex',
-          flexDirection: 'row-reverse',
+          justifyContent: 'flex-end',
           gap: theme.spacing(1),
+          marginTop: theme.spacing(1),
         }}
         >
           <Button
-            variant="contained"
-            color="secondary"
-            type="submit"
-            disabled={isSubmitting || disabled}
-          >
-            {t(getActionLabel())}
-          </Button>
-          <Button
-            variant="contained"
+            variant="outlined"
+            color="primary"
             onClick={onClose}
             disabled={isSubmitting}
           >
             {t('Cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            type="submit"
+            disabled={isSubmitting || disabled}
+          >
+            {t(getActionLabel())}
           </Button>
         </div>
       </form>

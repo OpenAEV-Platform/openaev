@@ -8,7 +8,7 @@ import Chart from '../../../../../components/Chart';
 import Empty from '../../../../../components/Empty';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
-import { type Exercise, type InjectExpectation } from '../../../../../utils/api-types';
+import { type Exercise, type InjectExpectationOutput } from '../../../../../utils/api-types';
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
@@ -21,24 +21,24 @@ const ExerciseDistributionByInjectorContract: FunctionComponent<Props> = ({ exer
   // Fetching data
   const { injectsMap, injectExpectations }: {
     injectsMap: Record<string, InjectStore>;
-    injectExpectations: InjectExpectation[];
+    injectExpectations: InjectExpectationOutput[];
   } = useHelper((helper: InjectHelper) => ({
     injectsMap: helper.getInjectsMap(),
     injectExpectations: helper.getExerciseInjectExpectations(exerciseId),
   }));
 
   const sortedInjectorContractsByTotalScore = R.pipe(
-    R.filter((n: InjectExpectation) => !R.isEmpty(n.inject_expectation_results)),
-    R.map((n: InjectExpectation) => R.assoc(
+    R.filter((n: InjectExpectationOutput) => !R.isEmpty(n.inject_expectation_results)),
+    R.map((n: InjectExpectationOutput) => R.assoc(
       'inject_expectation_inject',
       injectsMap[n.inject_expectation_inject ?? ''] || {},
       n,
     )),
     R.groupBy(R.path(['inject_expectation_inject', 'inject_type'])),
     R.toPairs,
-    R.map((n: [string, InjectExpectation[]]) => ({
+    R.map((n: [string, InjectExpectationOutput[]]) => ({
       inject_type: n[0],
-      inject_total_score: R.sum(R.map((o: InjectExpectation) => o.inject_expectation_score ?? 0, n[1])),
+      inject_total_score: R.sum(R.map((o: InjectExpectationOutput) => o.inject_expectation_score ?? 0, n[1])),
     })),
     R.sortWith([R.descend(R.prop('inject_total_score'))]),
     R.take(10),

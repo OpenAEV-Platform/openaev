@@ -1,13 +1,12 @@
-import { Add, GroupsOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton } from '@mui/material';
+import { AddOutlined, GroupsOutlined } from '@mui/icons-material';
+import { Button } from '@mui/material';
 import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
 
 import { findTeams } from '../../../../actions/teams/team-actions';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
-import SelectList, { type SelectListElements } from '../../../../components/common/SelectList';
-import Transition from '../../../../components/common/Transition';
+import SelectListPicker, { type SelectListPickerElements } from '../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import { type Team, type TeamOutput } from '../../../../utils/api-types';
@@ -27,7 +26,7 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
   const [teamValues, setTeamValues] = useState<TeamOutput[]>([]);
   const [selectedTeamValues, setSelectedTeamValues] = useState<TeamOutput[]>([]);
 
-  // Dialog
+  // Drawer
   const [open, setOpen] = useState(false);
 
   const handleClose = () => {
@@ -46,22 +45,31 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
     }
   }, [open, addedTeamIds]);
 
-  // Pagination
-  const addTeam = (_teamId: string, team: TeamOutput) => setSelectedTeamValues([...selectedTeamValues, team]);
-  const removeTeam = (teamId: string) => setSelectedTeamValues(selectedTeamValues.filter(v => v.team_id !== teamId));
+  const selectedIds = useMemo(() => selectedTeamValues.map(v => v.team_id), [selectedTeamValues]);
+
+  const toggleTeam = (teamId: string, team: TeamOutput) => {
+    if (selectedIds.includes(teamId)) {
+      setSelectedTeamValues(selectedTeamValues.filter(v => v.team_id !== teamId));
+    } else {
+      setSelectedTeamValues([...selectedTeamValues, team]);
+    }
+  };
 
   // Headers
-  const elements: SelectListElements<TeamOutput> = useMemo(() => ({
+  const elements: SelectListPickerElements<TeamOutput> = useMemo(() => ({
     icon: { value: () => <GroupsOutlined /> },
     headers: [
       {
         field: 'team_name',
+        label: 'Name',
+        isSortable: true,
         value: (team: TeamOutput) => team.team_name,
         width: 70,
       },
       {
         field: 'team_tags',
-        value: (team: TeamOutput) => <ItemTags variant="reduced-view" tags={team.team_tags} />,
+        label: 'Tags',
+        value: (team: TeamOutput) => <ItemTags variant="list" limit={2} tags={team.team_tags} />,
         width: 30,
       },
     ],
@@ -86,63 +94,38 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
 
   return (
     <>
-      <IconButton
+      <Button
+        variant="contained"
         color="primary"
-        aria-label="Add"
-        onClick={() => setOpen(true)}
         size="small"
+        startIcon={<AddOutlined />}
+        onClick={() => setOpen(true)}
       >
-        <Add fontSize="small" />
-      </IconButton>
-      <Dialog
+        {t('Add team')}
+      </Button>
+      <SelectListPicker<TeamOutput>
         open={open}
-        slots={{ transition: Transition }}
         onClose={handleClose}
-        fullWidth
-        maxWidth="lg"
-        slotProps={{
-          paper: {
-            elevation: 1,
-            sx: {
-              minHeight: 580,
-              maxHeight: 580,
-            },
-          },
-        }}
-      >
-        <DialogTitle>{t('Update teams')}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ marginTop: 2 }} data-testid="select-team-list">
-            <SelectList
-              values={teamValues}
-              selectedValues={selectedTeamValues}
-              isLoadingValues={isLoading}
-              elements={elements}
-              onSelect={addTeam}
-              onDelete={removeTeam}
-              paginationComponent={paginationComponent}
-              buttonComponent={(
-                <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
-                  <CreateTeam
-                    inline
-                    onCreate={team => setSelectedTeamValues([...selectedTeamValues, team as TeamOutput])}
-                  />
-                </Can>
-              )}
-              getId={element => element.team_id}
-              getName={element => element.team_name}
+        onSubmit={handleSubmit}
+        title={t('Update teams')}
+        headerComponent={paginationComponent}
+        values={teamValues}
+        elements={elements}
+        sortHelpers={queryableHelpers.sortHelpers}
+        selectedIds={selectedIds}
+        onToggle={toggleTeam}
+        getId={element => element.team_id}
+        isLoading={isLoading}
+        containerTestId="select-team-list"
+        buttonComponent={(
+          <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
+            <CreateTeam
+              inline
+              onCreate={team => setSelectedTeamValues([...selectedTeamValues, team as TeamOutput])}
             />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>{t('Cancel')}</Button>
-          {!isLoading && (
-            <Button color="secondary" onClick={handleSubmit}>
-              {t('Update')}
-            </Button>
-          )}
-        </DialogActions>
-      </Dialog>
+          </Can>
+        )}
+      />
     </>
   );
 };

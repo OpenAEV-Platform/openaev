@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutput;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
 import static io.openaev.utils.challenge.ChallengeAttemptUtils.buildChallengeAttempt;
@@ -15,10 +16,12 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.rest.challenge.form.ChallengeTryInput;
+import io.openaev.rest.challenge.form.FlagInput;
 import io.openaev.rest.challenge.response.ChallengeInformation;
 import io.openaev.rest.challenge.response.ChallengeResult;
 import io.openaev.rest.challenge.response.SimulationChallengesReader;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.service.challenge.ChallengeAttemptService;
 import jakarta.annotation.Resource;
@@ -26,14 +29,19 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChallengeService {
+
+  public static final String INVALID_REGEXP_MESSAGE = "Invalid regular expression";
 
   private final ExerciseRepository exerciseRepository;
   private final ChallengeRepository challengeRepository;
@@ -84,6 +92,30 @@ public class ChallengeService {
     return resolveChallenges(injects).toList();
   }
 
+  /**
+   * Validate that every REGEXP flag holds a compilable regular expression.
+   *
+   * @param flags the flag inputs submitted at challenge creation or update
+   * @throws InputValidationException when a REGEXP flag value is not a valid pattern
+   */
+  public void validateFlags(List<FlagInput> flags) throws InputValidationException {
+    for (FlagInput flag : flags) {
+      if (ChallengeFlag.FLAG_TYPE.REGEXP.name().equals(flag.getType())) {
+        // Bean Validation does not cascade into the flag list elements, so the value may be null
+        String pattern = flag.getValue();
+        if (pattern == null) {
+          continue;
+        }
+        try {
+          Pattern.compile(pattern);
+        } catch (PatternSyntaxException e) {
+          // Stable message (no raw pattern): the frontend translates it and the 400 stays small
+          throw new InputValidationException("challenge_flags", INVALID_REGEXP_MESSAGE);
+        }
+      }
+    }
+  }
+
   public ChallengeResult tryChallenge(String challengeId, ChallengeTryInput input) {
     Challenge challenge =
         challengeRepository
@@ -101,15 +133,15 @@ public class ChallengeService {
     Exercise exercise =
         exerciseRepository.findById(exerciseId).orElseThrow(ElementNotFoundException::new);
     SimulationChallengesReader reader = new SimulationChallengesReader(exercise);
-    List<InjectExpectation> challengeExpectations =
+    List<ChallengeInjectExpectation> challengeExpectations =
         injectExpectationRepository.findChallengeExpectationsByExerciseAndUser(
             exerciseId, user.getId());
 
     // Filter expectations by unique challenge
     Set<String> seenChallenges = new HashSet<>();
-    List<InjectExpectation> distinctExpectations = new ArrayList<>();
+    List<ChallengeInjectExpectation> distinctExpectations = new ArrayList<>();
 
-    for (InjectExpectation expectation : challengeExpectations) {
+    for (ChallengeInjectExpectation expectation : challengeExpectations) {
       String challengeId = expectation.getChallenge().getId();
       if (!seenChallenges.contains(challengeId)) {
         seenChallenges.add(challengeId);
@@ -136,7 +168,7 @@ public class ChallengeService {
                           .getChallengeAttempt(challengeAttemptId)
                           .orElse(buildChallengeAttempt(challengeAttemptId));
                   return new ChallengeInformation(
-                      challenge, injectExpectation, challengeAttempt.getAttempt());
+                      challenge, toOutput(injectExpectation), challengeAttempt.getAttempt());
                 })
             .sorted(Comparator.comparing(o -> o.getChallenge().getVirtualPublication()))
             .toList();
@@ -149,7 +181,7 @@ public class ChallengeService {
     ChallengeResult challengeResult = tryChallenge(challengeId, input);
     if (challengeResult.isResult()) {
       // Success: Find and update the user's expectations and challenge attempt
-      List<InjectExpectation> playerExpectations =
+      List<ChallengeInjectExpectation> playerExpectations =
           injectExpectationRepository.findByUserAndExerciseAndChallenge(
               user.getId(), exerciseId, challengeId);
       playerExpectations.forEach(
@@ -179,7 +211,7 @@ public class ChallengeService {
           });
     } else {
       // Failure: Find and update the user's challenge attempt
-      List<InjectExpectation> playerExpectations =
+      List<ChallengeInjectExpectation> playerExpectations =
           injectExpectationRepository.findByUserAndExerciseAndChallenge(
               user.getId(), exerciseId, challengeId);
       List<String> injectStatusIds =
@@ -191,10 +223,10 @@ public class ChallengeService {
                           .orElseThrow(() -> new ElementNotFoundException("Status should exist"))
                           .getId())
               .toList();
-      Map<ChallengeAttemptId, InjectExpectation> expectationMap = new HashMap<>();
+      Map<ChallengeAttemptId, ChallengeInjectExpectation> expectationMap = new HashMap<>();
       List<ChallengeAttemptId> challengeAttemptIds = new ArrayList<>();
       for (int i = 0; i < playerExpectations.size(); i++) {
-        InjectExpectation expectation = playerExpectations.get(i);
+        ChallengeInjectExpectation expectation = playerExpectations.get(i);
         String injectStatusId = injectStatusIds.get(i);
         ChallengeAttemptId challengeAttemptId =
             buildChallengeAttemptID(challengeId, injectStatusId, user.getId());
@@ -206,7 +238,7 @@ public class ChallengeService {
       List<ChallengeAttempt> attemptsToSave = new ArrayList<>();
       Map<String, ExpectationUpdateInput> expectationsToUpdate = new HashMap<>();
       for (ChallengeAttemptId id : challengeAttemptIds) {
-        InjectExpectation expectation = expectationMap.get(id);
+        ChallengeInjectExpectation expectation = expectationMap.get(id);
         ChallengeAttempt attempt =
             challengeAttempts.stream()
                 .filter(ca -> ca.getCompositeId().equals(id))
@@ -264,7 +296,20 @@ public class ChallengeService {
         return value.equals(flag.getValue());
       }
       case REGEXP -> {
-        return Pattern.compile(flag.getValue()).matcher(value).matches();
+        // Defensive: bad stored data (pre-validation or imported) must not break answering
+        if (flag.getValue() == null) {
+          log.warn("Ignoring REGEXP challenge flag with null pattern (flag {})", flag.getId());
+          return false;
+        }
+        try {
+          return Pattern.compile(flag.getValue()).matcher(value).matches();
+        } catch (PatternSyntaxException e) {
+          log.warn(
+              "Ignoring invalid REGEXP challenge flag pattern (flag {}): {}",
+              flag.getId(),
+              flag.getValue());
+          return false;
+        }
       }
       default -> {
         return false;

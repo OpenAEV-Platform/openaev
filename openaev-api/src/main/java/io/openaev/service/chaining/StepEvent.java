@@ -29,9 +29,22 @@ public class StepEvent implements Queueable {
   @JsonProperty("step_id")
   private String stepId;
 
+  /**
+   * The tenant this event's work belongs to. Carried on the event so the consumer can restore the
+   * tenant context the producer thread had (the chaining worker sets none). Null on
+   * legacy/in-flight messages (pre-#6357); the consumer falls back rather than failing (#6357).
+   */
+  @JsonProperty("tenant_id")
+  private String tenantId;
+
   /** The timestamp when this event was emitted, in milliseconds since epoch. */
   @JsonProperty("event_emission_date")
   private long emissionDate;
+
+  /** Number of times this event has been re-queued after a transactional failure. */
+  @JsonProperty("retry_count")
+  @Builder.Default
+  private int retryCount = 0;
 
   /**
    * Compares this step event to another object for equality based on ID.

@@ -100,7 +100,16 @@ public class OpenSearchService implements EngineService {
     String target = ofNullable(parameters.getOrDefault(value, value)).orElse("");
     PropertySchema propertyField = commonSearchService.getIndexingSchema().get(field);
     if (propertyField == null) {
-      throw new AnalyticsEngineException("Unknown field: " + field);
+      // A base field such as base_representative is a searchable analyzed-text string (see
+      // BASE_FIELDS / queryFromSearch) but carries no @Queryable annotation, so it is absent from
+      // the indexing schema. Treat its value as a string instead of failing, so filtering on it
+      // (e.g. the asset expectation list search box) works. Any other unknown field stays a hard
+      // error.
+      if (!BASE_FIELDS.contains(field)) {
+        throw new AnalyticsEngineException("Unknown field: " + field);
+      }
+      builder.stringValue(target);
+      return builder.build();
     }
     if (propertyField.getType().isAssignableFrom(String.class)
         || (propertyField.getType().isAssignableFrom(Set.class)
@@ -185,7 +194,7 @@ public class OpenSearchService implements EngineService {
                 .map(
                     v -> {
                       FieldValue val = toVal(field, v, parameters);
-                      if (propertyField.isKeyword()) {
+                      if (propertyField != null && propertyField.isKeyword()) {
                         // Champ keyword : wildcard
                         return WildcardQuery.of(
                                 w ->
@@ -212,7 +221,7 @@ public class OpenSearchService implements EngineService {
                 .map(
                     v -> {
                       FieldValue val = toVal(field, v, parameters);
-                      if (propertyField.isKeyword()) {
+                      if (propertyField != null && propertyField.isKeyword()) {
                         return WildcardQuery.of(
                                 w -> w.field(elasticField).value("*" + val.stringValue() + "*"))
                             .toQuery();
@@ -222,6 +231,28 @@ public class OpenSearchService implements EngineService {
                     })
                 .toList();
         boolQuery.mustNot(notContainsQueries);
+        break;
+      case gt:
+      case gte:
+      case lt:
+      case lte:
+        // Single-bound date comparisons: the filter UI only offers these operators
+        // for "instant" properties (e.g. the drill-down "created at" chip). Values
+        // are ISO dates, so toVal() is bypassed on purpose - it has no Instant case.
+        if (hasFilteringValues) {
+          List<Query> compareQueries =
+              filter.getValues().stream()
+                  .map(
+                      v ->
+                          buildDateCompareQuery(
+                              elasticField, operator, parameters.getOrDefault(v, v)))
+                  .toList();
+          if (filterMode == Filters.FilterMode.and) {
+            boolQuery.must(compareQueries);
+          } else {
+            boolQuery.should(compareQueries).minimumShouldMatch("1");
+          }
+        }
         break;
       case empty:
         boolQuery
@@ -380,7 +411,7 @@ public class OpenSearchService implements EngineService {
     try {
       SearchResponse<EsBase> response =
           openSearchClient.search(
-              b -> b.index(engineConfig.getIndexPrefix() + "*").size(ids.size()).query(query),
+              b -> b.index(engineConfig.getIndexPattern()).size(ids.size()).query(query),
               EsBase.class);
       List<Hit<EsBase>> hits = response.hits().hits();
       return hits.stream()
@@ -408,8 +439,17 @@ public class OpenSearchService implements EngineService {
                   String index = model.getIndex(engineConfig);
                   Instant fetchInstant =
                       indexingStatus.map(IndexingStatus::getLastIndexing).orElse(null);
+                  long fetchStart = System.currentTimeMillis();
                   List<? extends EsBase> results =
                       handler.fetch(fetchInstant, engineConfig.getIndexingBatchSize());
+                  long fetchMs = System.currentTimeMillis() - fetchStart;
+                  if (fetchMs > 1000) {
+                    log.warn(
+                        "Slow fetch for model {} ({}ms, from={})",
+                        model.getName(),
+                        fetchMs,
+                        fetchInstant);
+                  }
                   if (!results.isEmpty()) {
                     // Create bulk for the data
                     BulkRequest.Builder br = new BulkRequest.Builder();
@@ -427,23 +467,87 @@ public class OpenSearchService implements EngineService {
                       BulkResponse result = openSearchClient.bulk(bulkRequest);
                       // Log errors, if any
                       if (result.errors()) {
+                        long errorCount =
+                            result.items().stream().filter(item -> item.error() != null).count();
+                        boolean allPoison = true;
                         for (BulkResponseItem item : result.items()) {
                           if (item.error() != null) {
-                            log.error(item.error().reason());
+                            log.error(
+                                "Bulk item error for model {} id={}: {}",
+                                model.getName(),
+                                item.id(),
+                                item.error().reason());
+                            allPoison =
+                                allPoison && EsIndexingUtils.isPoisonError(item.error().type());
                           }
                         }
-                      } else {
-                        // Update the status for the next round
-                        if (indexingStatus.isPresent()) {
-                          IndexingStatus status = indexingStatus.get();
-                          status.setLastIndexing(results.getLast().getBase_updated_at());
-                          return status;
-                        } else {
-                          IndexingStatus status = new IndexingStatus();
-                          status.setType(model.getName());
-                          status.setLastIndexing(results.getLast().getBase_updated_at());
-                          return status;
+                        // Deterministic document-level failures (mapping/parsing) would fail
+                        // identically forever: retrying blocks the whole model's indexing
+                        // (head-of-line). Skip them by advancing the cursor; they will be retried
+                        // naturally the next time their row is updated. Transient failures keep
+                        // the cursor so the batch is retried.
+                        if (!allPoison) {
+                          log.error(
+                              "Bulk indexing failed for model {} ({}/{} items with transient errors, cursor not advanced, from={})",
+                              model.getName(),
+                              errorCount,
+                              result.items().size(),
+                              fetchInstant);
+                          return null;
                         }
+                        log.error(
+                            "Bulk indexing skipped {} poison document(s) for model {} (deterministic mapping/parsing errors, cursor advanced, from={})",
+                            errorCount,
+                            model.getName(),
+                            fetchInstant);
+                      }
+                      // Update the status for the next round
+                      Instant newCursor =
+                          EsIndexingUtils.computeNewCursor(
+                              results, engineConfig.getIndexingBatchSize(), model.getName(), log);
+                      if (newCursor == null) {
+                        log.error(
+                            "Bulk indexing returned a null cursor for model {} (cursor not advanced, from={})",
+                            model.getName(),
+                            fetchInstant);
+                        return null;
+                      }
+                      if (fetchInstant != null && !newCursor.isAfter(fetchInstant)) {
+                        log.error(
+                            "Stuck cursor detected for model {} — cursor did not advance (from={}, last_row={}). "
+                                + "This indicates a query bug: ranked rows have sort_ts <= cursor.",
+                            model.getName(),
+                            fetchInstant,
+                            newCursor);
+                      }
+                      // Rows flushed by a still-open transaction commit later with an already-past
+                      // updated_at: persisting a cursor beyond those timestamps would skip them
+                      // forever (the fetch is strictly greater-than). Keep the cursor at least the
+                      // grace window behind wall-clock; recent rows are re-fetched and re-upserted
+                      // (idempotent) on every round until they age past the window.
+                      Instant persistedCursor =
+                          EsIndexingUtils.capCursorToGraceWindow(
+                              newCursor,
+                              Instant.now(),
+                              engineConfig.getIndexingGraceWindowSeconds());
+                      if (persistedCursor.equals(fetchInstant)) {
+                        // The cap lands exactly on the current cursor: persisting would be a
+                        // no-op, keep it and re-process those rows next round.
+                        return null;
+                      }
+                      // persistedCursor may be BEHIND fetchInstant when the stored cursor is
+                      // closer to wall-clock than the grace window allows (e.g. persisted before
+                      // the window existed): saving it deliberately moves the cursor backwards so
+                      // rows committing late inside the window are fetched again.
+                      if (indexingStatus.isPresent()) {
+                        IndexingStatus status = indexingStatus.get();
+                        status.setLastIndexing(persistedCursor);
+                        return status;
+                      } else {
+                        IndexingStatus status = new IndexingStatus();
+                        status.setType(model.getName());
+                        status.setLastIndexing(persistedCursor);
+                        return status;
                       }
                     } catch (IOException e) {
                       log.error(
@@ -465,6 +569,15 @@ public class OpenSearchService implements EngineService {
     if (ids == null || ids.isEmpty()) {
       return;
     }
+    // Batch internally: a bulk deletion cascade can journal thousands of ids in one flush, and
+    // both the terms clauses and the painless "valuesToRemove" params must stay bounded.
+    for (int start = 0; start < ids.size(); start += EngineService.BULK_DELETE_BATCH_SIZE) {
+      bulkDeleteBatch(
+          ids.subList(start, Math.min(start + EngineService.BULK_DELETE_BATCH_SIZE, ids.size())));
+    }
+  }
+
+  private void bulkDeleteBatch(List<String> ids) {
     try {
       List<FieldValue> values = ids.stream().map(FieldValue::of).toList();
       // Delete the direct document corresponding to the id
@@ -483,40 +596,101 @@ public class OpenSearchService implements EngineService {
           BoolQuery.of(b -> b.should(directId, dependenciesId).minimumShouldMatch("1")).toQuery();
       openSearchClient.deleteByQuery(
           new DeleteByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .query(query)
               .refresh(Refresh.True)
+              .conflicts(Conflicts.Proceed)
               .build());
-      // Delete the id in the attributes of the documents including the id
+      // Remove the deleted ids from the denormalized "base_XXX_side" attributes of the documents
+      // that reference them. The update-by-query MUST be scoped to those documents only: this
+      // runs synchronously after every entity delete (the HTTP response waits for it), and an
+      // unscoped request rewrites every document of every index - minutes on a production
+      // dataset (relaunching an atomic testing was observed blocking for over a minute).
+      Query sideReferences = sideReferencesQuery(values);
+      if (sideReferences == null) {
+        return;
+      }
       openSearchClient.updateByQuery(
           new UpdateByQueryRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
+              .query(sideReferences)
               .script(
                   Script.of(
                       s ->
                           s.inline(
                               InlineScript.of(
                                   is ->
-                                      is.source(
-                                              """
-                                                      // For each EsBase attribute of each document
-                                                      for (String key : ctx._source.keySet().toArray()) {
-                                                        // If it's a "base_XXX_side" (means String id or List of ids), remove all deleted ids from this field.
-                                                        if(key.startsWith("base_") && key.endsWith("_side") && ctx._source[key] != null) {
-                                                            if (ctx._source[key] instanceof List) {
-                                                                ctx._source[key].removeIf(item -> params.valuesToRemove.contains(item));
-                                                            } else if (ctx._source[key] instanceof String && params.valuesToRemove.contains(ctx._source[key])) {
-                                                                ctx._source.remove(key);
-                                                            }
-                                                        }
-                                                      }
-                                                    """)
+                                      is.source(ElasticService.SIDE_CLEANUP_SCRIPT)
                                           .params("valuesToRemove", JsonData.of(ids))))))
               .refresh(Refresh.True)
               .conflicts(Conflicts.Proceed)
               .build());
     } catch (IOException e) {
-      log.error(String.format("bulkDelete exception: %s", e.getMessage()), e);
+      // Propagate: callers decide resilience (the after-commit flush swallows and relies on the
+      // deletion journal + replay job; the replay job retries on its next pass).
+      throw new RuntimeException(
+          String.format("bulkDelete failed for %d id(s): %s", ids.size(), e.getMessage()), e);
+    }
+  }
+
+  /**
+   * Matches only the documents that reference one of the deleted ids in a denormalized {@code
+   * base_XXX_side} field, with one {@code terms} clause per concrete side field.
+   *
+   * <p>The field list comes from the indexed model classes instead of a {@code base_*_side.keyword}
+   * field wildcard on purpose: a {@code query_string} wildcard expands to (#ids x #fields) boolean
+   * clauses, which blows past the engine's {@code max_clause_count} on large deletion cascades
+   * (bulk scenario deletions were observed failing every shard with
+   * search_phase_execution_exception). A {@code terms} query is a single clause regardless of the
+   * number of ids.
+   *
+   * @return the scoped query, or {@code null} when no side field exists (nothing to clean)
+   */
+  private Query sideReferencesQuery(List<FieldValue> values) {
+    List<Query> perField =
+        commonSearchService.getSideFieldNames().stream()
+            .map(
+                field ->
+                    TermsQuery.of(
+                            t ->
+                                t.field(field + ".keyword")
+                                    .terms(TermsQueryField.of(tq -> tq.value(values))))
+                        .toQuery())
+            .toList();
+    if (perField.isEmpty()) {
+      return null;
+    }
+    return BoolQuery.of(b -> b.should(perField).minimumShouldMatch("1")).toQuery();
+  }
+
+  @Override
+  public void deleteByTenants(List<String> tenantIds) {
+    List<FieldValue> values =
+        tenantIds == null
+            ? List.of()
+            : tenantIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .map(FieldValue::of)
+                .toList();
+    if (values.isEmpty()) {
+      return;
+    }
+    try {
+      Query query =
+          TermsQuery.of(
+                  t ->
+                      t.field("base_tenant_side.keyword")
+                          .terms(TermsQueryField.of(tq -> tq.value(values))))
+              .toQuery();
+      openSearchClient.deleteByQuery(
+          new DeleteByQueryRequest.Builder()
+              .index(engineConfig.getIndexPattern())
+              .query(query)
+              .refresh(Refresh.True)
+              .conflicts(Conflicts.Proceed)
+              .build());
+    } catch (IOException e) {
+      log.error("deleteByTenants failed for tenants {}: {}", tenantIds, e.getMessage(), e);
     }
   }
 
@@ -542,7 +716,7 @@ public class OpenSearchService implements EngineService {
         Query query = new BoolQuery.Builder().must(countQuery).build().toQuery();
         long allTimeCount =
             openSearchClient
-                .count(c -> c.index(engineConfig.getIndexPrefix() + "*").query(query))
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(query))
                 .count();
         return new EsCountInterval(allTimeCount, 0L, allTimeCount);
       } else {
@@ -560,8 +734,7 @@ public class OpenSearchService implements EngineService {
                 .toQuery();
         long currentIntervalCount =
             openSearchClient
-                .count(
-                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(currentIntervalQuery))
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(currentIntervalQuery))
                 .count();
 
         // In our case, to avoid any gap, currentIntervalStart = previousIntervalEnd
@@ -578,8 +751,7 @@ public class OpenSearchService implements EngineService {
                 .toQuery();
         long previousIntervalCount =
             openSearchClient
-                .count(
-                    c -> c.index(engineConfig.getIndexPrefix() + "*").query(previousIntervalQuery))
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(previousIntervalQuery))
                 .count();
 
         return new EsCountInterval(
@@ -638,7 +810,7 @@ public class OpenSearchService implements EngineService {
 
       SearchRequest request =
           new SearchRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
+              .index(engineConfig.getIndexPattern())
               .size(0)
               .query(query)
               .aggregations(
@@ -742,10 +914,7 @@ public class OpenSearchService implements EngineService {
       String elasticField = toElasticField(field);
 
       SearchRequest.Builder searchBuilder =
-          new SearchRequest.Builder()
-              .index(engineConfig.getIndexPrefix() + "*")
-              .size(0)
-              .query(query);
+          new SearchRequest.Builder().index(engineConfig.getIndexPattern()).size(0).query(query);
 
       // Avoid this exception
       // co.elastic.clients.elasticsearch._types.ElasticsearchException: [es/search] failed:
@@ -906,7 +1075,7 @@ public class OpenSearchService implements EngineService {
       SearchResponse<Void> response =
           openSearchClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(0)
                       .query(query)
                       .aggregations(
@@ -998,11 +1167,14 @@ public class OpenSearchService implements EngineService {
       SearchResponse<?> response =
           openSearchClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(runtime.getPagination().getSize())
                       .from(runtime.getPagination().getPage() * runtime.getPagination().getSize())
                       .query(finalQuery)
-                      .sort(engineSorts),
+                      .sort(engineSorts)
+                      // By default the engine stops counting at 10,000 and reports it as a lower
+                      // bound, which froze the pagination total of large result sets at "10000".
+                      .trackTotalHits(tth -> tth.enabled(true)),
               getClassForEntity(entityName));
       long total = response.hits().total() != null ? response.hits().total().value() : 0;
       return new EsEntities(
@@ -1069,7 +1241,7 @@ public class OpenSearchService implements EngineService {
       SearchResponse<EsSearch> response =
           openSearchClient.search(
               b ->
-                  b.index(engineConfig.getIndexPrefix() + "*")
+                  b.index(engineConfig.getIndexPattern())
                       .size(engineConfig.getSearchCap())
                       .query(query)
                       .sort(
@@ -1136,6 +1308,16 @@ public class OpenSearchService implements EngineService {
    */
   private String toElasticField(@NotBlank final String field) {
     PropertySchema propertyField = commonSearchService.getIndexingSchema().get(field);
+    if (propertyField == null) {
+      // base_representative & co.: searchable analyzed-text base fields absent from the @Queryable
+      // indexing schema. They have no ".keyword" subfield, so target the raw text field instead of
+      // throwing a NullPointerException that 500s the whole search request. Other unknown fields
+      // stay a hard error.
+      if (!BASE_FIELDS.contains(field)) {
+        throw new AnalyticsEngineException("Unknown field: " + field);
+      }
+      return field;
+    }
     return propertyField.isKeyword() ? (field + ".keyword") : field;
   }
 }

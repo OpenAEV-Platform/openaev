@@ -58,7 +58,8 @@ class ThreatArsenalFormComponent {
     this.hostnameField = page.getByRole('textbox', { name: 'Hostname*' });
 
     // Actions
-    this.saveButton = page.getByRole('button', { name: 'Create' });
+    // Scoped to the action form: the list header hosts a "Create" button too.
+    this.saveButton = page.locator('#actionForm').getByRole('button', { name: 'Create' });
   }
 
   // -- Get Locator methods

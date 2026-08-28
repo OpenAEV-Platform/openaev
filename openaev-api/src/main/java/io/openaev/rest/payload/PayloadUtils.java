@@ -48,6 +48,49 @@ public class PayloadUtils {
       platforms[i] = Endpoint.PLATFORM_TYPE.valueOf(platformsNode.get(i).textValue());
     }
     payloadCreateInput.setPlatforms(platforms);
+    ArrayNode expectationsNode = safeArray(payloadNode, "payload_expectations");
+    BaseInjectExpectation.EXPECTATION_TYPE[] expectationTypes =
+        new BaseInjectExpectation.EXPECTATION_TYPE[expectationsNode.size()];
+    for (int i = 0; i < expectationsNode.size(); i++) {
+      expectationTypes[i] =
+          BaseInjectExpectation.EXPECTATION_TYPE.valueOf(expectationsNode.get(i).textValue());
+    }
+    payloadCreateInput.setExpectations(expectationTypes);
+
+    // Runtime fields present in exports that must survive a recreation: elevation controls
+    // privileged execution and the expected security platform map drives which collectors are
+    // pre-seeded for prevention/detection expectations.
+    if (payloadNode.has("payload_elevation_required")) {
+      payloadCreateInput.setElevationRequired(
+          payloadNode.get("payload_elevation_required").asBoolean(false));
+    }
+    JsonNode expectedPlatformsNode = payloadNode.get("payload_expected_security_platforms");
+    if (expectedPlatformsNode != null && expectedPlatformsNode.isObject()) {
+      Map<BaseInjectExpectation.EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
+          expectedSecurityPlatforms = new HashMap<>();
+      expectedPlatformsNode
+          .fields()
+          .forEachRemaining(
+              entry -> {
+                if (entry.getValue() == null || !entry.getValue().isArray()) {
+                  return;
+                }
+                List<SecurityPlatform.SECURITY_PLATFORM_TYPE> platformTypes = new ArrayList<>();
+                entry
+                    .getValue()
+                    .forEach(
+                        value -> {
+                          if (value != null && value.isTextual()) {
+                            platformTypes.add(
+                                SecurityPlatform.SECURITY_PLATFORM_TYPE.valueOf(value.asText()));
+                          }
+                        });
+                expectedSecurityPlatforms.put(
+                    BaseInjectExpectation.EXPECTATION_TYPE.valueOf(entry.getKey()), platformTypes);
+              });
+      payloadCreateInput.setExpectedSecurityPlatforms(expectedSecurityPlatforms);
+    }
+
     if (payloadNode.has("payload_description")) {
       payloadCreateInput.setDescription(payloadNode.get("payload_description").textValue());
     }
@@ -75,13 +118,14 @@ public class PayloadUtils {
     List<PayloadArgument> arguments = new ArrayList<>();
     for (JsonNode argumentNode : safeArray(payloadNode, "payload_arguments")) {
       PayloadArgument argument = new PayloadArgument();
-      argument.setType(ArgumentType.fromLabel(argumentNode.get("type").textValue()));
-      if (argumentNode.hasNonNull("subtype")) {
-        argument.setSubtype(ArgumentSubType.fromLabel(argumentNode.get("subtype").textValue()));
-      }
+      argument.setType(PrimitiveType.fromLabel(argumentNode.get("type").textValue()));
       argument.setKey(argumentNode.get("key").textValue());
       argument.setDefaultValue(argumentNode.get("default_value").textValue());
       argument.setDescription(argumentNode.get("description").textValue());
+      JsonNode separatorNode = argumentNode.get("separator");
+      if (separatorNode != null && !separatorNode.isNull()) {
+        argument.setSeparator(separatorNode.textValue());
+      }
       arguments.add(argument);
     }
     payloadCreateInput.setArguments(arguments);
@@ -163,6 +207,28 @@ public class PayloadUtils {
     duplicate.setGrants(grantCopies);
   }
 
+  /**
+   * Deduplicates payload arguments by key (first occurrence wins) and drops identical
+   * prerequisites. Some collectors (e.g. Atomic Red Team) historically sent the same argument
+   * several times, and each duplicate became a duplicated field in the generated injector contract.
+   */
+  private static void dedupeArgumentsAndPrerequisites(Payload target) {
+    if (target.getArguments() != null) {
+      Map<String, PayloadArgument> argumentsByKey = new LinkedHashMap<>();
+      target
+          .getArguments()
+          .forEach(argument -> argumentsByKey.putIfAbsent(argument.getKey(), argument));
+      target.setArguments(new ArrayList<>(argumentsByKey.values()));
+    } else {
+      target.setArguments(new ArrayList<>());
+    }
+    if (target.getPrerequisites() != null) {
+      target.setPrerequisites(new ArrayList<>(new LinkedHashSet<>(target.getPrerequisites())));
+    } else {
+      target.setPrerequisites(new ArrayList<>());
+    }
+  }
+
   public Payload copyProperties(PayloadCreateInput payloadInput, Payload target) {
     if (payloadInput == null) {
       throw new IllegalArgumentException("Input payload cannot be null");
@@ -176,6 +242,7 @@ public class PayloadUtils {
         "detectionRemediations",
         "domains");
 
+    dedupeArgumentsAndPrerequisites(target);
     outputParserService.copyOutputParsersFromInput(payloadInput.getOutputParsers(), target);
     detectionRemediationUtils.copy(payloadInput.getDetectionRemediations(), target, false);
     return target;
@@ -195,6 +262,7 @@ public class PayloadUtils {
         "detectionRemediations",
         "domains");
 
+    dedupeArgumentsAndPrerequisites(target);
     outputParserService.copyOutputParsersFromInput((payloadInput).getOutputParsers(), target);
     detectionRemediationUtils.copy((payloadInput).getDetectionRemediations(), target, true);
     return target;
@@ -217,6 +285,7 @@ public class PayloadUtils {
         "detectionRemediations",
         "domains");
 
+    dedupeArgumentsAndPrerequisites(target);
     outputParserService.copyOutputParsersFromInput(payloadInput.getOutputParsers(), target);
     detectionRemediationUtils.copy(payloadInput.getDetectionRemediations(), target, copyId);
     return target;

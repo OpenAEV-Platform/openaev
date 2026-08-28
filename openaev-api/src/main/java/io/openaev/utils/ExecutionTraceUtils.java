@@ -76,6 +76,30 @@ public class ExecutionTraceUtils {
         null);
   }
 
+  public static void addSimulationInterruptedTrace(InjectStatus status) {
+    status.addTrace(
+        ExecutionTraceStatus.INTERRUPTED,
+        "Inject stopped due to simulation interruption.",
+        ExecutionTraceAction.COMPLETE,
+        null);
+  }
+
+  /**
+   * Adds an agentless COMPLETE/TIMEOUT trace for an inject that has no agent to attribute a timeout
+   * to (network scanners such as Nuclei target assets without an agent). Without it, a
+   * stuck-PENDING agentless inject is finalized ERROR from an empty COMPLETE-trace list and the UI
+   * shows a red inject with no explanation beyond the initial "waiting to be consumed" trace.
+   */
+  public static void addAgentlessTimeoutTrace(InjectStatus status, int thresholdMinutes) {
+    status.addTrace(
+        ExecutionTraceStatus.TIMEOUT,
+        "The inject did not complete within the "
+            + thresholdMinutes
+            + " minutes threshold and was marked as timed out.",
+        ExecutionTraceAction.COMPLETE,
+        null);
+  }
+
   /**
    * Adds a START/INFO trace to the given inject status indicating that an implant was spawned by
    * the agent.

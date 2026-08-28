@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.NotImplementedException;
@@ -29,6 +31,7 @@ import org.springframework.stereotype.Service;
 @AllArgsConstructor
 @Service
 public class UserMappingService {
+  private static final ObjectMapper mapper = new ObjectMapper();
 
   private final GroupRepository groupRepository;
   private final TenantRepository tenantRepository;
@@ -38,51 +41,58 @@ public class UserMappingService {
 
   public void mapCurrentUserWithGroup(String property, User user, List<String> groupsFromToken) {
     List<GroupMapping> groupMappings = safeParseMappings(property);
+
     for (GroupMapping mapping : groupMappings) {
       String idpGroup = mapping.getIdpGroup();
       String userGroup = mapping.getUserGroup();
       boolean autoCreate = mapping.isAutoCreate();
-      for (String role : groupsFromToken) {
-        if (idpGroup.equals(role)) {
-          Optional<Group> groupOptional = groupRepository.findByName(userGroup);
-          if (groupOptional.isPresent()) {
-            List<Group> userGroups = user.getUnscopedGroups();
-            List<Group> existing =
-                userGroups.stream()
-                    .filter(userG -> userG.getName().equals(groupOptional.get().getName()))
-                    .toList();
-            if (existing.isEmpty()) {
-              userGroups.add(groupOptional.get());
-              user.setGroups(userGroups);
-            }
-          } else {
-            if (autoCreate) {
-              Group newGroup = new Group();
-              newGroup.setName(userGroup);
-              groupRepository.save(newGroup);
-              List<Group> userGroups = user.getUnscopedGroups();
-              userGroups.add(newGroup);
-              user.setGroups(userGroups);
-            } else {
-              log.error("Did not create new group");
-            }
+      if (groupsFromToken.contains(idpGroup)) {
+        Optional<Group> groupOptional = groupRepository.findByName(userGroup);
+        if (groupOptional.isPresent()) {
+          List<Group> userGroups = user.getUnscopedGroups();
+          boolean alreadyAssigned =
+              userGroups.stream()
+                  .anyMatch(userG -> userG.getName().equals(groupOptional.get().getName()));
+          if (!alreadyAssigned) {
+            userGroups.add(groupOptional.get());
+            user.setGroups(userGroups);
           }
-          attachTenantFromGroupMapping(mapping, user);
         } else {
-          log.error(String.format("No corresponding group found for group %s", role));
+          if (autoCreate) {
+            Group newGroup = new Group();
+            newGroup.setName(userGroup);
+            groupRepository.save(newGroup);
+            List<Group> userGroups = user.getUnscopedGroups();
+            userGroups.add(newGroup);
+            user.setGroups(userGroups);
+          } else {
+            log.error(
+                "Group '{}' not found in database and autoCreate is disabled for mapping '{}'",
+                userGroup,
+                idpGroup);
+          }
         }
+        attachTenantFromGroupMapping(mapping, user);
       }
 
-      // If the user has not this group in the groups from the token but he has the group in his
-      // current groups
-      if (groupsFromToken.stream().noneMatch(groupToken -> groupToken.equals(mapping.getIdpGroup()))
+      // If the user no longer has this group in the token but still has it assigned,
+      // remove it — the user was removed from the group in the identity provider
+      if (!groupsFromToken.contains(idpGroup)
           && user.getUnscopedGroups().stream()
               .anyMatch(groupOfUser -> groupOfUser.getName().equals(mapping.getUserGroup()))) {
-        // It means the user was removed from the group in the identity provider -> we remove it
-        // from its current groups
         List<Group> userGroups = user.getUnscopedGroups();
         userGroups.removeIf(group -> group.getName().equals(mapping.getUserGroup()));
         user.setGroups(userGroups);
+      }
+    }
+
+    // Log token groups that have no configured mapping — DEBUG level because this is
+    // expected behavior (users often belong to more IDP groups than are mapped)
+    Set<String> mappedIdpGroups =
+        groupMappings.stream().map(GroupMapping::getIdpGroup).collect(Collectors.toSet());
+    for (String tokenGroup : groupsFromToken) {
+      if (!mappedIdpGroups.contains(tokenGroup)) {
+        log.debug("Token group '{}' has no configured mapping — skipping", tokenGroup);
       }
     }
   }
@@ -91,7 +101,6 @@ public class UserMappingService {
     if (json == null || json.isBlank()) {
       return List.of();
     }
-    ObjectMapper mapper = new ObjectMapper();
     try {
       return mapper.readValue(json, new TypeReference<>() {});
     } catch (IOException e) {

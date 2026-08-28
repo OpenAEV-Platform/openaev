@@ -22,13 +22,14 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.context.TenantContext;
-import io.openaev.database.model.ArgumentType;
 import io.openaev.database.model.ContractOutputElement;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadPrerequisite;
+import io.openaev.database.model.PrimitiveType;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
@@ -73,6 +74,13 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
     openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     domainComposer.reset();
     injectorContractComposer.reset();
+    // The import endpoint resolves a single write tenant from the request scope (injectors /
+    // connector_instances v2 activation). The mock user from @WithMockUser has no tenant
+    // membership row, so without this grant the resolved scope is empty and tenantForWrite
+    // refuses the write with a 400. Skipped for tests that manage their own users.
+    if (testUserHolder.isSet()) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
   }
 
   @Nested
@@ -133,6 +141,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       String importedActionId = JsonPath.read(importResponse, "$.injector_contract_id");
       String importedPayloadId = JsonPath.read(importResponse, "$.action_payload.payload_id");
       Map<String, String> importedLabels = JsonPath.read(importResponse, "$.action_labels");
+      String importedInjectorType = JsonPath.read(importResponse, "$.action_injector_type");
       Payload importedPayload = payloadRepository.findById(importedPayloadId).orElseThrow();
 
       assertNotEquals(originalActionId, importedActionId);
@@ -140,7 +149,20 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       assertFalse(importedLabels.isEmpty());
       assertTrue(importedLabels.values().stream().allMatch(label -> label.endsWith(" (Import)")));
       assertTrue(payloadRepository.findById(importedPayloadId).isPresent());
-      assertTrue(injectorContractRepository.findById(importedActionId).isPresent());
+      InjectorContract importedContract =
+          injectorContractRepository.findById(importedActionId).orElseThrow();
+      // The injector links are not part of the export: the import must re-link the
+      // contract to the payload-supporting injectors, otherwise the action shows up
+      // as unregistered (update / duplicate / export disabled in the arsenal).
+      assertFalse(importedContract.getInjectors().isEmpty());
+      assertNotNull(importedInjectorType);
+      // The contract_id embedded in the contract content must be rewritten to the
+      // persisted contract id: the inject form posts that embedded id as
+      // inject_injector_contract, so a stale exported id 404s at launch (#6516).
+      JsonNode importedContent = objectMapper.readTree(importedContract.getContent());
+      assertEquals(
+          importedActionId,
+          importedContent.get(InjectorContract.CONTRACT_CONTENT_KEY_CONTRACT_ID).asText());
     }
   }
 
@@ -251,12 +273,12 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       // payload_arguments and payload_prerequisites must be typed objects,
       // matching the PayloadArgument / PayloadPrerequisite model schema.
       PayloadArgument argument1 = new PayloadArgument();
-      argument1.setType(ArgumentType.Text);
+      argument1.setType(PrimitiveType.Text);
       argument1.setKey("target_host");
       argument1.setDefaultValue("localhost");
 
       PayloadArgument argument2 = new PayloadArgument();
-      argument2.setType(ArgumentType.Text);
+      argument2.setType(PrimitiveType.Text);
       argument2.setKey("port");
       argument2.setDefaultValue("8080");
 
@@ -286,7 +308,7 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
 
       // Assert argument field values
       assertEquals(2, importedPayload.getArguments().size());
-      assertEquals(ArgumentType.Text, importedPayload.getArguments().get(0).getType());
+      assertEquals(PrimitiveType.Text, importedPayload.getArguments().get(0).getType());
       assertEquals("target_host", importedPayload.getArguments().get(0).getKey());
       assertEquals("localhost", importedPayload.getArguments().get(0).getDefaultValue());
       assertEquals("port", importedPayload.getArguments().get(1).getKey());
@@ -503,6 +525,99 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
           () ->
               mockMvc.perform(
                   multipart(THREAT_ARSENAL_URL + "/import").file(zipFile).with(csrf())));
+    }
+
+    @Nested
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Backward compatibility — old predefinedExpectations format")
+    class LegacyPredefinedExpectationsFormat {
+
+      private static final String LEGACY_FIXTURE =
+          "threat_arsenal/legacy-predefined-expectations-contract.json";
+
+      @Test
+      @DisplayName(
+          "given_oldFormatWithPredefinedExpectations_should_migrateToAvailableExpectations")
+      void given_oldFormatWithPredefinedExpectations_should_migrateToAvailableExpectations()
+          throws Exception {
+        // Arrange
+        byte[] zipBytes = buildZipFromJsonResource(LEGACY_FIXTURE);
+        MockMultipartFile zipFile =
+            new MockMultipartFile("file", "legacy-action.zip", "application/zip", zipBytes);
+
+        // Act
+        String importResponse =
+            mockMvc
+                .perform(
+                    multipart(tenantUri(TENANT_THREAT_ARSENAL_URL + "/import"))
+                        .file(zipFile)
+                        .with(csrf()))
+                .andExpect(status().is2xxSuccessful())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // Assert
+        String importedActionId = JsonPath.read(importResponse, "$.injector_contract_id");
+        InjectorContract importedContract =
+            injectorContractRepository.findById(importedActionId).orElseThrow();
+
+        JsonNode content = objectMapper.readTree(importedContract.getContent());
+        JsonNode expectationsField =
+            java.util.stream.StreamSupport.stream(content.get("fields").spliterator(), false)
+                .filter(f -> "expectations".equals(f.path("key").asText()))
+                .findFirst()
+                .orElseThrow();
+
+        // predefinedExpectations should no longer exist
+        assertFalse(
+            expectationsField.has("predefinedExpectations"),
+            "predefinedExpectations should have been removed");
+
+        // availableExpectations should exist with all items having the flag
+        assertTrue(
+            expectationsField.has("availableExpectations"),
+            "availableExpectations should be present");
+        JsonNode available = expectationsField.get("availableExpectations");
+        assertTrue(available.isArray());
+
+        // DETECTION and PREVENTION should be marked as predefined
+        for (JsonNode exp : available) {
+          assertTrue(
+              exp.has("expectation_is_predefined"),
+              "Expectation "
+                  + exp.path("expectation_type").asText()
+                  + " should have expectation_is_predefined flag");
+        }
+
+        long predefinedCount =
+            java.util.stream.StreamSupport.stream(available.spliterator(), false)
+                .filter(e -> e.path("expectation_is_predefined").asBoolean())
+                .count();
+        assertEquals(2, predefinedCount, "VULNERABILITY and PREVENTION should be predefined");
+
+        long nonPredefinedCount =
+            java.util.stream.StreamSupport.stream(available.spliterator(), false)
+                .filter(e -> !e.path("expectation_is_predefined").asBoolean())
+                .count();
+        assertEquals(1, nonPredefinedCount, "DETECTION should not be predefined");
+      }
+
+      private byte[] buildZipFromJsonResource(String resourcePath) throws Exception {
+        byte[] jsonContent =
+            Thread.currentThread()
+                .getContextClassLoader()
+                .getResourceAsStream(resourcePath)
+                .readAllBytes();
+
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(baos)) {
+          zos.putNextEntry(new java.util.zip.ZipEntry("contract.json"));
+          zos.write(jsonContent);
+          zos.closeEntry();
+        }
+        return baos.toByteArray();
+      }
     }
   }
 }

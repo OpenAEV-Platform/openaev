@@ -8,10 +8,9 @@ type StatusVariant = 'loading' | 'started' | 'stopped' | undefined;
 
 type ConnectorStatusProps = { variant: StatusVariant };
 
-const useStyles = makeStyles()(theme => ({
+const useStyles = makeStyles()(() => ({
   chipVerified: {
-    padding: theme.spacing(2),
-    fontSize: 12,
+    fontSize: 11,
     height: 20,
     textTransform: 'uppercase',
     borderRadius: 4,
@@ -30,7 +29,7 @@ const ConnectorStatus = ({ variant }: ConnectorStatusProps) => {
   let disabled = false;
 
   if (variant === 'loading') {
-    label = <CircularProgress size={20} color="inherit" style={{ verticalAlign: 'middle' }} />;
+    label = <CircularProgress size={14} color="inherit" style={{ verticalAlign: 'middle' }} />;
     disabled = true;
     chipStyle = colorStyles.grey;
   }

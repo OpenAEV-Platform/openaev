@@ -4,7 +4,9 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
@@ -19,7 +21,7 @@ import io.openaev.executors.crowdstrike.service.CrowdStrikeGarbageCollectorServi
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
-import io.openaev.integration.QualifiedComponent;
+import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.integration.configuration.BaseIntegrationConfigurationBuilder;
 import io.openaev.service.AgentService;
 import io.openaev.service.AssetGroupService;
@@ -64,6 +66,8 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   private final ConnectorInstanceService connectorInstanceService;
   private final HttpClientFactory httpClientFactory;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final OpenAEVConfig openAEVConfig;
+  private final TenantScopedTransaction tenantTx;
 
   public CrowdStrikeExecutorIntegration(
       ConnectorInstance connectorInstance,
@@ -77,7 +81,9 @@ public class CrowdStrikeExecutorIntegration extends Integration {
       ComponentRequestEngine componentRequestEngine,
       ThreadPoolTaskScheduler taskScheduler,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      OpenAEVConfig openAEVConfig,
+      TenantScopedTransaction tenantTx) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.taskScheduler = taskScheduler;
     this.endpointService = endpointService;
@@ -89,6 +95,8 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     this.connectorInstanceService = connectorInstanceService;
     this.httpClientFactory = httpClientFactory;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.openAEVConfig = openAEVConfig;
+    this.tenantTx = tenantTx;
 
     // Refresh the context to get the config
     try {
@@ -118,6 +126,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
 
     Executor executor =
         executorService.register(
+            getTenantId(),
             executorId,
             CROWDSTRIKE_EXECUTOR_TYPE,
             executorName,
@@ -134,13 +143,18 @@ public class CrowdStrikeExecutorIntegration extends Integration {
     client = new CrowdStrikeExecutorClient(config, httpClientFactory);
     crowdStrikeExecutorContextService =
         new CrowdStrikeExecutorContextService(
-            config, client, enterpriseEditionService, licenseCacheManager, executorService);
+            config,
+            client,
+            enterpriseEditionService,
+            licenseCacheManager,
+            executorService,
+            openAEVConfig);
     crowdStrikeExecutorService =
         new CrowdStrikeExecutorService(
-            executor, client, config, endpointService, agentService, assetGroupService);
+            executor, client, config, endpointService, agentService, assetGroupService, tenantTx);
     crowdStrikeGarbageCollectorService =
         new CrowdStrikeGarbageCollectorService(
-            config, crowdStrikeExecutorContextService, agentService, executorId);
+            config, crowdStrikeExecutorContextService, agentService, executor, tenantTx);
 
     timers.add(
         taskScheduler.scheduleAtFixedRate(

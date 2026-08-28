@@ -4,6 +4,7 @@ import static io.openaev.executors.ExecutorHelper.replaceArgs;
 import static io.openaev.integration.impl.executors.openaev.OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME;
 import static java.time.Instant.now;
 
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.executors.ExecutorContextService;
@@ -23,6 +24,7 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
 
   private final AssetAgentJobRepository assetAgentJobRepository;
   private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  private final OpenAEVConfig openAEVConfig;
 
   private String computeCommand(
       @NotNull final Inject inject,
@@ -46,7 +48,16 @@ public class OpenAEVExecutorContextService extends ExecutorContextService {
         String executorCommandKey = platform.name() + "." + arch.name();
         String cmd = injector.getExecutorCommands().get(executorCommandKey);
         yield replaceArgs(
-            platform, cmd, inject.getId(), agentId, inject.getTenant().getId(), token);
+            platform,
+            cmd,
+            inject.getId(),
+            agentId,
+            inject.getTenant().getId(),
+            token,
+            openAEVConfig.getBaseUrlForAgent(),
+            Integer.toString(openAEVConfig.getLogsMaxSize()),
+            Boolean.toString(openAEVConfig.isUnsecuredCertificate()),
+            Boolean.toString(openAEVConfig.isWithProxy()));
       }
       default -> throw new RuntimeException("Unsupported platform: " + platform);
     };

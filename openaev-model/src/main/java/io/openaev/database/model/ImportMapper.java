@@ -15,7 +15,6 @@ import java.util.Objects;
 import java.util.UUID;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -23,7 +22,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "import_mappers")
 @EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+// import_mappers is fully on v2 (inspector + can_access_tenant); no v1 @Filter (PR #6255).
 public class ImportMapper implements TenantBase {
 
   @Id

@@ -1,19 +1,18 @@
+import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useMemo } from 'react';
 
-import ExpandableSection from '../../../../../../components/common/ExpandableSection';
 import Terminal, { type TerminalLine } from '../../../../../../components/common/terminal/Terminal';
 import { type ExecutionTraceOutput, type PayloadCommandBlock } from '../../../../../../utils/api-types';
-import AgentStatusHeader from './AgentStatusHeader';
+import TraceStatusChip from './TraceStatusChip';
 import useAgentStatus from './useAgentStatus';
 
 interface Props {
   payloadCommandBlocks: PayloadCommandBlock[];
   traces: ExecutionTraceOutput[];
-  forceExpanded: boolean;
 }
 
-const TerminalView: FunctionComponent<Props> = ({ payloadCommandBlocks, traces, forceExpanded }) => {
+const TerminalView: FunctionComponent<Props> = ({ payloadCommandBlocks, traces }) => {
   const theme = useTheme();
   const agentStatus = useAgentStatus(traces);
 
@@ -83,19 +82,32 @@ const TerminalView: FunctionComponent<Props> = ({ payloadCommandBlocks, traces, 
   }
 
   return (
-    <ExpandableSection
-      forceExpanded={forceExpanded}
-      header={<AgentStatusHeader agentName={agentStatus.agentName} />}
-    >
+    <div>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing(1.5),
+      }}
+      >
+        <Typography sx={{
+          fontSize: 13,
+          fontWeight: 600,
+        }}
+        >
+          {agentStatus.agentName || '-'}
+        </Typography>
+        {agentStatus.statusName && agentStatus.statusName !== 'Unknown' && (
+          <TraceStatusChip status={agentStatus.statusName} />
+        )}
+      </div>
       <div style={{ margin: theme.spacing(1, 0) }}>
         <Terminal
           maxHeight={400}
           lines={lines}
         />
       </div>
-    </ExpandableSection>
+    </div>
   );
-}
-;
+};
 
 export default TerminalView;

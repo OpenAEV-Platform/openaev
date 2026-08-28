@@ -6,6 +6,7 @@ import io.openaev.api.xtmone.dto.AgentCallInput;
 import io.openaev.api.xtmone.dto.AgentCallOutput;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,6 +48,7 @@ public class XtmOneProxyApi extends RestBehavior {
 
   private final XtmOneConfig config;
   private final XtmOneClient client;
+  private final AiMetricCollector aiMetricCollector;
 
   // -- READ --
 
@@ -83,6 +85,9 @@ public class XtmOneProxyApi extends RestBehavior {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
           .body(AgentCallOutput.error("XTM One is not configured"));
     }
+    // Telemetry: feature-intent calls land in the backend-agnostic per-feature
+    // counter; other agent calls are counted by agent slug.
+    aiMetricCollector.recordAgentProxyCall(input.agentSlug(), input.intent());
     String result = client.callAgentSync(input.agentSlug(), input.content(), null);
     if (result == null) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
@@ -113,6 +118,9 @@ public class XtmOneProxyApi extends RestBehavior {
           .contentType(MediaType.TEXT_EVENT_STREAM)
           .body(errorBody);
     }
+
+    // Telemetry: same feature-intent mapping as the synchronous variant.
+    aiMetricCollector.recordAgentProxyCall(input.agentSlug(), input.intent());
 
     final String validatedSlug = input.agentSlug();
     final String content = input.content();

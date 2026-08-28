@@ -19,6 +19,10 @@ const MigrateButton = ({ onMigrateBtnClick, style = {} }: Props) => {
   } = useEnterpriseEdition();
 
   const onMigrateClickAction = (e: SyntheticEvent) => {
+    // The button may live inside a CardActionArea / row link: never let the
+    // click bubble up and trigger a navigation (would close the EE dialog).
+    e.preventDefault();
+    e.stopPropagation();
     if (!isEnterpriseEdition) {
       setEEFeatureDetectedInfo(t('Connectors deployment'));
       openEnterpriseEditionDialog();
@@ -27,7 +31,7 @@ const MigrateButton = ({ onMigrateBtnClick, style = {} }: Props) => {
     }
   };
   return (
-    <Tooltip title={t('Migrate a manually-deployed connector to the XTM composer to manage its settings from the interface')}>
+    <Tooltip title={t('Migrate a manually-deployed connector to the Integration Manager to manage its settings from the interface')}>
       <div style={{
         ...style,
         position: 'relative',

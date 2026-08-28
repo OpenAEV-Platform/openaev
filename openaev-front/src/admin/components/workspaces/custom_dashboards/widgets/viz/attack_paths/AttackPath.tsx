@@ -7,13 +7,14 @@ import {
 import * as qs from 'qs';
 import {
   type MouseEvent as ReactMouseEvent,
-  useEffect, useState,
+  useEffect, useMemo, useState,
 } from 'react';
 import { useNavigate } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { buildFilter } from '../../../../../../../components/common/queryable/filter/FilterUtils';
 import { initSorting } from '../../../../../../../components/common/queryable/Page';
+import { DEFAULT_ROWS_PER_PAGE } from '../../../../../../../components/common/queryable/pagination/usePaginationState';
 import { useFormatter } from '../../../../../../../components/i18n';
 import {
   type EsAttackPath,
@@ -24,6 +25,40 @@ import { sortKillChainPhase } from '../../../../../../../utils/kill_chain_phases
 import ColoredPercentageRate from '../components/ColoredPercentageRate';
 import AttackPatternNode from './AttackPatternNode';
 import DraggableEdge from './DraggableEdge';
+
+const nodeTypes = { attackPattern: AttackPatternNode };
+const edgeTypes = { draggableEdge: DraggableEdge };
+
+const proOptions = {
+  account: 'paid-pro',
+  hideAttribution: true,
+};
+
+interface KillChainPhaseWithAttackPaths extends KillChainPhaseObject {
+  phase_order?: number;
+  attackPaths: EsAttackPath[];
+}
+
+const resolveDataByKillChainPhase = (esAttackPaths: EsAttackPath[]): KillChainPhaseWithAttackPaths[] => {
+  const killChainMap = new Map<string, KillChainPhaseWithAttackPaths>();
+  esAttackPaths.filter(item => item.killChainPhases && item.killChainPhases.length > 0)
+    .forEach((attackPath) => {
+      (attackPath.killChainPhases ?? []).forEach((phase) => {
+        let entry = killChainMap.get(phase.id);
+        if (!entry) {
+          entry = {
+            id: phase.id,
+            name: phase.name,
+            phase_order: phase.order,
+            attackPaths: [],
+          };
+          killChainMap.set(phase.id, entry);
+        }
+        entry.attackPaths.push(attackPath);
+      });
+    });
+  return Array.from(killChainMap.values()).toSorted(sortKillChainPhase);
+};
 
 interface Props {
   data: EsAttackPath[];
@@ -63,38 +98,12 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
   const XGap = 200; // Horizontal gap between nodes
   const YGap = 150; // Vertical gap between nodes
 
-  const nodeTypes = { attackPattern: AttackPatternNode };
   enum NodeType {
     DEFAULT = 'default',
     ATTACK_PATTERN = 'attackPattern',
   }
 
-  const edgeTypes = { draggableEdge: DraggableEdge };
-  const proOptions = {
-    account: 'paid-pro',
-    hideAttribution: true,
-  };
-
   // -- React Flow nodes and edges management
-  const resolveDataByKillChainPhase = (esAttackPaths: EsAttackPath[]) => {
-    const killChainMap = new Map();
-    esAttackPaths.filter(item => item.killChainPhases && item.killChainPhases.length > 0)
-      .forEach((attackPath) => {
-        (attackPath.killChainPhases ?? []).forEach((phase) => {
-          if (!killChainMap.has(phase.id)) {
-            killChainMap.set(phase.id, {
-              id: phase.id,
-              name: phase.name,
-              phase_order: phase.order,
-              attackPaths: [],
-            });
-          }
-          killChainMap.get(phase.id).attackPaths.push(attackPath);
-        });
-      });
-    return Array.from(killChainMap.values()).toSorted(sortKillChainPhase);
-  };
-
   const getNodeId = (attackPathID: string, killChainPhase: KillChainPhaseObject) => {
     return attackPathID + '-' + killChainPhase.id;
   };
@@ -189,18 +198,18 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
       });
   };
 
-  const resolvededDataByKillChainPhase = resolveDataByKillChainPhase(data);
+  const resolvedDataByKillChainPhase = useMemo(() => resolveDataByKillChainPhase(data), [data]);
   const initializeNodesAndEdges = () => {
     const newAttackPathsEdges: Edge[] = [];
     let newSimulationDatesEdge: Edge = {} as Edge;
     const newNodes: Node[] = [];
-    const maxXIndex = resolvededDataByKillChainPhase.length > 2 ? resolvededDataByKillChainPhase.length - 1 : 1;
+    const maxXIndex = resolvedDataByKillChainPhase.length > 2 ? resolvedDataByKillChainPhase.length - 1 : 1;
     let maxYIndex = 0;
 
-    resolvededDataByKillChainPhase.forEach((phase, phaseIndex) => {
+    resolvedDataByKillChainPhase.forEach((phase, phaseIndex) => {
       newNodes.push(createKillChainNode(phase, phaseIndex));
 
-      (phase.attackPaths as EsAttackPath[]).forEach((attackPath, attackPathIndex) => {
+      phase.attackPaths.forEach((attackPath, attackPathIndex) => {
         maxYIndex = maxYIndex < attackPathIndex ? attackPathIndex : maxYIndex;
         newNodes.push(createAttackPatternNode(attackPath, phase, phaseIndex, attackPathIndex));
         newAttackPathsEdges.push(...createEdgesByAttackPath(attackPath, phase));
@@ -230,22 +239,24 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
     setSimulationDatesEdge([newSimulationDatesEdge]);
   };
 
+  // Re-initialize when the resolved data (memoized on the data prop) or the
+  // simulation dates change, so widget refetches propagate to React Flow.
   useEffect(() => {
     initializeNodesAndEdges();
-  }, []);
+  }, [resolvedDataByKillChainPhase, simulationStartDate, simulationEndDate]);
 
   useEffect(() => {
     if (attackPathsEdges.length < 1 && hoveredNodeId === null) {
       return;
     }
     const newAttackPathsEdges: Edge[] = [];
-    resolvededDataByKillChainPhase.forEach((phase) => {
-      (phase.attackPaths as EsAttackPath[]).forEach((attackPath) => {
+    resolvedDataByKillChainPhase.forEach((phase) => {
+      phase.attackPaths.forEach((attackPath) => {
         newAttackPathsEdges.push(...createEdgesByAttackPath(attackPath, phase));
       });
     });
     setAttackPathsEdges(newAttackPathsEdges);
-  }, [hoveredNodeId]);
+  }, [hoveredNodeId, resolvedDataByKillChainPhase]);
 
   // -- React Flow nodes actions
   const onNodeClick = (event: ReactMouseEvent, node: Node) => {
@@ -253,7 +264,7 @@ const AttackPath = ({ data, widgetId, simulationId, simulationStartDate = null, 
     if (node.type == 'attackPattern') {
       const initSearchPaginationInput: SearchPaginationInput = {
         page: 0,
-        size: 20,
+        size: DEFAULT_ROWS_PER_PAGE,
         sorts: initSorting('inject_updated_at', 'DESC'),
         filterGroup: {
           mode: 'or',

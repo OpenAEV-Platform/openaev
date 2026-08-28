@@ -1,116 +1,195 @@
-import { HubOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
-import { type CSSProperties, useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
+import { Binoculars } from 'mdi-material-ui';
+import { type CSSProperties, useState } from 'react';
+import { Link } from 'react-router';
 
-import Drawer from '../../../components/common/Drawer';
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../components/common/queryable/sort/SortHeadersComponentV2';
 import useBodyItemsStyles from '../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
-import { type Header } from '../../../components/common/SortHeadersList';
+import Empty from '../../../components/Empty';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
-import { type AggregatedFindingOutput, type RelatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
+import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
 import ContractOutputElementType from './ContractOutputElementType';
-import FindingDetail from './FindingDetail';
-
-const useStyles = makeStyles()(() => ({
-  itemHead: { textTransform: 'uppercase' },
-  item: { height: 50 },
-}));
 
 interface Props {
-  searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
   searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
-  additionalHeaders?: Header[];
-  additionalFilterNames?: string[];
   filterLocalStorageKey: string;
   contextId?: string;
+  // Column fields to hide (e.g. ['finding_asset_groups']) — defaults to showing all columns.
+  hiddenFields?: string[];
+  // Compact mode for embedding in a narrow container (e.g. the attack-path drawer): hides the
+  // search/filters/pagination top bar. Defaults to false so the full-page usage is unchanged.
+  compact?: boolean;
 }
 
-const FindingList = ({ searchFindings, searchDistinctFindings, filterLocalStorageKey, contextId, additionalHeaders = [], additionalFilterNames = [] }: Props) => {
-  const { classes } = useStyles();
+const inlineStyles: Record<string, CSSProperties> = ({
+  finding_type: { width: '13%' },
+  finding_value: { width: '27%' },
+  finding_assets: { width: '17%' },
+  finding_asset_groups: { width: '15%' },
+  finding_created_at: { width: '14%' },
+  finding_updated_at: { width: '14%' },
+});
+
+const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false }: Props) => {
   const bodyItemsStyles = useBodyItemsStyles();
-  const { t } = useFormatter();
+  const { t, nsdt } = useFormatter();
   const [loading, setLoading] = useState<boolean>(true);
 
   const availableFilterNames = [
     'finding_type',
     'finding_created_at',
+    'finding_updated_at',
     'finding_asset_groups',
     'finding_assets',
   ];
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const openIdParams = searchParams.get('open');
-
-  const [cvssScore, setCvssScore] = useState<number | null>(null);
   const [findings, setFindings] = useState<AggregatedFindingOutput[]>([]);
-  const [selectedFinding, setSelectedFinding] = useState<AggregatedFindingOutput | null>(null);
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(filterLocalStorageKey, buildSearchPagination({ sorts: initSorting('finding_created_at', 'DESC') }));
+  // Total across all pages, tracked in compact mode (no pager) so we can tell the user when the list is
+  // truncated instead of silently hiding findings beyond the page.
+  const [total, setTotal] = useState<number>(0);
+  // Compact mode drops the pager, so raise the page size well above the default to cover most scans; a
+  // "showing X of N" note still appears if a run produces more than this.
+  const compactPageSize = 100;
+  // Default sort on last seen: the most recent activity is what tells whether a finding is still
+  // alive or has been solved. The storage key is suffixed (-v2) so browsers that persisted the
+  // previous "first seen" default pick up the new one instead of restoring the stale sort.
+  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage(
+    `${filterLocalStorageKey}-v2`,
+    buildSearchPagination({
+      sorts: initSorting('finding_updated_at', 'DESC'),
+      ...(compact ? { size: compactPageSize } : {}),
+    }),
+  );
   const searchFindingsToload = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchDistinctFindings(input).finally(() => {
-      setLoading(false);
-    });
+    return searchDistinctFindings(input)
+      .then((res) => {
+        setTotal(res.data.totalElements);
+        return res;
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
-
-  useEffect(() => {
-    if (!openIdParams) {
-      return;
-    }
-    setSelectedFinding(findings.find(f => f.finding_id == openIdParams) ?? null);
-  }, [openIdParams, findings]);
 
   const headers = [
     {
       field: 'finding_type',
       label: 'Type',
       isSortable: true,
-      value: (finding: AggregatedFindingOutput) =>
-        t(ContractOutputElementType[finding.finding_type] ?? finding.finding_type),
+      value: (finding: AggregatedFindingOutput) => (
+        <span style={{
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          fontSize: 11,
+          letterSpacing: '0.05em',
+        }}
+        >
+          {t(ContractOutputElementType[finding.finding_type] ?? finding.finding_type)}
+        </span>
+      ),
     },
     {
       field: 'finding_value',
       label: 'Value',
       isSortable: true,
-      value: (finding: AggregatedFindingOutput) => <Tooltip title={finding.finding_value}><span>{finding.finding_value}</span></Tooltip>,
+      // Findings are technical values (ports, sockets, hostnames, credentials...): render them
+      // as inline code, mirroring the <pre> block of the finding overview page.
+      value: (finding: AggregatedFindingOutput) => (
+        <Tooltip title={finding.finding_value}>
+          <Box
+            component="code"
+            sx={theme => ({
+              display: 'inline-block',
+              maxWidth: '95%',
+              padding: '2px 8px',
+              borderRadius: 1,
+              backgroundColor: theme.palette.background.accent,
+              border: `1px solid ${theme.palette.divider}`,
+              fontFamily: 'Consolas, monaco, monospace',
+              fontSize: 12,
+              lineHeight: '18px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              verticalAlign: 'middle',
+            })}
+          >
+            {finding.finding_value}
+          </Box>
+        </Tooltip>
+      ),
     },
     {
       field: 'finding_assets',
-      label: 'Endpoints',
+      label: 'Assets',
       isSortable: false,
       value: (finding: AggregatedFindingOutput) => (
-        <ItemTargets targets={(finding.finding_assets || []).map(asset => ({
-          target_id: asset.asset_id,
-          target_name: asset.asset_name,
-          target_type: 'ASSETS',
-        })) as TargetSimple[]}
+        <ItemTargets
+          targets={(finding.finding_assets || []).map(asset => ({
+            target_id: asset.asset_id,
+            target_name: asset.asset_name,
+            target_type: 'ASSETS',
+            // Category + platform drive the chip glyph (taxonomy icon, or the OS brand icon
+            // for host-like endpoints) - same rendering as the asset pages.
+            target_category: asset.asset_category,
+            target_subtype: asset.endpoint_platform,
+          })) as TargetSimple[]}
         />
       ),
     },
+    {
+      field: 'finding_asset_groups',
+      label: 'Asset groups',
+      isSortable: false,
+      value: (finding: AggregatedFindingOutput) => (
+        <ItemTargets
+          targets={(finding.finding_asset_groups || []).map(group => ({
+            target_id: group.asset_group_id,
+            target_name: group.asset_group_name,
+            target_type: 'ASSETS_GROUPS',
+          })) as TargetSimple[]}
+        />
+      ),
+    },
+    {
+      field: 'finding_created_at',
+      label: 'First seen',
+      isSortable: true,
+      value: (finding: AggregatedFindingOutput) => <>{nsdt(finding.finding_created_at)}</>,
+    },
+    {
+      field: 'finding_updated_at',
+      label: 'Last seen',
+      isSortable: true,
+      value: (finding: AggregatedFindingOutput) => <>{nsdt(finding.finding_updated_at)}</>,
+    },
   ];
 
-  const inlineStyles: Record<string, CSSProperties> = ({
-    finding_type: { width: '20%' },
-    finding_value: { width: '30%' },
-    finding_assets: { width: '30%' },
-    finding_tags: { width: '20%' },
-  });
-
-  const handleCloseDrawer = () => {
-    setSelectedFinding(null);
-    setCvssScore(null);
-    // Clean URL without causing refresh
-    searchParams.delete('open');
-    setSearchParams(searchParams, { replace: true });
-  };
+  const visibleHeaders = headers.filter(h => !hiddenFields.includes(h.field));
+  // Hiding columns (e.g. the compact drawer) leaves the fixed per-column widths summing to < 100%, which
+  // squeezes and truncates the last columns (Assets). Rescale the visible columns proportionally so they
+  // fill the row; a no-op in full mode where the widths already total 100%.
+  const visibleWidthTotal = visibleHeaders.reduce(
+    (sum, h) => sum + (parseFloat(String(inlineStyles[h.field]?.width ?? '0')) || 0),
+    0,
+  );
+  const visibleStyles: Record<string, CSSProperties> = Object.fromEntries(
+    visibleHeaders.map((h) => {
+      const w = parseFloat(String(inlineStyles[h.field]?.width ?? '0')) || 0;
+      return [h.field, {
+        ...inlineStyles[h.field],
+        ...(visibleWidthTotal > 0 && w > 0 ? { width: `${((w / visibleWidthTotal) * 100).toFixed(2)}%` } : {}),
+      }];
+    }),
+  );
 
   return (
     <>
@@ -122,76 +201,86 @@ const FindingList = ({ searchFindings, searchDistinctFindings, filterLocalStorag
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         contextId={contextId}
+        searchEnable={!compact}
+        disableFilters={compact}
+        disablePagination={compact}
       />
       <List>
         <ListItem
-          classes={{ root: classes.itemHead }}
-          style={{ paddingTop: 0 }}
+          sx={{
+            textTransform: 'uppercase',
+            paddingTop: 0,
+          }}
         >
           <ListItemIcon />
           <ListItemText
             primary={(
               <SortHeadersComponentV2
-                headers={headers}
-                inlineStylesHeaders={inlineStyles}
+                headers={visibleHeaders}
+                inlineStylesHeaders={visibleStyles}
                 sortHelpers={queryableHelpers.sortHelpers}
               />
             )}
           />
         </ListItem>
-        {loading ? <PaginatedListLoader Icon={HubOutlined} headers={headers} headerStyles={inlineStyles} /> : findings.map(finding => (
-          <ListItem
-            key={finding.finding_id}
-            classes={{ root: classes.item }}
-            divider
-            disablePadding
-          >
-            <ListItemButton
-              classes={{ root: classes.item }}
-              onClick={() => setSelectedFinding(finding)}
-            >
-              <ListItemIcon>
-                <FindingIcon findingType={finding.finding_type} tooltip />
-              </ListItemIcon>
-              <ListItemText
-                primary={(
-                  <div style={bodyItemsStyles.bodyItems}>
-                    {headers.map(header => (
-                      <div
-                        key={header.field}
-                        style={{
-                          ...bodyItemsStyles.bodyItem,
-                          ...inlineStyles[header.field],
-                        }}
-                      >
-                        {header.value && header.value(finding)}
+        {loading
+          ? <PaginatedListLoader Icon={Binoculars} headers={visibleHeaders} headerStyles={visibleStyles} />
+          : findings.map(finding => (
+              <ListItem
+                key={finding.finding_id}
+                sx={{ height: 50 }}
+                divider
+                disablePadding
+                data-testid="finding-row"
+              >
+                <ListItemButton
+                  sx={{ height: 50 }}
+                  component={Link}
+                  to={`/admin/findings/${finding.finding_id}`}
+                >
+                  <ListItemIcon>
+                    <FindingIcon findingType={finding.finding_type} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={(
+                      <div style={bodyItemsStyles.bodyItems}>
+                        {visibleHeaders.map(header => (
+                          <div
+                            key={header.field}
+                            style={{
+                              ...bodyItemsStyles.bodyItem,
+                              ...visibleStyles[header.field],
+                            }}
+                          >
+                            {header.value && header.value(finding)}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
-              />
-            </ListItemButton>
-          </ListItem>
-        ))}
+                    )}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
+        {!loading && findings.length === 0 && <Empty message={t('No finding found.')} />}
       </List>
-      <Drawer
-        open={!!selectedFinding}
-        handleClose={handleCloseDrawer}
-        title={selectedFinding?.finding_value || ''}
-        additionalTitle={cvssScore ? 'CVSS' : undefined}
-        additionalChipLabel={cvssScore?.toFixed(1)}
-      >
-        {selectedFinding && (
-          <FindingDetail
-            selectedFinding={selectedFinding}
-            searchFindings={searchFindings}
-            contextId={contextId}
-            additionalHeaders={additionalHeaders}
-            additionalFilterNames={additionalFilterNames}
-            onCvssScore={setCvssScore}
-          />
-        )}
-      </Drawer>
+      {/* Compact mode has no pager: if the run produced more findings than one compact page, say so
+          explicitly (with the total) so the list never reads as "this inject has N findings". */}
+      {compact && !loading && total > findings.length && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{
+            display: 'block',
+            px: 2,
+            py: 1,
+          }}
+        >
+          {t('Showing {shown} of {total} findings — open the inject to see them all.', {
+            shown: findings.length,
+            total,
+          })}
+        </Typography>
+      )}
     </>
   );
 };

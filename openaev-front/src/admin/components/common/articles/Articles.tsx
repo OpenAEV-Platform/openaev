@@ -1,52 +1,124 @@
-import { ChatBubbleOutlineOutlined, FavoriteBorderOutlined, NewspaperOutlined, ShareOutlined, VisibilityOutlined } from '@mui/icons-material';
-import { Avatar, Button, Card, CardContent, CardHeader, CardMedia, Chip, GridLegacy, IconButton, Tooltip, Typography } from '@mui/material';
+import { VisibilityOutlined } from '@mui/icons-material';
+import { IconButton, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
 import { green, orange } from '@mui/material/colors';
 import * as R from 'ramda';
-import { Fragment, type FunctionComponent, useContext, useState } from 'react';
+import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
 import { type FullArticleStore } from '../../../../actions/channels/Article';
 import { type ChannelsHelper } from '../../../../actions/channels/channel-helper';
-import { type DocumentHelper } from '../../../../actions/helper';
-import Empty from '../../../../components/Empty';
-import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import { useFormatter } from '../../../../components/i18n';
-import ChannelColor from '../../../../public/components/channels/ChannelColor';
 import { useHelper } from '../../../../store';
 import { type Article } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
-import { buildTenantApiPath } from '../../../../utils/url-helper';
 import ChannelIcon from '../../components/channels/ChannelIcon';
 import { type ChannelOption } from '../../components/channels/ChannelOption';
 import ChannelsFilter from '../../components/channels/ChannelsFilter';
+import ConfigurationSection from '../ConfigurationSection';
 import { ArticleContext, PermissionsContext } from '../Context';
 import ArticlePopover from './ArticlePopover';
 import CreateArticle from './CreateArticle';
 
 const useStyles = makeStyles()(() => ({
-  channel: {
-    fontSize: 12,
-    float: 'left',
-    marginRight: 7,
-    maxWidth: 300,
-    borderRadius: 4,
+  itemHead: {
+    textTransform: 'uppercase',
+    cursor: 'pointer',
   },
-  card: { position: 'relative' },
-  footer: {
-    width: '100%',
-    position: 'absolute',
-    padding: '0 15px 0 15px',
-    left: 0,
-    bottom: 10,
+  item: { height: 50 },
+  bodyItem: {
+    height: '100%',
+    fontSize: 13,
   },
-  button: { cursor: 'default' },
 }));
+
+const headerStyles: {
+  iconSort: CSSProperties;
+  article_name: CSSProperties;
+  article_author: CSSProperties;
+  article_channel: CSSProperties;
+  article_is_scheduled: CSSProperties;
+} = {
+  iconSort: {
+    position: 'absolute',
+    margin: '0 0 0 5px',
+    padding: 0,
+    top: '0px',
+  },
+  article_name: {
+    float: 'left',
+    width: '30%',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  article_author: {
+    float: 'left',
+    width: '20%',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  article_channel: {
+    float: 'left',
+    width: '25%',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  article_is_scheduled: {
+    float: 'left',
+    width: '25%',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+};
+
+const inlineStyles: {
+  article_name: CSSProperties;
+  article_author: CSSProperties;
+  article_channel: CSSProperties;
+  article_is_scheduled: CSSProperties;
+} = {
+  article_name: {
+    float: 'left',
+    width: '30%',
+    height: 20,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    fontWeight: 600,
+  },
+  article_author: {
+    float: 'left',
+    width: '20%',
+    height: 20,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  article_channel: {
+    float: 'left',
+    width: '25%',
+    height: 20,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  article_is_scheduled: {
+    float: 'left',
+    width: '25%',
+    height: 20,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+};
 
 interface Props { articles: Article[] }
 
+// Media pressure articles rendered as a sortable table, sharing the exact
+// same anatomy as the Teams and Variables configuration tabs (header row,
+// 50px rows, right-aligned row actions). Creation lives in the section
+// header action only, so an empty tab reads like the other tabs.
 const Articles: FunctionComponent<Props> = ({ articles }) => {
   // Context
   const { previewArticleUrl, fetchChannels, fetchDocuments } = useContext(ArticleContext);
@@ -54,17 +126,13 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
 
   // Standard hooks
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const { t } = useFormatter();
 
   // Fetching data
-  const { channelsMap, documentsMap } = useHelper((helper: ChannelsHelper & DocumentHelper) => ({
-    channelsMap: helper.getChannelsMap(),
-    documentsMap: helper.getDocumentsMap(),
-  }));
+  const { channelsMap } = useHelper((helper: ChannelsHelper) => ({ channelsMap: helper.getChannelsMap() }));
   useDataLoader(() => {
-    dispatch(fetchChannels());
-    dispatch(fetchDocuments());
+    fetchChannels();
+    fetchDocuments();
   });
 
   // Creation
@@ -94,96 +162,125 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
   );
 
   return (
-    <div>
-      <Typography variant="h4" gutterBottom style={{ float: 'left' }}>
-        {t('Media pressure')}
-      </Typography>
-      {permissions.canManage && (
+    <ConfigurationSection
+      title={t('Media pressure')}
+      count={fullArticles.length}
+      action={permissions.canManage && (
         <CreateArticle
           openCreate={openCreate}
           handleOpenCreate={handleOpenCreate}
           handleCloseCreate={handleCloseCreate}
         />
       )}
+    >
       {fullArticles.length > 0 && (
         <ChannelsFilter
           onChannelsChange={handleChannelsChange}
           onClearChannels={handleClearChannels}
         />
       )}
-      <div className="clearfix" />
-      {sortedArticles.length === 0 && (
-        <Empty message={(
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 18 }}>
-              {t('No media pressure article available in this simulation yet.')}
-            </div>
-            {permissions.canManage
-              && (
-                <Button
-                  style={{ marginTop: 20 }}
-                  startIcon={<NewspaperOutlined />}
-                  variant="outlined"
-                  color="primary"
-                  size="small"
-                  onClick={handleOpenCreate}
-                >
-                  {t('Create an article')}
-                </Button>
-              )}
-          </div>
-        )}
-        />
-      )}
-      <GridLegacy container spacing={3}>
-        {sortedArticles.map((article, index) => {
-          const docs = (article.article_documents ?? [])
-            .map(docId => (documentsMap[docId] ? documentsMap[docId] : undefined))
-            .filter(d => d !== undefined);
-          const images = docs.filter(d => d.document_type.includes('image/'));
-          const videos = docs.filter(d => d.document_type.includes('video/'));
-          let headersDocs = [];
-          if (article.article_fullchannel?.channel_type === 'newspaper') {
-            headersDocs = images;
-          } else if (article.article_fullchannel?.channel_type === 'tv') {
-            headersDocs = videos;
-          } else {
-            headersDocs = [...images, ...videos];
-          }
-          let columns = 12;
-          if (headersDocs.length === 2) {
-            columns = 6;
-          } else if (headersDocs.length === 3) {
-            columns = 4;
-          } else if (headersDocs.length >= 4) {
-            columns = 3;
-          }
-          // const shouldBeTruncated = (article.article_content || '').length > 500;
-          return (
-            <GridLegacy key={article.article_id} item xs={4} style={index < 3 ? { paddingTop: 0 } : undefined}>
-              <Card
-                variant="outlined"
-                classes={{ root: classes.card }}
-                sx={{
-                  width: '100%',
-                  height: '100%',
-                }}
-              >
-                <CardHeader
-                  avatar={(
-                    <Avatar
-                      sx={{
-                        bgcolor: ChannelColor(
-                          article.article_fullchannel?.channel_type,
-                        ),
-                      }}
-                    >
-                      {(article.article_author || t('Unknown')).charAt(0)}
-                    </Avatar>
-                  )}
-                  title={article.article_author || t('Unknown')}
-                  subheader={
-                    article.article_is_scheduled ? (
+      <List>
+        <ListItem
+          classes={{ root: classes.itemHead }}
+          divider={false}
+          style={{ paddingTop: 0 }}
+        >
+          <ListItemIcon>
+            <span
+              style={{
+                padding: '0 8px 0 10px',
+                fontWeight: 700,
+                fontSize: 12,
+              }}
+            >
+              #
+            </span>
+          </ListItemIcon>
+          <ListItemText
+            primary={(
+              <>
+                {filtering.buildHeader(
+                  'article_name',
+                  'Name',
+                  true,
+                  headerStyles,
+                )}
+                {filtering.buildHeader(
+                  'article_author',
+                  'Author',
+                  true,
+                  headerStyles,
+                )}
+                {filtering.buildHeader(
+                  'article_channel',
+                  'Channel',
+                  false,
+                  headerStyles,
+                )}
+                {filtering.buildHeader(
+                  'article_is_scheduled',
+                  'Status',
+                  false,
+                  headerStyles,
+                )}
+              </>
+            )}
+          />
+          <ListItemSecondaryAction>&nbsp;</ListItemSecondaryAction>
+        </ListItem>
+        {sortedArticles.map(article => (
+          <ListItem
+            key={article.article_id}
+            classes={{ root: classes.item }}
+            divider
+            secondaryAction={(
+              <>
+                <Tooltip title={t('Preview')}>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    component={Link}
+                    to={previewArticleUrl(article)}
+                  >
+                    <VisibilityOutlined fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <ArticlePopover article={article} onRemoveArticle={undefined} />
+              </>
+            )}
+          >
+            <ListItemIcon>
+              <ChannelIcon
+                type={article.article_fullchannel?.channel_type}
+                tooltip={article.article_fullchannel?.channel_name}
+              />
+            </ListItemIcon>
+            <ListItemText
+              primary={(
+                <>
+                  <div
+                    className={classes.bodyItem}
+                    style={inlineStyles.article_name}
+                  >
+                    {article.article_name}
+                  </div>
+                  <div
+                    className={classes.bodyItem}
+                    style={inlineStyles.article_author}
+                  >
+                    {article.article_author || t('Unknown')}
+                  </div>
+                  <div
+                    className={classes.bodyItem}
+                    style={inlineStyles.article_channel}
+                  >
+                    {article.article_fullchannel?.channel_name || '-'}
+                  </div>
+                  <div
+                    className={classes.bodyItem}
+                    style={inlineStyles.article_is_scheduled}
+                  >
+                    {article.article_is_scheduled ? (
                       <span style={{ color: green[500] }}>
                         {t('Scheduled')}
                       </span>
@@ -191,111 +288,15 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                       <span style={{ color: orange[500] }}>
                         {t('Not used in the context')}
                       </span>
-                    )
-                  }
-                  action={(
-                    <Fragment>
-                      <IconButton
-                        aria-haspopup="true"
-                        size="large"
-                        component={Link}
-                        to={previewArticleUrl(article)}
-                      >
-                        <VisibilityOutlined />
-                      </IconButton>
-                      <ArticlePopover article={article} onRemoveArticle={undefined} />
-                    </Fragment>
-                  )}
-                />
-                <GridLegacy container={true} spacing={3}>
-                  {headersDocs.map(doc => (
-                    <GridLegacy key={doc.document_id} item xs={columns}>
-                      {doc.document_type.includes('image/') && (
-                        <CardMedia
-                          component="img"
-                          height="150"
-                          src={buildTenantApiPath(`/api/documents/${doc.document_id}/file`)}
-                        />
-                      )}
-                      {doc.document_type.includes('video/') && (
-                        <CardMedia
-                          component="video"
-                          height="150"
-                          src={buildTenantApiPath(`/api/documents/${doc.document_id}/file`)}
-                          controls
-                        />
-                      )}
-                    </GridLegacy>
-                  ))}
-                </GridLegacy>
-                <CardContent style={{ marginBottom: 30 }}>
-                  <Typography
-                    gutterBottom
-                    variant="h1"
-                    component="div"
-                    style={{
-                      margin: '0 auto',
-                      textAlign: 'center',
-                    }}
-                  >
-                    {article.article_name}
-                  </Typography>
-                  <ExpandableMarkdown source={article.article_content ?? ''} limit={500} />
-                  <div className={classes.footer}>
-                    <div style={{ float: 'left' }}>
-                      <Tooltip title={article.article_fullchannel?.channel_name}>
-                        <Chip
-                          icon={(
-                            <ChannelIcon
-                              type={article.article_fullchannel?.channel_type}
-                              variant="chip"
-                            />
-                          )}
-                          classes={{ root: classes.channel }}
-                          style={{
-                            color: ChannelColor(
-                              article.article_fullchannel?.channel_type,
-                            ),
-                            borderColor: ChannelColor(
-                              article.article_fullchannel?.channel_type,
-                            ),
-                          }}
-                          variant="outlined"
-                          label={article.article_fullchannel?.channel_name}
-                        />
-                      </Tooltip>
-                    </div>
-                    <div style={{ float: 'right' }}>
-                      <Button
-                        size="small"
-                        startIcon={<ChatBubbleOutlineOutlined />}
-                        className={classes.button}
-                      >
-                        {article.article_comments || 0}
-                      </Button>
-                      <Button
-                        size="small"
-                        startIcon={<ShareOutlined />}
-                        className={classes.button}
-                      >
-                        {article.article_shares || 0}
-                      </Button>
-                      <Button
-                        size="small"
-                        startIcon={<FavoriteBorderOutlined />}
-                        className={classes.button}
-                      >
-                        {article.article_likes || 0}
-                      </Button>
-                    </div>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-            </GridLegacy>
-          );
-        })}
-      </GridLegacy>
-    </div>
+                </>
+              )}
+            />
+          </ListItem>
+        ))}
+      </List>
+    </ConfigurationSection>
   );
 };
 

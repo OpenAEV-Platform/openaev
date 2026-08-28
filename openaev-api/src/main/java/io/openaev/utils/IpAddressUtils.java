@@ -1,9 +1,12 @@
 package io.openaev.utils;
 
+import java.math.BigInteger;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,14 +21,20 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class IpAddressUtils {
 
-  private IpAddressUtils() {}
-
   /**
    * Lightweight numeric-only guard for IPv4 addresses. Ensures the string contains only digits and
    * dots in four-octet form before delegating to {@link InetAddress}, preventing DNS lookups on
    * hostnames (e.g. {@code example.org}).
    */
   private static final Pattern IPV4_NUMERIC = Pattern.compile("^\\d{1,3}(\\.\\d{1,3}){3}$");
+
+  /** Minimum IPv4 prefix supported for expansion (e.g. /24, /25, ...). */
+  private static final int MIN_IPV4_EXPANSION_PREFIX = 24;
+
+  /** Safety limit for subnet expansion to keep chaining scope resolution bounded. */
+  private static final int MAX_EXPANDED_HOSTS = 256;
+
+  private IpAddressUtils() {}
 
   /**
    * Returns {@code true} if {@code value} is a valid IPv4 address (e.g. {@code 192.168.1.1}).
@@ -133,7 +142,7 @@ public class IpAddressUtils {
       byte[] subnetBytes = InetAddress.getByName(subnetAddress).getAddress();
 
       if (ipBytes.length != subnetBytes.length) {
-        return false; // IPv4 vs IPv6 mismatch
+        return false;
       }
 
       int fullBytes = prefixLength / 8;
@@ -155,5 +164,120 @@ public class IpAddressUtils {
       log.warn("Failed to evaluate IP {} against subnet {}: {}", ip, cidr, e.getMessage());
       return false;
     }
+  }
+
+  /**
+   * Expands a CIDR subnet to individual host IP addresses.
+   *
+   * <p>For IPv4, network and broadcast addresses are excluded when the subnet has dedicated host
+   * addresses (prefix <= 30). For IPv6, all addresses in range are considered host addresses.
+   *
+   * @param cidr subnet in CIDR notation
+   * @return expanded host IP addresses or an empty list if CIDR is invalid/unsupported
+   */
+  public static List<String> expandSubnetToHostIps(String cidr) {
+    if (!(isIpv4Subnet(cidr) || isIpv6Subnet(cidr))) {
+      return List.of();
+    }
+
+    try {
+      int slashIndex = cidr.lastIndexOf('/');
+      String subnetAddress = cidr.substring(0, slashIndex);
+      int prefixLength = Integer.parseInt(cidr.substring(slashIndex + 1));
+
+      byte[] subnetBytes = InetAddress.getByName(subnetAddress).getAddress();
+      boolean ipv4 = subnetBytes.length == 4;
+      if (ipv4 && prefixLength < MIN_IPV4_EXPANSION_PREFIX) {
+        log.warn(
+            "Subnet {} expansion skipped: IPv4 prefix /{} is broader than supported /{}",
+            cidr,
+            prefixLength,
+            MIN_IPV4_EXPANSION_PREFIX);
+        return List.of();
+      }
+      int addressBitLength = subnetBytes.length * 8;
+      int hostBits = addressBitLength - prefixLength;
+      if (hostBits < 0) {
+        return List.of();
+      }
+
+      BigInteger subnetInt = new BigInteger(1, subnetBytes);
+      BigInteger mask =
+          BigInteger.ONE
+              .shiftLeft(addressBitLength)
+              .subtract(BigInteger.ONE)
+              .shiftRight(hostBits)
+              .shiftLeft(hostBits);
+      BigInteger network = subnetInt.and(mask);
+      BigInteger rangeSize = BigInteger.ONE.shiftLeft(hostBits);
+      BigInteger rangeEnd = network.add(rangeSize).subtract(BigInteger.ONE);
+
+      BigInteger start = network;
+      BigInteger end = rangeEnd;
+      if (ipv4 && prefixLength <= 30 && rangeSize.compareTo(BigInteger.TWO) > 0) {
+        start = network.add(BigInteger.ONE);
+        end = rangeEnd.subtract(BigInteger.ONE);
+      }
+      if (start.compareTo(end) > 0) {
+        return List.of();
+      }
+
+      BigInteger hostCount = end.subtract(start).add(BigInteger.ONE);
+      if (hostCount.compareTo(BigInteger.valueOf(MAX_EXPANDED_HOSTS)) > 0) {
+        log.warn(
+            "Subnet {} expansion skipped: {} hosts exceeds limit {}",
+            cidr,
+            hostCount,
+            MAX_EXPANDED_HOSTS);
+        return List.of();
+      }
+
+      List<String> hosts = new ArrayList<>(hostCount.intValue());
+      for (BigInteger current = start;
+          current.compareTo(end) <= 0;
+          current = current.add(BigInteger.ONE)) {
+        byte[] addressBytes = toFixedLengthBytes(current, subnetBytes.length);
+        hosts.add(InetAddress.getByAddress(addressBytes).getHostAddress());
+      }
+      return hosts;
+    } catch (Exception e) {
+      log.warn("Failed to expand subnet {}: {}", cidr, e.getMessage());
+      return List.of();
+    }
+  }
+
+  /**
+   * Expands a CIDR subnet and splits the resulting hosts by IP family.
+   *
+   * @param cidr subnet in CIDR notation
+   * @return expanded hosts partitioned as IPv4 and IPv6
+   */
+  public static ExpandedSubnetHosts expandSubnetToHostsByFamily(String cidr) {
+    List<String> ipv4Hosts = new ArrayList<>();
+    List<String> ipv6Hosts = new ArrayList<>();
+    for (String expandedIp : expandSubnetToHostIps(cidr)) {
+      if (isIpv4Address(expandedIp)) {
+        ipv4Hosts.add(expandedIp);
+      } else if (isIpv6Address(expandedIp)) {
+        ipv6Hosts.add(expandedIp);
+      }
+    }
+    return new ExpandedSubnetHosts(ipv4Hosts, ipv6Hosts);
+  }
+
+  public record ExpandedSubnetHosts(List<String> ipv4Hosts, List<String> ipv6Hosts) {}
+
+  private static byte[] toFixedLengthBytes(BigInteger value, int length) {
+    byte[] raw = value.toByteArray();
+    if (raw.length == length) {
+      return raw;
+    }
+    byte[] fixed = new byte[length];
+    if (raw.length > length) {
+      System.arraycopy(raw, raw.length - length, fixed, 0, length);
+      return fixed;
+    }
+    System.arraycopy(raw, 0, fixed, length - raw.length, raw.length);
+    return fixed;
   }
 }

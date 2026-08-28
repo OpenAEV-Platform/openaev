@@ -38,6 +38,11 @@ public class ScenarioInput {
   @JsonProperty("scenario_severity")
   private SEVERITY severity;
 
+  /** Kill chain name shown first in the overview's kill chain results (null = automatic). */
+  @Nullable
+  @JsonProperty("scenario_default_kill_chain")
+  private String defaultKillChain;
+
   @Nullable
   @JsonProperty("scenario_external_reference")
   private String externalReference;
@@ -48,6 +53,14 @@ public class ScenarioInput {
 
   @JsonProperty("scenario_tags")
   private List<String> tagIds = new ArrayList<>();
+
+  /**
+   * Never return null: the frontend can send {@code "scenario_tags": null}, which Jackson maps to a
+   * null list and would make {@code tagRepository.findAllById(null)} throw "Ids must not be null".
+   */
+  public List<String> getTagIds() {
+    return tagIds == null ? new ArrayList<>() : tagIds;
+  }
 
   @Pattern(regexp = FROM_NAME_PATTERN, message = FROM_NAME_PATTERN_MESSAGE)
   @Size(max = FROM_NAME_MAX_LENGTH, message = FROM_NAME_SIZE_MESSAGE)

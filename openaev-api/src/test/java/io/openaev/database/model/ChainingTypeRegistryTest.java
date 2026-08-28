@@ -1,0 +1,157 @@
+package io.openaev.database.model;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.Optional;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+@DisplayName("Chaining type registry")
+class ChainingTypeRegistryTest {
+
+  @Test
+  @DisplayName("Should classify contract output types")
+  void given_contractOutputTypes_should_classifyOutputKinds() {
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.IPv4).kind())
+        .isEqualTo(ChainingTypeKind.PRIMITIVE);
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.ActionOutput)
+                .kind())
+        .isEqualTo(ChainingTypeKind.PRIMITIVE);
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Credentials)
+                .kind())
+        .isEqualTo(ChainingTypeKind.COMPLEX);
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Asset)
+                .kind())
+        .isEqualTo(ChainingTypeKind.COMPLEX);
+  }
+
+  @Test
+  @DisplayName("Should expose primitive catalog used by arguments and conditions")
+  void given_primitiveCatalog_should_includeConfiguredPrimitiveTypes() {
+    var primitiveTypes = ChainingTypeRegistry.getPrimitiveTypes();
+    assertThat(primitiveTypes)
+        .contains(
+            PrimitiveType.Host,
+            PrimitiveType.Domain,
+            PrimitiveType.IPv4,
+            PrimitiveType.IPv6,
+            PrimitiveType.IpSubnet,
+            PrimitiveType.TargetedAsset,
+            PrimitiveType.Document,
+            PrimitiveType.ActionOutput,
+            PrimitiveType.AssetId,
+            PrimitiveType.AssetGroupId);
+  }
+
+  @Test
+  @DisplayName("Should parse primitive labels for import/export compatibility")
+  void given_primitiveLabels_should_mapToPrimitiveTypes() {
+    assertThat(PrimitiveType.fromLabel("ipv4")).isEqualTo(PrimitiveType.IPv4);
+    assertThat(PrimitiveType.fromLabel("document")).isEqualTo(PrimitiveType.Document);
+    assertThat(PrimitiveType.fromLabel("targeted-asset")).isEqualTo(PrimitiveType.TargetedAsset);
+    assertThat(PrimitiveType.fromLabel("ip_subnet")).isEqualTo(PrimitiveType.IpSubnet);
+    assertThat(PrimitiveType.fromLabel("asset_id")).isEqualTo(PrimitiveType.AssetId);
+    assertThat(PrimitiveType.fromLabel("asset_group_id")).isEqualTo(PrimitiveType.AssetGroupId);
+  }
+
+  @Test
+  @DisplayName("Should keep a controlled failure on null or unknown primitive labels")
+  void given_nullOrUnknownLabel_should_throwIllegalArgument() {
+    assertThatThrownBy(() -> PrimitiveType.fromLabel(null))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> PrimitiveType.fromLabel("definitely-not-a-type"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @DisplayName("Should map scope value types to primitive chaining types")
+  void given_scopeValueTypes_should_mapToPrimitiveTypes() {
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(ScopeRuleValueType.IP)
+                .primitiveTypes())
+        .containsExactly(PrimitiveType.IPv4, PrimitiveType.IPv6);
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(ScopeRuleValueType.IP_SUBNET)
+                .primitiveTypes())
+        .containsExactly(PrimitiveType.IpSubnet);
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(ScopeRuleValueType.DOMAIN)
+                .primitiveTypes())
+        .containsExactly(PrimitiveType.Domain);
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(ScopeRuleValueType.ASSET_ID)
+                .primitiveTypes())
+        .containsExactly(PrimitiveType.AssetId);
+    assertThat(
+            ChainingTypeRegistry.getMappedTypeForScopeRuleValueType(
+                    ScopeRuleValueType.ASSET_GROUP_ID)
+                .primitiveTypes())
+        .containsExactly(PrimitiveType.AssetGroupId);
+  }
+
+  @Test
+  @DisplayName("Should keep only expectation signature non-chainable")
+  void given_contractOutputTypes_should_keepOnlyExpectationSignatureNonChainable() {
+    for (ContractOutputType type : ContractOutputType.values()) {
+      ChainingTypeKind kind = ChainingTypeRegistry.getMappedTypeForContractOutputType(type).kind();
+      if (type == ContractOutputType.ExpectationSignature) {
+        assertThat(kind).isEqualTo(ChainingTypeKind.NOT_CHAINABLE);
+      } else {
+        assertThat(kind).isNotEqualTo(ChainingTypeKind.NOT_CHAINABLE);
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("Complex type should retain its origin ContractOutputType")
+  void given_credentials_should_retainOriginAndBeComplex() {
+    ChainingMappedType mapped =
+        ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Credentials);
+    assertThat(mapped.kind()).isEqualTo(ChainingTypeKind.COMPLEX);
+    assertThat(mapped.origin()).isEqualTo(ContractOutputType.Credentials);
+  }
+
+  @Test
+  @DisplayName(
+      "File is a complex type whose sub-fields resolve to primitives, incl. share -> ShareName")
+  void given_file_should_beComplexWithSubFieldPrimitives() {
+    ChainingMappedType mapped =
+        ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.File);
+    assertThat(mapped.kind()).isEqualTo(ChainingTypeKind.COMPLEX);
+    assertThat(mapped.origin()).isEqualTo(ContractOutputType.File);
+
+    assertThat(
+            ChainingTypeRegistry.resolveComplexFieldPrimitive(ContractOutputType.File, "file_name"))
+        .isEqualTo(Optional.of(PrimitiveType.FileName));
+    assertThat(ChainingTypeRegistry.resolveComplexFieldPrimitive(ContractOutputType.File, "path"))
+        .isEqualTo(Optional.of(PrimitiveType.FilePath));
+    // A file discovered on a share exposes its share name as ShareName, so it links to the share.
+    assertThat(ChainingTypeRegistry.resolveComplexFieldPrimitive(ContractOutputType.File, "share"))
+        .isEqualTo(Optional.of(PrimitiveType.ShareName));
+  }
+
+  @Test
+  @DisplayName("Primitive type should have empty recipe")
+  void given_primitiveType_should_haveEmptyRecipe() {
+    ChainingMappedType mapped =
+        ChainingTypeRegistry.getMappedTypeForContractOutputType(ContractOutputType.Text);
+    assertThat(mapped.kind()).isEqualTo(ChainingTypeKind.PRIMITIVE);
+    assertThat(mapped.primitiveTypes()).containsExactly(PrimitiveType.Text);
+    assertThat(mapped.origin()).isNull();
+  }
+
+  @Test
+  @DisplayName("fromLabelOptional should resolve known labels and return empty for unknown")
+  void given_labels_should_resolveOptionally() {
+    assertThat(PrimitiveType.fromLabelOptional("username"))
+        .isEqualTo(Optional.of(PrimitiveType.Username));
+    assertThat(PrimitiveType.fromLabelOptional("password"))
+        .isEqualTo(Optional.of(PrimitiveType.Password));
+    assertThat(PrimitiveType.fromLabelOptional("nonexistent")).isEmpty();
+  }
+}

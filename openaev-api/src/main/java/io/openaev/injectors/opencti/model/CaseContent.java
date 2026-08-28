@@ -1,25 +1,20 @@
 package io.openaev.injectors.opencti.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.model.inject.form.Expectation;
-import java.util.ArrayList;
-import java.util.List;
+import io.openaev.injectors.common.model.BaseInjectContent;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
-public class CaseContent {
+public class CaseContent extends BaseInjectContent {
 
   @JsonProperty("name")
   private String name;
 
   @JsonProperty("description")
   private String description;
-
-  @JsonProperty("expectations")
-  private List<Expectation> expectations = new ArrayList<>();
 
   public CaseContent() {
     // For mapper

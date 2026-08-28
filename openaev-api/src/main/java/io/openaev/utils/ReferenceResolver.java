@@ -2,8 +2,8 @@ package io.openaev.utils;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -20,7 +20,7 @@ public class ReferenceResolver {
 
   /** Resolves IDs into JPA proxy references after validating existence. */
   public <T> Set<T> resolve(
-      List<String> ids, Class<T> entityClass, Function<Set<String>, Long> countByIdIn) {
+      Collection<String> ids, Class<T> entityClass, Function<Set<String>, Long> countByIdIn) {
     if (ids == null || ids.isEmpty()) return new HashSet<>();
     Set<String> uniqueIds = ids.stream().filter(StringUtils::hasText).collect(Collectors.toSet());
     if (uniqueIds.isEmpty()) return new HashSet<>();

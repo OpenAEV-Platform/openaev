@@ -62,11 +62,17 @@ export default ({ mode }: { mode: string }) => {
       port: 3001,
       proxy: {
         '/api': backProxy(),
+        '/csrf': backProxy(),
         '/login': backProxy(),
         '/logout': backProxy(),
         '/oauth2': backProxy(),
         '/saml2': backProxy(),
         '/actuator': backProxy(),
+        // Cross-platform auth: XTM One fetches this platform's JWKS from
+        // {base-url}/xtm/auth/jwks to verify JWTs minted by XtmOneClient.
+        // When base-url points at this dev server, the fetch must reach the
+        // backend or every /api/xtmone/* proxy call fails with 401.
+        '/xtm': backProxy(),
       },
     },
   });

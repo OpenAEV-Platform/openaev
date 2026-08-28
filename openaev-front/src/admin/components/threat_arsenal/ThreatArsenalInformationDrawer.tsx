@@ -1,25 +1,14 @@
-import { CircularProgress, Grid, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 
-import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
-import type { DocumentHelper } from '../../../actions/helper';
 import { fetchThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-actions';
-import AttackPatternChip from '../../../components/AttackPatternChip';
 import Drawer from '../../../components/common/Drawer';
 import { useFormatter } from '../../../components/i18n';
-import ItemDomains from '../../../components/ItemDomains';
-import ItemTags from '../../../components/ItemTags';
-import PlatformIcon from '../../../components/PlatformIcon';
-import { useHelper } from '../../../store';
 import {
-  type AttackPattern,
   type Payload,
   type ThreatArsenalAction,
   type ThreatArsenalActionFullOutput,
 } from '../../../utils/api-types';
-import InjectIcon from '../common/injects/InjectIcon';
-import PayloadComponent from '../payloads/PayloadComponent';
+import ThreatArsenalActionOverview from './ThreatArsenalActionOverview';
 
 const toPayload = (action: ThreatArsenalActionFullOutput): Payload => {
   return {
@@ -40,6 +29,7 @@ const toPayload = (action: ThreatArsenalActionFullOutput): Payload => {
     payload_collector_type: action.action_collector_type,
     payload_detection_remediations: action.action_detection_remediations,
     payload_expectations: action.action_expectations,
+    payload_expected_security_platforms: action.action_expected_security_platforms,
     payload_output_parsers: action.action_output_parsers,
     payload_prerequisites: action.action_prerequisites,
     command_content: action.command_content,
@@ -61,131 +51,70 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   onClose,
   threatArsenalAction,
 }) => {
-  const theme = useTheme();
-  const { t, tPick } = useFormatter();
-
-  const { attackPatternsMap, documentsMap } = useHelper((helper: AttackPatternHelper & DocumentHelper) => ({
-    attackPatternsMap: helper.getAttackPatternsMap(),
-    documentsMap: helper.getDocumentsMap(),
-  }));
+  const { t } = useFormatter();
 
   const [loading, setLoading] = useState(false);
-  const [selectedPayload, setSelectedPayload] = useState<Payload | null>(null);
+  const [fullOutput, setFullOutput] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   useEffect(() => {
+    // Reset state on every (re)entry so a previous in-flight fetch whose
+    // `.finally()` was skipped by the cancellation guard can't leave the drawer
+    // stuck on a spinner when the next opened action resolves quickly.
     if (!open || !threatArsenalAction) {
-      return;
-    }
-
-    setSelectedPayload(null);
-
-    if (!threatArsenalAction.action_payload) {
-      return;
-    }
-    setLoading(true);
-    fetchThreatArsenalAction(threatArsenalAction.injector_contract_id).then((result) => {
-      setSelectedPayload(toPayload(result.data as ThreatArsenalActionFullOutput));
       setLoading(false);
-    });
+      setFullOutput(null);
+      return undefined;
+    }
+
+    setFullOutput(null);
+    setLoading(true);
+    let cancelled = false;
+    // Always fetch the full details: both payload-based contracts (execution,
+    // arguments, cleanup) and injector-based ones (e.g. AI Red Team) carry
+    // predefined expectations we surface in the drawer.
+    fetchThreatArsenalAction(threatArsenalAction.injector_contract_id)
+      .then((result) => {
+        if (cancelled) return;
+        setFullOutput(result.data as ThreatArsenalActionFullOutput);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFullOutput(null);
+      })
+      .finally(() => {
+        // Keep the cancellation guard so a stale finally from a superseded
+        // fetch can't clear the spinner of a newer in-flight fetch.
+        if (cancelled) return;
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, threatArsenalAction]);
 
-  const attackPatterns = useMemo(() => {
-    return (threatArsenalAction?.action_attack_patterns_ids ?? [])
-      .map((id: string) => attackPatternsMap[id])
-      .filter(Boolean) as AttackPattern[];
-  }, [attackPatternsMap, threatArsenalAction]);
+  // Only payload-based contracts produce a payload object (execution/arguments/
+  // cleanup sections). Expectations are passed separately so injector-based
+  // contracts without a payload still display them.
+  const selectedPayload: Payload | null
+    = fullOutput && threatArsenalAction?.action_payload ? toPayload(fullOutput) : null;
 
   return (
     <Drawer
       open={open}
       handleClose={onClose}
-      title={t('Threat Arsenal information')}
+      title={t('Action information')}
     >
-      <>
-        {(loading || threatArsenalAction == null) && <CircularProgress size={28} />}
-
-        {!loading && threatArsenalAction != null && threatArsenalAction.action_payload && (
-          <PayloadComponent
-            selectedPayload={selectedPayload}
-            documentsMap={documentsMap}
-            attackPatternIds={threatArsenalAction?.action_attack_patterns_ids ?? []}
-            domains={threatArsenalAction?.action_domains_ids ?? []}
-            tagIds={threatArsenalAction?.action_tags_ids ?? []}
-          />
-        )}
-
-        {!loading && threatArsenalAction != null && threatArsenalAction.action_payload == null && (
-          <Grid container display="grid" gridTemplateColumns="1fr 1fr" gap={2}>
-            <Typography style={{ gridColumn: 'span 2' }} variant="h2" gutterBottom>{tPick(threatArsenalAction?.action_labels) || '-'}</Typography>
-
-            <div>
-              <Typography variant="h3" gutterBottom>{t('Platforms')}</Typography>
-              {(threatArsenalAction?.action_platforms ?? []).length > 0 ? threatArsenalAction!.action_platforms!.map(platform => (
-                <PlatformIcon
-                  key={platform}
-                  platform={platform}
-                  width={24}
-                  marginRight={theme.spacing(2)}
-                />
-              )) : (
-                <Typography variant="body2">-</Typography>
-              )}
-            </div>
-
-            <div>
-              <Typography variant="h3" gutterBottom>{t('Attack patterns')}</Typography>
-              {attackPatterns.length > 0 ? attackPatterns.map(attackPattern => (
-                <AttackPatternChip
-                  key={attackPattern.attack_pattern_id}
-                  attackPattern={attackPattern}
-                />
-              )) : (
-                <Typography variant="body2">-</Typography>
-              )}
-
-            </div>
-
-            <div>
-              <Typography variant="h3" gutterBottom>{t('Domains')}</Typography>
-              <ItemDomains domains={threatArsenalAction?.action_domains_ids ?? []} variant="list" />
-            </div>
-
-            <div>
-              <Typography
-                variant="h3"
-                gutterBottom
-              >
-                {t('Tags')}
-              </Typography>
-              <ItemTags
-                variant="reduced-view"
-                tags={threatArsenalAction?.action_tags_ids}
-              />
-            </div>
-
-            <div>
-              <Typography variant="h3" gutterBottom>{t('Injector type')}</Typography>
-              {threatArsenalAction?.action_injector_type ? (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: theme.spacing(1),
-                }}
-                >
-                  <InjectIcon
-                    variant="list"
-                    type={threatArsenalAction?.action_injector_type}
-                    isPayload={false}
-                  />
-                  <Typography variant="body2">{threatArsenalAction?.action_injector_type}</Typography>
-                </div>
-              ) : (
-                <Typography variant="body2">-</Typography>
-              )}
-            </div>
-          </Grid>
-        )}
-      </>
+      {threatArsenalAction == null ? <></> : (
+        <ThreatArsenalActionOverview
+          action={threatArsenalAction}
+          payload={selectedPayload}
+          expectations={fullOutput?.action_expectations}
+          expectationDetails={fullOutput?.action_expectation_details}
+          expectedSecurityPlatforms={fullOutput?.action_expected_security_platforms}
+          providing={fullOutput?.action_providing}
+          loading={loading}
+        />
+      )}
     </Drawer>
   );
 };

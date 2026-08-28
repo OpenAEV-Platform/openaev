@@ -6,10 +6,10 @@ description: >
 runs:
   using: composite
   steps:
-    - name: Set up Node.js 22.11
-      uses: actions/setup-node@v6
+    - name: Set up Node.js 24
+      uses: actions/setup-node@v7
       with:
-        node-version: "22.23.0"
+        node-version: "24.19.0"
     - name: Install corepack
       run: npm install -g corepack
       shell: bash
@@ -19,7 +19,7 @@ runs:
       shell: bash
       working-directory: openaev-front
     - name: Cache Yarn dependencies
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ${{ steps.yarn-cache-dir.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}

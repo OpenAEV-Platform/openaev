@@ -65,6 +65,14 @@ public interface RawSimulationIndexing extends RawTenant {
   String getExercise_main_focus();
 
   /**
+   * Returns the kill chain displayed first in the overview kill chain results.
+   *
+   * @return the default kill chain name (e.g., "mitre-attack"), or null for automatic (blank input
+   *     is normalized to null on write, so null is the only automatic marker)
+   */
+  String getExercise_default_kill_chain();
+
+  /**
    * Returns the severity level of the exercise.
    *
    * @return the severity level
@@ -119,6 +127,20 @@ public interface RawSimulationIndexing extends RawTenant {
    * @return {@code true} if lessons are anonymized, {@code false} otherwise
    */
   boolean getExercise_lessons_anonymized();
+
+  /**
+   * Returns whether the lessons learned module is enabled for this exercise.
+   *
+   * @return {@code true} if the lessons learned module is enabled, {@code false} otherwise
+   */
+  boolean getExercise_lessons_enabled();
+
+  /**
+   * Returns whether this simulation was created by an autonomous (AI-driven) run.
+   *
+   * @return {@code true} if the simulation is autonomous, {@code false} otherwise
+   */
+  boolean getExercise_autonomous();
 
   /**
    * Returns the creation timestamp of the exercise.

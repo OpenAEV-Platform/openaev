@@ -21,6 +21,12 @@ public interface EngineService {
   List<String> BASE_FIELDS = List.of("base_id", "base_entity", "base_representative");
 
   /**
+   * Upper bound on ids per engine call inside {@link #bulkDelete(List)}: keeps the terms clauses
+   * and the side-cleanup script parameters bounded however large the deletion cascade is.
+   */
+  int BULK_DELETE_BATCH_SIZE = 1000;
+
+  /**
    * Process models in bulk
    *
    * @param models the models to insert
@@ -37,11 +43,26 @@ public interface EngineService {
   void cleanUpIndex(String model) throws IOException;
 
   /**
-   * Bulk delete
+   * Deletes the documents for the given entity ids (and their cascade dependencies), then cleans
+   * the deleted ids out of the denormalized {@code base_*_side} references. Ids are processed in
+   * batches of {@link #BULK_DELETE_BATCH_SIZE}.
+   *
+   * <p>Failures propagate as {@link RuntimeException}: callers decide resilience. The after-commit
+   * flush ({@code EngineListener}) swallows and relies on the deletion journal + replay job for
+   * convergence; the replay job retries failed batches on its next pass.
    *
    * @param ids the list of ids to delete
    */
   void bulkDelete(List<String> ids);
+
+  /**
+   * Deletes every document belonging to the given tenants across all indexes, in a single
+   * delete-by-query. Used when tenants are permanently purged: tenant data is removed via native
+   * SQL (no JPA lifecycle events), so the engine must be cleaned explicitly by tenant id.
+   *
+   * @param tenantIds the tenants whose documents must be removed
+   */
+  void deleteByTenants(List<String> tenantIds);
 
   /**
    * Count using parameters

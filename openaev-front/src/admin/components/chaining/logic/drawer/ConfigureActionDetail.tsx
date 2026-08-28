@@ -1,331 +1,488 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { InfoOutlined, RestartAlt } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  Chip,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { RestartAlt } from '@mui/icons-material';
+import { Box, Button, Typography } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 
+import { directFetchWorkflowInjectorContract } from '../../../../../actions/chaining/workflow-actions';
 import { directFetchInjectorContract } from '../../../../../actions/InjectorContracts';
-import Drawer from '../../../../../components/common/Drawer';
+import { findTeams } from '../../../../../actions/teams/team-actions';
+import SwitchFieldController from '../../../../../components/fields/SwitchFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
-import type { ScopeAssetOutput, ThreatArsenalAction } from '../../../../../utils/api-types';
-import type { ContractElement } from '../../../../../utils/api-types-custom';
+import type { ScopeAssetOutput, ScopeTeamOutput, TeamOutput, ThreatArsenalAction } from '../../../../../utils/api-types';
+import type { ContractElement, ContractType, EnhancedContractElement } from '../../../../../utils/api-types-custom';
 import { zodImplement } from '../../../../../utils/Zod';
-import DrawerBreadcrumb from '../../../common/DrawerBreadcrumb';
-import { type ActionDetailData } from '../types';
-import InjectDataFieldItem, { type FieldLink } from './InjectDataFieldItem';
+import InjectExpectations from '../../../common/injects/expectations/InjectExpectations';
+import InjectDocumentsList from '../../../common/injects/form/documents/InjectDocumentsList';
+import InjectContentFieldComponent from '../../../common/injects/form/InjectContentFieldComponent';
+import InjectFormSection from '../../../common/injects/form/InjectFormSection';
+import InjectTeamsList from '../../../common/injects/form/teams/InjectTeamsList';
+import { isInjectContentType, isRequiredField, isVisibleField } from '../../../common/injects/utils';
+import { type ActionDetailData, type InjectDocumentInput } from '../types';
+import ActionFormButtons from './ActionFormButtons';
+import ActionScopeChips from './ActionScopeChips';
+import {
+  applyAutoLinks,
+  applyPredefinedExpectations,
+  buildContractDefaults,
+  EXPECTATION_FIELD_TYPE,
+  EXPECTATIONS_CONTENT_KEY,
+  getAutoLinkedFieldKeys,
+  getContractFieldDefaultValue,
+  isExpectationInput,
+  normalizeFieldLinks,
+  stripFrontendMetadataKeys,
+} from './ConfigureActionDetail.utils';
+import FieldOutputLink, { type FieldLink } from './FieldOutputLink';
 
 interface ConfigureActionDetailProps {
-  open: boolean;
+  /** Whether the hosting drawer step is active (feeds the inject-data panel + contract fetch). */
+  open?: boolean;
+  workflowId?: string;
   action: ThreatArsenalAction | null;
   validAssets: ScopeAssetOutput[];
+  validTeams?: ScopeTeamOutput[];
   initialData?: ActionDetailData;
+  readOnly?: boolean;
   onClose: () => void;
-  onBack: () => void;
-  onBackToRoot: () => void;
   onSave: (data: ActionDetailData) => void;
 }
 
-interface FormValues { inject_title: string }
+// Targeting field types/keys owned by the scope definition - excluded from the generic form.
+const PAYLOAD_HIDDEN_TYPES = new Set<ContractType>(['asset', 'asset-group']);
+const INJECTOR_HIDDEN_TYPES = new Set<ContractType>(['asset', 'asset-group', 'targeted-asset']);
+const INJECTOR_HIDDEN_KEYS = new Set([
+  'target_selector', // type of targets
+  'assets', // targeted assets
+  'asset_groups', // targeted asset groups
+  'target_property_selector', // targeted asset property
+  'targets', // manual targets
+]);
+// Handled by dedicated widgets/sections rather than the dynamic-content loop.
+const DEDICATED_TYPES = new Set<ContractType>([
+  'team',
+  'attachment',
+  'asset',
+  'asset-group',
+  'article',
+  'challenge',
+  'expectation',
+]);
+// Field types whose value can be fed by a workflow output (the "Link an Output" adornment).
+const LINKABLE_PRIMITIVE_TYPES = new Set<ContractType>(['text', 'number', 'select', 'choice']);
+
+interface FormValues {
+  inject_title: string;
+  inject_content: Record<string, unknown>;
+  inject_teams: string[];
+  inject_all_teams: boolean;
+  inject_documents: InjectDocumentInput[];
+  inject_asset_groups: string[];
+}
+
+const emptyDefaults = (): FormValues => ({
+  inject_title: '',
+  inject_content: {},
+  inject_teams: [],
+  inject_all_teams: false,
+  inject_documents: [],
+  inject_asset_groups: [],
+});
+
+const buildEnhancedField = (
+  field: ContractElement,
+  fields: ContractElement[],
+  values: FormValues,
+): EnhancedContractElement => {
+  const isInjectContent = isInjectContentType(field.type);
+  return {
+    ...field,
+    key: isInjectContent ? `inject_content.${field.key}` : `inject_${field.key}`,
+    originalKey: field.key,
+    isInjectContentType: isInjectContent && field.type !== EXPECTATION_FIELD_TYPE,
+    isVisible: isVisibleField(field, fields, values),
+    isInMandatoryGroup: !!field.mandatoryGroups?.length,
+    mandatoryGroupContractElementLabels: '',
+    settings: { required: isRequiredField(field, fields, values) },
+  };
+};
 
 const ConfigureActionDetail: FunctionComponent<ConfigureActionDetailProps> = ({
-  open,
+  open = true,
+  workflowId,
   action,
   validAssets,
+  validTeams = [],
   initialData,
+  readOnly = false,
   onClose,
-  onBack,
-  onBackToRoot,
   onSave,
 }) => {
   const { t, tPick } = useFormatter();
 
+  const isPayload = !!action?.action_payload;
+
   const schema = useMemo(
-    () => zodImplement<FormValues>().with({ inject_title: z.string().min(1, { message: t('Title is required') }) }),
+    () => zodImplement<FormValues>().with({
+      inject_title: z.string().min(1, { message: t('Title is required') }),
+      inject_content: z.record(z.string(), z.unknown()),
+      inject_teams: z.array(z.string()),
+      inject_all_teams: z.boolean(),
+      inject_documents: z.array(z.object({
+        document_id: z.string(),
+        document_attached: z.boolean(),
+      })),
+      inject_asset_groups: z.array(z.string()),
+    }),
     [t],
   );
 
   const methods = useForm<FormValues>({
     mode: 'onTouched',
     resolver: zodResolver(schema),
-    defaultValues: { inject_title: '' },
+    defaultValues: emptyDefaults(),
   });
 
-  const { handleSubmit, reset, formState: { isValid } } = methods;
+  const { handleSubmit, reset, setValue, getValues, control, formState: { isValid } } = methods;
 
-  // Contract fields
+  // Reactive snapshot of the form values, used to recompute field visibility/required-ness.
+  const watchedValues = useWatch({ control }) as FormValues;
+
   const [contractFields, setContractFields] = useState<ContractElement[]>([]);
   const [loadingContract, setLoadingContract] = useState(false);
 
-  // Dynamic field values (inject_content)
-  const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
-
-  // Output links per field (field key → FieldLink)
+  // Output links per field (raw contract field key -> FieldLink); chaining-specific state.
   const [fieldLinks, setFieldLinks] = useState<Record<string, FieldLink>>({});
 
-  // Reset state when action changes
+  // Reset the whole form + contract when the edited action changes.
   useEffect(() => {
-    if (action) {
-      const label = initialData?.inject_title
-        ?? (action.action_labels ? tPick(action.action_labels) : '');
-      reset({ inject_title: label });
-      setFieldValues(initialData?.inject_content ?? {});
-      setFieldLinks(initialData?.inject_field_links ?? {});
-      setContractFields(initialData?.contract_fields ?? []);
+    if (!action) return;
+    const label = initialData?.inject_title ?? (action.action_labels ? tPick(action.action_labels) : '');
+    const defaultTeams = initialData?.inject_teams
+      ?? validTeams.map(team => team.team_id).filter((id): id is string => !!id);
+    reset({
+      ...emptyDefaults(),
+      inject_title: label,
+      // Never seed the editor with frontend-only metadata keys (see stripFrontendMetadataKeys).
+      inject_content: stripFrontendMetadataKeys((initialData?.inject_content ?? {}) as Record<string, unknown>),
+      inject_teams: defaultTeams,
+      inject_all_teams: initialData?.inject_all_teams ?? false,
+      inject_documents: initialData?.inject_documents ?? [],
+      inject_asset_groups: initialData?.inject_asset_groups ?? [],
+    });
+    setFieldLinks(normalizeFieldLinks(initialData?.inject_field_links));
+    setContractFields(initialData?.contract_fields ?? []);
 
-      // Fetch injector contract content
-      const contractId = initialData?.inject_injector_contract ?? action.injector_contract_id;
-      setLoadingContract(true);
-      directFetchInjectorContract(contractId)
-        .then((res: { data: { injector_contract_content?: string } }) => {
-          if (res.data?.injector_contract_content) {
-            try {
-              const parsed = JSON.parse(res.data.injector_contract_content);
-              const fields = (parsed.fields ?? []) as ContractElement[];
-              setContractFields(fields);
-              // Set default values only if no initialData was provided
-              if (!initialData?.inject_content) {
-                const defaults: Record<string, unknown> = {};
-                for (const field of fields) {
-                  if (field.defaultValue !== undefined && field.defaultValue !== null) {
-                    defaults[field.key] = field.defaultValue;
-                  }
-                }
-                setFieldValues(defaults);
-              }
-            } catch {
-              setContractFields([]);
-            }
-          }
-        })
-        .catch(() => setContractFields([]))
-        .finally(() => setLoadingContract(false));
-    }
-  }, [action, initialData]);
+    const existingContractId = initialData?.inject_injector_contract;
+    const contractId = existingContractId ?? action.injector_contract_id;
+    setLoadingContract(true);
+    // A contract already referenced by a workflow step is read through the workflow-scoped
+    // endpoint, so read-granted users never need the global threat-arsenal capabilities. A newly
+    // selected action's contract is not part of the workflow yet (the scoped lookup would 404):
+    // it goes through the global lookup, which is fine because adding actions requires the
+    // manage permission and the arsenal capabilities anyway.
+    (workflowId && existingContractId
+      ? directFetchWorkflowInjectorContract(workflowId, existingContractId)
+      : directFetchInjectorContract(contractId))
+      .then((res: { data: { injector_contract_content?: string } }) => {
+        if (!res.data?.injector_contract_content) return;
+        try {
+          const parsed = JSON.parse(res.data.injector_contract_content);
+          const fields = (parsed.fields ?? []) as ContractElement[];
+          setContractFields(fields);
+          // Use sanitized initial content when editing, otherwise contract defaults.
+          const baseContent = initialData?.inject_content ?? buildContractDefaults(fields);
+          const content = applyPredefinedExpectations(
+            stripFrontendMetadataKeys(baseContent as Record<string, unknown>),
+            fields,
+          );
+          setValue('inject_content', content);
+        } catch {
+          setContractFields([]);
+        }
+      })
+      .catch(() => setContractFields([]))
+      .finally(() => setLoadingContract(false));
+  }, [action, initialData, workflowId]);
+
+  // Auto-link action input fields with their default primitive type when available.
+  // Example: field argumentType "ipv4" -> outputTypes ["ipv4"].
+  useEffect(() => {
+    // In edit mode, preserve persisted links exactly as-is (no auto-link recomputation).
+    if (initialData) return;
+    if (contractFields.length === 0) return;
+    setFieldLinks(prev => applyAutoLinks(contractFields, prev));
+  }, [initialData, contractFields]);
 
   const handleResetDefaults = () => {
-    const defaults: Record<string, unknown> = {};
-    for (const field of contractFields) {
-      if (field.defaultValue !== undefined && field.defaultValue !== null) {
-        defaults[field.key] = field.defaultValue;
-      }
-    }
-    setFieldValues(defaults);
+    if (readOnly) return;
+    const current = getValues('inject_content');
+    setValue('inject_content', {
+      ...buildContractDefaults(contractFields),
+      [EXPECTATIONS_CONTENT_KEY]: current?.[EXPECTATIONS_CONTENT_KEY],
+    });
     setFieldLinks({});
   };
 
-  const handleFieldValueChange = (fieldKey: string, value: string) => {
-    setFieldValues(prev => ({
-      ...prev,
-      [fieldKey]: value,
-    }));
-  };
+  const handleLinkField = (fieldKey: string, link: FieldLink) => setFieldLinks(prev => ({
+    ...prev,
+    [fieldKey]: link,
+  }));
 
-  const handleLinkField = (fieldKey: string, link: FieldLink) => {
-    setFieldLinks(prev => ({
-      ...prev,
-      [fieldKey]: link,
-    }));
-  };
+  const handleUnlinkField = (fieldKey: string) => setFieldLinks((prev) => {
+    const next = { ...prev };
+    delete next[fieldKey];
+    return next;
+  });
 
-  const handleUnlinkField = (fieldKey: string) => {
-    setFieldLinks((prev) => {
-      const next = { ...prev };
-      delete next[fieldKey];
-      return next;
-    });
-  };
+  const handleToggleLocalScope = (fieldKey: string, localScope: boolean) => setFieldLinks(prev => ({
+    ...prev,
+    [fieldKey]: {
+      ...prev[fieldKey],
+      localScope,
+    },
+  }));
 
-  const handleToggleLocalScope = (fieldKey: string, localScope: boolean) => {
-    setFieldLinks(prev => ({
-      ...prev,
-      [fieldKey]: {
-        ...prev[fieldKey],
-        localScope,
-      },
-    }));
-  };
+  const hasTeamField = useMemo(() => !isPayload && contractFields.some(f => f.type === 'team'), [contractFields, isPayload]);
+
+  // Does this contract target assets? Asset targeting is expressed either by an asset-typed field
+  // or by one of the scope-owned targeting keys. Payloads always target assets.
+  const hasAssetTargeting = useMemo(
+    () => contractFields.some(f => INJECTOR_HIDDEN_TYPES.has(f.type) || INJECTOR_HIDDEN_KEYS.has(f.key)),
+    [contractFields],
+  );
+  // The two targeting axes this action actually persists. A team-centric inject (e.g. email) must
+  // never inherit the asset perimeter, otherwise it targets hosts instead of people at execution.
+  const targetsAssets = isPayload || hasAssetTargeting;
+  const targetsTeams = hasTeamField;
 
   const onSubmit = (formData: FormValues) => {
-    if (!action) return;
+    if (readOnly || !action) return;
+    // Final safety: remove frontend-only keys before sending to backend.
+    const contentWithExpectations = applyPredefinedExpectations(
+      stripFrontendMetadataKeys(formData.inject_content),
+      contractFields,
+    );
+    const selectedTeams = formData.inject_all_teams ? [] : (formData.inject_teams ?? []);
     onSave({
       inject_title: formData.inject_title.trim(),
       inject_injector_contract: action.injector_contract_id,
-      inject_injector: action.action_injector_type,
-      inject_assets: validAssets.map(a => a.asset_id).filter((id): id is string => !!id),
-      inject_content: fieldValues,
+      // Only asset-centric contracts inherit the scope's asset perimeter; team-centric injects
+      // (e.g. email) must not carry assets, or they target hosts instead of people at execution.
+      inject_assets: targetsAssets
+        ? validAssets.map(a => a.asset_id).filter((id): id is string => !!id)
+        : [],
+      inject_asset_groups: targetsAssets ? (formData.inject_asset_groups ?? []) : [],
+      inject_teams: targetsTeams ? selectedTeams : [],
+      inject_all_teams: targetsTeams ? (formData.inject_all_teams ?? false) : false,
+      inject_documents: formData.inject_documents ?? [],
+      inject_content: contentWithExpectations,
       inject_field_links: fieldLinks,
       contract_fields: contractFields,
     });
   };
 
-  const actionLabel = useMemo(() => {
-    if (!action?.action_labels) return '';
-    return tPick(action.action_labels);
-  }, [action, tPick]);
+  const enhancedFields = useMemo(
+    () => contractFields.map(field => buildEnhancedField(field, contractFields, watchedValues)),
+    [contractFields, watchedValues],
+  );
 
-  const visibleFields = useMemo(() => {
-    return contractFields.filter(f => !f.readOnly);
-  }, [contractFields]);
+  const hasAttachmentField = useMemo(() => !isPayload && contractFields.some(f => f.type === 'attachment'), [contractFields, isPayload]);
+  const teamFieldEnhanced = useMemo(() => enhancedFields.find(f => f.type === 'team'), [enhancedFields]);
+
+  // Resolve the selected teams' names so the Initial Target reflects the current team selection.
+  const [selectedTeamOptions, setSelectedTeamOptions] = useState<ScopeTeamOutput[]>([]);
+  const selectedTeamIds = watchedValues?.inject_teams ?? [];
+  const selectedTeamKey = selectedTeamIds.join(',');
+  const allTeamsSelected = !!watchedValues?.inject_all_teams;
+  useEffect(() => {
+    if (!targetsTeams || allTeamsSelected || selectedTeamIds.length === 0) {
+      setSelectedTeamOptions([]);
+      return;
+    }
+    findTeams(selectedTeamIds)
+      .then(res => setSelectedTeamOptions(
+        ((res.data ?? []) as TeamOutput[]).map(team => ({
+          team_id: team.team_id,
+          team_name: team.team_name,
+        })),
+      ))
+      .catch(() => setSelectedTeamOptions([]));
+  }, [targetsTeams, allTeamsSelected, selectedTeamKey]);
+
+  // Dynamic content fields (typed widgets), excluding scope-owned targeting + dedicated sections.
+  const contentEnhancedFields = useMemo(() => {
+    return enhancedFields.filter((ef) => {
+      if (ef.readOnly || DEDICATED_TYPES.has(ef.type)) return false;
+      if (!ef.isVisible) return false;
+      if (!isPayload && (ef.originalKey.startsWith('targeted-property-') || ef.originalKey.startsWith('targeted-asset-separator-'))) return false;
+      if (isPayload) return !PAYLOAD_HIDDEN_TYPES.has(ef.type);
+      if (INJECTOR_HIDDEN_TYPES.has(ef.type)) return false;
+      if (INJECTOR_HIDDEN_KEYS.has(ef.originalKey)) return false;
+      return true;
+    });
+  }, [enhancedFields, isPayload]);
+
+  const expectationField = useMemo(
+    () => contractFields.find(field => field.type === EXPECTATION_FIELD_TYPE),
+    [contractFields],
+  );
+
+  const autoLinkedFields = useMemo(
+    () => (isPayload ? getAutoLinkedFieldKeys(contractFields) : new Set<string>()),
+    [isPayload, contractFields],
+  );
+
+  const noLinkFields = useMemo(
+    () =>
+      isPayload
+        ? new Set(
+            contractFields
+              .filter(f => f.key.startsWith('targeted-property-') || f.key.startsWith('targeted-asset-separator-'))
+              .map(f => f.key),
+          )
+        : new Set<string>(),
+    [isPayload, contractFields],
+  );
+
+  const expectations = useMemo(() => {
+    if (!expectationField) return [];
+    const value = watchedValues?.inject_content?.[EXPECTATIONS_CONTENT_KEY]
+      ?? watchedValues?.inject_content?.[expectationField.key]
+      ?? getContractFieldDefaultValue(expectationField);
+    if (!Array.isArray(value)) return [];
+    return value.filter(isExpectationInput);
+  }, [expectationField, watchedValues]);
+
+  const renderContentField = (ef: EnhancedContractElement) => {
+    const rawKey = ef.originalKey;
+    const link = fieldLinks[rawKey] ?? null;
+    const isAutoLinked = autoLinkedFields.has(rawKey);
+    const showLink = !noLinkFields.has(rawKey) && (LINKABLE_PRIMITIVE_TYPES.has(ef.type) || isAutoLinked);
+
+    return (
+      <Box key={ef.key}>
+        {/* The defined-value input stays available even once a type is linked: the two are not
+            mutually exclusive — the backend keeps the defined value as one more candidate alongside
+            the linked type's resolved pool (ConditionService#resolveMapperPairs). Only auto-linked
+            fields (e.g. targeted-asset) are system-managed and hide it. */}
+        {!isAutoLinked && <InjectContentFieldComponent field={ef} readOnly={readOnly} />}
+        {showLink && (
+          <FieldOutputLink
+            panelOpen={open}
+            fieldKey={rawKey}
+            fieldLabel={t(ef.label) || rawKey}
+            link={link}
+            readOnly={readOnly || isAutoLinked}
+            onLink={handleLinkField}
+            onUnlink={handleUnlinkField}
+            onToggleLocalScope={handleToggleLocalScope}
+          />
+        )}
+      </Box>
+    );
+  };
 
   return (
-    <Drawer
-      open={open}
-      handleClose={onClose}
-      title={actionLabel}
-    >
-      <FormProvider {...methods}>
+    <FormProvider {...methods}>
+      <Box
+        component="form"
+        onSubmit={handleSubmit(onSubmit)}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 3,
+        }}
+      >
         <Box
-          component="form"
-          onSubmit={handleSubmit(onSubmit)}
+          component="fieldset"
+          disabled={readOnly}
           sx={{
+            border: 0,
+            margin: 0,
+            padding: 0,
+            minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
-            gap: 2,
+            gap: 3,
           }}
         >
-          <DrawerBreadcrumb
-            grandParentLabel={t('Add component')}
-            onBackToGrandParent={onBackToRoot}
-            parentLabel={t('Add actions')}
-            currentLabel={actionLabel}
-            onBack={onBack}
+          <TextFieldController name="inject_title" label={t('Title')} required disabled={readOnly} />
+
+          <ActionScopeChips
+            isPayload={isPayload}
+            assets={targetsAssets ? validAssets : []}
+            teams={targetsTeams ? selectedTeamOptions : []}
+            allTeams={targetsTeams && allTeamsSelected}
           />
 
-          <TextFieldController
-            name="inject_title"
-            label={t('Title')}
-            required
-          />
+          {hasTeamField && (
+            <InjectFormSection
+              title={t('Targeted teams')}
+              helper={t('Who receives this inject.')}
+              action={(
+                <SwitchFieldController
+                  name="inject_all_teams"
+                  label={<strong>{t('All teams')}</strong>}
+                  disabled={readOnly || teamFieldEnhanced?.readOnly}
+                  size="small"
+                />
+              )}
+            >
+              <InjectTeamsList />
+            </InjectFormSection>
+          )}
 
-          {/* Initial Target Assets */}
-          <Box>
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              mb: 1,
-            }}
+          {(contentEnhancedFields.length > 0 || loadingContract) && (
+            <InjectFormSection
+              title={t('Inject data')}
+              helper={t('The content and targets specific to this inject.')}
+              action={(
+                <Button size="small" disabled={readOnly} startIcon={<RestartAlt />} onClick={handleResetDefaults}>
+                  {t('Reset default value')}
+                </Button>
+              )}
             >
-              <Typography variant="subtitle2" fontWeight={600}>
-                {t('Initial Target Assets')}
-              </Typography>
-              <Tooltip
-                title={t('Additional endpoints may be included during simulation based on real decision logic.')}
-              >
-                <InfoOutlined fontSize="small" color="info" />
-              </Tooltip>
-            </Box>
-            {validAssets.length > 0 ? (
-              <Box sx={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 0.5,
-              }}
-              >
-                {validAssets.map(asset => (
-                  <Chip
-                    key={asset.asset_id ?? ''}
-                    label={asset.asset_name ?? ''}
-                    size="small"
-                    variant="filled"
-                  />
-                ))}
-              </Box>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                {t('No assets in the allow list.')}
-              </Typography>
-            )}
-          </Box>
+              {loadingContract && (
+                <Typography variant="body2" color="text.secondary">
+                  {t('Loading contract fields...')}
+                </Typography>
+              )}
+              {contentEnhancedFields.map(renderContentField)}
+            </InjectFormSection>
+          )}
 
-          {/* Inject Data (dynamic contract fields) */}
-          <Box>
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              mb: 1,
-            }}
-            >
-              <Typography variant="subtitle2" fontWeight={600}>
-                {t('Inject Data')}
-              </Typography>
-              <Button
-                size="small"
-                startIcon={<RestartAlt />}
-                onClick={handleResetDefaults}
-              >
-                {t('Reset default value')}
-              </Button>
-            </Box>
-            {loadingContract && (
-              <Typography variant="body2" color="text.secondary">
-                {t('Loading contract fields...')}
-              </Typography>
-            )}
-            {!loadingContract && visibleFields.length === 0 && (
-              <Typography variant="body2" color="text.secondary">
-                {t('No configuration fields for this action.')}
-              </Typography>
-            )}
-            <Box sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-            }}
-            >
-              {visibleFields.map((field) => {
-                const fieldLabel = t(field.label) || field.key;
-                const defaultVal = field.defaultValue != null ? String(field.defaultValue) : undefined;
-                return (
-                  <InjectDataFieldItem
-                    key={field.key}
-                    fieldKey={field.key}
-                    fieldLabel={fieldLabel}
-                    value={String(fieldValues[field.key] ?? '')}
-                    defaultValue={defaultVal}
-                    link={fieldLinks[field.key] ?? null}
-                    onValueChange={handleFieldValueChange}
-                    onLink={handleLinkField}
-                    onUnlink={handleUnlinkField}
-                    onToggleLocalScope={handleToggleLocalScope}
-                  />
-                );
-              })}
-            </Box>
-          </Box>
+          {hasAttachmentField && (
+            <InjectFormSection title={t('Inject documents')}>
+              <InjectDocumentsList hasAttachments />
+            </InjectFormSection>
+          )}
 
-          {/* Actions */}
-          <Box sx={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 1,
-            mt: 1,
-          }}
-          >
-            <Button variant="outlined" color="primary" onClick={onClose}>
-              {t('Cancel')}
-            </Button>
-            <Button
-              variant="contained"
-              color="secondary"
-              type="submit"
-              disabled={!isValid}
-            >
-              {t('Save')}
-            </Button>
-          </Box>
+          {expectationField && (
+            <InjectFormSection title={t('Inject expectations')}>
+              <InjectExpectations
+                expectationDatas={expectations}
+                readOnly={readOnly}
+                handleExpectations={updatedExpectations => setValue('inject_content', {
+                  ...getValues('inject_content'),
+                  [EXPECTATIONS_CONTENT_KEY]: updatedExpectations,
+                })}
+                availableExpectations={expectationField.availableExpectations ?? []}
+              />
+              {expectations.length === 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  {t('No expectations for this action.')}
+                </Typography>
+              )}
+            </InjectFormSection>
+          )}
         </Box>
-      </FormProvider>
-    </Drawer>
+
+        <ActionFormButtons disabled={!isValid} onCancel={onClose} readOnly={readOnly} />
+      </Box>
+    </FormProvider>
   );
 };
 

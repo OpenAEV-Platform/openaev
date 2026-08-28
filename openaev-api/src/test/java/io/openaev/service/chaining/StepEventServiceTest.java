@@ -1,30 +1,75 @@
 package io.openaev.service.chaining;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import io.openaev.api.chaining.ActionStep;
-import io.openaev.database.model.*;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
+import io.openaev.database.model.Step;
+import io.openaev.database.model.StepActionClass;
+import io.openaev.database.model.StepStatus;
+import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import java.util.*;
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class StepEventServiceTest {
 
+  @Mock private ChainingConfig chainingConfig;
   @Mock private StepService stepService;
   @Mock private WorkflowService workflowService;
   @Mock private StepRepository stepRepository;
+  @Mock private QueueChainingService queueChainingService;
+  @Mock private TenantScopedTransaction tenantTx;
   @Mock private ActionStep actionStep;
 
   @InjectMocks private StepEventService stepEventService;
+
+  @BeforeEach
+  void setUp() {
+    lenient().when(chainingConfig.getMaxRetryCount()).thenReturn(3);
+    lenient()
+        .doAnswer(
+            invocation -> {
+              Runnable work = invocation.getArgument(1);
+              work.run();
+              return null;
+            })
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Runnable.class));
+    // Tenant-propagation tests assert the scope opened around the event, not run() itself; make the
+    // step lookup explicitly empty so the primitive's Runnable takes the (harmless) not-found
+    // branch.
+    lenient().when(stepRepository.findById(any())).thenReturn(Optional.empty());
+  }
+
+  @AfterEach
+  void clearTenantScope() {
+    // Belt and suspenders: the consumer clears TenantContext in a finally, but the tests share the
+    // JUnit thread, so guarantee no scope leaks between them.
+    TenantContext.clearCurrentTenant();
+  }
 
   // -- RUN --
 
@@ -218,6 +263,246 @@ class StepEventServiceTest {
       // Assert
       verify(stepRepository).findById(stepId);
       verify(stepService, never()).saveStep(any());
+    }
+  }
+
+  // -- RETRY ON TRANSACTIONAL FAILURE --
+
+  @Nested
+  class RetryOnTransactionalFailure {
+
+    @Test
+    void given_transactionFailure_should_requeue_whenRetryCountBelowMax() throws IOException {
+      // Arrange
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      assertEquals(0, event.getRetryCount());
+
+      doAnswer(
+              invocation -> {
+                throw new RuntimeException("DB error");
+              })
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert
+      assertEquals(1, event.getRetryCount());
+      verify(queueChainingService).republishReadyEvent(event);
+    }
+
+    @Test
+    void given_transactionFailure_should_drop_whenMaxRetriesReached() throws IOException {
+      // Arrange
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      event.setRetryCount(chainingConfig.getMaxRetryCount());
+
+      doAnswer(
+              invocation -> {
+                throw new RuntimeException("DB error");
+              })
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
+
+      // Act
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert — event is dropped, not re-queued
+      verify(queueChainingService, never()).republishReadyEvent(any());
+    }
+
+    @Test
+    void given_transactionFailure_andRepublishFails_should_logAndNotThrow() throws IOException {
+      // Arrange
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+
+      doAnswer(
+              invocation -> {
+                throw new RuntimeException("DB error");
+              })
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
+
+      doThrow(new IOException("RabbitMQ down"))
+          .when(queueChainingService)
+          .republishReadyEvent(any());
+
+      // Act — should not throw
+      stepEventService.handleReadyStepEvent(event);
+
+      // Assert
+      assertEquals(1, event.getRetryCount());
+      verify(queueChainingService).republishReadyEvent(event);
+    }
+  }
+
+  @Nested
+  class RetryOnEndCheckFailure {
+
+    @Test
+    void given_endCheckFails_should_requeue_whenRetryCountBelowMax()
+        throws IOException, ChainingException {
+      // Arrange
+      ExternalUpdateEvent event =
+          ExternalUpdateEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      assertEquals(0, event.getRetryCount());
+
+      Step stepRun = mock(Step.class);
+      when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepService.findByIdAndStatus(event.getStepId(), StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
+          .thenReturn(actionStep);
+
+      Step stepUpdated = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(stepUpdated.getWorkflow()).thenReturn(workflowRun);
+      when(actionStep.update(stepRun)).thenReturn(Optional.of(stepUpdated));
+      doThrow(new ChainingException("end() failed")).when(actionStep).end(stepUpdated);
+
+      // Act
+      stepEventService.handleExternalUpdateEvent(event);
+
+      // Assert
+      assertEquals(1, event.getRetryCount());
+      verify(queueChainingService).republishUpdateEvent(event);
+      // update()'s result is still persisted despite end() failing
+      verify(stepService).saveStep(stepUpdated);
+    }
+
+    @Test
+    void given_endCheckFails_should_drop_whenMaxRetriesReached()
+        throws IOException, ChainingException {
+      // Arrange
+      ExternalUpdateEvent event =
+          ExternalUpdateEvent.builder().stepId(UUID.randomUUID().toString()).build();
+      event.setRetryCount(chainingConfig.getMaxRetryCount());
+
+      Step stepRun = mock(Step.class);
+      when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepService.findByIdAndStatus(event.getStepId(), StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
+          .thenReturn(actionStep);
+
+      Step stepUpdated = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(stepUpdated.getWorkflow()).thenReturn(workflowRun);
+      when(actionStep.update(stepRun)).thenReturn(Optional.of(stepUpdated));
+      doThrow(new ChainingException("end() failed")).when(actionStep).end(stepUpdated);
+
+      // Act
+      stepEventService.handleExternalUpdateEvent(event);
+
+      // Assert — event dropped, not re-queued, but step is still saved (RUN, self-healing on next
+      // event)
+      verify(queueChainingService, never()).republishUpdateEvent(any());
+      verify(stepService).saveStep(stepUpdated);
+    }
+
+    @Test
+    void given_endCheckFails_andRepublishFails_should_logAndNotThrow()
+        throws IOException, ChainingException {
+      // Arrange
+      ExternalUpdateEvent event =
+          ExternalUpdateEvent.builder().stepId(UUID.randomUUID().toString()).build();
+
+      Step stepRun = mock(Step.class);
+      when(stepRun.getStepAction()).thenReturn(StepActionClass.INJECT_EXECUTION);
+      when(stepService.findByIdAndStatus(event.getStepId(), StepStatus.RUN)).thenReturn(stepRun);
+      when(stepService.factoryAction(StepActionClass.INJECT_EXECUTION, null))
+          .thenReturn(actionStep);
+
+      Step stepUpdated = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(stepUpdated.getWorkflow()).thenReturn(workflowRun);
+      when(actionStep.update(stepRun)).thenReturn(Optional.of(stepUpdated));
+      doThrow(new ChainingException("end() failed")).when(actionStep).end(stepUpdated);
+      doThrow(new IOException("RabbitMQ down"))
+          .when(queueChainingService)
+          .republishUpdateEvent(any());
+
+      // Act — should not throw
+      stepEventService.handleExternalUpdateEvent(event);
+
+      // Assert
+      assertEquals(1, event.getRetryCount());
+      verify(queueChainingService).republishUpdateEvent(event);
+    }
+  }
+
+  // -- TENANT PROPAGATION (#6357) --
+
+  @Nested
+  class TenantPropagation {
+
+    // The chaining worker carries no tenant; the fix restores it from the event on BOTH mechanisms:
+    // the MT v2 primitive (GUC, tenant-active writes) and the v1 TenantContext (@Filter reads).
+    // These
+    // pin the propagation: the consumer MUST open the scope under the event's tenant (and the
+    // default
+    // when absent), and must clear TenantContext after, so a regression that drops either is
+    // caught.
+
+    @Test
+    void handleReadyStepEvent_opensTheScopeUnderTheEventTenant() {
+      StepEvent event =
+          StepEvent.builder().stepId(UUID.randomUUID().toString()).tenantId("tenant-B").build();
+
+      stepEventService.handleReadyStepEvent(event);
+
+      verify(tenantTx).execute(eq(TxCtx.forTenant("tenant-B")), any(Runnable.class));
+    }
+
+    @Test
+    void handleReadyStepEvent_scopesV1TenantContextDuringWork_andClearsAfter() {
+      StepEvent event =
+          StepEvent.builder().stepId(UUID.randomUUID().toString()).tenantId("tenant-B").build();
+      // Capture the v1 @Filter scope (TenantContext) visible while the primitive's work runs: the
+      // v1
+      // entities the run reads (injector contract, endpoints, assets) resolve through it, not the
+      // GUC.
+      AtomicReference<String> seenDuringWork = new AtomicReference<>();
+      doAnswer(
+              invocation -> {
+                seenDuringWork.set(TenantContext.getCurrentTenant());
+                Runnable work = invocation.getArgument(1);
+                work.run();
+                return null;
+              })
+          .when(tenantTx)
+          .execute(any(TxCtx.class), any(Runnable.class));
+
+      stepEventService.handleReadyStepEvent(event);
+
+      assertEquals("tenant-B", seenDuringWork.get());
+      assertFalse(TenantContext.hasCurrentTenant(), "TenantContext must not leak past the event");
+    }
+
+    @Test
+    void handleReadyStepEvent_nullEventTenant_fallsBackToDefault() {
+      StepEvent event = StepEvent.builder().stepId(UUID.randomUUID().toString()).build();
+
+      stepEventService.handleReadyStepEvent(event);
+
+      verify(tenantTx).execute(eq(TxCtx.forTenant(DEFAULT_TENANT_UUID)), any(Runnable.class));
+    }
+
+    @Test
+    void handleExternalUpdateEvent_opensTheScopeUnderTheEventTenant() {
+      ExternalUpdateEvent event =
+          ExternalUpdateEvent.builder()
+              .stepId(UUID.randomUUID().toString())
+              .tenantId("tenant-B")
+              .build();
+      // Short-circuit the body: this test only asserts the tenant scope is opened, not the update
+      // logic (the setUp stub runs the primitive's Runnable, which would otherwise NPE on a null
+      // step).
+      when(stepService.findByIdAndStatus(any(), any()))
+          .thenThrow(new ElementNotFoundException("short-circuit"));
+
+      stepEventService.handleExternalUpdateEvent(event);
+
+      verify(tenantTx).execute(eq(TxCtx.forTenant("tenant-B")), any(Runnable.class));
     }
   }
 

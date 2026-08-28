@@ -1,8 +1,8 @@
-import { ChevronRight, HelpOutlineOutlined } from '@mui/icons-material';
+import { HelpOutlineOutlined } from '@mui/icons-material';
 import {
   Box,
   Checkbox,
-  IconButton,
+  Chip,
   List,
   ListItem,
   ListItemButton,
@@ -14,8 +14,7 @@ import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { searchNonTabletopThreatArsenalActions } from '../../../../../actions/threat_arsenals/threatArsenal-actions';
-import Drawer from '../../../../../components/common/Drawer';
+import { searchThreatArsenalActions } from '../../../../../actions/threat_arsenals/threatArsenal-actions';
 import PaginationComponentV2 from '../../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../../components/common/queryable/sort/SortHeadersComponentV2';
@@ -27,42 +26,52 @@ import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
 import PlatformIcon from '../../../../../components/PlatformIcon';
 import type { SearchPaginationInput, ThreatArsenalAction } from '../../../../../utils/api-types';
 import useEntityToggle from '../../../../../utils/hooks/useEntityToggle';
-import DrawerBreadcrumb from '../../../common/DrawerBreadcrumb';
 import InjectIcon from '../../../common/injects/InjectIcon';
+import { formatConditionKeyLabel } from '../events/event-types';
 import AddActionFooter from './AddActionFooter';
 
-const useStyles = makeStyles()(theme => ({
+const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
   bodyItems: { display: 'flex' },
   bodyItem: {
-    fontSize: theme.typography.body2.fontSize,
+    fontSize: '0.875rem',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-  },
-  listItem: {
-    '& .chevron-action': { visibility: 'hidden' },
-    '&:hover .chevron-action': { visibility: 'visible' },
   },
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
   action_kill_chain_phases: { width: '15%' },
-  action_labels: { width: '30%' },
+  action_labels: { width: '35%' },
   action_domains: { width: '15%' },
   action_platforms: { width: '15%' },
   action_attack_patterns: { width: '15%' },
 };
 
 interface AddActionListProps {
-  open: boolean;
-  onClose: () => void;
-  onBack: () => void;
+  /** Bulk add of every checkbox-selected action (each will still need configuring). */
   onAddActions: (actions: ThreatArsenalAction[]) => void;
-  onSelectAction?: (action: ThreatArsenalAction) => void;
+  /** Single-action selection - advances the stepper to the configure step. */
+  onSelectAction: (action: ThreatArsenalAction) => void;
+  /** When set, the list is pre-filtered to actions that produce this output type. */
+  compatibleActionFilter?: string;
+  /** Clears the compatible-output filter (surfaced as a removable chip). */
+  onClearCompatibleFilter?: () => void;
 }
 
-const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: AddActionListProps) => {
+/**
+ * Embeddable action-picker body used inside the component stepper drawer. Shows the full threat
+ * arsenal (no non-tabletop exclusion, so email / SMS / challenge / media actions appear). The
+ * optional compatible-output filter is surfaced as a removable chip instead of a silent filter, and
+ * the per-row chevron is gone: clicking a row advances to configure, the checkbox is for bulk add.
+ */
+const AddActionList = ({
+  onAddActions,
+  onSelectAction,
+  compatibleActionFilter,
+  onClearCompatibleFilter,
+}: AddActionListProps) => {
   const { t, tPick } = useFormatter();
   const theme = useTheme();
   const { classes } = useStyles();
@@ -70,15 +79,28 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
   const [actions, setActions] = useState<ThreatArsenalAction[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const { queryableHelpers, searchPaginationInput } = useQueryable(
-    buildSearchPagination({
-      size: 100,
-      sorts: [{
-        property: 'action_updated_at',
-        direction: 'desc',
-      }],
-    }),
-  );
+  const initPagination = useMemo(() => buildSearchPagination({
+    size: 100,
+    sorts: [{
+      property: 'action_updated_at',
+      direction: 'desc',
+    }],
+    ...(compatibleActionFilter
+      ? {
+          filterGroup: {
+            mode: 'and' as const,
+            filters: [{
+              id: 'compatible-action-output-type',
+              key: 'providing',
+              operator: 'eq' as const,
+              values: [compatibleActionFilter],
+            }],
+          },
+        }
+      : {}),
+  }), [compatibleActionFilter]);
+
+  const { queryableHelpers, searchPaginationInput } = useQueryable(initPagination);
 
   const {
     selectedElements,
@@ -92,7 +114,7 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
 
   const searchActions = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchNonTabletopThreatArsenalActions({ ...input }).finally(() => setLoading(false));
+    return searchThreatArsenalActions({ ...input }).finally(() => setLoading(false));
   };
 
   const availableFilterNames = [
@@ -100,6 +122,7 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
     'action_platforms',
     'action_domains',
     'action_tags',
+    'providing',
   ];
 
   const headers: Header[] = useMemo(() => [
@@ -162,124 +185,110 @@ const AddActionList = ({ open, onClose, onBack, onAddActions, onSelectAction }: 
   };
 
   return (
-    <Drawer
-      open={open}
-      handleClose={onClose}
-      title={t('Add actions')}
-    >
-      <Box>
-        <DrawerBreadcrumb
-          parentLabel={t('Add component')}
-          currentLabel={t('Add actions')}
-          onBack={onBack}
-        />
+    <Box>
+      {compatibleActionFilter && (
+        <Box sx={{ mb: 1.5 }}>
+          <Chip
+            size="small"
+            color="primary"
+            variant="outlined"
+            label={t('Compatible output: {type}', { type: formatConditionKeyLabel(compatibleActionFilter) })}
+            onDelete={onClearCompatibleFilter}
+          />
+        </Box>
+      )}
 
-        <PaginationComponentV2
-          fetch={searchActions}
-          searchPaginationInput={searchPaginationInput}
-          setContent={setActions}
-          entityPrefix="threat_arsenal"
-          availableFilterNames={availableFilterNames}
-          queryableHelpers={queryableHelpers}
-        />
+      <PaginationComponentV2
+        fetch={searchActions}
+        searchPaginationInput={searchPaginationInput}
+        setContent={setActions}
+        entityPrefix="threat_arsenal"
+        availableFilterNames={availableFilterNames}
+        queryableHelpers={queryableHelpers}
+      />
 
-        <List sx={{ pb: 6 }}>
-          <ListItem
-            classes={{ root: classes.itemHead }}
-            divider={false}
-            style={{ paddingTop: 0 }}
-            secondaryAction={<>&nbsp;</>}
-          >
-            <ListItemIcon style={{ minWidth: 40 }}>
-              <Checkbox
-                edge="start"
-                checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
-              />
-            </ListItemIcon>
-            <ListItemIcon />
-            <ListItemText
-              primary={(
-                <SortHeadersComponentV2
-                  headers={headers}
-                  inlineStylesHeaders={inlineStyles}
-                  sortHelpers={queryableHelpers.sortHelpers}
-                />
-              )}
+      <List sx={{ pb: 8 }}>
+        <ListItem
+          classes={{ root: classes.itemHead }}
+          divider={false}
+          style={{ paddingTop: 0 }}
+        >
+          <ListItemIcon style={{ minWidth: 40 }}>
+            <Checkbox
+              edge="start"
+              checked={selectAll}
+              disableRipple
+              onChange={handleToggleSelectAll}
             />
-          </ListItem>
-          {loading
-            ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
-            : actions.map(action => (
-                <ListItem
-                  key={action.injector_contract_id}
-                  divider
-                  disablePadding
-                  className={classes.listItem}
-                  secondaryAction={(
-                    <IconButton
-                      edge="end"
-                      size="small"
-                      className="chevron-action"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectAction?.(action);
-                      }}
-                    >
-                      <ChevronRight />
-                    </IconButton>
-                  )}
-                >
-                  <ListItemButton onClick={event => onToggleEntity(action, event)}>
-                    <ListItemIcon style={{ minWidth: 40 }}>
-                      <Checkbox
-                        edge="start"
-                        checked={
-                          (selectAll && !(action.injector_contract_id in (deSelectedElements || {})))
-                          || action.injector_contract_id in (selectedElements || {})
-                        }
-                        disableRipple
-                      />
-                    </ListItemIcon>
-                    <ListItemIcon style={{ minWidth: 56 }}>
-                      <InjectIcon
-                        type={
-                          action.action_payload != null
-                            ? action.action_payload.payload_collector_type ?? action.action_payload.payload_type
-                            : action.action_injector_type
-                        }
-                        isPayload={action.action_payload != null}
-                        variant="list"
-                      />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={(
-                        <div className={classes.bodyItems}>
-                          {headers.map(header => (
-                            <div
-                              key={header.field}
-                              className={classes.bodyItem}
-                              style={inlineStyles[header.field]}
-                            >
-                              {header.value?.(action)}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+          </ListItemIcon>
+          <ListItemIcon />
+          <ListItemText
+            primary={(
+              <SortHeadersComponentV2
+                headers={headers}
+                inlineStylesHeaders={inlineStyles}
+                sortHelpers={queryableHelpers.sortHelpers}
+              />
+            )}
+          />
+        </ListItem>
+        {loading
+          ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} withCheckbox />
+          : actions.map(action => (
+              <ListItem
+                key={action.injector_contract_id}
+                divider
+                disablePadding
+              >
+                <ListItemButton onClick={() => onSelectAction(action)}>
+                  <ListItemIcon style={{ minWidth: 40 }}>
+                    <Checkbox
+                      edge="start"
+                      checked={
+                        (selectAll && !(action.injector_contract_id in (deSelectedElements || {})))
+                        || action.injector_contract_id in (selectedElements || {})
+                      }
+                      disableRipple
+                      onClick={event => onToggleEntity(action, event)}
                     />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-        </List>
+                  </ListItemIcon>
+                  <ListItemIcon style={{ minWidth: 56 }}>
+                    <InjectIcon
+                      type={
+                        action.action_payload != null
+                          ? action.action_payload.payload_collector_type ?? action.action_payload.payload_type
+                          : action.action_injector_type
+                      }
+                      isPayload={action.action_payload != null}
+                      variant="list"
+                    />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={(
+                      <div className={classes.bodyItems}>
+                        {headers.map(header => (
+                          <div
+                            key={header.field}
+                            className={classes.bodyItem}
+                            style={inlineStyles[header.field]}
+                          >
+                            {header.value?.(action)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
+      </List>
 
-        <AddActionFooter
-          numberOfSelectedElements={numberOfSelectedElements}
-          onClear={handleClearSelectedElements}
-          onSubmit={handleAddActions}
-        />
-      </Box>
-    </Drawer>
+      <AddActionFooter
+        numberOfSelectedElements={numberOfSelectedElements}
+        onClear={handleClearSelectedElements}
+        onSubmit={handleAddActions}
+      />
+    </Box>
   );
 };
 

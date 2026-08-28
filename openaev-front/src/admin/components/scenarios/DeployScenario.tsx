@@ -1,20 +1,27 @@
 import { useNavigate, useParams } from 'react-router';
 
 import { importScenario } from '../../../actions/scenarios/scenario-actions';
+import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
+import { REDIRECT_CONNECT_XTM_HUB_URL } from '../../../constants/BaseUrls';
+import { type ImportResult } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useXtmHubDownloadDocument from '../../../utils/hooks/useXtmHubDownloadDocument';
+import { notifyPartialImport } from '../../../utils/importResultNotifier';
 import XtmHubDialogConnectivityLost from '../xtm_hub/dialog/connectivity-lost';
 
 const DeployScenario: React.FC = async () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const { t } = useFormatter();
   const { serviceInstanceId, fileId } = useParams();
   const sendImportToBack = async (importedFile: File) => {
     const formData = new FormData();
     formData.append('file', importedFile);
-    await dispatch(importScenario(formData)).then(() => {
+    await dispatch(importScenario(formData)).then((result: ImportResult) => {
+      // Navigating to another route keeps the toast alive (no full reload here).
+      notifyPartialImport(result, t);
       navigate('/admin/scenarios');
     });
   };
@@ -30,7 +37,7 @@ const DeployScenario: React.FC = async () => {
   });
 
   const onConfirm = () => {
-    navigate('/admin/settings/experience');
+    navigate(REDIRECT_CONNECT_XTM_HUB_URL);
   };
 
   const onCancel = () => {

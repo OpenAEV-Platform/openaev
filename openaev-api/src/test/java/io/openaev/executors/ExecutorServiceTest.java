@@ -6,7 +6,15 @@ import static org.mockito.Mockito.*;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Executor;
+import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
+import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.ExecutorRepository;
+import io.openaev.service.EndpointService;
+import io.openaev.service.FileService;
+import io.openaev.service.catalog_connectors.CatalogConnectorService;
+import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.utils.mapper.CatalogConnectorMapper;
+import io.openaev.utils.mapper.ExecutorMapper;
 import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +27,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ExecutorServiceTest {
 
   @Mock private ExecutorRepository executorRepository;
+  @Mock private ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
+  @Mock private ExecutionTraceRepository executionTraceRepository;
+  @Mock private FileService fileService;
+  @Mock private CatalogConnectorService catalogConnectorService;
+  @Mock private ConnectorInstanceService connectorInstanceService;
+  @Mock private ExecutorMapper executorMapper;
+  @Mock private CatalogConnectorMapper catalogConnectorMapper;
+  @Mock private EndpointService endpointService;
   @InjectMocks private ExecutorService executorService;
 
   @BeforeEach
@@ -40,14 +56,14 @@ class ExecutorServiceTest {
         "Given new executor, register should set tenantId so @JoinColumnsOrFormulas resolves correctly")
     void given_newExecutor_should_setTenantIdForCompositeJoinResolution() throws Exception {
       // -------- Arrange --------
-      when(executorRepository.findByIdAndTenantId("exec-new", "tenant-001"))
-          .thenReturn(Optional.empty());
+      when(executorRepository.findByExecutorId("exec-new")).thenReturn(Optional.empty());
       when(executorRepository.save(any(Executor.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // -------- Act --------
       Executor result =
           executorService.register(
+              "tenant-001",
               "exec-new",
               "openaev_paloaltocortex_executor",
               "PaloAltoCortex",
@@ -58,8 +74,7 @@ class ExecutorServiceTest {
               new String[] {"Linux", "Windows"});
 
       // -------- Assert --------
-      assertThat(result.getTenant()).as("Executor should have tenant set").isNotNull();
-      assertThat(result.getTenant().getId())
+      assertThat(result.getTenantId())
           .as("Executor tenant ID should match current tenant")
           .isEqualTo("tenant-001");
       assertThat(result.getTenantId())
@@ -81,14 +96,14 @@ class ExecutorServiceTest {
       existing.setType("openaev_crowdstrike_executor");
       existing.setTenantId("tenant-001");
 
-      when(executorRepository.findByIdAndTenantId("exec-existing", "tenant-001"))
-          .thenReturn(Optional.of(existing));
+      when(executorRepository.findByExecutorId("exec-existing")).thenReturn(Optional.of(existing));
       when(executorRepository.save(any(Executor.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // -------- Act --------
       Executor result =
           executorService.register(
+              "tenant-001",
               "exec-existing",
               "openaev_crowdstrike_executor",
               "NewName",
@@ -110,13 +125,13 @@ class ExecutorServiceTest {
     void given_newExecutor_savedEntity_should_haveTenantAndTenantIdConsistent() throws Exception {
       // -------- Arrange --------
       ArgumentCaptor<Executor> captor = ArgumentCaptor.forClass(Executor.class);
-      when(executorRepository.findByIdAndTenantId("exec-cap", "tenant-001"))
-          .thenReturn(Optional.empty());
+      when(executorRepository.findByExecutorId("exec-cap")).thenReturn(Optional.empty());
       when(executorRepository.save(captor.capture()))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // -------- Act --------
       executorService.register(
+          "tenant-001",
           "exec-cap",
           "openaev_test_executor",
           "TestExecutor",
@@ -128,9 +143,72 @@ class ExecutorServiceTest {
 
       // -------- Assert --------
       Executor saved = captor.getValue();
-      assertThat(saved.getTenant().getId())
-          .as("tenant.getId() and tenantId must be the same value for composite join")
-          .isEqualTo(saved.getTenantId());
+      assertThat(saved.getTenantId())
+          .as("tenantId must be set correctly")
+          .isNotNull()
+          .isEqualTo("tenant-001");
+    }
+  }
+
+  @Nested
+  @DisplayName("remove - tenant-scoped teardown of the owning connector instance")
+  class Remove {
+
+    private Executor executorInCurrentTenant(String id) {
+      Executor executor = new Executor();
+      executor.setId(id);
+      executor.setTenantId("tenant-001");
+      return executor;
+    }
+
+    @Test
+    @DisplayName("Given a connector id not visible in the current tenant, nothing is deleted")
+    void given_foreignConnectorId_should_notResolveNorDeleteAnyInstance() throws Exception {
+      // The id belongs to another tenant: the v2 inspector-scoped lookup sees nothing
+      when(executorRepository.findByExecutorId("exec-foreign")).thenReturn(Optional.empty());
+
+      executorService.remove("exec-foreign");
+
+      // The owning-instance resolution must never run for a foreign id - resolving it through
+      // the unscoped configuration table is exactly the cross-tenant delete being prevented
+      verifyNoInteractions(connectorInstanceConfigurationRepository);
+      verifyNoInteractions(connectorInstanceService);
+      verify(executorRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("Given an owned executor with an owning instance, the instance delete wins")
+    void given_ownedExecutorWithInstance_should_deleteInstanceOnly() throws Exception {
+      when(executorRepository.findByExecutorId("exec-owned"))
+          .thenReturn(Optional.of(executorInCurrentTenant("exec-owned")));
+      ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase ids =
+          mock(ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase.class);
+      when(ids.getConnectorInstanceId()).thenReturn("instance-1");
+      when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+              "EXECUTOR_ID", "exec-owned", "tenant-001"))
+          .thenReturn(ids);
+
+      executorService.remove("exec-owned");
+
+      verify(connectorInstanceService).deleteById("instance-1");
+      // The instance delete cascades to the executor row: no direct row delete
+      verify(executorRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("Given an owned executor without owning instance, the row delete runs")
+    void given_ownedExecutorWithoutInstance_should_fallBackToRowDelete() throws Exception {
+      Executor executor = executorInCurrentTenant("exec-manual");
+      when(executorRepository.findByExecutorId("exec-manual")).thenReturn(Optional.of(executor));
+      when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+              "EXECUTOR_ID", "exec-manual", "tenant-001"))
+          .thenReturn(null);
+
+      executorService.remove("exec-manual");
+
+      verify(connectorInstanceService, never()).deleteById(any());
+      verify(endpointService).removeSourceTagsForExecutor("exec-manual", "tenant-001");
+      verify(executorRepository).deleteByExecutorId("exec-manual");
     }
   }
 }

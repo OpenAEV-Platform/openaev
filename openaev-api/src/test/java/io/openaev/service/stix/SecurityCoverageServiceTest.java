@@ -1,12 +1,18 @@
 package io.openaev.service.stix;
 
+import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.stix.objects.Bundle;
 import io.openaev.stix.objects.DomainObject;
@@ -29,6 +35,7 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.*;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +59,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
   @Autowired private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Autowired private ObjectMapper mapper;
   @Autowired private ResultUtils resultUtils;
+  @Autowired private OpenAEVConfig openAEVConfig;
   private Parser stixParser;
+  @Mock private PreviewFeatureService previewFeatureService;
 
   @BeforeEach
   public void setup() {
@@ -66,6 +75,9 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
     scenarioComposer.reset();
     securityPlatformComposer.reset();
     securityCoverageSendJobComposer.reset();
+
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.TENANT_FIELDS_FOR_SECURITY_COVERAGE))
+        .thenReturn(true);
 
     stixParser = new Parser(mapper);
   }
@@ -116,16 +128,16 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     injectExpectationComposer
                         .forExpectation(
                             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                                InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                                InjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
                         .withEndpoint(
                             endpointComposer.forEndpoint(EndpointFixture.createEndpoint())))
                 .withExpectation(
                     injectExpectationComposer
                         .forExpectation(
                             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                                InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                                InjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
                         .withEndpoint(
                             endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))));
       }
@@ -147,8 +159,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     injectExpectationComposer
                         .forExpectation(
                             InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                                InjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
-                                InjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                                BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
+                                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
                         .withEndpoint(
                             endpointComposer.forEndpoint(EndpointFixture.createEndpoint()))));
       }
@@ -229,6 +241,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           .whenIgnoringPaths(
               CommonProperties.MODIFIED.toString(),
               CommonProperties.EXTERNAL_URI.toString(),
+              CommonProperties.TENANT_ID.toString(),
+              CommonProperties.TENANT_NAME.toString(),
               CommonProperties.AUTO_ENRICHMENT_DISABLE.toString())
           .isEqualTo(expectedAssessment.toStix(mapper));
     }
@@ -314,6 +328,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     platformSdo.getId(),
                     ExtendedProperties.COVERED.toString(),
                     new io.openaev.stix.types.Boolean(true),
+                    CommonProperties.EXTERNAL_URI.toString(),
+                    new StixString(
+                        openAEVConfig.getBaseUrl()
+                            + "/"
+                            + TenantContext.getCurrentTenant()
+                            + "/admin/simulations/"
+                            + exerciseWrapper.get().getScenario().getId()),
                     ExtendedProperties.COVERAGE.toString(),
                     toList(
                         List.of(
@@ -336,7 +357,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                         ? 100
                                         : 0))))));
         assertThatJson(actualSro.toStix(mapper))
-            .whenIgnoringPaths(CommonProperties.ID.toString())
+            .whenIgnoringPaths(
+                CommonProperties.ID.toString(), CommonProperties.EXTERNAL_URI.toString())
             .isEqualTo(expectedSro.toStix(mapper));
       }
 
@@ -363,13 +385,21 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                     new Identifier(stixRef.getStixRef()),
                     ExtendedProperties.COVERED.toString(),
                     new io.openaev.stix.types.Boolean(true),
+                    CommonProperties.EXTERNAL_URI.toString(),
+                    new StixString(
+                        openAEVConfig.getBaseUrl()
+                            + "/"
+                            + TenantContext.getCurrentTenant()
+                            + "/admin/scenarios/"
+                            + exerciseWrapper.get().getScenario().getId()),
                     ExtendedProperties.COVERAGE.toString(),
                     toList(
                         List.of(
                             new Complex<>(new CoverageResult("PREVENTION", 100)),
                             new Complex<>(new CoverageResult("DETECTION", 100))))));
         assertThatJson(actualSro.toStix(mapper))
-            .whenIgnoringPaths(CommonProperties.ID.toString())
+            .whenIgnoringPaths(
+                CommonProperties.ID.toString(), CommonProperties.EXTERNAL_URI.toString())
             .isEqualTo(expectedSro.toStix(mapper));
       }
     }
@@ -437,6 +467,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                       new Identifier(stixRef.getStixRef()),
                       ExtendedProperties.COVERED.toString(),
                       new io.openaev.stix.types.Boolean(true),
+                      CommonProperties.EXTERNAL_URI.toString(),
+                      new StixString(
+                          openAEVConfig.getBaseUrl()
+                              + "/"
+                              + TenantContext.getCurrentTenant()
+                              + "/admin/scenarios/"
+                              + exerciseWrapper.get().getScenario().getId()),
                       ExtendedProperties.COVERAGE.toString(),
                       toList(List.of(new Complex<>(new CoverageResult("VULNERABILITY", 100))))));
           assertThatJson(actualSro.toStix(mapper))
@@ -675,6 +712,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
         .whenIgnoringPaths(
             CommonProperties.MODIFIED.toString(),
             CommonProperties.EXTERNAL_URI.toString(),
+            CommonProperties.TENANT_ID.toString(),
+            CommonProperties.TENANT_NAME.toString(),
             CommonProperties.AUTO_ENRICHMENT_DISABLE.toString())
         .isEqualTo(expectedAssessmentWithCoverage.toStix(mapper));
 
@@ -710,6 +749,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   new Timestamp(nextSimulationStartTime),
                   ExtendedProperties.COVERED.toString(),
                   new io.openaev.stix.types.Boolean(true),
+                  CommonProperties.EXTERNAL_URI.toString(),
+                  new StixString(
+                      openAEVConfig.getBaseUrl()
+                          + "/"
+                          + TenantContext.getCurrentTenant()
+                          + "/admin/scenarios/"
+                          + scenarioWrapper.get().getId()),
                   ExtendedProperties.COVERAGE.toString(),
                   toList(
                       List.of(
@@ -732,7 +778,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                       ? 50
                                       : 0))))));
       assertThatJson(actualSro.toStix(mapper))
-          .whenIgnoringPaths(CommonProperties.ID.toString())
+          .whenIgnoringPaths(
+              CommonProperties.ID.toString(), CommonProperties.EXTERNAL_URI.toString())
           .isEqualTo(expectedSro.toStix(mapper));
     }
 
@@ -762,6 +809,13 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                   new Timestamp(nextSimulationStartTime),
                   ExtendedProperties.COVERED.toString(),
                   new io.openaev.stix.types.Boolean(true),
+                  CommonProperties.EXTERNAL_URI.toString(),
+                  new StixString(
+                      openAEVConfig.getBaseUrl()
+                          + "/"
+                          + TenantContext.getCurrentTenant()
+                          + "/admin/scenarios/"
+                          + scenarioWrapper.get().getId()),
                   ExtendedProperties.COVERAGE.toString(),
                   toList(
                       List.of(
@@ -774,7 +828,8 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
                                   "DETECTION",
                                   stixRef.getExternalRefs().contains("T1234") ? 100 : 0))))));
       assertThatJson(actualSro.toStix(mapper))
-          .whenIgnoringPaths(CommonProperties.ID.toString())
+          .whenIgnoringPaths(
+              CommonProperties.ID.toString(), CommonProperties.EXTERNAL_URI.toString())
           .isEqualTo(expectedSro.toStix(mapper));
     }
   }
@@ -1000,6 +1055,105 @@ public class SecurityCoverageServiceTest extends IntegrationTest {
           .isEqualTo(new Timestamp(sroStartTime));
       assertThat(sro.hasProperty(RelationshipObject.Properties.STOP_TIME.toString())).isFalse();
     }
+  }
+
+  @Test
+  @DisplayName(
+      "When a simulation inject has no content, DNS indicator coverage is still computed without failing")
+  public void given_simulationWithContentlessInject_should_computeDnsIndicatorCoverage()
+      throws ParsingException, JsonProcessingException {
+    String hostname = "malicious.example.com";
+    String indicatorStixRef = "indicator--%s".formatted(UUID.randomUUID());
+    SecurityPlatformComposer.Composer securityPlatformWrapper =
+        securityPlatformComposer
+            .forSecurityPlatform(
+                SecurityPlatformFixture.createDefault(
+                    "Bad EDR", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name()))
+            .persist();
+
+    // an inject resolving the hostname carried by the indicator
+    InjectComposer.Composer dnsInjectWrapper =
+        injectComposer
+            .forInject(
+                InjectFixture.createInjectWithPayloadArg(
+                    Map.of(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, hostname)))
+            .withInjectorContract(
+                injectorContractComposer
+                    .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                    .withInjector(injectorFixture.getWellKnownOaevImplantInjector()))
+            .withExpectation(
+                injectExpectationComposer
+                    .forExpectation(
+                        InjectExpectationFixture.createExpectationWithTypeAndStatus(
+                            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                            BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                    .withEndpoint(endpointComposer.forEndpoint(EndpointFixture.createEndpoint())));
+
+    // an inject without an injector contract keeps a null content once persisted
+    InjectComposer.Composer contentlessInjectWrapper =
+        injectComposer.forInject(InjectFixture.getDefaultInject());
+
+    SecurityCoverageComposer.Composer securityCoverageWrapper =
+        securityCoverageComposer.forSecurityCoverage(
+            SecurityCoverageFixture.createDefaultSecurityCoverage());
+    securityCoverageWrapper
+        .get()
+        .setIndicatorsRefs(
+            new HashSet<>(
+                Set.of(
+                    new StixRefToExternalRef(
+                        indicatorStixRef, new ArrayList<>(List.of(hostname))))));
+
+    ExerciseComposer.Composer exerciseWrapper =
+        exerciseComposer
+            .forExercise(ExerciseFixture.createDefaultExercise())
+            .withSecurityCoverage(securityCoverageWrapper)
+            .withInject(dnsInjectWrapper)
+            .withInject(contentlessInjectWrapper);
+    exerciseWrapper.get().setStart(Instant.parse("2024-09-23T14:09:43Z"));
+    exerciseWrapper.get().setStatus(ExerciseStatus.FINISHED);
+
+    injectExpectationComposer.generatedItems.forEach(
+        exp ->
+            exp.setResults(
+                List.of(
+                    InjectExpectationResult.builder()
+                        .score(100.0)
+                        .sourceId(securityPlatformWrapper.get().getId())
+                        .sourceName("Unit Tests")
+                        .sourceType("manual")
+                        .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
+                        .sourceAssetId(UUID.randomUUID().toString())
+                        .build())));
+
+    scenarioComposer
+        .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+        .withSimulation(exerciseWrapper)
+        .persist();
+    entityManager.flush();
+    entityManager.refresh(exerciseWrapper.get());
+
+    // intermediate assert: the simulation really does carry a content-less inject
+    assertThat(contentlessInjectWrapper.get().getContent()).isNull();
+
+    Optional<SecurityCoverageSendJob> job =
+        securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationIfReady(
+            exerciseWrapper.get());
+    assertThat(job).isNotEmpty();
+
+    // act
+    Bundle bundle = securityCoverageService.createBundleFromSendJobs(List.of(job.orElseThrow()));
+
+    // assert the indicator is reported as covered by the DNS inject
+    List<RelationshipObject> indicatorSros =
+        bundle.findRelationshipsByTargetRef(new Identifier(indicatorStixRef));
+    assertThat(indicatorSros).hasSize(1);
+
+    RelationshipObject indicatorSro = indicatorSros.getFirst();
+    assertThat(indicatorSro.getProperty(ExtendedProperties.COVERED.toString()))
+        .isEqualTo(new io.openaev.stix.types.Boolean(true));
+    assertThatJson(indicatorSro.getProperty(ExtendedProperties.COVERAGE.toString()).toStix(mapper))
+        .isEqualTo(predictCoverageFromInjects(List.of(dnsInjectWrapper.get())).toStix(mapper));
   }
 
   private List<DomainObject> getExpectedPlatformIdentities() {

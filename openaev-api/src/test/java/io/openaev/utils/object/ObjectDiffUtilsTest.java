@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.database.audit.EntityDiffContext;
+import io.openaev.database.audit.AuditLogContext;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,9 +44,9 @@ class ObjectDiffUtilsTest {
     void given_singleSnapshot_should_returnJsonArrayWithOneEntry() {
       // -- ARRANGE --
       var snapshot =
-          new EntityDiffContext.EntitySnapshot(
+          new AuditLogContext.EntitySnapshot(
               "User", "UPDATE", Map.of("name", "Alice"), Map.of("name", "Bob"));
-      Map<String, EntityDiffContext.EntitySnapshot> snapshots = Map.of("user-1", snapshot);
+      Map<String, AuditLogContext.EntitySnapshot> snapshots = Map.of("user-1", snapshot);
 
       // -- ACT --
       JsonNode result = ObjectDiffUtils.computeEntityDiffsNode(snapshots, objectMapper);
@@ -72,14 +72,14 @@ class ObjectDiffUtilsTest {
     @DisplayName("Should return a JSON array with multiple entries for multiple snapshots")
     void given_multipleSnapshots_should_returnJsonArrayWithMultipleEntries() {
       // -- ARRANGE --
-      Map<String, EntityDiffContext.EntitySnapshot> snapshots = new LinkedHashMap<>();
+      Map<String, AuditLogContext.EntitySnapshot> snapshots = new LinkedHashMap<>();
       snapshots.put(
           "user-1",
-          new EntityDiffContext.EntitySnapshot(
+          new AuditLogContext.EntitySnapshot(
               "User", "UPDATE", Map.of("name", "Alice"), Map.of("name", "Bob")));
       snapshots.put(
           "org-1",
-          new EntityDiffContext.EntitySnapshot(
+          new AuditLogContext.EntitySnapshot(
               "Organization", "DELETE", Map.of("orgName", "Acme"), null));
 
       // -- ACT --
@@ -96,8 +96,8 @@ class ObjectDiffUtilsTest {
     void given_unchangedSnapshot_should_returnEmptyChangesArray() {
       // -- ARRANGE --
       Map<String, Object> state = Map.of("name", "Alice", "age", 30);
-      var snapshot = new EntityDiffContext.EntitySnapshot("User", "UPDATE", state, state);
-      Map<String, EntityDiffContext.EntitySnapshot> snapshots = Map.of("user-1", snapshot);
+      var snapshot = new AuditLogContext.EntitySnapshot("User", "UPDATE", state, state);
+      Map<String, AuditLogContext.EntitySnapshot> snapshots = Map.of("user-1", snapshot);
 
       // -- ACT --
       JsonNode result = ObjectDiffUtils.computeEntityDiffsNode(snapshots, objectMapper);

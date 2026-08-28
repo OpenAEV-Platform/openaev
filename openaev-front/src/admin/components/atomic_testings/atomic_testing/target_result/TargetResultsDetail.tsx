@@ -1,46 +1,58 @@
-import { useContext, useEffect, useState } from 'react';
+import { Box, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import { type ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { fetchTargetResult } from '../../../../../actions/atomic_testings/atomic-testing-actions';
+import { fetchCollectors } from '../../../../../actions/Collector';
 import Paper from '../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../components/i18n';
 import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../utils/api-types';
-import { isAgent, isAssetGroups, isPlayer, isTeam } from '../../../../../utils/target/TargetUtils';
+import { useAppDispatch } from '../../../../../utils/hooks';
+import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { isAgent, isAssetGroups, isAssets } from '../../../../../utils/target/TargetUtils';
 import { type ExpectationResultType, ExpectationType, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 import ExecutionStatusDetail from '../../../common/injects/status/ExecutionStatusDetail';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
-import TabbedView, { type TabConfig } from '../../../settings/groups/tenant_groups/grants/ui/TabbedView';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../../InjectResultOverviewOutputContext';
 import InjectExpectationProvider from '../context/InjectExpectationProvider';
 import InjectExpectationCard from './InjectExpectationCard';
-import TargetResultsReactFlow from './TargetResultsReactFlow';
+import TargetResultsHeader from './TargetResultsHeader';
+import TargetResultsTimeline from './TargetResultsTimeline';
 
 interface Props {
   inject: InjectResultOverviewOutput;
   target: InjectTarget;
   isAgentless: boolean;
+  position?: number;
+  total?: number;
+  onSelectPrevious?: () => void;
+  onSelectNext?: () => void;
 }
 
-const useStyles = makeStyles()(theme => ({
-  paddingTop: { paddingTop: theme.spacing(2) },
-  gap: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: theme.spacing(1),
-  },
-}));
+interface SectionConfig {
+  key: string;
+  label: string;
+  content: ReactNode;
+}
 
-const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
-  const { classes } = useStyles();
+const TargetResultsDetail = ({ inject, target, isAgentless, position, total, onSelectPrevious, onSelectNext }: Props) => {
+  const theme = useTheme();
   const { t } = useFormatter();
+  const dispatch = useAppDispatch();
+
+  // Collectors are needed by the expectation result lists to resolve each
+  // collector-sourced result to its security platform (pivot link).
+  useDataLoader(() => {
+    dispatch(fetchCollectors());
+  });
 
   const [sortedGroupedTargetResults, setSortedGroupedTargetResults] = useState<Record<string, InjectExpectationsStore[]>>({});
 
   const [searchParams, setSearchParams] = useSearchParams();
   const openIdParams = searchParams.get('expectation_id');
 
-  const [activeTab, setActiveTab] = useState<string | null>(null);
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const { injectResultOverviewOutput } = useContext<InjectResultOverviewOutputContextType>(InjectResultOverviewOutputContext);
 
@@ -59,6 +71,19 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
       .toSorted((a, b) => Object.keys(ExpectationType).indexOf(a as ExpectationResultType) - Object.keys(ExpectationType).indexOf(b as ExpectationResultType))
       .forEach((key) => {
         sortedGroupedResults[key] = groupedByType[key].toSorted((a, b) => {
+          // Contract-declared order first (e.g. phishing: email -> link -> submission);
+          // unordered expectations sort after ordered ones, then by name, then by id.
+          const aOrder = a.inject_expectation_order;
+          const bOrder = b.inject_expectation_order;
+          if (aOrder != null && bOrder != null && aOrder !== bOrder) {
+            return aOrder - bOrder;
+          }
+          if (aOrder != null && bOrder == null) {
+            return -1; // ordered comes before unordered
+          }
+          if (aOrder == null && bOrder != null) {
+            return 1;
+          }
           if (a.inject_expectation_name && b.inject_expectation_name) {
             return a.inject_expectation_name.localeCompare(b.inject_expectation_name);
           }
@@ -81,26 +106,60 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
       });
   }, [injectResultOverviewOutput, target]);
 
+  // ?expectation_id= deep link: scroll to the section containing that expectation.
   useEffect(() => {
     if (!openIdParams || !sortedGroupedTargetResults) return;
 
-    const activeTabIndex: string = Object.values(sortedGroupedTargetResults)
-      .map(results => results.find(r => r.inject_expectation_id === openIdParams))
-      .filter(res => !!res)[0]?.inject_expectation_type.toString();
+    const expectationType = Object.values(sortedGroupedTargetResults)
+      .flat()
+      .find(result => result.inject_expectation_id === openIdParams)
+      ?.inject_expectation_type;
 
-    if (!activeTabIndex) return;
+    if (!expectationType) return;
 
-    setActiveTab(activeTabIndex);
+    sectionRefs.current[expectationType]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
     searchParams.delete('open');
     setSearchParams(searchParams, { replace: true });
   }, [openIdParams, sortedGroupedTargetResults]);
 
-  const tabs: TabConfig[] = [];
+  const sections: SectionConfig[] = [];
+
+  // Expectations (prevention, detection, ...) are the outcome users care about
+  // most, so they come first, before the raw execution details.
+  Object.entries(sortedGroupedTargetResults).forEach(([type, expectationResults]) => (
+    sections.push({
+      key: type,
+      label: t(`TYPE_${type}`),
+      content: (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: theme.spacing(1),
+        }}
+        >
+          {expectationResults.map(expectationResult => (
+            <InjectExpectationProvider key={expectationResult.inject_expectation_id} inject={inject}>
+              <InjectExpectationCard
+                injectExpectation={expectationResult}
+                inject={inject}
+                isAgentless={isAgentless}
+                target={target}
+              />
+            </InjectExpectationProvider>
+          ))}
+        </div>
+      ),
+    })
+  ));
+
   if (!isAssetGroups(target)) {
-    tabs.push({
+    sections.push({
       key: 'execution',
-      label: 'Execution',
-      component: (
+      label: t('Execution'),
+      content: (
         <ExecutionStatusDetail
           target={{
             id: target.target_id,
@@ -109,50 +168,92 @@ const TargetResultsDetail = ({ inject, target, isAgentless }: Props) => {
             platformType: target.target_subtype,
           }}
           injectId={inject.inject_id}
+          injectStatusName={injectResultOverviewOutput?.inject_status?.status_name}
         />
       ),
     });
-    if (!isTeam(target) && !isPlayer(target)) {
-      tabs.push({
+    // Terminal view shows command-execution traces, which only exist for agent-based execution:
+    // endpoints (ASSETS) and their agents (AGENT). Other target kinds - AI targets, cloud / SaaS /
+    // identity assets, teams, players - never produce a terminal transcript, so the section is hidden.
+    if (isAssets(target) || isAgent(target)) {
+      sections.push({
         key: 'terminal-view',
         label: t('Terminal view'),
-        component: (
-          <TerminalViewTab injectId={inject.inject_id} target={target} forceExpanded={isAgent(target)} />
+        content: (
+          <TerminalViewTab injectId={inject.inject_id} target={target} />
         ),
       });
     }
   }
 
-  Object.entries(sortedGroupedTargetResults).forEach(([type, expectationResults]) => (
-    tabs.push({
-      key: type,
-      label: t(`TYPE_${type}`),
-      component: (
-        expectationResults.map(expectationResult => (
-          <InjectExpectationProvider key={expectationResult.inject_expectation_id} inject={inject}>
-            <InjectExpectationCard
-              injectExpectation={expectationResult}
-              inject={inject}
-              isAgentless={isAgentless}
-              target={target}
-            />
-          </InjectExpectationProvider>
-        ))
-      ),
-    })
-  ));
-
   return (
     <Paper>
-      <TargetResultsReactFlow
-        className={`${classes.paddingTop} ${classes.gap}`}
-        injectStatusName={injectResultOverviewOutput?.inject_status?.status_name}
-        targetResultsByType={sortedGroupedTargetResults}
-        lastExecutionStartDate={injectResultOverviewOutput?.inject_status?.tracking_sent_date || ''}
-        lastExecutionEndDate={injectResultOverviewOutput?.inject_status?.tracking_end_date || ''}
-      />
+      <div
+        key={`${inject.inject_id}-${target.target_id}`}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: theme.spacing(2.5),
+          paddingTop: theme.spacing(1),
+        }}
+      >
+        <TargetResultsHeader
+          target={target}
+          position={position}
+          total={total}
+          onSelectPrevious={onSelectPrevious}
+          onSelectNext={onSelectNext}
+        />
 
-      <TabbedView key={`${inject.inject_id}-${target.target_id}`} tabs={tabs} externalCurrentTab={activeTab} notifyTabChange={setActiveTab} />
+        <TargetResultsTimeline
+          injectStatusName={injectResultOverviewOutput?.inject_status?.status_name}
+          targetExecutionStatus={target.target_execution_status}
+          targetResultsByType={sortedGroupedTargetResults}
+          lastExecutionStartDate={injectResultOverviewOutput?.inject_status?.tracking_sent_date || ''}
+          lastExecutionEndDate={injectResultOverviewOutput?.inject_status?.tracking_end_date || ''}
+        />
+
+        {sections.map(section => (
+          <section
+            key={section.key}
+            ref={(element) => {
+              sectionRefs.current[section.key] = element;
+            }}
+            style={{ scrollMarginTop: theme.spacing(6) }}
+          >
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing(1.5),
+              marginBottom: theme.spacing(1.5),
+            }}
+            >
+              <Typography
+                sx={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.12em',
+                  color: 'text.secondary',
+                  fontFamily: theme.typography.h1.fontFamily,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {section.label}
+              </Typography>
+              <Box
+                aria-hidden
+                sx={{
+                  flex: 1,
+                  height: '1px',
+                  backgroundColor: alpha(theme.palette.text.primary, 0.05),
+                }}
+              />
+            </div>
+            {section.content}
+          </section>
+        ))}
+      </div>
     </Paper>
   );
 };

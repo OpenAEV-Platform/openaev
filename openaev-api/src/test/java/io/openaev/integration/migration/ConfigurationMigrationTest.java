@@ -6,6 +6,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.Tenant;
 import io.openaev.integration.configuration.BaseIntegrationConfiguration;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -39,14 +40,18 @@ public class ConfigurationMigrationTest {
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private EncryptionFactory encryptionFactory;
 
-  private static class TestIntegrationConfiguration extends BaseIntegrationConfiguration {}
+  private static class TestIntegrationConfiguration extends BaseIntegrationConfiguration {
+    TestIntegrationConfiguration(boolean enable) {
+      setEnable(enable);
+    }
+  }
 
   private class TestConfigurationMigration extends ConfigurationMigration {
     public static String FACTORY_CLASSNAME = "TestConfigurationMigration_TestIntegrationFactory";
 
-    public TestConfigurationMigration() {
+    public TestConfigurationMigration(boolean enable) {
       super(
-          new TestIntegrationConfiguration(),
+          new TestIntegrationConfiguration(enable),
           FACTORY_CLASSNAME,
           catalogConnectorService,
           connectorInstanceService,
@@ -57,9 +62,9 @@ public class ConfigurationMigrationTest {
   @Test
   @DisplayName("When catalog connector does not exist, migration fails")
   public void whenCatalogConnectorDoesNotExist_migrationFails() throws Exception {
-    ConfigurationMigration migration = new TestConfigurationMigration();
+    ConfigurationMigration migration = new TestConfigurationMigration(true);
 
-    assertThatThrownBy(migration::migrate)
+    assertThatThrownBy(() -> migration.migrate(Tenant.DEFAULT_TENANT_UUID))
         .hasMessageContaining(
             "Configuration found for %s but no related connector in catalog"
                 .formatted(TestConfigurationMigration.FACTORY_CLASSNAME));
@@ -69,7 +74,7 @@ public class ConfigurationMigrationTest {
   @DisplayName("When catalog connector exists")
   public class WhenCatalogConnectorExists {
     @Test
-    @DisplayName("When configuration not yet migrated, migrate successfully")
+    @DisplayName("When enabled configuration not yet migrated, migrate successfully")
     public void whenConfigurationNotYetMigrated_migrateSuccessfully() throws Exception {
       CatalogConnector connector =
           catalogConnectorComposer
@@ -78,9 +83,9 @@ public class ConfigurationMigrationTest {
                       TestConfigurationMigration.FACTORY_CLASSNAME))
               .persist()
               .get();
-      ConfigurationMigration migration = new TestConfigurationMigration();
+      ConfigurationMigration migration = new TestConfigurationMigration(true);
 
-      migration.migrate();
+      migration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       List<ConnectorInstance> instances =
           connectorInstanceService.findAllByCatalogConnector(connector).stream()
@@ -95,6 +100,28 @@ public class ConfigurationMigrationTest {
           .isEqualTo(TestConfigurationMigration.FACTORY_CLASSNAME);
       assertThat(singleInstance.getSource())
           .isEqualTo(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
+      // Explicit write attribution (Phase 5b): stamped with the migrate() tenant argument, not
+      // relying on the v1 TenantBaseListener/TenantContext fallback.
+      assertThat(singleInstance.getTenant().getId()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      assertThat(connector.isPropertiesMigrated()).isTrue();
+    }
+
+    @Test
+    @DisplayName("When disabled configuration, nothing is seeded")
+    public void whenConfigurationDisabled_nothingIsSeeded() throws Exception {
+      CatalogConnector connector =
+          catalogConnectorComposer
+              .forCatalogConnector(
+                  CatalogConnectorFixture.createCatalogConnectorWithClassName(
+                      TestConfigurationMigration.FACTORY_CLASSNAME))
+              .persist()
+              .get();
+      ConfigurationMigration migration = new TestConfigurationMigration(false);
+
+      migration.migrate(Tenant.DEFAULT_TENANT_UUID);
+
+      assertThat(connectorInstanceService.findAllByCatalogConnector(connector)).isEmpty();
+      assertThat(connector.isPropertiesMigrated()).isTrue();
     }
 
     @Test
@@ -110,9 +137,9 @@ public class ConfigurationMigrationTest {
                       ConnectorInstanceFixture.createMigratedInstance()))
               .persist()
               .get();
-      ConfigurationMigration migration = new TestConfigurationMigration();
+      ConfigurationMigration migration = new TestConfigurationMigration(true);
 
-      migration.migrate();
+      migration.migrate(Tenant.DEFAULT_TENANT_UUID);
 
       List<ConnectorInstance> instances =
           connectorInstanceService.findAllByCatalogConnector(connector).stream()
@@ -127,6 +154,42 @@ public class ConfigurationMigrationTest {
           .isEqualTo(TestConfigurationMigration.FACTORY_CLASSNAME);
       assertThat(singleInstance.getSource())
           .isEqualTo(ConnectorInstance.SOURCE.PROPERTIES_MIGRATION);
+      // The persistent marker is recorded so a later instance deletion sticks.
+      assertThat(connector.isPropertiesMigrated()).isTrue();
+    }
+
+    @Test
+    @DisplayName("When migrated instance is deleted, it is not resurrected on the next startup")
+    public void whenMigratedInstanceDeleted_notResurrectedOnNextStartup() throws Exception {
+      CatalogConnector connector =
+          catalogConnectorComposer
+              .forCatalogConnector(
+                  CatalogConnectorFixture.createCatalogConnectorWithClassName(
+                      TestConfigurationMigration.FACTORY_CLASSNAME))
+              .persist()
+              .get();
+      ConfigurationMigration migration = new TestConfigurationMigration(true);
+
+      migration.migrate(Tenant.DEFAULT_TENANT_UUID);
+      List<ConnectorInstancePersisted> instances =
+          connectorInstanceService.findAllByCatalogConnector(connector);
+      assertThat(instances.size()).isEqualTo(1);
+
+      // Admin deletes the deployed instance.
+      entityManager.remove(
+          entityManager.find(ConnectorInstancePersisted.class, instances.getFirst().getId()));
+      entityManager.flush();
+      entityManager.clear();
+
+      // Next startup runs the migration again: it must not re-seed.
+      migration.migrate(Tenant.DEFAULT_TENANT_UUID);
+
+      CatalogConnector reloadedConnector =
+          catalogConnectorService
+              .findByFactoryClassName(TestConfigurationMigration.FACTORY_CLASSNAME)
+              .orElseThrow();
+      assertThat(connectorInstanceService.findAllByCatalogConnector(reloadedConnector)).isEmpty();
+      assertThat(reloadedConnector.isPropertiesMigrated()).isTrue();
     }
   }
 }

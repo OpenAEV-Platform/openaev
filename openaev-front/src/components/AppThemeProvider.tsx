@@ -48,44 +48,43 @@ const AppThemeProvider: FunctionComponent<Props> = ({ children }) => {
 
   // createTheme is expensive and a new theme object invalidates the style cache of the
   // whole subtree: only build the variant in use, and only when its inputs change.
+  // The memo is keyed on the VALUES that feed createTheme, never on the settings
+  // objects themselves: parameters/tenant-settings are re-fetched on page mount and on
+  // SSE reconnect, and each fetch stores a new object identity even when nothing
+  // changed. Rebuilding the theme for that re-rendered (blinked) the entire app and
+  // refetched every dashboard widget once the fetches landed.
+  const activeThemeConfig = theme === 'light'
+    ? tenantSettings?.platform_light_theme ?? settings.platform_light_theme
+    : tenantSettings?.platform_dark_theme ?? settings.platform_dark_theme;
+  const activeThemeKey = [
+    activeThemeConfig?.logo_url,
+    activeThemeConfig?.logo_url_collapsed,
+    activeThemeConfig?.background_color,
+    activeThemeConfig?.paper_color,
+    activeThemeConfig?.navigation_color,
+    activeThemeConfig?.primary_color,
+    activeThemeConfig?.secondary_color,
+    activeThemeConfig?.accent_color,
+  ].join('|');
   const muiTheme = useMemo(() => {
-    if (theme === 'light') {
-      const light = tenantSettings?.platform_light_theme ?? settings.platform_light_theme;
-      return createTheme(
-        {
-          spacing: scaleFactor,
-          ...themeLight(
-            light?.logo_url,
-            light?.logo_url_collapsed,
-            light?.background_color,
-            light?.paper_color,
-            light?.navigation_color,
-            light?.primary_color,
-            light?.secondary_color,
-            light?.accent_color,
-          ),
-        },
-        muiLocale,
-      );
-    }
-    const dark = tenantSettings?.platform_dark_theme ?? settings.platform_dark_theme;
+    const buildTheme = theme === 'light' ? themeLight : themeDark;
     return createTheme(
       {
         spacing: scaleFactor,
-        ...themeDark(
-          dark?.logo_url,
-          dark?.logo_url_collapsed,
-          dark?.background_color,
-          dark?.paper_color,
-          dark?.navigation_color,
-          dark?.primary_color,
-          dark?.secondary_color,
-          dark?.accent_color,
+        ...buildTheme(
+          activeThemeConfig?.logo_url,
+          activeThemeConfig?.logo_url_collapsed,
+          activeThemeConfig?.background_color,
+          activeThemeConfig?.paper_color,
+          activeThemeConfig?.navigation_color,
+          activeThemeConfig?.primary_color,
+          activeThemeConfig?.secondary_color,
+          activeThemeConfig?.accent_color,
         ),
       },
       muiLocale,
     );
-  }, [theme, muiLocale, settings, tenantSettings]);
+  }, [theme, muiLocale, activeThemeKey]);
   return <ThemeProvider theme={muiTheme}>{children}</ThemeProvider>;
 };
 

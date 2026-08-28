@@ -6,7 +6,7 @@ class AtomicTestingListPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.addButton = page.getByRole('button', { name: 'Add' });
+    this.addButton = page.getByTestId('button-create');
   }
 
   async waitForLoad() {

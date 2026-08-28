@@ -5,19 +5,23 @@ import static io.openaev.service.ImportService.EXPORT_ENTRY_EXERCISE;
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.database.model.Document;
-import io.openaev.database.model.Exercise;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.DocumentRepository;
+import io.openaev.export.Mixins;
+import io.openaev.export.WorkflowExportInitializer;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.FileService;
+import io.openaev.service.chaining.WorkflowService;
 import jakarta.annotation.Resource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -32,43 +36,87 @@ public class ExportService {
   @Resource private ChallengeService challengeService;
   @Resource private ArticleService articleService;
   @Resource private FileService fileService;
+  @Resource private WorkflowService workflowService;
+  @Resource private WorkflowExportInitializer workflowExportInitializer;
 
-  public String getZipFileName(Exercise exercise, int exportOptionsMask) {
-    String infos =
-        "("
-            + (ExportOptions.has(ExportOptions.WITH_TEAMS, exportOptionsMask)
-                ? "with_teams"
-                : "no_teams")
-            + " & "
-            + (ExportOptions.has(ExportOptions.WITH_PLAYERS, exportOptionsMask)
-                ? "with_players"
-                : "no_players")
-            + " & "
-            + (ExportOptions.has(ExportOptions.WITH_VARIABLE_VALUES, exportOptionsMask)
-                ? "with_variable_values"
-                : "no_variable_values")
-            + ")";
+  public String getZipFileName(
+      Exercise exercise, int exportOptionsMask, boolean isChaining, boolean isWithScopeDefinition) {
+    String infos;
+    if (isChaining) {
+      infos =
+          "("
+              + (ExportOptions.has(ExportOptions.WITH_VARIABLE_VALUES, exportOptionsMask)
+                  ? "with_variable_values"
+                  : "no_variable_values")
+              + " & "
+              + (isWithScopeDefinition ? "with_scope_definition" : "no_scope_definition")
+              + ")";
+    } else {
+      infos =
+          "("
+              + (ExportOptions.has(ExportOptions.WITH_TEAMS, exportOptionsMask)
+                  ? "with_teams"
+                  : "no_teams")
+              + " & "
+              + (ExportOptions.has(ExportOptions.WITH_PLAYERS, exportOptionsMask)
+                  ? "with_players"
+                  : "no_players")
+              + " & "
+              + (ExportOptions.has(ExportOptions.WITH_VARIABLE_VALUES, exportOptionsMask)
+                  ? "with_variable_values"
+                  : "no_variable_values")
+              + ")";
+    }
     return (exercise.getName() + "_" + now().toString()) + "_" + infos + ".zip";
   }
 
-  public byte[] exportExerciseToZip(Exercise exercise, int exportOptionsMask) throws IOException {
+  public byte[] exportExerciseToZip(
+      Exercise exercise, int exportOptionsMask, boolean isWithScopeDefinition) throws IOException {
     ObjectMapper objectMapper = mapper.copy();
 
     ExerciseFileExport importExport =
         ExerciseFileExport.fromExercise(
                 exercise, objectMapper, this.challengeService, this.articleService)
             .withOptions(exportOptionsMask);
+    boolean isChaining = workflowService.isSimulationChaining(exercise.getId());
+    if (isChaining) {
+      importExport.setInjects(new ArrayList<>());
+    }
+
+    // Choose workflow mixin based on scope definition option
+    objectMapper.addMixIn(
+        Workflow.class,
+        isWithScopeDefinition
+            ? Mixins.WorkflowExport.class
+            : Mixins.WorkflowExportWithoutScope.class);
+
+    // Add workflow (chaining) if present — scope definition is optional
+    Optional<Workflow> workflowOpt =
+        workflowService.findWorkflowTemplateBySimulationIdForExport(exercise.getId());
+    workflowOpt.ifPresent(
+        workflow -> {
+          workflowExportInitializer.initialize(workflow, isWithScopeDefinition);
+          if (isChaining) {
+            ArrayList<Tag> workflowAndExerciseTags = new ArrayList<>(importExport.getTags());
+            workflowAndExerciseTags.addAll(workflowExportInitializer.collectWorkflowTags(workflow));
+            importExport.setTags(workflowAndExerciseTags.stream().distinct().toList());
+          }
+          importExport.setWorkflow(workflow);
+        });
 
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     ZipOutputStream zipExport = new ZipOutputStream(outputStream);
     ZipEntry zipEntry = new ZipEntry(exercise.getName() + ".json");
     zipEntry.setComment(EXPORT_ENTRY_EXERCISE);
     zipExport.putNextEntry(zipEntry);
+    ObjectNode exportNode = importExport.getObjectMapper().valueToTree(importExport);
+    workflowExportInitializer.enrichWorkflowStepDataForExport(
+        exportNode, "exercise_workflow", importExport.getObjectMapper());
     zipExport.write(
         importExport
             .getObjectMapper()
             .writerWithDefaultPrettyPrinter()
-            .writeValueAsBytes(importExport));
+            .writeValueAsBytes(exportNode));
     zipExport.closeEntry();
     // Add the actual files for the documents
     importExport.getAllDocumentIds().stream()

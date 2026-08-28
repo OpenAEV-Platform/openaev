@@ -1,74 +1,37 @@
-import { List, ListItem, Typography } from '@mui/material';
+import { MapOutlined, RocketLaunchOutlined, VideoLibraryOutlined, WidgetsOutlined } from '@mui/icons-material';
+import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
-import GradientButton from '../../../common/GradientButton';
+import { ExperienceHeadline } from '../ExperienceCard';
+import ExperienceFeatureTile from '../ExperienceFeatureTile';
 
 const XtmHubUnregisteredSection: React.FC = () => {
   const { t } = useFormatter();
   const theme = useTheme();
+  const accent = theme.palette.xtmhub.main;
 
   return (
     <>
-      <Typography>{t('By registering this platform into the hub, it will allow you to:')}</Typography>
-      <List
+      <ExperienceHeadline>
+        {t('Extend and scale your OpenAEV experience')}
+      </ExperienceHeadline>
+      <Typography variant="body2" color="text.secondary">
+        {t('Connect OpenAEV to XTMHub to deploy pre-configured actions and scenarios in one click, start free trials, and get more out of your XTM platform.')}
+      </Typography>
+      <div
         style={{
-          listStyleType: 'disc',
-          marginLeft: theme.spacing(2),
-        }}
-        dense
-      >
-        <ListItem style={{
-          display: 'list-item',
-          paddingLeft: 0,
-          marginLeft: theme.spacing(2),
-        }}
-        >
-          {t('Deploy in one-click threat management resources such as scenarios')}
-        </ListItem>
-        <ListItem style={{
-          display: 'list-item',
-          paddingLeft: 0,
-          marginLeft: theme.spacing(2),
-        }}
-        >
-          <span>
-            {t('Stay informed of new resources and key threat events with an exclusive news feed')}
-            <i>
-              {t(' (coming soon)')}
-            </i>
-          </span>
-        </ListItem>
-        <ListItem style={{
-          display: 'list-item',
-          paddingLeft: 0,
-          marginLeft: theme.spacing(2),
-        }}
-        >
-          <span>
-            {t('Monitor key metrics of the platform and health status')}
-            <i>
-              {t(' (coming soon)')}
-            </i>
-          </span>
-        </ListItem>
-      </List>
-
-      <GradientButton
-        variant="outlined"
-        component="a"
-        href="https://filigran.io/platforms/xtm-hub/"
-        target="_blank"
-        rel="noreferrer"
-        aria-label={t('Discover the Hub (external link)')}
-        style={{
-          marginTop: theme.spacing(1),
-          marginBottom: theme.spacing(1),
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+          gap: theme.spacing(1.5),
         }}
       >
-        {t('Discover the Hub')}
-      </GradientButton>
+        <ExperienceFeatureTile accent={accent} icon={<RocketLaunchOutlined />} label={t('XTM Platform free trial')} />
+        <ExperienceFeatureTile accent={accent} icon={<WidgetsOutlined />} label={t('Pre-built content')} />
+        <ExperienceFeatureTile accent={accent} icon={<MapOutlined />} label={t('XTM Platform Roadmap')} />
+        <ExperienceFeatureTile accent={accent} icon={<VideoLibraryOutlined />} label={t('Academy')} />
+      </div>
     </>
   );
 };

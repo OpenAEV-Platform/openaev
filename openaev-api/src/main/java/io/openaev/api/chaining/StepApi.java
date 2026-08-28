@@ -47,10 +47,11 @@ public class StepApi {
   })
   @AccessControl(
       actionPerformed = Action.CREATE,
-      resourceType = ResourceType.SIMULATION_OR_SCENARIO)
+      resourceType = ResourceType.SIMULATION_OR_SCENARIO,
+      isEnterpriseEdition = true)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  @Transactional
+  @Transactional(rollbackFor = Exception.class)
   public StepOutput createStep(@Valid @RequestBody StepInput input) throws ChainingException {
     StepsCreateInput.StepInput createInput =
         StepsCreateInput.StepInput.builder()
@@ -76,7 +77,8 @@ public class StepApi {
   @AccessControl(
       resourceId = "#stepId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.STEP)
+      resourceType = ResourceType.STEP,
+      isEnterpriseEdition = true)
   @GetMapping("/{stepId}")
   public StepOutput findById(@PathVariable String stepId) {
     return toOutput(stepService.findStepTemplateById(stepId));
@@ -88,7 +90,8 @@ public class StepApi {
   @AccessControl(
       resourceId = "#workflowId",
       actionPerformed = Action.READ,
-      resourceType = ResourceType.WORKFLOW)
+      resourceType = ResourceType.WORKFLOW,
+      isEnterpriseEdition = true)
   @GetMapping(params = "workflow_id")
   public List<StepOutput> findByWorkflowId(@RequestParam("workflow_id") String workflowId) {
     return stepService.findAllStepTemplateByWorkflow(workflowId).stream()
@@ -107,9 +110,10 @@ public class StepApi {
   @AccessControl(
       resourceId = "#stepId",
       actionPerformed = Action.WRITE,
-      resourceType = ResourceType.STEP)
+      resourceType = ResourceType.STEP,
+      isEnterpriseEdition = true)
   @PutMapping("/{stepId}")
-  @Transactional
+  @Transactional(rollbackFor = Exception.class)
   public StepOutput updateStep(@PathVariable String stepId, @Valid @RequestBody StepInput input)
       throws ChainingException {
     return toOutput(stepService.updateStepTemplate(stepId, input));
@@ -125,7 +129,8 @@ public class StepApi {
   @AccessControl(
       resourceId = "#stepId",
       actionPerformed = Action.DELETE,
-      resourceType = ResourceType.STEP)
+      resourceType = ResourceType.STEP,
+      isEnterpriseEdition = true)
   @DeleteMapping("/{stepId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional

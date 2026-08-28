@@ -21,7 +21,7 @@ Key checks: N+1 queries, `@Fetch(FetchMode.SUBSELECT)` on collections, `FetchTyp
 
 > Full rules: [backend.instructions.md](backend.instructions.md)
 
-Key checks: layering (Controller → Service → Repository, never skip), JPA entities never returned from controllers (use DTOs), `@Transactional` self-call (Spring proxy bypass), no new code in `openaev-framework` (deprecated), no new code in `io.openaev.rest` (legacy — use `io.openaev.api` instead).
+Key checks: layering (Controller → Service → Repository, never skip), JPA entities never returned from controllers (use DTOs), `@Transactional` self-call (Spring proxy bypass), no new code in `openaev-framework` (deprecated), no new code in `io.openaev.rest` (legacy — use `io.openaev.api` instead), backend EE-only behavior explicitly marked with `@AccessControl(..., isEnterpriseEdition = true)` so Enterprise Edition validation is enforced.
 
 ## Multi-Tenancy
 
@@ -41,7 +41,16 @@ Key checks: `@Nested` + `@DisplayName` grouping, `given_X_should_Y` naming, AAA 
 > Full rules: [frontend.instructions.md](frontend.instructions.md)
 > Agent: `frontend-reviewer`
 
-Key checks: no MUI for layout (native HTML), `sx` prop only (no `makeStyles`), `t()` called early, auto-generated `api-types.d.ts` (no manual types).
+Key checks: no MUI for layout (native HTML), `sx` prop only (no `makeStyles`), `t()` called early, auto-generated `api-types.d.ts` (no manual types), feature-flagged behavior uses the correct frontend flag check, and EE-only UI/actions are gated by frontend Enterprise Edition validation (typically `useEnterpriseEdition().isValidated`).
+
+## Chaining Engine
+
+> Full rules: [chaining-engine.instructions.md](chaining-engine.instructions.md)
+> Review skill: [review-chaining-engine](../skills/review-chaining-engine/SKILL.md)
+> Agent: `chaining-engine-reviewer`
+
+Key checks: step lifecycle (TEMPLATE → READY → RUN → END), `workflowService.isWorkflowEnded()` guard before execution, queue interactions only via `QueueChainingService`, global state updated before local propagation, time delays via `StepDelayQueueService` (never `Thread.sleep()`), `@WorkflowUpdateEvent` on inject-mutating methods.
+EE check: chaining EE-only endpoints/operations are explicitly marked with `@AccessControl(..., isEnterpriseEdition = true)` so AccessControlAspect enforces Enterprise Edition license validation.
 
 ## Review Style
 

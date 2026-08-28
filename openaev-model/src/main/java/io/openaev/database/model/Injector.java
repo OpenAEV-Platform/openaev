@@ -4,35 +4,48 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLHStoreType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
+import io.openaev.helper.MonoIdSerializer;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "injectors")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Injector extends BaseConnectorEntity implements TenantBase {
+@EntityListeners({ModelBaseListener.class})
+@IdClass(ConnectorCompositeId.class)
+/**
+ * Fully on v2 tenant isolation (TenantStatementInspector + can_access_tenant). The v1
+ * {@code @Filter("tenantFilter")} and {@code TenantIdBaseListener} were removed at go-live: the
+ * inspector scopes every query, and write attribution is explicit via TenantWriteScopeResolver. Do
+ * not re-add either.
+ */
+public class Injector extends BaseConnectorEntity implements TenantIdBase {
 
   @Id
   @Column(name = "injector_id")
   @JsonProperty("injector_id")
   @NotBlank
   private String id;
+
+  @Id
+  @Column(name = "tenant_id")
+  @JsonIgnore
+  private String tenantId;
 
   @Column(name = "injector_name")
   @JsonProperty("injector_name")
@@ -86,27 +99,21 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
   @JsonProperty("injector_dependencies")
   private ExternalServiceDependency[] dependencies;
 
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(
-      name = "injectors_injector_contracts",
-      joinColumns = @JoinColumn(name = "injector_id", referencedColumnName = "injector_id"),
-      inverseJoinColumns = {
-        @JoinColumn(name = "injector_contract_id", referencedColumnName = "injector_contract_id"),
-        @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id")
-      })
-  @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-  @JsonIgnore
-  private Set<InjectorContract> contracts = new HashSet<>();
+  // Security platform this injector registered at startup (e.g. Nuclei declaring itself as a
+  // VULNERABILITY_SCANNER). Mirrors Collector#securityPlatform: the FK is ON DELETE SET NULL, so
+  // deleting the injector from the catalog releases the platform for manual cleanup (#7063).
+  // Serialized as a bare id: embedding the full platform would pull its lazy collectors
+  // association (a v2 tenant-active table) into every injector serialization context.
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "injector_security_platform")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("injector_security_platform")
+  @Schema(implementation = String.class)
+  private SecurityPlatform securityPlatform;
 
-  @ManyToOne
-  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  @OneToMany(mappedBy = "injector", fetch = FetchType.LAZY)
   @JsonIgnore
-  private Tenant tenant;
-
-  // Read-only mapping so Hibernate registers the logical column name "tenant_id" in this table
-  @Column(name = "tenant_id", insertable = false, updatable = false)
-  @JsonIgnore
-  private String tenantId;
+  private Set<InjectorInjectorContract> injectorContractLinks = new HashSet<>();
 
   @Getter(onMethod_ = @JsonIgnore)
   @Transient
@@ -131,16 +138,28 @@ public class Injector extends BaseConnectorEntity implements TenantBase {
     return id.equals(base.getId());
   }
 
+  @JsonIgnore
+  public Set<InjectorContract> getContracts() {
+    return this.injectorContractLinks.stream()
+        .map(InjectorInjectorContract::getInjectorContract)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
+  }
+
+  // All link writes go through the owning side (InjectorContract.injectorLinks, which carries the
+  // cascade). This side stays a read-only inverse loaded by Hibernate, so merging an injector never
+  // reconciles an unsaved link and never fails with "Unable to find InjectorInjectorContract".
   public void linkContract(InjectorContract contract) {
-    this.contracts.add(contract);
-    if (!contract.getInjectors().contains(this)) {
-      contract.getInjectors().add(this);
+    boolean alreadyLinked =
+        contract.getInjectorLinks().stream()
+            .anyMatch(l -> Objects.equals(l.getInjectorId(), this.id));
+    if (!alreadyLinked) {
+      contract.getInjectorLinks().add(new InjectorInjectorContract(this, contract));
     }
   }
 
   public void unlinkContract(InjectorContract contract) {
-    this.contracts.remove(contract);
-    contract.getInjectors().remove(this);
+    contract.getInjectorLinks().removeIf(l -> Objects.equals(l.getInjectorId(), this.id));
   }
 
   @Override

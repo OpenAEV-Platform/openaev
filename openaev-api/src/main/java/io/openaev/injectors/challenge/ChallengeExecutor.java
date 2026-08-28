@@ -10,16 +10,16 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
-import io.openaev.execution.ProtectUser;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
+import io.openaev.expectation.ChallengeExpectation;
+import io.openaev.expectation.Expectation;
+import io.openaev.expectation.ManualExpectation;
+import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.injectors.challenge.model.ChallengeVariable;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.model.ExecutionProcess;
-import io.openaev.model.Expectation;
-import io.openaev.model.expectation.ChallengeExpectation;
-import io.openaev.model.expectation.ManualExpectation;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
@@ -49,7 +49,7 @@ public class ChallengeExecutor extends Injector {
 
   private String buildChallengeUri(
       ExecutionContext executionContext, Exercise exercise, Challenge challenge) {
-    ProtectUser user = executionContext.getUser();
+    UserContract user = executionContext.getUser();
     String challengeId = challenge.getId();
     String url =
         this.context.getOpenAEVConfig().getBaseUrl()
@@ -66,7 +66,8 @@ public class ChallengeExecutor extends Injector {
   public ExecutionProcess process(
       @NotNull final Execution execution, @NotNull final ExecutableInject injection) {
     try {
-      ChallengeContent content = contentConvert(injection, ChallengeContent.class);
+      ChallengeContent content =
+          injectExpectationService.contentConvert(injection, ChallengeContent.class);
       List<Challenge> challenges =
           fromIterable(challengeRepository.findAllById(content.getChallenges()));
       if (challenges.isEmpty()) {

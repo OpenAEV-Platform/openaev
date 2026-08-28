@@ -15,6 +15,7 @@ import io.openaev.integration.local_fixtures.factory_throws.TestIntegrationFacto
 import io.openaev.integration.local_fixtures.integration_throws.TestIntegrationFactoryIntegrationThrows;
 import io.openaev.integration.local_fixtures.integration_throws.TestIntegrationStartThrows;
 import io.openaev.integration.local_fixtures.regular.*;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -305,7 +306,7 @@ public class ManagerTest {
   }
 
   @Test
-  @DisplayName("When instance is deleted, manager stops integration and deletes")
+  @DisplayName("When instance is deleted after a stop request, manager stops it and deletes")
   public void whenInstanceIsDeleted_managerStopsIntegrationAndDeletes() throws Exception {
     Manager manager = new Manager(Tenant.DEFAULT_TENANT_UUID, List.of(getRegularFactory()));
 
@@ -323,6 +324,14 @@ public class ManagerTest {
         .isEqualTo(ConnectorInstance.REQUESTED_STATUS_TYPE.starting);
     assertThat(manager.getSpawnedIntegrations().get(singleInstance).getCurrentStatus())
         .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+
+    // A started instance can never be deleted (OpenCTI parity): stop it first.
+    assertThatThrownBy(() -> connectorInstanceService.deleteById(singleInstance.getId()))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("stop it before deleting it");
+
+    singleInstance.setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(singleInstance);
 
     connectorInstanceService.deleteById(singleInstance.getId());
 

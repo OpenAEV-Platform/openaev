@@ -28,6 +28,7 @@ import io.openaev.database.repository.ConnectorInstanceLogRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.integration.Integration;
@@ -37,19 +38,26 @@ import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.connector_instance.dto.UpdateConnectorInstanceRequestedStatus;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.connector_instances.XtmComposerEncryptionService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CollectorFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,8 +65,12 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
+@TestPropertySource(properties = "openaev.tenant.active-tables=connector_instances")
 @DisplayName("Connector Instance API Integration Tests")
 public class ConnectorInstanceApiTest extends IntegrationTest {
+
+  private static final String TENANT_CONNECTOR_INSTANCE_URI =
+      "/api/tenants/{tenantId}/connector-instances";
 
   @Autowired private MockMvc mvc;
 
@@ -83,6 +95,21 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @Autowired private ExecutorRepository executorRepository;
   @Autowired private InjectorRepository injectorRepository;
   @MockitoBean private ManagerFactory managerFactory;
+  @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private EntityManager entityManager;
+  @Autowired private TenantRepository tenantRepository;
+  @Autowired private TestUserHolder testUserHolder;
+
+  @BeforeEach
+  void setUp() {
+    // Write endpoints (DELETE) resolve a TxCtx write-scope from users_tenants membership: the
+    // mock user needs a row there, otherwise the scope is missing and writes are refused with 400
+    // regardless of granted capabilities. The "Tenant Isolation" nested tests below are unaffected:
+    // they always select an explicit tenant via the /api/tenants/{id}/... path.
+    if (testUserHolder.isSet()) {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+    }
+  }
 
   private ConnectorInstancePersisted getConnectorInstance(
       CatalogConnector catalogConnector, Set<ConnectorInstanceConfiguration> configurationsValues) {
@@ -129,7 +156,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
       input.setCatalogConnectorId(catalogConnector.getId());
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -147,7 +174,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
       input.setCatalogConnectorId(catalogConnector.getId());
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -169,7 +196,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
           Instant.now().minus(3, ChronoUnit.HOURS).toString());
       platformSettingsService.saveSettings(composerSettings);
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -189,7 +216,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
       Token token = new Token();
       token.setValue("fake-token-value");
-      when(tokenRepository.findAll(any())).thenReturn(List.of(token));
+      when(tokenRepository.findAll(any(Specification.class))).thenReturn(List.of(token));
 
       CatalogConnectorConfiguration confDef1 =
           createCatalogConfiguration(
@@ -215,7 +242,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input1.setConfigurations(List.of(confInput1));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input1))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -230,7 +257,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input2.setConfigurations(List.of(confInput2));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input2))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -262,7 +289,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
       Token token = new Token();
       token.setValue("fake-token-value");
-      when(tokenRepository.findAll(any())).thenReturn(List.of(token));
+      when(tokenRepository.findAll(any(Specification.class))).thenReturn(List.of(token));
 
       CatalogConnectorConfiguration confDef1 =
           createCatalogConfiguration(
@@ -303,7 +330,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input.setConfigurations(List.of(confInput1, confInputCollectorId));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -373,19 +400,20 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input.setConfigurations(List.of(confInput1, confInputCollectorId));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
-          .andExpect(status().is4xxClientError())
+          .andExpect(status().isBadRequest())
+          // The frontend renders the JSON body message: assert the response body (the
+          // contract), not the resolved exception.
           .andExpect(
-              result -> {
-                String errorMessage = result.getResolvedException().getMessage();
-                assertTrue(
-                    errorMessage.contains(
-                        "Connector with id " + fakeCollectorId + " does not exist"));
-              });
+              jsonPath("$.message")
+                  .value(
+                      "Cannot migrate: no collector with id "
+                          + fakeCollectorId
+                          + " is visible in the current tenant"));
 
       List<ConnectorInstancePersisted> instanceDb =
           connectorInstanceRepository.findAllByCatalogConnectorId(catalogConnector.getId());
@@ -399,7 +427,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
       Token token = new Token();
       token.setValue("fake-token-value");
-      when(tokenRepository.findAll(any())).thenReturn(List.of(token));
+      when(tokenRepository.findAll(any(Specification.class))).thenReturn(List.of(token));
 
       Set<String> enumList = Set.of("info", "debug", "warn");
       CatalogConnectorConfiguration confDef1 =
@@ -446,7 +474,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       input.setConfigurations(List.of(confInput1, confInput2, confInput3));
 
       mvc.perform(
-              post(CONNECTOR_INSTANCE_URI)
+              post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
@@ -550,6 +578,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       executor.setType(catalogConnector.getSlug());
       executor.setCreatedAt(Instant.now());
       executor.setUpdatedAt(Instant.now());
+      executor.setTenantId(TenantContext.getCurrentTenant());
       executorComposer.forExecutor(executor).persist();
 
       ConnectorInstanceConfiguration executorIdConfig =
@@ -571,10 +600,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
       // Assert
       assertFalse(connectorInstanceRepository.findById(connectorInstance.getId()).isPresent());
-      assertFalse(
-          executorRepository
-              .findByIdAndTenantId(executor.getId(), TenantContext.getCurrentTenant())
-              .isPresent());
+      assertFalse(executorRepository.findByExecutorId(executor.getId()).isPresent());
     }
 
     @Test
@@ -1069,34 +1095,149 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
 
     String responseInstance1 =
         mvc.perform(
-                get(CONNECTOR_INSTANCE_URI + "/" + connectorInstance1.getId() + "/logs")
+                post(CONNECTOR_INSTANCE_URI + "/" + connectorInstance1.getId() + "/logs/search")
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(PaginationFixture.getDefault().build()))
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
             .getContentAsString();
-    assertThatJson(responseInstance1).isArray().size().isEqualTo(2);
+    assertThatJson(responseInstance1).node("totalElements").isEqualTo(2);
     assertThatJson(responseInstance1)
-        .inPath("[*].connector_instance_log")
+        .inPath("content[*].connector_instance_log")
         .isArray()
         .containsExactlyInAnyOrderElementsOf(List.of("log 1", "log 2"));
 
     String responseInstance2 =
         mvc.perform(
-                get(CONNECTOR_INSTANCE_URI + "/" + connectorInstance2.getId() + "/logs")
+                post(CONNECTOR_INSTANCE_URI + "/" + connectorInstance2.getId() + "/logs/search")
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(PaginationFixture.getDefault().build()))
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andReturn()
             .getResponse()
             .getContentAsString();
-    assertThatJson(responseInstance2).isArray().size().isEqualTo(1);
+    assertThatJson(responseInstance2).node("totalElements").isEqualTo(1);
     assertThatJson(responseInstance2)
-        .inPath("[*].connector_instance_log")
+        .inPath("content[*].connector_instance_log")
         .isArray()
         .containsExactlyInAnyOrderElementsOf(List.of("log 3"));
+  }
+
+  // The test classpath's application.properties ships an empty
+  // openaev.tenant.active-tables, so IntegrationTest-based API tests never exercise the v2
+  // inspector's rewrite by default. Activate connector_instances explicitly here so the
+  // Tenant Isolation nested tests' cross-tenant assertions actually go through
+  // TenantStatementInspector instead of silently passing on an unscoped read.
+  @Nested
+  @DisplayName("Tenant Isolation")
+  @WithMockUser
+  class TenantIsolation {
+
+    @Test
+    @DisplayName("Connector instance created in tenant X should NOT be readable from tenant Y")
+    void given_connectorInstanceInTenantX_should_notBeReadableFromTenantY() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.ACCESS_TENANT_SETTINGS, Capability.MANAGE_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      CatalogConnector catalogConnector = getCatalogConnector();
+      ConnectorInstancePersisted connectorInstance =
+          getConnectorInstance(catalogConnector, new HashSet<>());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act + Assert --------
+      mvc.perform(
+              get("/api/tenants/"
+                      + tenantY.getId()
+                      + "/connector-instances/"
+                      + connectorInstance.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Connector instance created in tenant X should be readable from tenant X")
+    void given_connectorInstanceInTenantX_should_beReadableFromTenantX() throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.ACCESS_TENANT_SETTINGS, Capability.MANAGE_TENANT_SETTINGS));
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      CatalogConnector catalogConnector = getCatalogConnector();
+      ConnectorInstancePersisted connectorInstance =
+          getConnectorInstance(catalogConnector, new HashSet<>());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act --------
+      String response =
+          mvc.perform(
+                  get("/api/tenants/"
+                          + tenantX.getId()
+                          + "/connector-instances/"
+                          + connectorInstance.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // -------- Assert --------
+      assertThatJson(response).inPath("connector_instance_id").isEqualTo(connectorInstance.getId());
+    }
+
+    @Test
+    @DisplayName("Connector instance configs from tenant X should NOT be readable from tenant Y")
+    void given_connectorInstanceInTenantX_should_notExposeConfigurationsToTenantY()
+        throws Exception {
+      // -------- Arrange --------
+      Tenant tenantX =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant X",
+              Set.of(Capability.ACCESS_TENANT_SETTINGS, Capability.MANAGE_TENANT_SETTINGS));
+      Tenant tenantY =
+          tenantIsolationHelper.createTenantWithCapabilities(
+              "Tenant Y", Set.of(Capability.ACCESS_TENANT_SETTINGS));
+
+      tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
+      CatalogConnector catalogConnector = getCatalogConnector();
+      ConnectorInstancePersisted connectorInstance =
+          getConnectorInstance(catalogConnector, new HashSet<>());
+
+      entityManager.flush();
+      entityManager.clear();
+
+      // -------- Act + Assert --------
+      mvc.perform(
+              get("/api/tenants/"
+                      + tenantY.getId()
+                      + "/connector-instances/"
+                      + connectorInstance.getId()
+                      + "/configurations")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+    }
   }
 }

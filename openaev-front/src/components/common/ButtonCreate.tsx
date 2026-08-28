@@ -1,40 +1,55 @@
 import { Add } from '@mui/icons-material';
-import { Fab } from '@mui/material';
+import { Button, Tooltip } from '@mui/material';
 import { type FunctionComponent } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
-const RIGHT_MENU_OFFSET = 230;
-
-const useStyles = makeStyles<{ variant: ButtonCreateVariant }>()((_, { variant }) => ({
-  createButton: {
-    position: 'fixed',
-    bottom: 30,
-    right: variant === 'rightMenu' ? RIGHT_MENU_OFFSET : 30,
-  },
-}));
-
-type ButtonCreateVariant = 'default' | 'rightMenu';
+import { useFormatter } from '../i18n';
 
 interface Props {
   onClick: () => void;
   style?: React.CSSProperties;
-  variant?: ButtonCreateVariant;
+  label?: string;
+  disabled?: boolean;
+  /** Reason shown on hover while disabled. Raw i18n key, translated here. */
+  disabledMessage?: string;
 }
 
-const ButtonCreate: FunctionComponent<Props> = ({ onClick, style, variant = 'default' }) => {
-  const { classes } = useStyles({ variant });
+// Top-right inline creation button (OpenCTI-aligned): a contained primary
+// button rendered in the list header row instead of a floating bottom-right
+// Fab. The accessible name is the visible label (WCAG 2.5.3 Label in Name);
+// e2e selectors target the stable data-testid instead.
+const ButtonCreate: FunctionComponent<Props> = ({ onClick, style, label, disabled, disabledMessage }) => {
+  const { t } = useFormatter();
 
-  return (
-    <Fab
+  const button = (
+    <Button
       onClick={onClick}
       color="primary"
-      aria-label="Add"
-      className={classes.createButton}
+      variant="contained"
+      size="small"
+      data-testid="button-create"
+      startIcon={<Add />}
       style={style}
+      disabled={disabled}
+      sx={{
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+      }}
     >
-      <Add />
-    </Fab>
+      {label ?? t('Create')}
+    </Button>
   );
+
+  // A disabled MUI button fires no pointer event, so the tooltip needs an
+  // enabled wrapper to hang on to.
+  if (disabled && disabledMessage) {
+    return (
+      <Tooltip title={t(disabledMessage)}>
+        <span style={{ display: 'inline-flex' }}>{button}</span>
+      </Tooltip>
+    );
+  }
+
+  return button;
 };
 
 export default ButtonCreate;

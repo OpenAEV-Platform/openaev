@@ -3,7 +3,10 @@ package io.openaev.rest.payload.service;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
+import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
+import io.openaev.config.OpenAEVAnonymous;
+import io.openaev.config.SessionHelper;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -14,6 +17,8 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadCreateInput;
+import io.openaev.service.UserService;
+import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,6 +40,8 @@ public class PayloadCreationService {
   private final TagRepository tagRepository;
   private final DomainService domainService;
   private final DocumentService documentService;
+  private final ResultsMetricCollector resultsMetricCollector;
+  private final UserService userService;
 
   public record PayloadInjectorContractCreationResult(
       Payload payload, InjectorContract injectorContract) {}
@@ -56,6 +63,13 @@ public class PayloadCreationService {
     Payload payload = payloadType.getPayloadSupplier().get();
     payloadUtils.copyProperties(input, payload);
 
+    // Manually created payloads are authored by the current user. System-driven
+    // creations (startup datapacks, schedulers) have no authenticated user and
+    // stay authorless.
+    if (!(SessionHelper.currentUser() instanceof OpenAEVAnonymous)) {
+      payload.setAuthorUser(userService.currentUser());
+    }
+
     if (payload instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));
     } else if (payload instanceof FileDrop fileDrop) {
@@ -63,12 +77,21 @@ public class PayloadCreationService {
     }
 
     Payload payloadSaved = payloadRepository.save(payload);
+    // The id collections default to empty lists on the input, but callers that build the
+    // input via BeanUtils.copyProperties (e.g. threat arsenal action creation) can overwrite
+    // those defaults with null. Spring Data's findAllById throws IllegalArgumentException
+    // ("Ids must not be null") on a null argument, surfacing as a confusing 400. Treat an
+    // absent collection as "no associations" instead.
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             payloadSaved,
-            fromIterable(attackPatternRepository.findAllById(input.getAttackPatternsIds())),
-            iterableToSet(domainService.findAllById(input.getDomainIds())),
-            iterableToSet(tagRepository.findAllById(input.getTagIds())));
+            fromIterable(
+                attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds()))),
+            iterableToSet(domainService.findAllById(emptyIfNull(input.getDomainIds()))),
+            iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
+    // Telemetry: one payload created, by type - recorded only once the payload and
+    // its injector contract are persisted (a rollback would otherwise inflate the counter).
+    resultsMetricCollector.recordPayloadCreated(payloadType.key);
     return new PayloadInjectorContractCreationResult(payloadSaved, injectorContract);
   }
 }

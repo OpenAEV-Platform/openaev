@@ -1,7 +1,7 @@
-import { HelpOutlined } from '@mui/icons-material';
-import { GridLegacy, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Paper, Typography } from '@mui/material';
+import { SchoolOutlined } from '@mui/icons-material';
+import { Box, Paper, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useParams } from 'react-router';
-import { makeStyles } from 'tss-react/mui';
 
 import { type UserHelper } from '../../../../actions/helper';
 import { fetchLessonsTemplateCategories, fetchLessonsTemplateQuestions } from '../../../../actions/Lessons';
@@ -14,21 +14,72 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateLessonsTemplateCategory from './categories/CreateLessonsTemplateCategory';
-import LessonsTemplateCategoryPopover from './categories/LessonsTemplateCategoryPopover';
-import CreateLessonsTemplateQuestion from './categories/questions/CreateLessonsTemplateQuestion';
-import LessonsTemplateQuestionPopover from './categories/questions/LessonsTemplateQuestionPopover';
+import LessonsTemplateCategoryCard from './categories/LessonsTemplateCategoryCard';
 
-const useStyles = makeStyles()(() => ({
-  container: {
-    display: 'flex',
-    alignItems: 'center',
-  },
-}));
+// Zero-state rendered when the template has no category yet: a dashed framed
+// invitation card with the create CTA, instead of an empty grid.
+const LessonsTemplateEmptyState = ({ lessonsTemplateId }: { lessonsTemplateId: string }) => {
+  const { t } = useFormatter();
+  const theme = useTheme();
+  const accent = theme.palette.primary.main;
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        borderRadius: 1,
+        borderStyle: 'dashed',
+        padding: 6,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 1.5,
+        textAlign: 'center',
+      }}
+    >
+      <Box sx={{
+        width: 48,
+        height: 48,
+        borderRadius: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'primary.main',
+        backgroundColor: alpha(accent, 0.1),
+        border: `1px solid ${alpha(accent, 0.3)}`,
+      }}
+      >
+        <SchoolOutlined />
+      </Box>
+      <Typography sx={{
+        fontFamily: '"Geologica", sans-serif',
+        fontWeight: 600,
+        fontSize: 16,
+      }}
+      >
+        {t('No categories yet')}
+      </Typography>
+      <Typography
+        variant="body2"
+        sx={{
+          color: 'text.secondary',
+          maxWidth: 480,
+        }}
+      >
+        {t('Structure this template with categories, then add the questions participants will answer after a simulation.')}
+      </Typography>
+      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+        <Box sx={{ marginTop: 1 }}>
+          <CreateLessonsTemplateCategory
+            lessonsTemplateId={lessonsTemplateId}
+            label={t('Add a category')}
+          />
+        </Box>
+      </Can>
+    </Paper>
+  );
+};
 
 const LessonsTemplate = () => {
-  // Standard hooks
-  const { t } = useFormatter();
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const { lessonsTemplateId } = useParams() as { lessonsTemplateId: string };
 
@@ -51,76 +102,42 @@ const LessonsTemplate = () => {
   });
 
   // Utils
-  const categoriesSorted = categories
+  const categoriesSorted = [...categories]
     .sort((c1, c2) => ((c1.lessons_template_category_order ?? 0) > (c2.lessons_template_category_order ?? 0) ? 1 : -1));
   const sortQuestions = (qs: LessonsTemplateQuestion[]) => {
-    return qs
+    return [...qs]
       .sort((q1, q2) => ((q1.lessons_template_question_order ?? 0) > (q2.lessons_template_question_order ?? 0) ? 1 : -1));
   };
 
-  return (
-    <>
-      <GridLegacy container columnSpacing={3} rowSpacing={5} style={{ marginTop: '0px' }}>
-        {categoriesSorted.map((category) => {
-          const questionsSorted = sortQuestions(
-            questions.filter(q => q.lessons_template_question_category === category.lessonstemplatecategory_id),
-          );
-          return (
-            <GridLegacy key={category.lessonstemplatecategory_id} item xs={6}>
-              <div className={classes.container}>
-                <Typography variant="h2" margin="0">
-                  {category.lessons_template_category_name}
-                </Typography>
-                <LessonsTemplateCategoryPopover
-                  lessonsTemplateId={lessonsTemplateId}
-                  lessonsTemplateCategory={category}
-                />
-              </div>
-              <Typography variant="h3">
-                {category.lessons_template_category_description}
-              </Typography>
-              <Paper variant="outlined">
-                <List disablePadding>
-                  {questionsSorted.map((question) => {
-                    return (
-                      <ListItem
-                        key={question.lessonstemplatequestion_id}
-                        divider
-                      >
-                        <ListItemIcon>
-                          <HelpOutlined />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={question.lessons_template_question_content}
-                          secondary={question.lessons_template_question_explanation ?? t('No explanation')}
-                        />
-                        <ListItemSecondaryAction>
-                          <LessonsTemplateQuestionPopover
-                            lessonsTemplateId={lessonsTemplateId}
-                            lessonsTemplateCategoryId={category.lessonstemplatecategory_id}
-                            lessonsTemplateQuestion={question}
-                          />
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                    );
-                  })}
-                  <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-                    <CreateLessonsTemplateQuestion
-                      lessonsTemplateId={lessonsTemplateId}
-                      lessonsTemplateCategoryId={category.lessonstemplatecategory_id}
-                    />
-                  </Can>
+  if (categoriesSorted.length === 0) {
+    return (
+      <Box sx={{ marginTop: 2 }}>
+        <LessonsTemplateEmptyState lessonsTemplateId={lessonsTemplateId} />
+      </Box>
+    );
+  }
 
-                </List>
-              </Paper>
-            </GridLegacy>
-          );
-        })}
-      </GridLegacy>
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-        <CreateLessonsTemplateCategory lessonsTemplateId={lessonsTemplateId} />
-      </Can>
-    </>
+  return (
+    <Box sx={{
+      marginTop: 2,
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(min(480px, 100%), 1fr))',
+      gap: 2,
+      alignItems: 'stretch',
+    }}
+    >
+      {categoriesSorted.map((category, index) => (
+        <LessonsTemplateCategoryCard
+          key={category.lessonstemplatecategory_id}
+          lessonsTemplateId={lessonsTemplateId}
+          category={category}
+          questions={sortQuestions(
+            questions.filter(question => question.lessons_template_question_category === category.lessonstemplatecategory_id),
+          )}
+          index={index}
+        />
+      ))}
+    </Box>
   );
 };
 

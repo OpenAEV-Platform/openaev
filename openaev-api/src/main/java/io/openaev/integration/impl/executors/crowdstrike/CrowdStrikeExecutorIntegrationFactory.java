@@ -3,7 +3,9 @@ package io.openaev.integration.impl.executors.crowdstrike;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
@@ -44,6 +46,8 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   private final CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
   private final FileService fileService;
   private final BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
+  private final OpenAEVConfig openAEVConfig;
+  private final TenantScopedTransaction tenantTx;
 
   public CrowdStrikeExecutorIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -59,7 +63,9 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
       CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration,
       FileService fileService,
       BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder,
-      HttpClientFactory httpClientFactory) {
+      HttpClientFactory httpClientFactory,
+      OpenAEVConfig openAEVConfig,
+      TenantScopedTransaction tenantTx) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.endpointService = endpointService;
     this.agentService = agentService;
@@ -74,6 +80,8 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
     this.crowdStrikeExecutorConfigurationMigration = crowdStrikeExecutorConfigurationMigration;
     this.fileService = fileService;
     this.baseIntegrationConfigurationBuilder = baseIntegrationConfigurationBuilder;
+    this.openAEVConfig = openAEVConfig;
+    this.tenantTx = tenantTx;
   }
 
   @Override
@@ -82,29 +90,40 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
   }
 
   @Override
-  protected void runMigrations() throws Exception {
-    crowdStrikeExecutorConfigurationMigration.migrate();
+  protected void runMigrations(String tenantId) throws Exception {
+    crowdStrikeExecutorConfigurationMigration.migrate(tenantId);
+  }
+
+  private String getLogoFilename() {
+    return "%s-logo.png".formatted(CROWDSTRIKE_EXECUTOR_TYPE);
   }
 
   @Override
-  protected void insertCatalogEntry() throws Exception {
-    String logoFilename = "%s-logo.png".formatted(CROWDSTRIKE_EXECUTOR_TYPE);
+  protected void ensureCatalogLogo() throws Exception {
+    ensureCatalogLogo(getLogoFilename());
+  }
+
+  private void ensureCatalogLogo(String logoFilename) throws Exception {
     fileService.uploadCatalogLogo(
         FileService.CONNECTORS_LOGO_PATH,
         logoFilename,
         getClass().getResourceAsStream("/img/icon-crowdstrike.png"));
+  }
+
+  @Override
+  protected void insertCatalogEntry() throws Exception {
+    String logoFilename = getLogoFilename();
+    ensureCatalogLogo(logoFilename);
     CatalogConnector connector = new CatalogConnector();
     connector.setTitle("CrowdStrike Executor");
     connector.setSlug(CROWDSTRIKE_EXECUTOR_TYPE);
     connector.setLogoUrl(logoFilename);
     connector.setDescription(
-        """
-            CrowdStrike Falcon Intelligence is an integral threat intelligence module within the Falcon platform, crafted to enhance the speed and effectiveness of threat detection, investigation, and response. It equips SOC teams to work more swiftly and intelligently, leveraging automation, enrichment, and high-fidelity data to optimize their cybersecurity operations.
-
-            With Crowdstrike executor register your asset in OpenAEV and enable execution of OpenAEV scenarios through your Crowdstrike instance.
-            """);
-    connector.setShortDescription(
-        "Enable execution of OpenAEV scenarios through your Crowdstrike instance.");
+        "Register your CrowdStrike Falcon-managed hosts as OpenAEV executors and run"
+            + " simulated attacks directly on them through the Falcon platform, so you can"
+            + " validate detection and prevention on real endpoints without deploying the"
+            + " OpenAEV agent.");
+    connector.setShortDescription("Run OpenAEV simulations on your CrowdStrike Falcon endpoints.");
     connector.setClassName(getClassName());
     connector.setSubscriptionLink("https://www.crowdstrike.com");
     connector.setContainerType(ConnectorType.EXECUTOR);
@@ -127,6 +146,8 @@ public class CrowdStrikeExecutorIntegrationFactory extends IntegrationFactory {
         componentRequestEngine,
         taskScheduler,
         baseIntegrationConfigurationBuilder,
-        httpClientFactory);
+        httpClientFactory,
+        openAEVConfig,
+        tenantTx);
   }
 }

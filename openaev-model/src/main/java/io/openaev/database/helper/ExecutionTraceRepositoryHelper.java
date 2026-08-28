@@ -1,9 +1,11 @@
 package io.openaev.database.helper;
 
+import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.database.model.ExecutionTrace;
 import java.sql.PreparedStatement;
-import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -26,6 +28,7 @@ import org.springframework.stereotype.Repository;
  *
  * @see ExecutionTrace
  */
+@AllowRawJdbc(reason = "writes execution_traces and injects_statuses, both non-tenant tables")
 @Repository
 @RequiredArgsConstructor
 public class ExecutionTraceRepositoryHelper {
@@ -85,12 +88,14 @@ public class ExecutionTraceRepositoryHelper {
           ps.setString(6, structuredOutputAsText);
           ps.setString(7, executionTrace.getAction().name());
           ps.setString(8, executionTrace.getStatus().name());
-          ps.setTimestamp(9, Timestamp.from(executionTrace.getTime()));
+          ps.setObject(9, OffsetDateTime.ofInstant(executionTrace.getTime(), ZoneOffset.UTC));
           ps.setArray(
               10,
               ps.getConnection().createArrayOf("text", executionTrace.getIdentifiers().toArray()));
-          ps.setTimestamp(11, Timestamp.from(executionTrace.getCreationDate()));
-          ps.setTimestamp(12, Timestamp.from(executionTrace.getUpdateDate()));
+          ps.setObject(
+              11, OffsetDateTime.ofInstant(executionTrace.getCreationDate(), ZoneOffset.UTC));
+          ps.setObject(
+              12, OffsetDateTime.ofInstant(executionTrace.getUpdateDate(), ZoneOffset.UTC));
           return ps.executeUpdate();
         });
 
@@ -113,22 +118,9 @@ public class ExecutionTraceRepositoryHelper {
         "UPDATE injects_statuses SET status_name = ?, tracking_end_date = ? WHERE status_id = ?";
 
     jdbcTemplate.update(
-        sql, name, endDate != null ? Timestamp.from(endDate) : null, injectStatusId);
-  }
-
-  /**
-   * Updates the last modification timestamp of an inject using direct JDBC.
-   *
-   * <p>This lightweight operation updates only the {@code inject_updated_at} column without
-   * triggering a full entity update, useful for tracking inject modifications efficiently.
-   *
-   * @param id the ID of the inject to update
-   * @param updatedAt the new update timestamp, or {@code null} to clear the value
-   * @throws org.springframework.dao.DataAccessException if the database update fails
-   */
-  public void updateInjectUpdateDate(String id, Instant updatedAt) {
-    String sql = "UPDATE injects SET inject_updated_at = ? WHERE inject_id = ?";
-
-    jdbcTemplate.update(sql, updatedAt != null ? Timestamp.from(updatedAt) : null, id);
+        sql,
+        name,
+        endDate != null ? OffsetDateTime.ofInstant(endDate, ZoneOffset.UTC) : null,
+        injectStatusId);
   }
 }

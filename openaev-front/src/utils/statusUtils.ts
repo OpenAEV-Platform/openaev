@@ -53,6 +53,7 @@ export const computeStatusStyle = (status: string | undefined | null) => {
 
   const statusMap: Record<string, typeof colorStyles[keyof typeof colorStyles]> = {
     // -- Common --
+    'SUCCESS': colorStyles.green,
     'EXECUTED': colorStyles.green,
     'ERROR': colorStyles.red,
 
@@ -85,6 +86,8 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     'PENDING': colorStyles.blue,
     'QUEUING': colorStyles.yellow,
     'DRAFT': colorStyles.blueGrey,
+    // Display-only status for disabled injects (never executed, no status row)
+    'DISABLED': colorStyles.blueGrey,
 
     // Expectation display labels
     'FAILED': colorStyles.red,
@@ -107,7 +110,6 @@ export const computeStatusStyle = (status: string | undefined | null) => {
     'FINISHED': colorStyles.grey,
     'NOT_PLANNED': colorStyles.grey,
   };
-
   return statusMap[normalized] ?? colorStyles.blueGrey;
 };
 
@@ -136,6 +138,7 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     // Not counted statuses
     'asset_agentless': theme.palette.grey['500'],
     'agent_inactive': theme.palette.grey['500'],
+    'info': colorStyles.blue.color,
 
     // -- ExecutionStatus --
     'partial': colorStyles.orange.color,
@@ -160,6 +163,11 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     'failed': theme.palette.error.main,
     'undetected': theme.palette.error.main,
     'unprevented': theme.palette.error.main,
+    // The labels ExpectationType actually stores for a failed expectation (what the expiration
+    // manager stamps). They used to land on the catch-all below, so the colour was right by accident
+    // and indistinguishable from an unrecognised status.
+    'not prevented': theme.palette.error.main,
+    'not detected': theme.palette.error.main,
     'vulnerable': theme.palette.error.main,
     '0': theme.palette.error.main,
 

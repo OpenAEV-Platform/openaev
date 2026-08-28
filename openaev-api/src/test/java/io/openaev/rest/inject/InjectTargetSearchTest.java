@@ -2,12 +2,15 @@ package io.openaev.rest.inject;
 
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
@@ -80,6 +83,24 @@ public class InjectTargetSearchTest extends IntegrationTest {
     filterGroup.setMode(Filters.FilterMode.and);
     dynamicAssetGroup.setDynamicFilter(filterGroup);
     return assetGroupComposer.forAssetGroup(dynamicAssetGroup);
+  }
+
+  /**
+   * Builds the expected search output for an endpoint target, including the product-facing asset
+   * category the API now serializes (used client-side to pick the icon of non-host assets).
+   */
+  private static EndpointTarget expectedEndpointTarget(EndpointComposer.Composer wrapper) {
+    Endpoint endpoint = wrapper.get();
+    EndpointTarget target =
+        new EndpointTarget(
+            endpoint.getId(),
+            endpoint.getName(),
+            endpoint.getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
+            endpoint.getPlatform().name());
+    if (endpoint.getCategory() != null) {
+      target.setTargetCategory(endpoint.getCategory().name());
+    }
+    return target;
   }
 
   private InjectComposer.Composer getInjectWithAllTeams() {
@@ -416,30 +437,30 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 injectExpectationComposer
                     .forExpectation(
                         InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                            InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                            InjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                            BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
                     .withAgent(agent1Wrapper))
             .withExpectation(
                 injectExpectationComposer
                     .forExpectation(
                         InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                            InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                            InjectExpectation.EXPECTATION_STATUS.PARTIAL))
+                            BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                            BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL))
                     .withAgent(agent1Wrapper))
             .withAssetGroup(assetGroupWrapper2)
             .withExpectation(
                 injectExpectationComposer
                     .forExpectation(
                         InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                            InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                            InjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                            BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
                     .withAgent(agent2Wrapper))
             .withExpectation(
                 injectExpectationComposer
                     .forExpectation(
                         InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                            InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                            InjectExpectation.EXPECTATION_STATUS.PARTIAL))
+                            BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                            BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL))
                     .withAgent(agent2Wrapper));
         Inject inject = injectWrapper.persist().get();
 
@@ -466,8 +487,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 Set.of(),
                 agent1Wrapper.get().getAsset().getId(),
                 agent1Wrapper.get().getExecutor().getType());
-        expectedTarget1.setTargetDetectionStatus(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
-        expectedTarget1.setTargetPreventionStatus(InjectExpectation.EXPECTATION_STATUS.PARTIAL);
+        expectedTarget1.setTargetDetectionStatus(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
+        expectedTarget1.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL);
         AgentTarget expectedTarget2 =
             new AgentTarget(
                 agent2Wrapper.get().getId(),
@@ -475,8 +496,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 Set.of(),
                 agent2Wrapper.get().getAsset().getId(),
                 agent2Wrapper.get().getExecutor().getType());
-        expectedTarget2.setTargetDetectionStatus(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
-        expectedTarget2.setTargetPreventionStatus(InjectExpectation.EXPECTATION_STATUS.PARTIAL);
+        expectedTarget2.setTargetDetectionStatus(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
+        expectedTarget2.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL);
         // expect two out of three endpoints in the resultset, i.e. not the extra one
         List<AgentTarget> expected = List.of(expectedTarget1, expectedTarget2);
 
@@ -1352,6 +1373,102 @@ public class InjectTargetSearchTest extends IntegrationTest {
         }
       }
     }
+
+    @Nested
+    @DisplayName("When an agent has no resolved executor")
+    public class WhenAgentHasNoExecutor {
+      @Test
+      @DisplayName(
+          "given_agentsWithAndWithoutExecutor_should_excludeExecutorlessAgentFromContentAndTotalElements")
+      public void
+          given_agentsWithAndWithoutExecutor_should_excludeExecutorlessAgentFromContentAndTotalElements()
+              throws Exception {
+        InjectComposer.Composer injectWrapper = getInjectWrapper();
+
+        // Two agents WITH a resolved executor: valid targets.
+        AgentComposer.Composer agent1Wrapper =
+            agentComposer
+                .forAgent(AgentFixture.createDefaultAgentService())
+                .withExecutor(executorComposer.forExecutor(executorFixture.getDefaultExecutor()));
+        EndpointComposer.Composer ep1Wrapper =
+            endpointComposer
+                .forEndpoint(EndpointFixture.createEndpoint())
+                .withAgent(agent1Wrapper)
+                .persist();
+
+        AgentComposer.Composer agent2Wrapper =
+            agentComposer
+                .forAgent(AgentFixture.createDefaultAgentService())
+                .withExecutor(executorComposer.forExecutor(executorFixture.getDefaultExecutor()));
+        EndpointComposer.Composer ep2Wrapper =
+            endpointComposer
+                .forEndpoint(EndpointFixture.createEndpoint())
+                .withAgent(agent2Wrapper)
+                .persist();
+
+        // One agent WITHOUT a resolved executor: never a valid target. Regression guard for the
+        // pagination-count bug: this agent must be excluded from the SQL query itself, not
+        // filtered from the page content after the fact, so totalElements (and therefore what a
+        // client sees across every page) never counts it either.
+        AgentComposer.Composer agentWithoutExecutorWrapper =
+            agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+        EndpointComposer.Composer ep3Wrapper =
+            endpointComposer
+                .forEndpoint(EndpointFixture.createEndpoint())
+                .withAgent(agentWithoutExecutorWrapper)
+                .persist();
+
+        Inject inject =
+            injectWrapper
+                .withEndpoint(ep1Wrapper)
+                .withEndpoint(ep2Wrapper)
+                .withEndpoint(ep3Wrapper)
+                .persist()
+                .get();
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // Page size 1 forces real pagination across the 2 valid agents: fetch every page and
+        // accumulate content, then compare the accumulated count against totalElements.
+        SearchPaginationInput search =
+            PaginationFixture.simpleSearchWithOrOperator(
+                "target_name", "", Filters.FilterOperator.contains);
+        search.setSize(1);
+
+        List<String> returnedAgentIds = new ArrayList<>();
+        long totalElements = -1;
+        int totalPages = Integer.MAX_VALUE;
+        for (int page = 0; page < totalPages; page++) {
+          search.setPage(page);
+          String response =
+              mvc.perform(
+                      post(INJECT_URI + "/" + inject.getId() + "/targets/" + targetType + "/search")
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .content(mapper.writeValueAsString(search))
+                          .with(csrf()))
+                  .andExpect(status().isOk())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString();
+
+          JsonNode node = mapper.readTree(response);
+          totalElements = node.get("totalElements").asLong();
+          totalPages = node.get("totalPages").asInt();
+          node.get("content")
+              .forEach(target -> returnedAgentIds.add(target.get("target_id").asText()));
+        }
+
+        // Only the two agents with a resolved executor are ever valid targets; the executorless
+        // agent must never appear in content, and totalElements must match the real content count
+        // across every page (not the unfiltered row count from the DB query).
+        assertEquals(2, totalElements);
+        assertEquals(2, returnedAgentIds.size());
+        assertThat(returnedAgentIds)
+            .containsExactlyInAnyOrder(agent1Wrapper.get().getId(), agent2Wrapper.get().getId());
+        assertThat(returnedAgentIds).doesNotContain(agentWithoutExecutorWrapper.get().getId());
+      }
+    }
   }
 
   @Nested
@@ -1616,21 +1733,9 @@ public class InjectTargetSearchTest extends IntegrationTest {
 
         List<EndpointTarget> expected =
             List.of(
-                new EndpointTarget(
-                    ep1Wrapper.get().getId(),
-                    ep1Wrapper.get().getName(),
-                    ep1Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                    ep1Wrapper.get().getPlatform().name()),
-                new EndpointTarget(
-                    ep2Wrapper.get().getId(),
-                    ep2Wrapper.get().getName(),
-                    ep2Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                    ep2Wrapper.get().getPlatform().name()),
-                new EndpointTarget(
-                    ep3Wrapper.get().getId(),
-                    ep3Wrapper.get().getName(),
-                    ep3Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                    ep3Wrapper.get().getPlatform().name()));
+                expectedEndpointTarget(ep1Wrapper),
+                expectedEndpointTarget(ep2Wrapper),
+                expectedEndpointTarget(ep3Wrapper));
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
       }
@@ -1679,16 +1784,16 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 injectExpectationComposer
                     .forExpectation(
                         InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                            InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                            InjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                            BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
                     .withAssetGroup(assetGroupWrapper)
                     .withEndpoint(ep1Wrapper))
             .withExpectation(
                 injectExpectationComposer
                     .forExpectation(
                         InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                            InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                            InjectExpectation.EXPECTATION_STATUS.PARTIAL))
+                            BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                            BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL))
                     .withAssetGroup(assetGroupWrapper)
                     .withEndpoint(ep1Wrapper))
             .withAssetGroup(assetGroupWrapper2)
@@ -1696,16 +1801,16 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 injectExpectationComposer
                     .forExpectation(
                         InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                            InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                            InjectExpectation.EXPECTATION_STATUS.SUCCESS))
+                            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                            BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS))
                     .withAssetGroup(assetGroupWrapper2)
                     .withEndpoint(ep2Wrapper))
             .withExpectation(
                 injectExpectationComposer
                     .forExpectation(
                         InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                            InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                            InjectExpectation.EXPECTATION_STATUS.PARTIAL))
+                            BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                            BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL))
                     .withAssetGroup(assetGroupWrapper2)
                     .withEndpoint(ep2Wrapper));
         Inject inject = injectWrapper.persist().get();
@@ -1726,26 +1831,19 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        EndpointTarget expectedTarget1 =
-            new EndpointTarget(
-                ep1Wrapper.get().getId(),
-                ep1Wrapper.get().getName(),
-                ep1Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep1Wrapper.get().getPlatform().name());
-        expectedTarget1.setTargetDetectionStatus(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
-        expectedTarget1.setTargetPreventionStatus(InjectExpectation.EXPECTATION_STATUS.PARTIAL);
-        EndpointTarget expectedTarget2 =
-            new EndpointTarget(
-                ep2Wrapper.get().getId(),
-                ep2Wrapper.get().getName(),
-                ep2Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep2Wrapper.get().getPlatform().name());
-        expectedTarget2.setTargetDetectionStatus(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
-        expectedTarget2.setTargetPreventionStatus(InjectExpectation.EXPECTATION_STATUS.PARTIAL);
+        EndpointTarget expectedTarget1 = expectedEndpointTarget(ep1Wrapper);
+        expectedTarget1.setTargetDetectionStatus(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
+        expectedTarget1.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL);
+        EndpointTarget expectedTarget2 = expectedEndpointTarget(ep2Wrapper);
+        expectedTarget2.setTargetDetectionStatus(BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
+        expectedTarget2.setTargetPreventionStatus(BaseInjectExpectation.EXPECTATION_STATUS.PARTIAL);
         // expect two out of three endpoints in the resultset, i.e. not the extra one
         List<EndpointTarget> expected = List.of(expectedTarget1, expectedTarget2);
 
-        assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
+        assertThatJson(response)
+            .when(Option.IGNORING_ARRAY_ORDER)
+            .node("content")
+            .isEqualTo(mapper.writeValueAsString(expected));
       }
 
       @Test
@@ -1802,12 +1900,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        EndpointTarget expectedTarget =
-            new EndpointTarget(
-                ep1Wrapper.get().getId(),
-                ep1Wrapper.get().getName(),
-                ep1Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep1Wrapper.get().getPlatform().name());
+        EndpointTarget expectedTarget = expectedEndpointTarget(ep1Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
@@ -1872,21 +1965,9 @@ public class InjectTargetSearchTest extends IntegrationTest {
 
         List<EndpointTarget> expected =
             List.of(
-                new EndpointTarget(
-                    ep1Wrapper.get().getId(),
-                    ep1Wrapper.get().getName(),
-                    ep1Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                    ep1Wrapper.get().getPlatform().name()),
-                new EndpointTarget(
-                    ep2Wrapper.get().getId(),
-                    ep2Wrapper.get().getName(),
-                    ep2Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                    ep2Wrapper.get().getPlatform().name()),
-                new EndpointTarget(
-                    ep3Wrapper.get().getId(),
-                    ep3Wrapper.get().getName(),
-                    ep3Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                    ep3Wrapper.get().getPlatform().name()));
+                expectedEndpointTarget(ep1Wrapper),
+                expectedEndpointTarget(ep2Wrapper),
+                expectedEndpointTarget(ep3Wrapper));
 
         assertThatJson(response)
             .when(Option.IGNORING_ARRAY_ORDER)
@@ -1952,12 +2033,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        EndpointTarget expectedTarget =
-            new EndpointTarget(
-                ep2Wrapper.get().getId(),
-                ep2Wrapper.get().getName(),
-                ep2Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep2Wrapper.get().getPlatform().name());
+        EndpointTarget expectedTarget = expectedEndpointTarget(ep2Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
@@ -2017,12 +2093,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        EndpointTarget expectedTarget =
-            new EndpointTarget(
-                ep1Wrapper.get().getId(),
-                ep1Wrapper.get().getName(),
-                ep1Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep1Wrapper.get().getPlatform().name());
+        EndpointTarget expectedTarget = expectedEndpointTarget(ep1Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
@@ -2082,12 +2153,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        EndpointTarget expectedTarget =
-            new EndpointTarget(
-                ep2Wrapper.get().getId(),
-                ep2Wrapper.get().getName(),
-                ep2Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep2Wrapper.get().getPlatform().name());
+        EndpointTarget expectedTarget = expectedEndpointTarget(ep2Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
@@ -2150,12 +2216,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        EndpointTarget expectedTarget =
-            new EndpointTarget(
-                ep1Wrapper.get().getId(),
-                ep1Wrapper.get().getName(),
-                ep1Wrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
-                ep1Wrapper.get().getPlatform().name());
+        EndpointTarget expectedTarget = expectedEndpointTarget(ep1Wrapper);
         List<EndpointTarget> expected = List.of(expectedTarget);
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
@@ -2464,7 +2525,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
     @DisplayName("With actual results")
     public class WithActualResults {
       private InjectExpectationComposer.Composer getExpectationWrapperWithResult(
-          InjectExpectation.EXPECTATION_TYPE type, InjectExpectation.EXPECTATION_STATUS status) {
+          BaseInjectExpectation.EXPECTATION_TYPE type,
+          BaseInjectExpectation.EXPECTATION_STATUS status) {
         return injectExpectationComposer.forExpectation(
             InjectExpectationFixture.createExpectationWithTypeAndStatus(type, status));
       }
@@ -2477,18 +2539,18 @@ public class InjectTargetSearchTest extends IntegrationTest {
         AssetGroupComposer.Composer assetGroupWrapper = getAssetGroupComposerWithName(searchTerm);
         InjectExpectationComposer.Composer expectationDetectionWrapper =
             getExpectationWrapperWithResult(
-                    InjectExpectation.EXPECTATION_TYPE.DETECTION,
-                    InjectExpectation.EXPECTATION_STATUS.SUCCESS)
+                    BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+                    BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS)
                 .withAssetGroup(assetGroupWrapper);
         InjectExpectationComposer.Composer expectationPreventionWrapper =
             getExpectationWrapperWithResult(
-                    InjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                    InjectExpectation.EXPECTATION_STATUS.FAILED)
+                    BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+                    BaseInjectExpectation.EXPECTATION_STATUS.FAILED)
                 .withAssetGroup(assetGroupWrapper);
         InjectExpectationComposer.Composer expectationHumanResponseWrapper =
             getExpectationWrapperWithResult(
-                    InjectExpectation.EXPECTATION_TYPE.CHALLENGE,
-                    InjectExpectation.EXPECTATION_STATUS.PENDING)
+                    BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY,
+                    BaseInjectExpectation.EXPECTATION_STATUS.PENDING)
                 .withAssetGroup(assetGroupWrapper);
         injectWrapper.withAssetGroup(assetGroupWrapper);
         injectWrapper.withExpectation(expectationDetectionWrapper);
@@ -2524,10 +2586,12 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 assetGroupWrapper.get().getTags().stream()
                     .map(Tag::getId)
                     .collect(Collectors.toSet()));
-        expectedAssetGroup.setTargetDetectionStatus(InjectExpectation.EXPECTATION_STATUS.SUCCESS);
-        expectedAssetGroup.setTargetPreventionStatus(InjectExpectation.EXPECTATION_STATUS.FAILED);
-        expectedAssetGroup.setTargetHumanResponseStatus(
-            InjectExpectation.EXPECTATION_STATUS.PENDING);
+        expectedAssetGroup.setTargetDetectionStatus(
+            BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS);
+        expectedAssetGroup.setTargetPreventionStatus(
+            BaseInjectExpectation.EXPECTATION_STATUS.FAILED);
+        expectedAssetGroup.setTargetVulnerabilityStatus(
+            BaseInjectExpectation.EXPECTATION_STATUS.PENDING);
         List<AssetGroupTarget> expected = List.of(expectedAssetGroup);
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
@@ -2941,7 +3005,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
     @DisplayName("With actual results")
     public class WithActualResults {
       private InjectExpectationComposer.Composer getExpectationWrapperWithResult(
-          InjectExpectation.EXPECTATION_TYPE type, InjectExpectation.EXPECTATION_STATUS status) {
+          BaseInjectExpectation.EXPECTATION_TYPE type,
+          BaseInjectExpectation.EXPECTATION_STATUS status) {
         return injectExpectationComposer.forExpectation(
             InjectExpectationFixture.createExpectationWithTypeAndStatus(type, status));
       }
@@ -2954,8 +3019,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
         TeamComposer.Composer teamWrapper = getTeamComposerWithName(searchTerm);
         InjectExpectationComposer.Composer expectationHumanResponseWrapper =
             getExpectationWrapperWithResult(
-                    InjectExpectation.EXPECTATION_TYPE.CHALLENGE,
-                    InjectExpectation.EXPECTATION_STATUS.PENDING)
+                    BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE,
+                    BaseInjectExpectation.EXPECTATION_STATUS.PENDING)
                 .withTeam(teamWrapper);
         injectWrapper.withTeam(teamWrapper);
         injectWrapper.withExpectation(expectationHumanResponseWrapper);
@@ -2987,7 +3052,7 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 teamWrapper.get().getId(),
                 teamWrapper.get().getName(),
                 teamWrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()));
-        expectedTeam.setTargetHumanResponseStatus(InjectExpectation.EXPECTATION_STATUS.PENDING);
+        expectedTeam.setTargetHumanResponseStatus(BaseInjectExpectation.EXPECTATION_STATUS.PENDING);
         List<TeamTarget> expected = List.of(expectedTeam);
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));
@@ -3271,7 +3336,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
     @DisplayName("With actual results")
     public class WithActualResults {
       private InjectExpectationComposer.Composer getExpectationWrapperWithResult(
-          InjectExpectation.EXPECTATION_TYPE type, InjectExpectation.EXPECTATION_STATUS status) {
+          BaseInjectExpectation.EXPECTATION_TYPE type,
+          BaseInjectExpectation.EXPECTATION_STATUS status) {
         return injectExpectationComposer.forExpectation(
             InjectExpectationFixture.createExpectationWithTypeAndStatus(type, status));
       }
@@ -3286,8 +3352,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
             getPlayerComposerWithName(searchTerm, searchTerm, searchTerm + "@toto.fr");
         InjectExpectationComposer.Composer expectationHumanResponseWrapper =
             getExpectationWrapperWithResult(
-                    InjectExpectation.EXPECTATION_TYPE.CHALLENGE,
-                    InjectExpectation.EXPECTATION_STATUS.PENDING)
+                    BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE,
+                    BaseInjectExpectation.EXPECTATION_STATUS.PENDING)
                 .withTeam(teamWrapper)
                 .withUser(userWrapper);
         injectWrapper.withTeam(teamWrapper.withUser(userWrapper));
@@ -3321,7 +3387,8 @@ public class InjectTargetSearchTest extends IntegrationTest {
                 userWrapper.get().getName(),
                 userWrapper.get().getTags().stream().map(Tag::getId).collect(Collectors.toSet()),
                 Set.of(teamWrapper.get().getId()));
-        expectedPlayer.setTargetHumanResponseStatus(InjectExpectation.EXPECTATION_STATUS.PENDING);
+        expectedPlayer.setTargetHumanResponseStatus(
+            BaseInjectExpectation.EXPECTATION_STATUS.PENDING);
         List<PlayerTarget> expected = List.of(expectedPlayer);
 
         assertThatJson(response).node("content").isEqualTo(mapper.writeValueAsString(expected));

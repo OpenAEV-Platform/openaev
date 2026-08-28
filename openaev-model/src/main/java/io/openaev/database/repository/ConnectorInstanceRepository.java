@@ -15,6 +15,12 @@ public interface ConnectorInstanceRepository
     extends CrudRepository<ConnectorInstancePersisted, String>,
         JpaSpecificationExecutor<ConnectorInstancePersisted> {
 
+  // Native query: bypasses Hibernate's v1 @Filter("tenantFilter") entirely (filters do not apply
+  // to native SQL). Deliberately NOT tenant-scoped: the XTM Composer is a cross-tenant caller by
+  // design (one composer instance manages connector instances across every tenant it is
+  // authorized for), so this query intentionally returns instances across ALL tenants - see
+  // XtmComposerApi#getAllConnectorInstances's javadoc for why no TxCtx/tenant filter is applied
+  // here.
   @Query(
       value =
           "SELECT DISTINCT ci.* FROM connector_instances ci "
@@ -27,7 +33,8 @@ public interface ConnectorInstanceRepository
   List<ConnectorInstancePersisted> findAllByCatalogConnectorId(String catalogConnectorId);
 
   @EntityGraph(attributePaths = {"configurations", "catalogConnector"})
-  List<ConnectorInstancePersisted> findAllByTenantId(String tenantId);
+  List<ConnectorInstancePersisted> findAllByTenantIdAndCatalogConnectorClassName(
+      String tenantId, String className);
 
   /** Loads a single instance with configurations and catalogConnector eagerly initialized. */
   @EntityGraph(attributePaths = {"configurations", "catalogConnector"})

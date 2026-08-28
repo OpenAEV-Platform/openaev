@@ -174,6 +174,8 @@ const ExerciseDateForm: FunctionComponent<Props> = ({
       >
         {handleClose && (
           <Button
+            variant="outlined"
+            color="primary"
             onClick={handleClose.bind(this)}
             style={{ marginRight: 10 }}
           >
@@ -181,7 +183,8 @@ const ExerciseDateForm: FunctionComponent<Props> = ({
           </Button>
         )}
         <Button
-          color="secondary"
+          variant="contained"
+          color="primary"
           type="submit"
         >
           {t('Save')}

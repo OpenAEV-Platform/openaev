@@ -1,6 +1,8 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Variable;
+import jakarta.validation.constraints.NotNull;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -10,6 +12,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface VariableRepository
     extends CrudRepository<Variable, String>, JpaSpecificationExecutor<Variable> {
+
+  Optional<Variable> findByIdAndExerciseId(@NotNull String variableId, @NotNull String exerciseId);
+
+  Optional<Variable> findByIdAndScenarioId(@NotNull String variableId, @NotNull String scenarioId);
 
   @Query(
       value =

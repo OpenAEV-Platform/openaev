@@ -32,8 +32,8 @@ public class TagRuleService {
   private final TagService tagService;
   private final AssetGroupRepository assetGroupRepository;
 
-  public Optional<TagRule> findById(String id) {
-    return tagRuleRepository.findById(id);
+  public Optional<TagRule> findById(String id, String tenantId) {
+    return tagRuleRepository.findByIdAndTenantId(id, tenantId);
   }
 
   public Optional<TagRule> findByTagName(String name) {
@@ -74,11 +74,16 @@ public class TagRuleService {
   }
 
   public TagRule updateTagRule(
-      @NotBlank final String tagRuleId, final String tagName, final List<String> assetGroupIds) {
-    // verify that the tag rule exists
+      @NotBlank final String tagRuleId,
+      final String tagName,
+      final List<String> assetGroupIds,
+      @NotBlank final String tenantId) {
+    if (!tagRuleRepository.existsByIdAndTenantId(tagRuleId, tenantId)) {
+      throw new ElementNotFoundException("TagRule not found with id: " + tagRuleId);
+    }
     TagRule tagRule =
         tagRuleRepository
-            .findById(tagRuleId)
+            .findByIdAndTenantId(tagRuleId, tenantId)
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
 
@@ -124,14 +129,15 @@ public class TagRuleService {
     return tagRule.getTag() != null && !tagRule.getTag().equals(newTag);
   }
 
-  public void deleteTagRule(@NotBlank final String tagRuleId) {
-    // verify that the TagRule exists
+  public void deleteTagRule(@NotBlank final String tagRuleId, @NotBlank final String tenantId) {
+    if (!tagRuleRepository.existsByIdAndTenantId(tagRuleId, tenantId)) {
+      throw new ElementNotFoundException("TagRule not found with id: " + tagRuleId);
+    }
     TagRule tagRule =
         tagRuleRepository
-            .findById(tagRuleId)
+            .findByIdAndTenantId(tagRuleId, tenantId)
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
-    // we block deletion of tagrule for the opencti tag
     if (tagRule.isProtected()) {
       throw new ForbiddenException(
           "Deletion of a rule of the tag " + tagRule.getTag().getName() + " is not allowed");

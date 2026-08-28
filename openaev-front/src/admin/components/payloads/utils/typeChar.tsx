@@ -1,7 +1,7 @@
-import { type ClassicEditor } from 'ckeditor5';
+import { type RichTextEditorAdapter } from '@filigran/rich-text-editor';
 
 const typeChar = (
-  editor: ClassicEditor,
+  editor: RichTextEditorAdapter,
   submittedText: string,
   onComplete: (value: string) => void,
 ) => {
@@ -18,13 +18,8 @@ const typeChar = (
       if (index < lines.length) {
         const line = lines[index];
         buffer += line;
-        editor.setData(buffer);
-
-        const editingView = editor.editing.view;
-        const domRoot = editingView.getDomRoot();
-        if (domRoot) {
-          domRoot.scrollTop = domRoot.scrollHeight;
-        }
+        editor.setContent(buffer);
+        editor.scrollToBottom();
         index++;
         setTimeout(typeNext, 150);
         onComplete(buffer);
