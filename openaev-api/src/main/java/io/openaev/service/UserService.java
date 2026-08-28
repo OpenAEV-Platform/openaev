@@ -131,7 +131,6 @@ public class UserService {
     return createUser(input, input.tenantIds(), true);
   }
 
-
   @Transactional(rollbackFor = Exception.class)
   public User createTenantUser(UserInput input) {
     return createUser(input, List.of(), false);
