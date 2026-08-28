@@ -22,6 +22,21 @@ public class AuditLogProperties {
   @Value("${openaev.audit-logs.transports:}")
   private Set<String> transports;
 
+  @Getter
+  @Value(
+      "${openaev.audit-logs.engine.retention-days:${openaev.audit-logs.file.retention-days:365}}")
+  private int engineRetentionDays;
+
+  @Getter
+  @Value(
+      "${openaev.audit-logs.engine.rollover-max-size:${openaev.audit-logs.file.rollover-max-size:5gb}}")
+  private String engineRolloverMaxSize;
+
+  @Getter
+  @Value(
+      "${openaev.audit-logs.engine.rollover-max-age:${openaev.audit-logs.file.rollover-max-age:30d}}")
+  private String engineRolloverMaxAge;
+
   @PostConstruct
   void validate() {
     if (!isEnabled()) {
