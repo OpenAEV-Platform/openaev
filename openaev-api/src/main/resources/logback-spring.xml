@@ -1,7 +1,18 @@
 <configuration>
-    <!-- Audit log file path (can be overridden via system property or env var) -->
-    <property name="AUDIT_LOG_DIR" value="${AUDIT_LOG_DIR:-logs}" />
-    <property name="AUDIT_LOG_FILE" value="${AUDIT_LOG_DIR}/audit.log" />
+    <!-- Keep new Spring keys, but legacy AUDIT_LOG_* env vars must override for compatibility -->
+    <springProperty scope="context" name="AUDIT_LOG_DIR_PROPERTIES" source="openaev.audit-logs.file.dir" />
+    <springProperty scope="context" name="AUDIT_LOG_FILENAME_PROPERTIES" source="openaev.audit-logs.file.filename" />
+    <springProperty scope="context" name="AUDIT_LOG_DIR_ENV_VARIABLE" source="AUDIT_LOG_DIR" />
+    <springProperty scope="context" name="AUDIT_LOG_FILENAME_ENV_VARIABLE" source="AUDIT_LOG_FILENAME" />
+    <springProperty scope="context" name="AUDIT_LOG_ROLLOVER_MAX_SIZE" source="openaev.audit-logs.file.rollover-max-size" defaultValue="100MB" />
+    <springProperty scope="context" name="AUDIT_LOG_RETENTION_DAYS" source="openaev.audit-logs.file.retention-days" defaultValue="90" />
+    <springProperty scope="context" name="AUDIT_LOG_ROLLOVER_TOTAL_SIZE_CAP" source="openaev.audit-logs.file.rollover-total-size-cap" defaultValue="20GB" />
+    <property name="AUDIT_LOG_DIR" value="${AUDIT_LOG_DIR_ENV_VARIABLE:-${AUDIT_LOG_DIR_PROPERTIES:-logs}}" />
+    <define name="AUDIT_LOG_FILENAME_BASE" class="io.openaev.logging.AuditLogFilenameBasePropertyDefiner">
+        <fromProperties>${AUDIT_LOG_FILENAME_PROPERTIES:-}</fromProperties>
+        <fromEnvVariable>${AUDIT_LOG_FILENAME_ENV_VARIABLE:-}</fromEnvVariable>
+    </define>
+    <property name="AUDIT_LOG_FILE" value="${AUDIT_LOG_DIR}/${AUDIT_LOG_FILENAME_BASE}.log" />
 
     <springProfile name="dev | test">
         <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
@@ -14,10 +25,11 @@
         <!-- Audit log file appender with daily rolling -->
         <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>${AUDIT_LOG_FILE}</file>
-            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                <fileNamePattern>${AUDIT_LOG_DIR}/audit.%d{yyyy-MM-dd}.log</fileNamePattern>
-                <maxHistory>90</maxHistory>
-                <totalSizeCap>1GB</totalSizeCap>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>${AUDIT_LOG_DIR}/${AUDIT_LOG_FILENAME_BASE}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <maxFileSize>${AUDIT_LOG_ROLLOVER_MAX_SIZE}</maxFileSize>
+                <maxHistory>${AUDIT_LOG_RETENTION_DAYS}</maxHistory>
+                <totalSizeCap>${AUDIT_LOG_ROLLOVER_TOTAL_SIZE_CAP}</totalSizeCap>
             </rollingPolicy>
             <encoder>
                 <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %msg%n</pattern>
@@ -47,10 +59,11 @@
         <!-- Audit log file appender with daily rolling (JSON format) -->
         <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>${AUDIT_LOG_FILE}</file>
-            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                <fileNamePattern>${AUDIT_LOG_DIR}/audit.%d{yyyy-MM-dd}.log</fileNamePattern>
-                <maxHistory>90</maxHistory>
-                <totalSizeCap>1GB</totalSizeCap>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>${AUDIT_LOG_DIR}/${AUDIT_LOG_FILENAME_BASE}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+                <maxFileSize>${AUDIT_LOG_ROLLOVER_MAX_SIZE}</maxFileSize>
+                <maxHistory>${AUDIT_LOG_RETENTION_DAYS}</maxHistory>
+                <totalSizeCap>${AUDIT_LOG_ROLLOVER_TOTAL_SIZE_CAP}</totalSizeCap>
             </rollingPolicy>
             <encoder class="io.openaev.logging.StackDepthLimitingJsonEncoder">
                 <!-- values are already resolved into "message" -->
