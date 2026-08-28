@@ -21,6 +21,7 @@ Every REST endpoint must have `@AccessControl`. See the annotation in `io.openae
    - Open for READ (like Player): add to `RESOURCES_OPEN`
    - Sub-resource (like Inject): add to `RESOURCES_USING_PARENT_PERMISSION`
    - Standard capability-based: no change (handled by `Capability.of()` lookup)
+5. When applicable, use tokens from the table token with token_delete_at being NULL.
 
 ### Frontend
 
