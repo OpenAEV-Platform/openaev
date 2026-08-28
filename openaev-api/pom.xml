@@ -243,7 +243,15 @@
         <dependency>
             <groupId>org.mock-server</groupId>
             <artifactId>mockserver-netty</artifactId>
-            <version>5.15.0</version>
+            <version>7.6.0</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- MockServer exposes Prometheus metrics and reaches for SpanContextSupplier on every
+             request. micrometer-registry-prometheus only brings tracer-common, so the class is
+             missing and the Netty pipeline dies on each control plane call. -->
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>prometheus-metrics-tracer-initializer</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
