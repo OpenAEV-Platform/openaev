@@ -9,18 +9,16 @@ import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
-import {
-  type CredentialInput,
-  type CredentialOutput,
-} from '../../../../utils/api-types';
+import { type CredentialOutput } from '../../../../utils/api-types';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CredentialForm from './CredentialForm';
+import { type CredentialFormInitialValues } from './credentialUtils';
 
 interface CredentialPopoverProps {
   credentialId: string;
   credentialName: string;
-  resolveInitialValues?: () => Promise<CredentialInput>;
+  resolveInitialValues?: () => Promise<CredentialFormInitialValues>;
   onUpdate: (result: CredentialOutput) => void;
   onDelete: (credentialId: string) => void;
   disabled?: boolean;
@@ -40,7 +38,7 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
   const [openDelete, setOpenDelete] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [isLoadingEditValues, setIsLoadingEditValues] = useState(false);
-  const [editValues, setEditValues] = useState<CredentialInput>();
+  const [editValues, setEditValues] = useState<CredentialFormInitialValues>();
 
   const handleOpenDelete = () => setOpenDelete(true);
   const handleCloseDelete = () => setOpenDelete(false);

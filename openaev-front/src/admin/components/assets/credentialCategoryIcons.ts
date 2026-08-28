@@ -1,6 +1,6 @@
 import { VpnKeyOutlined } from '@mui/icons-material';
 import { type SvgIconProps } from '@mui/material';
-import { Aws, MicrosoftAzure } from 'mdi-material-ui';
+import { Aws, GoogleCloud, MicrosoftAzure } from 'mdi-material-ui';
 import { type ComponentType } from 'react';
 
 const CREDENTIAL_CATEGORY_ICONS: Record<string, ComponentType<SvgIconProps>> = {

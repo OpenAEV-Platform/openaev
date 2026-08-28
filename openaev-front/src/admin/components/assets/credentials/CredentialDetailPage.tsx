@@ -14,12 +14,12 @@ import { useFormatter } from '../../../../components/i18n';
 import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import NotFound from '../../../../components/NotFound';
-import { type CredentialFullOutput, type CredentialInput, type CredentialOutput } from '../../../../utils/api-types';
+import { type CredentialFullOutput, type CredentialOutput } from '../../../../utils/api-types';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import CredentialPopover from './CredentialPopover';
+import convertCredentialFullOutputToCredentialInput, { type CredentialFormInitialValues } from './credentialUtils';
 import CredentialStatusChip from './CredentialStatusChip';
-import convertCredentialFullOutputToCredentialInput from './credentialUtils';
 
 const CredentialDetailPage = () => {
   const { t, fldt } = useFormatter();
@@ -29,7 +29,7 @@ const CredentialDetailPage = () => {
   const [credential, setCredential] = useState<CredentialFullOutput | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const resolveCredentialInitialValues = async (): Promise<CredentialInput> => {
+  const resolveCredentialInitialValues = async (): Promise<CredentialFormInitialValues> => {
     if (!credential) {
       throw new Error('Credential details are not loaded');
     }

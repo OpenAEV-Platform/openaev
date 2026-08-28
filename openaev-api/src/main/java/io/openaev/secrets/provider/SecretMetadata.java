@@ -7,10 +7,10 @@ import io.openaev.database.model.HashSecret;
 /**
  * Safe metadata returned by secret providers for credential display/update helpers.
  *
- * <p>It intentionally excludes any secret value (password/hash/client secret), even encrypted, and
- * more generally any field flagged as sensitive: this record is serialized to the API through
- * {@code CredentialFullOutput}. Sensitive fields do not need to be echoed back, as the form renders
- * them as write-only placeholders.
+ * <p>It intentionally excludes any secret value (password/hash/client secret/service account key),
+ * even encrypted, and more generally any field flagged as sensitive: this record is serialized to
+ * the API through {@code CredentialFullOutput}. Sensitive fields do not need to be echoed back, as
+ * the form renders them as write-only placeholders.
  */
 public record SecretMetadata(
     String username,
@@ -24,21 +24,24 @@ public record SecretMetadata(
     String azureEnvironment,
     String azureClientId,
     String azureTenantId,
-    String azureSubscriptionId) {
+    String azureSubscriptionId,
+    String gcpScope,
+    String gcpProjectId,
+    boolean gcpPrivateKeyDefined) {
 
   public static SecretMetadata empty() {
     return new SecretMetadata(
-        null, null, null, null, false, null, null, null, null, null, null, null);
+        null, null, null, null, false, null, null, null, null, null, null, null, null, null, false);
   }
 
   public static SecretMetadata forUsername(String username) {
     return new SecretMetadata(
-        username, null, null, null, false, null, null, null, null, null, null, null);
+        username, null, null, null, false, null, null, null, null, null, null, null,null, null, false);
   }
 
   public static SecretMetadata forHashAlgorithm(HashSecret.HASH_ALGORITHM hashAlgorithm) {
     return new SecretMetadata(
-        null, hashAlgorithm, null, null, false, null, null, null, null, null, null, null);
+        null, hashAlgorithm, null, null, false, null, null, null, null, null, null, null,null, null, false);
   }
 
   public static SecretMetadata forAwsAccessKey(
@@ -55,7 +58,10 @@ public record SecretMetadata(
         null,
         null,
         null,
-        null);
+        null,
+        null,
+        null,
+        false);
   }
 
   public static SecretMetadata forAwsAssumeRole(
@@ -75,7 +81,10 @@ public record SecretMetadata(
         null,
         null,
         null,
-        null);
+        null,
+        null,
+        null,
+        false);
   }
 
   /**
@@ -108,7 +117,10 @@ public record SecretMetadata(
         azureEnvironment,
         azureClientId,
         azureTenantId,
-        azureSubscriptionId);
+        azureSubscriptionId,
+        null,
+        null,
+        false);
   }
 
   /**
@@ -136,22 +148,41 @@ public record SecretMetadata(
         azureEnvironment,
         azureClientId,
         null,
-        azureSubscriptionId);
+        azureSubscriptionId,
+        null,
+        null,
+        false);
   }
 
   /**
-   * Non-sensitive metadata of an Azure managed identity secret.
+   * Non-sensitive metadata of a GCP service account secret.
    *
-   * <p>The subscription id is deliberately left out: it is flagged as sensitive and must never
-   * travel back to the client. The client id is only set for user-assigned identities.
+   * <p>The key file itself IS the credential and never leaves the backend, not even encrypted: only
+   * a boolean tells the form that one is stored, so it can render its write-only placeholder and
+   * treat an absent upload as "keep the stored key".
    *
-   * @param azureEnvironment Azure cloud name
-   * @param azureClientId client id of the user-assigned managed identity, null when system-assigned
+   * @param gcpScope the OAuth scope the credential is stored for
+   * @param gcpProjectId targeted project id, may be null
+   * @param gcpPrivateKeyDefined whether a service account key file is currently stored
    * @return matching metadata
    */
-  public static SecretMetadata forAzureManagedIdentity(
-      String azureEnvironment, String azureClientId) {
+  public static SecretMetadata forGcpServiceAccount(
+      String gcpScope, String gcpProjectId, boolean gcpPrivateKeyDefined) {
     return new SecretMetadata(
-        null, null, null, null, null, null, null, azureEnvironment, azureClientId);
+        null,
+        null,
+        null,
+        null,
+        false,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        gcpScope,
+        gcpProjectId,
+        gcpPrivateKeyDefined);
   }
 }

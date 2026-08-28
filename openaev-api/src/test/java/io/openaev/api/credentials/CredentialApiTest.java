@@ -8,7 +8,6 @@ import static io.openaev.database.model.SecretReference.SECRET_STATUS.ACTIVE;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.AUTH_FAILED;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.TIMEOUT;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
-import static io.openaev.service.credential.CredentialService.GCP_DEFAULT_SCOPE;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_ACCESS_KEY_ID;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_DEFAULT_REGION;
@@ -25,6 +24,7 @@ import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_TENANT_I
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_OAUTH_CLIENT_ID;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_OAUTH_CLIENT_SECRET;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_OAUTH_REFRESH_TOKEN;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_PRIVATE_KEY_JSON;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_PROJECT_ID;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_SCOPE;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.gcpPrivateKeyJsonBytes;
@@ -149,7 +149,7 @@ class CredentialApiTest extends IntegrationTest {
           "$[?(@.credential_auth_method == 'GCP_SERVICE_ACCOUNT')].fields[?(@.field_name == '%s')]";
       List<String> scopeDefaults =
           JsonPath.read(response, String.format(fieldPath, "gcp_scope") + ".default_value");
-      assertThat(scopeDefaults).containsExactly(GCP_DEFAULT_SCOPE);
+      assertThat(scopeDefaults).containsExactly(GcpScopes.DEFAULT_CLOUD_PLATFORM);
       List<String> keyFieldTypes =
           JsonPath.read(response, String.format(fieldPath, "gcp_private_key_json") + ".field_type");
       assertThat(keyFieldTypes).containsExactly("file");
@@ -709,6 +709,81 @@ class CredentialApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_emptyGcpKeyFile_should_failCreation")
+    void given_emptyGcpKeyFile_should_failCreation() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-empty-key");
+      CredentialInput input = CredentialInputFixture.gcpServiceAccountInput("gcp-empty-key");
+
+      // Act: a present but empty part is a client error, never a silent "keep the stored key"
+      String errorResponse =
+          mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input, new byte[0]))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat(errorResponse).containsIgnoringCase("must not be empty");
+    }
+
+    @Test
+    @DisplayName("given_gcpServiceAccountInput_should_createGcpServiceAccountSecret")
+    void given_gcpServiceAccountInput_should_createGcpServiceAccountSecret() throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-sa");
+      CredentialInput input = CredentialInputFixture.gcpServiceAccountInput("gcp-sa");
+
+      // Act
+      String response =
+          mvc.perform(
+                  multipartCreate(
+                          tenantCredentialsUri(tenant.getId()), input, gcpPrivateKeyJsonBytes())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      CredentialSecretReference credential =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      assertThat(credential.getCredentialType())
+          .isEqualTo(CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_GCP);
+
+      Secret secret = secretRepository.findById(credential.getLocation()).orElseThrow();
+      assertThat(secret).isInstanceOf(GcpServiceAccountSecret.class);
+      assertThat(secret.getTenant().getId()).isEqualTo(tenant.getId());
+      GcpServiceAccountSecret gcpSecret = (GcpServiceAccountSecret) secret;
+      assertThat(gcpSecret.getScope()).isEqualTo(GCP_SCOPE);
+      assertThat(gcpSecret.getProjectId()).isEqualTo(GCP_PROJECT_ID);
+      // The key file is stored encrypted, never as the uploaded bytes
+      assertThat(gcpSecret.getPrivateKeyJson()).isNotEqualTo(gcpPrivateKeyJsonBytes());
+    }
+
+    @Test
+    @DisplayName("given_gcpServiceAccountWithoutKeyFile_should_failCreation")
+    void given_gcpServiceAccountWithoutKeyFile_should_failCreation() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-no-key");
+      CredentialInput input = CredentialInputFixture.gcpServiceAccountInput("gcp-no-key");
+
+      // Act & Assert: no key part at all, and nothing stored to fall back on
+      String errorResponse =
+          mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(errorResponse).containsIgnoringCase("key file");
+    }
+
+    @Test
     @DisplayName("given_gcpTypeWithAzureAuthMethod_should_failCreation")
     void given_gcpTypeWithAzureAuthMethod_should_failCreation() throws Exception {
       // Arrange
@@ -831,6 +906,41 @@ class CredentialApiTest extends IntegrationTest {
           .isEqualTo(AZURE_SUBSCRIPTION_ID);
       // The client secret must never travel back to the client, even encrypted
       assertThat(response).doesNotContain(AZURE_CLIENT_SECRET);
+    }
+
+    @Test
+    @DisplayName("given_gcpServiceAccountCredential_should_returnNonSensitiveFieldsOnly")
+    void given_gcpServiceAccountCredential_should_returnNonSensitiveFieldsOnly() throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-get");
+      String credentialId =
+          JsonPath.read(
+              mvc.perform(
+                      multipartCreate(
+                              tenantCredentialsUri(tenant.getId()),
+                              CredentialInputFixture.gcpServiceAccountInput("gcp-get"),
+                              gcpPrivateKeyJsonBytes())
+                          .accept(MediaType.APPLICATION_JSON))
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString(),
+              "$.credential_id");
+
+      // Act
+      String response =
+          mvc.perform(get(tenantCredentialsUri(tenant.getId()) + "/" + credentialId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert: the scope and the project are plain settings, the form needs them to prefill
+      assertThatJson(response).node("credential_gcp_scope").isEqualTo(GCP_SCOPE);
+      assertThatJson(response).node("credential_gcp_project_id").isEqualTo(GCP_PROJECT_ID);
+      // A boolean is all the form gets about the key: enough for the placeholder, nothing more
+      assertThatJson(response).node("credential_gcp_private_key_defined").isEqualTo(true);
+      assertThat(response).doesNotContain(GCP_PRIVATE_KEY_JSON).doesNotContain("private_key");
     }
   }
 
