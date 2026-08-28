@@ -132,6 +132,14 @@ const SecurityMenuComponent: FunctionComponent = () => {
     });
   }
 
+  if (!isPlatform && canAccessMarkingDefinitions) {
+    entries.push({
+      path: `${SECURITY_BASE}/marking_definitions`,
+      icon: () => (<SecurityOutlined />),
+      label: 'Marking definitions',
+    });
+  }
+
   // Single context selector at the top of the section (industry pattern: scope
   // is a primary navigation constraint expressed once, not a per-resource
   // filter repeated under every entry).
