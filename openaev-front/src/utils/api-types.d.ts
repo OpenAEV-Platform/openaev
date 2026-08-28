@@ -7894,8 +7894,8 @@ export interface NotificationTriggerInput {
     | "CONDITION"
     | "SESSION"
     | "TOKEN"
-    | "SKIP_RBAC"
-    | "PLATFORM_SESSION";
+    | "PLATFORM_SESSION"
+    | "SKIP_RBAC";
   /** Digest firing time (UTC): DAY=HH:mm, WEEK=<1-7>-HH:mm, MONTH=<1-31>-HH:mm */
   notification_trigger_time?: string;
   /** Type of the trigger (LIVE or DIGEST) */
@@ -8000,8 +8000,8 @@ export interface NotificationTriggerOutput {
     | "CONDITION"
     | "SESSION"
     | "TOKEN"
-    | "SKIP_RBAC"
-    | "PLATFORM_SESSION";
+    | "PLATFORM_SESSION"
+    | "SKIP_RBAC";
   /** Digest firing time (UTC) */
   notification_trigger_time?: string;
   /** Type of the trigger (LIVE or DIGEST) */

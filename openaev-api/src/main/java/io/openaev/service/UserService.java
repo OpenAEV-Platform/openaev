@@ -498,7 +498,6 @@ public class UserService {
     Token token = new Token();
     token.setUser(user);
     token.setCreated(now());
-    token.setDeletedAt(null);
     token.setValue(discreteToken);
     Token createdToken = tokenRepository.save(token);
     logTokenCreated(createdToken);
@@ -506,11 +505,9 @@ public class UserService {
   }
 
   /**
-   * Emits an audit event for a token creation (AC2). Done here — the single choke point for all
-   * token creations — so the event is produced regardless of the calling flow (user creation,
-   * player creation, service account, connector provisioning, token renewal). The endpoint-level
-   * {@code AccessControlAuditLogAspect} cannot cover it: for e.g. player creation it audits the
-   * player, not the token, so the {@code token_id} would never be recorded.
+   * Emits an audit event for a token creation.
+   *
+   * @param createdToken the token that was created
    */
   private void logTokenCreated(Token createdToken) {
     AuditLogger auditLogger = auditLoggerProvider.getIfAvailable();
@@ -523,7 +520,7 @@ public class UserService {
     contextData.put("token_id", createdToken.getId());
     contextData.put("token_user_id", tokenUserId);
     contextData.put("actor_user_id", actor != null ? actor.getId() : null);
-    contextData.put("timestamp", now());
+    contextData.put("timestamp", createdToken.getCreated());
 
     auditLogger.logEvent(
         AuditEvent.builder()

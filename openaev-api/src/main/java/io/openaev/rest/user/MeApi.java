@@ -143,8 +143,7 @@ public class MeApi extends RestBehavior {
       throw new AccessDeniedException("You are not allowed to renew this token");
     }
 
-    Instant renewedAt = Instant.now();
-    token.setDeletedAt(renewedAt);
+    token.setDeletedAt(Instant.now());
     token.setValue("[RENEWED:%s]".formatted(token.getId()));
     tokenRepository.save(token);
 
