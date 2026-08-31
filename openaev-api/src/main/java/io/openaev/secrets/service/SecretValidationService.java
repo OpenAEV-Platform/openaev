@@ -149,8 +149,9 @@ public class SecretValidationService {
       return probe != null ? probe : SecretConnectionProbe.of(SecretConnectionResult.notChecked());
     } catch (RuntimeException e) {
       log.warn(
-          "Credential validation: provider failed to prepare a check for reference {}",
-          reference.getId());
+          "Credential validation: provider failed to prepare a check for reference {}: {}",
+          reference.getId(),
+          e.getMessage());
       return SecretConnectionProbe.of(SecretConnectionResult.notChecked());
     }
   }
@@ -175,7 +176,7 @@ public class SecretValidationService {
       SecretConnectionResult result = probe.run();
       return result != null ? result : SecretConnectionResult.notChecked();
     } catch (RuntimeException e) {
-      log.warn("Credential validation: validator failed");
+      log.warn("Credential validation: validator failed: {}", e.getMessage());
       return SecretConnectionResult.unknown();
     }
   }
