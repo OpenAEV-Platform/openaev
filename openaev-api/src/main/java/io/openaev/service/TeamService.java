@@ -95,12 +95,19 @@ public class TeamService {
       return bulkDeleteExecutor.deleteInChunks(
           "teams",
           teamIdsToDelete,
-          chunk -> teamRepository.deleteAll(teamRepository.findAllById(chunk)));
+          chunk -> deleteAllDetachingInjects(teamRepository.findAllById(chunk)));
     } catch (InvalidDataAccessApiUsageException | TransientObjectException ex) {
       throw new ResourceInUseException(
           "Cannot delete these teams because at least one of them is still in use. Please remove their dependencies first.",
           ex);
     }
+  }
+
+  // injects_teams is owning on both the Team and the Inject side, and Inject.teams is EAGER:
+  // without this detach, loaded inject collections still reference the team at flush time.
+  public void deleteAllDetachingInjects(@NotNull final Iterable<Team> teams) {
+    teams.forEach(team -> team.getInjects().forEach(inject -> inject.getTeams().remove(team)));
+    teamRepository.deleteAll(teams);
   }
 
   /**
