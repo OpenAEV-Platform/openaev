@@ -8,6 +8,7 @@ import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.service.UserCreationScope;
 import io.openaev.service.UserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,7 +39,7 @@ public class PlatformUserApi {
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
   public UserOutput create(@Valid @RequestBody UserInput input) {
-    return toPlatformOutput(userService.createUser(input));
+    return toPlatformOutput(userService.createUser(input, UserCreationScope.PLATFORM));
   }
 
   // -- READ --

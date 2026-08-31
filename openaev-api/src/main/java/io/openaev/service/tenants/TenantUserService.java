@@ -19,6 +19,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.UserSpecification;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.UserCreationScope;
 import io.openaev.service.UserService;
 import io.openaev.service.account.PrivilegeEscalationValidator;
 import io.openaev.service.account.ReservedKeyValidator;
@@ -62,7 +63,7 @@ public class TenantUserService implements DependenciesManager {
       User reloaded = userRepository.findById(userId).orElseThrow();
       return UserMapper.toOutput(reloaded);
     }
-    User user = userService.createUser(input);
+    User user = userService.createUser(input, UserCreationScope.TENANT);
     attachToTenant(user.getId(), tenantId);
     userService.assignAutoAssignGroups(user.getId(), List.of(tenantId));
     // Reload user after @Modifying queries cleared the persistence context
