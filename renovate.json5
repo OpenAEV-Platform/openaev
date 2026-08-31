@@ -105,6 +105,19 @@
                 '/^io\\.openaev:/',
             ],
         },
+        // tomcat.version overrides the Spring Boot BOM so Tomcat can be patched ahead of Boot releases.
+        // It must stay on the line Boot manages: 10.1.x (Servlet 6.0) for Boot 3.5.
+        // Tomcat 11 is Servlet 6.1, the Spring Boot 4 baseline.
+        {
+            description: 'Pin tomcat-embed-core until Spring Boot 4 upgrade',
+            matchDatasources: [
+                'maven',
+            ],
+            matchPackageNames: [
+                'org.apache.tomcat.embed:tomcat-embed-core',
+            ],
+            allowedVersions: '<11',
+        },
         {
             description: 'apexcharts >= 5 uses a commercial license (not MIT). Block major updates.',
             matchDepNames: [
