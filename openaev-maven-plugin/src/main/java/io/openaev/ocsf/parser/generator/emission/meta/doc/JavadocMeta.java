@@ -11,6 +11,6 @@ public class JavadocMeta implements Emitter {
 
   @Override
   public String emit() {
-    return "/**\n*" + text + "\n*/";
+    return "/**\n* " + text + "\n*/";
   }
 }
