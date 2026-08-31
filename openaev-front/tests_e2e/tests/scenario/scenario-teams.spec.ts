@@ -9,8 +9,7 @@ import { tenantUrl } from '../../utils/url';
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const auditLogTimeoutMs = Number(process.env.E2E_AUDIT_LOG_TIMEOUT_MS ?? '45000');
 const auditLogAssertionsEnabled = !process.env.CI
-  || (Boolean(process.env.OPENAEV_APPLICATION_LICENSE)
-    && process.env.E2E_AUDIT_LOG_ASSERTIONS === 'true');
+  || (Boolean(process.env.OPENAEV_APPLICATION_LICENSE));
 
 const managementLogfileUrl = (): string => {
   if (process.env.AUDIT_LOGFILE_ENDPOINT_URL) {
