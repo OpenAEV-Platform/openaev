@@ -523,11 +523,6 @@ export const storeHelper = state => ({
   getCatalogConnectors: () => entities('catalog_connectors', state),
   getCatalogConnector: id => entity(id, 'catalog_connectors', state),
   getConnectorInstance: id => entity(id, 'connectorinstances', state),
-  // capabilities
-  getPlatformCapabilities: () => entities('platform_capabilities', state),
-  getPlatformCapabilitiesMap: () => maps('platform_capabilities', state),
-  getTenantCapabilities: () => entities('tenant_capabilities', state),
-  getTenantCapabilitiesMap: () => maps('tenant_capabilities', state),
   // workflow configurations
   getWorkflowConfiguration: id => entity(id, 'workflowconfigurations', state),
 });

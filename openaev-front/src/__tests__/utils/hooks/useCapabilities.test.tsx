@@ -2,72 +2,79 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CapabilityOutput } from '../../../utils/api-types';
+import { type CapabilityScope } from '../../../utils/permissions/types';
 
-const mockDispatch = vi.fn();
-const mockFetchCapabilities = vi.fn();
+const mocks = vi.hoisted(() => ({ fetchCapabilities: vi.fn() }));
 
-const capabilityA: CapabilityOutput = {
+vi.mock('../../../actions/capabilities/capability-action', () => ({ fetchCapabilities: mocks.fetchCapabilities }));
+
+const capability = (value: string): CapabilityOutput => ({
   capability_checkable: true,
   capability_children: [],
-  capability_scopes: ['PLATFORM'],
-  capability_value: 'CAPABILITY_A',
-};
-
-const capabilityB: CapabilityOutput = {
-  capability_checkable: true,
-  capability_children: [],
-  capability_scopes: ['PLATFORM'],
-  capability_value: 'CAPABILITY_B',
-};
-
-const helperMock = {
-  getPlatformCapabilities: () => [capabilityB, capabilityA],
-  getTenantCapabilities: () => [],
-  getPlatformCapabilitiesMap: () => ({
-    CAPABILITY_A: capabilityA,
-    CAPABILITY_B: capabilityB,
-  }),
-  getTenantCapabilitiesMap: () => ({}),
-};
-
-vi.mock('../../../utils/hooks', () => ({ useAppDispatch: () => mockDispatch }));
-
-vi.mock('../../../actions/capabilities/capability-action', () => ({ fetchCapabilities: (scope: 'PLATFORM' | 'TENANT') => mockFetchCapabilities(scope) }));
-
-vi.mock('../../../store', () => ({ useHelper: (selector: (helper: typeof helperMock) => unknown) => selector(helperMock) }));
-
-vi.mock('../../../utils/hooks/useDataLoader', async () => {
-  const React = await import('react');
-  return {
-    default: (loader: () => void) => {
-      React.useEffect(() => {
-        loader();
-      }, []);
-    },
-  };
+  capability_scopes: ['TENANT'],
+  capability_value: value,
 });
+
+const importUseCapabilities = async () => {
+  const module = await import('../../../utils/hooks/useCapabilities');
+  return module.default;
+};
 
 describe('useCapabilities', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockFetchCapabilities.mockReturnValue({ type: 'MOCK_FETCH_CAPABILITIES' });
-    mockDispatch.mockResolvedValue({ result: ['CAPABILITY_A', 'CAPABILITY_B'] });
+    vi.resetModules();
+    mocks.fetchCapabilities.mockReset();
   });
 
-  it('given_backendResultOrder_should_keepThatOrderInReturnedCapabilities', async () => {
-    const { default: useCapabilities } = await import('../../../utils/hooks/useCapabilities');
+  it('given_aBackendOrder_should_keepThatOrder', async () => {
+    // Arrange
+    const tree = ['BYPASS', 'DASHBOARDS', 'REPORTINGS', 'FINDINGS'].map(capability);
+    mocks.fetchCapabilities.mockResolvedValue({ data: tree });
+    const useCapabilities = await importUseCapabilities();
 
+    // Act
+    const { result } = renderHook(() => useCapabilities('TENANT'));
+
+    // Assert
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.capabilities.map(c => c.capability_value)).toEqual([
+      'BYPASS',
+      'DASHBOARDS',
+      'REPORTINGS',
+      'FINDINGS',
+    ]);
+    expect(mocks.fetchCapabilities).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchCapabilities).toHaveBeenCalledWith('TENANT');
+  });
+
+  it('given_aScopeChange_should_refetchForTheNewScope', async () => {
+    // Arrange
+    mocks.fetchCapabilities.mockImplementation((scope: CapabilityScope) => Promise.resolve({ data: [capability(scope)] }));
+    const useCapabilities = await importUseCapabilities();
+
+    // Act
+    const { result, rerender } = renderHook(
+      ({ scope }: { scope: CapabilityScope }) => useCapabilities(scope),
+      { initialProps: { scope: 'TENANT' } },
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    rerender({ scope: 'PLATFORM' });
+
+    // Assert
+    await waitFor(() => expect(result.current.capabilities.map(c => c.capability_value)).toEqual(['PLATFORM']));
+    expect(mocks.fetchCapabilities).toHaveBeenCalledTimes(2);
+  });
+
+  it('given_aRejectedRequest_should_stopLoadingWithoutCapabilities', async () => {
+    // Arrange
+    mocks.fetchCapabilities.mockRejectedValue(new Error('boom'));
+    const useCapabilities = await importUseCapabilities();
+
+    // Act
     const { result } = renderHook(() => useCapabilities('PLATFORM'));
 
-    await waitFor(() => {
-      expect(mockDispatch).toHaveBeenCalledTimes(1);
-      expect(result.current.capabilities.map(capability => capability.capability_value)).toEqual([
-        'CAPABILITY_A',
-        'CAPABILITY_B',
-      ]);
-    });
-
-    expect(mockFetchCapabilities).toHaveBeenCalledWith('PLATFORM');
-    expect(result.current.loading).toBe(false);
+    // Assert
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.capabilities).toEqual([]);
   });
 });
