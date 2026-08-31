@@ -8,7 +8,7 @@ Findings transform raw execution output into searchable, categorized technical i
 
 - **Identify exposure**: see which CVEs, open ports, and credentials were discovered across your infrastructure
 - **Track remediation**: monitor whether previously detected issues reappear in subsequent Simulations
-- **Correlate with Assets**: understand which endpoints are affected by each Finding
+- **Correlate with Assets**: understand which assets are affected by each Finding, across every inventory category except security platforms
 - **Prioritize action**: CVE-type Findings include CVSS scores and enrichment data from [Taxonomies](../../../administration/taxonomies.md)
 
 ## How Findings are created
@@ -16,6 +16,10 @@ Findings transform raw execution output into searchable, categorized technical i
 Findings are created automatically during Inject execution. When an Inject produces structured output (e.g., a port scan result, a CVE detection, or extracted credentials), OpenAEV parses the output and creates one Finding per discovered indicator.
 
 Each Finding is deduplicated by its combination of value, type, and field. If the same Finding is detected again in a later execution, the existing record is updated with a new "last seen" timestamp rather than creating a duplicate.
+
+## Assets on a Finding
+
+A Finding can attach to any asset in the inventory: hosts, containers, cloud resources, web applications, network and mobile devices, identities, SaaS applications, AI targets, and generic assets. Security platforms are not offered in Finding asset filters (including notification trigger criteria on Findings). The overview labels this count **Impacted assets**.
 
 ## Finding types
 
@@ -43,8 +47,8 @@ Each row displays:
 |---|---|
 | Type | The Finding category (CVE, Port, Credentials, etc.) |
 | Value | The technical value (monospace display) |
-| Assets | Endpoints where the Finding was detected |
-| Asset groups | Asset groups containing affected endpoints |
+| Assets | Assets where the Finding was detected (hosts, cloud resources, web applications, and other categories; not security platforms) |
+| Asset groups | Asset groups containing affected assets |
 | First seen | When the Finding was first detected |
 | Last seen | When the Finding was most recently detected (default sort) |
 
@@ -56,7 +60,7 @@ Use the search bar and filters to narrow results by type, date range, Assets, or
 
 Click on a Finding to open its detail view. The **Overview** presents the Finding at a glance:
 
-- **Finding type and value** with occurrence count and impacted Asset count
+- **Finding type and value** with occurrence count and **Impacted assets** count
 - **Information**: type, value, field, first seen, last seen, tags
 - **Occurrences**: every Inject execution that produced this Finding, shown both as a list and as a timeline, with links to the parent Simulation and Scenario
 - **Vulnerability panel**: for CVE-type Findings, a summary of the vulnerability enrichment surfaced directly in the Overview
@@ -87,7 +91,7 @@ Findings are accessible from multiple locations in the platform:
 | **Simulation detail** | Findings produced by Injects in that Simulation |
 | **Scenario detail** | Findings aggregated across all Simulations of the Scenario |
 | **Inject execution results** | Findings produced by a specific Inject |
-| **Endpoint detail** | All Findings linked to a specific Asset |
+| **Asset detail** | All Findings linked to a specific Asset |
 
 ## What's next?
 
