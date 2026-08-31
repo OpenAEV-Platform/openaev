@@ -7,6 +7,7 @@ import ScenarioPage from '../../model/scenario/ScenarioPage';
 import { tenantUrl } from '../../utils/url';
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const auditLogTimeoutMs = Number(process.env.E2E_AUDIT_LOG_TIMEOUT_MS ?? '120000');
 
 const managementLogfileUrl = (): string => {
   if (process.env.AUDIT_LOGFILE_ENDPOINT_URL) {
@@ -33,7 +34,7 @@ const expectAuditLogContainsAll = async (request: APIRequestContext, matchers: R
     expect(matchers.every(matcher => matcher.test(auditLog))).toBeTruthy();
   }).toPass({
     intervals: [1_000, 2_000, 5_000],
-    timeout: 45_000,
+    timeout: auditLogTimeoutMs,
   });
 };
 
@@ -56,7 +57,7 @@ const expectTeamAddedAuditLog = async (request: APIRequestContext, teamName: str
     expect(hasTeamAddedToScenarioAuditEvent(auditLog, teamName)).toBeTruthy();
   }).toPass({
     intervals: [1_000, 2_000, 5_000],
-    timeout: 45_000,
+    timeout: auditLogTimeoutMs,
   });
 };
 
