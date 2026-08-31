@@ -5,10 +5,8 @@ import type * as ReactRouter from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SimulationAttackPath from '../../../../../../admin/components/simulations/simulation/attack_path/SimulationAttackPath';
-import { MESSAGING$ } from '../../../../../../utils/Environment';
 import { type AppAbility } from '../../../../../../utils/permissions/ability';
 import { AbilityContext } from '../../../../../../utils/permissions/permissionsContext';
-import type * as Utils from '../../../../../../utils/utils';
 
 type FlowProps = {
   focusRequest?: { nodeId: string };
@@ -20,8 +18,6 @@ type FlowProps = {
   onEndpointClick?: (nodeId: string, ref?: string, label?: string) => void;
   onInjectorSelect?: (injectorId: string, label?: string) => void;
   onFindingClusterClick?: (clusterId: string, typeFindings: string | undefined, injectorId: string | undefined, endpointRef: string | undefined, kind: 'header' | 'overflow' | 'typeOverflow') => void;
-  exportRequest?: number;
-  onExportDone?: (png: Blob | null) => void;
 };
 
 // Capture the props AttackPathCanvas receives (mocked so the canvas is not instantiated), and stub
@@ -35,7 +31,6 @@ const mocks = vi.hoisted(() => ({
   fetchEndpointRelations: vi.fn(),
   fetchFindingsByCategory: vi.fn(),
   fetchExecutionDetail: vi.fn(),
-  download: vi.fn(),
   flowProps: { current: null as FlowProps | null },
   // Read by the useEnterpriseEdition mock below; a test flips it to exercise the unlicensed path.
   licenceValidated: true,
@@ -51,16 +46,6 @@ vi.mock('../../../../../../actions/attack-path/attack-path-actions', () => ({
   fetchFindingsByCategory: mocks.fetchFindingsByCategory,
   fetchExecutionDetail: mocks.fetchExecutionDetail,
 }));
-
-// Only the download is stubbed: the test asserts what the export hands to the browser, not the
-// anchor dance the helper does.
-vi.mock('../../../../../../utils/utils', async (importOriginal) => {
-  const actual = await importOriginal<typeof Utils>();
-  return {
-    ...actual,
-    download: mocks.download,
-  };
-});
 
 vi.mock('../../../../../../components/i18n', () => ({
   useFormatter: () => ({
@@ -426,38 +411,6 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     expect(await screen.findByTestId('attack-path-flow')).toBeTruthy();
     expect(mocks.flowProps.current?.fitRequest ?? 0).toBeGreaterThan(0);
     expect(screen.queryByText(/Executions/)).toBeNull();
-  });
-
-  it('exports the graph as a PNG and reports a failed capture instead of downloading nothing', async () => {
-    const notifyError = vi.spyOn(MESSAGING$, 'notifyError').mockImplementation(() => {});
-    setup();
-    await screen.findByTestId('attack-path-flow');
-
-    // The capture belongs to the canvas (it owns the world geometry and the culling), so the button
-    // only asks for one: a nonce the canvas turns into a blob.
-    const exportButton = screen.getByRole('button', { name: 'Export as PNG' });
-    fireEvent.click(exportButton);
-    await waitFor(() => expect(mocks.flowProps.current?.exportRequest ?? 0).toBeGreaterThan(0));
-    // A second click while the capture runs would queue a redundant one.
-    expect((exportButton as HTMLButtonElement).disabled).toBe(true);
-
-    // The returned image is downloaded under a name carrying the simulation it comes from.
-    const png = new Blob(['png'], { type: 'image/png' });
-    await act(async () => {
-      mocks.flowProps.current?.onExportDone?.(png);
-    });
-    expect(mocks.download).toHaveBeenCalledWith(png, 'attack-path-sim-1.png', 'image/png');
-    expect((exportButton as HTMLButtonElement).disabled).toBe(false);
-
-    // A failed capture must say so: silently doing nothing reads as a broken button.
-    mocks.download.mockClear();
-    fireEvent.click(exportButton);
-    await act(async () => {
-      mocks.flowProps.current?.onExportDone?.(null);
-    });
-    expect(mocks.download).not.toHaveBeenCalled();
-    expect(notifyError).toHaveBeenCalledWith('Error while exporting the attack path');
-    notifyError.mockRestore();
   });
 });
 

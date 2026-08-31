@@ -15,7 +15,12 @@ import {
 
 import { useFormatter } from '../../../../../../components/i18n';
 import graphTooltipSlotProps from '../../../../chaining/logic/logic-graph/graphTooltipSlotProps';
-import { AP_FLOW_NODE_TYPE, type AttackPathFlowEdge, type AttackPathFlowNode, type AttackPathFlowNodeData } from '../attack-path-flow-helpers';
+import {
+  AP_FLOW_NODE_TYPE,
+  type AttackPathFlowEdge,
+  type AttackPathFlowNode,
+  type AttackPathFlowNodeData,
+} from '../attack-path-flow-helpers';
 import { AP_NODE_ENTER_CLASS } from '../attack-path-styles';
 import AttackPathConnectors from './AttackPathConnectors';
 import AttackPathMiniMap from './AttackPathMiniMap';
@@ -59,31 +64,30 @@ interface AttackPathCanvasProps {
   /** Fit the whole graph; nonce re-fires on repeat. */
   fitRequest?: number;
   /**
-   * Live pursuit: pan (at the CURRENT zoom) to center the nodes the latest delta introduced, instead
-   * of re-fitting the whole graph. Skipped while the user recently panned/zoomed/fitted manually.
-   */
+     * Live pursuit: pan (at the CURRENT zoom) to center the nodes the latest delta introduced, instead
+     * of re-fitting the whole graph. Skipped while the user recently panned/zoomed/fitted manually.
+     */
   pursuitRequest?: AttackPathPursuitRequest | null;
   /**
-   * While true the canvas never snap-fits itself when the world grows — the camera is driven only by
-   * pursuit and by explicit fit/focus requests, so a live run stays framed on the action.
-   */
+     * While true the canvas never snap-fits itself when the world grows — the camera is driven only by
+     * pursuit and by explicit fit/focus requests, so a live run stays framed on the action.
+     */
   pursuitActive?: boolean;
   /**
-   * Expanding a cluster: hold the view on the node that was clicked instead of re-fitting the whole
-   * graph. The growth-driven fit below cannot tell a user expansion from the graph changing shape on
-   * its own, and re-framing everything threw the user back to the graph's entrance. Pans at the
-   * CURRENT zoom, because the surrounding layout reflows around the newly revealed nodes, so holding
-   * the camera still would not hold the clicked node still.
-   */
+     * Expanding a cluster: hold the view on the node that was clicked instead of re-fitting the whole
+     * graph. The growth-driven fit below cannot tell a user expansion from the graph changing shape on
+     * its own, and re-framing everything threw the user back to the graph's entrance. Pans at the
+     * CURRENT zoom, because the surrounding layout reflows around the newly revealed nodes, so holding
+     * the camera still would not hold the clicked node still.
+     */
   anchorRequest?: AttackPathAnchorRequest | null;
   showMiniMap?: boolean;
   /** Overlay rendered in the bottom-right stack, under the minimap (the graph legend). */
   legend?: ReactNode;
   /**
-   * Capture the WHOLE graph as a PNG; nonce re-fires on repeat. The capture is driven from here
-   * rather than from the parent because only the canvas knows the world geometry and can lift the
-   * off-screen culling that keeps the DOM small — culled cards would be missing from the image.
-   */
+     * Capture the WHOLE graph as a PNG; nonce re-fires on repeat. The capture is driven from here
+     * rather than from the parent because only the canvas knows the world geometry.
+     */
   exportRequest?: number;
   /** Result of an {@link AttackPathCanvasProps#exportRequest}: null when the capture failed. */
   onExportDone?: (png: Blob | null) => void;
@@ -395,17 +399,17 @@ const AttackPathCanvas = ({
   }, [animateTo, fitCamera]);
 
   /**
-   * Frame the highlighted path, anchored on the node that was just selected.
-   *
-   * <p>The zoom tries to contain the whole highlighted path (the nodes still lit, i.e. not dimmed)
-   * but never drops below the readable floor used by the initial fit, and the camera centres on the
-   * anchor rather than on the box centre — so the clicked finding is always the visual subject even
-   * when its chain is too long to fit and overflows.
-   *
-   * <p>Centring alone (the previous {@link centerOnNode}) kept the current zoom, which is what made
-   * a selection unreadable: zoomed out the finding was centred but tiny, zoomed in its connectors
-   * stretched off-screen.
-   */
+     * Frame the highlighted path, anchored on the node that was just selected.
+     *
+     * <p>The zoom tries to contain the whole highlighted path (the nodes still lit, i.e. not dimmed)
+     * but never drops below the readable floor used by the initial fit, and the camera centres on the
+     * anchor rather than on the box centre — so the clicked finding is always the visual subject even
+     * when its chain is too long to fit and overflows.
+     *
+     * <p>Centring alone (the previous {@link centerOnNode}) kept the current zoom, which is what made
+     * a selection unreadable: zoomed out the finding was centred but tiny, zoomed in its connectors
+     * stretched off-screen.
+     */
   const focusOnPath = useCallback((anchorNodeId: string) => {
     const el = containerRef.current;
     const anchor = effectiveRects.get(anchorNodeId);
@@ -765,9 +769,6 @@ const AttackPathCanvas = ({
   const onExportDoneRef = useRef(onExportDone);
   onExportDoneRef.current = onExportDone;
 
-  // An export first switches the canvas into export mode (see `exporting`), because the culled
-  // cards have to be mounted before the DOM can be captured. The nonce is tracked so a REMOUNT (a
-  // trip through the table view, say) does not replay the last capture.
   const handledExportRef = useRef(exportRequest ?? 0);
   useEffect(() => {
     if (exportRequest && exportRequest !== handledExportRef.current) {
@@ -959,12 +960,22 @@ const AttackPathCanvas = ({
         }}
       >
         <Tooltip title={t('Zoom in')} placement="right" slotProps={graphTooltipSlotProps}>
-          <IconButton size="small" aria-label={t('Zoom in')} sx={controlButtonSx} onClick={() => zoomByButton(ZOOM_STEP)}>
+          <IconButton
+            size="small"
+            aria-label={t('Zoom in')}
+            sx={controlButtonSx}
+            onClick={() => zoomByButton(ZOOM_STEP)}
+          >
             <AddOutlined fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title={t('Zoom out')} placement="right" slotProps={graphTooltipSlotProps}>
-          <IconButton size="small" aria-label={t('Zoom out')} sx={controlButtonSx} onClick={() => zoomByButton(1 / ZOOM_STEP)}>
+          <IconButton
+            size="small"
+            aria-label={t('Zoom out')}
+            sx={controlButtonSx}
+            onClick={() => zoomByButton(1 / ZOOM_STEP)}
+          >
             <RemoveOutlined fontSize="small" />
           </IconButton>
         </Tooltip>
