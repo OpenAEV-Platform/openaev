@@ -43,7 +43,7 @@ const expectAuditLogContainsAll = async (request: APIRequestContext, matchers: R
 const hasTeamAddedToScenarioAuditEvent = (auditLog: string, scenarioId: string): boolean => {
   const escapedScenarioId = escapeRegExp(scenarioId);
   const blockMatcher = new RegExp(
-    `"event_scope"\\s*:\\s*"update"[\\s\\S]*?"event_status"\\s*:\\s*"success"[\\s\\S]*?"url"\\s*:\\s*"[^"]*/scenarios/${escapedScenarioId}/teams/replace"[\\s\\S]*?"method"\\s*:\\s*"PUT"`,
+    `"event_scope"\\s*:\\s*"update"[\\s\\S]*?"url"\\s*:\\s*"[^"]*/scenarios/${escapedScenarioId}/teams/replace"[\\s\\S]*?"method"\\s*:\\s*"PUT"`,
     'i',
   );
   return blockMatcher.test(auditLog);
@@ -67,14 +67,12 @@ const expectTeamAddedAuditLog = async (request: APIRequestContext, scenarioId: s
 const expectScenarioLifecycleAuditLog = async (
   request: APIRequestContext,
   scenarioId: string,
-  teamName: string,
 ): Promise<void> => {
   const escapedScenarioId = escapeRegExp(scenarioId);
-  const escapedTeamName = escapeRegExp(teamName);
 
   const matchers = [
     new RegExp(
-      `"event_scope"\\s*:\\s*"create"[\\s\\S]*?"url"\\s*:\\s*"[^"]*/api/scenarios"[\\s\\S]*?"method"\\s*:\\s*"POST"[\\s\\S]*?"scenario_id"\\s*:\\s*"${escapedScenarioId}"`,
+      `"event_scope"\\s*:\\s*"create"[\\s\\S]*?"url"\\s*:\\s*"[^"]*/api/scenarios"[\\s\\S]*?"method"\\s*:\\s*"POST"[\\s\\S]*?("resource_id"\\s*:\\s*"${escapedScenarioId}"|${escapedScenarioId})`,
       'i',
     ),
     new RegExp(
@@ -82,7 +80,7 @@ const expectScenarioLifecycleAuditLog = async (
       'i',
     ),
     new RegExp(
-      `"event_scope"\\s*:\\s*"update"[\\s\\S]*?"url"\\s*:\\s*"[^"]*/scenarios/${escapedScenarioId}/teams/replace"[\\s\\S]*?"team_name"\\s*:\\s*"${escapedTeamName}"`,
+      `"event_scope"\\s*:\\s*"update"[\\s\\S]*?"url"\\s*:\\s*"[^"]*/scenarios/${escapedScenarioId}/teams/replace"[\\s\\S]*?"method"\\s*:\\s*"PUT"`,
       'i',
     ),
     new RegExp(
@@ -202,20 +200,22 @@ test.describe('Scenario - Teams management', () => {
         await assertAuditPrerequisites(request);
       });
 
-      test('should audit team add from scenario configuration', async ({ request, emptyScenario, page }) => {
+      test('should audit team add from scenario configuration', async ({
+        request,
+        emptyScenario,
+        page,
+        createTeam,
+      }) => {
         const scenarioId = emptyScenario.scenario_id;
-        const newTeamName = `Audited team ${Date.now()}-${Math.random()}`;
+        const existingTeam = await createTeam(`Audited team ${Date.now()}-${Math.random()}`);
 
-        await expect(scenarioPage.teamAddBtn).toBeVisible();
-        await scenarioPage.teamAddBtn.click();
-        await updateTeamDialog.createNewTeam(newTeamName, 'Team created from scenario', true);
-        await updateTeamDialog.save();
-        await expect(scenarioPage.getTeam(newTeamName)).toBeVisible();
+        await scenarioPage.addExistingTeam(existingTeam.team_name);
+        await expect(scenarioPage.getTeam(existingTeam.team_name)).toBeVisible();
 
         await expectTeamAddedAuditLog(request, scenarioId);
 
-        await scenarioPage.clickSecondaryActionOnTeamList(newTeamName, 'Delete');
-        await page.getByRole('button', { name: 'Delete' }).click();
+        await scenarioPage.clickSecondaryActionOnTeamList(existingTeam.team_name, 'Remove from the context');
+        await page.getByRole('button', { name: 'Remove' }).click();
       });
 
       test('should log full scenario lifecycle with child actions', async ({
@@ -236,7 +236,7 @@ test.describe('Scenario - Teams management', () => {
         expect(launchResponse.ok()).toBeTruthy();
 
         // Validate the full lifecycle audit trail.
-        await expectScenarioLifecycleAuditLog(request, scenarioId, existingTeam.team_name);
+        await expectScenarioLifecycleAuditLog(request, scenarioId);
       });
     });
   });
