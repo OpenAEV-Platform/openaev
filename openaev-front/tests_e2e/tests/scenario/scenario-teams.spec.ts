@@ -381,6 +381,7 @@ test.describe('Scenario - Teams management', () => {
         const existingTeam = await createTeam(`Audited team ${Date.now()}-${Math.random()}`);
 
         await scenarioPage.addExistingTeam(existingTeam.team_name);
+        await expect(scenarioPage.getTeam(existingTeam.team_name)).toBeVisible();
 
         await expectTeamAddedAuditLog(request, testInfo, scenarioId);
 
