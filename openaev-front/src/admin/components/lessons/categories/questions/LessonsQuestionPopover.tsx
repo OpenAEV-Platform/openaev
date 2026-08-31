@@ -1,30 +1,40 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
-import * as R from 'ramda';
-import { useContext, useState } from 'react';
+import { type FunctionComponent, type MouseEvent, useContext, useState } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
-import Drawer from '../../../../components/common/Drawer';
-import Transition from '../../../../components/common/Transition';
-import { useFormatter } from '../../../../components/i18n';
-import { LessonContext } from '../../common/Context';
-import LessonsCategoryForm from './LessonsCategoryForm';
+import Drawer from '../../../../../components/common/Drawer';
+import Transition from '../../../../../components/common/Transition';
+import { useFormatter } from '../../../../../components/i18n';
+import { type LessonsQuestion } from '../../../../../utils/api-types';
+import { LessonContext } from '../../../common/Context';
+import LessonsQuestionForm, { type LessonsQuestionFormInputs } from './LessonsQuestionForm';
 
-const LessonsCategoryPopover = ({ lessonsCategory }) => {
+interface Props {
+  lessonsCategoryId: string;
+  lessonsQuestion: LessonsQuestion;
+}
+
+const LessonsQuestionPopover: FunctionComponent<Props> = ({
+  lessonsCategoryId,
+  lessonsQuestion,
+}) => {
   // utils
   const { t } = useFormatter();
   // states
-  const [openDelete, setOpenDelete] = useState(false);
-  const [openEdit, setOpenEdit] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [openDelete, setOpenDelete] = useState<boolean>(false);
+  const [openEdit, setOpenEdit] = useState<boolean>(false);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   // Context
   const {
-    onDeleteLessonsCategory,
-    onUpdateLessonsCategory,
+    onDeleteLessonsQuestion,
+    onUpdateLessonsQuestion,
   } = useContext(LessonContext);
+
   // popover management
-  const handlePopoverOpen = (event) => {
+  const handlePopoverOpen = (event: MouseEvent<HTMLElement>) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
   };
@@ -35,9 +45,10 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
     handlePopoverClose();
   };
   const handleCloseEdit = () => setOpenEdit(false);
-  const onSubmitEdit = (data) => {
-    return onUpdateLessonsCategory(
-      lessonsCategory.lessonscategory_id,
+  const onSubmitEdit: SubmitHandler<LessonsQuestionFormInputs> = (data) => {
+    return onUpdateLessonsQuestion(
+      lessonsCategoryId,
+      lessonsQuestion.lessonsquestion_id,
       data,
     ).then(() => handleCloseEdit());
   };
@@ -48,20 +59,23 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
   };
   const handleCloseDelete = () => setOpenDelete(false);
   const submitDelete = () => {
-    onDeleteLessonsCategory(lessonsCategory.lessonscategory_id).then(() => handleCloseDelete());
+    // The context types the deletion as synchronous whereas the thunk resolves a promise: wrapping
+    // keeps the original "close once deleted" sequencing without lying about the declared type.
+    Promise.resolve(onDeleteLessonsQuestion(
+      lessonsCategoryId,
+      lessonsQuestion.lessonsquestion_id,
+    )).then(() => handleCloseDelete());
   };
   // Rendering
-  const initialValues = R.pipe(
-    R.pick([
-      'lessons_category_name',
-      'lessons_category_description',
-      'lessons_category_order',
-    ]),
-  )(lessonsCategory);
+  const initialValues: Partial<LessonsQuestionFormInputs> = {
+    lessons_question_content: lessonsQuestion.lessons_question_content,
+    lessons_question_explanation: lessonsQuestion.lessons_question_explanation ?? '',
+    lessons_question_order: lessonsQuestion.lessons_question_order,
+  };
   return (
-    <>
+    <div>
       <IconButton
-        icon={<MoreVert />}
+        icon={<MoreVert fontSize="small" />}
         aria-label={t('More actions')}
         onClick={handlePopoverOpen}
         aria-haspopup="true"
@@ -84,7 +98,7 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
       >
         <DialogContent>
           <DialogContentText>
-            {t('Do you want to delete this lessons learned category?')}
+            {t('Do you want to delete this lessons learned question?')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -97,17 +111,17 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
       <Drawer
         open={openEdit}
         handleClose={handleCloseEdit}
-        title={t('Update the lessons learned category')}
+        title={t('Update the lessons learned question')}
       >
-        <LessonsCategoryForm
+        <LessonsQuestionForm
           editing
           onSubmit={onSubmitEdit}
           handleClose={handleCloseEdit}
           initialValues={initialValues}
         />
       </Drawer>
-    </>
+    </div>
   );
 };
 
-export default LessonsCategoryPopover;
+export default LessonsQuestionPopover;
