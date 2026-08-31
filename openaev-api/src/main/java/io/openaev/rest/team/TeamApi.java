@@ -316,15 +316,17 @@ public class TeamApi extends RestBehavior {
             .orElseThrow(ElementNotFoundException::new);
     List<String> nextUserIds =
         input.getUserIds() == null ? Collections.emptyList() : input.getUserIds();
-    List<String> removedUserIds =
-        team.getUsers().stream()
-            .map(User::getId)
-            .filter(existingUserId -> !nextUserIds.contains(existingUserId))
-            .toList();
     Iterable<User> teamUsers = userRepository.findAllById(nextUserIds);
     // Reserved service/connector accounts are system users, never players: silently drop them so
     // team membership stays consistent with the player lists that hide them.
-    team.setUsers(ReservedKeyValidator.excludeReservedUsers(teamUsers));
+    List<User> nextTeamUsers = ReservedKeyValidator.excludeReservedUsers(teamUsers);
+    List<String> nextTeamUserIds = nextTeamUsers.stream().map(User::getId).toList();
+    List<String> removedUserIds =
+        team.getUsers().stream()
+            .map(User::getId)
+            .filter(existingUserId -> !nextTeamUserIds.contains(existingUserId))
+            .toList();
+    team.setUsers(nextTeamUsers);
     teamService.removeUsersFromTeamActivations(teamId, removedUserIds, ctx);
     return teamRepository.save(team);
   }
