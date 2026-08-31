@@ -1,7 +1,7 @@
 package io.openaev.secrets.service;
 
-import static io.openaev.secrets.provider.SecretConnectionDetails.*;
-
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD;
 import io.openaev.database.model.SecretReference;
@@ -53,7 +53,8 @@ public class SecretValidationService {
   public static final Set<CREDENTIAL_AUTH_METHOD> VALIDATABLE_AUTH_METHODS =
       EnumSet.of(
           CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL,
-          CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY);
+          CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY,
+          CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY);
 
   /**
    * Oldest first, id as tie-breaker. Without the id the order of equal {@code lastVerifiedAt} rows
@@ -65,24 +66,13 @@ public class SecretValidationService {
 
   private final SecretReferenceRepository secretReferenceRepository;
   private final SecretsProviderResolver secretsProviderResolver;
+  private final TenantScopedTransaction tenantTx;
 
   // -- PREPARE (phase 1, transactional) --
 
-  /**
-   * Reads the credentials due for verification and asks their provider to prepare a probe.
-   *
-   * <p>The preparation happens HERE, not in {@link #validate}, so the network phase can run fully
-   * detached. A reference whose provider cannot be resolved is still returned, with an already
-   * concluded probe, so it gets an outcome instead of vanishing from the batch.
-   *
-   * @param tenantId the tenant owning the references, used to resolve their providers
-   * @param maxPerRun the run budget, must be positive
-   * @param revalidateAfter how long a status stays fresh
-   * @return the candidates to validate, oldest verification first
-   */
   @Transactional(readOnly = true)
-  public List<SecretValidationCandidate> findDueForValidation(
-      String tenantId, int maxPerRun, Duration revalidateAfter) {
+  public List<CredentialSecretReference> findDueForValidation(
+      int maxPerRun, Duration revalidateAfter) {
     if (maxPerRun <= 0) {
       return List.of();
     }
@@ -90,17 +80,11 @@ public class SecretValidationService {
         Instant.now().minus(Objects.requireNonNull(revalidateAfter, "revalidateAfter is required"));
     Pageable budget = PageRequest.of(0, maxPerRun, DUE_ORDER);
 
-    List<CredentialSecretReference> dueReferences =
-        secretReferenceRepository.findDueForValidation(VALIDATABLE_AUTH_METHODS, threshold, budget);
-
-    List<SecretValidationCandidate> candidates = new ArrayList<>(dueReferences.size());
-    for (CredentialSecretReference reference : dueReferences) {
-      candidates.add(
-          new SecretValidationCandidate(reference.getId(), prepareProbe(tenantId, reference)));
-    }
-    return candidates;
+    return secretReferenceRepository.findDueForValidation(
+        VALIDATABLE_AUTH_METHODS, threshold, budget);
   }
 
+  // -- PROBE (phase 2, NO transaction) --
   /**
    * Asks the reference's provider for a probe, degrading to a concluded one on any failure.
    *
@@ -109,6 +93,9 @@ public class SecretValidationService {
    * ever ran, so the reference is left completely untouched rather than stamped as verified.
    */
   private SecretConnectionProbe prepareProbe(String tenantId, CredentialSecretReference reference) {
+    if (shouldSkipProbePreparation(tenantId, reference)) {
+      return SecretConnectionProbe.of(SecretConnectionResult.notChecked());
+    }
     Optional<SecretsProvider> provider =
         secretsProviderResolver.findByConnectorInstanceId(
             tenantId, reference.getConnectorInstanceId());
@@ -117,24 +104,56 @@ public class SecretValidationService {
           "Credential validation: no provider for reference {} (connector instance {})",
           reference.getId(),
           reference.getConnectorInstanceId());
-      return SecretConnectionProbe.of(SecretConnectionResult.notChecked(PROVIDER_NOT_FOUND));
+      return SecretConnectionProbe.of(SecretConnectionResult.notChecked());
     }
+    return prepareProbe(tenantId, provider.get(), reference);
+  }
+
+  private boolean shouldSkipProbePreparation(String tenantId, CredentialSecretReference reference) {
+    if (tenantId == null || tenantId.isBlank()) {
+      log.warn("Credential validation: missing tenant id while preparing probe");
+      return true;
+    }
+    if (reference == null) {
+      log.warn("Credential validation: missing credential reference while preparing probe");
+      return true;
+    }
+    CREDENTIAL_AUTH_METHOD authMethod = reference.getCredentialAuthMethod();
+    if (authMethod == null || !VALIDATABLE_AUTH_METHODS.contains(authMethod)) {
+      log.warn(
+          "Credential validation: auth method {} is not validatable for reference {}",
+          authMethod,
+          reference.getId());
+      return true;
+    }
+    return false;
+  }
+
+  private SecretConnectionProbe prepareProbe(
+      String tenantId, SecretsProvider provider, CredentialSecretReference reference) {
+    if (shouldSkipProbePreparation(tenantId, reference)) {
+      return SecretConnectionProbe.of(SecretConnectionResult.notChecked());
+    }
+    if (provider == null) {
+      log.warn(
+          "Credential validation: missing provider while preparing probe for reference {}",
+          reference.getId());
+      return SecretConnectionProbe.of(SecretConnectionResult.notChecked());
+    }
+
     try {
-      SecretConnectionProbe probe = provider.get().prepareConnectionCheck(reference);
-      return probe != null
-          ? probe
-          : SecretConnectionProbe.of(SecretConnectionResult.notChecked(VALIDATOR_ERROR));
+      SecretConnectionProbe probe =
+          tenantTx.execute(
+              TxCtx.forTenant(tenantId), () -> provider.prepareConnectionCheck(reference));
+      return probe != null ? probe : SecretConnectionProbe.of(SecretConnectionResult.notChecked());
     } catch (RuntimeException e) {
-      // Message only, no stack payload: provider errors embed identifiers.
       log.warn(
           "Credential validation: provider failed to prepare a check for reference {}: {}",
           reference.getId(),
           e.getMessage());
-      return SecretConnectionProbe.of(SecretConnectionResult.notChecked(VALIDATOR_ERROR));
+      return SecretConnectionProbe.of(SecretConnectionResult.notChecked());
     }
   }
-
-  // -- VALIDATE (phase 2, NO transaction, network I/O) --
 
   /**
    * Runs one prepared probe.
@@ -142,27 +161,72 @@ public class SecretValidationService {
    * <p>Runs OUTSIDE any transaction ({@link Propagation#NOT_SUPPORTED} suspends the class-level
    * one) because it performs network I/O; it touches no repository.
    *
-   * <p>Defensive by contract: a probe blowing up or returning nothing degrades to an inconclusive
-   * outcome for THIS credential. The previous status is then kept, and the rest of the batch
-   * carries on.
+   * <p>Defensive by contract: a probe blowing up or returning nothing degrades to UNKNOWN for THIS
+   * credential, and the rest of the batch carries on.
    *
-   * @param candidate the credential to check
    * @return the outcome, never null
    */
-  @Transactional(propagation = Propagation.NOT_SUPPORTED)
-  public SecretConnectionResult validate(SecretValidationCandidate candidate) {
-    Objects.requireNonNull(candidate, "candidate must not be null");
+  private SecretConnectionResult runProbe(SecretConnectionProbe probe) {
+    if (probe == null) {
+      log.warn("Credential validation: missing probe before connectivity check");
+      return SecretConnectionResult.notChecked();
+    }
     try {
-      SecretConnectionResult result = candidate.probe().run();
-      return result != null ? result : SecretConnectionResult.unknown(VALIDATOR_ERROR);
+      SecretConnectionResult result = probe.run();
+      return result != null ? result : SecretConnectionResult.notChecked();
     } catch (RuntimeException e) {
-      // Inconclusive, never INACTIVE: an unexpected validator failure says nothing about the
-      // credential itself. Message only, no stack payload: provider errors embed identifiers.
+      log.warn("Credential validation: validator failed: {}", e.getMessage());
+      return SecretConnectionResult.unknown();
+    }
+  }
+
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  public SecretConnectionResult validateConnectivity(
+      String tenantId, CredentialSecretReference secretReferenceToValidate) {
+    SecretConnectionProbe probe = prepareProbe(tenantId, secretReferenceToValidate);
+    return runProbe(probe);
+  }
+
+  /**
+   * Validates one credential right after a write operation and persists the outcome in a fresh
+   * tenant-scoped transaction.
+   */
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  public void validateAfterWrite(
+      SecretsProvider provider, CredentialSecretReference credentialReference) {
+    if (credentialReference == null) {
+      log.warn("Credential validation after write: missing credential reference");
+      return;
+    }
+    String referenceId = credentialReference.getId();
+    if (referenceId == null || referenceId.isBlank()) {
+      return;
+    }
+    String tenantId =
+        Objects.requireNonNull(
+                credentialReference.getTenant(), "credential tenant must not be null")
+            .getId();
+    if (tenantId == null || tenantId.isBlank()) {
+      log.warn("Credential validation after write: missing tenant for reference {}", referenceId);
+      return;
+    }
+
+    try {
+      SecretConnectionProbe probe = prepareProbe(tenantId, provider, credentialReference);
+      SecretConnectionResult result = runProbe(probe);
+      int updated =
+          tenantTx.execute(
+              TxCtx.forTenant(tenantId), () -> persistResults(Map.of(referenceId, result)));
+      log.info(
+          "Credential status validation after write: checked 1 credential, updated {}, for tenant {}",
+          updated,
+          tenantId);
+    } catch (RuntimeException e) {
       log.warn(
-          "Credential validation: validator failed for reference {}: {}",
-          candidate.referenceId(),
-          e.getMessage());
-      return SecretConnectionResult.unknown(VALIDATOR_ERROR);
+          "Credential connectivity check after secret write failed for reference {} in tenant {}",
+          referenceId,
+          tenantId,
+          e);
     }
   }
 
@@ -173,7 +237,8 @@ public class SecretValidationService {
    *
    * <p>{@code lastVerifiedAt} is stamped for every credential a validator actually ran on, so a
    * permanently unreachable provider does not pin the same rows at the head of every run. The
-   * status is written only on a definitive answer: an inconclusive outcome keeps the previous one.
+   * canonical status from {@link SecretConnectionResult} is persisted whenever a check actually
+   * ran.
    *
    * <p>{@code updatedAt} moves, as it does on any Hibernate update ({@code @UpdateTimestamp}); this
    * is accepted rather than worked around with a bulk update.

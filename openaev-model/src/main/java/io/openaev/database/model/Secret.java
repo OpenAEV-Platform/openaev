@@ -62,6 +62,12 @@ public class Secret implements TenantBase {
   @JsonIgnore
   private Tenant tenant;
 
+  @Override
+  @JsonIgnore
+  public boolean isListened() {
+    return false;
+  }
+
   public enum SECRET_TYPE {
     USERNAME_PASSWORD,
     HASH,

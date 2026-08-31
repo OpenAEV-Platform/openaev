@@ -1,8 +1,19 @@
 package io.openaev.api.credentials;
 
 import static io.openaev.api.credentials.CredentialApi.TENANT_CREDENTIALS_URI;
+import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.ACTIVE;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.AUTH_FAILED;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.TIMEOUT;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_ACCESS_KEY_ID;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_DEFAULT_REGION;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_EXTERNAL_ID;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_ROLE_ARN;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_SECRET_ACCESS_KEY;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_SOURCE_PROFILE_ACCESS_KEY_ID;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_CLIENT_ID;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_CLIENT_SECRET;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_ENVIRONMENT;
@@ -11,6 +22,9 @@ import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_TENANT_I
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,6 +38,8 @@ import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.SecretsRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.secrets.provider.SecretConnectionResult;
+import io.openaev.secrets.provider.impl.validators.AwsCredentialConnectivityCheck;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CredentialFixture;
 import io.openaev.utils.fixtures.CredentialInputFixture;
@@ -41,6 +57,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,6 +74,7 @@ class CredentialApiTest extends IntegrationTest {
   @Autowired private CredentialSecretReferenceRepository credentialSecretReferenceRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private SecretsRepository secretRepository;
+  @MockitoBean private AwsCredentialConnectivityCheck awsCredentialConnectivityCheck;
 
   @Nested
   @DisplayName("Get Credential contract")
@@ -291,6 +309,99 @@ class CredentialApiTest extends IntegrationTest {
       assertThat(secret.getTenant().getId()).isEqualTo(tenantA.getId());
       UsernamePasswordSecret usernamePasswordSecret = (UsernamePasswordSecret) secret;
       assertThat(usernamePasswordSecret.getUsername()).isEqualTo("user-a");
+    }
+
+    @Test
+    @DisplayName(
+        "given_awsAccessKeyCredential_when_created_should_runConnectivityCheckAndReturnUpdatedStatus")
+    void
+        given_awsAccessKeyCredential_when_created_should_runConnectivityCheckAndReturnUpdatedStatus()
+            throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-create-aws-ak");
+      CredentialInput input = awsAccessKeyInput("aws-ak-create");
+      when(awsCredentialConnectivityCheck.validateAccessKey(
+              eq(AWS_DEFAULT_REGION), eq(AWS_ACCESS_KEY_ID), eq(AWS_SECRET_ACCESS_KEY), eq(null)))
+          .thenReturn(SecretConnectionResult.active());
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      verify(awsCredentialConnectivityCheck)
+          .validateAccessKey(AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null);
+      assertThatJson(response).node("credential_status").isEqualTo(ACTIVE.name());
+      assertThatJson(response).node("credential_last_verified_at").isPresent();
+
+      CredentialSecretReference persisted =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      assertThat(persisted.getStatus()).isEqualTo(ACTIVE);
+      assertThat(persisted.getLastVerifiedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName(
+        "given_awsAssumeRoleCredential_when_created_should_runConnectivityCheckAndReturnFailureStatus")
+    void
+        given_awsAssumeRoleCredential_when_created_should_runConnectivityCheckAndReturnFailureStatus()
+            throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-create-aws-assume");
+      CredentialInput input = awsAssumeRoleInput("aws-assume-create");
+      when(awsCredentialConnectivityCheck.validateAssumeRole(
+              eq(AWS_DEFAULT_REGION),
+              eq(AWS_ROLE_ARN),
+              eq(AWS_EXTERNAL_ID),
+              eq(STATIC_ACCESS_KEY),
+              eq(AWS_SOURCE_PROFILE_ACCESS_KEY_ID),
+              eq(AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY)))
+          .thenReturn(SecretConnectionResult.authFailed());
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      verify(awsCredentialConnectivityCheck)
+          .validateAssumeRole(
+              AWS_DEFAULT_REGION,
+              AWS_ROLE_ARN,
+              AWS_EXTERNAL_ID,
+              STATIC_ACCESS_KEY,
+              AWS_SOURCE_PROFILE_ACCESS_KEY_ID,
+              AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY);
+      assertThatJson(response).node("credential_status").isEqualTo(AUTH_FAILED.name());
+      assertThatJson(response).node("credential_last_verified_at").isPresent();
+
+      CredentialSecretReference persisted =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      assertThat(persisted.getStatus()).isEqualTo(AUTH_FAILED);
+      assertThat(persisted.getLastVerifiedAt()).isNotNull();
     }
 
     @Test
@@ -731,6 +842,60 @@ class CredentialApiTest extends IntegrationTest {
           secretRepository.findById(updatedCredential.getLocation()).orElseThrow();
       assertThat(updatedSecret).isInstanceOf(UsernamePasswordSecret.class);
       assertThat(((UsernamePasswordSecret) updatedSecret).getUsername()).isEqualTo("after-user");
+    }
+
+    @Test
+    @DisplayName(
+        "given_existingCredential_when_updatedToAwsAccessKey_should_runConnectivityCheckAndReturnUpdatedStatus")
+    void
+        given_existingCredential_when_updatedToAwsAccessKey_should_runConnectivityCheckAndReturnUpdatedStatus()
+            throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update-aws-ak");
+
+      String credentialId =
+          JsonPath.read(
+              mvc.perform(
+                      post(tenantCredentialsUri(tenant.getId()))
+                          .with(csrf())
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .content(asJsonString(validUsernamePasswordInput("before-aws-ak-update")))
+                          .accept(MediaType.APPLICATION_JSON))
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString(),
+              "$.credential_id");
+
+      CredentialInput updateInput = awsAccessKeyInput("aws-ak-update");
+      when(awsCredentialConnectivityCheck.validateAccessKey(
+              eq(AWS_DEFAULT_REGION), eq(AWS_ACCESS_KEY_ID), eq(AWS_SECRET_ACCESS_KEY), eq(null)))
+          .thenReturn(SecretConnectionResult.timeout());
+
+      // Act
+      String response =
+          mvc.perform(
+                  put(tenantCredentialsUri(tenant.getId()) + "/" + credentialId)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(updateInput))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      verify(awsCredentialConnectivityCheck)
+          .validateAccessKey(AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, null);
+      assertThatJson(response).node("credential_status").isEqualTo(TIMEOUT.name());
+      assertThatJson(response).node("credential_last_verified_at").isPresent();
+
+      CredentialSecretReference persisted =
+          credentialSecretReferenceRepository.findById(credentialId).orElseThrow();
+      assertThat(persisted.getStatus()).isEqualTo(TIMEOUT);
+      assertThat(persisted.getLastVerifiedAt()).isNotNull();
     }
 
     @Test
@@ -1227,6 +1392,79 @@ class CredentialApiTest extends IntegrationTest {
   }
 
   private record Persisted(String credentialId, String secretId) {}
+
+  private CredentialInput validUsernamePasswordInput(String name) {
+    return new CredentialInput(
+        name,
+        CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
+        CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD,
+        "description-" + name,
+        "user-" + name,
+        "pass-" + name,
+        null,
+        null,
+        List.of());
+  }
+
+  private CredentialInput awsAccessKeyInput(String name) {
+    return new CredentialInput(
+        name,
+        CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AWS,
+        CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY,
+        "description-" + name,
+        // IDENTITY
+        null,
+        null,
+        null,
+        null,
+        // AWS
+        AWS_DEFAULT_REGION,
+        AWS_ACCESS_KEY_ID,
+        AWS_SECRET_ACCESS_KEY,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        // AZURE
+        null,
+        null,
+        null,
+        null,
+        null,
+        List.of());
+  }
+
+  private CredentialInput awsAssumeRoleInput(String name) {
+    return new CredentialInput(
+        name,
+        CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AWS,
+        CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE,
+        "description-" + name,
+        // IDENTITY
+        null,
+        null,
+        null,
+        null,
+        // AWS
+        AWS_DEFAULT_REGION,
+        null,
+        null,
+        null,
+        AWS_ROLE_ARN,
+        AWS_EXTERNAL_ID,
+        STATIC_ACCESS_KEY,
+        AWS_SOURCE_PROFILE_ACCESS_KEY_ID,
+        AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY,
+        // AZURE
+        null,
+        null,
+        null,
+        null,
+        null,
+        List.of());
+  }
 
   private Filters.Filter filter(String key, String value) {
     Filters.Filter filter = new Filters.Filter();

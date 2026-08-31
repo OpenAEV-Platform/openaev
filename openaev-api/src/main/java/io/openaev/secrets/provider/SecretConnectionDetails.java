@@ -22,22 +22,22 @@ public final class SecretConnectionDetails {
   public static final String VALIDATOR_ERROR = "VALIDATOR_ERROR";
 
   /** The provider explicitly refused the credential (bad, expired or revoked). */
-  public static final String AUTH_REJECTED = "AUTH_REJECTED";
+  public static final String AUTH_FAILED = "AUTH_FAILED";
 
   /** The credential is valid but lacks the permission needed to complete the probe. */
-  public static final String AUTH_FORBIDDEN = "AUTH_FORBIDDEN";
+  public static final String PERMISSION_DENIED = "PERMISSION_DENIED";
 
   /** The provider did not answer within the configured budget. */
   public static final String TIMEOUT = "TIMEOUT";
 
-  /** The provider rate-limited the probe (e.g. HTTP 429). */
-  public static final String THROTTLED = "THROTTLED";
-
   /** The provider endpoint could not be reached (network error, IMDS unavailable, 5xx). */
-  public static final String UNREACHABLE = "UNREACHABLE";
+  public static final String NETWORK_ERROR = "NETWORK_ERROR";
 
   /** The stored configuration is invalid (unknown cloud, missing required field). */
-  public static final String INVALID_CONFIGURATION = "INVALID_CONFIGURATION";
+  public static final String FORMAT_ERROR = "FORMAT_ERROR";
+
+  /** Backward-compatible alias kept for existing validators/tests. */
+  public static final String THROTTLED = "THROTTLED";
 
   private SecretConnectionDetails() {}
 }

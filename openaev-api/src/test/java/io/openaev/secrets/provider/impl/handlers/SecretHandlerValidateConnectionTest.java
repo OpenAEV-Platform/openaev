@@ -1,18 +1,21 @@
 package io.openaev.secrets.provider.impl.handlers;
 
-import static io.openaev.secrets.provider.SecretConnectionResult.OUTCOME.ACTIVE;
-import static io.openaev.secrets.provider.SecretConnectionResult.OUTCOME.UNSUPPORTED;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.ACTIVE;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.UNSUPPORTED;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.database.model.AwsAccessKeySecret;
+import io.openaev.database.model.AwsAssumeRoleSecret;
 import io.openaev.database.model.AzureManagedIdentitySecret;
 import io.openaev.database.model.AzureServicePrincipalSecret;
 import io.openaev.database.model.HashSecret;
 import io.openaev.database.model.UsernamePasswordSecret;
 import io.openaev.secrets.provider.SecretConnectionResult;
+import io.openaev.secrets.provider.impl.validators.AwsCredentialConnectivityCheck;
 import io.openaev.secrets.provider.impl.validators.AzureCredentialConnectivityCheck;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,7 +37,192 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @DisplayName("SecretHandler validateConnection tests")
 class SecretHandlerValidateConnectionTest {
 
+  private static final String ENCRYPTED_AWS_SECRET_ACCESS_KEY = "encrypted-awsSecretAccessKey";
+  private static final String ENCRYPTED_AWS_SESSION_TOKEN = "encrypted-awsSessionToken";
+  private static final String ENCRYPTED_AWS_EXTERNAL_ID = "encrypted-awsExternalId";
+  private static final String ENCRYPTED_AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY =
+      "encrypted-awsSourceProfileSecretAccessKey";
   private static final String ENCRYPTED_CLIENT_SECRET = "encrypted-azureClientSecret";
+
+  @Nested
+  @DisplayName("AWS access key handler")
+  class AwsAccessKey {
+
+    @Mock private AwsCredentialConnectivityCheck awsCredentialConnectivityCheck;
+    @Mock private NativeEncryptionService nativeEncryptionService;
+
+    private AwsAccessKeyHandler handler;
+
+    @BeforeEach
+    void setUp() {
+      handler = new AwsAccessKeyHandler(nativeEncryptionService, awsCredentialConnectivityCheck);
+    }
+
+    @Nested
+    @DisplayName("AWS assume role handler")
+    class AwsAssumeRole {
+
+      @Mock private AwsCredentialConnectivityCheck awsCredentialConnectivityCheck;
+
+      @Mock private NativeEncryptionService nativeEncryptionService;
+
+      private AwsAssumeRoleHandler handler;
+
+      @BeforeEach
+      void setUp() {
+        handler = new AwsAssumeRoleHandler(nativeEncryptionService, awsCredentialConnectivityCheck);
+      }
+
+      @Test
+      @DisplayName(
+          "The stored external id and source profile secret are decrypted before they reach the validator")
+      void given_staticSourceIdentity_should_decryptThenDelegate() {
+        // Arrange
+        AwsAssumeRoleSecret secret = new AwsAssumeRoleSecret();
+        secret.setAwsDefaultRegion(AWS_DEFAULT_REGION);
+        secret.setAwsRoleArn(AWS_ROLE_ARN);
+        secret.setAwsExternalId(ENCRYPTED_AWS_EXTERNAL_ID);
+        secret.setAwsSourceIdentityType(
+            AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY);
+        secret.setAwsSourceProfileAccessKeyId(AWS_SOURCE_PROFILE_ACCESS_KEY_ID);
+        secret.setAwsSourceProfileSecretAccessKey(ENCRYPTED_AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY);
+        when(nativeEncryptionService.decrypt(ENCRYPTED_AWS_EXTERNAL_ID))
+            .thenReturn(AWS_EXTERNAL_ID);
+        when(nativeEncryptionService.decrypt(ENCRYPTED_AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY))
+            .thenReturn(AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY);
+        when(awsCredentialConnectivityCheck.validateAssumeRole(
+                any(), any(), any(), any(), any(), any()))
+            .thenReturn(SecretConnectionResult.active());
+
+        // Act
+        SecretConnectionResult result = handler.validateConnection(secret);
+
+        // Assert
+        assertThat(result.status()).isEqualTo(ACTIVE);
+        verify(nativeEncryptionService).decrypt(ENCRYPTED_AWS_EXTERNAL_ID);
+        verify(nativeEncryptionService).decrypt(ENCRYPTED_AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY);
+        verify(awsCredentialConnectivityCheck)
+            .validateAssumeRole(
+                eq(AWS_DEFAULT_REGION),
+                eq(AWS_ROLE_ARN),
+                eq(AWS_EXTERNAL_ID),
+                eq(AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY),
+                eq(AWS_SOURCE_PROFILE_ACCESS_KEY_ID),
+                eq(AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY));
+      }
+
+      @Test
+      @DisplayName("An instance default identity delegates without source profile secret")
+      void given_instanceDefaultSourceIdentity_should_delegateWithNullSourceSecret() {
+        // Arrange
+        AwsAssumeRoleSecret secret = new AwsAssumeRoleSecret();
+        secret.setAwsDefaultRegion(AWS_DEFAULT_REGION);
+        secret.setAwsRoleArn(AWS_ROLE_ARN);
+        secret.setAwsSourceIdentityType(
+            AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.INSTANCE_DEFAULT);
+        when(awsCredentialConnectivityCheck.validateAssumeRole(
+                any(), any(), isNull(), any(), isNull(), isNull()))
+            .thenReturn(SecretConnectionResult.active());
+
+        // Act
+        handler.validateConnection(secret);
+
+        // Assert
+        verify(nativeEncryptionService, never())
+            .decrypt(ENCRYPTED_AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY);
+        verify(awsCredentialConnectivityCheck)
+            .validateAssumeRole(
+                eq(AWS_DEFAULT_REGION),
+                eq(AWS_ROLE_ARN),
+                isNull(),
+                eq(AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.INSTANCE_DEFAULT),
+                isNull(),
+                isNull());
+      }
+
+      @Test
+      @DisplayName("A secret of another type is rejected instead of being probed")
+      void given_wrongSecretType_should_throw() {
+        // Arrange
+        HashSecret wrongType = new HashSecret();
+
+        // Act & Assert
+        assertThatThrownBy(() -> handler.validateConnection(wrongType))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("AWS_ASSUME_ROLE");
+        verifyNoInteractions(awsCredentialConnectivityCheck);
+      }
+    }
+
+    @Test
+    @DisplayName("The stored AWS secrets are decrypted before they reach the validator")
+    void given_accessKeySecretWithSessionToken_should_decryptThenDelegate() {
+      // Arrange
+      AwsAccessKeySecret secret = new AwsAccessKeySecret();
+      secret.setAwsDefaultRegion(AWS_DEFAULT_REGION);
+      secret.setAwsAccessKeyId(AWS_ACCESS_KEY_ID);
+      secret.setAwsSecretAccessKey(ENCRYPTED_AWS_SECRET_ACCESS_KEY);
+      secret.setAwsSessionToken(ENCRYPTED_AWS_SESSION_TOKEN);
+      when(nativeEncryptionService.decrypt(ENCRYPTED_AWS_SECRET_ACCESS_KEY))
+          .thenReturn(AWS_SECRET_ACCESS_KEY);
+      when(nativeEncryptionService.decrypt(ENCRYPTED_AWS_SESSION_TOKEN))
+          .thenReturn(AWS_SESSION_TOKEN);
+      when(awsCredentialConnectivityCheck.validateAccessKey(any(), any(), any(), any()))
+          .thenReturn(SecretConnectionResult.active());
+
+      // Act
+      SecretConnectionResult result = handler.validateConnection(secret);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      verify(nativeEncryptionService).decrypt(ENCRYPTED_AWS_SECRET_ACCESS_KEY);
+      verify(nativeEncryptionService).decrypt(ENCRYPTED_AWS_SESSION_TOKEN);
+      verify(awsCredentialConnectivityCheck)
+          .validateAccessKey(
+              eq(AWS_DEFAULT_REGION),
+              eq(AWS_ACCESS_KEY_ID),
+              eq(AWS_SECRET_ACCESS_KEY),
+              eq(AWS_SESSION_TOKEN));
+    }
+
+    @Test
+    @DisplayName("A blank session token is not decrypted and delegates as null")
+    void given_blankSessionToken_should_delegateWithNullToken() {
+      // Arrange
+      AwsAccessKeySecret secret = new AwsAccessKeySecret();
+      secret.setAwsDefaultRegion(AWS_DEFAULT_REGION);
+      secret.setAwsAccessKeyId(AWS_ACCESS_KEY_ID);
+      secret.setAwsSecretAccessKey(ENCRYPTED_AWS_SECRET_ACCESS_KEY);
+      secret.setAwsSessionToken(" ");
+      when(nativeEncryptionService.decrypt(ENCRYPTED_AWS_SECRET_ACCESS_KEY))
+          .thenReturn(AWS_SECRET_ACCESS_KEY);
+      when(awsCredentialConnectivityCheck.validateAccessKey(any(), any(), any(), isNull()))
+          .thenReturn(SecretConnectionResult.active());
+
+      // Act
+      handler.validateConnection(secret);
+
+      // Assert
+      verify(nativeEncryptionService).decrypt(ENCRYPTED_AWS_SECRET_ACCESS_KEY);
+      verify(nativeEncryptionService, never()).decrypt(" ");
+      verify(awsCredentialConnectivityCheck)
+          .validateAccessKey(
+              eq(AWS_DEFAULT_REGION), eq(AWS_ACCESS_KEY_ID), eq(AWS_SECRET_ACCESS_KEY), isNull());
+    }
+
+    @Test
+    @DisplayName("A secret of another type is rejected instead of being probed")
+    void given_wrongSecretType_should_throw() {
+      // Arrange
+      HashSecret wrongType = new HashSecret();
+
+      // Act & Assert
+      assertThatThrownBy(() -> handler.validateConnection(wrongType))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("AWS_ACCESS_KEY");
+      verifyNoInteractions(awsCredentialConnectivityCheck);
+    }
+  }
 
   @Nested
   @DisplayName("Azure service principal handler")
@@ -72,7 +260,7 @@ class SecretHandlerValidateConnectionTest {
       SecretConnectionResult result = handler.validateConnection(secret);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(ACTIVE);
+      assertThat(result.status()).isEqualTo(ACTIVE);
       verify(nativeEncryptionService).decrypt(ENCRYPTED_CLIENT_SECRET);
       verify(azureCredentialConnectivityCheck)
           .validateServicePrincipal(
@@ -126,7 +314,7 @@ class SecretHandlerValidateConnectionTest {
       SecretConnectionResult result = handler.validateConnection(secret);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(ACTIVE);
+      assertThat(result.status()).isEqualTo(ACTIVE);
       verify(azureCredentialConnectivityCheck)
           .validateManagedIdentity(
               eq(AZURE_ENVIRONMENT), eq(AZURE_CLIENT_ID), eq(AZURE_SUBSCRIPTION_ID));
@@ -178,10 +366,9 @@ class SecretHandlerValidateConnectionTest {
       SecretConnectionResult result = handler.validateConnection(new HashSecret());
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(UNSUPPORTED);
-      // Unsupported is not "verified": the reference must not be stamped.
-      assertThat(result.wasChecked()).isFalse();
-      assertThat(result.statusToPersist()).isEmpty();
+      assertThat(result.status()).isEqualTo(UNSUPPORTED);
+      assertThat(result.wasChecked()).isTrue();
+      assertThat(result.statusToPersist()).contains(UNSUPPORTED);
     }
 
     @Test
@@ -194,8 +381,8 @@ class SecretHandlerValidateConnectionTest {
       SecretConnectionResult result = handler.validateConnection(new UsernamePasswordSecret());
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(UNSUPPORTED);
-      assertThat(result.wasChecked()).isFalse();
+      assertThat(result.status()).isEqualTo(UNSUPPORTED);
+      assertThat(result.wasChecked()).isTrue();
     }
   }
 }

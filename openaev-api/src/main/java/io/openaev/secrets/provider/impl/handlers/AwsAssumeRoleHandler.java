@@ -6,8 +6,10 @@ import io.openaev.database.model.AwsAssumeRoleSecret;
 import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
+import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
+import io.openaev.secrets.provider.impl.validators.AwsCredentialConnectivityCheck;
 import io.openaev.service.connector_instances.NativeEncryptionService;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Component;
 public class AwsAssumeRoleHandler implements SecretHandler {
 
   protected final NativeEncryptionService nativeEncryptionService;
+  private final AwsCredentialConnectivityCheck awsCredentialConnectivityCheck;
 
   @Override
   public boolean supports(Secret secret) {
@@ -98,5 +101,30 @@ public class AwsAssumeRoleHandler implements SecretHandler {
           awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId());
     }
     throw new IllegalArgumentException("Secret type mismatch: expected AWS_ASSUME_ROLE secret");
+  }
+
+  @Override
+  public SecretConnectionResult validateConnection(Secret secret) {
+    if (!(secret instanceof AwsAssumeRoleSecret awsAssumeRoleSecret)) {
+      throw new IllegalArgumentException("Secret type mismatch: expected AWS_ASSUME_ROLE secret");
+    }
+    String externalId = null;
+    if (awsAssumeRoleSecret.getAwsExternalId() != null) {
+      externalId = nativeEncryptionService.decrypt(awsAssumeRoleSecret.getAwsExternalId());
+    }
+
+    String sourceProfileSecretAccessKey = null;
+    if (STATIC_ACCESS_KEY.equals(awsAssumeRoleSecret.getAwsSourceIdentityType())) {
+      sourceProfileSecretAccessKey =
+          nativeEncryptionService.decrypt(awsAssumeRoleSecret.getAwsSourceProfileSecretAccessKey());
+    }
+
+    return awsCredentialConnectivityCheck.validateAssumeRole(
+        awsAssumeRoleSecret.getAwsDefaultRegion(),
+        awsAssumeRoleSecret.getAwsRoleArn(),
+        externalId,
+        awsAssumeRoleSecret.getAwsSourceIdentityType(),
+        awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId(),
+        sourceProfileSecretAccessKey);
   }
 }

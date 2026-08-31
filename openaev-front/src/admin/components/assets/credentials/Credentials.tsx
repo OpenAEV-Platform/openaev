@@ -27,9 +27,9 @@ import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ToolBar from '../../common/ToolBar';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
-import AssetStatus from '../AssetStatus';
 import CredentialCreation from './CredentialCreation';
 import CredentialPopover from './CredentialPopover';
+import CredentialStatusChip from './CredentialStatusChip';
 import convertCredentialFullOutputToCredentialInput from './credentialUtils';
 
 const inlineStyles: Record<string, CSSProperties> = {
@@ -133,9 +133,9 @@ const Credentials = () => {
       field: 'credential_status',
       label: t('Status'),
       isSortable: false,
-      value: (credential: CredentialOutput) => credential.credential_status == 'ACTIVE' || credential.credential_status == 'INACTIVE'
-        ? <AssetStatus variant="list" status={credential.credential_status.toUpperCase() == 'ACTIVE' ? 'Active' : 'Inactive'} />
-        : '-',
+      value: (credential: CredentialOutput) => (
+        <CredentialStatusChip status={credential.credential_status} variant="list" />
+      ),
     },
     {
       field: 'credential_created_by',

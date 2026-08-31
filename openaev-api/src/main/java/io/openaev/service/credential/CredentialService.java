@@ -5,10 +5,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.credentials.CredentialMapper;
-import io.openaev.api.credentials.form.CredentialBulkProcessingInput;
-import io.openaev.api.credentials.form.CredentialContractOutput;
-import io.openaev.api.credentials.form.CredentialFullOutput;
-import io.openaev.api.credentials.form.CredentialInput;
+import io.openaev.api.credentials.form.*;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -17,10 +14,8 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.secrets.provider.SecretMetadata;
-import io.openaev.secrets.provider.SecretStoreRequest;
-import io.openaev.secrets.provider.SecretsProvider;
-import io.openaev.secrets.provider.SecretsProviderResolver;
+import io.openaev.secrets.provider.*;
+import io.openaev.secrets.service.SecretValidationService;
 import io.openaev.service.UserService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TxCtxScopeUtils;
@@ -61,6 +56,7 @@ public class CredentialService {
 
   private final CredentialSecretReferenceRepository credentialSecretReferenceRepository;
   private final SecretsProviderResolver secretsProviderResolver;
+  private final SecretValidationService secretValidationService;
   private final UserService userService;
   private final TenantScopedTransaction tenantTx;
 
@@ -371,17 +367,32 @@ public class CredentialService {
    * @param tenantId tenant identifier
    * @return created credential reference
    */
-  public CredentialSecretReference createCredential(CredentialInput input, String tenantId) {
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  public CredentialOutput createCredential(CredentialInput input, String tenantId) {
     SecretsProvider provider = secretsProviderResolver.resolveLocalProvider(tenantId);
 
     // Build Credential Reference
     CredentialSecretReference credential = new CredentialSecretReference();
     applyCreateInputToCredential(credential, input, provider.getId(), tenantId);
 
-    // Store credential reference with it's secret
-    return (CredentialSecretReference)
-        provider.store(credential, convertCredentialInputToSecretStoreRequest(input));
+    // Phase 1 — store credential reference with its secret
+    CredentialSecretReference persistedCredential =
+        tenantTx.execute(
+            TxCtx.forTenant(tenantId),
+            () ->
+                (CredentialSecretReference)
+                    provider.store(credential, convertCredentialInputToSecretStoreRequest(input)));
+
+    // Phase 2 — validate connectivity after write, in a separate transaction to avoid any rollback
+    // of the credential creation
+    secretValidationService.validateAfterWrite(provider, persistedCredential);
+    return tenantTx.execute(
+        TxCtx.forTenant(tenantId),
+        () -> credentialMapper.toOutput(getCredentialById(persistedCredential.getId())));
   }
+
+  private record UpdatedCredentialContext(
+      CredentialSecretReference credential, SecretsProvider provider) {}
 
   /**
    * Updates credential metadata and optionally replaces secret payload according to mode.
@@ -390,19 +401,43 @@ public class CredentialService {
    * @param input credential update payload
    * @return updated credential full output
    */
-  public CredentialFullOutput updateCredential(String credentialId, CredentialInput input) {
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  public CredentialFullOutput updateCredential(
+      String credentialId, CredentialInput input, String tenantId) {
+    // Phase 1 — transactional update of credential reference and its secret through the provider.
+    UpdatedCredentialContext updateContext =
+        tenantTx.execute(
+            TxCtx.forTenant(tenantId),
+            () -> {
+              CredentialSecretReference credential = getCredentialById(credentialId);
+              SecretsProvider secretProvider =
+                  secretsProviderResolver.resolveByConnectorInstanceId(
+                      tenantId, credential.getConnectorInstanceId());
 
-    CredentialSecretReference credential = getCredentialById(credentialId);
-    SecretsProvider secretProvider =
-        secretsProviderResolver.resolveByConnectorInstanceId(
-            credential.getTenant().getId(), credential.getConnectorInstanceId());
+              applyMetadataInputToCredential(credential, input);
+              credential.setStatus(SecretReference.SECRET_STATUS.UNSET);
+              credential.setLastVerifiedAt(null);
 
-    applyMetadataInputToCredential(credential, input);
-    secretProvider.update(credential, convertCredentialInputToSecretStoreRequest(input));
+              CredentialSecretReference updatedCredential =
+                  (CredentialSecretReference)
+                      secretProvider.update(
+                          credential, convertCredentialInputToSecretStoreRequest(input));
+              return new UpdatedCredentialContext(updatedCredential, secretProvider);
+            });
 
-    SecretMetadata secretMetadata = secretProvider.getSecretMetadata(credential);
+    // Phase 2 — validate connectivity after write, in a separate transaction to avoid any rollback
+    // of the credential update
+    secretValidationService.validateAfterWrite(
+        updateContext.provider(), updateContext.credential());
 
-    return credentialMapper.toFullOutput(credential, secretMetadata);
+    // Phase 3 — reload + metadata in one tenant-scoped transaction context.
+    return tenantTx.execute(
+        TxCtx.forTenant(tenantId),
+        () -> {
+          CredentialSecretReference credential = getCredentialById(credentialId);
+          SecretMetadata metadata = updateContext.provider().getSecretMetadata(credential);
+          return credentialMapper.toFullOutput(credential, metadata);
+        });
   }
 
   private void applyCreateInputToCredential(
