@@ -30,3 +30,11 @@ The platform owns every index it queries and can rebuild them from PostgreSQL, s
 migrating the data is to point OpenAEV at an empty Elasticsearch 9 cluster: the indices, templates and
 lifecycle policy are recreated at startup and reindexed from scratch. Expect the initial reindex to
 take a while on a large dataset, and dashboards to be incomplete until it finishes.
+
+## Clusters served over HTTPS
+
+A cluster whose certificate is signed by an internal CA is now trusted as soon as that CA is dropped
+in `openaev.extra-trusted-certs-dir`, like every other outgoing connection of the platform (see
+[certificate validation](../certificate-validation.md)). The engine client used to read the JVM
+default trust store only, which left `engine.reject-unauthorized=false` — no verification at all — as
+the only way to reach such a cluster. That parameter still works, and is no longer needed here.

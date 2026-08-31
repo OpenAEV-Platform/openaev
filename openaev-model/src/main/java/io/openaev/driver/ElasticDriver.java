@@ -30,8 +30,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.time.Instant;
 import java.util.*;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.ssl.ClientTlsStrategyBuilder;
@@ -39,6 +43,7 @@ import org.apache.hc.client5.http.ssl.HostnameVerificationPolicy;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.message.BasicHeader;
+import org.apache.hc.core5.http.nio.ssl.TlsStrategy;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -54,6 +59,7 @@ public class ElasticDriver {
   private EngineContext searchEngine;
   private final EngineConfig config;
   private final IndexingStatusRepository indexingStatusRepository;
+  private final X509TrustManager trustManager;
 
   /**
    * Shared ObjectMapper used by the Elasticsearch client for JSON serialization. Exposed via {@link
@@ -70,6 +76,30 @@ public class ElasticDriver {
   @Autowired
   public void setSearchEngine(EngineContext searchEngine) {
     this.searchEngine = searchEngine;
+  }
+
+  /**
+   * Trusts the platform chain: the JVM default store plus the PEM certificates dropped in {@code
+   * extra-trusted-certs-dir}, as every other outgoing client of the platform does.
+   */
+  private TlsStrategy tlsStrategy() {
+    if (!config.isRejectUnauthorized()) {
+      // Trust any server certificate, and any mismatch between it and the requested host.
+      // The hostname verifier only gets a say under the CLIENT policy: the default policy
+      // delegates verification to the SSLEngine, which ignores it entirely.
+      return ClientTlsStrategyBuilder.create()
+          .setSslContext(TransportUtils.insecureSSLContext())
+          .setHostVerificationPolicy(HostnameVerificationPolicy.CLIENT)
+          .setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+          .build();
+    }
+    try {
+      SSLContext sslContext = SSLContext.getInstance("TLS");
+      sslContext.init(null, new TrustManager[] {trustManager}, null);
+      return ClientTlsStrategyBuilder.create().setSslContext(sslContext).build();
+    } catch (GeneralSecurityException e) {
+      throw new IllegalStateException("Unable to build the engine TLS context", e);
+    }
   }
 
   private ElasticsearchClient getElasticClient() {
@@ -97,17 +127,7 @@ public class ElasticDriver {
           connectionManager
               .setMaxConnTotal(config.getMaxConnections())
               .setMaxConnPerRoute(config.getMaxConnections());
-          if (!config.isRejectUnauthorized()) {
-            // Trust any server certificate, and any mismatch between it and the requested host.
-            // The hostname verifier only gets a say under the CLIENT policy: the default policy
-            // delegates verification to the SSLEngine, which ignores it entirely.
-            connectionManager.setTlsStrategy(
-                ClientTlsStrategyBuilder.create()
-                    .setSslContext(TransportUtils.insecureSSLContext())
-                    .setHostVerificationPolicy(HostnameVerificationPolicy.CLIENT)
-                    .setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-                    .build());
-          }
+          connectionManager.setTlsStrategy(tlsStrategy());
         });
     if (config.getUsername() != null) {
       // Preemptive basic auth, as the official Rest5 transport does: the low-level client has no
