@@ -115,6 +115,27 @@ const addInjectToScenario = async (request: APIRequestContext, scenarioId: strin
   expect(response.ok()).toBeTruthy();
 };
 
+const assertAuditPrerequisites = async (request: APIRequestContext): Promise<void> => {
+  const eeProbe = await request.post('/api/tenants/search', { data: {} });
+  process.stdout.write(`[E2E][EE] POST /api/tenants/search -> ${eeProbe.status()}\n`);
+  expect(
+    eeProbe.ok(),
+    'Enterprise Edition appears inactive: /api/tenants/search is not reachable with current auth/license.',
+  ).toBeTruthy();
+
+  const logfileEndpoint = managementLogfileUrl();
+  const logfileResponse = await request.get(logfileEndpoint);
+  process.stdout.write(`[E2E][AUDIT] GET ${logfileEndpoint} -> ${logfileResponse.status()}\n`);
+  expect(logfileResponse.ok(), 'Actuator logfile endpoint is not reachable in this environment.').toBeTruthy();
+
+  const logfileText = await logfileResponse.text();
+  const hasAuditMarker = logfileText.includes('[AUDIT]') || logfileText.includes('"event_type"');
+  expect(
+    hasAuditMarker,
+    `Logfile endpoint is reachable but contains no audit entries yet. Sample: ${logfileText.slice(0, 300)}`,
+  ).toBeTruthy();
+};
+
 test.describe('Scenario - Teams management', () => {
   let scenarioPage: ScenarioPage;
   let updateTeamDialog: UpdateTeamDialog;
@@ -176,6 +197,10 @@ test.describe('Scenario - Teams management', () => {
       if (!auditLogAssertionsEnabled) {
         return;
       }
+
+      test.beforeEach(async ({ request }) => {
+        await assertAuditPrerequisites(request);
+      });
 
       test('should audit team add from scenario configuration', async ({ request, emptyScenario, page }) => {
         const scenarioId = emptyScenario.scenario_id;
