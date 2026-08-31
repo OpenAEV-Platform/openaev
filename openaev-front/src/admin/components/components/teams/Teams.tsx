@@ -159,7 +159,7 @@ const Teams = () => {
       search_pagination_input: selectAll ? searchPaginationInput : undefined,
       team_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
       team_ids_to_ignore: Object.keys(deSelectedElements),
-    })).then((result: { data: never[] }) => {
+    })).then((result: { data: string[] }) => {
       const deletedIds: string[] = result.data ?? [];
       const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
       setTeams(teams.filter(team => !deletedIds.includes(team.team_id)));
