@@ -15,7 +15,10 @@ public class DatatypesResource extends ReferentialResource {
   public List<ResourceKey> getSubresourceKeys() throws IOException {
     JsonNode contents = read();
 
-    return contents.propertyStream().map(entry -> new ResourceKey(entry.getKey(), null)).toList();
+    return contents
+        .propertyStream()
+        .map(entry -> new ResourceKey(entry.getKey(), null, null))
+        .toList();
   }
 
   @Override

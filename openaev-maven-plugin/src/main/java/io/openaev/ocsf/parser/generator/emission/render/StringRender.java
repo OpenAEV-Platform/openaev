@@ -1,8 +1,12 @@
 package io.openaev.ocsf.parser.generator.emission.render;
 
-public class StringRender implements Render<String> {
+public class StringRender extends Render<String> {
+  public StringRender(String obj) {
+    super(obj);
+  }
+
   @Override
-  public String render(String source) {
-    return "\"" + source + "\"";
+  public String render() {
+    return "\"" + getValue() + "\"";
   }
 }

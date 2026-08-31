@@ -15,9 +15,14 @@ import io.openaev.utils.DictionaryHelper;
 public class DatatypeClassGenerator extends ClassGenerator {
   @Override
   public ClassMetadata metadata(
-      Version version, String name, JsonNode source, OcsfSchemaExtension extension) {
+      Version version,
+      String name,
+      JsonNode source,
+      OcsfSchemaExtension extension,
+      String ocsfClassUid) {
     return new ClassMetadata(
         name,
+        ocsfClassUid,
         SchemaDimension.DATATYPES,
         extension,
         compositeOcsfClassName(name),

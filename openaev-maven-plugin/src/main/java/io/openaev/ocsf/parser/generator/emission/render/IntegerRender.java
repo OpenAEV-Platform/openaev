@@ -1,8 +1,12 @@
 package io.openaev.ocsf.parser.generator.emission.render;
 
-public class IntegerRender implements Render<Integer> {
+public class IntegerRender extends Render<Integer> {
+  protected IntegerRender(Integer value) {
+    super(value);
+  }
+
   @Override
-  public String render(Integer source) {
-    return String.valueOf(source);
+  public String render() {
+    return String.valueOf(getValue());
   }
 }

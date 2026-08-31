@@ -1,8 +1,12 @@
 package io.openaev.ocsf.parser.generator.emission.render;
 
-public class FloatRender implements Render<Float> {
+public class FloatRender extends Render<Float> {
+  public FloatRender(Float obj) {
+    super(obj);
+  }
+
   @Override
-  public String render(Float source) {
-    return String.valueOf(source);
+  public String render() {
+    return String.valueOf(getValue());
   }
 }

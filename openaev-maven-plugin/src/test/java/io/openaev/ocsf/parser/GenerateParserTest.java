@@ -43,7 +43,7 @@ public class GenerateParserTest {
     JsonNode datatypes = schema.getContents(SchemaDimension.DATATYPES.name());
 
     for (Map.Entry<String, JsonNode> prop : datatypes.properties()) {
-      gen.metadata(schema.getVersion(), prop.getKey(), prop.getValue(), null);
+      gen.metadata(schema.getVersion(), prop.getKey(), prop.getValue(), null, null);
     }
   }
 
@@ -53,7 +53,7 @@ public class GenerateParserTest {
     PluginContext ctx = new PluginContext(resources, resources);
 
     SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_9_0, ctx);
-    schema.refreshAllSources();
+    // schema.refreshAllSources();
     Generator gen = new Generator(schema, ctx);
     gen.generate();
   }

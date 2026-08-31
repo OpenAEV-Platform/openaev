@@ -1,8 +1,12 @@
 package io.openaev.ocsf.parser.generator.emission.render;
 
-public class BooleanRender implements Render<Boolean> {
+public class BooleanRender extends Render<Boolean> {
+  public BooleanRender(Boolean value) {
+    super(value);
+  }
+
   @Override
-  public String render(Boolean source) {
-    return String.valueOf(source);
+  public String render() {
+    return String.valueOf(getValue());
   }
 }

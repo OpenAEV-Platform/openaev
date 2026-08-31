@@ -17,7 +17,7 @@ public class ReferentialSource extends Source {
   public ReferentialSource(
       Version version, SchemaDimension dimension, PluginContext ctx, String name)
       throws IOException {
-    super(version, dimension, ctx, name, null);
+    super(version, dimension, ctx, name, null, null);
   }
 
   public List<ResourceKey> getSubsourceKeys() throws IOException {

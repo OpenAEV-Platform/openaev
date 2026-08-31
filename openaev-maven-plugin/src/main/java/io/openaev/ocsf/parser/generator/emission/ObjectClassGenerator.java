@@ -19,9 +19,14 @@ import lombok.Getter;
 public class ObjectClassGenerator extends ClassGenerator {
   @Override
   public ClassMetadata metadata(
-      Version version, String name, JsonNode source, OcsfSchemaExtension extension) {
+      Version version,
+      String name,
+      JsonNode source,
+      OcsfSchemaExtension extension,
+      String ocsfClassUid) {
     return new ClassMetadata(
         name,
+        ocsfClassUid,
         SchemaDimension.SINGLE_OBJECT,
         extension,
         compositeOcsfClassName(name),

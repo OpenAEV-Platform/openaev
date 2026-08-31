@@ -12,7 +12,11 @@ public abstract class ClassGenerator {
   protected final StringUtils stringUtils = new StringUtils();
 
   public abstract ClassMetadata metadata(
-      Version version, String name, JsonNode source, OcsfSchemaExtension extension);
+      Version version,
+      String name,
+      JsonNode source,
+      OcsfSchemaExtension extension,
+      String ocsfClassUid);
 
   public abstract String emit(ClassMetadata metadata, DictionaryHelper helper) throws IOException;
 }

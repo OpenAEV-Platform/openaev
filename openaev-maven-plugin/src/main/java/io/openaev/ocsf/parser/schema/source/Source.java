@@ -18,6 +18,7 @@ public class Source {
   @Getter private final Version version;
   @Getter private final SchemaDimension dimension;
   @Getter private final String name;
+  @Getter private final String ocsfClassUid;
   @Getter private final OcsfSchemaExtension extension;
 
   private static final Map<SchemaDimension, OcsfSchemaEndpoints> dimensionToEndpointMap =
@@ -30,7 +31,7 @@ public class Source {
           SchemaDimension.SINGLE_CLASS, OcsfSchemaEndpoints.CLASS_SCHEMA);
 
   public Source(Version version, SchemaDimension dimension, PluginContext ctx) throws IOException {
-    this(version, dimension, ctx, null, null);
+    this(version, dimension, ctx, null, null, null);
   }
 
   public Source(
@@ -38,13 +39,15 @@ public class Source {
       SchemaDimension dimension,
       PluginContext ctx,
       String name,
-      OcsfSchemaExtension extension)
+      OcsfSchemaExtension extension,
+      String ocsfClassUid)
       throws IOException {
     this.version = version;
     this.dimension = dimension;
     this.client = new OcsfApiClient(version);
     this.name = name;
     this.extension = extension;
+    this.ocsfClassUid = ocsfClassUid;
 
     initialiseFileResource(dimension, ctx, name, extension);
   }

@@ -48,7 +48,8 @@ public class SchemaSource {
               SchemaDimension.SINGLE_OBJECT,
               ctx,
               key.key(),
-              OcsfSchemaExtension.fromString(key.extension()).orElse(null)));
+              OcsfSchemaExtension.fromString(key.extension()).orElse(null),
+              key.ocsfClassUid()));
     }
 
     for (ResourceKey key :
@@ -60,7 +61,8 @@ public class SchemaSource {
               SchemaDimension.SINGLE_CLASS,
               ctx,
               key.key(),
-              OcsfSchemaExtension.fromString(key.extension()).orElse(null)));
+              OcsfSchemaExtension.fromString(key.extension()).orElse(null),
+              key.ocsfClassUid()));
     }
   }
 

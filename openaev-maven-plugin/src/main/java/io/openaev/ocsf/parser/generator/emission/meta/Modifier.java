@@ -5,7 +5,8 @@ import lombok.Getter;
 public enum Modifier {
   PUBLIC("public"),
   PROTECTED("protected"),
-  PRIVATE("private");
+  PRIVATE("private"),
+  NONE("");
 
   @Getter private final String value;
 

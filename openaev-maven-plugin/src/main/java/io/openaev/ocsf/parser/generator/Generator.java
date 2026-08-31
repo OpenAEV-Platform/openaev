@@ -13,7 +13,10 @@ import io.openaev.ocsf.parser.generator.emission.ClassMetadata;
 import io.openaev.ocsf.parser.generator.emission.DatatypeClassGenerator;
 import io.openaev.ocsf.parser.generator.emission.ObjectClassGenerator;
 import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
+import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.cls.ClassMeta;
+import io.openaev.ocsf.parser.generator.emission.meta.enums.EnumMeta;
+import io.openaev.ocsf.parser.generator.emission.meta.enums.OptionMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.field.FieldMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.method.ArgumentMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.method.MethodMeta;
@@ -26,6 +29,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import lombok.Getter;
 
 public class Generator {
   private final ClassClassGenerator classClassGenerator = new ClassClassGenerator();
@@ -58,12 +63,20 @@ public class Generator {
             tracker.put(
                 src.getExtendedName(),
                 objectClassGenerator.metadata(
-                    schemaSource.getVersion(), src.getName(), src.get(), src.getExtension()));
+                    schemaSource.getVersion(),
+                    src.getName(),
+                    src.get(),
+                    src.getExtension(),
+                    src.getOcsfClassUid()));
         case SINGLE_CLASS ->
             tracker.put(
                 src.getExtendedName(),
                 classClassGenerator.metadata(
-                    schemaSource.getVersion(), src.getName(), src.get(), src.getExtension()));
+                    schemaSource.getVersion(),
+                    src.getName(),
+                    src.get(),
+                    src.getExtension(),
+                    src.getOcsfClassUid()));
         case DATATYPES ->
             src.get()
                 .propertyStream()
@@ -75,7 +88,8 @@ public class Generator {
                                 schemaSource.getVersion(),
                                 prop.getKey(),
                                 prop.getValue(),
-                                src.getExtension())));
+                                src.getExtension(),
+                                null)));
       }
     }
 
@@ -108,9 +122,11 @@ public class Generator {
       }
     }
 
-    // generate helpers
+    // --- generate helpers
     String helperClassPackage =
         stringUtils.toVersionedPackage(schemaSource.getVersion(), SCHEMA_PACKAGE_NAME);
+
+    // converter
     ClassMeta converterBodyMeta =
         new ClassMeta()
             .withImport(ObjectMapper.class.getCanonicalName())
@@ -142,5 +158,46 @@ public class Generator {
             .toString(),
         "OcsfConverter",
         converterBodyMeta.emit());
+
+    // class UID enum
+    EnumMeta classIdMeta =
+        new EnumMeta()
+            .withName("OcsfClassUid")
+            .withPackage(helperClassPackage)
+            .withImport(Getter.class.getCanonicalName())
+            .withField(
+                new FieldMeta(Modifier.PRIVATE, "final " + String.class.getCanonicalName(), "value")
+                    .withAnnotation(new AnnotationMeta(Getter.class)))
+            .withMethod(
+                new MethodMeta(Modifier.NONE, "OcsfClassUid", "", "this.value = value;")
+                    .withArgument(new ArgumentMeta(String.class, "value")))
+            .withMethod(
+                new MethodMeta(
+                        Modifier.PUBLIC,
+                        "static OcsfClassUid",
+                        "fromClassUid",
+                        """
+                            for(OcsfClassUid opt : OcsfClassUid.values()) {
+                              if(value.equals(opt.getValue())) {
+                                return opt;
+                              }
+                            }
+                            throw new IllegalArgumentException("No such class UID: %s".formatted(value));
+                            """)
+                    .withArgument(new ArgumentMeta(String.class, "value")));
+    for (ClassMetadata md : tracker.values()) {
+      if (SINGLE_CLASS.equals(Objects.requireNonNull(md.dimension()))) {
+        classIdMeta =
+            classIdMeta.withOption(
+                new OptionMeta(md.ocsfIdentifier().toUpperCase()).withValue(md.ocsfClassUid()));
+      }
+    }
+    classFileWriter.overwrite(
+        pluginContext
+            .getRootOpenAEVAPISourceDirectory()
+            .resolve(stringUtils.packageToPath(helperClassPackage))
+            .toString(),
+        "OcsfClassUid",
+        classIdMeta.emit());
   }
 }

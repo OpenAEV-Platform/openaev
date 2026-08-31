@@ -1,8 +1,12 @@
 package io.openaev.ocsf.parser.generator.emission.render;
 
-public class ArrayRender<T> implements Render<T[]> {
+public class ArrayRender<T> extends Render<T[]> {
+  public ArrayRender(T[] value) {
+    super(value);
+  }
+
   @Override
-  public String render(T[] source) {
+  public String render() {
     return "";
   }
 }
