@@ -8,6 +8,9 @@ import { tenantUrl } from '../../utils/url';
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const auditLogTimeoutMs = Number(process.env.E2E_AUDIT_LOG_TIMEOUT_MS ?? '45000');
+const auditLogAssertionsEnabled = !process.env.CI
+  || (Boolean(process.env.OPENAEV_APPLICATION_LICENSE)
+    && process.env.E2E_AUDIT_LOG_ASSERTIONS === 'true');
 
 const managementLogfileUrl = (): string => {
   if (process.env.AUDIT_LOGFILE_ENDPOINT_URL) {
@@ -114,7 +117,6 @@ const addInjectToScenario = async (request: APIRequestContext, scenarioId: strin
 };
 
 test.describe('Scenario - Teams management', () => {
-  const auditLogAssertionsEnabled = !(Boolean(process.env.CI) && !process.env.OPENAEV_APPLICATION_LICENSE);
   let scenarioPage: ScenarioPage;
   let updateTeamDialog: UpdateTeamDialog;
 
