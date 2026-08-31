@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@casl/ability": "7.0.1",
-    "@casl/react": "5.0.1",
+    "@casl/react": "7.0.1",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@filigran/chatbot": "3.9.1",
