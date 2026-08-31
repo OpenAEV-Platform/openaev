@@ -1,6 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.rest.asset.ai_targets.AiTargetApi.AI_TARGET_URI;
+import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,6 +21,7 @@ import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import org.json.JSONArray;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -175,5 +177,60 @@ class AiTargetApiTest extends IntegrationTest {
             .getContentAsString();
 
     assertEquals(1, new JSONArray(response).length());
+  }
+
+  @Nested
+  @DisplayName("AI targets are Endpoint-typed assets")
+  class AiTargetIsAnEndpoint {
+
+    @DisplayName("Given an AI target creation, should persist it with the Endpoint discriminator")
+    @Test
+    @WithMockUser(isAdmin = true)
+    void given_an_ai_target_creation_should_persist_it_as_an_endpoint() throws Exception {
+      // -- ACT --
+      String id = createAiTarget("Endpoint-Typed-1");
+
+      // -- ASSERT --
+      assertThat(aiTargetRepository.findAiTargetById(id)).isPresent();
+      assertEquals(
+          "Endpoint",
+          entityManager
+              .createNativeQuery("SELECT asset_type FROM assets WHERE asset_id = :id")
+              .setParameter("id", id)
+              .getSingleResult());
+    }
+
+    @DisplayName("Given an AI target, should be returned by the endpoint search")
+    @Test
+    @WithMockUser(isAdmin = true)
+    void given_an_ai_target_should_be_returned_by_the_endpoint_search() throws Exception {
+      // -- PREPARE --
+      createAiTarget("Endpoint-Searchable-AI");
+
+      // -- ACT & ASSERT --
+      mvc.perform(
+              post(ENDPOINT_URI + "/search")
+                  .content(
+                      asJsonString(PaginationFixture.simpleTextSearch("Endpoint-Searchable-AI")))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.numberOfElements").value(1))
+          .andExpect(jsonPath("$.content.[0].asset_name").value("Endpoint-Searchable-AI"));
+    }
+
+    @DisplayName("Given an AI target, should be resolvable through the endpoint edit flow")
+    @Test
+    @WithMockUser(isAdmin = true)
+    void given_an_ai_target_should_be_resolvable_as_an_endpoint() throws Exception {
+      // -- PREPARE --
+      String id = createAiTarget("Endpoint-Editable-AI");
+
+      // -- ACT & ASSERT --
+      mvc.perform(get(ENDPOINT_URI + "/" + id).accept(MediaType.APPLICATION_JSON).with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.asset_id").value(id));
+    }
   }
 }

@@ -52,14 +52,23 @@ const EndpointCreation: FunctionComponent<Props> = ({
   };
 
   const onSubmitAiTarget = (data: AiTargetInput) => {
-    // AI targets are base Assets, not Endpoints, so they are not prepended to the
-    // (endpoint-shaped) onCreate list here; they surface in the unified asset inventory.
-    dispatch(addAiTarget(data)).then((result: { entities?: unknown }) => {
-      if (result.entities) {
-        handleClose();
-      }
-      return result;
-    });
+    // AI targets are Endpoint-typed assets: the created row belongs to the endpoint list, so it is
+    // prepended like any other creation. It is normalized under its own `aitargets` schema key,
+    // hence the dedicated lookup.
+    dispatch(addAiTarget(data)).then(
+      (result: {
+        result: string;
+        entities?: { aitargets: Record<string, Endpoint> };
+      }) => {
+        if (result.entities) {
+          if (onCreate) {
+            onCreate(result.entities.aitargets[result.result]);
+          }
+          handleClose();
+        }
+        return result;
+      },
+    );
   };
 
   const renderStepContent = () => {

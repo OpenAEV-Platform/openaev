@@ -22,10 +22,11 @@ import org.springframework.stereotype.Component;
  *
  * <ol>
  *   <li>Re-promote base {@code Asset} rows of the seven demoted categories back to {@code
- *       Endpoint}. AI targets are untouched: they are the only rows legitimately persisted with the
- *       base type (via {@code /api/ai_targets}) and always carry {@code asset_category =
- *       'AI_TARGET'}, which is not part of the list. Once re-promoted, the second run matches
- *       nothing.
+ *       Endpoint}. AI targets are untouched here: at the time this migration was written they were
+ *       the only rows legitimately persisted with the base type (via {@code /api/ai_targets}) and
+ *       always carry {@code asset_category = 'AI_TARGET'}, which is not part of the list. They are
+ *       promoted separately by {@code V6_20260831100000000__Promote_ai_targets_to_endpoints}. Once
+ *       re-promoted, the second run matches nothing.
  *   <li>Reset the indexing status of the asset-derived ES indexes so documents indexed with the
  *       demoted type are rebuilt.
  * </ol>

@@ -6,8 +6,8 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
+import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.AiTargetRepository;
 import io.openaev.database.repository.TagRepository;
@@ -26,9 +26,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * CRUD facade for AI targets. AI targets are {@link Asset} rows with {@code category = AI_TARGET} -
- * this controller keeps the dedicated {@code /api/ai_targets} surface (menu / marketing) while
- * persisting through the unified asset model.
+ * CRUD facade for AI targets. AI targets are {@link Endpoint} rows with {@code category =
+ * AI_TARGET} - this controller keeps the dedicated {@code /api/ai_targets} surface (menu /
+ * marketing) while persisting through the unified asset model.
+ *
+ * <p>They are persisted with the {@code Endpoint} discriminator (and no agent) so they remain
+ * reachable from the {@code Endpoint}-typed surfaces: {@code /api/endpoints/search}, {@code GET/PUT
+ * /api/endpoints/{id}} and the atomic-testing target picker.
  */
 @RequiredArgsConstructor
 @RestController
@@ -41,11 +45,11 @@ public class AiTargetApi {
   private final TagRepository tagRepository;
 
   /** Restricts any search to AI target assets, on top of the caller-provided specification. */
-  private Specification<Asset> aiTargetCategory() {
+  private Specification<Endpoint> aiTargetCategory() {
     return (root, query, cb) -> cb.equal(root.get("category"), AssetCategory.AI_TARGET);
   }
 
-  private Asset prepareAiTarget(Asset aiTarget, AiTargetInput input) {
+  private Endpoint prepareAiTarget(Endpoint aiTarget, AiTargetInput input) {
     aiTarget.setUpdateAttributes(input);
     aiTarget.setCategory(AssetCategory.AI_TARGET);
     aiTarget.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
@@ -55,21 +59,21 @@ public class AiTargetApi {
   @GetMapping({AI_TARGET_URI, TENANT_AI_TARGET_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
-  public Iterable<Asset> aiTargets() {
+  public Iterable<Endpoint> aiTargets() {
     return aiTargetRepository.findAllAiTargets();
   }
 
   @PostMapping({AI_TARGET_URI, TENANT_AI_TARGET_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
-  public Asset createAiTarget(@Valid @RequestBody final AiTargetInput input) {
-    return this.aiTargetRepository.save(prepareAiTarget(new Asset(), input));
+  public Endpoint createAiTarget(@Valid @RequestBody final AiTargetInput input) {
+    return this.aiTargetRepository.save(prepareAiTarget(new Endpoint(), input));
   }
 
   @GetMapping({AI_TARGET_URI + "/{aiTargetId}", TENANT_AI_TARGET_URI + "/{aiTargetId}"})
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
-  public Asset aiTarget(@PathVariable @NotBlank final String aiTargetId) {
+  public Endpoint aiTarget(@PathVariable @NotBlank final String aiTargetId) {
     return this.aiTargetRepository
         .findAiTargetById(aiTargetId)
         .orElseThrow(ElementNotFoundException::new);
@@ -78,21 +82,21 @@ public class AiTargetApi {
   @PostMapping({AI_TARGET_URI + "/search", TENANT_AI_TARGET_URI + "/search"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
-  public Page<Asset> aiTargets(@RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+  public Page<Endpoint> aiTargets(@RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
-        (Specification<Asset> spec, org.springframework.data.domain.Pageable pageable) ->
+        (Specification<Endpoint> spec, org.springframework.data.domain.Pageable pageable) ->
             this.aiTargetRepository.findAll(aiTargetCategory().and(spec), pageable),
         searchPaginationInput,
-        Asset.class);
+        Endpoint.class);
   }
 
   @PutMapping({AI_TARGET_URI + "/{aiTargetId}", TENANT_AI_TARGET_URI + "/{aiTargetId}"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
-  public Asset updateAiTarget(
+  public Endpoint updateAiTarget(
       @PathVariable @NotBlank final String aiTargetId,
       @Valid @RequestBody final AiTargetInput input) {
-    Asset aiTarget =
+    Endpoint aiTarget =
         this.aiTargetRepository
             .findAiTargetById(aiTargetId)
             .orElseThrow(ElementNotFoundException::new);
@@ -105,7 +109,7 @@ public class AiTargetApi {
   public void deleteAiTarget(@PathVariable @NotBlank final String aiTargetId) {
     // Resolve through the tenant-filtered, category-scoped lookup first: a raw deleteById would
     // bypass the Hibernate tenant filter (em.find) and could delete any asset type by id.
-    Asset aiTarget =
+    Endpoint aiTarget =
         this.aiTargetRepository
             .findAiTargetById(aiTargetId)
             .orElseThrow(ElementNotFoundException::new);
