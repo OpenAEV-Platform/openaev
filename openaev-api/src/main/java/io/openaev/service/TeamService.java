@@ -8,10 +8,14 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawTeamIndexing;
+import io.openaev.database.repository.ExerciseTeamUserRepository;
+import io.openaev.database.repository.ScenarioTeamUserRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.exception.BadRequestException;
@@ -38,6 +42,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 @Service
@@ -46,7 +51,10 @@ public class TeamService {
 
   private final EntityManager entityManager;
   private final TeamRepository teamRepository;
+  private final ExerciseTeamUserRepository exerciseTeamUserRepository;
+  private final ScenarioTeamUserRepository scenarioTeamUserRepository;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final TenantScopedTransaction tenantTx;
 
   /**
    * Bulk delete of teams, either from an explicit list of ids or from a search input (select all).
@@ -256,5 +264,18 @@ public class TeamService {
    */
   public List<Team> getTeamsByIds(List<String> teamIds) {
     return teamRepository.findAllById(teamIds);
+  }
+
+  @Transactional(rollbackFor = Exception.class)
+  public void removeUsersFromTeamActivations(String teamId, List<String> userIds, TxCtx txCtx) {
+    if (CollectionUtils.isEmpty(userIds)) {
+      return;
+    }
+    tenantTx.executeNew(
+        txCtx,
+        () -> {
+          exerciseTeamUserRepository.deleteByTeamIdAndUserIds(teamId, userIds);
+          scenarioTeamUserRepository.deleteByTeamIdAndUserIds(teamId, userIds);
+        });
   }
 }

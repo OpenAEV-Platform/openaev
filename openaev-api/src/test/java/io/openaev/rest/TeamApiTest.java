@@ -15,16 +15,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ExerciseTeamUserRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.database.repository.ScenarioTeamUserRepository;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.team.form.TeamBulkProcessingInput;
 import io.openaev.rest.team.form.TeamCreateInput;
 import io.openaev.rest.team.form.UpdateUsersTeamInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.ExerciseTeamUserFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
@@ -44,6 +51,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,8 +64,12 @@ class TeamApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private ExerciseService exerciseService;
+  @Autowired private ExerciseTeamUserRepository exerciseTeamUserRepository;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private TeamRepository teamRepository;
+  @Autowired private UserRepository userRepository;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private EntityManager entityManager;
@@ -206,6 +218,91 @@ class TeamApiTest extends IntegrationTest {
 
     // --ASSERT--
     assertEquals(newName, JsonPath.read(response, "$.team_name"));
+  }
+
+  @DisplayName(
+      "Given team users update, should remove users from simulation and scenario enabled audience")
+  @Test
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS})
+  void given_teamUsersUpdate_should_removeUsersFromSimulationAndScenarioEnabledAudience()
+      throws Exception {
+    // -- PREPARE --
+    User keptUser = this.userRepository.save(UserFixture.getUserWithDefaultEmail());
+    User removedUser = this.userRepository.save(UserFixture.getUserWithDefaultEmail());
+    Team team = createTeamWithName("team-audience-sync");
+    team.setUsers(new ArrayList<>(List.of(keptUser, removedUser)));
+    team = this.teamRepository.save(team);
+    this.tenantIsolationHelper.grantCapabilitiesInTenant(
+        team.getTenant().getId(),
+        Set.of(Capability.MANAGE_TEAMS_AND_PLAYERS, Capability.ACCESS_TEAMS_AND_PLAYERS));
+
+    Exercise exercise = ExerciseFixture.getExercise(List.of(team));
+    exercise = this.exerciseService.createExercise(exercise);
+    Scenario scenario = ScenarioFixture.getScenario(List.of(team), null);
+    scenario = this.scenarioRepository.save(scenario);
+
+    ExerciseTeamUser exerciseTeamUserKept =
+        ExerciseTeamUserFixture.createExerciseTeamUser(exercise, team, keptUser);
+    exerciseTeamUserKept.getCompositeId().setExerciseId(exercise.getId());
+    exerciseTeamUserKept.getCompositeId().setTeamId(team.getId());
+    exerciseTeamUserKept.getCompositeId().setUserId(keptUser.getId());
+    this.exerciseTeamUserRepository.save(exerciseTeamUserKept);
+    ExerciseTeamUser exerciseTeamUserRemoved =
+        ExerciseTeamUserFixture.createExerciseTeamUser(exercise, team, removedUser);
+    exerciseTeamUserRemoved.getCompositeId().setExerciseId(exercise.getId());
+    exerciseTeamUserRemoved.getCompositeId().setTeamId(team.getId());
+    exerciseTeamUserRemoved.getCompositeId().setUserId(removedUser.getId());
+    this.exerciseTeamUserRepository.save(exerciseTeamUserRemoved);
+
+    ScenarioTeamUser scenarioTeamUserKept = new ScenarioTeamUser();
+    scenarioTeamUserKept.setScenario(scenario);
+    scenarioTeamUserKept.setTeam(team);
+    scenarioTeamUserKept.setUser(keptUser);
+    scenarioTeamUserKept.getCompositeId().setScenarioId(scenario.getId());
+    scenarioTeamUserKept.getCompositeId().setTeamId(team.getId());
+    scenarioTeamUserKept.getCompositeId().setUserId(keptUser.getId());
+    this.scenarioTeamUserRepository.save(scenarioTeamUserKept);
+    ScenarioTeamUser scenarioTeamUserRemoved = new ScenarioTeamUser();
+    scenarioTeamUserRemoved.setScenario(scenario);
+    scenarioTeamUserRemoved.setTeam(team);
+    scenarioTeamUserRemoved.setUser(removedUser);
+    scenarioTeamUserRemoved.getCompositeId().setScenarioId(scenario.getId());
+    scenarioTeamUserRemoved.getCompositeId().setTeamId(team.getId());
+    scenarioTeamUserRemoved.getCompositeId().setUserId(removedUser.getId());
+    this.scenarioTeamUserRepository.save(scenarioTeamUserRemoved);
+
+    UpdateUsersTeamInput input = new UpdateUsersTeamInput();
+    input.setUserIds(List.of(keptUser.getId()));
+
+    entityManager.flush();
+    entityManager.clear();
+    TestTransaction.flagForCommit();
+    TestTransaction.end();
+    TestTransaction.start();
+
+    // -- EXECUTE --
+    mvc.perform(
+            put("/api/tenants/" + team.getTenant().getId() + "/teams/" + team.getId() + "/players")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+
+    // -- ASSERT --
+    assertTrue(
+        this.exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
+            exercise.getId(), team.getId(), keptUser.getId()));
+    assertFalse(
+        this.exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
+            exercise.getId(), team.getId(), removedUser.getId()));
+    assertTrue(
+        this.scenarioTeamUserRepository.existsByScenarioIdAndTeamIdAndUserId(
+            scenario.getId(), team.getId(), keptUser.getId()));
+    assertFalse(
+        this.scenarioTeamUserRepository.existsByScenarioIdAndTeamIdAndUserId(
+            scenario.getId(), team.getId(), removedUser.getId()));
   }
 
   @DisplayName("Given valid team ID and input, should upsert team successfully")

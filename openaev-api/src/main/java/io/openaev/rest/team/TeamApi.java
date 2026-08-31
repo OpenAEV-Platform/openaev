@@ -14,6 +14,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.*;
@@ -45,6 +46,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -305,16 +307,25 @@ public class TeamApi extends RestBehavior {
       description = "Update the list of users of a team team",
       summary = "Update team players")
   public Team updateTeamUsers(
+      TxCtx ctx,
       @PathVariable @Schema(description = "ID of the team") String teamId,
       @Valid @RequestBody UpdateUsersTeamInput input) {
     Team team =
         teamRepository
             .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
-    Iterable<User> teamUsers = userRepository.findAllById(input.getUserIds());
+    List<String> nextUserIds =
+        input.getUserIds() == null ? Collections.emptyList() : input.getUserIds();
+    List<String> removedUserIds =
+        team.getUsers().stream()
+            .map(User::getId)
+            .filter(existingUserId -> !nextUserIds.contains(existingUserId))
+            .toList();
+    Iterable<User> teamUsers = userRepository.findAllById(nextUserIds);
     // Reserved service/connector accounts are system users, never players: silently drop them so
     // team membership stays consistent with the player lists that hide them.
     team.setUsers(ReservedKeyValidator.excludeReservedUsers(teamUsers));
+    teamService.removeUsersFromTeamActivations(teamId, removedUserIds, ctx);
     return teamRepository.save(team);
   }
 
