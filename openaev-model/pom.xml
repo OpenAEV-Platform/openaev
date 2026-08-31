@@ -16,7 +16,7 @@
         <elasticsearch.version>8.19.21</elasticsearch.version>
         <opensearch.version>3.9.0</opensearch.version>
         <amqp-client.version>5.35.0</amqp-client.version>
-        <azure-core-management.version>1.19.6</azure-core-management.version>
+        <azure-core-management.version>1.19.7</azure-core-management.version>
     </properties>
 
     <dependencyManagement>
