@@ -46,8 +46,6 @@
       <version>4.13.2</version>
       <scope>test</scope>
     </dependency>
-    <!-- No version: the Spring Boot BOM manages the whole JUnit family through junit-bom.
-         Pinning this aggregator alone leaves api/params/engine on the BOM version anyway. -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
