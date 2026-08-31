@@ -249,8 +249,7 @@ public class TeamApi extends RestBehavior {
             .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
     try {
-      team.getInjects().forEach(inject -> inject.getTeams().remove(team));
-      teamRepository.delete(team);
+      teamService.deleteAllDetachingInjects(List.of(team));
     } catch (InvalidDataAccessApiUsageException | TransientObjectException ex) {
       throw new ResourceInUseException(
           "Cannot delete this team because it is still in use. Please remove its dependencies first.",

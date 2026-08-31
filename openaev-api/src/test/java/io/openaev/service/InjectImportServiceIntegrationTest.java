@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.utils.fixtures.import_mapper.ImportMapperFixture.DEFAULT_TEAMS_COLUMN;
 import static io.openaev.utils.fixtures.import_mapper.RuleAttributeFixture.createRuleAttribute;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -8,11 +9,13 @@ import io.openaev.database.model.ImportMapper;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectImporter;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Team;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.XlsFixture;
 import io.openaev.utils.fixtures.import_mapper.ImportMapperFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,5 +58,37 @@ public class InjectImportServiceIntegrationTest extends IntegrationTest {
     Inject importedInject = result.getInjects().getFirst();
     assertNotNull(importedInject.getContent());
     assertNull(importedInject.getContent().get("expectations"));
+  }
+
+  @DisplayName(
+      "A teams cell with surrounding blanks, a line break and a trailing separator"
+          + " should create one team per distinct trimmed name")
+  @Test
+  void given_teamsCellWithBlanksAndRepeatedNames_should_createOneTeamPerDistinctName()
+      throws Exception {
+    // -- ARRANGE --
+    String importId =
+        XlsFixture.xlsFile()
+            .withDefaultInjectRow()
+            .withCell(DEFAULT_TEAMS_COLUMN, "Team A,\n Team A , Team_B,")
+            .build();
+
+    ImportMapper importMapper =
+        ImportMapperFixture.createImportMapperWithTeams(XlsFixture.DEFAULT_INJECT_TYPE);
+
+    Scenario scenario = ScenarioFixture.getScheduledScenario();
+
+    // -- ACT --
+    ImportTestSummary result =
+        injectImportService.importInjectIntoScenarioFromXLS(
+            scenario, importMapper, importId, XlsFixture.DEFAULT_SHEET_NAME, 0, false);
+
+    // -- ASSERT --
+    assertEquals(1, result.getTotalNumberOfInjects());
+
+    Inject importedInject = result.getInjects().getFirst();
+    assertEquals(
+        List.of("Team A", "Team_B"),
+        importedInject.getTeams().stream().map(Team::getName).toList());
   }
 }

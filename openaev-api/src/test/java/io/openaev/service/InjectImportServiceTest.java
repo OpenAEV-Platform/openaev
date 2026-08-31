@@ -13,7 +13,6 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.InjectImportUtils;
-import io.openaev.utils.fixtures.XlsFixture;
 import io.openaev.utils.mockMapper.MockMapperUtils;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -21,8 +20,9 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.Temporal;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Date;
+import java.util.Map;
+import java.util.Optional;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -233,33 +233,6 @@ public class InjectImportServiceTest {
     // -- ASSERT --
     assertNotNull(result);
     assertEquals("Test\nTest", result);
-  }
-
-  @DisplayName("Test parse teams cell with spaces and trailing comma")
-  @Test
-  void testParseTeamsCellWithSpacesAndTrailingComma() {
-    // -- PREPARE --
-    XlsFixture lsFixture = new XlsFixture();
-    workbook = lsFixture.createXlsFileWithTeams("Team A,\n Team A , Team_B,");
-    Sheet sheet = workbook.getSheetAt(0);
-    row = sheet.getRow(0);
-    RuleAttribute ruleAttribute = MockMapperUtils.createRuleAttribute();
-    ruleAttribute.setColumns("A");
-
-    // -- EXECUTE --
-    List<String> columnValues =
-        Arrays.stream(
-                Arrays.stream(ruleAttribute.getColumns().split("\\+"))
-                    .map(column -> InjectImportUtils.getValueAsString(row, column))
-                    .collect(Collectors.joining(","))
-                    .split(","))
-            .map(String::trim)
-            .filter(value -> !value.isBlank())
-            .distinct()
-            .toList();
-
-    // -- ASSERT --
-    assertEquals(List.of("Team A", "Team_B"), columnValues);
   }
 
   @DisplayName("Test get inject date without pattern but with an ISO_DATE_TIME format")
