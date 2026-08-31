@@ -1,0 +1,120 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name or identifier of the message context. In AI systems, this could be the conversation ID, session name, thread identifier, or interaction name (e.g., 'user-session-123', 'conversation-abc', 'chat-thread-456').",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "service" : {
+      "type" : "object_t",
+      "description" : "The server or service handling the request. In AI systems, this represents the AI service, API endpoint, or agent that processes and responds to requests (e.g., OpenAI API service, Claude API service, internal AI model service).",
+      "requirement" : "recommended",
+      "caption" : "Service",
+      "object_type" : "service",
+      "object_name" : "Service"
+    },
+    "application" : {
+      "type" : "object_t",
+      "description" : "The initiating client application. In AI systems, this represents the client-side application or framework that initiates requests (e.g., LangChain application, web browser, mobile app, SDK implementation).",
+      "requirement" : "recommended",
+      "caption" : "Application",
+      "object_type" : "application",
+      "object_name" : "Application"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the message context. This could be a session ID, conversation ID, or other unique identifier that allows correlation of messages within the same context.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "ai_role" : {
+      "type" : "string_t",
+      "description" : "The normalized caption of the <code>ai_role_id</code>.",
+      "requirement" : "optional",
+      "caption" : "AI Role",
+      "type_name" : "String"
+    },
+    "ai_role_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "A callable tool or API invoked by the assistant.",
+          "caption" : "Tool"
+        },
+        "6" : {
+          "description" : "A component that retrieves information or context from a knowledge source (e.g., vector DB, search system, or API).",
+          "caption" : "Retriever"
+        },
+        "0" : {
+          "description" : "Unknown role type.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The human user initiating a request.",
+          "caption" : "User"
+        },
+        "2" : {
+          "description" : "The AI model generating a response.",
+          "caption" : "Assistant"
+        },
+        "99" : {
+          "description" : "Other role type not covered above.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "A software agent that performs tasks with autonomy or delegated intent.",
+          "caption" : "Agent"
+        },
+        "5" : {
+          "description" : "The component coordinating multiple agents or tools.",
+          "caption" : "Orchestrator"
+        }
+      },
+      "description" : "Specifies the functional role of the AI within the context of this message, such as retrieving information, assisting reasoning, executing a tool, or generating content.",
+      "requirement" : "recommended",
+      "caption" : "AI Role ID",
+      "sibling" : "ai_role",
+      "type_name" : "Integer"
+    },
+    "completion_tokens" : {
+      "type" : "integer_t",
+      "description" : "Number of tokens in the model's response/completion for this message.",
+      "requirement" : "optional",
+      "caption" : "Completion Tokens",
+      "type_name" : "Integer"
+    },
+    "prompt_tokens" : {
+      "type" : "integer_t",
+      "description" : "Number of tokens in the input prompt for this message.",
+      "requirement" : "optional",
+      "caption" : "Prompt Tokens",
+      "type_name" : "Integer"
+    },
+    "total_tokens" : {
+      "type" : "integer_t",
+      "description" : "Total number of tokens used for this message (prompt + completion).",
+      "requirement" : "optional",
+      "caption" : "Total Tokens",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "message_context",
+  "description" : "Communication context for AI system interactions including protocols, roles, clients, and session information for MCP and other AI communication systems.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "application", "service" ]
+  },
+  "references" : [ {
+    "description" : "OWASP AI Security and Privacy Guide - Agent Security",
+    "url" : "https://owasp.org/www-project-ai-security-and-privacy-guide/"
+  }, {
+    "description" : "Model Context Protocol (MCP) Specification",
+    "url" : "https://modelcontextprotocol.io/"
+  } ],
+  "caption" : "Message Context",
+  "profiles" : [ "data_classification" ],
+  "_links" : [ ]
+}

@@ -1,0 +1,116 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the peripheral device.",
+      "requirement" : "required",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The Peripheral Device type, normalized to the caption of the <code>type_id</code> value. In the case of 'Other', it is defined by the source.",
+      "requirement" : "optional",
+      "caption" : "Peripheral Device Type",
+      "type_name" : "String"
+    },
+    "class" : {
+      "type" : "string_t",
+      "description" : "The class of the peripheral device.",
+      "requirement" : "optional",
+      "caption" : "Class",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the peripheral device.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The peripheral device is a mouse.",
+          "caption" : "Mouse"
+        },
+        "6" : {
+          "description" : "The peripheral device is a microphone.",
+          "caption" : "Microphone"
+        },
+        "0" : {
+          "description" : "The peripheral device type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The peripheral device is an external storage device.",
+          "caption" : "External Storage"
+        },
+        "2" : {
+          "description" : "The peripheral device is a keyboard.",
+          "caption" : "Keyboard"
+        },
+        "99" : {
+          "description" : "The peripheral device type is not mapped. See the <code>type</code> attribute which contains an event source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "The peripheral device is a printer.",
+          "caption" : "Printer"
+        },
+        "5" : {
+          "description" : "The peripheral device is a monitor.",
+          "caption" : "Monitor"
+        },
+        "7" : {
+          "description" : "The peripheral device is a webcam.",
+          "caption" : "Webcam"
+        }
+      },
+      "description" : "The normalized peripheral device type ID.",
+      "requirement" : "recommended",
+      "caption" : "Peripheral Device Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "model" : {
+      "type" : "string_t",
+      "description" : "The peripheral device model.",
+      "requirement" : "recommended",
+      "caption" : "Model",
+      "type_name" : "String"
+    },
+    "serial_number" : {
+      "type" : "string_t",
+      "description" : "The peripheral device serial number.",
+      "requirement" : "recommended",
+      "caption" : "Serial Number",
+      "type_name" : "String",
+      "observable" : 37
+    },
+    "vendor_id_list" : {
+      "type" : "string_t",
+      "description" : "The list of vendor IDs for the peripheral device.",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "Vendor ID List",
+      "type_name" : "String"
+    },
+    "vendor_name" : {
+      "type" : "string_t",
+      "description" : "The primary vendor name for the peripheral device.",
+      "requirement" : "recommended",
+      "caption" : "Vendor Name",
+      "type_name" : "String"
+    }
+  },
+  "name" : "peripheral_device",
+  "description" : "The peripheral device object describes the properties of external, connectable, and detachable hardware.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Peripheral Device",
+  "_links" : [ ]
+}

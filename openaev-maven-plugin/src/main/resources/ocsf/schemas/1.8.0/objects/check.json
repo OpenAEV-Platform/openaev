@@ -1,0 +1,198 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name or title of the compliance check. For example, CIS: <code>Ensure mounting of cramfs filesystems is disabled</code> or DISA STIG: <code>The Ubuntu operating system must implement DoD-approved encryption to protect the confidentiality of remote access sessions</code>.",
+      "references" : [ {
+        "description" : "CIS Benchmark Rules",
+        "url" : "https://www.cisecurity.org/cis-benchmarks"
+      }, {
+        "description" : "DISA STIG Requirements",
+        "url" : "https://public.cyber.mil/stigs/downloads"
+      } ],
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "status" : {
+      "type" : "string_t",
+      "description" : "The resultant status of the compliance check normalized to the caption of the <code>status_id</code> value. For example, CIS Benchmark: <code>Pass</code> when all requirements are met, <code>Fail</code> when requirements are not met, or DISA STIG: <code>NotAFinding</code> (maps to status_id 1/Pass), <code>Open</code> (maps to status_id 3/Fail).",
+      "references" : [ {
+        "description" : "CIS Benchmark Compliance Status",
+        "url" : "https://www.cisecurity.org/cis-benchmarks"
+      }, {
+        "description" : "DISA STIG Status Types",
+        "url" : "https://public.cyber.mil/stigs/srg-stig-tools/"
+      } ],
+      "requirement" : "recommended",
+      "caption" : "Status",
+      "type_name" : "String"
+    },
+    "version" : {
+      "type" : "string_t",
+      "description" : "The check version. For example, CIS Benchmark: <code>1.1.0</code> for Amazon Linux 2 or DISA STIG: <code>V2R1</code> for Windows 10.",
+      "references" : [ {
+        "description" : "CIS Benchmark Versioning",
+        "url" : "https://www.cisecurity.org/cis-benchmarks"
+      }, {
+        "description" : "DISA STIG Version Numbering",
+        "url" : "https://public.cyber.mil/stigs/downloads"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Version",
+      "type_name" : "String"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The detailed description of the compliance check, explaining the security requirement, vulnerability, or configuration being assessed. For example, CIS: <code>The cramfs filesystem type is a compressed read-only Linux filesystem. Removing support for unneeded filesystem types reduces the local attack surface.</code> or DISA STIG: <code>Unauthorized access to the information system by foreign entities may result in loss or compromise of data.</code>",
+      "references" : [ {
+        "description" : "CIS Benchmark Rationales",
+        "url" : "https://www.cisecurity.org/cis-benchmarks"
+      }, {
+        "description" : "DISA STIG Vulnerability Discussions",
+        "url" : "https://public.cyber.mil/stigs/downloads"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the compliance check within its standard or framework. For example, CIS Benchmark identifier <code>1.1.1.1</code>, DISA STIG identifier <code>V-230234</code>, or NIST control identifier <code>AC-17(2)</code>.",
+      "references" : [ {
+        "description" : "CIS Benchmark ID Format",
+        "url" : "https://www.cisecurity.org/cis-benchmarks"
+      }, {
+        "description" : "DISA STIG ID Format",
+        "url" : "https://public.cyber.mil/stigs/downloads"
+      }, {
+        "description" : "NIST SP 800-53 Control IDs",
+        "url" : "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final"
+      } ],
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "resource" : {
+      "type" : "object_t",
+      "description" : "Describes details about the resource that this check evaluated.",
+      "requirement" : "optional",
+      "caption" : "Resource",
+      "object_type" : "resource_details",
+      "object_name" : "Resource Details"
+    },
+    "severity" : {
+      "type" : "string_t",
+      "description" : "The severity level as defined in the source document. For example CIS Benchmarks, valid values are: <code>Level 1</code> (security-forward, essential settings), <code>Level 2</code> (security-focused environment, more restrictive), or <code>Scored/Not Scored</code> (whether compliance can be automatically checked). For DISA STIG, valid values are: <code>CAT I</code> (maps to severity_id 5/Critical), <code>CAT II</code> (maps to severity_id 4/High), or <code>CAT III</code> (maps to severity_id 3/Medium).",
+      "references" : [ {
+        "description" : "CIS Benchmarks Levels",
+        "url" : "https://www.cisecurity.org/cis-benchmarks"
+      }, {
+        "description" : "DISA STIGs Category Guide",
+        "url" : "https://public.cyber.mil/stigs"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Severity",
+      "type_name" : "String"
+    },
+    "severity_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Maps to CIS Benchmark <code>Level 1</code> - Essential security settings recommended for all systems, or DISA STIG <code>CAT III</code> - Action is required but the situation is not serious at this time.",
+          "caption" : "Medium"
+        },
+        "6" : {
+          "description" : "An error occurred but it is too late to take remedial action.",
+          "caption" : "Fatal"
+        },
+        "0" : {
+          "description" : "The severity is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "Informational message. No action required.",
+          "caption" : "Informational"
+        },
+        "2" : {
+          "description" : "The user decides if action is needed.",
+          "caption" : "Low"
+        },
+        "99" : {
+          "description" : "The severity is not mapped. See the <code>severity</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Maps to CIS Benchmark <code>Level 2</code> - More restrictive and security-focused settings for sensitive environments, or DISA STIG <code>CAT II</code> - Action is required immediately.",
+          "caption" : "High"
+        },
+        "5" : {
+          "description" : "Maps to DISA STIG <code>CAT I</code> - Action is required immediately and the scope is broad.",
+          "caption" : "Critical"
+        }
+      },
+      "description" : "The normalized severity identifier that maps severity levels to standard severity levels. For example CIS Benchmark: <code>Level 2</code> maps to <code>4</code> (High), <code>Level 1</code> maps to <code>3</code> (Medium). For DISA STIG: <code>CAT I</code> maps to <code>5</code> (Critical), <code>CAT II</code> maps to <code>4</code> (High), and <code>CAT III</code> maps to <code>3</code> (Medium).",
+      "requirement" : "optional",
+      "caption" : "Severity ID",
+      "sibling" : "severity",
+      "type_name" : "Integer"
+    },
+    "standards" : {
+      "type" : "string_t",
+      "description" : "The regulatory or industry standard this check is associated with. E.g., <code>PCI DSS 3.2.1</code>, <code>HIPAA Security Rule</code>, <code>NIST SP 800-53 Rev. 5</code>, or <code>ISO/IEC 27001:2013</code>.",
+      "is_array" : true,
+      "references" : [ {
+        "description" : "PCI DSS 3.2.1",
+        "url" : "https://www.pcisecuritystandards.org/document_library"
+      }, {
+        "description" : "HIPAA Security Rule",
+        "url" : "https://www.hhs.gov/hipaa/for-professionals/security/laws-regulations/index.html"
+      }, {
+        "description" : "NIST SP 800-53 Rev. 5",
+        "url" : "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final"
+      }, {
+        "description" : "ISO/IEC 27001:2013",
+        "url" : "https://www.iso.org/standard/54534.html"
+      } ],
+      "requirement" : "recommended",
+      "caption" : "Compliance Standards: List",
+      "type_name" : "String"
+    },
+    "status_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The compliance check failed for at least one of the evaluated resources.",
+          "caption" : "Fail"
+        },
+        "0" : {
+          "description" : "The status is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The compliance check passed for all the evaluated resources.",
+          "caption" : "Pass"
+        },
+        "2" : {
+          "description" : "The compliance check did not yield a result due to missing information.",
+          "caption" : "Warning"
+        },
+        "99" : {
+          "description" : "The event status is not mapped. See the <code>status</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized status identifier of the compliance check.",
+      "requirement" : "recommended",
+      "caption" : "Status ID",
+      "sibling" : "status",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "check",
+  "description" : "The check object defines a specific, testable compliance verification point that evaluates a target device against a standard, framework, or custom requirement. While checks are typically associated with formal standards (like CIS, NIST, or ISO), they can also represent custom or organizational requirements. When mapped to controls, checks can evaluate specific control_parameters to determine compliance status, but neither the control mapping nor control_parameters are required for a valid check.",
+  "extends" : "object",
+  "caption" : "Check",
+  "profiles" : [ "cloud", "data_classification" ],
+  "_links" : [ ]
+}

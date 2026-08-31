@@ -1,0 +1,55 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the configuration or signal being assessed. For example: <code>Kernel Mode Code Integrity (KMCI)</code> or <code>publicAccessibilityState</code>.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The description of the assessment criteria, or a description of the specific configuration or signal the assessment is targeting.",
+      "requirement" : "recommended",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the configuration or signal being assessed. For example: the <code>signal_id</code>.",
+      "requirement" : "optional",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "category" : {
+      "type" : "string_t",
+      "description" : "The category that the assessment is part of. For example: <code>Prevention</code> or <code>Windows 10</code>.",
+      "requirement" : "optional",
+      "caption" : "Category",
+      "type_name" : "String"
+    },
+    "meets_criteria" : {
+      "type" : "boolean_t",
+      "description" : "Determines whether the assessment against the specific configuration or signal meets the assessments criteria. For example, if the assessment checks if a <code>Datastore</code> is encrypted or not, having encryption would be evaluated as <code>true</code>.",
+      "requirement" : "required",
+      "caption" : "Meets Criteria",
+      "type_name" : "Boolean"
+    },
+    "policy" : {
+      "type" : "object_t",
+      "description" : "The details of any policy associated with an assessment.",
+      "requirement" : "optional",
+      "caption" : "Assessment Policy",
+      "object_type" : "policy",
+      "object_name" : "Policy"
+    }
+  },
+  "name" : "assessment",
+  "description" : "The Assessment object describes a point-in-time assessment, check, or evaluation of a specific configuration or signal against an asset, entity, person, or otherwise. For example, this can encapsulate <code>os_signals</code> from CrowdStrike Falcon Zero Trust Assessments, or account for <code>Datastore</code> configurations from Cyera, or capture details of Microsoft Intune configuration policies.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Assessment",
+  "_links" : [ ]
+}

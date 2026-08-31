@@ -1,0 +1,38 @@
+{
+  "attributes" : {
+    "port" : {
+      "type" : "port_t",
+      "description" : "The port number. For example: <code>80</code>, <code>443</code>, <code>22</code>.",
+      "requirement" : "required",
+      "caption" : "Port",
+      "type_name" : "Port"
+    },
+    "protocol_name" : {
+      "type" : "string_t",
+      "description" : "The IP protocol name in lowercase, as defined by the Internet Assigned Numbers Authority (IANA). For example: <code>tcp</code> or <code>udp</code>.",
+      "references" : [ {
+        "description" : "IANA Protocol Numbers",
+        "url" : "https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml"
+      } ],
+      "requirement" : "recommended",
+      "caption" : "Protocol Name",
+      "type_name" : "String"
+    },
+    "protocol_num" : {
+      "type" : "integer_t",
+      "description" : "The IP protocol number, as defined by the Internet Assigned Numbers Authority (IANA). For example: <code>6</code> for TCP and <code>17</code> for UDP.",
+      "references" : [ {
+        "description" : "IANA Protocol Numbers",
+        "url" : "https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Protocol Number",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "port_info",
+  "description" : "The Port Information object describes a port and its associated protocol details.",
+  "extends" : "object",
+  "caption" : "Port Information",
+  "_links" : [ ]
+}

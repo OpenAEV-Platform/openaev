@@ -1,0 +1,44 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The CIS benchmark name.",
+      "requirement" : "required",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The CIS benchmark description.",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "remediation" : {
+      "type" : "object_t",
+      "description" : "Describes the recommended remediation steps to address identified issue(s).",
+      "requirement" : "optional",
+      "caption" : "Remediation Guidance",
+      "object_type" : "remediation",
+      "object_name" : "Remediation"
+    },
+    "rule" : {
+      "type" : "object_t",
+      "description" : "The CIS benchmark rule.",
+      "requirement" : "optional",
+      "caption" : "Rule",
+      "object_type" : "rule",
+      "object_name" : "Rule"
+    }
+  },
+  "name" : "cis_benchmark_result",
+  "description" : "The CIS Benchmark Result object contains information as defined by the Center for Internet Security (<a target='_blank' href='https://www.cisecurity.org/cis-benchmarks/'>CIS</a>) benchmark result. CIS Benchmarks are a collection of best practices for securely configuring IT systems, software, networks, and cloud infrastructure.",
+  "extends" : "object",
+  "caption" : "CIS Benchmark Result",
+  "profiles" : [ "data_classification" ],
+  "_links" : [ ],
+  "@deprecated" : {
+    "message" : "Use the Compliance object with Checks object instead.",
+    "since" : "1.5.0"
+  }
+}

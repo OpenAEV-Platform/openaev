@@ -1,0 +1,102 @@
+{
+  "attributes" : {
+    "type" : {
+      "type" : "string_t",
+      "description" : "The module type.",
+      "requirement" : "recommended",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "file" : {
+      "type" : "object_t",
+      "description" : "The module file object.",
+      "requirement" : "recommended",
+      "caption" : "File",
+      "object_type" : "file",
+      "object_name" : "File"
+    },
+    "base_address" : {
+      "type" : "string_t",
+      "description" : "The memory address where the module was loaded.",
+      "requirement" : "recommended",
+      "caption" : "Base Address",
+      "type_name" : "String"
+    },
+    "function_invocation" : {
+      "type" : "object_t",
+      "description" : "Details about the invocation of the function given in <code>function_name</code>.",
+      "requirement" : "optional",
+      "caption" : "Function Invocation",
+      "object_type" : "function_invocation",
+      "object_name" : "Function Invocation"
+    },
+    "function_name" : {
+      "type" : "string_t",
+      "description" : "The invoked function in the module. For load and unload events, this is the entry-point function of the module. The system calls the entry-point function whenever a process or thread loads or unloads the module.",
+      "requirement" : "recommended",
+      "caption" : "Function Name",
+      "type_name" : "String"
+    },
+    "load_type" : {
+      "type" : "string_t",
+      "description" : "The load type, normalized to the caption of the load_type_id value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Load Type",
+      "type_name" : "String"
+    },
+    "load_type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "A raw module in process memory that is READWRITE_EXECUTE and had a thread started in its range.",
+          "caption" : "ShellCode"
+        },
+        "0" : {
+          "description" : "The load type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "A normal module loaded by the normal windows loading mechanism i.e. LoadLibrary.",
+          "caption" : "Standard"
+        },
+        "2" : {
+          "description" : "A module loaded in a way avoidant of normal windows procedures. i.e. Bootstrapped Loading/Manual Dll Loading.",
+          "caption" : "Non Standard"
+        },
+        "99" : {
+          "description" : "The load type is not mapped. See the <code>load_type</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "A memory mapped file, typically created with CreatefileMapping/MapViewOfFile.",
+          "caption" : "Mapped"
+        },
+        "5" : {
+          "description" : "A module loaded in a non standard way. However, GetModuleFileName succeeds on this allocation.",
+          "caption" : "NonStandard Backed"
+        }
+      },
+      "description" : "The normalized identifier for how the module was loaded in memory.",
+      "requirement" : "recommended",
+      "caption" : "Load Type ID",
+      "sibling" : "load_type",
+      "type_name" : "Integer"
+    },
+    "start_address" : {
+      "type" : "string_t",
+      "description" : "The start address of the execution.",
+      "requirement" : "recommended",
+      "caption" : "Start Address",
+      "type_name" : "String"
+    }
+  },
+  "name" : "module",
+  "description" : "The Module object describes the attributes of a module.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "load_type_id", "function_name" ]
+  },
+  "caption" : "Module",
+  "profiles" : [ "data_classification" ],
+  "_links" : [ ]
+}

@@ -1,0 +1,85 @@
+{
+  "attributes" : {
+    "version" : {
+      "type" : "string_t",
+      "description" : "The CVSS version. For example: <code>3.1</code>.",
+      "requirement" : "required",
+      "caption" : "Version",
+      "type_name" : "String"
+    },
+    "depth" : {
+      "type" : "string_t",
+      "enum" : {
+        "Base" : {
+          "caption" : "Base"
+        },
+        "Environmental" : {
+          "caption" : "Environmental"
+        },
+        "Temporal" : {
+          "caption" : "Temporal"
+        }
+      },
+      "description" : "The CVSS depth represents a depth of the equation used to calculate CVSS score.",
+      "requirement" : "recommended",
+      "caption" : "CVSS Depth",
+      "type_name" : "String"
+    },
+    "severity" : {
+      "type" : "string_t",
+      "description" : "<p>The Common Vulnerability Scoring System (CVSS) Qualitative Severity Rating. A textual representation of the numeric score.</p><strong>CVSS v2.0</strong><ul><li>Low (0.0 – 3.9)</li><li>Medium (4.0 – 6.9)</li><li>High (7.0 – 10.0)</li></ul></p><strong>CVSS v3.0</strong><ul><li>None (0.0)</li><li>Low (0.1 - 3.9)</li><li>Medium (4.0 - 6.9)</li><li>High (7.0 - 8.9)</li><li>Critical (9.0 - 10.0)</li></ul>",
+      "requirement" : "optional",
+      "caption" : "Severity",
+      "type_name" : "String"
+    },
+    "metrics" : {
+      "type" : "object_t",
+      "description" : "The Common Vulnerability Scoring System metrics. This attribute contains information on the CVE's impact. If the CVE has been analyzed, this attribute will contain any CVSSv2 or CVSSv3 information associated with the vulnerability. For example: <code>{ {\"Access Vector\", \"Network\"}, {\"Access Complexity\", \"Low\"}, ...}</code>.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Metrics",
+      "object_type" : "metric",
+      "object_name" : "Metric"
+    },
+    "base_score" : {
+      "type" : "float_t",
+      "description" : "The CVSS base score. For example: <code>9.1</code>.",
+      "requirement" : "required",
+      "caption" : "Base Score",
+      "type_name" : "Float"
+    },
+    "overall_score" : {
+      "type" : "float_t",
+      "description" : "The CVSS overall score, impacted by base, temporal, and environmental metrics. For example: <code>9.1</code>.",
+      "requirement" : "recommended",
+      "caption" : "Overall Score",
+      "type_name" : "Float"
+    },
+    "src_url" : {
+      "type" : "url_t",
+      "description" : "The source URL for the CVSS score. For example: <code>https://nvd.nist.gov/vuln/detail/CVE-2021-44228</code>",
+      "requirement" : "optional",
+      "caption" : "Source URL",
+      "type_name" : "URL String"
+    },
+    "vector_string" : {
+      "type" : "string_t",
+      "description" : "The CVSS vector string is a text representation of a set of CVSS metrics. It is commonly used to record or transfer CVSS metric information in a concise form. For example: <code>3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:H</code>.",
+      "requirement" : "optional",
+      "caption" : "Vector String",
+      "type_name" : "String"
+    },
+    "vendor_name" : {
+      "type" : "string_t",
+      "description" : "The vendor that provided the CVSS score. For example: <code>NVD, REDHAT</code> etc.",
+      "requirement" : "recommended",
+      "caption" : "Vendor Name",
+      "type_name" : "String"
+    }
+  },
+  "name" : "cvss",
+  "description" : "The Common Vulnerability Scoring System (<a target='_blank' href='https://www.first.org/cvss/'>CVSS</a>) object provides a way to capture the principal characteristics of a vulnerability and produce a numerical score reflecting its severity.",
+  "extends" : "object",
+  "caption" : "CVSS Score",
+  "_links" : [ ]
+}

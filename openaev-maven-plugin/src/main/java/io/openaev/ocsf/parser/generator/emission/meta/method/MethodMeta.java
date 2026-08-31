@@ -7,6 +7,7 @@ import io.openaev.ocsf.parser.generator.emission.render.Helper;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.Getter;
 
 public class MethodMeta implements Emitter {
   private final Set<AnnotationMeta> annotations = new HashSet<>();
@@ -14,7 +15,7 @@ public class MethodMeta implements Emitter {
   private final Set<Class<? extends Throwable>> throwables = new HashSet<>();
   private final Modifier modifier;
   private final String returnType;
-  private final String name;
+  @Getter private final String name;
   private final String body;
 
   public MethodMeta(Modifier modifier, String returnType, String name, String body) {

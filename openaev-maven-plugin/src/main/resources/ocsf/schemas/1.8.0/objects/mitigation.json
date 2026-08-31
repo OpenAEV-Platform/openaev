@@ -1,0 +1,52 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The Mitigation name that is associated with the attack technique. For example: <code>Password Policies</code>, or <code>Code Signing</code>.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The Mitigation ID that is associated with the attack technique. For example: <code>M1027</code>, or <code>AML.M0013</code>.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "countermeasures" : {
+      "type" : "object_t",
+      "description" : "The D3FEND countermeasures that are associated with the attack technique. For example: ATT&CK Technique <code>T1003</code> is addressed by Mitigation <code>M1027</code>, and D3FEND Technique <code>D3-OTP</code>.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Countermeasures",
+      "object_type" : "d3fend",
+      "object_name" : "MITRE D3FEND™"
+    },
+    "src_url" : {
+      "type" : "url_t",
+      "description" : "The versioned permalink of the Mitigation. For example: <code>https://attack.mitre.org/versions/v14/mitigations/M1027</code>.",
+      "requirement" : "optional",
+      "caption" : "Source URL",
+      "type_name" : "URL String"
+    }
+  },
+  "name" : "mitigation",
+  "description" : "The MITRE Mitigation object describes the ATT&CK® or ATLAS™ Mitigation ID and/or name that is associated to an attack.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "ATT&CK® Matrix",
+    "url" : "https://attack.mitre.org"
+  }, {
+    "description" : "ATLAS™ Matrix",
+    "url" : "https://atlas.mitre.org/matrices/ATLAS"
+  }, {
+    "description" : "ATT&CK® Mitigation to D3FEND™ Technique Mappings",
+    "url" : "https://d3fend.mitre.org/mappings/attack-mitigations/"
+  } ],
+  "caption" : "MITRE Mitigation",
+  "_links" : [ ]
+}

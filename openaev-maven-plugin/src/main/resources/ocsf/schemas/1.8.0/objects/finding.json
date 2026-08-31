@@ -1,0 +1,153 @@
+{
+  "attributes" : {
+    "title" : {
+      "type" : "string_t",
+      "description" : "A title or a brief phrase summarizing the reported finding.",
+      "requirement" : "required",
+      "caption" : "Title",
+      "type_name" : "String"
+    },
+    "product" : {
+      "type" : "object_t",
+      "description" : "Details about the product that reported the finding.",
+      "requirement" : "optional",
+      "caption" : "Product",
+      "object_type" : "product",
+      "object_name" : "Product"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The description of the reported finding.",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the reported finding.",
+      "requirement" : "required",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "types" : {
+      "type" : "string_t",
+      "description" : "One or more types of the reported finding.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Types",
+      "type_name" : "String"
+    },
+    "remediation" : {
+      "type" : "object_t",
+      "description" : "Describes the recommended remediation steps to address identified issue(s).",
+      "requirement" : "optional",
+      "caption" : "Remediation Guidance",
+      "object_type" : "remediation",
+      "object_name" : "Remediation"
+    },
+    "created_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the finding was created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "type_name" : "Timestamp"
+    },
+    "first_seen_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the finding was first observed.",
+      "requirement" : "optional",
+      "caption" : "First Seen",
+      "type_name" : "Timestamp"
+    },
+    "last_seen_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the finding was most recently observed.",
+      "requirement" : "optional",
+      "caption" : "Last Seen",
+      "type_name" : "Timestamp"
+    },
+    "modified_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the finding was last modified.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "type_name" : "Timestamp"
+    },
+    "product_uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the product that reported the finding.",
+      "requirement" : "optional",
+      "caption" : "Product Identifier",
+      "type_name" : "String",
+      "@deprecated" : {
+        "message" : "Use the <code>uid</code> attribute in the <code>product</code> object instead. See specific usage.",
+        "since" : "1.4.0"
+      }
+    },
+    "related_events" : {
+      "type" : "object_t",
+      "description" : "Describes events and/or other findings related to the finding as identified by the security product. Note that these events may or may not be in OCSF.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Related Events/Findings",
+      "object_type" : "related_event",
+      "object_name" : "Related Event/Finding"
+    },
+    "src_url" : {
+      "type" : "url_t",
+      "description" : "The URL pointing to the source of the finding.",
+      "requirement" : "optional",
+      "caption" : "Source URL",
+      "type_name" : "URL String"
+    },
+    "supporting_data" : {
+      "type" : "json_t",
+      "description" : "Additional data supporting a finding as provided by security tool",
+      "requirement" : "optional",
+      "caption" : "Supporting Data",
+      "type_name" : "JSON"
+    },
+    "created_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the finding was created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "first_seen_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the finding was first observed.",
+      "requirement" : "optional",
+      "caption" : "First Seen",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "last_seen_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the finding was most recently observed.",
+      "requirement" : "optional",
+      "caption" : "Last Seen",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "modified_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the finding was last modified.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "finding",
+  "description" : "The Finding object describes metadata related to a security finding generated by a security tool or system.",
+  "extends" : "object",
+  "caption" : "Finding",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ],
+  "@deprecated" : {
+    "message" : "Use the new <code>finding_info</code> object.",
+    "since" : "1.0.0"
+  }
+}

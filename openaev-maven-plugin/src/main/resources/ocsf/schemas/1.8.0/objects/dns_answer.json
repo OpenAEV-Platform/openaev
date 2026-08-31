@@ -1,0 +1,93 @@
+{
+  "attributes" : {
+    "flags" : {
+      "type" : "string_t",
+      "description" : "The list of DNS answer header flags.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "DNS Header Flags",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The type of data contained in this resource record. See <a target='_blank' href='https://www.rfc-editor.org/rfc/rfc1035.txt'>RFC1035</a>. For example: <code>CNAME</code>.",
+      "requirement" : "recommended",
+      "caption" : "Resource Record Type",
+      "type_name" : "String"
+    },
+    "ttl" : {
+      "type" : "integer_t",
+      "description" : "The time interval that the resource record may be cached. Zero value means that the resource record can only be used for the transaction in progress, and should not be cached.",
+      "requirement" : "recommended",
+      "caption" : "TTL",
+      "type_name" : "Integer"
+    },
+    "class" : {
+      "type" : "string_t",
+      "description" : "The class of DNS data contained in this resource record. See <a target='_blank' href='https://www.rfc-editor.org/rfc/rfc1035.txt'>RFC1035</a>. For example: <code>IN</code>.",
+      "requirement" : "recommended",
+      "caption" : "Resource Record Class",
+      "type_name" : "String"
+    },
+    "flag_ids" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "caption" : "Recursion Desired"
+        },
+        "6" : {
+          "caption" : "Checking Disabled"
+        },
+        "0" : {
+          "description" : "The flag is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "caption" : "Authoritative Answer"
+        },
+        "2" : {
+          "caption" : "Truncated Response"
+        },
+        "99" : {
+          "description" : "The flag is not mapped. See the <code>flags</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "caption" : "Recursion Available"
+        },
+        "5" : {
+          "caption" : "Authentic Data"
+        }
+      },
+      "description" : "The list of DNS answer header flag IDs.",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "DNS Header Flags",
+      "sibling" : "flags",
+      "type_name" : "Integer"
+    },
+    "packet_uid" : {
+      "type" : "integer_t",
+      "description" : "The DNS packet identifier assigned by the program that generated the query. The identifier is copied to the response.",
+      "requirement" : "recommended",
+      "caption" : "Packet UID",
+      "type_name" : "Integer"
+    },
+    "rdata" : {
+      "type" : "string_t",
+      "description" : "The data describing the DNS resource. The meaning of this data depends on the type and class of the resource record.",
+      "requirement" : "required",
+      "caption" : "DNS RData",
+      "type_name" : "String"
+    }
+  },
+  "name" : "dns_answer",
+  "description" : "The DNS Answer object represents a specific response provided by the Domain Name System (DNS) when querying for information about a domain or performing a DNS operation. It encapsulates the relevant details and data returned by the DNS server in response to a query.",
+  "extends" : "_dns",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:InboundInternetDNSResponseTraffic.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:InboundInternetDNSResponseTraffic/"
+  } ],
+  "caption" : "DNS Answer",
+  "_links" : [ ]
+}

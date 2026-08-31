@@ -1,0 +1,40 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the attack sub-technique. For example: <code>Scanning IP Blocks</code> or <code>User Execution: Unsafe ML Artifacts</code>.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the attack sub-technique. For example: <code>T1595.001</code> or <code>AML.T0011.000</code>.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "src_url" : {
+      "type" : "url_t",
+      "description" : "The versioned permalink of the attack sub-technique. For example: <code>https://attack.mitre.org/versions/v14/techniques/T1595/001/</code>.",
+      "requirement" : "optional",
+      "caption" : "Source URL",
+      "type_name" : "URL String"
+    }
+  },
+  "name" : "sub_technique",
+  "description" : "The MITRE Sub-technique object describes the ATT&CK® or ATLAS™ Sub-technique ID and/or name associated to an attack.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "ATT&CK® Matrix",
+    "url" : "https://attack.mitre.org"
+  }, {
+    "description" : "ATLAS™ Matrix",
+    "url" : "https://atlas.mitre.org/matrices/ATLAS"
+  } ],
+  "caption" : "MITRE Sub-technique",
+  "_links" : [ ]
+}

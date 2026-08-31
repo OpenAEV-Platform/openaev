@@ -1,0 +1,100 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The HTTP cookie name.",
+      "requirement" : "required",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "value" : {
+      "type" : "string_t",
+      "description" : "The HTTP cookie value.",
+      "requirement" : "required",
+      "caption" : "Value",
+      "type_name" : "String"
+    },
+    "path" : {
+      "type" : "string_t",
+      "description" : "The path of the HTTP cookie.",
+      "requirement" : "optional",
+      "caption" : "Path",
+      "type_name" : "String"
+    },
+    "domain" : {
+      "type" : "string_t",
+      "description" : "The domain name for the server from which the http_cookie is served.",
+      "requirement" : "optional",
+      "caption" : "Domain",
+      "type_name" : "String"
+    },
+    "secure" : {
+      "type" : "boolean_t",
+      "description" : "The cookie attribute to only send cookies to the server with an encrypted request over the HTTPS protocol.",
+      "requirement" : "optional",
+      "caption" : "Secure",
+      "type_name" : "Boolean",
+      "@deprecated" : {
+        "message" : "Use the <code>is_secure</code> attribute instead.",
+        "since" : "1.1.0"
+      }
+    },
+    "http_only" : {
+      "type" : "boolean_t",
+      "description" : "A cookie attribute to make it inaccessible via JavaScript",
+      "requirement" : "optional",
+      "caption" : "HTTP Only",
+      "type_name" : "Boolean",
+      "@deprecated" : {
+        "message" : "Use the <code>is_http_only</code> attribute instead.",
+        "since" : "1.1.0"
+      }
+    },
+    "expiration_time" : {
+      "type" : "timestamp_t",
+      "description" : "The expiration time of the HTTP cookie.",
+      "requirement" : "optional",
+      "caption" : "Expiration Time",
+      "type_name" : "Timestamp"
+    },
+    "is_http_only" : {
+      "type" : "boolean_t",
+      "description" : "This attribute prevents the cookie from being accessed via JavaScript.",
+      "requirement" : "optional",
+      "caption" : "HTTP Only",
+      "type_name" : "Boolean"
+    },
+    "is_secure" : {
+      "type" : "boolean_t",
+      "description" : "The cookie attribute indicates that cookies are sent to the server only when the request is encrypted using the HTTPS protocol.",
+      "requirement" : "optional",
+      "caption" : "Secure",
+      "type_name" : "Boolean"
+    },
+    "samesite" : {
+      "type" : "string_t",
+      "description" : "The cookie attribute that lets servers specify whether/when cookies are sent with cross-site requests. Values are: Strict, Lax or None",
+      "requirement" : "optional",
+      "caption" : "SameSite",
+      "type_name" : "String"
+    },
+    "expiration_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The expiration time of the HTTP cookie.",
+      "requirement" : "optional",
+      "caption" : "Expiration Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "http_cookie",
+  "description" : "The HTTP Cookie object, also known as a web cookie or browser cookie, contains details and values pertaining to a small piece of data that a server sends to a user's web browser. This data is then stored by the browser and sent back to the server with subsequent requests, allowing the server to remember and track certain information about the user's browsing session or preferences.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:SessionCookie.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:SessionCookie/"
+  } ],
+  "caption" : "HTTP Cookie",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}

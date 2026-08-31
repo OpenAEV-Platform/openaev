@@ -1,0 +1,122 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The graph name - a human readable identifier for the graph.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The graph type. Typically useful to represent the specific type of graph that is used.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "nodes" : {
+      "type" : "object_t",
+      "description" : "The nodes/vertices of the graph - contains the collection of <code>node</code> objects that make up the graph.",
+      "is_array" : true,
+      "requirement" : "required",
+      "caption" : "Nodes",
+      "object_type" : "node",
+      "object_name" : "Node"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The graph description - provides additional details about the graph's purpose and contents.",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "Unique identifier of the graph - a unique ID to reference this specific graph.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "edges" : {
+      "type" : "object_t",
+      "description" : "The edges/connections between nodes in the graph - contains the collection of <code>edge</code> objects defining relationships between nodes.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Edges",
+      "object_type" : "edge",
+      "object_name" : "Edge"
+    },
+    "is_directed" : {
+      "type" : "boolean_t",
+      "description" : "Indicates if the graph is directed (<code>true</code>) or undirected (<code>false</code>).",
+      "requirement" : "optional",
+      "caption" : "Directed",
+      "type_name" : "Boolean"
+    },
+    "query_language" : {
+      "type" : "string_t",
+      "description" : "The graph query language, normalized to the caption of the <code>query_language_id</code> value.",
+      "requirement" : "optional",
+      "caption" : "Query Language",
+      "type_name" : "String"
+    },
+    "query_language_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "A graph traversal language and virtual machine developed by Apache TinkerPop that enables graph computing across different graph databases.",
+          "caption" : "Gremlin"
+        },
+        "6" : {
+          "description" : "Property Graph Query Language developed by Oracle that provides SQL-like syntax for querying property graphs.",
+          "caption" : "PGQL"
+        },
+        "0" : {
+          "description" : "The Query Language is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "A declarative graph query language developed by Neo4j that allows for expressive and efficient querying of graph databases.",
+          "caption" : "Cypher"
+        },
+        "2" : {
+          "description" : "A query language for APIs that enables declarative data fetching and provides a complete description of the data in the API.",
+          "caption" : "GraphQL"
+        },
+        "99" : {
+          "description" : "The Query Language is not mapped. See the <code>query_language</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "An ISO standard graph query language designed to provide a unified way to query graph databases.",
+          "caption" : "GQL"
+        },
+        "5" : {
+          "description" : "A graph query language that combines features from existing languages while adding support for paths as first-class citizens.",
+          "caption" : "G-CORE"
+        },
+        "7" : {
+          "description" : "A semantic query language for databases that enables querying and manipulating data stored in RDF format.",
+          "caption" : "SPARQL"
+        }
+      },
+      "description" : "The normalized identifier of a graph query language that can be used to interact with the graph.",
+      "requirement" : "recommended",
+      "caption" : "Query Language ID",
+      "sibling" : "query_language",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "graph",
+  "description" : "A graph data structure representation with nodes and edges.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "JSON graph specification.",
+    "url" : "https://github.com/jsongraph/json-graph-specification/"
+  } ],
+  "caption" : "Graph",
+  "_links" : [ ]
+}

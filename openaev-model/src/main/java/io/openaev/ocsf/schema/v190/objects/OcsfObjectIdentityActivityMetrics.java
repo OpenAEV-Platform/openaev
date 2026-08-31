@@ -2,32 +2,33 @@ package io.openaev.ocsf.schema.v190.objects;
 
 import io.openaev.ocsf.schema.OcsfObject;
 
+@lombok.Getter
 public class OcsfObjectIdentityActivityMetrics extends OcsfObject {
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "last_seen_time")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT lastSeenTimeField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "first_seen_time_dt")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT firstSeenTimeDtField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "first_seen_time")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT firstSeenTimeField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "last_authentication_time_dt")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT lastAuthenticationTimeDtField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "password_last_used_time_dt")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT passwordLastUsedTimeDtField;
-
   @com.fasterxml.jackson.annotation.JsonProperty(value = "last_authentication_time")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT lastAuthenticationTimeField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "last_seen_time_dt")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT lastSeenTimeDtField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "last_seen_time")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT lastSeenTimeField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "password_last_used_time_dt")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT passwordLastUsedTimeDtField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "password_last_used_time")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT passwordLastUsedTimeField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "programmatic_credentials")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectProgrammaticCredential
+  private java.util.List<io.openaev.ocsf.schema.v190.objects.OcsfObjectProgrammaticCredential>
       programmaticCredentialsField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "first_seen_time")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT firstSeenTimeField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "first_seen_time_dt")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT firstSeenTimeDtField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "last_seen_time_dt")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT lastSeenTimeDtField;
 }

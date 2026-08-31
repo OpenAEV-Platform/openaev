@@ -1,0 +1,48 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the trait.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The type of the trait. For example, this can be used to indicate if the trait acts as a contributing factor (increases risk/severity) or a mitigating factor (decreases risk/severity), in the context of the related finding.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "values" : {
+      "type" : "string_t",
+      "description" : "The values of the trait.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Values",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the trait.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "category" : {
+      "type" : "string_t",
+      "description" : "The high-level grouping or classification this trait belongs to.",
+      "requirement" : "optional",
+      "caption" : "Category",
+      "type_name" : "String"
+    }
+  },
+  "name" : "trait",
+  "description" : "Describes a characteristic or feature of an entity that was observed. For example, this object can be used to represent specific characteristics derived from events or findings that can be surfaced as distinguishing traits of the entity in question.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Trait",
+  "_links" : [ ]
+}

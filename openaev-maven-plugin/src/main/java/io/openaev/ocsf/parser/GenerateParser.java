@@ -31,6 +31,12 @@ public class GenerateParser extends AbstractMojo {
   @Parameter(property = "reason", name = "reason", required = true, defaultValue = "migration")
   private String reason;
 
+  @Parameter(
+      property = "version",
+      name = "version",
+      defaultValue = OcsfSchemaVersionString.STRING_1_9_0)
+  private String version;
+
   private final ClassNameGenerator classNameGenerator;
   private final ClassContentsGenerator classContentsGenerator;
   private final ClassFileWriter classFileWriter;
@@ -94,7 +100,7 @@ public class GenerateParser extends AbstractMojo {
             path.resolve("openaev-maven-plugin/src/main/resources"),
             path.resolve("openaev-model").resolve(subLocation));
     try {
-      SchemaSource schemaSource = Ocsf.schema(OcsfSchemaVersion._1_9_0, ctx);
+      SchemaSource schemaSource = Ocsf.schema(OcsfSchemaVersion.fromString(version), ctx);
       Generator generator = new Generator(schemaSource, ctx);
       generator.generate();
     } catch (IOException e) {

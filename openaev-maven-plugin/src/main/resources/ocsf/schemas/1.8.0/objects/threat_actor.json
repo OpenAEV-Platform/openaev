@@ -1,0 +1,53 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the threat actor.",
+      "requirement" : "required",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The classification of the threat actor based on their motivations, capabilities, or affiliations. Common types include nation-state actors, cybercriminal groups, hacktivists, or insider threats.",
+      "requirement" : "optional",
+      "caption" : "Threat Actor Type",
+      "type_name" : "String"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "caption" : "Hacktivists"
+        },
+        "0" : {
+          "description" : "The threat actor type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "caption" : "Nation-state"
+        },
+        "2" : {
+          "caption" : "Cybercriminal"
+        },
+        "99" : {
+          "description" : "The threat actor type is not mapped.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "caption" : "Insider"
+        }
+      },
+      "description" : "The normalized datastore resource type identifier.",
+      "requirement" : "recommended",
+      "caption" : "Threat Actor Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "threat_actor",
+  "description" : "Threat actor is responsible for the observed malicious activity.",
+  "extends" : "object",
+  "caption" : "Threat Actor",
+  "_links" : [ ]
+}

@@ -1,0 +1,28 @@
+{
+  "attributes" : {
+    "code" : {
+      "type" : "integer_t",
+      "description" : "A numerical response status code providing details about the connection.",
+      "requirement" : "recommended",
+      "caption" : "Response Code",
+      "type_name" : "Integer"
+    },
+    "network_endpoint" : {
+      "type" : "object_t",
+      "description" : "Provides characteristics of the network endpoint.",
+      "requirement" : "recommended",
+      "caption" : "Network Endpoint",
+      "object_type" : "network_endpoint",
+      "object_name" : "Network Endpoint"
+    }
+  },
+  "name" : "endpoint_connection",
+  "description" : "The Endpoint Connection object contains information detailing a connection attempt to an endpoint.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "network_endpoint", "code" ]
+  },
+  "caption" : "Endpoint Connection",
+  "profiles" : [ "container" ],
+  "_links" : [ ]
+}

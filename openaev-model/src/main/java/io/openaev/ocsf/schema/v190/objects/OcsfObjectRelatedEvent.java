@@ -2,33 +2,47 @@ package io.openaev.ocsf.schema.v190.objects;
 
 import io.openaev.ocsf.schema.OcsfObject;
 
+@lombok.Getter
 public class OcsfObjectRelatedEvent extends OcsfObject {
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "status")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT statusField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "attacks")
+  private java.util.List<io.openaev.ocsf.schema.v190.objects.OcsfObjectAttack> attacksField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "count")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT countField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "created_time_dt")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT createdTimeDtField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "created_time")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT createdTimeField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "desc")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT descField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "type_uid")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeLongT typeUidField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "kill_chain")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectKillChainPhase killChainField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "last_seen_time_dt")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT lastSeenTimeDtField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "first_seen_time_dt")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT firstSeenTimeDtField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "first_seen_time")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT firstSeenTimeField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "first_seen_time_dt")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT firstSeenTimeDtField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "kill_chain")
+  private java.util.List<io.openaev.ocsf.schema.v190.objects.OcsfObjectKillChainPhase>
+      killChainField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "severity_id")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT severityIdField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "last_seen_time_dt")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT lastSeenTimeDtField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "type")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT typeField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "last_seen_time")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT lastSeenTimeField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "modified_time_dt")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT modifiedTimeDtField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "modified_time")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT modifiedTimeField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "observables")
+  private java.util.List<io.openaev.ocsf.schema.v190.objects.OcsfObjectObservable> observablesField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "product")
   private io.openaev.ocsf.schema.v190.objects.OcsfObjectProduct productField;
@@ -36,45 +50,33 @@ public class OcsfObjectRelatedEvent extends OcsfObject {
   @com.fasterxml.jackson.annotation.JsonProperty(value = "product_uid")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT productUidField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "created_time_dt")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT createdTimeDtField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "severity")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT severityField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "uid")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT uidField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "severity_id")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT severityIdField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "modified_time")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT modifiedTimeField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "type_name")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT typeNameField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "attacks")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectAttack attacksField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "traits")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectTrait traitsField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "last_seen_time")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT lastSeenTimeField;
-
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "created_time")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT createdTimeField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "status")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT statusField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "tags")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectKeyValueObject tagsField;
+  private java.util.List<io.openaev.ocsf.schema.v190.objects.OcsfObjectKeyValueObject> tagsField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "title")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT titleField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "modified_time_dt")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT modifiedTimeDtField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "traits")
+  private java.util.List<io.openaev.ocsf.schema.v190.objects.OcsfObjectTrait> traitsField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "severity")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT severityField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "type")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT typeField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "observables")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectObservable observablesField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "type_name")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT typeNameField;
 
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "count")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT countField;
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "type_uid")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeLongT typeUidField;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "uid")
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT uidField;
 }

@@ -1,0 +1,430 @@
+{
+  "attributes" : {
+    "data" : {
+      "type" : "json_t",
+      "description" : "Additional data describing the resource.",
+      "requirement" : "optional",
+      "caption" : "Data",
+      "type_name" : "JSON"
+    },
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the resource object.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The type of the Windows resource object.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "resource_uid_t",
+      "description" : "The Windows provided handle identifier for the resource object",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "Resource UID"
+    },
+    "labels" : {
+      "type" : "string_t",
+      "description" : "The list of labels associated to the resource.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Labels",
+      "type_name" : "String"
+    },
+    "details" : {
+      "type" : "string_t",
+      "description" : "The string detailing the attributes of the resource object.",
+      "requirement" : "optional",
+      "caption" : "Details",
+      "type_name" : "String"
+    },
+    "tags" : {
+      "type" : "object_t",
+      "description" : "The list of tags; <code>{key:value}</code> pairs associated to the resource.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Tags",
+      "object_type" : "key_value_object",
+      "object_name" : "Key:Value object"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "32" : {
+          "references" : [ {
+            "description" : "Advanced Local Procedure Call (ALPC) Class",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/etw/alpc"
+          } ],
+          "caption" : "ALPC Port"
+        },
+        "15" : {
+          "references" : [ {
+            "description" : "Driver objects",
+            "url" : "https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/introduction-to-driver-objects"
+          } ],
+          "caption" : "Driver"
+        },
+        "37" : {
+          "references" : [ {
+            "description" : "Security Account Manager (SAM) Server",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/adschema/c-samserver"
+          } ],
+          "caption" : "SAM_SERVER"
+        },
+        "5" : {
+          "references" : [ {
+            "description" : "Mutex Objects and CreateMutex Function",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/sync/mutex-objects"
+          } ],
+          "caption" : "Mutant"
+        },
+        "20" : {
+          "references" : [ {
+            "description" : "Process objects and CreateProcess Function",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes"
+          } ],
+          "caption" : "Process"
+        },
+        "16" : {
+          "references" : [ {
+            "description" : "I/O Completion Ports",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/fileio/i-o-completion-ports"
+          } ],
+          "caption" : "IoCompletion"
+        },
+        "31" : {
+          "caption" : "FilterConnectionPort"
+        },
+        "25" : {
+          "caption" : "Key"
+        },
+        "8" : {
+          "references" : [ {
+            "description" : "Access Tokens and Token objects",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/secauthz/access-tokens"
+          } ],
+          "caption" : "Token"
+        },
+        "36" : {
+          "references" : [ {
+            "description" : "Security Account Manager (SAM) Domain",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/adschema/c-samdomain"
+          } ],
+          "caption" : "SAM_DOMAIN"
+        },
+        "22" : {
+          "references" : [ {
+            "description" : "Desktop objects",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/winstation/desktops"
+          } ],
+          "caption" : "Desktop"
+        },
+        "34" : {
+          "references" : [ {
+            "description" : "Security Account Manager (SAM) objects",
+            "url" : "https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/audit-sam"
+          } ],
+          "caption" : "SAM_GROUP"
+        },
+        "27" : {
+          "references" : [ {
+            "description" : "Callback objects",
+            "url" : "https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/callback-objects"
+          } ],
+          "caption" : "Callback"
+        },
+        "99" : {
+          "description" : "The resource object type is not mapped. See the <code>type</code> attribute, which may contain a data source specific value.",
+          "caption" : "Other"
+        },
+        "19" : {
+          "references" : [ {
+            "description" : "WMI Class Qualifiers",
+            "url" : "https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/wmi-class-qualifiers"
+          } ],
+          "caption" : "WmiGuid"
+        },
+        "4" : {
+          "references" : [ {
+            "description" : "Device Objects and I/O Manager",
+            "url" : "https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/device-objects-and-device-stacks"
+          } ],
+          "caption" : "Device"
+        },
+        "12" : {
+          "caption" : "DebugObject"
+        },
+        "29" : {
+          "references" : [ {
+            "description" : "Job objects and CreateJobObject Function",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects"
+          } ],
+          "caption" : "Job"
+        },
+        "24" : {
+          "references" : [ {
+            "description" : "Adapter objects",
+            "url" : "https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/adapter-objects-and-dma"
+          } ],
+          "caption" : "Adapter"
+        },
+        "1" : {
+          "references" : [ {
+            "description" : "Object Manager Directory Objects",
+            "url" : "https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/object-directories"
+          } ],
+          "caption" : "Directory"
+        },
+        "38" : {
+          "references" : [ {
+            "description" : "Atom Types",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/dataxchg/about-atom-tables#atom-types"
+          } ],
+          "caption" : "Atom"
+        },
+        "23" : {
+          "references" : [ {
+            "description" : "NTAPI Keyed Events",
+            "url" : "http://undocumented.ntinternals.net/index.html?page=UserMode%2FUndocumented%20Functions%2FNT%20Objects%2FKeyedEvent%2FNtCreateKeyedEvent.html"
+          } ],
+          "caption" : "KeyedEvent"
+        },
+        "14" : {
+          "caption" : "EventPair"
+        },
+        "42" : {
+          "references" : [ {
+            "description" : "Windows Filtering Platform (WFP) Object Model",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/fwp/object-model"
+          } ],
+          "caption" : "WFP Sub-layer"
+        },
+        "39" : {
+          "references" : [ {
+            "description" : "Windows Filtering Platform (WFP) Object Model",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/fwp/object-model"
+          } ],
+          "caption" : "WFP Filter"
+        },
+        "7" : {
+          "references" : [ {
+            "description" : "File objects",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/fileio/file-objects"
+          } ],
+          "caption" : "File"
+        },
+        "41" : {
+          "references" : [ {
+            "description" : "Windows Filtering Platform (WFP) Object Model",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/fwp/object-model"
+          } ],
+          "caption" : "WFP Layer"
+        },
+        "10" : {
+          "references" : [ {
+            "description" : "Section object",
+            "url" : "https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/section-objects-and-views"
+          } ],
+          "caption" : "Section"
+        },
+        "40" : {
+          "references" : [ {
+            "description" : "Windows Filtering Platform (WFP) Object Model",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/fwp/object-model"
+          } ],
+          "caption" : "WFP Callout"
+        },
+        "17" : {
+          "references" : [ {
+            "description" : "Controller objects",
+            "url" : "https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/introduction-to-controller-objects"
+          } ],
+          "caption" : "Controller"
+        },
+        "6" : {
+          "caption" : "Type"
+        },
+        "44" : {
+          "references" : [ {
+            "description" : "Windows Filtering Platform (WFP) Object Model",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/fwp/object-model"
+          } ],
+          "caption" : "WFP Provider Context"
+        },
+        "3" : {
+          "references" : [ {
+            "description" : "Timer Objects and CreateWaitableTimer Function",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/sync/waitable-timer-objects"
+          } ],
+          "caption" : "Timer"
+        },
+        "26" : {
+          "caption" : "WaitablePort"
+        },
+        "30" : {
+          "caption" : "Port"
+        },
+        "18" : {
+          "references" : [ {
+            "description" : "mklink function",
+            "url" : "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/mklink"
+          } ],
+          "caption" : "SymbolicLink"
+        },
+        "0" : {
+          "description" : "The resource object type is unknown.",
+          "caption" : "Unknown"
+        },
+        "35" : {
+          "references" : [ {
+            "description" : "Security Account Manager (SAM) objects",
+            "url" : "https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/audit-sam"
+          } ],
+          "caption" : "SAM_USER"
+        },
+        "2" : {
+          "references" : [ {
+            "description" : "Event Objects and CreateEvent Function",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/sync/event-objects"
+          } ],
+          "caption" : "Event"
+        },
+        "43" : {
+          "references" : [ {
+            "description" : "Windows Filtering Platform (WFP) Object Model",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/fwp/object-model"
+          } ],
+          "caption" : "WFP Provider"
+        },
+        "28" : {
+          "references" : [ {
+            "description" : "Semaphore objects and CreateSemaphore Function",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/sync/semaphore-objects"
+          } ],
+          "caption" : "Semaphore"
+        },
+        "21" : {
+          "references" : [ {
+            "description" : "User Profile objects",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/shell/user-profiles"
+          } ],
+          "caption" : "Profile"
+        },
+        "13" : {
+          "caption" : "FilterCommunicationPort"
+        },
+        "11" : {
+          "references" : [ {
+            "description" : "Window Station objects",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/winstation/window-stations"
+          } ],
+          "caption" : "WindowStation"
+        },
+        "9" : {
+          "references" : [ {
+            "description" : "Thread Objects and CreateThread Function",
+            "url" : "https://learn.microsoft.com/en-us/windows/win32/procthread/creating-threads"
+          } ],
+          "caption" : "Thread"
+        },
+        "33" : {
+          "references" : [ {
+            "description" : "Security Account Manager (SAM) objects",
+            "url" : "https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/audit-sam"
+          } ],
+          "caption" : "SAM_ALIAS"
+        }
+      },
+      "description" : "The normalized type identifier of the Windows resource object accessed.",
+      "requirement" : "required",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "created_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the resource was created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "type_name" : "Timestamp"
+    },
+    "data_classification" : {
+      "type" : "object_t",
+      "description" : "The Data Classification object includes information about data classification levels and data category types.",
+      "group" : "context",
+      "requirement" : "recommended",
+      "caption" : "Data Classification",
+      "object_type" : "data_classification",
+      "profiles" : [ "data_classification" ],
+      "@deprecated" : {
+        "message" : "Use the attribute <code>data_classifications</code> instead",
+        "since" : "1.4.0"
+      },
+      "object_name" : "Data Classification"
+    },
+    "data_classifications" : {
+      "type" : "object_t",
+      "description" : "A list of Data Classification objects, that include information about data classification levels and data category types, identified by a classifier.",
+      "group" : "context",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "Data Classification",
+      "object_type" : "data_classification",
+      "profiles" : [ "data_classification" ],
+      "object_name" : "Data Classification"
+    },
+    "modified_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the resource was last modified.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "type_name" : "Timestamp"
+    },
+    "svc_name" : {
+      "type" : "string_t",
+      "description" : "The Windows service acting as the object server for the resource object, such as Security or Security Account Manager.",
+      "requirement" : "optional",
+      "caption" : "Service Name",
+      "type_name" : "String"
+    },
+    "uid_alt" : {
+      "type" : "resource_uid_t",
+      "description" : "The alternative unique identifier of the resource.",
+      "requirement" : "optional",
+      "caption" : "Alternate ID",
+      "type_name" : "Resource UID"
+    },
+    "created_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the resource was created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "modified_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the resource was last modified.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "win_resource",
+  "description" : "The Windows resource object describes a resource object managed by Windows, such as mutant or timer.",
+  "extension" : "win",
+  "extends" : "_resource",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "extension_id" : 2,
+  "caption" : "Windows Resource",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}

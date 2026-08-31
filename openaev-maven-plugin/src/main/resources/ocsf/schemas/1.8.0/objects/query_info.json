@@ -1,0 +1,63 @@
+{
+  "attributes" : {
+    "data" : {
+      "type" : "json_t",
+      "description" : "The data returned from the query execution.",
+      "requirement" : "optional",
+      "caption" : "Data",
+      "type_name" : "JSON"
+    },
+    "name" : {
+      "type" : "string_t",
+      "description" : "The query name for a saved or scheduled query.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "bytes" : {
+      "type" : "long_t",
+      "description" : "The size of the data returned from the query.",
+      "requirement" : "optional",
+      "caption" : "Total Bytes",
+      "type_name" : "Long"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the query.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "query_string" : {
+      "type" : "string_t",
+      "description" : "A string representing the query code being run. For example: <code>SELECT * FROM my_table</code>",
+      "requirement" : "required",
+      "caption" : "Query String",
+      "type_name" : "String"
+    },
+    "query_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the query was run.",
+      "requirement" : "optional",
+      "caption" : "Query Time",
+      "type_name" : "Timestamp"
+    },
+    "query_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the query was run.",
+      "requirement" : "optional",
+      "caption" : "Query Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "query_info",
+  "description" : "The query info object holds information related to data access within a datastore. To access, manipulate, delete, or retrieve data from a datastore, a query must be written using a specific syntax.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Query Information",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}

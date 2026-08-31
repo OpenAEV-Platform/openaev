@@ -2,6 +2,7 @@ package io.openaev.ocsf.schema.v190.objects;
 
 import io.openaev.ocsf.schema.OcsfObject;
 
+@lombok.Getter
 public class OcsfObjectKeyValueObject extends OcsfObject {
   @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT nameField;
@@ -10,5 +11,5 @@ public class OcsfObjectKeyValueObject extends OcsfObject {
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT valueField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "values")
-  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT valuesField;
+  private java.util.List<io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT> valuesField;
 }

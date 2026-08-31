@@ -1,0 +1,26 @@
+{
+  "attributes" : {
+    "attack" : {
+      "type" : "object_t",
+      "description" : "The MITRE ATT&CK technique that these privileges could enable.",
+      "requirement" : "required",
+      "caption" : "MITRE ATT&CK® Details",
+      "object_type" : "attack",
+      "object_name" : "MITRE ATT&CK® & ATLAS™"
+    },
+    "privilege_info_list" : {
+      "type" : "object_t",
+      "description" : "The list of privilege information objects, where each element describes a specific privilege that could enable the associated attack technique.",
+      "is_array" : true,
+      "requirement" : "required",
+      "caption" : "Privilege Info List",
+      "object_type" : "privilege_info",
+      "object_name" : "Privilege Info"
+    }
+  },
+  "name" : "privilege_attack_info",
+  "description" : "The Privilege Attack Info object groups privileges by the potential attack they could enable. It maps specific privileges to MITRE ATT&CK techniques, helping identify security risks associated with granted permissions.",
+  "extends" : "object",
+  "caption" : "Privilege Attack Info",
+  "_links" : [ ]
+}

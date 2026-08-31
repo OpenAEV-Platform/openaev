@@ -1,0 +1,147 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the Identity Provider.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "state" : {
+      "type" : "string_t",
+      "description" : "The configuration state of the Identity Provider, normalized to the caption of the <code>state_id</code> value. In the case of <code>Other</code>, it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "State",
+      "type_name" : "String"
+    },
+    "domain" : {
+      "type" : "string_t",
+      "description" : "The primary domain associated with the Identity Provider.",
+      "requirement" : "optional",
+      "caption" : "Domain",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the Identity Provider.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "protocol_name" : {
+      "type" : "string_t",
+      "description" : "The supported protocol of the Identity Provider. E.g., <code>SAML</code>, <code>OIDC</code>, or <code>OAuth2</code>.",
+      "requirement" : "optional",
+      "caption" : "Supported Protocol",
+      "type_name" : "String"
+    },
+    "issuer" : {
+      "type" : "string_t",
+      "description" : "The unique identifier (often a URL) used by the Identity Provider as its issuer.",
+      "requirement" : "optional",
+      "caption" : "Issuer Details",
+      "type_name" : "String"
+    },
+    "fingerprint" : {
+      "type" : "object_t",
+      "description" : "The fingerprint of the X.509 certificate used by the Identity Provider.",
+      "requirement" : "optional",
+      "caption" : "Certificate Fingerprint",
+      "object_type" : "fingerprint",
+      "object_name" : "Fingerprint"
+    },
+    "auth_factors" : {
+      "type" : "object_t",
+      "description" : "The Authentication Factors object describes the different types of Multi-Factor Authentication (MFA) methods and/or devices supported by the Identity Provider.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Authentication Factors",
+      "object_type" : "auth_factor",
+      "object_name" : "Authentication Factor"
+    },
+    "has_mfa" : {
+      "type" : "boolean_t",
+      "description" : "The Identity Provider enforces Multi Factor Authentication (MFA).",
+      "requirement" : "optional",
+      "caption" : "MFA Enforced",
+      "type_name" : "Boolean"
+    },
+    "scim" : {
+      "type" : "object_t",
+      "description" : "The System for Cross-domain Identity Management (SCIM) resource object provides a structured set of attributes related to SCIM protocols used for identity provisioning and management across cloud-based platforms. It standardizes user and group provisioning details, enabling identity synchronization and lifecycle management with compatible Identity Providers (IdPs) and applications. SCIM is defined in <a target='_blank' href='https://datatracker.ietf.org/doc/html/rfc7643'>RFC-7634</a>",
+      "references" : [ {
+        "description" : "System for Cross-domain Identity Management (SCIM) RFC.",
+        "url" : "https://datatracker.ietf.org/doc/html/rfc7643"
+      } ],
+      "requirement" : "optional",
+      "caption" : "SCIM",
+      "object_type" : "scim",
+      "object_name" : "SCIM"
+    },
+    "sso" : {
+      "type" : "object_t",
+      "description" : "The Single Sign-On (SSO) object provides a structure for normalizing SSO attributes, configuration, and/or settings from Identity Providers.",
+      "requirement" : "optional",
+      "caption" : "SSO",
+      "object_type" : "sso",
+      "object_name" : "SSO"
+    },
+    "state_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The Identity Provider is in a Deprecated state, or is otherwise disabled.",
+          "caption" : "Deprecated"
+        },
+        "0" : {
+          "description" : "The configuration state of the Identity Provider is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The Identity Provider is in an Active state, or otherwise enabled.",
+          "caption" : "Active"
+        },
+        "2" : {
+          "description" : "The Identity Provider is in a Suspended state.",
+          "caption" : "Suspended"
+        },
+        "99" : {
+          "description" : "The configuration state of the Identity Provider is not mapped. See the <code>state</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "The Identity Provider is in a Deleted state.",
+          "caption" : "Deleted"
+        }
+      },
+      "description" : "The normalized state ID of the Identity Provider to reflect its configuration or activation status.",
+      "requirement" : "optional",
+      "caption" : "State ID",
+      "sibling" : "state",
+      "type_name" : "Integer"
+    },
+    "tenant_uid" : {
+      "type" : "string_t",
+      "description" : "The tenant ID associated with the Identity Provider.",
+      "requirement" : "optional",
+      "caption" : "Tenant UID",
+      "type_name" : "String"
+    },
+    "url_string" : {
+      "type" : "url_t",
+      "description" : "The URL for accessing the configuration or metadata of the Identity Provider.",
+      "requirement" : "optional",
+      "caption" : "Configuration URL",
+      "type_name" : "URL String"
+    }
+  },
+  "name" : "idp",
+  "description" : "The Identity Provider object contains detailed information about a provider responsible for creating, maintaining, and managing identity information while offering authentication services to applications. An Identity Provider (IdP) serves as a trusted authority that verifies the identity of users and issues authentication tokens or assertions to enable secure access to applications or services.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Identity Provider",
+  "profiles" : [ "container" ],
+  "_links" : [ ]
+}

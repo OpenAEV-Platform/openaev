@@ -5,6 +5,7 @@ import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.field.FieldMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.method.MethodMeta;
 import io.openaev.ocsf.parser.generator.emission.render.Helper;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -71,10 +72,18 @@ public class ClassMeta implements Emitter {
         + " {"
         + "\n"
         + Helper.indent(
-            1, this.fields.stream().map(FieldMeta::emit).collect(Collectors.joining("\n\n")))
+            1,
+            this.fields.stream()
+                .sorted(Comparator.comparing(FieldMeta::getName))
+                .map(FieldMeta::emit)
+                .collect(Collectors.joining("\n\n")))
         + "\n"
         + Helper.indent(
-            1, this.methods.stream().map(MethodMeta::emit).collect(Collectors.joining("\n\n")))
+            1,
+            this.methods.stream()
+                .sorted(Comparator.comparing(MethodMeta::getName))
+                .map(MethodMeta::emit)
+                .collect(Collectors.joining("\n\n")))
         + "\n"
         + "}\n";
   }

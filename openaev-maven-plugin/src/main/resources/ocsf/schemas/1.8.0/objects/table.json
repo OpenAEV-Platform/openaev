@@ -1,0 +1,80 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The table name, ordinarily as assigned by a database administrator.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "size" : {
+      "type" : "long_t",
+      "description" : "The size of the data table in bytes.",
+      "requirement" : "optional",
+      "caption" : "Size",
+      "type_name" : "Long"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The description of the table.",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the table.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "groups" : {
+      "type" : "object_t",
+      "description" : "The group names to which the table belongs.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Groups",
+      "object_type" : "group",
+      "object_name" : "Group"
+    },
+    "created_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the table was known to have been created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "type_name" : "Timestamp"
+    },
+    "modified_time" : {
+      "type" : "timestamp_t",
+      "description" : "The most recent time when any changes, updates, or modifications were made within the table.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "type_name" : "Timestamp"
+    },
+    "created_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the table was known to have been created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "modified_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The most recent time when any changes, updates, or modifications were made within the table.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "table",
+  "description" : "The table object represents a table within a structured relational database or datastore, which contains columns and rows of data that are able to be create, updated, deleted and queried.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Table",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}

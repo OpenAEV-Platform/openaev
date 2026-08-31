@@ -1,0 +1,251 @@
+{
+  "attributes" : {
+    "count" : {
+      "type" : "integer_t",
+      "description" : "The number of times that activity in the same logical group occurred, as reported by the related Finding.",
+      "requirement" : "optional",
+      "caption" : "Count",
+      "type_name" : "Integer"
+    },
+    "status" : {
+      "type" : "string_t",
+      "description" : "The related event status. Should correspond to the label of the status_id (or 'Other' status value for status_id = 99) of the related event.",
+      "requirement" : "optional",
+      "caption" : "Status",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "<p>The type of the related event/finding.</p>Populate if the related event/finding is <code>NOT</code> in OCSF. If it is in OCSF, then utilize <code>type_name, type_uid</code> instead.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "title" : {
+      "type" : "string_t",
+      "description" : "A title or a brief phrase summarizing the related event/finding.",
+      "requirement" : "optional",
+      "caption" : "Title",
+      "type_name" : "String"
+    },
+    "product" : {
+      "type" : "object_t",
+      "description" : "Details about the product that reported the related event/finding.",
+      "requirement" : "optional",
+      "caption" : "Product",
+      "object_type" : "product",
+      "object_name" : "Product"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "A description of the related event/finding.",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "<p>The unique identifier of the related event/finding.</p> If the related event/finding is in OCSF, then this value must be equal to <code>metadata.uid</code> in the corresponding event.",
+      "requirement" : "required",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "severity" : {
+      "type" : "string_t",
+      "description" : "The event/finding severity, normalized to the caption of the <code>severity_id</code> value. In the case of 'Other', it is defined by the source.",
+      "requirement" : "optional",
+      "caption" : "Severity",
+      "type_name" : "String"
+    },
+    "tags" : {
+      "type" : "object_t",
+      "description" : "The list of tags; <code>{key:value}</code> pairs associated with the related event/finding.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Tags",
+      "object_type" : "key_value_object",
+      "object_name" : "Key:Value object"
+    },
+    "type_uid" : {
+      "type" : "long_t",
+      "description" : "The unique identifier of the related OCSF event type. <p>For example: <code>100701.</code></p>Populate if the related event/finding is in OCSF.",
+      "requirement" : "recommended",
+      "caption" : "Type ID",
+      "sibling" : "type_name",
+      "type_name" : "Long"
+    },
+    "attacks" : {
+      "type" : "object_t",
+      "description" : "An array of MITRE ATT&CK® objects describing identified tactics, techniques & sub-techniques. The objects are compatible with MITRE ATLAS™ tactics, techniques & sub-techniques.",
+      "is_array" : true,
+      "references" : [ {
+        "description" : "MITRE ATT&CK®",
+        "url" : "https://attack.mitre.org"
+      }, {
+        "description" : "MITRE ATLAS",
+        "url" : "https://atlas.mitre.org/matrices/ATLAS"
+      } ],
+      "requirement" : "optional",
+      "caption" : "MITRE ATT&CK® and ATLAS™ Details",
+      "object_type" : "attack",
+      "object_name" : "MITRE ATT&CK® & ATLAS™"
+    },
+    "type_name" : {
+      "type" : "string_t",
+      "description" : "The type of the related OCSF event, as defined by <code>type_uid</code>.<p>For example: <code>Process Activity: Launch.</code></p>Populate if the related event/finding is in OCSF.",
+      "requirement" : "optional",
+      "caption" : "Type Name",
+      "type_name" : "String"
+    },
+    "observables" : {
+      "type" : "object_t",
+      "description" : "The observables associated with the event or a finding.",
+      "is_array" : true,
+      "references" : [ {
+        "description" : "OCSF Observables FAQ",
+        "url" : "https://github.com/ocsf/ocsf-docs/blob/main/articles/defining-and-using-observables.md"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Observables",
+      "object_type" : "observable",
+      "object_name" : "Observable"
+    },
+    "created_time" : {
+      "type" : "timestamp_t",
+      "description" : "<p>The time when the related event/finding was created.</p> If the related event/finding is in OCSF and is a Finding, then this value should be equal to <code>finding_info.created_time</code> in the corresponding Finding. If the related event/finding is in OCSF and is not a Finding, then this value should be equal to <code>time</code> in the corresponding event.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "type_name" : "Timestamp"
+    },
+    "first_seen_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the finding was first observed. e.g. The time when a vulnerability was first observed.<br>It can differ from the <code>created_time</code> timestamp, which reflects the time this finding was created.",
+      "requirement" : "optional",
+      "caption" : "First Seen",
+      "type_name" : "Timestamp"
+    },
+    "kill_chain" : {
+      "type" : "object_t",
+      "description" : "The <a target='_blank' href='https://www.lockheedmartin.com/en-us/capabilities/cyber/cyber-kill-chain.html'>Cyber Kill Chain®</a> provides a detailed description of each phase and its associated activities within the broader context of a cyber attack.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Kill Chain",
+      "object_type" : "kill_chain_phase",
+      "object_name" : "Kill Chain Phase"
+    },
+    "last_seen_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the finding was most recently observed. e.g. The time when a vulnerability was most recently observed.<br>It can differ from the <code>modified_time</code> timestamp, which reflects the time this finding was last modified.",
+      "requirement" : "optional",
+      "caption" : "Last Seen",
+      "type_name" : "Timestamp"
+    },
+    "modified_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the related event/finding was last modified.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "type_name" : "Timestamp"
+    },
+    "product_uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the product that reported the related event.",
+      "requirement" : "optional",
+      "caption" : "Product Identifier",
+      "type_name" : "String",
+      "@deprecated" : {
+        "message" : "Use the <code>uid</code> attribute in the <code>product</code> object instead. See specific usage.",
+        "since" : "1.4.0"
+      }
+    },
+    "severity_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Action is required but the situation is not serious at this time.",
+          "caption" : "Medium"
+        },
+        "6" : {
+          "description" : "An error occurred but it is too late to take remedial action.",
+          "caption" : "Fatal"
+        },
+        "0" : {
+          "description" : "The event/finding severity is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "Informational message. No action required.",
+          "caption" : "Informational"
+        },
+        "2" : {
+          "description" : "The user decides if action is needed.",
+          "caption" : "Low"
+        },
+        "99" : {
+          "description" : "The event/finding severity is not mapped. See the <code>severity</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Action is required immediately.",
+          "caption" : "High"
+        },
+        "5" : {
+          "description" : "Action is required immediately and the scope is broad.",
+          "caption" : "Critical"
+        }
+      },
+      "description" : "<p>The normalized identifier of the event/finding severity.</p>The normalized severity is a measurement the effort and expense required to manage and resolve an event or incident. Smaller numerical values represent lower impact events, and larger numerical values represent higher impact events.",
+      "requirement" : "recommended",
+      "caption" : "Severity ID",
+      "sibling" : "severity",
+      "type_name" : "Integer"
+    },
+    "traits" : {
+      "type" : "object_t",
+      "description" : "The list of key traits or characteristics extracted from the related event/finding that influenced or contributed to the overall finding's outcome.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Traits",
+      "object_type" : "trait",
+      "object_name" : "Trait"
+    },
+    "created_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "<p>The time when the related event/finding was created.</p> If the related event/finding is in OCSF and is a Finding, then this value should be equal to <code>finding_info.created_time</code> in the corresponding Finding. If the related event/finding is in OCSF and is not a Finding, then this value should be equal to <code>time</code> in the corresponding event.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "first_seen_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the finding was first observed. e.g. The time when a vulnerability was first observed.<br>It can differ from the <code>created_time</code> timestamp, which reflects the time this finding was created.",
+      "requirement" : "optional",
+      "caption" : "First Seen",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "last_seen_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the finding was most recently observed. e.g. The time when a vulnerability was most recently observed.<br>It can differ from the <code>modified_time</code> timestamp, which reflects the time this finding was last modified.",
+      "requirement" : "optional",
+      "caption" : "Last Seen",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "modified_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the related event/finding was last modified.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "related_event",
+  "description" : "The Related Event object describes an event or another finding related to a finding. It may or may not be an OCSF event.",
+  "extends" : "object",
+  "caption" : "Related Event/Finding",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}

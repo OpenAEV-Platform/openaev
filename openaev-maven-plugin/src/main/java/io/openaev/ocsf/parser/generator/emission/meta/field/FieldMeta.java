@@ -6,12 +6,13 @@ import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.Getter;
 
 public class FieldMeta implements Emitter {
   private final Set<AnnotationMeta> annotations = new HashSet<>();
   private final Modifier modifier;
   private final String type;
-  private final String name;
+  @Getter private final String name;
   private String initialiser;
 
   public FieldMeta(Modifier modifier, String type, String name) {

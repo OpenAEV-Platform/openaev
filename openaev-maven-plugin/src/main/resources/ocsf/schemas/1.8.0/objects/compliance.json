@@ -1,0 +1,207 @@
+{
+  "attributes" : {
+    "control" : {
+      "type" : "string_t",
+      "description" : "A Control is a prescriptive, actionable set of specifications that strengthens device posture. The control specifies required security measures, while the specific implementation values are defined in control_parameters. E.g., CIS AWS Foundations Benchmark 1.2.0 - Control 2.1 - Ensure CloudTrail is enabled in all regions",
+      "references" : [ {
+        "description" : "CIS AWS Foundations Benchmark 1.2.0",
+        "url" : "https://www.cisecurity.org/benchmark/amazon_web_services"
+      }, {
+        "description" : "CloudTrail Documentation",
+        "url" : "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html"
+      } ],
+      "requirement" : "recommended",
+      "caption" : "Security Control",
+      "type_name" : "String"
+    },
+    "status" : {
+      "type" : "string_t",
+      "description" : "The resultant status of the compliance check normalized to the caption of the <code>status_id</code> value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "recommended",
+      "caption" : "Status",
+      "type_name" : "String"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The description or criteria of a control.",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "category" : {
+      "type" : "string_t",
+      "description" : "The category a control framework pertains to, as reported by the source tool, such as <code>Asset Management</code> or <code>Risk Assessment</code>.",
+      "requirement" : "optional",
+      "caption" : "Category",
+      "type_name" : "String"
+    },
+    "assessments" : {
+      "type" : "object_t",
+      "description" : "A list of assessments associated with the compliance requirements evaluation.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Assessments",
+      "object_type" : "assessment",
+      "object_name" : "Assessment"
+    },
+    "checks" : {
+      "type" : "object_t",
+      "description" : "A list of compliance checks associated with specific industry standards or frameworks. Each check represents an individual rule or requirement that has been evaluated against a target device. Checks typically include details such as the check name (e.g., CIS: 'Ensure mounting of cramfs filesystems is disabled' or DISA STIG descriptive titles), unique identifiers (such as CIS identifier '1.1.1.1' or DISA STIG identifier 'V-230234'), descriptions (detailed explanations of security requirements or vulnerability discussions), and version information.",
+      "is_array" : true,
+      "references" : [ {
+        "description" : "Center for Internet Security Benchmarks",
+        "url" : "https://www.cisecurity.org/cis-benchmarks/"
+      }, {
+        "description" : "DISA Security Technical Implementation Guides (STIGs)",
+        "url" : "https://public.cyber.mil/stigs/"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Compliance Checks",
+      "object_type" : "check",
+      "object_name" : "Check"
+    },
+    "compliance_references" : {
+      "type" : "object_t",
+      "description" : "A list of reference KB articles that provide information to help organizations understand, interpret, and implement compliance standards. They provide guidance, best practices, and examples.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Compliance Standard References",
+      "object_type" : "kb_article",
+      "@deprecated" : {
+        "message" : "Use the Compliance object with Check array instead.",
+        "since" : "1.5.0"
+      },
+      "object_name" : "KB Article"
+    },
+    "compliance_standards" : {
+      "type" : "object_t",
+      "description" : "A list of established guidelines or criteria that define specific requirements an organization must follow.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Compliance Standards: Details",
+      "object_type" : "kb_article",
+      "@deprecated" : {
+        "message" : "Use the Compliance object with Check array instead.",
+        "since" : "1.5.0"
+      },
+      "object_name" : "KB Article"
+    },
+    "control_parameters" : {
+      "type" : "object_t",
+      "description" : "The list of control parameters evaluated in a Compliance check. E.g., parameters for CloudTrail configuration might include <code>multiRegionTrailEnabled: true</code>, <code>logFileValidationEnabled: true</code>, and <code>requiredRegions: [us-east-1, us-west-2]</code>",
+      "is_array" : true,
+      "references" : [ {
+        "description" : "AWS CloudTrail Configuration Parameters",
+        "url" : "https://docs.aws.amazon.com/awscloudtrail/latest/APIReference/API_CreateTrail.html"
+      }, {
+        "description" : "AWS Multi-Region CloudTrail Best Practices",
+        "url" : "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/receive-cloudtrail-log-files-from-multiple-regions.html"
+      }, {
+        "description" : "CloudTrail Log File Validation",
+        "url" : "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-log-file-validation-intro.html"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Control Parameters",
+      "object_type" : "key_value_object",
+      "object_name" : "Key:Value object"
+    },
+    "requirements" : {
+      "type" : "string_t",
+      "description" : "The specific compliance requirements being evaluated. E.g., <code>PCI DSS Requirement 8.2.3 - Passwords must meet minimum complexity requirements</code> or <code>HIPAA Security Rule 164.312(a)(2)(iv) - Implement encryption and decryption mechanisms</code>",
+      "is_array" : true,
+      "references" : [ {
+        "description" : "PCI DSS Standards",
+        "url" : "https://www.pcisecuritystandards.org/document_library"
+      }, {
+        "description" : "HIPAA Security Rule",
+        "url" : "https://www.hhs.gov/hipaa/for-professionals/security/laws-regulations/index.html"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Compliance Requirements",
+      "type_name" : "String"
+    },
+    "standards" : {
+      "type" : "string_t",
+      "description" : "The regulatory or industry standards being evaluated for compliance.",
+      "is_array" : true,
+      "references" : [ {
+        "description" : "PCI DSS 3.2.1",
+        "url" : "https://www.pcisecuritystandards.org/document_library"
+      }, {
+        "description" : "HIPAA Security Rule",
+        "url" : "https://www.hhs.gov/hipaa/for-professionals/security/laws-regulations/index.html"
+      }, {
+        "description" : "NIST SP 800-53 Rev. 5",
+        "url" : "https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final"
+      }, {
+        "description" : "ISO/IEC 27001:2013",
+        "url" : "https://www.iso.org/standard/54534.html"
+      } ],
+      "requirement" : "recommended",
+      "caption" : "Compliance Standards: List",
+      "type_name" : "String"
+    },
+    "status_code" : {
+      "type" : "string_t",
+      "description" : "The resultant status code of the compliance check.",
+      "requirement" : "optional",
+      "caption" : "Status Code",
+      "type_name" : "String"
+    },
+    "status_detail" : {
+      "type" : "string_t",
+      "description" : "The contextual description of the <code>status, status_code</code> values.",
+      "requirement" : "optional",
+      "caption" : "Status Detail",
+      "type_name" : "String",
+      "@deprecated" : {
+        "message" : "Use the <code> status_details </code> attribute instead.",
+        "since" : "1.4.0"
+      }
+    },
+    "status_details" : {
+      "type" : "string_t",
+      "description" : "A list of contextual descriptions of the <code>status, status_code</code> values.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Status Details",
+      "type_name" : "String"
+    },
+    "status_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The compliance check failed for at least one of the evaluated resources.",
+          "caption" : "Fail"
+        },
+        "0" : {
+          "description" : "The status is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The compliance check passed for all the evaluated resources.",
+          "caption" : "Pass"
+        },
+        "2" : {
+          "description" : "The compliance check did not yield a result due to missing information.",
+          "caption" : "Warning"
+        },
+        "99" : {
+          "description" : "The status is not mapped. See the <code>status</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized status identifier of the compliance check.",
+      "requirement" : "recommended",
+      "caption" : "Status ID",
+      "sibling" : "status",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "compliance",
+  "description" : "The Compliance object contains information about Industry and Regulatory Framework standards, controls and requirements or details about custom assessments utilized in a compliance evaluation. Standards define broad security frameworks, controls represent specific security requirements within those frameworks, and checks are the testable verification points used to determine if controls are properly implemented.",
+  "extends" : "object",
+  "caption" : "Compliance",
+  "profiles" : [ "cloud", "data_classification" ],
+  "_links" : [ ]
+}

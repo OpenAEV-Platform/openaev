@@ -1,0 +1,107 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "Unique identifier for the script or macro, independent of the containing file, used for tracking, auditing, and security analysis.",
+      "requirement" : "optional",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The script type, normalized to the caption of the <code>type_id</code> value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "file" : {
+      "type" : "object_t",
+      "description" : "Present if this script is associated with a file. Not present in the case of a file-less script.",
+      "requirement" : "optional",
+      "caption" : "File",
+      "object_type" : "file",
+      "object_name" : "File"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "Some script engines assign a unique ID to each individual execution of a given script. This attribute captures that unique ID. In the case of PowerShell, the unique ID corresponds to the <code>ScriptBlockId</code> in the raw ETW events provided by the OS.",
+      "requirement" : "optional",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "caption" : "Python"
+        },
+        "6" : {
+          "caption" : "Unix Shell"
+        },
+        "0" : {
+          "description" : "The script type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "caption" : "Windows Command Prompt"
+        },
+        "2" : {
+          "caption" : "PowerShell"
+        },
+        "99" : {
+          "description" : "The script type is not mapped. See the <code>type</code> attribute which contains an event source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "caption" : "JavaScript"
+        },
+        "5" : {
+          "caption" : "VBScript"
+        },
+        "7" : {
+          "caption" : "VBA"
+        }
+      },
+      "description" : "The normalized script type ID.",
+      "requirement" : "required",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "hashes" : {
+      "type" : "object_t",
+      "description" : "An array of the script's cryptographic hashes. Note that these hashes are calculated on the script in its original encoding, and not on the normalized UTF-8 encoding found in the <code>script_content</code> attribute.",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "Hashes",
+      "object_type" : "fingerprint",
+      "object_name" : "Fingerprint"
+    },
+    "parent_uid" : {
+      "type" : "string_t",
+      "description" : "This attribute relates a sub-script to a parent script having the matching <code>uid</code> attribute. In the case of PowerShell, sub-script execution can be identified by matching the activity correlation ID of the raw ETW events provided by the OS.",
+      "requirement" : "optional",
+      "caption" : "Parent Unique ID",
+      "type_name" : "String"
+    },
+    "script_content" : {
+      "type" : "object_t",
+      "description" : "The script content, normalized to UTF-8 encoding irrespective of its original encoding. When emitting this attribute, it may be appropriate to truncate large scripts. When consuming this attribute, large scripts should be anticipated.",
+      "requirement" : "required",
+      "caption" : "Script Content",
+      "object_type" : "long_string",
+      "object_name" : "Long String",
+      "observable" : 36
+    }
+  },
+  "name" : "script",
+  "description" : "The Script object describes a script or command that can be executed by a shell, script engine, or interpreter. Examples include Bash, JavsScript, PowerShell, Python, VBScript, etc. Note that the term <em>script</em> here denotes not only a script contained within a file but also a script or command typed interactively by a user, supplied on the command line, or provided by some other file-less mechanism.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:ExecutableScript.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:ExecutableScript/"
+  } ],
+  "caption" : "Script",
+  "profiles" : [ "data_classification" ],
+  "_links" : [ ]
+}

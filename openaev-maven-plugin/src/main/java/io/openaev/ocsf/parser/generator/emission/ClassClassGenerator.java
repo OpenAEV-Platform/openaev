@@ -14,6 +14,7 @@ import io.openaev.utils.DictionaryHelper;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import lombok.Getter;
 
 public class ClassClassGenerator extends ClassGenerator {
   @Override
@@ -32,6 +33,7 @@ public class ClassClassGenerator extends ClassGenerator {
   public String emit(ClassMetadata metadata, DictionaryHelper helper) throws IOException {
     ClassMeta meta =
         new ClassMeta()
+            .withAnnotation(new AnnotationMeta(Getter.class))
             .withImport(SCHEMA_PACKAGE_NAME + ".OcsfClass")
             .withName(compositeOcsfClassName(metadata.ocsfIdentifier()))
             .withPackage(metadata.classPackage())

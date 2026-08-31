@@ -1,0 +1,23 @@
+{
+  "attributes" : {
+    "file" : {
+      "type" : "object_t",
+      "description" : "The driver/extension file object.",
+      "group" : "primary",
+      "requirement" : "required",
+      "caption" : "File",
+      "object_type" : "file",
+      "object_name" : "File"
+    }
+  },
+  "name" : "kernel_driver",
+  "description" : "The Kernel Extension object describes a kernel driver that has been loaded or unloaded into the operating system (OS) kernel.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:KernelModule",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:KernelModule/"
+  } ],
+  "caption" : "Kernel Extension",
+  "profiles" : [ "data_classification" ],
+  "_links" : [ ]
+}

@@ -1,0 +1,105 @@
+{
+  "attributes" : {
+    "type" : {
+      "type" : "string_t",
+      "description" : "The JA4+ fingerprint type as defined by <a href='https://blog.foxio.io/ja4+-network-fingerprinting target='_blank'>FoxIO</a>, normalized to the caption of 'type_id'. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "value" : {
+      "type" : "string_t",
+      "description" : "The JA4+ fingerprint value.",
+      "requirement" : "required",
+      "caption" : "Value",
+      "type_name" : "String"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "HTTP Client Fingerprint.",
+          "caption" : "JA4HTTP"
+        },
+        "6" : {
+          "description" : "SSH Traffic Fingerprint.",
+          "caption" : "JA4SSH"
+        },
+        "0" : {
+          "description" : "The type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "TLS Client Fingerprint.",
+          "caption" : "JA4"
+        },
+        "2" : {
+          "description" : "TLS Server Response/Session Fingerprint.",
+          "caption" : "JA4Server"
+        },
+        "99" : {
+          "description" : "The type is not mapped. See the <code>type</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Latency Measurement/Light Distance Fingerprint.",
+          "caption" : "JA4Latency"
+        },
+        "5" : {
+          "description" : "X509 TLS Certificate Fingerprint.",
+          "caption" : "JA4X509"
+        },
+        "7" : {
+          "description" : "Passive TCP Client Fingerprint.",
+          "caption" : "JA4TCP"
+        },
+        "8" : {
+          "description" : "Passive TCP Server Fingerprint.",
+          "caption" : "JA4TCPServer"
+        },
+        "9" : {
+          "description" : "Active TCP Server Fingerprint.",
+          "caption" : "JA4TCPScan"
+        }
+      },
+      "description" : "The identifier of the JA4+ fingerprint type.",
+      "requirement" : "required",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "section_a" : {
+      "type" : "string_t",
+      "description" : "The 'a' section of the JA4 fingerprint.",
+      "requirement" : "optional",
+      "caption" : "JA4 Section A",
+      "type_name" : "String"
+    },
+    "section_b" : {
+      "type" : "string_t",
+      "description" : "The 'b' section of the JA4 fingerprint.",
+      "requirement" : "optional",
+      "caption" : "JA4 Section B",
+      "type_name" : "String"
+    },
+    "section_c" : {
+      "type" : "string_t",
+      "description" : "The 'c' section of the JA4 fingerprint.",
+      "requirement" : "optional",
+      "caption" : "JA4 Section C",
+      "type_name" : "String"
+    },
+    "section_d" : {
+      "type" : "string_t",
+      "description" : "The 'd' section of the JA4 fingerprint.",
+      "requirement" : "optional",
+      "caption" : "JA4 Section D",
+      "type_name" : "String"
+    }
+  },
+  "name" : "ja4_fingerprint",
+  "description" : "The JA4+ fingerprint object provides detailed fingerprint information about various aspects of network traffic which is both machine and human readable.",
+  "extends" : "object",
+  "caption" : "JA4+ Fingerprint",
+  "_links" : [ ]
+}

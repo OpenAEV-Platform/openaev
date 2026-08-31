@@ -1,0 +1,165 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The database name, ordinarily as assigned by a database administrator.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "size" : {
+      "type" : "long_t",
+      "description" : "The size of the database in bytes.",
+      "requirement" : "optional",
+      "caption" : "Size",
+      "type_name" : "Long"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The database type.",
+      "requirement" : "recommended",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The description of the database.",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the database.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "groups" : {
+      "type" : "object_t",
+      "description" : "The group names to which the database belongs.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Groups",
+      "object_type" : "group",
+      "object_name" : "Group"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "caption" : "Object Oriented"
+        },
+        "6" : {
+          "caption" : "NoSQL"
+        },
+        "0" : {
+          "description" : "The type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "caption" : "Relational"
+        },
+        "2" : {
+          "caption" : "Network"
+        },
+        "99" : {
+          "description" : "The type is not mapped. See the <code>type</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "caption" : "Centralized"
+        },
+        "5" : {
+          "caption" : "Operational"
+        },
+        "7" : {
+          "caption" : "Vector"
+        },
+        "8" : {
+          "caption" : "Knowledge Graph"
+        }
+      },
+      "description" : "The normalized identifier of the database type.",
+      "requirement" : "required",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "created_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the database was known to have been created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "type_name" : "Timestamp"
+    },
+    "data_classification" : {
+      "type" : "object_t",
+      "description" : "The Data Classification object includes information about data classification levels and data category types.",
+      "group" : "context",
+      "requirement" : "recommended",
+      "caption" : "Data Classification",
+      "object_type" : "data_classification",
+      "profiles" : [ "data_classification" ],
+      "@deprecated" : {
+        "message" : "Use the attribute <code>data_classifications</code> instead",
+        "since" : "1.4.0"
+      },
+      "object_name" : "Data Classification"
+    },
+    "data_classifications" : {
+      "type" : "object_t",
+      "description" : "A list of Data Classification objects, that include information about data classification levels and data category types, identified by a classifier.",
+      "group" : "context",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "Data Classification",
+      "object_type" : "data_classification",
+      "profiles" : [ "data_classification" ],
+      "object_name" : "Data Classification"
+    },
+    "embedding_model" : {
+      "type" : "string_t",
+      "description" : "Model used for creating embeddings (if applicable). For example: <code>text-embedding-ada-002</code> or <code>all-MiniLM-L6-v2</code>.",
+      "requirement" : "optional",
+      "caption" : "Embedding Model",
+      "type_name" : "String"
+    },
+    "modified_time" : {
+      "type" : "timestamp_t",
+      "description" : "The most recent time when any changes, updates, or modifications were made within the database.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "type_name" : "Timestamp"
+    },
+    "created_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the database was known to have been created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "modified_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The most recent time when any changes, updates, or modifications were made within the database.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "database",
+  "description" : "The database object is used for databases which are typically datastore services that contain an organized collection of structured and unstructured data or a types of data.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Database.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:Database/"
+  } ],
+  "caption" : "Database",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}

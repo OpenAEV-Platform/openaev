@@ -42,8 +42,13 @@ public class DictionaryHelper {
     }
 
     String type = attribute.get().get("type").asText();
-    return "object_t".equals(type) && attribute.get().has("object_type")
-        ? tracker.get(attribute.get().get("object_type").asText()).fullyQualifiedClassName()
-        : tracker.get(type).fullyQualifiedClassName();
+    String typeArg =
+        "object_t".equals(type) && attribute.get().has("object_type")
+            ? tracker.get(attribute.get().get("object_type").asText()).fullyQualifiedClassName()
+            : tracker.get(type).fullyQualifiedClassName();
+
+    return !attribute.get().has("is_array") || !attribute.get().get("is_array").asBoolean(false)
+        ? typeArg
+        : java.util.List.class.getCanonicalName() + "<" + typeArg + ">";
   }
 }

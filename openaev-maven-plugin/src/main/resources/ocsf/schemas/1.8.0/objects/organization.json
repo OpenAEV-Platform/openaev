@@ -1,0 +1,40 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the organization, Oracle Cloud Tenancy, Google Cloud Organization, or AWS Organization. For example, <code> Widget, Inc. </code> or the <code> AWS Organization name </code>.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the organization, Oracle Cloud Tenancy, Google Cloud Organization, or AWS Organization. For example, an <code> AWS Org ID </code> or <code> Oracle Cloud Domain ID </code>.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "ou_name" : {
+      "type" : "string_t",
+      "description" : "The name of an organizational unit, Google Cloud Folder, or AWS Org Unit. For example, the <code> GCP Project Name </code>, or <code> Dev_Prod_OU </code>.",
+      "requirement" : "recommended",
+      "caption" : "Org Unit Name",
+      "type_name" : "String"
+    },
+    "ou_uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of an organizational unit, Google Cloud Folder, or AWS Org Unit. For example, an  <code> Oracle Cloud Tenancy ID </code>, <code> AWS OU ID </code>, or <code> GCP Folder ID </code>.",
+      "requirement" : "optional",
+      "caption" : "Org Unit ID",
+      "type_name" : "String"
+    }
+  },
+  "name" : "organization",
+  "description" : "The Organization object describes characteristics of an organization or company and its division if any. Additionally, it also describes cloud and Software-as-a-Service (SaaS) logical hierarchies such as AWS Organizations, Google Cloud Organizations, Oracle Cloud Tenancies, and similar constructs.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Organization",
+  "_links" : [ ]
+}

@@ -1,0 +1,31 @@
+{
+  "attributes" : {
+    "count" : {
+      "type" : "integer_t",
+      "description" : "Integer representing the total number of times this specific value/event was observed across all occurrences. Helps establish prevalence and patterns.",
+      "requirement" : "recommended",
+      "caption" : "Count",
+      "type_name" : "Integer"
+    },
+    "value" : {
+      "type" : "string_t",
+      "description" : "The specific value, event, indicator or data point that was observed and recorded. This is the core piece of information being tracked.",
+      "requirement" : "required",
+      "caption" : "Value",
+      "type_name" : "String"
+    },
+    "timespan" : {
+      "type" : "object_t",
+      "description" : "The time window when the value or event was first observed. It is used to analyze activity patterns, detect trends, or correlate events within a specific timeframe.",
+      "requirement" : "recommended",
+      "caption" : "Time Span",
+      "object_type" : "timespan",
+      "object_name" : "Time Span"
+    }
+  },
+  "name" : "observation",
+  "description" : "A record of an observed value or event that captures the timing and frequency of its occurrence. Used to track when values/events were first detected, last detected, and their total occurrence count.",
+  "extends" : "object",
+  "caption" : "Observation",
+  "_links" : [ ]
+}

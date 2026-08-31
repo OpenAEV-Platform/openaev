@@ -25,7 +25,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.junit.jupiter.api.Test;
 
 public class GenerateParserTest {
-  // @Test
+  @Test
   void test() throws MojoExecutionException {
     new GenerateParser(new File(".."), "test").execute();
   }
@@ -53,6 +53,7 @@ public class GenerateParserTest {
     PluginContext ctx = new PluginContext(resources, resources);
 
     SchemaSource schema = Ocsf.schema(OcsfSchemaVersion._1_9_0, ctx);
+    schema.refreshAllSources();
     Generator gen = new Generator(schema, ctx);
     gen.generate();
   }

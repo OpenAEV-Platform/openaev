@@ -1,0 +1,267 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The full name of the observable attribute. The <code>name</code> is a pointer/reference to an attribute within the OCSF event data. For example: <code>file.name</code>. Array attributes may be represented in one of three ways. For example: <code>resources.uid</code>, <code>resources[].uid</code>, <code>resources[0].uid</code>.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The observable value type name.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "value" : {
+      "type" : "string_t",
+      "description" : "The value associated with the observable attribute. The meaning of the value depends on the observable type.<br/>If the <code>name</code> refers to a scalar attribute, then the <code>value</code> is the value of the attribute.<br/>If the <code>name</code> refers to an object attribute, then the <code>value</code> is not populated.",
+      "requirement" : "optional",
+      "caption" : "Value",
+      "type_name" : "String"
+    },
+    "type_uid" : {
+      "type" : "long_t",
+      "description" : "The OCSF event type UID (<code>type_uid</code>) of the source event that this observable was extracted from. This field enables filtering and categorizing observables by their originating event type. For example: <code>300101</code> for Network Activity (class_uid 3001) with activity_id 1.",
+      "requirement" : "optional",
+      "caption" : "Type ID",
+      "sibling" : "type_name",
+      "type_name" : "Long"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "32" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"name\" for the Group Object.",
+          "caption" : "Group Object: name"
+        },
+        "15" : {
+          "description" : "Observable by Dictionary Attribute.<br>The process identifier, as reported by the operating system. Process ID (PID) is a number used by the operating system to uniquely identify an active process.",
+          "caption" : "Process ID"
+        },
+        "37" : {
+          "description" : "Observable by Dictionary Attribute.<br>The serial number that pertains to the object. See specific usage.",
+          "caption" : "Serial Number"
+        },
+        "5" : {
+          "description" : "Observable by Dictionary Type.<br>Email address. For example:<br><code>john_doe@example.com</code>.",
+          "caption" : "Email Address"
+        },
+        "47" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"uid\" for the Device Object.",
+          "caption" : "Device Object: uid"
+        },
+        "20" : {
+          "description" : "Observable by Object.<br>The Endpoint object describes a physical or virtual device that connects to and exchanges information with a computer network. Some examples of endpoints are mobile devices, desktop computers, virtual machines, embedded devices, and servers. Internet-of-Things devices—like cameras, lighting, refrigerators, security systems, smart speakers, and thermostats—are also endpoints.",
+          "caption" : "Endpoint"
+        },
+        "16" : {
+          "description" : "Observable by Dictionary Attribute.<br>The request header that identifies the operating system and web browser.",
+          "caption" : "HTTP User-Agent"
+        },
+        "31" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"uid\" for the User Object.",
+          "caption" : "User Object: uid"
+        },
+        "25" : {
+          "description" : "Observable by Object.<br>The Process object describes a running instance of a launched program.",
+          "caption" : "Process"
+        },
+        "8" : {
+          "description" : "Observable by Dictionary Type.<br>Fingerprint. A value, in any format, that maps an arbitrarily large data item to a much shorter string that uniquely identifies the original data. Examples include cryptographic hashing of a file, code signing, and Network Protocol Fingerprinting (NPF).<p><b>Note about name.</b> The type name <code>file_hast_t</code> and the caption &quot;Hash&quot; are used for legacy reasons. This type has been generalized from a file hash to a general fingerprint. The existing type name and caption were retained for backwards compatibility.",
+          "caption" : "Hash"
+        },
+        "36" : {
+          "description" : "Observable by Dictionary Attribute.<br>The script content, normalized to UTF-8 encoding irrespective of its original encoding. When emitting this attribute, it may be appropriate to truncate large scripts. When consuming this attribute, large scripts should be anticipated.",
+          "caption" : "Script Content"
+        },
+        "22" : {
+          "description" : "Observable by Object.<br>The Email object describes the email metadata such as sender, recipients, and direction, and can include embedded URLs and files.",
+          "caption" : "Email"
+        },
+        "34" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"name\" for the Account Object.",
+          "caption" : "Account Object: name"
+        },
+        "27" : {
+          "description" : "Observable by Object.<br>The Container object describes an instance of a specific container. A container is a prepackaged, portable system image that runs isolated on an existing system using a container runtime like containerd.",
+          "caption" : "Container"
+        },
+        "99" : {
+          "description" : "The observable data type is not mapped. See the <code>type</code> attribute, which may contain data source specific value.",
+          "caption" : "Other"
+        },
+        "19" : {
+          "description" : "Observable by Dictionary Attribute.<br>The unique identifier of the user's credential. For example, AWS Access Key ID.",
+          "caption" : "User Credential ID"
+        },
+        "4" : {
+          "description" : "Observable by Dictionary Type.<br>User name. For example:<br><code>john_doe</code>.",
+          "caption" : "User Name"
+        },
+        "45" : {
+          "description" : "Observable by Dictionary Type.<br>The full path to the file. For example: For example:<br><code>c:\\windows\\system32\\svchost.exe</code>.",
+          "caption" : "File Path"
+        },
+        "12" : {
+          "description" : "Observable by Dictionary Type.<br>The subnet represented in a CIDR notation, using the format network_address/prefix_length. The network_address can be in either IPv4 or IPv6 format. The prefix length indicates the number of bits used for the network portion, and the remaining bits are available for host addresses within that subnet. For example:<br><code>192.168.1.0/24</code>,<br><code>2001:0db8:85a3:0000::/64</code>",
+          "caption" : "Subnet"
+        },
+        "29" : {
+          "description" : "Observable by Object.<br>The registry value object describes a Windows registry value.",
+          "caption" : "Registry Value"
+        },
+        "24" : {
+          "description" : "Observable by Object.<br>The File object represents the metadata associated with a file stored in a computer system. It encompasses information about the file itself, including its attributes, properties, and organizational details.",
+          "caption" : "File"
+        },
+        "1" : {
+          "description" : "Observable by Dictionary Type.<br>Unique name assigned to a device connected to a computer network. It may be a fully qualified domain name (FQDN). For example:<br><code>r2-d2.example.com.</code>,<br><code>mx.example.com</code>",
+          "caption" : "Hostname"
+        },
+        "38" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"name\" for the Resource Details Object.",
+          "caption" : "Resource Details Object: name"
+        },
+        "46" : {
+          "description" : "Observable by Dictionary Type.<br>Full path of registry key.",
+          "caption" : "Registry Key Path"
+        },
+        "23" : {
+          "description" : "Observable by Object.<br>The Uniform Resource Locator (URL) object describes the characteristics of a URL.",
+          "caption" : "Uniform Resource Locator"
+        },
+        "14" : {
+          "description" : "Observable by Dictionary Attribute.<br>The ISO 3166-1 Alpha-2 country code.<p><b>Note:</b> The two letter country code should be capitalized. For example: <code>US</code> or <code>CA</code>.</p>",
+          "caption" : "Country"
+        },
+        "42" : {
+          "description" : "Observable by Dictionary Attribute.<br>The email header Message-ID value, as defined by RFC 5322.",
+          "caption" : "Message UID"
+        },
+        "39" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"uid\" for the Process Entity Object.",
+          "caption" : "Process Entity Object: uid"
+        },
+        "7" : {
+          "description" : "Observable by Dictionary Type.<br>File name. For example:<br><code>text-file.txt</code>.",
+          "caption" : "File Name"
+        },
+        "41" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"uid\" for the Email Object.",
+          "caption" : "Email Object: uid"
+        },
+        "10" : {
+          "description" : "Observable by Dictionary Type.<br>Resource unique identifier. For example, S3 Bucket name or EC2 Instance ID.",
+          "caption" : "Resource UID"
+        },
+        "40" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"subject\" for the Email Object.",
+          "caption" : "Email Object: subject"
+        },
+        "17" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"uid\" for the CWE Object.",
+          "caption" : "CWE Object: uid"
+        },
+        "6" : {
+          "description" : "Observable by Dictionary Type.<br>Uniform Resource Locator (URL) string. For example:<br><code>http://www.example.com/download/trouble.exe</code>.",
+          "caption" : "URL String"
+        },
+        "44" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"uid\" for the Advisory Object.",
+          "caption" : "Advisory Object: uid"
+        },
+        "3" : {
+          "description" : "Observable by Dictionary Type.<br>Media Access Control (MAC) address. For example:<br><code>18:36:F3:98:4F:9A</code>.",
+          "caption" : "MAC Address"
+        },
+        "26" : {
+          "description" : "Observable by Object.<br>The Geo Location object describes a geographical location, usually associated with an IP address.",
+          "caption" : "Geo Location"
+        },
+        "30" : {
+          "description" : "Observable by Object.<br>The Fingerprint object provides detailed information about a fingerprint, which is a compact representation of data used to identify a longer piece of information, such as a public key, file content, or application implementation. It contains the algorithm or scheme and value of the fingerprint, enabling efficient and reliable identification of the associated data.",
+          "caption" : "Fingerprint"
+        },
+        "48" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"uid\" for the Network Endpoint Object.",
+          "caption" : "Network Endpoint Object: uid"
+        },
+        "18" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"uid\" for the CVE Object.",
+          "caption" : "CVE Object: uid"
+        },
+        "0" : {
+          "description" : "Unknown observable data type.",
+          "caption" : "Unknown"
+        },
+        "35" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"uid\" for the Account Object.",
+          "caption" : "Account Object: uid"
+        },
+        "2" : {
+          "description" : "Observable by Dictionary Type.<br>Internet Protocol address (IP address), in either IPv4 or IPv6 format. For example:<br><code>192.168.200.24</code>, <br> <code>2001:0db8:85a3:0000:0000:8a2e:0370:7334</code>.",
+          "caption" : "IP Address"
+        },
+        "43" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"name\" for the Registry Value Object.",
+          "caption" : "Registry Value Object: name"
+        },
+        "28" : {
+          "description" : "Observable by Object.<br>The registry key object describes a Windows registry key.",
+          "caption" : "Registry Key"
+        },
+        "21" : {
+          "description" : "Observable by Object.<br>The User object describes the characteristics of a user/person or a security principal.",
+          "caption" : "User"
+        },
+        "13" : {
+          "description" : "Observable by Dictionary Attribute.<br>The full command line used to launch an application, service, process, or job. For example: <code>ssh user@10.0.0.10</code>. If the command line is unavailable or missing, the empty string <code>''</code> is to be used.",
+          "caption" : "Command Line"
+        },
+        "11" : {
+          "description" : "Observable by Dictionary Type.<br>The TCP/UDP port number. For example:<br><code>80</code>,<br><code>22</code>.",
+          "caption" : "Port"
+        },
+        "9" : {
+          "description" : "Observable by Dictionary Type.<br>Process name. For example:<br><code>Notepad</code>.",
+          "caption" : "Process Name"
+        },
+        "33" : {
+          "description" : "Observable by Object-Specific Attribute.<br>Object-specific attribute \"uid\" for the Group Object.",
+          "caption" : "Group Object: uid"
+        }
+      },
+      "description" : "The observable value type identifier.",
+      "requirement" : "required",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "event_uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier (<code>metadata.uid</code>) of the source OCSF event from which this observable was extracted. This field enables linking observables back to their originating event data when observables are stored in a separate location or system.",
+      "requirement" : "optional",
+      "caption" : "Event UID",
+      "type_name" : "String"
+    },
+    "reputation" : {
+      "type" : "object_t",
+      "description" : "Contains the original and normalized reputation scores.",
+      "requirement" : "optional",
+      "caption" : "Reputation Scores",
+      "object_type" : "reputation",
+      "object_name" : "Reputation"
+    }
+  },
+  "name" : "observable",
+  "description" : "The observable object is a pivot element that contains related information found in many places in the event.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "OCSF Observables FAQ",
+    "url" : "https://github.com/ocsf/ocsf-docs/blob/main/Articles/Defining and Using Observables.md"
+  } ],
+  "caption" : "Observable",
+  "_links" : [ ]
+}

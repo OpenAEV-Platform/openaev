@@ -1,0 +1,150 @@
+{
+  "attributes" : {
+    "data" : {
+      "type" : "json_t",
+      "description" : "The managed entity content as a JSON object.",
+      "requirement" : "optional",
+      "caption" : "Data",
+      "type_name" : "JSON"
+    },
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the managed entity. It should match the name of the specific entity object's name if populated, or the name of the managed entity if the <code>type_id</code> is 'Other'.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The managed entity type. For example: <code>Policy</code>, <code>User</code>, <code>Organization</code>, <code>Device</code>.",
+      "requirement" : "recommended",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "version" : {
+      "type" : "string_t",
+      "description" : "The version of the managed entity. For example: <code>1.2.3</code>.",
+      "requirement" : "recommended",
+      "caption" : "Version",
+      "type_name" : "String"
+    },
+    "user" : {
+      "type" : "object_t",
+      "description" : "The user that pertains to the event or object.",
+      "requirement" : "recommended",
+      "caption" : "User",
+      "object_type" : "user",
+      "object_name" : "User"
+    },
+    "device" : {
+      "type" : "object_t",
+      "description" : "An addressable device, computer system or host.",
+      "requirement" : "recommended",
+      "caption" : "Device",
+      "object_type" : "device",
+      "object_name" : "Device"
+    },
+    "group" : {
+      "type" : "object_t",
+      "description" : "The group object associated with an entity such as user, policy, or rule.",
+      "requirement" : "recommended",
+      "caption" : "Group",
+      "object_type" : "group",
+      "object_name" : "Group"
+    },
+    "location" : {
+      "type" : "object_t",
+      "description" : "The detailed geographical location usually associated with an IP address.",
+      "requirement" : "optional",
+      "caption" : "Geo Location",
+      "object_type" : "location",
+      "object_name" : "Geo Location"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The identifier of the managed entity. It should match the <code>uid</code> of the specific entity's object UID if populated, or the source specific ID if the <code>type_id</code> is 'Other'.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "email" : {
+      "type" : "object_t",
+      "description" : "The email object.",
+      "requirement" : "recommended",
+      "caption" : "Email",
+      "object_type" : "email",
+      "object_name" : "Email"
+    },
+    "org" : {
+      "type" : "object_t",
+      "description" : "The Organization object containing details about the managed organizational entity. This object includes properties such as the organization name, unique identifier, type, and other organizational metadata. This attribute should be populated when <code>type_id</code> is <code>4</code> (Organization).",
+      "requirement" : "recommended",
+      "caption" : "Organization",
+      "object_type" : "organization",
+      "object_name" : "Organization"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "A managed Group entity.  This item corresponds to population of the <code>group</code> attribute.",
+          "caption" : "Group"
+        },
+        "6" : {
+          "description" : "A managed Email entity.  This item corresponds to population of the <code>email</code> attribute.",
+          "caption" : "Email"
+        },
+        "0" : {
+          "description" : "The type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "A managed Device entity.  This item corresponds to population of the <code>device</code> attribute.",
+          "caption" : "Device"
+        },
+        "2" : {
+          "description" : "A managed User entity.  This item corresponds to population of the <code>user</code> attribute.",
+          "caption" : "User"
+        },
+        "99" : {
+          "description" : "The type is not mapped. See the <code>type</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "A managed Organization entity.  This item corresponds to population of the <code>org</code> attribute.",
+          "caption" : "Organization"
+        },
+        "5" : {
+          "description" : "A managed Policy entity.  This item corresponds to population of the <code>policy</code> attribute.",
+          "caption" : "Policy"
+        },
+        "7" : {
+          "description" : "A managed Network Zone entity. Populate the <code>name</code> attribute with the zone name and/or the <code>uid</code> attribute with the zone ID. Additional zone information can be added to the <code>data</code> attribute.",
+          "caption" : "Network Zone"
+        }
+      },
+      "description" : "The type of the Managed Entity. It is recommended to also populate the <code>type</code> attribute with the associated label, or the source specific name if <code>Other</code>.",
+      "requirement" : "recommended",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "policy" : {
+      "type" : "object_t",
+      "description" : "Describes details of a managed policy.",
+      "requirement" : "recommended",
+      "caption" : "Policy",
+      "object_type" : "policy",
+      "object_name" : "Policy"
+    }
+  },
+  "name" : "managed_entity",
+  "description" : "The Managed Entity object describes the type and version of an entity, such as a user, device, or policy.  For types in the <code>type_id</code> enum list, an associated attribute should be populated.  If the type of entity is not in the <code>type_id</code> list, information can be put into the <code>data</code> attribute, <code>type_id</code> should be 'Other' and the <code>type</code> attribute should label the entity type.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid", "device", "group", "org", "policy", "user" ]
+  },
+  "caption" : "Managed Entity",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ]
+}
