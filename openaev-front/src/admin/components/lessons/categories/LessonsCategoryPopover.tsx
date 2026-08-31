@@ -1,21 +1,24 @@
 import { MoreVert } from '@mui/icons-material';
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Menu, MenuItem } from '@mui/material';
-import * as R from 'ramda';
-import { useContext, useState } from 'react';
+import { type FunctionComponent, type MouseEvent, useContext, useState } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
+import { type LessonsCategory } from '../../../../utils/api-types';
 import { LessonContext } from '../../common/Context';
-import LessonsCategoryForm from './LessonsCategoryForm';
+import LessonsCategoryForm, { type LessonsCategoryFormInputs } from './LessonsCategoryForm';
 
-const LessonsCategoryPopover = ({ lessonsCategory }) => {
+interface Props { lessonsCategory: LessonsCategory }
+
+const LessonsCategoryPopover: FunctionComponent<Props> = ({ lessonsCategory }) => {
   // utils
   const { t } = useFormatter();
   // states
-  const [openDelete, setOpenDelete] = useState(false);
-  const [openEdit, setOpenEdit] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [openDelete, setOpenDelete] = useState<boolean>(false);
+  const [openEdit, setOpenEdit] = useState<boolean>(false);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   // Context
   const {
@@ -23,7 +26,7 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
     onUpdateLessonsCategory,
   } = useContext(LessonContext);
   // popover management
-  const handlePopoverOpen = (event) => {
+  const handlePopoverOpen = (event: MouseEvent<HTMLElement>) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
   };
@@ -34,7 +37,7 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
     handlePopoverClose();
   };
   const handleCloseEdit = () => setOpenEdit(false);
-  const onSubmitEdit = (data) => {
+  const onSubmitEdit: SubmitHandler<LessonsCategoryFormInputs> = (data) => {
     return onUpdateLessonsCategory(
       lessonsCategory.lessonscategory_id,
       data,
@@ -47,16 +50,17 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
   };
   const handleCloseDelete = () => setOpenDelete(false);
   const submitDelete = () => {
-    onDeleteLessonsCategory(lessonsCategory.lessonscategory_id).then(() => handleCloseDelete());
+    // The context types the deletion as synchronous whereas the thunk resolves a promise: wrapping
+    // keeps the original "close once deleted" sequencing without lying about the declared type.
+    Promise.resolve(onDeleteLessonsCategory(lessonsCategory.lessonscategory_id))
+      .then(() => handleCloseDelete());
   };
   // Rendering
-  const initialValues = R.pipe(
-    R.pick([
-      'lessons_category_name',
-      'lessons_category_description',
-      'lessons_category_order',
-    ]),
-  )(lessonsCategory);
+  const initialValues: Partial<LessonsCategoryFormInputs> = {
+    lessons_category_name: lessonsCategory.lessons_category_name,
+    lessons_category_description: lessonsCategory.lessons_category_description ?? '',
+    lessons_category_order: lessonsCategory.lessons_category_order,
+  };
   return (
     <>
       <IconButton

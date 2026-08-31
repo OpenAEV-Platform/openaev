@@ -1,15 +1,41 @@
 import { FlagOutlined } from '@mui/icons-material';
 import { Box, LinearProgress, List, ListItem, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
-import { useContext } from 'react';
+import { type FunctionComponent, useContext } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
+import { type Objective } from '../../../utils/api-types';
 import { PermissionsContext } from '../common/Context';
 import LessonsPlaceholder from './LessonsPlaceholder';
 import ObjectivePopover from './ObjectivePopover';
 
-const LessonsObjectives = ({
+interface Props {
+  objectives: Objective[];
+  source: {
+    type: string;
+    isReadOnly: boolean;
+  };
+  setSelectedObjective?: (objectiveId: string) => void;
+}
+
+// Mirrors the previous `R.ascend(R.prop('objective_priority'))`: a missing priority compares equal
+// to everything, which leaves those objectives in their original order.
+const ascendByPriority = (a: Objective, b: Objective): number => {
+  const left = a.objective_priority;
+  const right = b.objective_priority;
+  if (left === undefined || right === undefined) {
+    return 0;
+  }
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
+};
+
+const LessonsObjectives: FunctionComponent<Props> = ({
   objectives,
   source,
   setSelectedObjective,
@@ -18,10 +44,7 @@ const LessonsObjectives = ({
   const { t } = useFormatter();
   const { permissions } = useContext(PermissionsContext);
 
-  const sortedObjectives = R.sortWith(
-    [R.ascend(R.prop('objective_priority'))],
-    objectives,
-  );
+  const sortedObjectives = [...objectives].sort(ascendByPriority);
   return (
     <Paper
       variant="outlined"

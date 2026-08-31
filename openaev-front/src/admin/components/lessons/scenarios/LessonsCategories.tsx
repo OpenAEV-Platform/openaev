@@ -1,11 +1,11 @@
 import { CastForEducationOutlined, HelpOutlined } from '@mui/icons-material';
 import { Box, Chip, List, ListItem, ListItemText, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
-import { useContext } from 'react';
+import { type FunctionComponent, useContext } from 'react';
 
 import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
 import { useFormatter } from '../../../../components/i18n';
+import { type LessonsCategory, type LessonsQuestion, type Team } from '../../../../utils/api-types';
 import { truncate } from '../../../../utils/String';
 import { LessonContext, PermissionsContext } from '../../common/Context';
 import LessonsCategoryAddTeams from '../categories/LessonsCategoryAddTeams';
@@ -13,10 +13,18 @@ import LessonsCategoryPopover from '../categories/LessonsCategoryPopover';
 import CreateLessonsQuestion from '../categories/questions/CreateLessonsQuestion';
 import LessonsQuestionPopover from '../categories/questions/LessonsQuestionPopover';
 
+interface Props {
+  lessonsCategories: LessonsCategory[];
+  lessonsQuestions: LessonsQuestion[];
+  teamsMap: Record<string, Team>;
+  teams: Team[];
+  isReport?: boolean;
+}
+
 // One block per category: a title row followed by a responsive two-column grid
 // (questions / targeted teams) - scenarios have no answers, so no results
 // column. Shares the detail-page section anatomy with the simulation variant.
-const LessonsCategories = ({
+const LessonsCategories: FunctionComponent<Props> = ({
   lessonsCategories,
   lessonsQuestions,
   teamsMap,
@@ -30,14 +38,10 @@ const LessonsCategories = ({
   // Context
   const { onUpdateLessonsCategoryTeams } = useContext(LessonContext);
 
-  const sortCategories = R.sortWith([
-    R.ascend(R.prop('lessons_category_order')),
-  ]);
-  const sortQuestions = R.sortWith([
-    R.ascend(R.prop('lessons_question_order')),
-  ]);
-  const sortedCategories = sortCategories(lessonsCategories);
-  const handleUpdateTeams = (lessonsCategoryId, teamsIds) => {
+  const sortedCategories = [...lessonsCategories].sort(
+    (a, b) => (a.lessons_category_order ?? 0) - (b.lessons_category_order ?? 0),
+  );
+  const handleUpdateTeams = (lessonsCategoryId: string, teamsIds: string[]) => {
     const data = { lessons_category_teams: teamsIds };
     return onUpdateLessonsCategoryTeams(lessonsCategoryId, data);
   };
@@ -49,11 +53,12 @@ const LessonsCategories = ({
     }}
     >
       {sortedCategories.map((category) => {
-        const questions = sortQuestions(
-          lessonsQuestions.filter(
-            n => n.lessons_question_category === category.lessonscategory_id,
-          ),
-        );
+        const questions = lessonsQuestions
+          .filter(n => n.lessons_question_category === category.lessonscategory_id)
+          .sort((a, b) => (a.lessons_question_order ?? 0) - (b.lessons_question_order ?? 0));
+        // The API types the team list as optional: default it once so the column renders its empty
+        // state instead of throwing, as it would have before.
+        const categoryTeams = category.lessons_category_teams ?? [];
         return (
           <section key={category.lessonscategory_id}>
             <header style={{
@@ -179,10 +184,9 @@ const LessonsCategories = ({
                   {!isReport && permissions.canManage && (
                     <LessonsCategoryAddTeams
                       lessonsCategoryId={category.lessonscategory_id}
-                      lessonsCategoryTeamsIds={category.lessons_category_teams}
+                      lessonsCategoryTeamsIds={categoryTeams}
                       handleUpdateTeams={handleUpdateTeams}
                       teams={teams}
-                      teamsMap={teamsMap}
                     />
                   )}
                 </Typography>
@@ -198,12 +202,12 @@ const LessonsCategories = ({
                     alignContent: 'flex-start',
                   }}
                 >
-                  {category.lessons_category_teams.length === 0 && (
+                  {categoryTeams.length === 0 && (
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       {t('No targeted teams')}
                     </Typography>
                   )}
-                  {category.lessons_category_teams.map((teamId) => {
+                  {categoryTeams.map((teamId) => {
                     const team = teamsMap[teamId];
                     return (
                       <Tooltip key={teamId} title={team?.team_name || ''}>
@@ -213,10 +217,7 @@ const LessonsCategories = ({
                               ? undefined
                               : () => handleUpdateTeams(
                                   category.lessonscategory_id,
-                                  R.filter(
-                                    n => n !== teamId,
-                                    category.lessons_category_teams,
-                                  ),
+                                  categoryTeams.filter(n => n !== teamId),
                                 )
                           }
                           label={truncate(team?.team_name || '', 30)}
