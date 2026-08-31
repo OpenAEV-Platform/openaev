@@ -25,6 +25,21 @@ const managementLogfileUrl = (): string => {
   return managementUrl.toString();
 };
 
+type JsonObject = Record<string, unknown>;
+
+const tryParseJsonObject = (value: string): JsonObject | null => {
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as JsonObject;
+    }
+  } catch {
+    // Ignore malformed JSON candidates.
+  }
+
+  return null;
+};
+
 const findJsonObjectEnd = (content: string, startIndex: number): number => {
   let depth = 0;
   let inString = false;
@@ -62,40 +77,67 @@ const findJsonObjectEnd = (content: string, startIndex: number): number => {
   return -1;
 };
 
-const extractAuditEntries = (rawContent: string): string[] => {
+const canonicalizeAuditEntry = (rawEntry: string): string => {
+  const parsed = tryParseJsonObject(rawEntry);
+  return parsed ? JSON.stringify(parsed) : rawEntry.replace(/\s+/g, ' ').trim();
+};
+
+const extractAuditEntriesFromText = (content: string): string[] => {
   const entries: string[] = [];
   let searchIndex = 0;
 
-  while (searchIndex < rawContent.length) {
-    const markerIndex = rawContent.indexOf('[AUDIT]', searchIndex);
+  while (searchIndex < content.length) {
+    const markerIndex = content.indexOf('[AUDIT]', searchIndex);
     if (markerIndex < 0) {
       break;
     }
 
-    const jsonStart = rawContent.indexOf('{', markerIndex);
+    const jsonStart = content.indexOf('{', markerIndex);
     if (jsonStart < 0) {
-      break;
+      searchIndex = markerIndex + '[AUDIT]'.length;
+      continue;
     }
 
-    const jsonEnd = findJsonObjectEnd(rawContent, jsonStart);
+    const jsonEnd = findJsonObjectEnd(content, jsonStart);
     if (jsonEnd < 0) {
       searchIndex = markerIndex + '[AUDIT]'.length;
       continue;
     }
 
-    const rawEntry = rawContent.slice(jsonStart, jsonEnd + 1);
-    entries.push(rawEntry);
-
-    try {
-      entries.push(JSON.stringify(JSON.parse(rawEntry)));
-    } catch {
-      // Keep raw entry only when parsing fails.
-    }
-
+    entries.push(canonicalizeAuditEntry(content.slice(jsonStart, jsonEnd + 1)));
     searchIndex = jsonEnd + 1;
   }
 
   return entries;
+};
+
+const extractAuditEntries = (rawContent: string): string[] => {
+  const entries: string[] = [];
+  const lines = rawContent.split(/\r?\n/);
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) {
+      continue;
+    }
+
+    const parsedLine = tryParseJsonObject(trimmedLine);
+    const message = parsedLine?.message;
+    if (typeof message === 'string' && message.includes('[AUDIT]')) {
+      entries.push(...extractAuditEntriesFromText(message));
+      continue;
+    }
+
+    if (trimmedLine.includes('[AUDIT]')) {
+      entries.push(...extractAuditEntriesFromText(trimmedLine));
+    }
+  }
+
+  if (entries.length === 0 && rawContent.includes('[AUDIT]')) {
+    entries.push(...extractAuditEntriesFromText(rawContent));
+  }
+
+  return [...new Set(entries)];
 };
 
 const attachAuditDebugOnFailure = async (
