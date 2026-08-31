@@ -1,6 +1,6 @@
 import { PlayCircleOutlineOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useContext, useMemo, useState } from 'react';
+import { type CSSProperties, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 
 import { bulkDeleteCredentials, fetchCredential, searchCredentials } from '../../../../actions/assets/credential-actions';
@@ -22,7 +22,7 @@ import {
   type SearchPaginationInput,
 } from '../../../../utils/api-types';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ToolBar from '../../common/ToolBar';
 import { humanizeEnum } from '../asset-categories';
@@ -46,7 +46,7 @@ const inlineStyles: Record<string, CSSProperties> = {
 const Credentials = () => {
   const { t, fldt } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const [loading, setLoading] = useState<boolean>(true);
   const [credentials, setCredentials] = useState<CredentialOutput[]>([]);
 

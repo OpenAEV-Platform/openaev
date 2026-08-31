@@ -1,5 +1,5 @@
 import { Alert, Box, ToggleButtonGroup } from '@mui/material';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 
 import { bulkDeleteExercises, searchExercises } from '../../../actions/Exercise';
 import Breadcrumbs from '../../../components/Breadcrumbs';
@@ -11,7 +11,7 @@ import { useQueryableWithLocalStorage } from '../../../components/common/queryab
 import { useFormatter } from '../../../components/i18n';
 import { type ExerciseSimple, type SearchPaginationInput } from '../../../utils/api-types';
 import useEntityToggle from '../../../utils/hooks/useEntityToggle';
-import { AbilityContext, Can } from '../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import useAutonomousRunsIndex from '../autonomous/useAutonomousRunsIndex';
 import ToolBar from '../common/ToolBar';
@@ -93,7 +93,7 @@ const Simulations = () => {
   };
 
   // Bulk selection
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const entityToggle = useEntityToggle<ExerciseSimple>('exercise', exercises, queryableHelpers.paginationHelpers.getTotalElements());
   const {

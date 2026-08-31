@@ -1,11 +1,11 @@
-import { type FunctionComponent, useCallback, useContext, useMemo, useState } from 'react';
+import { type FunctionComponent, useCallback, useMemo, useState } from 'react';
 
 import { type UserType } from '../../../../../actions/users/users-helper';
 import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import { type UserInput, type UserOutput } from '../../../../../utils/api-types';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { type Actions, PERMISSION_REQUIRED, type Subjects } from '../../../../../utils/permissions/types';
 import UserUpdate from './UserUpdate';
 
@@ -36,7 +36,7 @@ const UserPopover: FunctionComponent<UserPopoverProps> = ({
   inList = false,
 }) => {
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Edition
   const [isEditOpen, setIsEditOpen] = useState(false);

@@ -1,12 +1,12 @@
 import { Button, SvgIcon, Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import EEChip from '../common/entreprise_edition/EEChip';
 import FiligranAiCguDialog from './FiligranAiCguDialog';
@@ -18,7 +18,7 @@ const AskArianeButton = () => {
   const { t } = useFormatter();
   const { settings } = useAuth();
   const { isOpen, toggleChat } = useChatbot();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const [cguDialogOpen, setCguDialogOpen] = useState(false);
   const {
     isValidated: isEnterpriseEdition,

@@ -1,7 +1,7 @@
 import { AssignmentOutlined, GroupsOutlined, HelpOutlineOutlined, HubOutlined, KeyboardArrowRight, PersonOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type CSSProperties, useCallback, useContext, useMemo, useState } from 'react';
+import { type CSSProperties, useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { searchDistinctFindings } from '../../../../actions/findings/finding-actions';
@@ -32,7 +32,7 @@ import { useHelper } from '../../../../store';
 import { type Filter, type InjectResultOutput, type PlayerOutput, type SearchPaginationInput, type Team, type TeamOutput, type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import InjectResultList from '../../atomic_testings/InjectResultList';
 import injectResultDetailPath from '../../atomic_testings/injectResultUtils';
@@ -68,7 +68,7 @@ const TeamDetail = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { teamId } = useParams() as { teamId: string };
 
   const [managing, setManaging] = useState(false);

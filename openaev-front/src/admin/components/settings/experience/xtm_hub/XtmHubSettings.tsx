@@ -2,7 +2,7 @@ import { HubOutlined } from '@mui/icons-material';
 import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
-import { useContext, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import type { LoggedHelper } from '../../../../../actions/helper';
 import { fetchXtmHubRegistration, refreshConnectivity } from '../../../../../actions/xtmhub/xtmhub-actions';
@@ -14,7 +14,7 @@ import { type PlatformSettings, type XtmHubRegistrationOutput } from '../../../.
 import { XTM_HUB_DEFAULT_URL } from '../../../../../utils/Environment';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import ExperienceCard from '../ExperienceCard';
 import XtmHubRegisteredSection from './XtmHubRegisteredSection';
@@ -28,7 +28,7 @@ const XtmHubSettings: React.FC = () => {
   const registration: XtmHubRegistrationOutput | null = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const hasFetchedRegistration = useRef(false);
   const hasRefreshedConnectivity = useRef(false);
 

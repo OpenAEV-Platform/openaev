@@ -1,4 +1,4 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 
 import {
   deleteCredential,
@@ -13,7 +13,7 @@ import {
   type CredentialInput,
   type CredentialOutput,
 } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CredentialForm from './CredentialForm';
 
@@ -35,7 +35,7 @@ const CredentialPopover: FunctionComponent<CredentialPopoverProps> = ({
   disabled = false,
 }) => {
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [openDelete, setOpenDelete] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);

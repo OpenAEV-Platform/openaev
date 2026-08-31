@@ -1,11 +1,11 @@
 import { Button } from '@mui/material';
-import { type FunctionComponent, useContext, useEffect } from 'react';
+import { type FunctionComponent, useEffect } from 'react';
 import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
 
 import MarkDownFieldController from '../../../../components/fields/MarkDownFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import { type PolicyInput } from '../../../../utils/api-types';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 interface Props {
@@ -22,7 +22,7 @@ const PolicyForm: FunctionComponent<Props> = ({
   },
 }) => {
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const methods = useForm<PolicyInput>({
     mode: 'onTouched',

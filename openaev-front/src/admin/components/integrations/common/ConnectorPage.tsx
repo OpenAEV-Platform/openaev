@@ -13,7 +13,7 @@ import useTabs from '../../../../components/common/tabs/useTabs';
 import { useFormatter } from '../../../../components/i18n';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import CreateConnectorInstanceDrawer from '../connector_instance/CreateConnectorInstanceDrawer';
 import ActionButton from './ActionButton';
@@ -41,7 +41,7 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
 
   const { connector, instance, catalogConnector, isXtmComposerUp, refreshConnector } = useOutletContext<ConnectorContextLayoutType>();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { logoUrl, connectorType, apiRequest, routes } = useContext(ConnectorContext);
   // Built-in connectors have no catalog entry, so fall back to the layout's
   // connector type ('injector' -> 'INJECTOR') and the connector's own external

@@ -1,9 +1,8 @@
-import { useContext } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
 
 import { errorWrapper } from '../../../components/Error';
 import NotFound from '../../../components/NotFound';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import ProtectedRoute from '../../../utils/permissions/ProtectedRoute';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import LessonsTemplateIndex from '../components/lessons/Index';
@@ -50,7 +49,7 @@ const TENANT_SETTINGS_CHECKS = [{
 
 const SecurityLanding = () => {
   const { canAccessTenantSettings, canAccessTenantUsers, canAccessPlatform } = useSecurityScope();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   if (canAccessTenantUsers || canAccessPlatform) {
     return <Navigate to="users" replace={true} />;
   }

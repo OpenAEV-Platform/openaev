@@ -6,7 +6,7 @@ import {
   Typography,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import type { UserHelper } from '../../../../actions/helper';
 import { findPlatformUsers } from '../../../../actions/platform/users/platform-user-action';
@@ -27,7 +27,7 @@ import { useHelper } from '../../../../store';
 import { type SessionOutput, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
@@ -50,7 +50,7 @@ const Sessions = () => {
   const { t } = useFormatter();
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { scope } = useSecurityScope();
   const isPlatform = scope === 'platform';
   const canManage = ability.can(

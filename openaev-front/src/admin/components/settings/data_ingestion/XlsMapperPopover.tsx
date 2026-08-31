@@ -1,4 +1,4 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 
 import { deleteMapper, duplicateMapper, exportMapper } from '../../../../actions/mapper/mapper-actions';
 import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
@@ -7,7 +7,7 @@ import DialogDuplicate from '../../../../components/common/DialogDuplicate';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type RawPaginationImportMapper } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { download } from '../../../../utils/utils';
 import XlsMapperUpdate from './xls_mapper/XlsMapperUpdate';
@@ -29,7 +29,7 @@ const XlsMapperPopover: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Duplication
   const [openDuplicate, setOpenDuplicate] = useState(false);

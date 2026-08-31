@@ -1,5 +1,5 @@
 import type { AxiosResponse } from 'axios';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 
 import { searchAssetGroupByIdAsOption } from '../../../../actions/asset_groups/assetgroup-action';
 import { searchAssetsByIdAsOption, searchEndpointByIdAsOption } from '../../../../actions/assets/endpoint-actions';
@@ -20,7 +20,7 @@ import { searchPlayerByIdAsOption } from '../../../../actions/users/User';
 import ContractOutputElementType from '../../../../admin/components/findings/ContractOutputElementType';
 import { scenarioCategories } from '../../../../admin/components/scenarios/constants';
 import { type GroupOption, type Option } from '../../../../utils/Option';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { useFormatter } from '../../../i18n';
 import { CUSTOM_DASHBOARD, SCENARIOS, SIMULATIONS } from './constants';
@@ -34,7 +34,7 @@ interface RetrieveOptionsConfig {
 const useRetrieveOptions = () => {
   const { t } = useFormatter();
   const [options, setOptions] = useState<Option[]>([]);
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const handleOptions = (response: AxiosResponse<GroupOption[] | Option[]>, filterDefaultValues: GroupOption[]) => {
     if (filterDefaultValues && filterDefaultValues.length > 0) {

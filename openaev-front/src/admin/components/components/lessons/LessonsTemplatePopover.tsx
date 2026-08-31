@@ -1,4 +1,4 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { deleteLessonsTemplate, updateLessonsTemplate } from '../../../../actions/Lessons';
@@ -9,7 +9,7 @@ import { useFormatter } from '../../../../components/i18n';
 import { LESSONS_TEMPLATES_BASE_URL } from '../../../../constants/BaseUrls';
 import { type LessonsTemplate, type LessonsTemplateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import LessonsTemplateForm from './LessonsTemplateForm';
 
@@ -20,7 +20,7 @@ const LessonsTemplatePopover: FunctionComponent<Props> = ({ lessonsTemplate }) =
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const initialValues = {
     lessons_template_name: lessonsTemplate.lessons_template_name,

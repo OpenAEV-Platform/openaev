@@ -1,7 +1,7 @@
 import { AddOutlined, RouteOutlined } from '@mui/icons-material';
 import { Autocomplete, Box, Dialog, DialogContent, DialogTitle, IconButton, TextField } from '@mui/material';
 import * as R from 'ramda';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
@@ -14,7 +14,7 @@ import { useHelper } from '../../store';
 import { type AttackPattern, type AttackPatternCreateInput } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import { type Option } from '../../utils/Option';
-import { AbilityContext, Can } from '../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { useFormatter } from '../i18n';
 
@@ -45,7 +45,7 @@ const AttackPatternFieldController = ({ name, label, hideAddButton = false, requ
   const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Fetching data
   const { attackPatterns, killChainPhasesMap } = useHelper((helper: AttackPatternHelper & KillChainPhaseHelper & UserHelper) => ({

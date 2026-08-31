@@ -1,4 +1,4 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 
 import {
   deleteCustomDashboardWidget,
@@ -9,7 +9,7 @@ import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import { type Widget } from '../../../../../utils/api-types';
 import { type WidgetInputWithoutLayout } from '../../../../../utils/api-types-custom';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import WidgetForm from './configuration/WidgetForm';
 
@@ -30,7 +30,7 @@ const WidgetPopover: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Edition
   const [openEdit, setOpenEdit] = useState(false);

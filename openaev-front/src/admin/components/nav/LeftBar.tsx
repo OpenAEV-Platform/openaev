@@ -24,12 +24,11 @@ import {
   SelectGroup,
   Target,
 } from 'mdi-material-ui';
-import { useContext } from 'react';
 
 import LeftMenu from '../../../components/common/menu/leftmenu/LeftMenu';
 import { type LeftMenuEntries } from '../../../components/common/menu/leftmenu/leftmenu-model';
 import useAuth from '../../../utils/hooks/useAuth';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../utils/utils';
 import { GETTING_STARTED_URI } from '../getting_started/GettingStartedRoutes';
@@ -38,7 +37,7 @@ import LeftBarHeader from './LeftBarHeader';
 import TenantSwitcher from './LeftBarTenantSwitcher';
 
 const LeftBar = () => {
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { userTenants } = useAuth();
   // The tenant switcher only appears when the user can switch (more than one
   // tenant). Passing no headerElement in the single-tenant case keeps the menu

@@ -1,6 +1,6 @@
 import { ArrowDropDownOutlined, FileDownloadOutlined } from '@mui/icons-material';
 import { Box, Button, ButtonGroup, Chip, CircularProgress, IconButton, Menu, MenuItem, Tooltip, Typography } from '@mui/material';
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import {
@@ -18,7 +18,7 @@ import Loader from '../../../components/Loader';
 import NotFound from '../../../components/NotFound';
 import { type Reporting, type ReportingGeneration } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { TIME_RANGE_LABELS } from './render/reportingRenderLabels';
 import { REPORTING_CONTEXT_ICONS, REPORTING_CONTEXT_LABELS } from './ReportingContexts';
@@ -41,7 +41,7 @@ const ReportingPage = () => {
   const { t, fldt } = useFormatter();
   const { reportingId } = useParams();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.REPORTINGS);
 
   // -- Report ------------------------------------------------------------------

@@ -1,7 +1,7 @@
 import { ArrowDropDownOutlined, ArrowDropUpOutlined, AttachmentOutlined, ControlPointOutlined, DeleteOutlined } from '@mui/icons-material';
 import { Button, GridLegacy, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, MenuItem, Typography } from '@mui/material';
 import arrayMutators from 'final-form-arrays';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 import { Form } from 'react-final-form';
 import { FieldArray } from 'react-final-form-arrays';
 import { useDispatch } from 'react-redux';
@@ -19,7 +19,7 @@ import ItemTags from '../../../../components/ItemTags';
 import TagField from '../../../../components/TagField';
 import { useHelper } from '../../../../store';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import DocumentPopover from '../documents/DocumentPopover';
@@ -104,7 +104,7 @@ const ChallengeForm = (props) => {
   const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const { onSubmit, handleClose, initialValues, editing, documentsIds } = props;
   const [documentsSortBy, setDocumentsSortBy] = useState('document_name');

@@ -1,7 +1,7 @@
 import { type ReactNode, useMemo } from 'react';
 
 import { defineAbility } from './ability';
-import { AbilityContext } from './permissionsContext';
+import { AbilityProvider } from './permissionsContext';
 
 type PermissionsProviderProps = {
   capabilities: string[];
@@ -14,9 +14,9 @@ type PermissionsProviderProps = {
 const PermissionsProvider = ({ capabilities, grants, isAdmin, children }: PermissionsProviderProps) => {
   const ability = useMemo(() => defineAbility(capabilities, grants, isAdmin), [capabilities, isAdmin]);
   return (
-    <AbilityContext.Provider value={ability}>
+    <AbilityProvider value={ability}>
       {children}
-    </AbilityContext.Provider>
+    </AbilityProvider>
   );
 };
 

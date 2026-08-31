@@ -9,13 +9,11 @@ import { deleteTag, updateTag } from '../../../../actions/tags/tag-action';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import inject18n from '../../../../components/i18n';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { withAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TagForm from './TagForm';
 
 class TagPopoverComponent extends Component {
-  static contextType = AbilityContext;
-
   constructor(props) {
     super(props);
     this.state = {
@@ -74,8 +72,7 @@ class TagPopoverComponent extends Component {
   }
 
   render() {
-    const { t } = this.props;
-    const ability = this.context;
+    const { t, ability } = this.props;
     const canManageTags = ability?.can(ACTIONS.MANAGE, SUBJECTS.TAGS);
     const canDeleteTags = ability?.can(ACTIONS.DELETE, SUBJECTS.TAGS);
     const initialValues = R.pipe(R.pick(['tag_name', 'tag_color']))(
@@ -154,6 +151,7 @@ TagPopoverComponent.propTypes = {
   onUpdate: PropTypes.func,
   deleteTag: PropTypes.func,
   onDelete: PropTypes.func,
+  ability: PropTypes.object,
 };
 
 const TagPopover = R.compose(
@@ -162,6 +160,7 @@ const TagPopover = R.compose(
     deleteTag,
   }),
   inject18n,
+  withAbility,
 )(TagPopoverComponent);
 
 export default TagPopover;

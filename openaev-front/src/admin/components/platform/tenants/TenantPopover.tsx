@@ -1,4 +1,4 @@
-import { type FunctionComponent, useCallback, useContext, useMemo, useState } from 'react';
+import { type FunctionComponent, useCallback, useMemo, useState } from 'react';
 
 import { reactivateTenant, softDeleteTenant } from '../../../../actions/platform/tenants/tenant-action';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
@@ -7,7 +7,7 @@ import DialogDelete from '../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../components/i18n';
 import type { TenantOutput } from '../../../../utils/api-types';
 import useAuth from '../../../../utils/hooks/useAuth';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TenantUpdate from './tenant/TenantUpdate';
 
@@ -32,7 +32,7 @@ const TenantPopover: FunctionComponent<Props> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { reloadUserTenants, settings } = useAuth();
 
   // Edition

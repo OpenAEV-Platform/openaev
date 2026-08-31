@@ -10,13 +10,13 @@ import {
 } from '@mui/icons-material';
 import { Box, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, memo, useContext } from 'react';
+import { type FunctionComponent, memo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
 import RightMenu, { type RightMenuEntry } from '../../../components/common/menu/RightMenu';
 import { useFormatter } from '../../../components/i18n';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import EEChip from '../common/entreprise_edition/EEChip';
 import useSecurityScope, { type SecurityScope } from './useSecurityScope';
@@ -33,7 +33,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
   const location = useLocation();
   const { isValidated: isEnterpriseEdition, openDialog } = useEnterpriseEdition();
   const { scope, canAccessTenant, canAccessTenantSettings, canAccessTenantUsers, canAccessPlatform } = useSecurityScope();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
 
   // The platform scope is an EE feature: in Community Edition the switcher is

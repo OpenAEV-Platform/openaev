@@ -1,7 +1,7 @@
 import { HelpOutlineOutlined, RotateLeftOutlined } from '@mui/icons-material';
 import { Button, IconButton, InputLabel, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 
 import type { ContractVariable } from '../../../../../actions/contract/contract';
@@ -9,7 +9,7 @@ import SwitchFieldController from '../../../../../components/fields/SwitchFieldC
 import { useFormatter } from '../../../../../components/i18n';
 import type { Article, Variable } from '../../../../../utils/api-types';
 import { type ContractElement, type EnhancedContractElement } from '../../../../../utils/api-types-custom';
-import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import AssetGroupPopover from '../../../assets/asset_groups/AssetGroupPopover';
 import AssetGroupsList from '../../../assets/asset_groups/AssetGroupsList';
@@ -52,7 +52,7 @@ const InjectContentForm = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const { control, setValue, getValues, formState: { errors } } = useFormContext();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // -- TEAMS --
   const renderTeams = (err?: string | null) => (

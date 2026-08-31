@@ -1,6 +1,5 @@
 import { ListItem, ListItemText, Paper, Switch } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext } from 'react';
 
 import { fetchPlatformParameters, updatePlatformWhitemarkParameters } from '../../../actions/Application';
 import type { LoggedHelper } from '../../../actions/helper';
@@ -19,7 +18,7 @@ import type { PlatformSettings, SettingsPlatformWhitemarkUpdateInput, TenantSett
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import EEChip from '../common/entreprise_edition/EEChip';
 import { SETTINGS_LABEL } from '../nav/config/settings.config';
@@ -32,7 +31,7 @@ const TenantParameters = () => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const cannotManage = ability.cannot(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
   const { currentUserTenant } = useAuth();
 

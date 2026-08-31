@@ -1,11 +1,11 @@
 import { PlayCircleOutlineOutlined, RouteOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { type FunctionComponent, useContext } from 'react';
+import { type FunctionComponent } from 'react';
 
 import ContextLink from '../../../components/ContextLink';
 import { ATOMIC_BASE_URL, SCENARIO_BASE_URL, SIMULATION_BASE_URL } from '../../../constants/BaseUrls';
 import { INJECT, SCENARIO, SIMULATION } from '../../../constants/Entities';
 import { type RelatedFindingOutput } from '../../../utils/api-types';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
 }
 
 const FindingContextLink: FunctionComponent<Props> = ({ finding, type }) => {
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   switch (type) {
     case INJECT: {

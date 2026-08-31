@@ -24,7 +24,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { SelectGroup } from 'mdi-material-ui';
-import { type FunctionComponent, type ReactNode, useContext, useEffect, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { findAssetGroups } from '../../../../../actions/asset_groups/assetgroup-action';
@@ -47,7 +47,7 @@ import { useAppDispatch } from '../../../../../utils/hooks';
 import useAI from '../../../../../utils/hooks/useAI';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import useEnterpriseEdition from '../../../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import FiligranAiCguDialog from '../../../ariane/FiligranAiCguDialog';
 import EEChip from '../../../common/entreprise_edition/EEChip';
@@ -127,7 +127,7 @@ const ScenarioAssistant: FunctionComponent = () => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { enabled: aiEnabled, isCguPending } = useAI();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
 

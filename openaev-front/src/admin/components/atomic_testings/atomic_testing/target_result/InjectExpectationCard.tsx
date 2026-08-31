@@ -7,7 +7,7 @@ import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import Paper from '../../../../../components/common/Paper';
 import { useFormatter } from '../../../../../components/i18n';
 import type { InjectResultOverviewOutput, InjectTarget } from '../../../../../utils/api-types';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { computeInjectExpectationLabel, computeStatusStyle } from '../../../../../utils/statusUtils';
 import { emptyFilled } from '../../../../../utils/String';
@@ -50,7 +50,7 @@ const AUTOMATION_LEVEL_POSSIBLE = 'possible';
 const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target }: Props) => {
   const { t, nsdt } = useFormatter();
   const theme = useTheme();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { permissions, inherited_context } = useContext(PermissionsContext);
 
   const { onOpenDeleteInjectExpectationResult, onOpenEditInjectExpectationResultResult } = useContext(InjectExpectationContext);

@@ -9,7 +9,7 @@ import {
   ListItemText,
   ToggleButtonGroup,
 } from '@mui/material';
-import { type CSSProperties, useContext, useState } from 'react';
+import { type CSSProperties, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -34,7 +34,7 @@ import { type EndpointOutput, type SearchPaginationInput } from '../../../../uti
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
@@ -116,7 +116,7 @@ const Endpoints = () => {
   };
 
   // Bulk selection
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS);
   const {
     selectedElements,

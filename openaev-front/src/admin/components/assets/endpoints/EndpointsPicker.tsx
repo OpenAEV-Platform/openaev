@@ -1,7 +1,7 @@
 import { Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { normalize } from 'normalizr';
-import { type FunctionComponent, useContext, useEffect, useMemo, useState } from 'react';
+import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 
 import { arrayOfEndpoints } from '../../../../actions/assets/asset-schema';
 import { findEndpoints, searchEndpoints } from '../../../../actions/assets/endpoint-actions';
@@ -21,7 +21,7 @@ import { type Endpoint, type EndpointOutput, type FilterGroup } from '../../../.
 import { getActiveMsgTooltip, getExecutorsCount } from '../../../../utils/endpoints/utils';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import AssetCategoryIcon from '../AssetCategoryIcon';
@@ -53,7 +53,7 @@ const EndpointsPicker: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [endpointValues, setEndpointValues] = useState<(Endpoint | EndpointOutput)[]>([]);
   const { executorsMap } = useHelper((helper: ExecutorHelper) => ({ executorsMap: helper.getExecutorsMap() }));

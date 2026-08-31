@@ -23,7 +23,7 @@ import {
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../utils/permissions/types';
 import { arrayToRecord, isNotEmptyField } from '../../../../utils/utils';
 import { PermissionsContext } from '../Context';
@@ -67,7 +67,7 @@ const UpdateInject: React.FC<Props> = ({
   const [isInjectLoading, setIsInjectLoading] = useState(true);
 
   const { permissions, inherited_context } = useContext(PermissionsContext);
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Setup tabs
   const [availableTabs, setAvailableTabs] = useState<string[]>(['Inject details', 'Logical chains']);

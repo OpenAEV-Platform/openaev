@@ -11,7 +11,7 @@ import {
   MenuItem,
 } from '@mui/material';
 import * as R from 'ramda';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 
 import { deleteChallenge, updateChallenge } from '../../../../actions/challenge-action';
@@ -20,7 +20,7 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { tagOptions } from '../../../../utils/Option';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ChallengeForm from './ChallengeForm';
 
@@ -29,7 +29,7 @@ const ChallengePopover = ({ challenge, onRemoveChallenge, inline, disabled = fal
 
   const dispatch = useDispatch();
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // states
   const [openDelete, setOpenDelete] = useState(false);

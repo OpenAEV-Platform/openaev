@@ -2,7 +2,7 @@ import { FiberManualRecord } from '@mui/icons-material';
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, List, ListItem, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { deleteDocument, updateDocument } from '../../../../actions/Document';
 import { fetchExercises } from '../../../../actions/Exercise';
@@ -19,7 +19,7 @@ import { useHelper } from '../../../../store';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { exerciseOptions, scenarioOptions, tagOptions } from '../../../../utils/Option';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import DocumentForm from './DocumentForm';
@@ -45,7 +45,7 @@ const DocumentPopover = (props) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // managedMessage: when set, the document is system-owned (e.g. a report generation
   // output managed by the Reporting module) and Update/Delete are disabled with this

@@ -10,7 +10,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../../components/i18n';
 import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../../utils/permissions/types';
 import { truncate } from '../../../../../utils/String';
 import { PermissionsContext } from '../../Context';
@@ -50,7 +50,7 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
   const { classes } = useStyles();
   const { t } = useFormatter();
   const { permissions, inherited_context } = useContext(PermissionsContext);
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const userCanAddExpectations = permissions.canManage || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT)
     || (inherited_context === INHERITED_CONTEXT.NONE && ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, injectId));
 

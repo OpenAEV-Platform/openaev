@@ -7,7 +7,7 @@ import DialogDelete from '../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../components/i18n';
 import { DATA_DELETE_SUCCESS } from '../../../../constants/ActionTypes';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import UpdateConnectorInstanceDrawer from '../connector_instance/UpdateConnectorInstanceDrawer';
 import { ConnectorContext } from './ConnectorContext';
@@ -24,7 +24,7 @@ const ConnectorPopover = ({ connectorInstanceId, connectorName, disabled = false
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { connector, instance, catalogConnector, isXtmComposerUp } = useOutletContext<ConnectorContextLayoutType>();
   const { apiRequest, connectorType } = useContext(ConnectorContext);
 

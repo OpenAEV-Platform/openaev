@@ -1,4 +1,4 @@
-import { useCallback, useContext, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
 
 import { updateExercise } from '../../../../../actions/Exercise';
@@ -17,7 +17,7 @@ import {
   type WidgetToEntitiesInput,
 } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import { AbilityContext, Can } from '../../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import type { ParameterOption } from '../../../workspaces/custom_dashboards/CustomDashboardContext';
 import CustomDashboardWrapper from '../../../workspaces/custom_dashboards/CustomDashboardWrapper';
@@ -27,7 +27,7 @@ import { ALL_TIME_TIME_RANGE } from '../../../workspaces/custom_dashboards/widge
 
 const SimulationAnalysis = () => {
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
 
   const { exercise, tenantSettings }: {

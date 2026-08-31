@@ -10,7 +10,7 @@ import {
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Switch, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
-import { type ChangeEvent, useContext, useState } from 'react';
+import { type ChangeEvent, useState } from 'react';
 
 import { updateChatbotAiCguStatus, updatePlatformEnterpriseEditionParameters } from '../../../../actions/Application';
 import type { LoggedHelper } from '../../../../actions/helper';
@@ -20,7 +20,7 @@ import { useHelper } from '../../../../store';
 import type { PlatformSettings, SettingsEnterpriseEditionUpdateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import FiligranAiCguDialog from '../../ariane/FiligranAiCguDialog';
 import EnterpriseEditionButton from '../../common/entreprise_edition/EnterpriseEditionButton';
@@ -32,7 +32,7 @@ const EnterpriseEditionSettings: React.FC = () => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const { t, fldt } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const [openEEChanges, setOpenEEChanges] = useState(false);
   const [openValidateTermsOfUse, setOpenValidateTermsOfUse] = useState(false);
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));

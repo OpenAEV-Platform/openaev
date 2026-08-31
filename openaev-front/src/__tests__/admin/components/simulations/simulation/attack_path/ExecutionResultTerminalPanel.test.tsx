@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ExecutionResultTerminalPanel from '../../../../../../admin/components/simulations/simulation/attack_path/ExecutionResultTerminalPanel';
 import type { AttackPathExecutionDetailDTO } from '../../../../../../utils/api-types';
+import { defineAbility } from '../../../../../../utils/permissions/ability';
+import { AbilityProvider } from '../../../../../../utils/permissions/permissionsContext';
 
 // The Result tab's new execution-status badge (issue 244) is what these tests pin down: an
 // execution that technically failed must be distinguishable from one that ran cleanly but simply
@@ -42,12 +44,14 @@ vi.mock('../../../../../../admin/components/findings/FindingList', () => ({ defa
 
 const renderPanel = (detail: AttackPathExecutionDetailDTO, endpointLabel?: string) => render(
   <ThemeProvider theme={createTheme()}>
-    <ExecutionResultTerminalPanel
-      loading={false}
-      detail={detail}
-      onClose={() => {}}
-      endpointLabel={endpointLabel}
-    />
+    <AbilityProvider value={defineAbility([], {}, false)}>
+      <ExecutionResultTerminalPanel
+        loading={false}
+        detail={detail}
+        onClose={() => {}}
+        endpointLabel={endpointLabel}
+      />
+    </AbilityProvider>
   </ThemeProvider>,
 );
 

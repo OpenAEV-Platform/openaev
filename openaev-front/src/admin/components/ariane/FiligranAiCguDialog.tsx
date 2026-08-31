@@ -1,11 +1,11 @@
 import { Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, Typography } from '@mui/material';
 import type React from 'react';
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 
 import { updateChatbotAiCguStatus } from '../../../actions/Application';
 import { useFormatter } from '../../../components/i18n';
 import { useAppDispatch } from '../../../utils/hooks';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 interface FiligranAiCguDialogProps {
@@ -16,7 +16,7 @@ interface FiligranAiCguDialogProps {
 const FiligranAiCguDialog: React.FC<FiligranAiCguDialogProps> = ({ open, onClose }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const [isChecked, setIsChecked] = useState(false);
 
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SETTINGS);

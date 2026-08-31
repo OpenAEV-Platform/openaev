@@ -1,4 +1,4 @@
-import { type FunctionComponent, useContext, useEffect, useState } from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import {
@@ -10,7 +10,7 @@ import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import { type PhishingLandingPage } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 
 interface Props {
@@ -29,7 +29,7 @@ const PhishingLandingPagePopover: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [openDelete, setOpenDelete] = useState(false);
 

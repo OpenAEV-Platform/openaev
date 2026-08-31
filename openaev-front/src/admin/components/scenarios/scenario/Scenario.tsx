@@ -2,7 +2,7 @@ import { AutoAwesome, LayersClearOutlined, PlayArrowOutlined, RocketLaunchOutlin
 import { Avatar, Box, Button, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
-import { type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type AgentHelper } from '../../../../actions/agents/agent-helper';
@@ -49,7 +49,7 @@ import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isEmptyField } from '../../../../utils/utils';
 import isXtmOneAvailable from '../../ariane/xtmOneAvailability';
@@ -83,7 +83,7 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
   const theme = useTheme();
   const { t } = useFormatter();
   const { scenarioId } = useParams() as { scenarioId: ScenarioType['scenario_id'] };
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const dispatch = useAppDispatch();
 
   // Fetching data

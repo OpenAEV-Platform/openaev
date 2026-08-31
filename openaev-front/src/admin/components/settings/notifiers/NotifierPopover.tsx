@@ -1,4 +1,4 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 
 import { deleteNotifier, testNotifier, updateNotifier } from '../../../../actions/notifications/notifier-actions';
 import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
@@ -7,7 +7,7 @@ import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type NotifierInput, type NotifierOutput } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import NotifierForm from './NotifierForm';
 
@@ -23,7 +23,7 @@ const NotifierPopover: FunctionComponent<Props> = ({
   onDelete,
 }) => {
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);

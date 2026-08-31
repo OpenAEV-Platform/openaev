@@ -28,7 +28,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
@@ -72,7 +72,7 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useSimulationPermissions from '../../../../utils/permissions/useSimulationPermissions';
 import { truncate } from '../../../../utils/String';
@@ -318,7 +318,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
     };
   });
   const permissions = useSimulationPermissions(exerciseId, exercise);
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // A simulation run from a scenario keeps a pointer to its parent. Autonomous runs carry it on the
   // run instead of (or as well as) the exercise, so fall back to the run's scenario id. When present

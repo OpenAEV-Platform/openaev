@@ -1,6 +1,6 @@
 import { Alert, Box, Tab, Tabs } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useContext, useEffect, useState } from 'react';
+import { type SyntheticEvent, useEffect, useState } from 'react';
 
 import type { SecurityPlatformHelper } from '../../../../actions/assets/asset-helper';
 import { fetchSecurityPlatforms } from '../../../../actions/assets/securityPlatform-actions';
@@ -11,7 +11,7 @@ import { useHelper } from '../../../../store';
 import { type SecurityPlatform } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
@@ -29,7 +29,7 @@ const RemediationFormTabs = ({ actionId }: RemediationFormTabsProps) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const [loading, setLoading] = useState(false);
 
   const handleActiveTabChange = (_: SyntheticEvent, newValue: number) => {

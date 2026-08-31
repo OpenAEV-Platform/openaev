@@ -1,4 +1,4 @@
-import { type FunctionComponent, useContext, useEffect, useState } from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { updateAssetsOnAssetGroup } from '../../../../actions/asset_groups/assetgroup-action';
 import { fetchAiTargetById, updateAiTarget } from '../../../../actions/assets/aiTarget-actions';
@@ -10,7 +10,7 @@ import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type AiTargetInput, type AssetOutput, type EndpointOverviewOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import AiTargetForm from '../ai_targets/AiTargetForm';
 import EndpointUpdate from './EndpointUpdate';
@@ -64,7 +64,7 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
   // Standard hooks
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const isAiTarget = endpoint.asset_category === 'AI_TARGET';
 

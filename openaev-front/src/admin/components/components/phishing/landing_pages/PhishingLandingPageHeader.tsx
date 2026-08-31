@@ -1,7 +1,6 @@
 import { PublicOutlined } from '@mui/icons-material';
 import { Button, Tooltip } from '@mui/material';
 import { Target } from 'mdi-material-ui';
-import { useContext } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import { type PhishingLandingPagesHelper } from '../../../../../actions/phishing/phishing-helper';
@@ -9,7 +8,7 @@ import { DetailHero } from '../../../../../components/common/detail/EntityDetail
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type PhishingLandingPage } from '../../../../../utils/api-types';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import PhishingLandingPagePopover from './PhishingLandingPagePopover';
 
@@ -17,7 +16,7 @@ const PhishingLandingPageHeader = () => {
   const { landingPageId } = useParams() as { landingPageId: PhishingLandingPage['phishing_landing_page_id'] };
   const { t } = useFormatter();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { landingPage } = useHelper(
     (helper: PhishingLandingPagesHelper) => ({ landingPage: helper.getPhishingLandingPage(landingPageId) as PhishingLandingPage }),
   );

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   searchCustomDashboardAsOptions,
@@ -6,7 +6,7 @@ import {
 } from '../../actions/custom_dashboards/customdashboard-action';
 import { useFormatter } from '../../components/i18n';
 import type { Option } from '../../utils/Option';
-import { AbilityContext } from '../../utils/permissions/permissionsContext';
+import { useAbility } from '../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import AutocompleteField from './AutocompleteField';
 
@@ -22,7 +22,7 @@ interface Props {
 }
 
 const CustomDashboardAutocompleteField = ({ label, value, onChange, required = false, scenarioOrSimulationId, disabled, withPlatformDefault = false }: Props) => {
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { t } = useFormatter();
   const [options, setOptions] = useState<Option[]>([]);
 

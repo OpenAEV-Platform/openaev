@@ -1,6 +1,6 @@
 import { HelpOutlineOutlined, KeyboardArrowRight } from '@mui/icons-material';
 import { Box, Button, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type ComponentType, type FunctionComponent, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { type ComponentType, type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -28,7 +28,7 @@ import {
   type ListConfiguration,
   type PropertySchemaDTO,
 } from '../../../../../utils/api-types';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { capitalize } from '../../../../../utils/String';
 import { MITRE_FILTER_KEY } from '../../../common/filters/MitreFilter';
@@ -66,7 +66,7 @@ const ResultsExplorer: FunctionComponent<ExplorerProps> = ({ listConfig, initial
   const { t } = useFormatter();
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const { attackPatterns }: { attackPatterns: AttackPattern[] } = useHelper(
     (helper: AttackPatternHelper) => ({ attackPatterns: helper.getAttackPatterns() }),

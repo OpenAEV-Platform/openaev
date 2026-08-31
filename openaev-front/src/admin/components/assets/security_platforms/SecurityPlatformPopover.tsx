@@ -1,4 +1,4 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 
 import { deleteSecurityPlatform, updateSecurityPlatform } from '../../../../actions/assets/securityPlatform-actions';
 import ButtonPopover from '../../../../components/common/ButtonPopover';
@@ -7,7 +7,7 @@ import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type SecurityPlatform, type SecurityPlatformInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import SecurityPlatformForm from './SecurityPlatformForm';
 
@@ -35,7 +35,7 @@ const SecurityPlatformPopover: FunctionComponent<Props> = ({
   // Standard hooks
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const initialValues = (({
     asset_name,

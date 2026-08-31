@@ -3,7 +3,7 @@ import { useContext, useEffect, useState } from 'react';
 import type { LoggedHelper } from '../../actions/helper';
 import { DialogConnectivityLostStatus } from '../../admin/components/xtm_hub/dialog/connectivity-lost/DialogConnectivityLost.types';
 import { useHelper } from '../../store';
-import { AbilityContext } from '../permissions/permissionsContext';
+import { useAbility } from '../permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../permissions/types';
 import XtmHubClient from '../xtm-hub-client';
 import { UserContext } from './useAuth';
@@ -19,7 +19,7 @@ interface Props {
 interface Return { dialogConnectivityLostStatus: DialogConnectivityLostStatus }
 
 const useXtmHubDownloadDocument = ({ serviceInstanceId, fileId, onSuccess, onError }: Props): Return => {
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { settings } = useContext(UserContext);
   const { userPlatformToken } = useXtmHubUserPlatformToken();
   const registration = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());

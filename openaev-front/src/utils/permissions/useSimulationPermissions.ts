@@ -1,14 +1,14 @@
-import { useContext, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { type ExercisesHelper } from '../../actions/exercises/exercise-helper';
 import { type LoggedHelper, type UserHelper } from '../../actions/helper';
 import { useHelper } from '../../store';
 import { type SimulationDetails } from '../api-types';
-import { AbilityContext } from './permissionsContext';
+import { useAbility } from './permissionsContext';
 import { ACTIONS, SUBJECTS } from './types';
 
 const useSimulationPermissions = (exerciseId: string, fullExercise?: SimulationDetails) => {
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const { exercise, me, logged } = useHelper((helper: ExercisesHelper & UserHelper & LoggedHelper) => {
     return {

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { InfoOutlined } from '@mui/icons-material';
 import { Box, TextField as MuiTextField, Typography } from '@mui/material';
-import { type FunctionComponent, useContext } from 'react';
+import { type FunctionComponent } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -14,7 +14,7 @@ import { useHelper } from '../../../../../../store';
 import { type InjectExpectationResult, type SecurityPlatform } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 import useDataLoader from '../../../../../../utils/hooks/useDataLoader';
-import { AbilityContext, Can } from '../../../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../../../utils/permissions/types';
 import { zodImplement } from '../../../../../../utils/Zod';
@@ -33,7 +33,7 @@ interface FormProps {
 const DetectionPreventionExpectationsValidationForm: FunctionComponent<FormProps> = ({ expectation, result, sourceIds = [], onUpdate }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { securityPlatformsMap }: { securityPlatformsMap: Record<string, SecurityPlatform> }
     = useHelper((helper: SecurityPlatformHelper) => ({ securityPlatformsMap: helper.getSecurityPlatformsMap() }));
   useDataLoader(() => {

@@ -22,7 +22,7 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type LessonsTemplate, type Objective, type Team } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ConfigurationSection from '../../common/ConfigurationSection';
 import { LessonContext, PermissionsContext } from '../../common/Context';
@@ -73,7 +73,7 @@ const Lessons: FunctionComponent<Props> = ({
   const [openApplyTemplate, setOpenApplyTemplate] = useState<boolean>(false);
   const [openEmptyLessons, setOpenEmptyLessons] = useState<boolean>(false);
   const [openAnonymize, setOpenAnonymize] = useState<boolean>(false);
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   useEffect(() => {
     if (openApplyTemplate) {

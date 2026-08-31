@@ -1,4 +1,4 @@
-import { type FunctionComponent, useCallback, useContext, useMemo, useState } from 'react';
+import { type FunctionComponent, useCallback, useMemo, useState } from 'react';
 
 import { deletePlatformRole } from '../../../../../actions/platform/platform-role/platform-role-action';
 import ButtonPopover from '../../../../../components/common/ButtonPopover';
@@ -6,7 +6,7 @@ import DialogDelete from '../../../../../components/common/DialogDelete';
 import { useFormatter } from '../../../../../components/i18n';
 import type { PlatformRoleOutput } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import PlatformRoleUpdate from './PlatformRoleUpdate';
 
@@ -30,7 +30,7 @@ const PlatformRolePopover: FunctionComponent<Props> = ({
   // Standard hooks
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Edition
   const [isEditOpen, setIsEditOpen] = useState(false);

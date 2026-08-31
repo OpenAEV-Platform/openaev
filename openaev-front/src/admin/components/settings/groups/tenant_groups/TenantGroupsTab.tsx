@@ -1,6 +1,6 @@
 import { GroupsOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { useContext, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 
 import PaginatedList from '../../../../../components/common/list/PaginatedList';
@@ -12,7 +12,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import PaginatedListLoader from '../../../../../components/PaginatedListLoader';
 import { GROUP_BASE_URL } from '../../../../../constants/BaseUrls';
 import type { Group } from '../../../../../utils/api-types';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
 import CreateTenantGroup from './CreateTenantGroup';
 import GroupPopover from './GroupPopover';
@@ -27,7 +27,7 @@ import {
 } from './tenantGroups.queryable';
 
 const TenantGroupsTab = () => {
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   // MANAGE is greyed out rather than hidden: the affordance stays discoverable.
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
   const { t } = useFormatter();

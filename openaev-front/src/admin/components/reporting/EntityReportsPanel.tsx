@@ -2,7 +2,7 @@ import { FileDownloadOutlined } from '@mui/icons-material';
 import { alpha, Box, Button, CircularProgress, IconButton, Popover, Skeleton, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FileChartOutline } from 'mdi-material-ui';
-import { type FunctionComponent, type MouseEvent, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { type FunctionComponent, type MouseEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import {
@@ -15,7 +15,7 @@ import {
 import { useFormatter } from '../../../components/i18n';
 import { type Reporting, type ReportingGeneration, type ReportingInput } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { latestGeneration, REPORTING_CONTEXT_LABELS } from './ReportingContexts';
 import { ReportingFormatFragment, ReportingStatusChip } from './ReportingFragments';
@@ -56,7 +56,7 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
   const theme = useTheme();
   const { t, fldt } = useFormatter();
   const navigate = useNavigate();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   // null = not fetched yet (skeleton state while the popover is open).

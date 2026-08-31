@@ -14,7 +14,7 @@ import {
   type InjectExpectationResult,
   type PayloadSimple,
 } from '../../../../../utils/api-types';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import { type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
@@ -132,7 +132,7 @@ const InjectExpectationResultList = ({
 
   const { onOpenDeleteInjectExpectationResult, onOpenEditInjectExpectationResultResult, onOpenAlertsDialog } = useContext(InjectExpectationContext);
 
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const canPivotToSecurityPlatform = ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS);
   // Platform-first icon and pivot resolution: results written by a since-deleted
   // collector still resolve to their (surviving) security platform.

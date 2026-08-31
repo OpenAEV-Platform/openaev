@@ -9,7 +9,7 @@ import ButtonPopover from '../../../../../components/common/ButtonPopover';
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import inject18n from '../../../../../components/i18n';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { withAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
 import GroupManageGrants from './grants/GroupManageGrants.tsx';
 import GroupForm from './GroupForm';
@@ -17,8 +17,6 @@ import GroupManageRoles from './GroupManageRoles';
 import GroupManageUsers from './GroupManageUsers';
 
 class GroupPopoverComponent extends Component {
-  static contextType = AbilityContext;
-
   constructor(props) {
     super(props);
     this.state = {
@@ -130,11 +128,11 @@ class GroupPopoverComponent extends Component {
   }
 
   render() {
-    const { t, group } = this.props;
+    const { t, group, ability } = this.props;
     // Reading the group is enough to open the menu; the actions inside are greyed out instead,
     // each carrying the shared "Permission required" tooltip.
-    const canManage = this.context.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
-    const canDelete = this.context.can(ACTIONS.DELETE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
+    const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
+    const canDelete = ability.can(ACTIONS.DELETE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
     const entries = [
       {
         label: 'Update',
@@ -245,6 +243,7 @@ GroupPopoverComponent.propTypes = {
   deleteGroup: PropTypes.func,
   groupUsersIds: PropTypes.array,
   groupRolesIds: PropTypes.array,
+  ability: PropTypes.object,
 };
 
 const select = () => {
@@ -260,6 +259,7 @@ const GroupPopover = R.compose(
     deleteGroup,
   }),
   inject18n,
+  withAbility,
 )(GroupPopoverComponent);
 
 export default GroupPopover;

@@ -1,4 +1,4 @@
-import { type FunctionComponent, useContext, useState } from 'react';
+import { type FunctionComponent, useState } from 'react';
 
 import { deleteTagRule } from '../../../../actions/tag_rules/tagrule-actions';
 import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
@@ -6,7 +6,7 @@ import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { type TagRuleOutput } from '../../../../utils/api-types';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import TagRuleUpdate from './TagRuleUpdate';
 
@@ -21,7 +21,7 @@ const TagRulePopover: FunctionComponent<Props> = ({
   tagRule,
 }) => {
   const { t } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Edition
   const [openEdit, setOpenEdit] = useState(false);

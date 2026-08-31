@@ -1,6 +1,6 @@
 import { AttachmentOutlined, ControlPointOutlined } from '@mui/icons-material';
 import { List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Typography } from '@mui/material';
-import { type CSSProperties, type FunctionComponent, useContext, useEffect, useState } from 'react';
+import { type CSSProperties, type FunctionComponent, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { fetchDocumentFromSecurityPlatform } from '../../actions/assets/securityPlatform-actions';
@@ -11,7 +11,7 @@ import { useHelper } from '../../store';
 import { type RawDocument } from '../../utils/api-types';
 import { useAppDispatch } from '../../utils/hooks';
 import useDataLoader from '../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../utils/permissions/permissionsContext';
+import { useAbility } from '../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../utils/permissions/types';
 import { buildTenantApiPath } from '../../utils/url-helper';
@@ -110,7 +110,7 @@ const FileLoader: FunctionComponent<Props> = ({
   const { classes } = useStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [open, setOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<RawDocument | undefined>(undefined);

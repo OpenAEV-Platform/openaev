@@ -17,7 +17,7 @@ import { useHelper } from '../../../../store';
 import { type Team, type TeamOutput, type TeamUpdateInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { type Option, organizationOption, tagOptions } from '../../../../utils/Option';
-import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { TeamContext } from '../../common/Context';
 import TeamForm from './TeamForm';
@@ -46,7 +46,7 @@ const TeamPopover: FunctionComponent<TeamPopoverProps> = ({
 }) => {
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const { organizationsMap, tagsMap } = useHelper(
     (

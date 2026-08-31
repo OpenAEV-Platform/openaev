@@ -24,7 +24,7 @@ import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type Inject, type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type LessonsSendInput, type LessonsTemplate, type Objective, type Team, type User } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ConfigurationSection from '../../common/ConfigurationSection';
 import { LessonContext, PermissionsContext } from '../../common/Context';
@@ -93,7 +93,7 @@ const Lessons: FunctionComponent<Props> = ({
   const [openSendLessons, setOpenSendLessons] = useState<boolean>(false);
   const [openAnonymize, setOpenAnonymize] = useState<boolean>(false);
   const [selectedQuestion, setSelectedQuestion] = useState<LessonsQuestion | null>(null);
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   useEffect(() => {
     if (openApplyTemplate) {

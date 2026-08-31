@@ -19,7 +19,7 @@ import { useHelper } from '../../../../store';
 import { type Channel, type Document } from '../../../../utils/api-types';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type AppAbility } from '../../../../utils/permissions/ability';
-import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
+import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import RestrictionAccess from '../../../../utils/permissions/RestrictionAccess';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
@@ -133,7 +133,7 @@ const ArticleForm = ({
   const theme = useTheme();
   const { t } = useFormatter();
   const { classes } = useStyles();
-  const ability: AppAbility = useContext(AbilityContext);
+  const ability: AppAbility = useAbility();
   // Channels and documents are scoped to the current screen (simulation, scenario…):
   // always go through ArticleContext instead of the global endpoints.
   const { fetchChannels, fetchDocuments } = useContext(ArticleContext);

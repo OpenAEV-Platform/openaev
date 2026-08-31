@@ -2,15 +2,7 @@ import { GroupsOutlined, PersonOutlined } from '@mui/icons-material';
 import { Box, Button, Tab, Tabs, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
-import {
-  type FunctionComponent,
-  type SyntheticEvent,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { type FunctionComponent, type SyntheticEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { findAssetGroups, searchAssetGroups } from '../../../actions/asset_groups/assetgroup-action';
 import { findEndpoints, searchEndpoints } from '../../../actions/assets/endpoint-actions';
@@ -34,7 +26,7 @@ import { getActiveMsgTooltip, getExecutorsCount } from '../../../utils/endpoints
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../utils/url-helper';
 import { download } from '../../../utils/utils';
@@ -109,7 +101,7 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
   const { t } = useFormatter();
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   // Each Add tab is gated on its own capability: the asset tabs need the global asset search,
   // the teams / persons tabs only need the teams & players capability. A user granted on the

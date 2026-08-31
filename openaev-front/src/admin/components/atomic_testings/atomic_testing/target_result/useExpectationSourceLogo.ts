@@ -1,5 +1,5 @@
 import { useTheme } from '@mui/material/styles';
-import { type SyntheticEvent, useContext } from 'react';
+import { type SyntheticEvent } from 'react';
 
 import { type SecurityPlatformHelper } from '../../../../../actions/assets/asset-helper';
 import { fetchSecurityPlatforms } from '../../../../../actions/assets/securityPlatform-actions';
@@ -8,7 +8,7 @@ import { useHelper } from '../../../../../store';
 import { type InjectExpectationResult, type SecurityPlatform } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
-import { AbilityContext } from '../../../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../../utils/url-helper';
 
@@ -26,7 +26,7 @@ const GENERIC_DETECTOR_LOGO_PATH = '/api/collectors/openaev_fake_detector/image'
 const useExpectationSourceLogo = () => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const collectorsMap = useHelper((helper: CollectorHelper) => helper.getCollectorsMap());
   const securityPlatforms: SecurityPlatform[] = useHelper((helper: SecurityPlatformHelper) => helper.getSecurityPlatforms());

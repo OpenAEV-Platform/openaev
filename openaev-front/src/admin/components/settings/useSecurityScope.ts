@@ -1,8 +1,7 @@
-import { useContext } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 export type SecurityScope = 'tenant' | 'platform';
@@ -27,7 +26,7 @@ interface UseSecurityScope {
 }
 
 const useSecurityScope = (): UseSecurityScope => {
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const canAccessTenantSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
   const canAccessTenantUsers = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);

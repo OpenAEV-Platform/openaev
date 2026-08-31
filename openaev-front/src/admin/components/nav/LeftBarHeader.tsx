@@ -1,7 +1,7 @@
 import { ArrowDropDown, OpenInNew } from '@mui/icons-material';
 import { Box, Divider, IconButton, List, ListItemButton, ListItemIcon, Popover, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useContext, useEffect, useState } from 'react';
+import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
 import { type LoggedHelper } from '../../../actions/helper';
@@ -16,7 +16,7 @@ import { useHelper } from '../../../store';
 import { fileUri, XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 interface PopoverItemProps {
@@ -97,7 +97,7 @@ const LeftBarHeader: FunctionComponent<Props> = ({ navOpen }) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
   const { settings, isXTMHubAccessible } = useAuth();
 
   useEffect(() => {

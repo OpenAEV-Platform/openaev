@@ -1,6 +1,6 @@
 import { Box, Paper, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { Fragment, useContext, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
@@ -10,7 +10,7 @@ import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
 import { ATOMIC_BASE_URL, SIMULATION_BASE_URL } from '../../../constants/BaseUrls';
 import type { Finding, RelatedFindingOutput, SearchPaginationInput } from '../../../utils/api-types';
-import { AbilityContext } from '../../../utils/permissions/permissionsContext';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { buildOccurrencesFilter, occurrenceTargets } from './FindingOccurrencesUtils';
 
@@ -36,7 +36,7 @@ interface Props {
 const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
   const theme = useTheme();
   const { t, fndt } = useFormatter();
-  const ability = useContext(AbilityContext);
+  const ability = useAbility();
 
   const [loading, setLoading] = useState<boolean>(true);
   const [occurrences, setOccurrences] = useState<RelatedFindingOutput[]>([]);
