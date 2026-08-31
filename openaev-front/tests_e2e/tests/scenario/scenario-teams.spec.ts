@@ -1,4 +1,4 @@
-import type { APIRequestContext } from '@playwright/test';
+import type { APIRequestContext, TestInfo } from '@playwright/test';
 import { expect } from '@playwright/test';
 
 import { test } from '../../fixtures';
@@ -25,47 +25,100 @@ const managementLogfileUrl = (): string => {
   return managementUrl.toString();
 };
 
-const expectAuditLogContainsAll = async (request: APIRequestContext, matchers: RegExp[]): Promise<void> => {
+const attachAuditDebugOnFailure = async (
+  request: APIRequestContext,
+  testInfo: TestInfo,
+  context: string,
+  matchers: RegExp[],
+): Promise<void> => {
   const logfileEndpoint = managementLogfileUrl();
+  const response = await request.get(logfileEndpoint);
+  const rawContent = await response.text();
+  const logfileTail = rawContent.split('\n').slice(-350).join('\n');
+  const matcherStatus = matchers
+    .map((matcher, index) => `[${index}] ${matcher.source} => ${matcher.test(rawContent)}`)
+    .join('\n');
 
-  await expect(async () => {
-    const response = await request.get(logfileEndpoint);
-    expect(response.ok()).toBeTruthy();
+  const debugReport = [
+    `[AUDIT DEBUG] context=${context}`,
+    `[AUDIT DEBUG] endpoint=${logfileEndpoint}`,
+    `[AUDIT DEBUG] status=${response.status()}`,
+    '[AUDIT DEBUG] matcher_status:',
+    matcherStatus,
+    '[AUDIT DEBUG] logfile_tail:',
+    logfileTail,
+  ].join('\n');
 
-    const auditLog = await response.text();
-    expect(matchers.every(matcher => matcher.test(auditLog))).toBeTruthy();
-  }).toPass({
-    intervals: [1_000, 2_000, 5_000],
-    timeout: auditLogTimeoutMs,
+  // Keep diagnostics visible in CI logs even when attachments are hard to retrieve.
+  process.stdout.write(`${debugReport}\n`);
+
+  await testInfo.attach(`audit-debug-${context}.txt`, {
+    body: Buffer.from(debugReport, 'utf-8'),
+    contentType: 'text/plain',
   });
 };
 
-const hasTeamAddedToScenarioAuditEvent = (auditLog: string, scenarioId: string): boolean => {
+const createTeamAddedMatcher = (scenarioId: string): RegExp => {
   const escapedScenarioId = escapeRegExp(scenarioId);
-  const blockMatcher = new RegExp(
+  return new RegExp(
     `"event_scope"\\s*:\\s*"update"[\\s\\S]*?"url"\\s*:\\s*"[^"]*/scenarios/${escapedScenarioId}/teams/replace"[\\s\\S]*?"method"\\s*:\\s*"PUT"`,
     'i',
   );
-  return blockMatcher.test(auditLog);
 };
 
-const expectTeamAddedAuditLog = async (request: APIRequestContext, scenarioId: string): Promise<void> => {
+const expectAuditLogContainsAll = async (
+  request: APIRequestContext,
+  testInfo: TestInfo,
+  context: string,
+  matchers: RegExp[],
+): Promise<void> => {
   const logfileEndpoint = managementLogfileUrl();
 
-  await expect(async () => {
-    const response = await request.get(logfileEndpoint);
-    expect(response.ok()).toBeTruthy();
+  try {
+    await expect(async () => {
+      const response = await request.get(logfileEndpoint);
+      expect(response.ok()).toBeTruthy();
 
-    const auditLog = await response.text();
-    expect(hasTeamAddedToScenarioAuditEvent(auditLog, scenarioId)).toBeTruthy();
-  }).toPass({
-    intervals: [1_000, 2_000, 5_000],
-    timeout: auditLogTimeoutMs,
-  });
+      const auditLog = await response.text();
+      expect(matchers.every(matcher => matcher.test(auditLog))).toBeTruthy();
+    }).toPass({
+      intervals: [1_000, 2_000, 5_000],
+      timeout: auditLogTimeoutMs,
+    });
+  } catch (error) {
+    await attachAuditDebugOnFailure(request, testInfo, context, matchers);
+    throw error;
+  }
+};
+
+const expectTeamAddedAuditLog = async (
+  request: APIRequestContext,
+  testInfo: TestInfo,
+  scenarioId: string,
+): Promise<void> => {
+  const logfileEndpoint = managementLogfileUrl();
+  const teamAddedMatcher = createTeamAddedMatcher(scenarioId);
+
+  try {
+    await expect(async () => {
+      const response = await request.get(logfileEndpoint);
+      expect(response.ok()).toBeTruthy();
+
+      const auditLog = await response.text();
+      expect(teamAddedMatcher.test(auditLog)).toBeTruthy();
+    }).toPass({
+      intervals: [1_000, 2_000, 5_000],
+      timeout: auditLogTimeoutMs,
+    });
+  } catch (error) {
+    await attachAuditDebugOnFailure(request, testInfo, 'team-add', [teamAddedMatcher]);
+    throw error;
+  }
 };
 
 const expectScenarioLifecycleAuditLog = async (
   request: APIRequestContext,
+  testInfo: TestInfo,
   scenarioId: string,
 ): Promise<void> => {
   const escapedScenarioId = escapeRegExp(scenarioId);
@@ -89,7 +142,7 @@ const expectScenarioLifecycleAuditLog = async (
     ),
   ];
 
-  await expectAuditLogContainsAll(request, matchers);
+  await expectAuditLogContainsAll(request, testInfo, 'scenario-lifecycle', matchers);
 };
 
 const findAnyInjectorContractId = async (request: APIRequestContext): Promise<string> => {
@@ -205,14 +258,14 @@ test.describe('Scenario - Teams management', () => {
         emptyScenario,
         page,
         createTeam,
-      }) => {
+      }, testInfo) => {
         const scenarioId = emptyScenario.scenario_id;
         const existingTeam = await createTeam(`Audited team ${Date.now()}-${Math.random()}`);
 
         await scenarioPage.addExistingTeam(existingTeam.team_name);
         await expect(scenarioPage.getTeam(existingTeam.team_name)).toBeVisible();
 
-        await expectTeamAddedAuditLog(request, scenarioId);
+        await expectTeamAddedAuditLog(request, testInfo, scenarioId);
 
         await scenarioPage.clickSecondaryActionOnTeamList(existingTeam.team_name, 'Remove from the context');
         await page.getByRole('button', { name: 'Remove' }).click();
@@ -222,7 +275,7 @@ test.describe('Scenario - Teams management', () => {
         request,
         emptyScenario,
         createTeam,
-      }) => {
+      }, testInfo) => {
         const scenarioId = emptyScenario.scenario_id;
         const existingTeam = await createTeam(`Lifecycle team ${Date.now()}-${Math.random()}`);
 
@@ -236,7 +289,7 @@ test.describe('Scenario - Teams management', () => {
         expect(launchResponse.ok()).toBeTruthy();
 
         // Validate the full lifecycle audit trail.
-        await expectScenarioLifecycleAuditLog(request, scenarioId);
+        await expectScenarioLifecycleAuditLog(request, testInfo, scenarioId);
       });
     });
   });
