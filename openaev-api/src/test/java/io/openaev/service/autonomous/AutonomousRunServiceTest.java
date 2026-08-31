@@ -164,6 +164,9 @@ class AutonomousRunServiceTest {
       run.setStatus(AutonomousRunStatus.CREATED);
       run.setPlanMode(false);
       run.setTenant(new Tenant("tenant-1"));
+      // A live run only engages the orchestrator once it has a perimeter (an unscoped one parks on
+      // the operator instead - see LaunchWithoutScope), so these engagement tests need one.
+      run.setScope(List.of(new AutonomousScopeTarget("ASSETS_GROUPS", "group-1")));
       return run;
     }
 
@@ -852,6 +855,194 @@ class AutonomousRunServiceTest {
     verify(workflowService).provisionSimulationTemplateWorkflow(eq("scenario-1"), any());
     verify(workflowService, never()).startWorkflowByScenarioIdAndSimulation(anyString(), any());
     assertThat(restarted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
+  }
+
+  // endregion
+
+  // region start: a live run with no perimeter parks on the operator instead of engaging
+
+  /**
+   * A live autonomous run launched with NO perimeter (empty launch stepper, scenario carrying no
+   * scope) used to be handed to the orchestrator anyway: it had nothing to act on, its still-empty
+   * simulation immediately read FINISHED and the reconcile completed the run seconds after the
+   * launch. It now parks in WAITING_INPUT on a QUESTION event so the cockpit chat asks the operator
+   * for the scope, and only engages once that question is answered.
+   */
+  @Nested
+  @DisplayName("Launching a live run without a scope")
+  class LaunchWithoutScope {
+
+    private AutonomousRun createdRun() {
+      AutonomousRun run = new AutonomousRun();
+      run.setId("run-1");
+      run.setScenarioId("scenario-1");
+      run.setSimulationId("sim-1");
+      run.setStatus(AutonomousRunStatus.CREATED);
+      run.setPlanMode(false);
+      run.setObjective("Reach the domain controller");
+      run.setTenant(new Tenant("tenant-1"));
+      return run;
+    }
+
+    @BeforeEach
+    void stubSave() {
+      lenient()
+          .when(runRepository.save(any(AutonomousRun.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    @Test
+    @DisplayName("with no scope at all, the run parks on a scope question and nothing is engaged")
+    void given_unscopedLiveRun_when_started_then_parksAndAsksForTheScope() {
+      // -- PREPARE --
+      AutonomousRun run = createdRun();
+      when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+      when(workflowService.hasAllowlistScopeForSimulation("sim-1")).thenReturn(false);
+
+      // -- EXECUTE --
+      AutonomousRun started = service.start("run-1");
+
+      // -- ASSERT --
+      assertThat(started.getStatus()).isEqualTo(AutonomousRunStatus.WAITING_INPUT);
+      verify(eventService)
+          .append(
+              eq("run-1"),
+              eq("tenant-1"),
+              eq("sim-1"),
+              eq(AutonomousEventType.QUESTION),
+              anyString(),
+              anyString(),
+              isNull());
+      // Never engaged: an unscoped orchestrator run is exactly what completed immediately.
+      verifyNoInteractions(xtmOneClient);
+    }
+
+    @Test
+    @DisplayName("an entity target on the run is scope enough to engage the orchestrator")
+    void given_runWithScopeTargets_when_started_then_engagesTheOrchestrator() {
+      // -- PREPARE --
+      AutonomousRun run = createdRun();
+      run.setScope(List.of(new AutonomousScopeTarget("ASSETS_GROUPS", "group-1")));
+      when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+
+      // -- EXECUTE --
+      AutonomousRun started = service.start("run-1");
+
+      // -- ASSERT --
+      assertThat(started.getStatus()).isEqualTo(AutonomousRunStatus.RUNNING);
+      verify(xtmOneClient)
+          .startAutonomousRun(
+              any(),
+              anyString(),
+              eq("run-1"),
+              eq("sim-1"),
+              eq("scenario-1"),
+              anyBoolean(),
+              any(),
+              any(),
+              anyList(),
+              any(),
+              anyBoolean(),
+              any(),
+              any(),
+              anyList(),
+              anyMap());
+    }
+
+    @Test
+    @DisplayName("an allow-list on the simulation workflow is scope enough to engage")
+    void given_workflowAllowlist_when_started_then_engagesTheOrchestrator() {
+      // -- PREPARE --
+      AutonomousRun run = createdRun();
+      when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
+      when(workflowService.hasAllowlistScopeForSimulation("sim-1")).thenReturn(true);
+
+      // -- EXECUTE --
+      AutonomousRun started = service.start("run-1");
+
+      // -- ASSERT --
+      assertThat(started.getStatus()).isEqualTo(AutonomousRunStatus.RUNNING);
+      verify(eventService, never())
+          .append(
+              anyString(),
+              anyString(),
+              anyString(),
+              eq(AutonomousEventType.QUESTION),
+              anyString(),
+              anyString(),
+              any());
+    }
+
+    @Test
+    @DisplayName("answering the scope question engages the orchestrator that was never started")
+    void given_runParkedOnScope_when_operatorAnswers_then_orchestratorIsEngaged() {
+      // -- PREPARE --
+      AutonomousRun run = createdRun();
+      run.setStatus(AutonomousRunStatus.WAITING_INPUT);
+      when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
+      when(directiveRepository.save(any(AutonomousDirective.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      // -- EXECUTE --
+      service.addDirective("run-1", "Attack the asset group Workstations");
+
+      // -- ASSERT --
+      assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.RUNNING);
+      // A run that was never engaged has no session to wake: the answer starts it.
+      verify(xtmOneClient)
+          .startAutonomousRun(
+              any(),
+              anyString(),
+              eq("run-1"),
+              eq("sim-1"),
+              eq("scenario-1"),
+              anyBoolean(),
+              any(),
+              any(),
+              anyList(),
+              any(),
+              anyBoolean(),
+              any(),
+              any(),
+              anyList(),
+              anyMap());
+      verify(xtmOneClient, never()).wakeAutonomousRun(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("a directive on an already engaged run still only wakes it")
+    void given_engagedRun_when_operatorAnswers_then_orchestratorIsOnlyWoken() {
+      // -- PREPARE --
+      AutonomousRun run = createdRun();
+      run.setStatus(AutonomousRunStatus.WAITING_INPUT);
+      run.setXtmSessionId("xtm-session-1");
+      when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
+      when(directiveRepository.save(any(AutonomousDirective.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      // -- EXECUTE --
+      service.addDirective("run-1", "Pivot to the DMZ");
+
+      // -- ASSERT --
+      verify(xtmOneClient).wakeAutonomousRun(eq("run-1"), anyString());
+      verify(xtmOneClient, never())
+          .startAutonomousRun(
+              any(),
+              any(),
+              anyString(),
+              any(),
+              any(),
+              anyBoolean(),
+              any(),
+              any(),
+              anyList(),
+              any(),
+              anyBoolean(),
+              any(),
+              any(),
+              anyList(),
+              anyMap());
+    }
   }
 
   // endregion

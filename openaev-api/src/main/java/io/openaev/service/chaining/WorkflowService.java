@@ -370,6 +370,24 @@ public class WorkflowService {
     }
   }
 
+  /**
+   * Whether a simulation's RUN workflow(s) carry at least one ALLOWLIST scope rule, i.e. an actual
+   * attack perimeter. The autonomous launch uses it to detect a run that has no scope at all (the
+   * launch stepper left both lists empty AND the scenario carried none), so it can ask the operator
+   * for one instead of driving an unscoped run.
+   *
+   * @param simulationId the ID of the simulation
+   * @return true when any RUN workflow of the simulation has a non-empty allow-list
+   */
+  @Transactional(readOnly = true)
+  public boolean hasAllowlistScopeForSimulation(String simulationId) {
+    if (!hasText(simulationId)) {
+      return false;
+    }
+    return findWorkflowRunBySimulationId(simulationId).stream()
+        .anyMatch(workflow -> !workflow.getAllowlist().isEmpty());
+  }
+
   private boolean appendScopeRules(Workflow workflow, List<WorkflowScopeRuleInput> ruleInputs) {
     List<WorkflowScopeRule> existing = workflow.getWorkflowScopeRules();
     Set<String> existingKeys =

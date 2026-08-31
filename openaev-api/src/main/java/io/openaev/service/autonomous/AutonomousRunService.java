@@ -162,6 +162,19 @@ public class AutonomousRunService {
   private static final String ENGAGED_EVENT_DATA = "{\"phase\":\"engaged\"}";
 
   /**
+   * Title of the QUESTION event OpenAEV itself raises when a live run is launched with no perimeter
+   * at all. The run parks in WAITING_INPUT on it and the cockpit renders it as a pending question
+   * with a reply composer, so the operator answers the scope in the chat and the run then starts.
+   */
+  private static final String SCOPE_QUESTION_TITLE = "Which targets are in scope?";
+
+  /** Body of {@link #SCOPE_QUESTION_TITLE}. */
+  private static final String SCOPE_QUESTION_BODY =
+      "This run has no perimeter yet, so nothing can be attacked. Tell me which targets I am"
+          + " authorized to attack - assets, asset groups, teams, persons, IPs or hostnames - and I"
+          + " will start right away. You can also define them in the Scope tab.";
+
+  /**
    * Default OpenAEV-enforced run timeout when the launcher does not specify one: 24 hours.
    * Autonomous runs are long-lived (recon, waiting on human-in-the-loop injects, slow exploitation)
    * so the default is far larger than the 1h chained-scenario workflow timeout.
@@ -890,10 +903,40 @@ public class AutonomousRunService {
           HttpStatus.CONFLICT, "Run cannot be started from status " + run.getStatus());
     }
     boolean planMode = run.isPlanMode();
-    run.setStatus(planMode ? AutonomousRunStatus.PLANNING : AutonomousRunStatus.RUNNING);
+    // A live run launched with NO perimeter at all is parked on the operator instead of being
+    // handed to the orchestrator: OpenAEV asks for the scope in the cockpit chat (a QUESTION event
+    // + WAITING_INPUT) and only engages once the operator answers (see addDirective). Driving an
+    // unscoped run had no target to act on, so its still-empty simulation immediately read FINISHED
+    // and reconcileWithSimulation completed the run seconds after the launch - the reported
+    // "autonomous chaining ends immediately" behaviour. Plan mode designs a path without executing
+    // anything, so it never needs a perimeter up front.
+    boolean awaitingScope = !planMode && !hasLaunchScope(run);
+    run.setStatus(
+        planMode
+            ? AutonomousRunStatus.PLANNING
+            : awaitingScope ? AutonomousRunStatus.WAITING_INPUT : AutonomousRunStatus.RUNNING);
     run.setLastError(null);
     stampDeadline(run);
     AutonomousRun saved = runRepository.save(run);
+    if (awaitingScope) {
+      eventService.append(
+          runId,
+          runTenantId(run),
+          run.getSimulationId(),
+          AutonomousEventType.STATUS,
+          "Waiting for the scope",
+          "No perimeter is defined for this run, so nothing has been engaged yet.",
+          null);
+      eventService.append(
+          runId,
+          runTenantId(run),
+          run.getSimulationId(),
+          AutonomousEventType.QUESTION,
+          SCOPE_QUESTION_TITLE,
+          SCOPE_QUESTION_BODY,
+          null);
+      return saved;
+    }
     eventService.append(
         runId,
         runTenantId(run),
@@ -906,6 +949,21 @@ public class AutonomousRunService {
         ENGAGED_EVENT_DATA);
     engageOrchestratorAfterCommit(saved);
     return saved;
+  }
+
+  /**
+   * Whether the run carries an actual attack perimeter: either an entity target on the run's own
+   * scope projection, or an ALLOWLIST rule on its live simulation workflow (which already carries
+   * both the launch stepper's rules and the scenario's own scope, seeded at creation).
+   */
+  private boolean hasLaunchScope(AutonomousRun run) {
+    if (run.getScope() != null && !run.getScope().isEmpty()) {
+      return true;
+    }
+    if (hasText(run.getScopeAssetGroupId()) || hasText(run.getScopeTeamId())) {
+      return true;
+    }
+    return workflowService.hasAllowlistScopeForSimulation(run.getSimulationId());
   }
 
   /**
@@ -2151,14 +2209,22 @@ public class AutonomousRunService {
     // returns to PLANNING (still authoring), a live run to RUNNING; the
     // orchestrator refines this on its next cycle. Only WAITING_INPUT is
     // touched, so a directive on an already-active run never perturbs it.
-    if (run.getStatus() == AutonomousRunStatus.WAITING_INPUT) {
+    boolean wasWaitingInput = run.getStatus() == AutonomousRunStatus.WAITING_INPUT;
+    if (wasWaitingInput) {
       run.setStatus(run.isPlanMode() ? AutonomousRunStatus.PLANNING : AutonomousRunStatus.RUNNING);
       runRepository.save(run);
     }
-    // Re-arm the orchestrator so it picks up the directive now, not only at its next scheduled
-    // re-check - crucial when the run is parked in WAITING_INPUT after asking the operator a
-    // question. Fired after commit so the orchestrator can never consume before the row is visible.
-    wakeOrchestratorAfterCommit(runId, "operator directive queued");
+    // A live run parked at launch on the "which targets are in scope?" question was never engaged
+    // (no orchestrator session), so the operator's answer is what actually starts it: engage
+    // instead of waking a session that does not exist. Any other case is a running orchestrator
+    // that only needs to be re-armed so it picks the directive up now rather than at its next
+    // scheduled re-check. Both fire after commit so the directive row is visible to the
+    // orchestrator's consume-directives read.
+    if (wasWaitingInput && !run.isPlanMode() && !hasText(run.getXtmSessionId())) {
+      engageOrchestratorAfterCommit(run);
+    } else {
+      wakeOrchestratorAfterCommit(runId, "operator directive queued");
+    }
     return saved;
   }
 
@@ -2207,6 +2273,11 @@ public class AutonomousRunService {
    * Applies a live scope / rate-limit / safe-mode edit to the run's RUN workflow(s) without
    * stopping it. The chaining engine reads the updated scope on its next decision cycle, so a
    * denylist entry added here walls off the matching assets immediately.
+   *
+   * <p>It is also the second way to answer the launch-time "which targets are in scope?" question:
+   * a live run parked on it (never engaged, no perimeter) is started here as soon as the edit gives
+   * it an allow-list, so defining the scope in the Scope tab is equivalent to answering in the
+   * chat.
    */
   @Transactional(rollbackFor = Exception.class)
   public List<Workflow> applyLiveConfiguration(String runId, WorkflowConfigurationInput input) {
@@ -2222,6 +2293,23 @@ public class AutonomousRunService {
         "Live configuration updated",
         "Scope / rate-limit / safe-mode edited on the running workflow.",
         null);
+    boolean parkedOnScope =
+        run.getStatus() == AutonomousRunStatus.WAITING_INPUT
+            && !run.isPlanMode()
+            && !hasText(run.getXtmSessionId());
+    if (parkedOnScope && hasLaunchScope(run)) {
+      run.setStatus(AutonomousRunStatus.RUNNING);
+      AutonomousRun started = runRepository.save(run);
+      eventService.append(
+          runId,
+          runTenantId(run),
+          run.getSimulationId(),
+          AutonomousEventType.STATUS,
+          "Run started",
+          "Scope defined; orchestrator engaged and autonomous execution is now running.",
+          ENGAGED_EVENT_DATA);
+      engageOrchestratorAfterCommit(started);
+    }
     return updated;
   }
 
