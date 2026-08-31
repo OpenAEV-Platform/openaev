@@ -159,7 +159,7 @@ export const getWidgetTitle = (widgetTitle: Widget['widget_config']['title'], ty
   } else if (type === 'attack-path') {
     return !widgetTitle ? t('Attack Path') : widgetTitle;
   } else if (type === 'security-coverage') {
-    return !widgetTitle ? t('Mitre Coverage') : widgetTitle;
+    return !widgetTitle ? t('Security Coverage') : widgetTitle;
   } else if (type === 'exposure-score') {
     return !widgetTitle ? t('Exposure score') : widgetTitle;
   } else if (type === 'posture-radar') {

@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { DEFAULT_LANG, supportedLanguages } from './constants/Lang.js';
+import { collectGlossaryViolations, reportGlossaryViolations } from './i18n-glossary.js';
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -86,10 +87,16 @@ const run = () => {
   if (Object.keys(missingKeys).length) {
     // eslint-disable-next-line no-console
     console.error('Missing keys :', missingKeys);
-    process.exit(1);
-  } else {
-    process.exit(0);
   }
+  const glossaryViolations = collectGlossaryViolations();
+  if (glossaryViolations.length) {
+    reportGlossaryViolations(glossaryViolations);
+  }
+
+  if (Object.keys(missingKeys).length || glossaryViolations.length) {
+    process.exit(1);
+  }
+  process.exit(0);
 };
 
 run();
