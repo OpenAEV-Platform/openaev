@@ -436,7 +436,7 @@ public class InjectService {
    */
   private Optional<Asset> resolveContentAiTarget(Inject inject) {
     return InjectContentUtils.contentAiTargetId(inject.getContent())
-        .<Asset>flatMap(aiTargetRepository::findAiTargetById);
+        .flatMap(id -> aiTargetRepository.findAiTargetById(id).map(Asset.class::cast));
   }
 
   public void cleanInjectsDocExercise(String exerciseId, String documentId) {

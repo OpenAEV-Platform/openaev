@@ -223,7 +223,7 @@ class AiTargetApiTest extends IntegrationTest {
     @DisplayName("Given an AI target, should be resolvable through the endpoint edit flow")
     @Test
     @WithMockUser(isAdmin = true)
-    void given_an_ai_target_should_be_resolvable_as_an_endpoint() throws Exception {
+    void given_anAiTarget_should_beResolvableAsAnEndpoint() throws Exception {
       // -- PREPARE --
       String id = createAiTarget("Endpoint-Editable-AI");
 

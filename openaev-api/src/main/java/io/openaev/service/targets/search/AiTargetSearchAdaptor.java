@@ -43,7 +43,7 @@ public class AiTargetSearchAdaptor extends SearchAdaptorBase {
   private Optional<Asset> contentAiTarget(Inject scopedInject) {
     // Key parsing shared with InjectService.resolveContentAiTarget via InjectContentUtils.
     return InjectContentUtils.contentAiTargetId(scopedInject.getContent())
-        .<Asset>flatMap(aiTargetRepository::findAiTargetById);
+        .flatMap(id -> aiTargetRepository.findAiTargetById(id).map(Asset.class::cast));
   }
 
   /**

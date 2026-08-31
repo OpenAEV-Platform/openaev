@@ -500,155 +500,6 @@ export interface ArticleUpdateInput {
   article_shares?: number;
 }
 
-export interface Asset {
-  ai_target_configuration?: Record<string, any>;
-  ai_target_endpoint?: string;
-  ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
-  ai_target_model?: string;
-  ai_target_provider?:
-    | "OPENAI_COMPATIBLE"
-    | "ANTHROPIC"
-    | "AZURE_OPENAI"
-    | "AWS_BEDROCK"
-    | "GOOGLE_VERTEX"
-    | "HUGGINGFACE"
-    | "OLLAMA"
-    | "CUSTOM_HTTP"
-    | "MCP_SERVER"
-    | "AGENT_HTTP"
-    | "XTM_ONE";
-  ai_target_system_prompt?: string;
-  ai_target_token?: string;
-  asset_category?:
-    | "HOST"
-    | "CONTAINER_WORKLOAD"
-    | "CLOUD_RESOURCE"
-    | "WEB_APPLICATION"
-    | "NETWORK_DEVICE"
-    | "MOBILE_DEVICE"
-    | "IOT_OT_DEVICE"
-    | "IDENTITY"
-    | "SAAS_APPLICATION"
-    | "AI_TARGET"
-    | "SECURITY_PLATFORM"
-    | "GENERIC_ASSET";
-  asset_cloud_native_type?: string;
-  asset_cloud_provider?:
-    | "AWS"
-    | "AZURE"
-    | "GCP"
-    | "OCI"
-    | "ALIBABA"
-    | "KUBERNETES"
-    | "OTHER";
-  asset_cloud_region?: string;
-  /** @format date-time */
-  asset_created_at: string;
-  asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
-  asset_description?: string;
-  asset_external_reference?: string;
-  asset_hostname?: string;
-  /** @minLength 1 */
-  asset_id: string;
-  asset_internet_facing?: boolean;
-  asset_ips?: string[];
-  asset_linked_person?: string;
-  asset_mac_addresses?: string[];
-  asset_metadata?: Record<string, any>;
-  /** @minLength 1 */
-  asset_name: string;
-  asset_seen_ip?: string;
-  /** Activity status derived from agents (ACTIVE / INACTIVE / AGENTLESS) */
-  asset_status?: "ACTIVE" | "INACTIVE" | "AGENTLESS";
-  asset_subcategory?:
-    | "SERVER"
-    | "WORKSTATION"
-    | "LAPTOP"
-    | "VIRTUAL_MACHINE"
-    | "HYPERVISOR"
-    | "MAINFRAME"
-    | "THIN_CLIENT"
-    | "CONTAINER"
-    | "CONTAINER_IMAGE"
-    | "KUBERNETES_POD"
-    | "KUBERNETES_CLUSTER"
-    | "KUBERNETES_NODE"
-    | "SERVERLESS_FUNCTION"
-    | "COMPUTE"
-    | "STORAGE"
-    | "DATABASE"
-    | "NETWORKING"
-    | "SERVERLESS"
-    | "CONTAINER_REGISTRY"
-    | "KUBERNETES"
-    | "IAM_PRINCIPAL"
-    | "SECRETS_KEY_MGMT"
-    | "MESSAGING_QUEUE"
-    | "ANALYTICS_DATA"
-    | "AI_ML_SERVICE"
-    | "IAC_TEMPLATE"
-    | "CLOUD_OTHER"
-    | "WEBSITE"
-    | "WEB_API"
-    | "SINGLE_PAGE_APP"
-    | "GRAPHQL_API"
-    | "WEB_SERVICE"
-    | "MICROSERVICE"
-    | "ROUTER"
-    | "SWITCH"
-    | "FIREWALL"
-    | "LOAD_BALANCER"
-    | "VPN_GATEWAY"
-    | "WIRELESS_AP"
-    | "PROXY"
-    | "DNS_SERVER"
-    | "DHCP_SERVER"
-    | "SAN_NAS"
-    | "NETWORK_OTHER"
-    | "SMARTPHONE"
-    | "TABLET"
-    | "IOT_SENSOR"
-    | "IP_CAMERA"
-    | "GATEWAY"
-    | "POINT_OF_SALE"
-    | "MEDIA_DEVICE"
-    | "PLC"
-    | "RTU"
-    | "HMI"
-    | "SCADA_HISTORIAN"
-    | "MEDICAL_DEVICE"
-    | "PRINTER_PERIPHERAL"
-    | "BUILDING_MGMT"
-    | "USER_ACCOUNT"
-    | "SERVICE_ACCOUNT"
-    | "GROUP"
-    | "ROLE"
-    | "SHARED_MAILBOX"
-    | "NON_HUMAN_IDENTITY"
-    | "SAAS_APP"
-    | "SAAS_TENANT"
-    | "LLM_MODEL"
-    | "AI_AGENT"
-    | "MCP_SERVER"
-    | "RAG_PIPELINE"
-    | "EDR"
-    | "XDR"
-    | "SIEM"
-    | "SOAR"
-    | "NDR"
-    | "ISPM"
-    | "EMAIL_SECURITY"
-    | "LLM_FIREWALL"
-    | "AI_GATEWAY"
-    | "VULNERABILITY_SCANNER";
-  asset_tags?: string[];
-  asset_type?: string;
-  /** @format date-time */
-  asset_updated_at: string;
-  asset_url?: string;
-  listened?: boolean;
-}
-
 export interface AssetAgentJob {
   asset_agent_agent?: string;
   /** @deprecated */
@@ -8163,25 +8014,6 @@ export interface PageAggregatedFindingOutput {
   totalPages?: number;
 }
 
-export interface PageAsset {
-  content?: Asset[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject[];
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
 export interface PageAssetGroupOutput {
   content?: AssetGroupOutput[];
   empty?: boolean;
@@ -8298,6 +8130,25 @@ export interface PageCustomDashboard {
 
 export interface PageCustomDomain {
   content?: CustomDomain[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageEndpoint {
+  content?: Endpoint[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
