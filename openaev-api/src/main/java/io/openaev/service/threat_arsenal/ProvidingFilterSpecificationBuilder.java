@@ -34,7 +34,7 @@ public class ProvidingFilterSpecificationBuilder {
   public ProvidingFilterContext extractProvidingFilter(SearchPaginationInput searchInput) {
     if (searchInput.getFilterGroup() == null || searchInput.getFilterGroup().getFilters() == null) {
       return new ProvidingFilterContext(
-          searchInput, Specification.where(null), Filters.FilterMode.and, false, false);
+          searchInput, Specification.unrestricted(), Filters.FilterMode.and, false, false);
     }
 
     List<Filters.Filter> allFilters = searchInput.getFilterGroup().getFilters();
@@ -44,7 +44,7 @@ public class ProvidingFilterSpecificationBuilder {
     if (providingFilters.isEmpty()) {
       return new ProvidingFilterContext(
           searchInput,
-          Specification.where(null),
+          Specification.unrestricted(),
           Filters.FilterMode.and,
           false,
           !allFilters.isEmpty());
@@ -87,7 +87,7 @@ public class ProvidingFilterSpecificationBuilder {
 
     Set<ContractOutputType> expectedOutputTypes = resolveContractOutputTypes(filter.getValues());
     if (expectedOutputTypes.isEmpty()) {
-      return Specification.where(null);
+      return Specification.unrestricted();
     }
 
     Specification<InjectorContract> hasProviding =

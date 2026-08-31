@@ -88,8 +88,27 @@ Audit logging will allow you to have a trace of the actions performed using API 
 | openaev.audit-logs.transports      | OPENAEV_AUDIT-LOGS_TRANSPORTS      |                  | Lists of transports to use for audit logging separated by comma. No transports means audit logging is disabled. The transports usable are : file,console |
 | openaev.audit-logs.halt-on-failure | OPENAEV_AUDIT-LOGS_HALT-ON-FAILURE | false            | Parameter to stop the platform if audit logging is failing.                                                                                              |
 | logging.level.io.openaev.utils.log | LOGGING_LEVEL_IO_OPENAEV_UTILS_LOG |                  | Audit logging is using the global OpenAEV log level but to lower the log level of the audit logging, this parameter can be used                          |
-|                                    | AUDIT_LOG_DIR                      | ./logs           | If file transport is used, this parameter is used to set the path of the log file.                                                                       |
-|                                    | AUDIT_LOG_FILE                     | ./logs/audit.log | If file transport is used, this parameter is used to set the file path.                                                                                  |
+| openaev.audit-logs.file.dir        | OPENAEV_AUDIT-LOGS_FILE_DIR        | logs             | Preferred setting for the audit log directory when `file` transport is enabled.                                                                          |
+| openaev.audit-logs.file.filename   | OPENAEV_AUDIT-LOGS_FILE_FILENAME   | audit            | Preferred setting for the audit log basename (without extension) when `file` transport is enabled.                                                       |
+|                                    | AUDIT_LOG_DIR                      | logs             | Legacy compatibility env var for the audit log directory. When set, it overrides `openaev.audit-logs.file.dir`.                                          |
+|                                    | AUDIT_LOG_FILENAME                 | audit            | Legacy compatibility env var for the audit log basename. When set, it overrides `openaev.audit-logs.file.filename`; `audit` and `audit.log` are accepted. |
+
+#### Credential status validation
+
+A scheduled job periodically re-checks the credentials stored in the platform against their cloud
+provider and records the result on the credential, so an operator can see that a credential
+was revoked or expired *before* a simulation fails on it.
+
+The job runs per tenant and only considers credentials whose status is stale, capped by a per-run
+budget. credential types with no remote counterpart (username/password, hash) are never checked and keep the `UNSET` status.
+
+| Parameter                                                   | Environment variable                                       | Default value | Description                                                                                              |
+|:------------------------------------------------------------|:-----------------------------------------------------------|:--------------|:---------------------------------------------------------------------------------------------------------|
+| openaev.credentials.status-validation.enabled               | OPENAEV_CREDENTIALS_STATUS-VALIDATION_ENABLED              | true          | Enables the credential status validation job. When false, the job returns immediately and writes nothing. |
+| openaev.credentials.status-validation.cron                  | OPENAEV_CREDENTIALS_STATUS-VALIDATION_CRON                 | 0 0 3 * * ?   | Quartz cron expression driving the job. Defaults to 3:00 AM: a run makes one outbound call per stale credential, keep it off-peak. |
+| openaev.credentials.status-validation.revalidate-after-days | OPENAEV_CREDENTIALS_STATUS-VALIDATION_REVALIDATE-AFTER-DAYS | 7             | How long a credential status stays fresh. Past this age the credential is checked again.                 |
+| openaev.credentials.status-validation.max-per-run           | OPENAEV_CREDENTIALS_STATUS-VALIDATION_MAX-PER-RUN          | 500           | Maximum number of credentials checked per tenant and per run. Oldest verification first.                 |
+| openaev.credentials.status-validation.timeout-seconds       | OPENAEV_CREDENTIALS_STATUS-VALIDATION_TIMEOUT-SECONDS      | 10            | Per-call budget for a single provider probe. A probe exceeding it is inconclusive, not a rejection.      |
 
 ### Dependencies
 

@@ -55,6 +55,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -215,7 +216,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
       Token token = new Token();
       token.setValue("fake-token-value");
-      when(tokenRepository.findAll(any())).thenReturn(List.of(token));
+      when(tokenRepository.findAll(any(Specification.class))).thenReturn(List.of(token));
 
       CatalogConnectorConfiguration confDef1 =
           createCatalogConfiguration(
@@ -288,7 +289,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
       Token token = new Token();
       token.setValue("fake-token-value");
-      when(tokenRepository.findAll(any())).thenReturn(List.of(token));
+      when(tokenRepository.findAll(any(Specification.class))).thenReturn(List.of(token));
 
       CatalogConnectorConfiguration confDef1 =
           createCatalogConfiguration(
@@ -426,7 +427,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
       Token token = new Token();
       token.setValue("fake-token-value");
-      when(tokenRepository.findAll(any())).thenReturn(List.of(token));
+      when(tokenRepository.findAll(any(Specification.class))).thenReturn(List.of(token));
 
       Set<String> enumList = Set.of("info", "debug", "warn");
       CatalogConnectorConfiguration confDef1 =

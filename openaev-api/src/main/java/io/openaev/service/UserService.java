@@ -40,6 +40,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,6 +54,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -171,9 +173,8 @@ public class UserService {
     if (StringUtils.hasLength(password)) {
       user.setPassword(this.encodeUserPassword(password));
     }
-    List<Group> assignableGroups =
-        groupRepository.findAll(GroupSpecification.defaultUserAssignablePlatform());
-    user.setGroups(assignableGroups);
+    // Creation enters every scope at once: platform, plus each tenant attached in the input.
+    assignAutoAssignGroups(user, user.getTenants().stream().map(Tenant::getId).toList(), true);
     User savedUser = userRepository.save(user);
     this.createUserToken(savedUser, token);
     return savedUser;
@@ -242,6 +243,16 @@ public class UserService {
         new ArrayList<>(
             referenceResolver.resolve(
                 input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
+    // Only tenants the user just joined trigger auto-assignment: re-applying it to tenants he
+    // already belonged to would restore groups deliberately removed from within those tenants.
+    List<String> currentTenantIds = existing.getTenants().stream().map(Tenant::getId).toList();
+    List<String> attachedTenantIds =
+        currentTenantIds.stream().filter(tenantId -> !oldTenantIds.contains(tenantId)).toList();
+    assignAutoAssignGroups(existing, attachedTenantIds, false);
+    // Symmetrically, a membership must not outlive the tenant attachment that granted it.
+    List<String> detachedTenantIds =
+        oldTenantIds.stream().filter(tenantId -> !currentTenantIds.contains(tenantId)).toList();
+    revokeTenantGroups(existing, detachedTenantIds);
     User savedUser = userRepository.save(existing);
     // Evict cache for old tenants (removed memberships) and new tenants (added memberships)
     List<String> newTenantIds = input.tenantIds() != null ? input.tenantIds() : List.of();
@@ -547,5 +558,81 @@ public class UserService {
 
   public Optional<User> findByEmailIgnoreCase(String email) {
     return userRepository.findByEmailIgnoreCase(email);
+  }
+
+  /**
+   * Grants the auto-assign groups of the given tenants to an already persisted user. Used when a
+   * user joins a tenant outside of the create/update flows, i.e. when attached from a tenant
+   * screen.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void assignAutoAssignGroups(
+      @NotBlank final String userId, @NotNull final Collection<String> tenantIds) {
+    if (tenantIds.isEmpty()) {
+      return;
+    }
+    User user = user(userId);
+    assignAutoAssignGroups(user, tenantIds, false);
+    userRepository.save(user);
+  }
+
+  /**
+   * Grants the default-assign groups of the scopes the user just entered: the platform scope at
+   * creation, plus every tenant freshly attached. Scopes the user already belonged to are skipped,
+   * so a group deliberately removed from a user is never re-granted by a later update. Never
+   * removes an existing group membership.
+   */
+  private void assignAutoAssignGroups(
+      User user, Collection<String> tenantIds, boolean includePlatformScope) {
+    if (!includePlatformScope && tenantIds.isEmpty()) {
+      return;
+    }
+    Specification<Group> spec =
+        includePlatformScope ? GroupSpecification.defaultUserAssignablePlatform() : null;
+    for (String tenantId : tenantIds) {
+      Specification<Group> tenantSpec = GroupSpecification.defaultUserAssignableTenant(tenantId);
+      spec = spec == null ? tenantSpec : spec.or(tenantSpec);
+    }
+    List<Group> applicableGroups = groupRepository.findAll(spec);
+    if (applicableGroups.isEmpty()) {
+      return;
+    }
+    List<Group> current = new ArrayList<>(user.getUnscopedGroups());
+    for (Group group : applicableGroups) {
+      if (!current.contains(group)) {
+        current.add(group);
+      }
+    }
+    user.setGroups(current);
+  }
+
+  /**
+   * Revokes the groups of the given tenants from an already persisted user. Used when a user leaves
+   * a tenant outside of the update flow, i.e. when detached from a tenant screen.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void revokeTenantGroups(
+      @NotBlank final String userId, @NotNull final Collection<String> tenantIds) {
+    if (tenantIds.isEmpty()) {
+      return;
+    }
+    User user = user(userId);
+    revokeTenantGroups(user, tenantIds);
+    User savedUser = userRepository.save(user);
+    sessionManager.refreshUserSessions(savedUser);
+  }
+
+  /**
+   * Drops every group scoped to a tenant the user just left: a group grants capabilities inside its
+   * own tenant only, so keeping it would leave access to a tenant the user no longer belongs to.
+   * Platform groups and the groups of the remaining tenants are untouched.
+   */
+  private void revokeTenantGroups(User user, Collection<String> tenantIds) {
+    if (tenantIds.isEmpty()) {
+      return;
+    }
+    user.getUnscopedGroups()
+        .removeIf(
+            group -> group.getTenant() != null && tenantIds.contains(group.getTenant().getId()));
   }
 }

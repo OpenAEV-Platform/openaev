@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Component
 public class StructuredOutputUtils {
+  private static final ObjectMapper objectMapper = new ObjectMapper();
 
   private final OutputProcessorFactory outputProcessorFactory;
   @Resource private final ObjectMapper mapper;
@@ -75,7 +76,6 @@ public class StructuredOutputUtils {
     }
 
     try {
-      ObjectMapper objectMapper = new ObjectMapper();
       JsonNode rootNode = objectMapper.readTree(rawOutput);
 
       if (mode == ParserMode.STDOUT && rootNode.has("stdout")) {

@@ -6,7 +6,6 @@ import { type ChannelsHelper } from '../../../../actions/channels/channel-helper
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type Channel } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { ArticleContext } from '../../common/Context';
 import ChannelIcon from './ChannelIcon';
@@ -42,10 +41,7 @@ const ChannelsFilter: FunctionComponent<Props> = (props) => {
   const { t } = useFormatter();
   const { fetchChannels } = useContext(ArticleContext);
 
-  const dispatch = useAppDispatch();
-  useDataLoader(() => {
-    dispatch(fetchChannels());
-  });
+  useDataLoader(() => fetchChannels());
 
   const { channels } = useHelper((helper: ChannelsHelper) => ({ channels: helper.getChannels() }));
   const { onChannelsChange, onClearChannels = () => { }, fullWidth } = props;

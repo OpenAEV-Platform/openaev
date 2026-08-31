@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public class PushStixBundle implements Mutation {
+  private static final ObjectMapper mapper = new ObjectMapper();
+
   @Getter private final ConnectorBase connector;
   @Getter private final JsonNode bundle;
   @Getter private final String workId = null;
@@ -27,7 +29,6 @@ public class PushStixBundle implements Mutation {
 
   @Override
   public JsonNode getVariables() throws JsonProcessingException {
-    ObjectMapper mapper = new ObjectMapper();
     ObjectNode node = mapper.createObjectNode();
     node.set("connectorId", mapper.valueToTree(connector.getId()));
     node.set("bundle", mapper.valueToTree(bundle.toString()));

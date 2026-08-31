@@ -49,9 +49,17 @@ const TENANT_SETTINGS_CHECKS = [{
 }];
 
 const SecurityLanding = () => {
-  const { canAccessTenantSettings, canAccessTenantUsers, canAccessPlatform } = useSecurityScope();
+  const {
+    canAccessTenantSettings,
+    canAccessTenantUsers,
+    canAccessPlatformUsers,
+    canAccessSession,
+  } = useSecurityScope();
   const ability = useContext(AbilityContext);
-  if (canAccessTenantUsers || canAccessPlatform) {
+  // The landing arbitrates between both scopes, so each one is named explicitly.
+  const canManageSessions = canAccessSession('TENANT');
+  const canManagePlatformSessions = canAccessSession('PLATFORM');
+  if (canAccessTenantUsers || canAccessPlatformUsers) {
     return <Navigate to="users" replace={true} />;
   }
   if (canAccessTenantSettings) {
@@ -59,6 +67,9 @@ const SecurityLanding = () => {
   }
   if (ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS)) {
     return <Navigate to="tenants" replace={true} />;
+  }
+  if (canManageSessions || canManagePlatformSessions) {
+    return <Navigate to={canManageSessions ? 'sessions' : 'sessions?scope=platform'} replace={true} />;
   }
   // Nothing reachable: let the users route answer with its own NoAccess.
   return <Navigate to="users" replace={true} />;
@@ -148,12 +159,12 @@ const Index = () => {
           <ProtectedRoute
             checks={[
               {
-                action: ACTIONS.ACCESS,
-                subject: SUBJECTS.TENANT_SETTINGS,
+                action: ACTIONS.MANAGE,
+                subject: SUBJECTS.SESSIONS,
               },
               {
-                action: ACTIONS.ACCESS,
-                subject: SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES,
+                action: ACTIONS.MANAGE,
+                subject: SUBJECTS.PLATFORM_SESSIONS,
               },
             ]}
             Component={errorWrapper(Sessions)()}

@@ -65,15 +65,15 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
     resolver: zodResolver(
       zodImplement<ScenarioInput>().with({
         scenario_name: z.string().min(1, { message: t('Should not be empty') }),
-        scenario_category: z.string().optional(),
-        scenario_main_focus: z.string().optional(),
+        scenario_category: z.string().optional().nullable(),
+        scenario_main_focus: z.string().optional().nullable(),
         scenario_severity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
-        scenario_default_kill_chain: z.string().optional(),
+        scenario_default_kill_chain: z.string().optional().nullable(),
         scenario_subtitle: z.string().optional(),
         scenario_description: z.string().optional(),
         scenario_tags: z.string().array().optional(),
-        scenario_external_reference: z.string().optional(),
-        scenario_external_url: z.string().optional(),
+        scenario_external_reference: z.string().optional().nullable(),
+        scenario_external_url: z.string().optional().nullable(),
         scenario_mail_from_name: z.string().max(100, t('Should not exceed {max_length} characters', { max_length: '100' })).optional(),
         scenario_mails_reply_to: z.array(z.email(t('Should be a valid email address'))).optional(),
         scenario_message_header: z.string().optional(),
@@ -197,7 +197,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
             <DefaultKillChainSelectField<ScenarioInput>
               name="scenario_default_kill_chain"
               control={control}
-              defaultValue={initialValues.scenario_default_kill_chain}
+              defaultValue={initialValues.scenario_default_kill_chain ?? undefined}
             />
           </div>
           <TextField

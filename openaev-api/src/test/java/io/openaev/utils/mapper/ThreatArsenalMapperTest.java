@@ -15,6 +15,7 @@ import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionFullOutput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalExpectationDetail;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -38,7 +39,9 @@ class ThreatArsenalMapperTest {
     // Real content utils: the predefined-expectation readers only walk the contract's
     // converted content, so no Spring context is needed.
     return new ThreatArsenalMapper(
-        payloadMapper, new InjectorContractContentUtils(), entityManager);
+        payloadMapper,
+        new InjectorContractContentUtils(ObjectMapperHelper.openAEVJsonMapper()),
+        entityManager);
   }
 
   /** One predefined expectation node as the contract content serializes it. */

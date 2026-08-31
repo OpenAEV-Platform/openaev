@@ -5,22 +5,22 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.credentials.CredentialMapper;
-import io.openaev.api.credentials.form.*;
+import io.openaev.api.credentials.form.CredentialBulkProcessingInput;
+import io.openaev.api.credentials.form.CredentialContractOutput;
+import io.openaev.api.credentials.form.CredentialFullOutput;
+import io.openaev.api.credentials.form.CredentialInput;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.specification.SpecificationUtils;
-import io.openaev.integration.ComponentRequest;
-import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.secrets.provider.SecretsProvider;
-import io.openaev.secrets.provider.SecretsProviderType;
-import io.openaev.secrets.provider.impl.LocalSecretsProvider;
+import io.openaev.secrets.provider.SecretsProviderResolver;
 import io.openaev.service.UserService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TxCtxScopeUtils;
@@ -28,11 +28,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SearchPaginationInputMapper;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -64,7 +60,7 @@ public class CredentialService {
           Map.entry("credential_connector_instance_id", "secret_reference_connector_instance_id"));
 
   private final CredentialSecretReferenceRepository credentialSecretReferenceRepository;
-  private final ManagerFactory managerFactory;
+  private final SecretsProviderResolver secretsProviderResolver;
   private final UserService userService;
   private final TenantScopedTransaction tenantTx;
 
@@ -88,11 +84,19 @@ public class CredentialService {
                     "credential_username",
                     CredentialContractOutput.CredentialContractFieldType.text,
                     true,
+                    null,
+                    null,
+                    null,
+                    null,
                     null),
                 new CredentialContractOutput.CredentialContractField(
                     "credential_password",
                     CredentialContractOutput.CredentialContractFieldType.password,
                     true,
+                    null,
+                    null,
+                    null,
+                    null,
                     null))),
         new CredentialContractOutput(
             CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
@@ -102,6 +106,10 @@ public class CredentialService {
                     "credential_hash",
                     CredentialContractOutput.CredentialContractFieldType.password,
                     true,
+                    null,
+                    null,
+                    null,
+                    null,
                     null),
                 new CredentialContractOutput.CredentialContractField(
                     "credential_hash_algorithm",
@@ -109,7 +117,191 @@ public class CredentialService {
                     true,
                     List.of(
                         HashSecret.HASH_ALGORITHM.SHA.name(),
-                        HashSecret.HASH_ALGORITHM.NTLM.name())))));
+                        HashSecret.HASH_ALGORITHM.NTLM.name()),
+                    null,
+                    null,
+                    null,
+                    null))),
+        new CredentialContractOutput(
+            CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AWS,
+            CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY,
+            List.of(
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_default_region",
+                    CredentialContractOutput.CredentialContractFieldType.select,
+                    true,
+                    AwsRegion.codes(),
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_access_key_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_secret_access_key",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_session_token",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null))),
+        new CredentialContractOutput(
+            CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AWS,
+            CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE,
+            List.of(
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_default_region",
+                    CredentialContractOutput.CredentialContractFieldType.select,
+                    true,
+                    AwsRegion.codes(),
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_role_arn",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_external_id",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_source_identity_type",
+                    CredentialContractOutput.CredentialContractFieldType.select,
+                    true,
+                    List.of(
+                        AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name(),
+                        AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.INSTANCE_DEFAULT.name()),
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_source_profile_access_key_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    false,
+                    null,
+                    "aws_source_identity_type",
+                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name(),
+                    "aws_source_identity_type",
+                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name()),
+                new CredentialContractOutput.CredentialContractField(
+                    "aws_source_profile_secret_access_key",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    false,
+                    null,
+                    "aws_source_identity_type",
+                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name(),
+                    "aws_source_identity_type",
+                    AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY.name()))),
+        new CredentialContractOutput(
+            CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AZURE,
+            CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL,
+            List.of(
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_environment",
+                    CredentialContractOutput.CredentialContractFieldType.select,
+                    true,
+                    AzureEnvironments.names(),
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_client_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_client_secret",
+                    CredentialContractOutput.CredentialContractFieldType.password,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_tenant_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_subscription_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null))),
+        new CredentialContractOutput(
+            CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AZURE,
+            CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY,
+            List.of(
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_environment",
+                    CredentialContractOutput.CredentialContractFieldType.select,
+                    true,
+                    AzureEnvironments.names(),
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_client_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                new CredentialContractOutput.CredentialContractField(
+                    "azure_subscription_id",
+                    CredentialContractOutput.CredentialContractFieldType.text,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null))));
   }
 
   /**
@@ -134,8 +326,8 @@ public class CredentialService {
       @NotBlank final String credentialId) {
     CredentialSecretReference credential = getCredentialById(credentialId);
     SecretsProvider secretProvider =
-        resolveProviderByConnectorInstanceId(
-            credential.getConnectorInstanceId(), credential.getTenant().getId());
+        secretsProviderResolver.resolveByConnectorInstanceId(
+            credential.getTenant().getId(), credential.getConnectorInstanceId());
     SecretMetadata secretMetadata = secretProvider.getSecretMetadata(credential);
     return credentialMapper.toFullOutput(credential, secretMetadata);
   }
@@ -180,7 +372,7 @@ public class CredentialService {
    * @return created credential reference
    */
   public CredentialSecretReference createCredential(CredentialInput input, String tenantId) {
-    LocalSecretsProvider provider = getLocalProvider(tenantId);
+    SecretsProvider provider = secretsProviderResolver.resolveLocalProvider(tenantId);
 
     // Build Credential Reference
     CredentialSecretReference credential = new CredentialSecretReference();
@@ -202,8 +394,8 @@ public class CredentialService {
 
     CredentialSecretReference credential = getCredentialById(credentialId);
     SecretsProvider secretProvider =
-        resolveProviderByConnectorInstanceId(
-            credential.getConnectorInstanceId(), credential.getTenant().getId());
+        secretsProviderResolver.resolveByConnectorInstanceId(
+            credential.getTenant().getId(), credential.getConnectorInstanceId());
 
     applyMetadataInputToCredential(credential, input);
     secretProvider.update(credential, convertCredentialInputToSecretStoreRequest(input));
@@ -222,6 +414,7 @@ public class CredentialService {
     credential.setConnectorInstanceId(providerId);
     credential.setTenant(new Tenant(tenantId));
     credential.setStatus(SecretReference.SECRET_STATUS.UNSET);
+    credential.setLastVerifiedAt(null);
     credential.setCreatedBy(userService.currentUserOrNull());
   }
 
@@ -241,7 +434,21 @@ public class CredentialService {
         input.credentialUsername(),
         input.credentialPassword(),
         input.credentialHash(),
-        input.credentialHashAlgorithm());
+        input.credentialHashAlgorithm(),
+        input.awsDefaultRegion(),
+        input.awsAccessKeyId(),
+        input.awsSecretAccessKey(),
+        input.awsSessionToken(),
+        input.awsRoleArn(),
+        input.awsExternalId(),
+        input.awsSourceIdentityType(),
+        input.awsSourceProfileAccessKeyId(),
+        input.awsSourceProfileSecretAccessKey(),
+        input.azureEnvironment(),
+        input.azureClientId(),
+        input.azureClientSecret(),
+        input.azureTenantId(),
+        input.azureSubscriptionId());
   }
 
   /**
@@ -251,9 +458,9 @@ public class CredentialService {
    */
   public void deleteCredential(String credentialId) {
     CredentialSecretReference credential = getCredentialById(credentialId);
-    LocalSecretsProvider provider =
-        resolveProviderByConnectorInstanceId(
-            credential.getConnectorInstanceId(), credential.getTenant().getId());
+    SecretsProvider provider =
+        secretsProviderResolver.resolveByConnectorInstanceId(
+            credential.getTenant().getId(), credential.getConnectorInstanceId());
     provider.delete(credential);
   }
 
@@ -311,51 +518,5 @@ public class CredentialService {
             .toList();
     idsToDelete.forEach(this::deleteCredential);
     return idsToDelete;
-  }
-
-  private LocalSecretsProvider getLocalProvider(String tenantId) {
-    try {
-      return (LocalSecretsProvider)
-          managerFactory
-              .getManager(tenantId)
-              .requestManyAllStates(
-                  new ComponentRequest(SecretsProvider.SERVICE_NAME), SecretsProvider.class)
-              .stream()
-              .filter(
-                  provider -> Objects.equals(provider.getType(), SecretsProviderType.LOCAL.type))
-              .findFirst()
-              .orElseThrow(
-                  () ->
-                      new IllegalStateException(
-                          "No secrets provider found for type " + SecretsProviderType.LOCAL));
-    } catch (Exception e) {
-      throw new IllegalStateException(
-          "No secrets provider is available for type "
-              + SecretsProviderType.LOCAL
-              + " in current tenant",
-          e);
-    }
-  }
-
-  private LocalSecretsProvider resolveProviderByConnectorInstanceId(
-      String connectorInstanceId, String tenantId) {
-    try {
-      ConnectorInstanceInMemory instance = new ConnectorInstanceInMemory();
-      instance.setId(connectorInstanceId);
-      SecretsProvider provider =
-          managerFactory.getManager(tenantId).requestForInstance(instance, SecretsProvider.class);
-      if (provider instanceof LocalSecretsProvider localSecretsProvider) {
-        return localSecretsProvider;
-      }
-      throw new IllegalStateException(
-          "Expected LocalSecretsProvider for connector instance "
-              + connectorInstanceId
-              + ", got: "
-              + provider.getClass().getSimpleName());
-    } catch (Exception e) {
-      throw new IllegalStateException(
-          "No local secrets provider is available for connector instance " + connectorInstanceId,
-          e);
-    }
   }
 }

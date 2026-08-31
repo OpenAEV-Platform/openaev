@@ -11,13 +11,7 @@ import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.AssetGroupRepository;
-import io.openaev.database.repository.AssetRepository;
-import io.openaev.database.repository.ScopeVariableRepository;
-import io.openaev.database.repository.TeamRepository;
-import io.openaev.database.repository.UserRepository;
-import io.openaev.database.repository.WorkflowRepository;
-import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.database.repository.*;
 import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -66,9 +60,11 @@ public class WorkflowService {
   private final WorkflowScopeRuleRepository workflowScopeRuleRepository;
   private final ScopeVariableRepository scopeVariableRepository;
   private final AssetRepository assetRepository;
+  private final AssetAgentJobRepository assetAgentJobRepository;
   private final AssetGroupRepository assetGroupRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
+  private final WorkflowEndService workflowEndService;
 
   private final ScopeMetricCollector scopeMetricCollector;
   private final ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
@@ -963,6 +959,47 @@ public class WorkflowService {
     return copy;
   }
 
+  @Transactional(rollbackFor = Exception.class)
+  public void cancelSimulationEndWorkflowRun(List<Workflow> workflows) {
+    List<Step> stepsToUpdate = new ArrayList<>();
+    List<String> injectsIds = new ArrayList<>();
+    workflows.forEach(
+        workflow -> {
+          // Workflow -> END transition (also freezes the end scope snapshot - ADR-006):
+          endWorkflow(workflow, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+
+          // Step delay queue -> DELETE
+          stepDelayQueueService.deleteAllByWorkflowRun(workflow);
+
+          // Steps active -> END  active and get inject ids for remove asset agent jobs
+          List<Step> steps = stepService.findAllStepActiveByWorkflowRunId(workflow.getId());
+          steps.forEach(
+              step -> {
+                String injectId =
+                    step.getData() != null
+                        ? StepService.getField(step.getData(), "inject_id")
+                        : null;
+                if (injectId != null) injectsIds.add(injectId);
+                step.setStatus(StepStatus.END);
+              });
+
+          stepsToUpdate.addAll(steps);
+
+          // Workflow States -> DELETE  (only use for execution)
+          deleteWorkflowStatesBySimulationId(workflow.getSimulation().getId());
+        });
+
+    // Asset agent jobs -> DELETE all by inject id
+    deleteAllAssetAgentJobs(injectsIds, TenantContext.getCurrentTenant());
+
+    stepService.saveSteps(stepsToUpdate);
+  }
+
+  private void deleteAllAssetAgentJobs(List<String> injectsIds, String tenantId) {
+    if (CollectionUtils.isEmpty(injectsIds)) return;
+    assetAgentJobRepository.deleteAllByInjectIdsAndTenantId(injectsIds, tenantId);
+  }
+
   /**
    * Deletes all workflow states associated with workflows of the given simulation.
    *
@@ -1497,9 +1534,7 @@ public class WorkflowService {
    * @return list of expired workflows
    */
   public List<Workflow> findAllExpiredRunWorkflows() {
-    List<String> workflowIds = workflowRepository.findAllExpiredRunWorkflowIds();
-    if (workflowIds.isEmpty()) return Collections.emptyList();
-    return workflowRepository.findAllByIdWithScopeRules(workflowIds);
+    return workflowEndService.findAllExpiredRunWorkflows();
   }
 
   /**
@@ -1507,24 +1542,8 @@ public class WorkflowService {
    *
    * @param workflowRun the running workflow to end
    */
-  public void endWorkflow(Workflow workflowRun) {
-    markWorkflowEnded(workflowRun);
-    workflowRepository.save(workflowRun);
-  }
-
-  /**
-   * Single END transition for a RUN workflow: sets the status and freezes the end scope snapshot
-   * exactly once (re-running the launch-time resolution). Idempotent - a run already ended is left
-   * untouched so the frozen end photo is never overwritten. See ADR-006.
-   *
-   * @param workflowRun the RUN workflow reaching END/STOP
-   */
-  private void markWorkflowEnded(Workflow workflowRun) {
-    if (WorkflowStatus.END.equals(workflowRun.getStatus())) {
-      return;
-    }
-    workflowRun.setStatus(WorkflowStatus.END);
-    scopeSnapshotService.freezeEnd(workflowRun);
+  public void endWorkflow(Workflow workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
+    workflowEndService.endWorkflow(workflowRun, cause);
   }
 
   /**
@@ -1584,7 +1603,8 @@ public class WorkflowService {
           "[Chaining] No step template for workflow template {}. End running {}",
           workflowTemplateId,
           workflowRun.getId());
-      markWorkflowEnded(workflowRun);
+      workflowEndService.markWorkflowEnded(
+          workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
       return workflowRun;
     }
 
@@ -1607,7 +1627,8 @@ public class WorkflowService {
     if (!hasActiveSteps
         && !workflowRun.isKeepAlive()
         && stepDelayQueueService.findAllByWorkflowRun(workflowRun).isEmpty()) {
-      markWorkflowEnded(workflowRun);
+      workflowEndService.markWorkflowEnded(
+          workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
     }
 
     return workflowRun;

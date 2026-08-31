@@ -52,7 +52,8 @@ class XtmOneChatApiUnitTest {
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
-    verify(client).streamChatMessage(eq("hello"), isNull(), eq("agent-1"), eq(context), any());
+    verify(client)
+        .streamChatMessage(eq("hello"), isNull(), eq("agent-1"), eq(context), eq(false), any());
   }
 
   @Test
@@ -69,6 +70,60 @@ class XtmOneChatApiUnitTest {
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
-    verify(client).streamChatMessage(eq("hello"), isNull(), eq("agent-1"), isNull(), any());
+    verify(client)
+        .streamChatMessage(eq("hello"), isNull(), eq("agent-1"), isNull(), eq(false), any());
+  }
+
+  @Test
+  @DisplayName("Given supports_tool_approval true should forward the declaration upstream")
+  void given_supportsToolApproval_should_forwardTrue() throws Exception {
+    // -- ARRANGE --
+    when(config.isConfigured()).thenReturn(true);
+    Map<String, Object> body = new HashMap<>();
+    body.put("content", "hello");
+    body.put("agent_slug", "agent-1");
+    body.put("supports_tool_approval", true);
+
+    // -- ACT --
+    ResponseEntity<StreamingResponseBody> response = api.sendMessage(body);
+    response.getBody().writeTo(new ByteArrayOutputStream());
+
+    // -- ASSERT --
+    verify(client)
+        .streamChatMessage(eq("hello"), isNull(), eq("agent-1"), isNull(), eq(true), any());
+  }
+
+  @Test
+  @DisplayName("Given supports_tool_approval false should forward false")
+  void given_supportsToolApprovalFalse_should_forwardFalse() throws Exception {
+    // -- ARRANGE --
+    when(config.isConfigured()).thenReturn(true);
+    Map<String, Object> body = new HashMap<>();
+    body.put("content", "hello");
+    body.put("supports_tool_approval", false);
+
+    // -- ACT --
+    ResponseEntity<StreamingResponseBody> response = api.sendMessage(body);
+    response.getBody().writeTo(new ByteArrayOutputStream());
+
+    // -- ASSERT --
+    verify(client).streamChatMessage(eq("hello"), isNull(), isNull(), isNull(), eq(false), any());
+  }
+
+  @Test
+  @DisplayName("Given a non-boolean supports_tool_approval should not claim support")
+  void given_nonBooleanSupportsToolApproval_should_forwardFalse() throws Exception {
+    // -- ARRANGE --
+    when(config.isConfigured()).thenReturn(true);
+    Map<String, Object> body = new HashMap<>();
+    body.put("content", "hello");
+    body.put("supports_tool_approval", "true");
+
+    // -- ACT --
+    ResponseEntity<StreamingResponseBody> response = api.sendMessage(body);
+    response.getBody().writeTo(new ByteArrayOutputStream());
+
+    // -- ASSERT --
+    verify(client).streamChatMessage(eq("hello"), isNull(), isNull(), isNull(), eq(false), any());
   }
 }
