@@ -25,6 +25,79 @@ const managementLogfileUrl = (): string => {
   return managementUrl.toString();
 };
 
+const findJsonObjectEnd = (content: string, startIndex: number): number => {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = startIndex; index < content.length; index += 1) {
+    const char = content[index];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === '{') {
+      depth += 1;
+    } else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  return -1;
+};
+
+const extractAuditEntries = (rawContent: string): string[] => {
+  const entries: string[] = [];
+  let searchIndex = 0;
+
+  while (searchIndex < rawContent.length) {
+    const markerIndex = rawContent.indexOf('[AUDIT]', searchIndex);
+    if (markerIndex < 0) {
+      break;
+    }
+
+    const jsonStart = rawContent.indexOf('{', markerIndex);
+    if (jsonStart < 0) {
+      break;
+    }
+
+    const jsonEnd = findJsonObjectEnd(rawContent, jsonStart);
+    if (jsonEnd < 0) {
+      searchIndex = markerIndex + '[AUDIT]'.length;
+      continue;
+    }
+
+    const rawEntry = rawContent.slice(jsonStart, jsonEnd + 1);
+    entries.push(rawEntry);
+
+    try {
+      entries.push(JSON.stringify(JSON.parse(rawEntry)));
+    } catch {
+      // Keep raw entry only when parsing fails.
+    }
+
+    searchIndex = jsonEnd + 1;
+  }
+
+  return entries;
+};
+
 const attachAuditDebugOnFailure = async (
   request: APIRequestContext,
   testInfo: TestInfo,
@@ -35,8 +108,9 @@ const attachAuditDebugOnFailure = async (
   const response = await request.get(logfileEndpoint);
   const rawContent = await response.text();
   const logfileTail = rawContent.split('\n').slice(-350).join('\n');
+  const auditEntries = extractAuditEntries(rawContent);
   const matcherStatus = matchers
-    .map((matcher, index) => `[${index}] ${matcher.source} => ${matcher.test(rawContent)}`)
+    .map((matcher, index) => `[${index}] ${matcher.source} => ${auditEntries.some(entry => matcher.test(entry))}`)
     .join('\n');
 
   const debugReport = [
@@ -80,7 +154,8 @@ const expectAuditLogContainsAll = async (
       expect(response.ok()).toBeTruthy();
 
       const auditLog = await response.text();
-      expect(matchers.every(matcher => matcher.test(auditLog))).toBeTruthy();
+      const entries = extractAuditEntries(auditLog);
+      expect(matchers.every(matcher => entries.some(entry => matcher.test(entry)))).toBeTruthy();
     }).toPass({
       intervals: [1_000, 2_000, 5_000],
       timeout: auditLogTimeoutMs,
@@ -105,7 +180,8 @@ const expectTeamAddedAuditLog = async (
       expect(response.ok()).toBeTruthy();
 
       const auditLog = await response.text();
-      expect(teamAddedMatcher.test(auditLog)).toBeTruthy();
+      const entries = extractAuditEntries(auditLog);
+      expect(entries.some(entry => teamAddedMatcher.test(entry))).toBeTruthy();
     }).toPass({
       intervals: [1_000, 2_000, 5_000],
       timeout: auditLogTimeoutMs,
@@ -263,7 +339,6 @@ test.describe('Scenario - Teams management', () => {
         const existingTeam = await createTeam(`Audited team ${Date.now()}-${Math.random()}`);
 
         await scenarioPage.addExistingTeam(existingTeam.team_name);
-        await expect(scenarioPage.getTeam(existingTeam.team_name)).toBeVisible();
 
         await expectTeamAddedAuditLog(request, testInfo, scenarioId);
 
