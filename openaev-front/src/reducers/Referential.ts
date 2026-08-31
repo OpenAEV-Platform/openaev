@@ -59,8 +59,6 @@ export const entitiesInitializer = Map({
     domains: Map({}),
     catalog_connectors: Map({}),
     connector_instances: Map({}),
-    platform_capabilities: Map({}),
-    tenant_capabilities: Map({}),
     tenantXtmHubRegistrations: Map({}),
     notifications: Map({}),
     phishinglandingpages: Map({}),

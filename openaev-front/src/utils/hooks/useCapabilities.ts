@@ -1,28 +1,41 @@
+import { useEffect, useState } from 'react';
+
 import { fetchCapabilities } from '../../actions/capabilities/capability-action';
-import type { CapabilityHelper } from '../../actions/capabilities/capability-helper';
-import { useHelper } from '../../store';
 import type { CapabilityOutput } from '../api-types';
-import { useAppDispatch } from '../hooks';
 import { type CapabilityScope } from '../permissions/types';
-import useDataLoader from './useDataLoader';
 
+// The capability tree is static reference data, already ordered by the backend. It is deliberately
+// kept out of the normalized store, whose Immutable entity maps do not preserve the API order.
 const useCapabilities = (scope: CapabilityScope) => {
-  const dispatch = useAppDispatch();
+  const [capabilities, setCapabilities] = useState<CapabilityOutput[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const { capabilities } = useHelper((helper: CapabilityHelper) => ({
-    capabilities: scope === 'PLATFORM'
-      ? helper.getPlatformCapabilities()
-      : helper.getTenantCapabilities(),
-  }));
-
-  useDataLoader(() => {
-    dispatch(fetchCapabilities(scope));
-  });
-
-  const loading = capabilities.length === 0;
+  useEffect(() => {
+    let stale = false;
+    setLoading(true);
+    fetchCapabilities(scope)
+      .then((response) => {
+        if (!stale) {
+          setCapabilities(response.data as CapabilityOutput[]);
+        }
+      })
+      .catch(() => {
+        if (!stale) {
+          setCapabilities([]);
+        }
+      })
+      .finally(() => {
+        if (!stale) {
+          setLoading(false);
+        }
+      });
+    return () => {
+      stale = true;
+    };
+  }, [scope]);
 
   return {
-    capabilities: capabilities as CapabilityOutput[],
+    capabilities,
     loading,
   };
 };
