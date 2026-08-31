@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectSoftwareComponent extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "author")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT authorField;
 

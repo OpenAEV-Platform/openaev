@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectRpcInterface extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "ack_reason")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeIntegerT ackReasonField;
 

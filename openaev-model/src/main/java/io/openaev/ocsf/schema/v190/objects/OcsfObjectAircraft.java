@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectAircraft extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "location")
   private io.openaev.ocsf.schema.v190.objects.OcsfObjectLocation locationField;
 

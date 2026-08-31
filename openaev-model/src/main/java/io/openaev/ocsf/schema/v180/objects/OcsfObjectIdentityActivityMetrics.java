@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectIdentityActivityMetrics extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "first_seen_time_dt")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeDatetimeT firstSeenTimeDtField;
 

@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectKillChainPhase extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "phase")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT phaseField;
 

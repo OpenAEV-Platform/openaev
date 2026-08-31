@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectGpuInfo extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "bus_type")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT busTypeField;
 

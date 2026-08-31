@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectQueryEvidence extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "connection_info")
   private io.openaev.ocsf.schema.v180.objects.OcsfObjectNetworkConnectionInfo connectionInfoField;
 

@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectAiAgent extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "ai_model")
   private io.openaev.ocsf.schema.v190.objects.OcsfObjectAiModel aiModelField;
 

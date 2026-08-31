@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectBaseline extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "observation_parameter")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT observationParameterField;
 

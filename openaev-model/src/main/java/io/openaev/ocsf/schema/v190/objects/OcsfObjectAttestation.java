@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectAttestation extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "authority_uid")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT authorityUidField;
 

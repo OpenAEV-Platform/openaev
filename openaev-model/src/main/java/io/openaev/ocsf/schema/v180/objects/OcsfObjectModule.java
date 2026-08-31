@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectModule extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "base_address")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeStringT baseAddressField;
 

@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectResourceDetails extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "agent_list")
   private java.util.List<io.openaev.ocsf.schema.v180.objects.OcsfObjectAgent> agentListField;
 

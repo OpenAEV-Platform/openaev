@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectDelegation extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "created_time_dt")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeDatetimeT createdTimeDtField;
 

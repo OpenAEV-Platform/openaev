@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectSession extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "count")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeIntegerT countField;
 

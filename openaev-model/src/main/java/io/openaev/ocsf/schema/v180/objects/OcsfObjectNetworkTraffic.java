@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectNetworkTraffic extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "bytes")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeLongT bytesField;
 

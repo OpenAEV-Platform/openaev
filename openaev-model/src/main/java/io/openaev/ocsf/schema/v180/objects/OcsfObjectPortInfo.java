@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectPortInfo extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "port")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypePortT portField;
 

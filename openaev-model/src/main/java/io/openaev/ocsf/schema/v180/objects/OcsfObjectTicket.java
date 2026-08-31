@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectTicket extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "src_url")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeUrlT srcUrlField;
 

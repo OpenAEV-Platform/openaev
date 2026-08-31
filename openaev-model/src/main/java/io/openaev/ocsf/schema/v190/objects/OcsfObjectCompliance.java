@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectCompliance extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "assessments")
   private java.util.List<io.openaev.ocsf.schema.v190.objects.OcsfObjectAssessment> assessmentsField;
 

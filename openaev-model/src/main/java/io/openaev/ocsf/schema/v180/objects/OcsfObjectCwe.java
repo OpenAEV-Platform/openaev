@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectCwe extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "caption")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeStringT captionField;
 

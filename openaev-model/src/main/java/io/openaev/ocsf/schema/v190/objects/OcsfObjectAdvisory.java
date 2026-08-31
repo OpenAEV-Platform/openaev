@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectAdvisory extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "avg_timespan")
   private io.openaev.ocsf.schema.v190.objects.OcsfObjectTimespan avgTimespanField;
 

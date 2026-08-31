@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectServicePrivilegeAnalysis extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "all_privileges_unused")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeBooleanT allPrivilegesUnusedField;
 

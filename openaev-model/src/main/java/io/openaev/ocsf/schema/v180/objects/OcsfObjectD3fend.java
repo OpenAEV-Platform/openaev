@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectD3fend extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "d3f_tactic")
   private io.openaev.ocsf.schema.v180.objects.OcsfObjectD3fTactic d3fTacticField;
 

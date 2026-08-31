@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectTrace extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "duration")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeLongT durationField;
 

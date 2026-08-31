@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectMitigation extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "countermeasures")
   private java.util.List<io.openaev.ocsf.schema.v190.objects.OcsfObjectD3fend> countermeasuresField;
 

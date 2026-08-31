@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectDeviceHwInfo extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "bios_date")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT biosDateField;
 

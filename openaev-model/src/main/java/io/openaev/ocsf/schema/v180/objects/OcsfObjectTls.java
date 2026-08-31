@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectTls extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "alert")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeIntegerT alertField;
 

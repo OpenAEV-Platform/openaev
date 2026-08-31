@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectAiModel extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "ai_provider")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeStringT aiProviderField;
 

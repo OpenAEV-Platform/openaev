@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectAttack extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "mitigation")
   private io.openaev.ocsf.schema.v180.objects.OcsfObjectMitigation mitigationField;
 

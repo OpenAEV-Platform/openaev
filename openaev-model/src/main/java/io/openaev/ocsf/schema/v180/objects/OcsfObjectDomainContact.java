@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectDomainContact extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "email_addr")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeEmailT emailAddrField;
 

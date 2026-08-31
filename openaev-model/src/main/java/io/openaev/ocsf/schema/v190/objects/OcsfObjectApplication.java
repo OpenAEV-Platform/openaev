@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectApplication extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "criticality")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT criticalityField;
 

@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectWhois extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "autonomous_system")
   private io.openaev.ocsf.schema.v190.objects.OcsfObjectAutonomousSystem autonomousSystemField;
 

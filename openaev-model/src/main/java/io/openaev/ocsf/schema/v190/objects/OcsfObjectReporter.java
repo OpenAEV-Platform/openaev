@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectReporter extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "hostname")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeHostnameT hostnameField;
 

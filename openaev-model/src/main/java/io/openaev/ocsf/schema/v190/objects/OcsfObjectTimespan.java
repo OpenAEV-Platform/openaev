@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectTimespan extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "duration_days")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT durationDaysField;
 

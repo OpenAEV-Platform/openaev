@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectRegKey extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "is_system")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeBooleanT isSystemField;
 

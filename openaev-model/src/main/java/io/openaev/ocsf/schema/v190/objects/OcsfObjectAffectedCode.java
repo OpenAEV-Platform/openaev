@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectAffectedCode extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "end_column")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT endColumnField;
 

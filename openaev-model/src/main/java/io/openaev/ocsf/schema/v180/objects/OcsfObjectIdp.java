@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectIdp extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "auth_factors")
   private java.util.List<io.openaev.ocsf.schema.v180.objects.OcsfObjectAuthFactor> authFactorsField;
 

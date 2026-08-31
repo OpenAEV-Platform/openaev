@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectUser extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "account")
   private io.openaev.ocsf.schema.v180.objects.OcsfObjectAccount accountField;
 

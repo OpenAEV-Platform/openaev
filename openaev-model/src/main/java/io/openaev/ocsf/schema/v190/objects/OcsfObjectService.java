@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectService extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "labels")
   private java.util.List<io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT> labelsField;
 

@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectJobTrigger extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "event_codes")
   private java.util.List<io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT> eventCodesField;
 

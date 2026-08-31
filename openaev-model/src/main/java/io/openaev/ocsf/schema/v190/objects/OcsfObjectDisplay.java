@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectDisplay extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "color_depth")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT colorDepthField;
 

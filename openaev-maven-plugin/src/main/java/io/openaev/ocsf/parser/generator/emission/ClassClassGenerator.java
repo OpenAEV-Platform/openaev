@@ -7,6 +7,7 @@ import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
 import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.cls.ClassMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.cls.ExtendMeta;
+import io.openaev.ocsf.parser.generator.emission.meta.doc.JavadocMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.field.FieldMeta;
 import io.openaev.ocsf.parser.schema.SchemaDimension;
 import io.openaev.ocsf.parser.schema.Version;
@@ -52,8 +53,8 @@ public class ClassClassGenerator extends ClassGenerator {
                       helper.findClassNameFromOcsfAttribute(attr.getKey(), extension),
                       stringUtils.snakeToCamel(attr.getKey()) + "Field")
                   .withAnnotation(
-                      new AnnotationMeta(JsonProperty.class)
-                          .withAttribute("value", attr.getKey())));
+                      new AnnotationMeta(JsonProperty.class).withAttribute("value", attr.getKey()))
+                  .withJavadoc(new JavadocMeta(attr.getValue().get("description").asText())));
     }
 
     return meta.emit();

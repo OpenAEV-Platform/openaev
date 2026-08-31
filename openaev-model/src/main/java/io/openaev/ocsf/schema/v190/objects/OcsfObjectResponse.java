@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectResponse extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "code")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT codeField;
 

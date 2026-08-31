@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectHttpCookie extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "domain")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT domainField;
 

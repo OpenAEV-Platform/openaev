@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectRemediation extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "cis_controls")
   private java.util.List<io.openaev.ocsf.schema.v190.objects.OcsfObjectCisControl> cisControlsField;
 

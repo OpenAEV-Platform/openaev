@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectAnomalyAnalysis extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "analysis_targets")
   private java.util.List<io.openaev.ocsf.schema.v180.objects.OcsfObjectAnalysisTarget>
       analysisTargetsField;

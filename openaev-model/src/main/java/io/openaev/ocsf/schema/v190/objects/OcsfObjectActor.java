@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectActor extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "app_name")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT appNameField;
 

@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectProgrammaticCredential extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "last_used_time_dt")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeDatetimeT lastUsedTimeDtField;
 

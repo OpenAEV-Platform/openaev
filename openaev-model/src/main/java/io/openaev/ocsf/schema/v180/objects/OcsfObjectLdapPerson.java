@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectLdapPerson extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "cost_center")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeStringT costCenterField;
 

@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectAccount extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "is_disabled")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeBooleanT isDisabledField;
 

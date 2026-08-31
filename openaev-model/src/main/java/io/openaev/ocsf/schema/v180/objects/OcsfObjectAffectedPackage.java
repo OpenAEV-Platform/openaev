@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectAffectedPackage extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "architecture")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeStringT architectureField;
 

@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectAssessment extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "category")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeStringT categoryField;
 

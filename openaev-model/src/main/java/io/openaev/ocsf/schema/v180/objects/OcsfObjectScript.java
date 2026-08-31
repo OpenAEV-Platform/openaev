@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectScript extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "file")
   private io.openaev.ocsf.schema.v180.objects.OcsfObjectFile fileField;
 

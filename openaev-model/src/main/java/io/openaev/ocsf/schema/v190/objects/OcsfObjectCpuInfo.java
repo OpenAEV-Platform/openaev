@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectCpuInfo extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "cores")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT coresField;
 

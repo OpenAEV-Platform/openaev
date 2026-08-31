@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectRelatedEvent extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "attacks")
   private java.util.List<io.openaev.ocsf.schema.v190.objects.OcsfObjectAttack> attacksField;
 

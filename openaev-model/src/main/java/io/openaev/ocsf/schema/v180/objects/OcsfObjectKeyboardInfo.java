@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectKeyboardInfo extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "function_keys")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeIntegerT functionKeysField;
 

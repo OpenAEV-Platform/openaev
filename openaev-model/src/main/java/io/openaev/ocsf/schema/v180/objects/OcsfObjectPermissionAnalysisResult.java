@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectPermissionAnalysisResult extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "analyzed_privileges_count")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeIntegerT analyzedPrivilegesCountField;
 

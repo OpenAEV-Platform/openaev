@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectCisCsc extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "control")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT controlField;
 

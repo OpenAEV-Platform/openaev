@@ -4,6 +4,7 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectAccessAnalysisResult extends OcsfObject {
+
   @com.fasterxml.jackson.annotation.JsonProperty(value = "access_level")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT accessLevelField;
 
