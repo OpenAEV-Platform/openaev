@@ -1,9 +1,115 @@
+import type { APIRequestContext } from '@playwright/test';
 import { expect } from '@playwright/test';
 
 import { test } from '../../fixtures';
 import UpdateTeamDialog from '../../model/common/UpdateTeamDialog';
 import ScenarioPage from '../../model/scenario/ScenarioPage';
 import { tenantUrl } from '../../utils/url';
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const managementLogfileUrl = (): string => {
+  if (process.env.AUDIT_LOGFILE_ENDPOINT_URL) {
+    return process.env.AUDIT_LOGFILE_ENDPOINT_URL;
+  }
+
+  const managementUrl = new URL(process.env.APP_URL ?? 'http://localhost:3001');
+  managementUrl.port = process.env.MANAGEMENT_PORT ?? '8080';
+  const managementBasePath = process.env.MANAGEMENT_BASE_PATH ?? '/actuator';
+  const normalizedBasePath = managementBasePath.startsWith('/') ? managementBasePath : `/${managementBasePath}`;
+  managementUrl.pathname = `${normalizedBasePath}/logfile`;
+  managementUrl.search = '';
+  return managementUrl.toString();
+};
+
+const expectAuditLogContainsAll = async (request: APIRequestContext, matchers: RegExp[]): Promise<void> => {
+  const logfileEndpoint = managementLogfileUrl();
+
+  await expect(async () => {
+    const response = await request.get(logfileEndpoint);
+    expect(response.ok()).toBeTruthy();
+
+    const auditLog = await response.text();
+    expect(matchers.every(matcher => matcher.test(auditLog))).toBeTruthy();
+  }).toPass({
+    intervals: [1_000, 2_000, 5_000],
+    timeout: 45_000,
+  });
+};
+
+const hasTeamAddedToScenarioAuditEvent = (auditLog: string, teamName: string): boolean => {
+  const blockMatcher = new RegExp(
+    `"event_scope"\\s*:\\s*"update"[\\s\\S]*?"url"\\s*:\\s*"[^"]*/scenarios/[^"]*/teams/replace"[\\s\\S]*?"team_name"\\s*:\\s*"${escapeRegExp(teamName)}"`,
+    'i',
+  );
+  return blockMatcher.test(auditLog);
+};
+
+const expectTeamAddedAuditLog = async (request: APIRequestContext, teamName: string): Promise<void> => {
+  const logfileEndpoint = managementLogfileUrl();
+
+  await expect(async () => {
+    const response = await request.get(logfileEndpoint);
+    expect(response.ok()).toBeTruthy();
+
+    const auditLog = await response.text();
+    expect(hasTeamAddedToScenarioAuditEvent(auditLog, teamName)).toBeTruthy();
+  }).toPass({
+    intervals: [1_000, 2_000, 5_000],
+    timeout: 45_000,
+  });
+};
+
+const expectScenarioLifecycleAuditLog = async (
+  request: APIRequestContext,
+  scenarioId: string,
+  teamName: string,
+): Promise<void> => {
+  const escapedScenarioId = escapeRegExp(scenarioId);
+  const escapedTeamName = escapeRegExp(teamName);
+
+  const matchers = [
+    new RegExp(
+      `"event_scope"\\s*:\\s*"create"[\\s\\S]*?"url"\\s*:\\s*"[^"]*/api/scenarios"[\\s\\S]*?"method"\\s*:\\s*"POST"[\\s\\S]*?"scenario_id"\\s*:\\s*"${escapedScenarioId}"`,
+      'i',
+    ),
+    new RegExp(
+      `"event_scope"\\s*:\\s*"update"[\\s\\S]*?"url"\\s*:\\s*"[^"]*/scenarios/${escapedScenarioId}/injects"[\\s\\S]*?"method"\\s*:\\s*"POST"`,
+      'i',
+    ),
+    new RegExp(
+      `"event_scope"\\s*:\\s*"update"[\\s\\S]*?"url"\\s*:\\s*"[^"]*/scenarios/${escapedScenarioId}/teams/replace"[\\s\\S]*?"team_name"\\s*:\\s*"${escapedTeamName}"`,
+      'i',
+    ),
+    new RegExp(
+      `"event_scope"\\s*:\\s*"status_change"[\\s\\S]*?"url"\\s*:\\s*"[^"]*/scenarios/${escapedScenarioId}/exercise/running"[\\s\\S]*?"method"\\s*:\\s*"POST"`,
+      'i',
+    ),
+  ];
+
+  await expectAuditLogContainsAll(request, matchers);
+};
+
+const findAnyInjectorContractId = async (request: APIRequestContext): Promise<string> => {
+  const response = await request.get('/api/injector_contracts');
+  expect(response.ok()).toBeTruthy();
+
+  const injectorContracts = await response.json() as Array<{ injector_contract_id: string }>;
+  expect(injectorContracts.length).toBeGreaterThan(0);
+  return injectorContracts[0].injector_contract_id;
+};
+
+const addInjectToScenario = async (request: APIRequestContext, scenarioId: string): Promise<void> => {
+  const injectorContractId = await findAnyInjectorContractId(request);
+  const response = await request.post(`/api/scenarios/${scenarioId}/injects`, {
+    data: {
+      inject_title: `Lifecycle inject ${Date.now()}`,
+      inject_injector_contract: injectorContractId,
+      inject_depends_duration: 0,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+};
 
 test.describe('Scenario - Teams management', () => {
   let scenarioPage: ScenarioPage;
@@ -43,7 +149,7 @@ test.describe('Scenario - Teams management', () => {
       await expect(scenarioPage.getTeam(team.team_name)).toHaveCount(0);
     });
 
-    test('should create and add new contextual team', async ({ page }) => {
+    test('should create and add new contextual team', async ({ page, request }) => {
       const newTeamName = `New team ${Date.now()}-${Math.random()}`;
       // Create and add team
       await expect(scenarioPage.teamAddBtn).toBeVisible();
@@ -54,12 +160,36 @@ test.describe('Scenario - Teams management', () => {
       await expect(scenarioPage.getAllTeamItems()).toHaveCount(1);
       await expect(scenarioPage.getTeam(newTeamName)).toBeVisible();
 
+      // Verify audit logging captured the team addition in the scenario flow.
+      await expectTeamAddedAuditLog(request, newTeamName);
+
       // Remove teams from scenario context
       await scenarioPage.clickSecondaryActionOnTeamList(newTeamName, 'Delete');
       await page.getByRole('button', { name: 'Delete' }).click();
       // Verify team has been removed
       await expect(scenarioPage.getAllTeamItems()).toHaveCount(0);
       await expect(scenarioPage.getTeam(newTeamName)).toHaveCount(0);
+    });
+
+    test('should log full scenario lifecycle with child actions', async ({
+      request,
+      emptyScenario,
+      createTeam,
+    }) => {
+      const scenarioId = emptyScenario.scenario_id;
+      const existingTeam = await createTeam(`Lifecycle team ${Date.now()}-${Math.random()}`);
+
+      // Add child resources (inject + team) to the scenario.
+      await scenarioPage.addExistingTeam(existingTeam.team_name);
+      await expect(scenarioPage.getTeam(existingTeam.team_name)).toBeVisible();
+      await addInjectToScenario(request, scenarioId);
+
+      // Run the scenario by creating a running exercise from it.
+      const launchResponse = await request.post(`/api/scenarios/${scenarioId}/exercise/running`);
+      expect(launchResponse.ok()).toBeTruthy();
+
+      // Validate the full lifecycle audit trail.
+      await expectScenarioLifecycleAuditLog(request, scenarioId, existingTeam.team_name);
     });
   });
 
