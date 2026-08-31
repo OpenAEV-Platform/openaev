@@ -1,7 +1,7 @@
 package io.openaev.ocsf.parser.generator.emission.render;
 
-public class FloatRender extends Render<Float> {
-  public FloatRender(Float obj) {
+public class FloatRender extends Render<Double> {
+  public FloatRender(Double obj) {
     super(obj);
   }
 

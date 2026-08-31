@@ -76,7 +76,7 @@ public class DatatypeClassGenerator extends ClassGenerator {
   private Class<?> mapDatatypeToClass(String datatype) {
     return switch (datatype) {
       case "boolean_t" -> Boolean.class;
-      case "float_t" -> Float.class;
+      case "float_t" -> Double.class;
       case "integer_t" -> Integer.class;
       case "json_t" -> JsonNode.class;
       case "long_t" -> Long.class;
