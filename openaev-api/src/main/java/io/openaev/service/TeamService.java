@@ -263,16 +263,6 @@ public class TeamService {
     return teamRepository.findAllById(teamIds);
   }
 
-  /**
-   * Removes the players dropped from a team from the simulation and scenario audiences that had
-   * activated them, so an audience never keeps a user the team no longer contains.
-   *
-   * <p>Both deletes are {@code clearAutomatically = true} native queries: they run immediately but
-   * also detach the caller's persistence context. A {@code Team} loaded before this call therefore
-   * becomes stale, and re-saving it would MERGE its now-obsolete {@code exerciseTeamUsers}
-   * collection (mapped {@code cascade = ALL}) and re-insert the rows just deleted. Callers must
-   * reload the team after this call; see {@code TeamApi#updateTeamUsers}.
-   */
   @Transactional
   public void removeUsersFromTeamActivations(String teamId, List<String> userIds) {
     if (CollectionUtils.isEmpty(userIds)) {

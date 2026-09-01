@@ -275,12 +275,6 @@ class TeamApiTest extends IntegrationTest {
     UpdateUsersTeamInput input = new UpdateUsersTeamInput();
     input.setUserIds(List.of(keptUser.getId()));
 
-    entityManager.flush();
-    entityManager.clear();
-    TestTransaction.flagForCommit();
-    TestTransaction.end();
-    TestTransaction.start();
-
     // -- EXECUTE --
     mvc.perform(
             put("/api/tenants/" + team.getTenant().getId() + "/teams/" + team.getId() + "/players")
