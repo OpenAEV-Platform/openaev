@@ -1,6 +1,6 @@
 package io.openaev.secrets.provider.impl.handlers;
 
-import static io.openaev.secrets.provider.SecretConnectionDetails.INVALID_CONFIGURATION;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.FORMAT_ERROR;
 import static io.openaev.secrets.provider.impl.handlers.GcpOAuth2Handler.MANDATORY_FIELDS_MESSAGE;
 import static io.openaev.secrets.provider.impl.handlers.GcpOAuth2Handler.TYPE_MISMATCH_MESSAGE;
 import static io.openaev.utils.fixtures.CredentialSecretReferenceFixture.getAwsAccessKeyReference;
@@ -553,8 +553,8 @@ class GcpOAuth2HandlerTest extends IntegrationTest {
   class ValidateConnection {
 
     @Test
-    @DisplayName("given_secretWithoutScope_should_returnUnknownInvalidConfiguration")
-    void given_secretWithoutScope_should_returnUnknownInvalidConfiguration() {
+    @DisplayName("given_secretWithoutScope_should_returnFormatError")
+    void given_secretWithoutScope_should_returnFormatError() {
       // Arrange: a broken stored configuration is caught before any network call, so this test
       // exercises the real wiring without reaching Google. The full mapping is covered by
       // GcpCredentialConnectivityCheckTest, and the delegation by
@@ -566,8 +566,7 @@ class GcpOAuth2HandlerTest extends IntegrationTest {
       SecretConnectionResult result = handler.validateConnection(secret);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(SecretConnectionResult.OUTCOME.UNKNOWN);
-      assertThat(result.detail()).isEqualTo(INVALID_CONFIGURATION);
+      assertThat(result.status()).isEqualTo(FORMAT_ERROR);
     }
 
     @Test
