@@ -1,7 +1,5 @@
 package io.openaev.secrets.provider.impl.validators;
 
-import static io.openaev.secrets.provider.SecretConnectionDetails.*;
-
 import com.google.api.client.http.HttpResponseException;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -29,14 +27,15 @@ import org.springframework.stereotype.Component;
  * practice, and only the second call surfaces it.
  *
  * <p>The mapping of failures is deliberately asymmetric: only an explicit rejection by Google
- * yields {@code INACTIVE}. Everything else — timeout, throttling, 5xx, plain network errors —
- * yields an inconclusive result, so a transient Google outage cannot mass-flag a tenant's
+ * yields {@code AUTH_FAILED} or {@code PERMISSION_DENIED}. Everything else — timeout, throttling,
+ * 5xx, plain network errors — yields an inconclusive status ({@code TIMEOUT}, {@code
+ * NETWORK_ERROR}, {@code FORMAT_ERROR}), so a transient Google outage cannot mass-flag a tenant's
  * credentials as broken overnight.
  *
  * <p>Nothing sensitive is logged or returned: key material, client secrets, refresh tokens and
  * access tokens never leave this class, and Google error payloads (which embed project, client and
  * principal identifiers, and whose {@code error_description} is itself a disclosure) are reduced to
- * the normalized codes of {@code SecretConnectionDetails}.
+ * the normalized statuses of {@code SecretReference.SECRET_STATUS}.
  */
 @Component
 @RequiredArgsConstructor
@@ -73,7 +72,7 @@ public class GcpCredentialConnectivityCheck {
   public SecretConnectionResult validateServiceAccount(
       byte[] privateKeyJson, String scope, String projectId) {
     if (privateKeyJson == null || privateKeyJson.length == 0 || isBlank(scope)) {
-      return SecretConnectionResult.unknown(INVALID_CONFIGURATION);
+      return SecretConnectionResult.formatError();
     }
 
     GoogleCredentials credentials;
@@ -82,7 +81,7 @@ public class GcpCredentialConnectivityCheck {
     } catch (IOException | RuntimeException e) {
       // Malformed or unparsable stored key: the configuration is broken, so the credential cannot
       // be checked at all — never "rejected".
-      return SecretConnectionResult.unknown(INVALID_CONFIGURATION);
+      return SecretConnectionResult.formatError();
     }
     return probe(credentials, projectId);
   }
@@ -100,14 +99,14 @@ public class GcpCredentialConnectivityCheck {
   public SecretConnectionResult validateOAuth2(
       String clientId, String clientSecret, String refreshToken, String scope, String projectId) {
     if (isBlank(clientId) || isBlank(clientSecret) || isBlank(refreshToken) || isBlank(scope)) {
-      return SecretConnectionResult.unknown(INVALID_CONFIGURATION);
+      return SecretConnectionResult.formatError();
     }
 
     GoogleCredentials credentials;
     try {
       credentials = googleCredentialsFactory.forOAuth2(clientId, clientSecret, refreshToken, scope);
     } catch (RuntimeException e) {
-      return SecretConnectionResult.unknown(INVALID_CONFIGURATION);
+      return SecretConnectionResult.formatError();
     }
     return probe(credentials, projectId);
   }
@@ -118,7 +117,7 @@ public class GcpCredentialConnectivityCheck {
     try {
       AccessToken accessToken = credentials.refreshAccessToken();
       if (accessToken == null || isBlank(accessToken.getTokenValue())) {
-        return SecretConnectionResult.unknown(UNREACHABLE);
+        return SecretConnectionResult.networkError();
       }
       token = accessToken.getTokenValue();
     } catch (IOException | RuntimeException e) {
@@ -150,12 +149,12 @@ public class GcpCredentialConnectivityCheck {
           httpClient.send(request, HttpResponse.BodyHandlers.discarding());
       return mapStatusCode(response.statusCode());
     } catch (java.net.http.HttpTimeoutException e) {
-      return SecretConnectionResult.unknown(TIMEOUT);
+      return SecretConnectionResult.timeout();
     } catch (IOException e) {
-      return SecretConnectionResult.unknown(UNREACHABLE);
+      return SecretConnectionResult.networkError();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      return SecretConnectionResult.unknown(UNREACHABLE);
+      return SecretConnectionResult.networkError();
     }
   }
 
@@ -165,13 +164,16 @@ public class GcpCredentialConnectivityCheck {
     }
     return switch (statusCode) {
       // The token was refused: the credential is genuinely not usable.
-      case 401 -> SecretConnectionResult.inactive(AUTH_REJECTED);
+      case 401 -> SecretConnectionResult.authFailed();
       // Authenticated but not authorized, and 404 is what the resource manager returns for a
       // project the principal cannot see: in both cases the credential no longer grants what it is
       // stored for.
-      case 403, 404 -> SecretConnectionResult.inactive(AUTH_FORBIDDEN);
-      case 429 -> SecretConnectionResult.unknown(THROTTLED);
-      default -> SecretConnectionResult.unknown(UNREACHABLE);
+      case 403, 404 -> SecretConnectionResult.permissionDenied();
+      // 429 is Google's quota/rate-limit answer (RESOURCE_EXHAUSTED): the credential itself was
+      // never judged, so it must stay inconclusive and never be flagged.
+      case 429 -> SecretConnectionResult.networkError();
+      // 5xx and anything else say nothing about the credential either.
+      default -> SecretConnectionResult.networkError();
     };
   }
 
@@ -185,36 +187,36 @@ public class GcpCredentialConnectivityCheck {
     // through the message it formats ("Error code invalid_grant: ...").
     String errorCode = findOAuthErrorCode(failure);
     if (errorCode != null) {
-      return SecretConnectionResult.inactive(AUTH_REJECTED);
+      return SecretConnectionResult.authFailed();
     }
     HttpResponseException httpFailure = findCause(failure, HttpResponseException.class);
     if (httpFailure != null) {
       // A 400 carrying no recognized OAuth error code says nothing about the credential itself: it
       // is the stored configuration that Google could not make sense of.
       return httpFailure.getStatusCode() == 400
-          ? SecretConnectionResult.unknown(INVALID_CONFIGURATION)
+          ? SecretConnectionResult.formatError()
           : mapStatusCode(httpFailure.getStatusCode());
     }
     if (isOtherOAuthError(failure)) {
       // An OAuth error that is neither invalid_grant nor invalid_client is a stored-configuration
       // problem, never a rejection.
-      return SecretConnectionResult.unknown(INVALID_CONFIGURATION);
+      return SecretConnectionResult.formatError();
     }
     if (isTimeout(failure)) {
-      return SecretConnectionResult.unknown(TIMEOUT);
+      return SecretConnectionResult.timeout();
     }
     // Everything left is unclassified — inconclusive by default, never a rejection. Message only:
     // a Google error body would leak project, client and principal identifiers into the logs.
     log.debug("GCP credential probe failed with an unmapped error: {}", failure.getMessage());
-    return SecretConnectionResult.unknown(UNREACHABLE);
+    return SecretConnectionResult.networkError();
   }
 
   /**
    * Finds the rejection error codes in the failure chain, which a plain status-code mapping gets
    * wrong: Google answers a revoked or expired refresh token ({@code invalid_grant}), and an
    * unknown or disabled client ({@code invalid_client}), with HTTP 400. Both are genuine
-   * rejections, and reading a 400 generically as {@code UNREACHABLE} would mean a revoked token is
-   * never surfaced — which is the whole point of the feature.
+   * rejections, and reading a 400 generically as {@code NETWORK_ERROR} would mean a revoked token
+   * is never surfaced — which is the whole point of the feature.
    */
   private static String findOAuthErrorCode(Throwable failure) {
     String messages = messageChain(failure);

@@ -1,6 +1,6 @@
 package io.openaev.secrets.provider.impl.handlers;
 
-import static io.openaev.secrets.provider.SecretConnectionDetails.INVALID_CONFIGURATION;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.FORMAT_ERROR;
 import static io.openaev.secrets.provider.impl.handlers.GcpServiceAccountHandler.MANDATORY_FIELDS_MESSAGE;
 import static io.openaev.secrets.provider.impl.handlers.GcpServiceAccountHandler.TYPE_MISMATCH_MESSAGE;
 import static io.openaev.utils.fixtures.CredentialSecretReferenceFixture.getAwsAccessKeyReference;
@@ -488,8 +488,8 @@ class GcpServiceAccountHandlerTest extends IntegrationTest {
   class ValidateConnection {
 
     @Test
-    @DisplayName("given_secretWithUnparsableKey_should_returnUnknownInvalidConfiguration")
-    void given_secretWithUnparsableKey_should_returnUnknownInvalidConfiguration() {
+    @DisplayName("given_secretWithUnparsableKey_should_returnFormatError")
+    void given_secretWithUnparsableKey_should_returnFormatError() {
       // Arrange: the fixture key is not a real service account file, so the probe stops on a
       // stored-configuration problem before any network call. The full mapping is covered by
       // GcpCredentialConnectivityCheckTest, and the delegation by
@@ -502,8 +502,7 @@ class GcpServiceAccountHandlerTest extends IntegrationTest {
       SecretConnectionResult result = handler.validateConnection(secret);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(SecretConnectionResult.OUTCOME.UNKNOWN);
-      assertThat(result.detail()).isEqualTo(INVALID_CONFIGURATION);
+      assertThat(result.status()).isEqualTo(FORMAT_ERROR);
     }
 
     @Test

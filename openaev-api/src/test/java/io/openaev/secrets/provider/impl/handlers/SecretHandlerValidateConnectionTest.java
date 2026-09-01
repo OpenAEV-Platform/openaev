@@ -389,7 +389,7 @@ class SecretHandlerValidateConnectionTest {
       SecretConnectionResult result = handler.validateConnection(secret);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(ACTIVE);
+      assertThat(result.status()).isEqualTo(ACTIVE);
       verify(gcpCredentialConnectivityCheck)
           // The plaintext, never the stored ciphertext.
           .validateServiceAccount(eq(plaintextKey), eq(GCP_SCOPE), eq(GCP_PROJECT_ID));
@@ -444,7 +444,7 @@ class SecretHandlerValidateConnectionTest {
       SecretConnectionResult result = handler.validateConnection(secret);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(ACTIVE);
+      assertThat(result.status()).isEqualTo(ACTIVE);
       verify(gcpCredentialConnectivityCheck)
           .validateOAuth2(
               eq(GCP_OAUTH_CLIENT_ID),
