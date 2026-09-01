@@ -1698,6 +1698,7 @@ class CredentialApiTest extends IntegrationTest {
         null,
         List.of());
   }
+
   private CredentialInput awsAssumeRoleInput(String name) {
     return new CredentialInput(
         name,

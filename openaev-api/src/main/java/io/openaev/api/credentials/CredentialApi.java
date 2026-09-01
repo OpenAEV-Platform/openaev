@@ -106,7 +106,8 @@ public class CredentialApi extends RestBehavior {
       @RequestPart(value = GCP_PRIVATE_KEY_PART) Optional<MultipartFile> gcpPrivateKeyJson) {
 
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    return credentialService.updateCredential(credentialId, input, tenantId, readKeyFile(gcpPrivateKeyJson));
+    return credentialService.updateCredential(
+        credentialId, input, tenantId, readKeyFile(gcpPrivateKeyJson));
   }
 
   /**
