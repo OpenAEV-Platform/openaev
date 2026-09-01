@@ -1,6 +1,6 @@
 {
   "name": "openaev-front",
-  "version": "3.260827.0",
+  "version": "3.260831.0",
   "type": "module",
   "private": true,
   "license": "Apache-2.0",
@@ -87,10 +87,10 @@
     "react-final-form-arrays": "4.0.0",
     "react-grid-layout": "2.2.4",
     "react-hook-form": "7.86.0",
-    "react-intl": "10.1.23",
+    "react-intl": "10.1.24",
     "react-markdown": "10.1.0",
     "react-redux": "9.3.0",
-    "react-router": "8.3.0",
+    "react-router": "8.3.1",
     "react-syntax-highlighter": "16.1.1",
     "redux": "5.0.1",
     "redux-thunk": "3.1.0",
@@ -102,7 +102,7 @@
     "tss-react": "4.9.21",
     "usehooks-ts": "3.1.1",
     "uuid": "14.0.2",
-    "zod": "4.4.3",
+    "zod": "4.5.2",
     "zustand": "5.0.15"
   },
   "devDependencies": {
