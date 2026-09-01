@@ -608,6 +608,7 @@
   "Chain this inject to others: a parent runs before it, children run after. Add execution conditions to branch on whether the parent succeeded or failed.": "Свяжите эту инъекцию с другими: родитель выполняется до нее, потомки - после. Добавьте условия выполнения для ветвления в зависимости от успеха или неудачи родителя.",
   "Chained": "Chained",
   "Chained an unauthenticated file upload into a shell on the target host.": "Связали неаутентифицированную загрузку файла с получением оболочки на целевом узле.",
+  "Chained scenarios are not listed: their injects are driven by their workflow": "Цепочечные сценарии не отображаются: их инжекты управляются рабочим процессом",
   "chaining.chaining-scenario.description": "Запускает полностью автоматизированную сквозную последовательность, где каждый шаг вызывает следующие потенциальные шаги.",
   "chaining.chaining-scenario.title": "Сценарий цепочки",
   "chaining.chaining-simulation.title": "Моделирование цепочек",

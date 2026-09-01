@@ -146,7 +146,7 @@ public class ScenarioApi extends RestBehavior {
   // commit-time flush - the arsenal selection can create thousands of injects.
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
-  public Scenario createScenarioWithInjectorContracts(
+  public ScenarioSimple createScenarioWithInjectorContracts(
       // TxCtx is still declared so the resolver injects the request scope; there is no real
       // transaction here to write the GUC into (SUPPORTS), so it is passed down manually into
       // ScenarioService's own @Transactional method.
@@ -170,7 +170,7 @@ public class ScenarioApi extends RestBehavior {
   // commit-time flush - the arsenal selection can create thousands of injects.
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
-  public List<Scenario> updateScenariosWithInjectorContracts(
+  public List<ScenarioSimple> updateScenariosWithInjectorContracts(
       // TxCtx is still declared so the resolver injects the request scope; there is no real
       // transaction here to write the GUC into (SUPPORTS), so it is passed down manually into
       // ScenarioService's own @Transactional method.

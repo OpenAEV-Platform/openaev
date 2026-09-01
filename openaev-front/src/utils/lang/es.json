@@ -608,6 +608,7 @@
   "Chain this inject to others: a parent runs before it, children run after. Add execution conditions to branch on whether the parent succeeded or failed.": "Encadene esta inyeccion con otras: un padre se ejecuta antes y los hijos despues. Anada condiciones de ejecucion para ramificar segun si el padre tuvo exito o fallo.",
   "Chained": "Chained",
   "Chained an unauthenticated file upload into a shell on the target host.": "Se encadeno una carga de archivo no autenticada hasta obtener una shell en el host objetivo.",
+  "Chained scenarios are not listed: their injects are driven by their workflow": "Los escenarios encadenados no se muestran: sus inyecciones se controlan mediante su flujo de trabajo",
   "chaining.chaining-scenario.description": "Ejecuta una secuencia totalmente automatizada, de extremo a extremo, donde cada paso desencadena los siguientes pasos potenciales.",
   "chaining.chaining-scenario.title": "Escenario encadenado",
   "chaining.chaining-simulation.title": "Simulación encadenada",
