@@ -1,5 +1,5 @@
 import { simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import type { ChainingOutput, EventInput, EventOutput, StepInput, StepOutput } from '../../utils/api-types';
+import type { EventInput, EventOutput, StepInput, StepOutput } from '../../utils/api-types';
 
 const CHAINING_URI = '/api/chaining';
 const STEPS_URI = `${CHAINING_URI}/steps`;
@@ -8,9 +8,6 @@ const INJECTOR_CONTRACTS_URI = '/api/injector_contracts';
 
 // -- Injector contracts --
 export const searchInjectorContracts = (searchPaginationInput: object) => simplePostCall(`${INJECTOR_CONTRACTS_URI}/search`, searchPaginationInput);
-
-// -- Full chaining --
-export const fetchChaining = (workflowId: string): Promise<{ data: ChainingOutput }> => simpleCall(`${CHAINING_URI}?workflow_id=${workflowId}`);
 
 // -- Steps (Actions in UI) --
 export const fetchSteps = (workflowId: string): Promise<{ data: StepOutput[] }> => simpleCall(`${STEPS_URI}?workflow_id=${workflowId}`);
