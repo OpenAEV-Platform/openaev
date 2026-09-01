@@ -19,7 +19,7 @@ export interface ConnectorLiveliness {
   builtIn: boolean;
 }
 
-const isFresh = (heartbeat?: string): boolean =>
+export const isHeartbeatFresh = (heartbeat?: string): boolean =>
   heartbeat != null && Date.now() - new Date(heartbeat).getTime() < LIVELINESS_THRESHOLD_MS;
 
 /**
@@ -63,7 +63,7 @@ export const computeConnectorLiveliness = (connector: ConnectorOutput): Connecto
       };
     }
     if (external) {
-      const live = isFresh(heartbeat);
+      const live = isHeartbeatFresh(heartbeat);
       return {
         started: true,
         healthy: live,
@@ -81,7 +81,7 @@ export const computeConnectorLiveliness = (connector: ConnectorOutput): Connecto
   }
 
   if (external) {
-    const live = isFresh(heartbeat);
+    const live = isHeartbeatFresh(heartbeat);
     return {
       started: live,
       healthy: live,

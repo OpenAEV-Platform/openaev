@@ -1,5 +1,7 @@
 package io.openaev.database.model;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import java.util.Optional;
 import java.util.Set;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -46,4 +48,17 @@ public abstract class ConnectorInstance {
   public abstract String getClassName();
 
   public abstract String getHashIdentity();
+
+  public Optional<String> configurationValue(String key) {
+    Set<ConnectorInstanceConfiguration> configurations = getConfigurations();
+    if (configurations == null) {
+      return Optional.empty();
+    }
+    return configurations.stream()
+        .filter(configuration -> key.equals(configuration.getKey()))
+        .map(ConnectorInstanceConfiguration::getValue)
+        .filter(value -> value != null && value.isTextual())
+        .map(JsonNode::asText)
+        .findFirst();
+  }
 }

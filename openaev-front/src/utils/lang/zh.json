@@ -4048,6 +4048,7 @@
   "vulnerable-endpoint": "脆弱终端",
   "vulnerable-endpoint-plural": "脆弱终端",
   "vulnerable-endpoint-singular": "脆弱终端",
+  "Wait until the connector stops pinging before deleting it": "请等待连接器停止发送心跳后再删除",
   "Waiting for": "Waiting for",
   "Waiting for {count} background tasks…": "正在等待 {count} 个后台任务……",
   "Waiting for a specialist agent": "Waiting for a specialist agent",

@@ -21,10 +21,13 @@ import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.EndpointService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
+import io.openaev.service.connectors.HeartbeatWindow;
 import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.ConnectorInstanceMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -431,6 +434,9 @@ public class ConnectorInstanceService {
 
     throwIfInstanceRunning(connectorInstance);
 
+    String connectorId = resolveConnectorId(connectorInstance);
+    throwIfConnectorStillPinging(connectorInstance, connectorId);
+
     if (managerFactory
             .getManager(connectorInstance.getTenant().getId())
             .getSpawnedIntegrations()
@@ -453,19 +459,6 @@ public class ConnectorInstanceService {
       }
     }
 
-    String connectorId =
-        connectorInstance.getConfigurations().stream()
-            .filter(
-                c ->
-                    connectorInstance
-                        .getCatalogConnector()
-                        .getContainerType()
-                        .getIdKeyName()
-                        .equals(c.getKey()))
-            .map(c -> c.getValue().asText())
-            .findFirst()
-            .orElse(null);
-
     if (connectorId != null) {
       String tenantId = connectorInstance.getTenant().getId();
       switch (connectorInstance.getCatalogConnector().getContainerType()) {
@@ -484,6 +477,53 @@ public class ConnectorInstanceService {
     }
 
     connectorInstanceRepository.deleteById(id);
+  }
+
+  /** The collector / injector / executor id this instance deploys. */
+  private String resolveConnectorId(ConnectorInstancePersisted instance) {
+    return instance.getConfigurations().stream()
+        .filter(
+            c ->
+                instance.getCatalogConnector().getContainerType().getIdKeyName().equals(c.getKey()))
+        .map(c -> c.getValue().asText())
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * Mirrors {@code AbstractConnectorService#throwIfConnectorRunning} for this entry point: a stop
+   * is only ever requested, so a still-live container would put the connector row back, orphaned.
+   */
+  private void throwIfConnectorStillPinging(
+      ConnectorInstancePersisted instance, String connectorId) {
+    if (connectorId == null) {
+      return;
+    }
+    ConnectorCompositeId compositeId =
+        ConnectorCompositeId.of(connectorId, instance.getTenant().getId());
+    Instant lastHeartbeat =
+        switch (instance.getCatalogConnector().getContainerType()) {
+          case INJECTOR ->
+              injectorRepository.findById(compositeId).map(Injector::getUpdatedAt).orElse(null);
+          case COLLECTOR ->
+              collectorRepository.findById(compositeId).map(Collector::getUpdatedAt).orElse(null);
+          case EXECUTOR ->
+              executorRepository.findById(compositeId).map(Executor::getUpdatedAt).orElse(null);
+          default -> null;
+        };
+    Duration heartbeatWindow =
+        HeartbeatWindow.forInstance(instance, instance.getCatalogConnector().getContainerType());
+    if (lastHeartbeat != null && lastHeartbeat.isAfter(Instant.now().minus(heartbeatWindow))) {
+      throw new BadRequestException(
+          "The "
+              + instance.getCatalogConnector().getContainerType().name().toLowerCase(Locale.ROOT)
+              + " "
+              + connectorId
+              + " is still running (last heartbeat "
+              + lastHeartbeat
+              + "): stop it before deleting its instance "
+              + instance.getId());
+    }
   }
 
   /**
