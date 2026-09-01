@@ -9,8 +9,15 @@ public class AttributeMeta<T> implements Emitter {
   private final Render<T> render;
 
   public AttributeMeta(String key, T value) {
+    this(key, value, false);
+  }
+
+  public AttributeMeta(String key, T value, boolean literal) {
     this.key = key;
-    this.render = new RenderFactory().getRender(value);
+    this.render =
+        literal
+            ? (Render<T>) new RenderFactory().getLiteralRender((String) value)
+            : new RenderFactory().getRender(value);
   }
 
   @Override

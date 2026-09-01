@@ -3,23 +3,15 @@ package io.openaev.ocsf.parser.generator;
 import static io.openaev.ocsf.parser.generator.emission.ClassGenerator.SCHEMA_PACKAGE_NAME;
 import static io.openaev.ocsf.parser.schema.SchemaDimension.*;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.fs.ClassFileWriter;
 import io.openaev.ocsf.parser.PluginContext;
 import io.openaev.ocsf.parser.generator.emission.ClassClassGenerator;
 import io.openaev.ocsf.parser.generator.emission.ClassMetadata;
 import io.openaev.ocsf.parser.generator.emission.DatatypeClassGenerator;
 import io.openaev.ocsf.parser.generator.emission.ObjectClassGenerator;
-import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
-import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
-import io.openaev.ocsf.parser.generator.emission.meta.cls.ClassMeta;
-import io.openaev.ocsf.parser.generator.emission.meta.enums.EnumMeta;
-import io.openaev.ocsf.parser.generator.emission.meta.enums.OptionMeta;
-import io.openaev.ocsf.parser.generator.emission.meta.field.FieldMeta;
-import io.openaev.ocsf.parser.generator.emission.meta.method.ArgumentMeta;
-import io.openaev.ocsf.parser.generator.emission.meta.method.MethodMeta;
+import io.openaev.ocsf.parser.generator.utility.ObjectNodeDeserialiserEmitter;
+import io.openaev.ocsf.parser.generator.utility.OcsfClassUidEmitter;
+import io.openaev.ocsf.parser.generator.utility.OcsfConverterEmitter;
 import io.openaev.ocsf.parser.schema.SchemaSource;
 import io.openaev.ocsf.parser.schema.source.ReferentialSource;
 import io.openaev.ocsf.parser.schema.source.Source;
@@ -29,8 +21,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
-import lombok.Getter;
 
 public class Generator {
   private final ClassClassGenerator classClassGenerator = new ClassClassGenerator();
@@ -126,78 +116,28 @@ public class Generator {
     String helperClassPackage =
         stringUtils.toVersionedPackage(schemaSource.getVersion(), SCHEMA_PACKAGE_NAME);
 
-    // converter
-    ClassMeta converterBodyMeta =
-        new ClassMeta()
-            .withImport(ObjectMapper.class.getCanonicalName())
-            .withName("OcsfConverter")
-            .withPackage(helperClassPackage)
-            .withField(
-                new FieldMeta(Modifier.PRIVATE, ObjectMapper.class.getTypeName(), "mapper")
-                    .withInitialiser("new ObjectMapper()"));
-    for (ClassMetadata md : tracker.values()) {
-      switch (md.dimension()) {
-        case SINGLE_OBJECT, SINGLE_CLASS ->
-            converterBodyMeta =
-                converterBodyMeta.withMethod(
-                    new MethodMeta(
-                            Modifier.PUBLIC,
-                            md.fullyQualifiedClassName(),
-                            "to" + md.className(),
-                            "return mapper.treeToValue(node, "
-                                + md.fullyQualifiedClassName()
-                                + ".class);")
-                        .withArgument(new ArgumentMeta(JsonNode.class, "node"))
-                        .withThrow(JsonProcessingException.class));
-      }
-    }
     classFileWriter.overwrite(
         pluginContext
             .getRootOpenAEVAPISourceDirectory()
             .resolve(stringUtils.packageToPath(helperClassPackage))
             .toString(),
         "OcsfConverter",
-        converterBodyMeta.emit());
+        new OcsfConverterEmitter(tracker, helperClassPackage).emit());
 
-    // class UID enum
-    EnumMeta classIdMeta =
-        new EnumMeta()
-            .withName("OcsfClassUid")
-            .withPackage(helperClassPackage)
-            .withImport(Getter.class.getCanonicalName())
-            .withField(
-                new FieldMeta(Modifier.PRIVATE, "final " + String.class.getCanonicalName(), "value")
-                    .withAnnotation(new AnnotationMeta(Getter.class)))
-            .withMethod(
-                new MethodMeta(Modifier.NONE, "OcsfClassUid", "", "this.value = value;")
-                    .withArgument(new ArgumentMeta(String.class, "value")))
-            .withMethod(
-                new MethodMeta(
-                        Modifier.PUBLIC,
-                        "static OcsfClassUid",
-                        "fromClassUid",
-                        """
-                            for(OcsfClassUid opt : OcsfClassUid.values()) {
-                              if(value.equals(opt.getValue())) {
-                                return opt;
-                              }
-                            }
-                            throw new IllegalArgumentException("No such class UID: %s".formatted(value));
-                            """)
-                    .withArgument(new ArgumentMeta(String.class, "value")));
-    for (ClassMetadata md : tracker.values()) {
-      if (SINGLE_CLASS.equals(Objects.requireNonNull(md.dimension()))) {
-        classIdMeta =
-            classIdMeta.withOption(
-                new OptionMeta(md.ocsfIdentifier().toUpperCase()).withValue(md.ocsfClassUid()));
-      }
-    }
     classFileWriter.overwrite(
         pluginContext
             .getRootOpenAEVAPISourceDirectory()
             .resolve(stringUtils.packageToPath(helperClassPackage))
             .toString(),
         "OcsfClassUid",
-        classIdMeta.emit());
+        new OcsfClassUidEmitter(tracker, helperClassPackage).emit());
+
+    classFileWriter.overwrite(
+        pluginContext
+            .getRootOpenAEVAPISourceDirectory()
+            .resolve(stringUtils.packageToPath(helperClassPackage))
+            .toString(),
+        "ObjectNodeDeserialiser",
+        new ObjectNodeDeserialiserEmitter(helperClassPackage, tracker.get("json_t")).emit());
   }
 }

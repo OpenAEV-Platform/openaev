@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.ocsf.parsing.OcsfFilter;
 import io.openaev.ocsf.schema.v190.OcsfClassUid;
 import io.openaev.ocsf.schema.v190.OcsfConverter;
-import io.openaev.ocsf.schema.v190.classes.OcsfClassSecurityFinding;
+import io.openaev.ocsf.schema.v190.classes.OcsfClassDetectionFinding;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -38,11 +38,11 @@ public class OcsfMapperTest {
     Stream<JsonNode> trace = getTrace();
 
     List<JsonNode> filtered =
-        filter.getClassObjectsByUid(OcsfClassUid.SECURITY_FINDING, trace.toList());
+        filter.getClassObjectsByUid(OcsfClassUid.DETECTION_FINDING, trace.toList());
 
-    List<OcsfClassSecurityFinding> sf = new ArrayList<>();
+    List<OcsfClassDetectionFinding> sf = new ArrayList<>();
     for (JsonNode node : filtered) {
-      sf.add(converter.toOcsfClassSecurityFinding(node));
+      sf.add(converter.toOcsfClassDetectionFinding(node));
     }
   }
 }

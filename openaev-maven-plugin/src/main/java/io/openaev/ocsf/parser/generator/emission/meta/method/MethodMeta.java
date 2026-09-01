@@ -4,14 +4,16 @@ import io.openaev.ocsf.parser.generator.emission.Emitter;
 import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
 import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
 import io.openaev.ocsf.parser.generator.emission.render.Helper;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
 
 public class MethodMeta implements Emitter {
   private final Set<AnnotationMeta> annotations = new HashSet<>();
-  private final Set<ArgumentMeta> arguments = new HashSet<>();
+  private final List<ArgumentMeta> arguments = new ArrayList<>();
   private final Set<Class<? extends Throwable>> throwables = new HashSet<>();
   private final Modifier modifier;
   private final String returnType;

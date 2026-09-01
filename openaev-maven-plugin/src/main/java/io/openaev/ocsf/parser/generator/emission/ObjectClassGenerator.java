@@ -2,6 +2,7 @@ package io.openaev.ocsf.parser.generator.emission;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.openaev.ocsf.parser.client.url.OcsfSchemaExtension;
 import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
 import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
@@ -31,6 +32,7 @@ public class ObjectClassGenerator extends ClassGenerator {
         extension,
         compositeOcsfClassName(name),
         stringUtils.toVersionedPackage(version, SCHEMA_PACKAGE_NAME, "objects"),
+        stringUtils.toVersionedPackage(version, SCHEMA_PACKAGE_NAME),
         source);
   }
 
@@ -50,15 +52,19 @@ public class ObjectClassGenerator extends ClassGenerator {
           attr.getValue().has("extension")
               ? OcsfSchemaExtension.fromString(attr.getValue().get("extension").asText())
               : Optional.empty();
-      meta =
-          meta.withField(
-              new FieldMeta(
-                      Modifier.PRIVATE,
-                      helper.findClassNameFromOcsfAttribute(attr.getKey(), extension),
-                      stringUtils.snakeToCamel(attr.getKey()) + "Field")
-                  .withAnnotation(
-                      new AnnotationMeta(JsonProperty.class)
-                          .withAttribute("value", attr.getKey())));
+      String fieldType = helper.findClassNameFromOcsfAttribute(attr.getKey(), extension);
+      FieldMeta fm =
+          new FieldMeta(
+                  Modifier.PRIVATE, fieldType, stringUtils.snakeToCamel(attr.getKey()) + "Field")
+              .withAnnotation(
+                  new AnnotationMeta(JsonProperty.class).withAttribute("value", attr.getKey()));
+      if (fieldType.contains("OcsfDatatypeJsonT")) {
+        fm.withAnnotation(
+            new AnnotationMeta(JsonDeserialize.class)
+                .withLiteralAttribute(
+                    "using", metadata.schemaPackage() + ".ObjectNodeDeserialiser.class"));
+      }
+      meta = meta.withField(fm);
     }
 
     return meta.emit();

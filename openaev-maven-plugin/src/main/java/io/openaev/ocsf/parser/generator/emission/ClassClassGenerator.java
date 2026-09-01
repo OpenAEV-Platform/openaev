@@ -32,6 +32,7 @@ public class ClassClassGenerator extends ClassGenerator {
         extension,
         compositeOcsfClassName(name),
         stringUtils.toVersionedPackage(version, SCHEMA_PACKAGE_NAME, "classes"),
+        stringUtils.toVersionedPackage(version, SCHEMA_PACKAGE_NAME),
         source);
   }
 

@@ -19,6 +19,18 @@ public class AnnotationMeta implements Emitter {
     return this;
   }
 
+  /**
+   * Adds the attribute literally with no escaping or quoting
+   *
+   * @param key the argument key
+   * @param obj the value to set literally
+   * @return the AnnotationMeta containing the new ArgumentMeta
+   */
+  public AnnotationMeta withLiteralAttribute(String key, String obj) {
+    this.attributes.add(new AttributeMeta<>(key, obj, true));
+    return this;
+  }
+
   @Override
   public String emit() {
     StringBuilder render = new StringBuilder(MessageFormat.format("@{0}", cls.getName()));

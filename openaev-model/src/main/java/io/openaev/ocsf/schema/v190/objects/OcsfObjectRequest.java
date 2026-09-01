@@ -8,6 +8,8 @@ public class OcsfObjectRequest extends OcsfObject {
   @com.fasterxml.jackson.annotation.JsonProperty(value = "containers")
   private java.util.List<io.openaev.ocsf.schema.v190.objects.OcsfObjectContainer> containersField;
 
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
   @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT dataField;
 

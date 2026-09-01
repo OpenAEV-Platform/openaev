@@ -1,6 +1,7 @@
 package io.openaev.ocsf.parser.generator.emission;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.ocsf.parser.client.url.OcsfSchemaExtension;
 import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
 import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
@@ -27,6 +28,7 @@ public class DatatypeClassGenerator extends ClassGenerator {
         extension,
         compositeOcsfClassName(name),
         stringUtils.toVersionedPackage(version, SCHEMA_PACKAGE_NAME, "datatypes"),
+        stringUtils.toVersionedPackage(version, SCHEMA_PACKAGE_NAME),
         source);
   }
 
@@ -78,7 +80,7 @@ public class DatatypeClassGenerator extends ClassGenerator {
       case "boolean_t" -> Boolean.class;
       case "float_t" -> Double.class;
       case "integer_t" -> Integer.class;
-      case "json_t" -> JsonNode.class;
+      case "json_t" -> ObjectNode.class;
       case "long_t" -> Long.class;
       case "string_t" -> String.class;
       default ->

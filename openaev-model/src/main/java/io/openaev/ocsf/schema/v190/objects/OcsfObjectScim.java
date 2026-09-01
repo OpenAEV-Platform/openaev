@@ -49,9 +49,13 @@ public class OcsfObjectScim extends OcsfObject {
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT rateLimitField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "scim_group_schema")
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT scimGroupSchemaField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "scim_user_schema")
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT scimUserSchemaField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "state")

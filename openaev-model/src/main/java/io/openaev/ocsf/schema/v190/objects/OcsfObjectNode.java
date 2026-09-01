@@ -5,6 +5,8 @@ import io.openaev.ocsf.schema.OcsfObject;
 @lombok.Getter
 public class OcsfObjectNode extends OcsfObject {
 
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
   @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT dataField;
 

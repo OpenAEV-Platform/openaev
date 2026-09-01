@@ -49,6 +49,8 @@ public class OcsfObjectFinding extends OcsfObject {
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeUrlT srcUrlField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "supporting_data")
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT supportingDataField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "title")

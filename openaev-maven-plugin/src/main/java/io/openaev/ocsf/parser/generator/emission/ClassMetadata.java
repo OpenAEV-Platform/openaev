@@ -11,6 +11,7 @@ public record ClassMetadata(
     OcsfSchemaExtension extension,
     String className,
     String classPackage,
+    String schemaPackage,
     JsonNode source) {
   public String fullyQualifiedClassName() {
     return String.join(".", classPackage(), className());

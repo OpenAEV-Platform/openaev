@@ -11,6 +11,8 @@ public class OcsfObjectEnrichment extends OcsfObject {
   @com.fasterxml.jackson.annotation.JsonProperty(value = "created_time")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeTimestampT createdTimeField;
 
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
   @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT dataField;
 

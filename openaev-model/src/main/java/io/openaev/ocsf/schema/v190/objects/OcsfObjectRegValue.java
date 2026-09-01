@@ -6,6 +6,8 @@ import io.openaev.ocsf.schema.OcsfObject;
 public class OcsfObjectRegValue extends OcsfObject {
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT dataField;
 
   @com.fasterxml.jackson.annotation.JsonProperty(value = "is_default")

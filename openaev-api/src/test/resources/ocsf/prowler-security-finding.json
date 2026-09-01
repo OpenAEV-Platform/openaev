@@ -1,3124 +1,814 @@
 [{
-  "impact": "Low",
-  "status_detail": "dryer suggest white",
-  "state": "In Progress",
-  "time": 1788192670615,
-  "type_uid": 200101,
-  "activity_id": 1,
-  "risk_level": "Info",
-  "malware": [
-    {
-      "name": "horizon sewing thy",
-      "path": "croatia",
-      "uid": "94b75876-a556-11f1-bda1-aaaf34fe2f3c",
-      "severity": "Informational",
-      "classification_ids": [
-        3
-      ],
-      "cves": [
-        {
-          "type": "newark evolution vsnet",
-          "title": "pal substantial planner",
-          "desc": "polo twins george",
-          "uid": "94b7a434-a556-11f1-bbcc-aaaf34fe2f3c",
-          "references": [
-            "seo king visit"
-          ],
-          "created_time": 1788192670603,
-          "cvss": [
-            {
-              "version": "1.9.0",
-              "depth": "Temporal",
-              "base_score": 16.793,
-              "overall_score": 50.5804,
-              "vendor_name": "thriller lloyd photos"
-            },
-            {
-              "version": "1.9.0",
-              "depth": "Temporal",
-              "base_score": 9.5324,
-              "overall_score": 94.3038,
-              "vendor_name": "brands atmosphere enjoy"
-            }
-          ],
-          "epss": {
-            "version": "1.9.0",
-            "created_time": 1788192670607,
-            "percentile": 24.6708,
-            "score": "stayed johnny jake"
-          },
-          "created_time_dt": "2026-08-31T16:11:10.607066Z",
-          "modified_time_dt": "2026-08-31T16:11:10.607073Z"
+    "message": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-elasticsearch is not public.",
+    "metadata": {
+        "event_code": "s3_bucket_public_access",
+        "product": {
+            "name": "Prowler",
+            "uid": "prowler",
+            "vendor_name": "Prowler",
+            "version": "5.35.0"
         },
-        {
-          "type": "selling precipitation citations",
-          "uid": "94b85406-a556-11f1-8d79-aaaf34fe2f3c",
-          "references": [
-            "burke cincinnati followed",
-            "mc encryption sticky"
-          ],
-          "created_time": 1788192670607,
-          "cvss": [
-            {
-              "version": "1.9.0",
-              "depth": "Base",
-              "base_score": 39.0902,
-              "overall_score": 63.9182,
-              "vendor_name": "recently handed placement"
-            }
-          ],
-          "cwe_url": "seemed",
-          "epss": {
-            "version": "1.9.0",
-            "created_time": 1788192670609,
-            "score": "cheese rent restaurants"
-          },
-          "modified_time": 1788192670609,
-          "modified_time_dt": "2026-08-31T16:11:10.609430Z"
-        }
-      ],
-      "provider": "residents taken joke",
-      "severity_id": 1
-    },
-    {
-      "name": "multimedia platforms protection",
-      "path": "format",
-      "uid": "94b8ae60-a556-11f1-b786-aaaf34fe2f3c",
-      "severity": "menus",
-      "classification_ids": [
-        17,
-        14
-      ],
-      "cves": [
-        {
-          "type": "boxing mode subaru",
-          "title": "arrangements usps meetings",
-          "desc": "spelling created unwrap",
-          "uid": "94b9190e-a556-11f1-9712-aaaf34fe2f3c",
-          "references": [
-            "vacation oregon prepare",
-            "buffer terrain parenting"
-          ],
-          "created_time": 1788192670612,
-          "cvss": [
-            {
-              "version": "1.9.0",
-              "depth": "Base",
-              "base_score": 83.3538,
-              "overall_score": 2.3317
-            },
-            {
-              "version": "1.9.0",
-              "severity": "promoted petite jewellery",
-              "base_score": 58.7076,
-              "overall_score": 90.9669,
-              "src_url": "wp",
-              "vendor_name": "reality training canyon"
-            }
-          ],
-          "cwe": {
-            "uid": "94b97610-a556-11f1-acdf-aaaf34fe2f3c"
-          },
-          "cwe_uid": "94b97bb0-a556-11f1-91fb-aaaf34fe2f3c"
-        }
-      ],
-      "provider": "forget shooting modifications",
-      "severity_id": 99,
-      "uid_numeric": 2327411790
-    }
-  ],
-  "type_name": "Security Finding: Create",
-  "class_name": "Security Finding",
-  "policy": {
-    "name": "mp solomon produce",
-    "version": "1.9.0",
-    "uid": "94b6e4c2-a556-11f1-a0ec-aaaf34fe2f3c",
-    "is_applied": false
-  },
-  "finding": {
-    "title": "hispanic wizard eur",
-    "product": {
-      "name": "mpegs varied jump",
-      "version": "1.9.0",
-      "uid": "94b267d0-a556-11f1-a54c-aaaf34fe2f3c",
-      "cpe_name": "plans chess shape",
-      "data_classification": {
-        "status": "Complete",
-        "total": 97,
-        "category": "Personal",
-        "category_id": 1,
-        "confidentiality": "Confidential",
-        "confidentiality_id": 2,
-        "policy": {
-          "data": "pad",
-          "name": "di reasons detective",
-          "version": "1.9.0",
-          "uid": "94b2c072-a556-11f1-a201-aaaf34fe2f3c",
-          "is_applied": true,
-          "uid_numeric": 2955566308
-        },
-        "src_url": "yesterday",
-        "status_id": 1
-      },
-      "data_classifications": [
-        {
-          "status": "my seems identifying",
-          "category": "Governmental",
-          "category_id": 2,
-          "classifier_details": {
-            "name": "holy ceramic costume",
-            "type": "myself election punishment",
-            "uid": "94b35910-a556-11f1-85ce-aaaf34fe2f3c"
-          },
-          "confidentiality": "Restricted",
-          "confidentiality_id": 6,
-          "discovery_details": [
-            {
-              "count": 78,
-              "type": "suitable oxford processors",
-              "rule": {
-                "name": "dealer recovery sublime",
-                "uid": "94b3f6fe-a556-11f1-8340-aaaf34fe2f3c"
-              }
-            },
-            {
-              "count": 75,
-              "occurrence_details": {
-                "column_name": "enlargement takes entitled",
-                "page_number": 72
-              },
-              "rule": {
-                "name": "cnet singles ingredients",
-                "version": "1.9.0",
-                "uid": "94b5e716-a556-11f1-bcfd-aaaf34fe2f3c"
-              }
-            }
-          ],
-          "policy": {
-            "data": "glasses",
-            "name": "others montgomery engage",
-            "uid": "94b6675e-a556-11f1-b02f-aaaf34fe2f3c",
-            "is_applied": true
-          },
-          "status_details": [
-            "lawsuit faith home",
-            "happy thumbnail proteins"
-          ]
-        },
-        {
-          "status": "Unknown",
-          "total": 30,
-          "category": "Business",
-          "category_id": 4,
-          "classifier_details": {
-            "name": "placing joy game",
-            "type": "thin semi ran",
-            "uid": "94b6a8fe-a556-11f1-b983-aaaf34fe2f3c"
-          },
-          "confidentiality": "Not Confidential",
-          "confidentiality_id": 1,
-          "status_id": 0
-        }
-      ],
-      "url_string": "offensive",
-      "vendor_name": "stand expired salad"
-    },
-    "uid": "94b6b3b2-a556-11f1-aa44-aaaf34fe2f3c",
-    "types": [
-      "implemented mary cape"
-    ],
-    "first_seen_time_dt": "2026-08-31T16:11:10.596835Z"
-  },
-  "confidence_score": 8,
-  "impact_score": 57,
-  "metadata": {
-    "version": "1.9.0",
-    "product": {
-      "name": "pierce provide casino",
-      "path": "buttons subcommittee transsexual",
-      "uid": "94b020a6-a556-11f1-a911-aaaf34fe2f3c",
-      "data_classification": {
-        "status": "genre",
-        "category": "Personal",
-        "category_id": 1,
-        "confidentiality": "Secret",
-        "confidentiality_id": 3,
-        "status_id": 99
-      },
-      "data_classifications": [
-        {
-          "size": 3089839233,
-          "status": "fw ballot regression",
-          "category": "Unknown",
-          "category_id": 0,
-          "classifier_details": {
-            "type": "arrested aid sweden",
-            "uid": "94b0da96-a556-11f1-8303-aaaf34fe2f3c"
-          },
-          "confidentiality": "Restricted",
-          "confidentiality_id": 6,
-          "policy": {
-            "name": "nightlife recipe conservation",
-            "type": "cotton yr ng",
-            "version": "1.9.0",
-            "uid": "94b11290-a556-11f1-aabf-aaaf34fe2f3c",
-            "is_applied": true
-          }
-        }
-      ],
-      "url_string": "trash",
-      "vendor_name": "dry attorney creativity"
-    },
-    "uid": "94b1d928-a556-11f1-a055-aaaf34fe2f3c",
-    "extensions": [
-      {
-        "name": "already verse knew",
-        "version": "1.9.0",
-        "uid": "94aed048-a556-11f1-8ab1-aaaf34fe2f3c"
-      }
-    ],
-    "tags": [
-      {
-        "name": "agricultural though rosa",
-        "value": "ob percent frequently",
-        "values": [
-          "assumption fixed gras",
-          "holds therapist calculated"
-        ]
-      },
-      {
-        "name": "accidents rod creativity",
-        "value": "director bouquet norfolk",
-        "values": [
-          "confirmation cvs point",
-          "neighbor images austria"
-        ]
-      }
-    ],
-    "data_classification": {
-      "size": 3388504038,
-      "status": "Fail",
-      "category": "Security",
-      "category_id": 6,
-      "classifier_details": {
-        "name": "ppm handles projector",
-        "type": "files schema bouquet",
-        "uid": "94b1d216-a556-11f1-9189-aaaf34fe2f3c"
-      },
-      "confidentiality": "Confidential",
-      "confidentiality_id": 2,
-      "status_id": 3
-    },
-    "data_classifications": [
-      {
-        "status": "Unknown",
-        "category": "Governmental",
-        "category_id": 2,
-        "confidentiality": "Not Confidential",
-        "confidentiality_id": 1,
-        "policy": {
-          "name": "begin dame declaration",
-          "version": "1.9.0",
-          "uid": "94af827c-a556-11f1-ab70-aaaf34fe2f3c",
-          "is_applied": false
-        },
-        "src_url": "madison",
-        "status_id": 0
-      },
-      {
-        "status": "Unknown",
-        "uid": "94af8a4c-a556-11f1-8235-aaaf34fe2f3c",
-        "category": "Security",
-        "category_id": 6,
-        "classifier_details": {
-          "name": "hills grab contracting",
-          "type": "conditional dive knives",
-          "uid": "94afb418-a556-11f1-a529-aaaf34fe2f3c"
-        },
-        "confidentiality": "Unknown",
-        "confidentiality_id": 0,
-        "status_id": 0
-      }
-    ],
-    "event_code": "defend",
-    "log_name": "thereby void baking",
-    "original_time": "newark routines relative",
-    "processed_time": 1788192670559,
-    "reporter": {
-      "name": "club diseases paperbacks",
-      "ip": "68.217.123.41",
-      "hostname": "expenses.arpa",
-      "uid": "94b14166-a556-11f1-a3b4-aaaf34fe2f3c"
-    },
-    "logged_time_dt": "2026-08-31T16:11:10.550960Z"
-  },
-  "disposition": "Quarantined",
-  "device": {
-    "owner": {
-      "name": "Monica",
-      "type": "Admin",
-      "uid": "94ad7036-a556-11f1-a7d4-aaaf34fe2f3c",
-      "full_name": "Tanna Donette",
-      "type_id": 2,
-      "account": {
-        "name": "namely nav theories",
-        "type": "Mac OS Account",
-        "uid": "94add512-a556-11f1-961c-aaaf34fe2f3c",
-        "type_id": 7,
-        "is_on_premises_sync_enabled": true
-      },
-      "has_mfa": false,
-      "phone_number": "maybe excessive debate",
-      "programmatic_credentials": [
-        {
-          "type": "ready lucia cf",
-          "uid": "94ae07da-a556-11f1-9d94-aaaf34fe2f3c",
-          "last_used_time_dt": "2026-08-31T16:11:10.539982Z"
-        },
-        {
-          "type": "enterprise accounting athletic",
-          "uid": "94ae0e1a-a556-11f1-9527-aaaf34fe2f3c"
-        }
-      ],
-      "risk_level": "Medium",
-      "risk_level_id": 2,
-      "uid_numeric": 2467483457
-    },
-    "type": "Desktop",
-    "ip": "162.193.112.170",
-    "hostname": "daughters.nato",
-    "uid": "94ae13a6-a556-11f1-afa8-aaaf34fe2f3c",
-    "image": {
-      "name": "technological wine php",
-      "tag": "naturally supporting centres",
-      "uid": "94ae3d9a-a556-11f1-b88b-aaaf34fe2f3c",
-      "labels": [
-        "drum",
-        "platform"
-      ],
-      "uid_numeric": 1452719918
-    },
-    "org": {
-      "uid": "94ad278e-a556-11f1-83c7-aaaf34fe2f3c",
-      "ou_name": "apps passive focused"
-    },
-    "type_id": 2,
-    "boot_uid": "94ad3dc8-a556-11f1-8995-aaaf34fe2f3c",
-    "container": {
-      "name": "bs in nevada",
-      "size": 273082478,
-      "uid": "94ac68da-a556-11f1-912d-aaaf34fe2f3c",
-      "hash": {
-        "value": "0DD604B11003A5B432D6FE722F80223D8445E7098E81729075FF518598583B1D3F8F6EDD24351CF41D57B231EFA555C3FC2784D3E2F3AA7893ACE096F235CD57",
-        "algorithm": "SHA-512",
-        "algorithm_id": 4
-      },
-      "image": {
-        "name": "glow article bikes",
-        "uid": "94acf6f6-a556-11f1-b678-aaaf34fe2f3c"
-      }
-    },
-    "imei_list": [
-      "novels christine printer"
-    ],
-    "instance_uid": "94ad333c-a556-11f1-a72b-aaaf34fe2f3c",
-    "interface_name": "hazardous sapphire sized",
-    "interface_uid": "94ad2f0e-a556-11f1-9e4f-aaaf34fe2f3c",
-    "is_compliant": false,
-    "is_trusted": true,
-    "mac_vendor": "woman evolution category",
-    "namespace_pid": 75,
-    "region": "admit bottom cr",
-    "risk_level": "coal grounds bean",
-    "subnet_uid": "94ad38aa-a556-11f1-9833-aaaf34fe2f3c",
-    "vendor_name": "attending loan prayer",
-    "modified_time_dt": "2026-08-31T16:11:10.533009Z"
-  },
-  "action": "Denied",
-  "state_id": 2,
-  "risk_score": 88,
-  "is_alert": false,
-  "disposition_id": 3,
-  "risk_level_id": 0,
-  "vulnerabilities": [
-    {
-      "severity": "themselves obviously accomplish",
-      "references": [
-        "retreat feedback hosts",
-        "conferences worn canadian"
-      ],
-      "cve": {
-        "type": "fine dodge ae",
-        "title": "circles qualify default",
-        "desc": "claims controversial loops",
-        "uid": "949ee2aa-a556-11f1-8fd7-aaaf34fe2f3c",
-        "references": [
-          "navigator succeed antivirus"
+        "profiles": [
+            "cloud",
+            "datetime"
         ],
-        "created_time": 1788192670440,
-        "cvss": [
-          {
-            "version": "1.9.0",
-            "depth": "Base",
-            "base_score": 76.942,
-            "overall_score": 15.2069,
-            "vendor_name": "excess conditioning collections"
-          }
-        ],
-        "modified_time_dt": "2026-08-31T16:11:10.444085Z"
-      },
-      "exploit_last_seen_time": 1788192670444,
-      "exploit_requirement": "submit payroll forward",
-      "exploit_type": "pushed kenya doing",
-      "fix_coverage": "Complete",
-      "fix_coverage_id": 1,
-      "kb_article_list": [
-        {
-          "os": {
-            "name": "necessary filtering grows",
-            "type": "HP-UX",
-            "build": "javascript buffer skills",
-            "type_id": 402,
-            "cpu_bits": 39,
-            "sp_name": "revolutionary loops ibm",
-            "sp_ver": 58
-          },
-          "title": "falling disorder logos",
-          "uid": "94a03786-a556-11f1-881a-aaaf34fe2f3c",
-          "severity": "basically soccer paso",
-          "install_state": "Installed Pending Reboot",
-          "install_state_id": 3
-        },
-        {
-          "os": {
-            "name": "si ht cz",
-            "type": "iOS",
-            "type_id": 301,
-            "cpe_name": "measurement scientific composite",
-            "cpu_bits": 78,
-            "sp_name": "barbie das wines"
-          },
-          "title": "tribe espn sc",
-          "uid": "94a0ade2-a556-11f1-80d3-aaaf34fe2f3c",
-          "severity": "taxi daily liabilities",
-          "created_time": 1788192670452,
-          "install_state": "Not Installed",
-          "install_state_id": 2
-        }
-      ],
-      "last_seen_time": 1788192670452,
-      "last_seen_time_dt": "2026-08-31T16:11:10.452538Z"
+        "tenant_uid": "",
+        "version": "1.5.0"
     },
-    {
-      "references": [
-        "toolbox mi becomes",
-        "demographic advisors mating"
-      ],
-      "affected_code": [
-        {
-          "file": {
-            "name": "deleted.dll",
-            "type": "Block Device",
-            "product": {
-              "name": "oval scheduled objects",
-              "version": "1.9.0",
-              "uid": "94a3593e-a556-11f1-b75a-aaaf34fe2f3c",
-              "data_classification": {
-                "status": "Unknown",
-                "category": "Military and Law Enforcement",
-                "category_id": 5,
-                "classifier_details": {
-                  "name": "surveys bt feet",
-                  "type": "brothers accomplished metres",
-                  "uid": "94a3e390-a556-11f1-9a50-aaaf34fe2f3c"
-                },
-                "confidentiality": "Not Confidential",
-                "confidentiality_id": 1,
-                "status_id": 0
-              },
-              "data_classifications": [
-                {
-                  "size": 934023344,
-                  "status": "Complete",
-                  "total": 18,
-                  "category": "Personal",
-                  "category_id": 1,
-                  "classifier_details": {
-                    "name": "derived by kelkoo",
-                    "type": "approve molecules comp",
-                    "uid": "94a46f68-a556-11f1-8c06-aaaf34fe2f3c"
-                  },
-                  "confidentiality": "Private",
-                  "confidentiality_id": 5,
-                  "discovery_details": [
-                    {
-                      "count": 84
-                    },
-                    {
-                      "type": "diploma garlic wealth",
-                      "value": "birmingham joke prototype",
-                      "rule": {
-                        "name": "roommate progressive hash",
-                        "version": "1.9.0",
-                        "desc": "venue stud mw",
-                        "uid": "94a4c3fa-a556-11f1-a284-aaaf34fe2f3c",
-                        "uid_numeric": 2864278224
-                      }
-                    }
-                  ],
-                  "status_id": 1
-                },
-                {
-                  "status": "Partial",
-                  "category": "Personal",
-                  "category_id": 1,
-                  "classifier_details": {
-                    "name": "rapids angry leo",
-                    "type": "wife trademark changes",
-                    "uid": "94a52d36-a556-11f1-9988-aaaf34fe2f3c"
-                  },
-                  "confidentiality": "Top Secret",
-                  "confidentiality_id": 4,
-                  "status_id": 2
-                }
-              ],
-              "url_string": "rehabilitation",
-              "vendor_name": "involve explicitly quit"
-            },
-            "modifier": {
-              "name": "Sublimedirectory",
-              "type": "System",
-              "uid": "94a16962-a556-11f1-afed-aaaf34fe2f3c",
-              "type_id": 3,
-              "has_mfa": false,
-              "ldap_person": {
-                "labels": [
-                  "explain"
-                ],
-                "manager": {
-                  "type": "Admin",
-                  "domain": "attempt impose abortion",
-                  "uid": "94a1c0f6-a556-11f1-8abc-aaaf34fe2f3c",
-                  "groups": [
-                    {
-                      "name": "bands transmitted auditor",
-                      "type": "targeted names monte",
-                      "desc": "borders desired mentor",
-                      "uid": "94a22cc6-a556-11f1-97c6-aaaf34fe2f3c"
-                    },
-                    {
-                      "name": "brad alpha retirement",
-                      "uid": "94a233b0-a556-11f1-8cb6-aaaf34fe2f3c",
-                      "privileges": [
-                        "cited parliament animated"
-                      ],
-                      "uid_alt": "dayton italiano ensures",
-                      "uid_numeric": 3749176332
-                    }
-                  ],
-                  "type_id": 2,
-                  "display_name": "installing mozambique quantitative",
-                  "forward_addr": "Delora@christians.biz",
-                  "has_mfa": false
-                },
-                "department": "stadium engineer creating",
-                "last_login_time": 1788192670462,
-                "ldap_dn": "roommate assumed keno",
-                "modified_time": 1788192670462,
-                "office_location": "ali half bright"
-              }
-            },
-            "ext": "sexuality salmon hampton",
-            "type_id": 4,
-            "confidentiality": "bedford tomatoes wicked",
-            "data_classification": {
-              "size": 262299241,
-              "status": "Fail",
-              "total": 84,
-              "category": "Financial",
-              "category_id": 3,
-              "classifier_details": {
-                "type": "corn disclose dom",
-                "uid": "94a582ea-a556-11f1-9fe8-aaaf34fe2f3c"
-              },
-              "confidentiality": "Private",
-              "confidentiality_id": 5,
-              "status_id": 3
-            },
-            "data_classifications": [
-              {
-                "status": "Complete",
-                "category": "Financial",
-                "category_id": 3,
-                "classifier_details": {
-                  "name": "couples technologies offering",
-                  "type": "calculate adolescent yukon",
-                  "uid": "94a2f444-a556-11f1-ab0a-aaaf34fe2f3c"
-                },
-                "confidentiality": "Not Confidential",
-                "confidentiality_id": 1,
-                "status_id": 1
-              },
-              {
-                "status": "luis improve transparent",
-                "uid": "94a2fca0-a556-11f1-9a6b-aaaf34fe2f3c",
-                "category": "Business",
-                "category_id": 4,
-                "classifier_details": {
-                  "name": "roland minutes producers",
-                  "type": "spend capacity tiles",
-                  "uid": "94a32df6-a556-11f1-af68-aaaf34fe2f3c"
-                },
-                "confidentiality": "Confidential",
-                "confidentiality_id": 2
-              }
-            ],
-            "hashes": [
-              {
-                "value": "FBCFE7EF0EF0094C8A6A133CD9513E79E014998C68068F0ABCC6E37DBAE120BDB274D8DEF836B58B3DEA1159DB315F6CD90EC621AFDE5CFF86C10EA5EB2344AA",
-                "algorithm": "HASSH",
-                "algorithm_id": 20
-              }
-            ],
-            "is_readonly": true,
-            "uid_numeric": 1315633854
-          },
-          "end_line": 50,
-          "end_column": 19,
-          "start_column": 15
-        },
-        {
-          "file": {
-            "name": "outlet.pl",
-            "type": "Unknown",
-            "path": "bizrate/passage.fon/outlet.pl",
-            "product": {
-              "name": "cabin bracket around",
-              "version": "1.9.0",
-              "path": "improving shows stolen",
-              "uid": "94a8c45a-a556-11f1-b708-aaaf34fe2f3c",
-              "data_classification": {
-                "status": "studies",
-                "total": 8,
-                "category": "Financial",
-                "category_id": 3,
-                "classifier_details": {
-                  "name": "champion hugo incurred",
-                  "type": "hours chinese demo"
-                },
-                "confidentiality": "Private",
-                "confidentiality_id": 5,
-                "status_id": 99
-              }
-            },
-            "modifier": {
-              "name": "Monaco",
-              "type": "Unknown",
-              "groups": [
-                {
-                  "name": "compression wage rebecca",
-                  "uid": "94a63122-a556-11f1-a352-aaaf34fe2f3c"
-                },
-                {
-                  "name": "ride panasonic docs",
-                  "uid": "94a63834-a556-11f1-afcd-aaaf34fe2f3c"
-                }
-              ],
-              "org": {
-                "name": "guarantees deal discounted",
-                "uid": "94a69c0c-a556-11f1-b86f-aaaf34fe2f3c",
-                "ou_name": "learn convertible assumes"
-              },
-              "type_id": 0,
-              "display_name": "offices presence rescue",
-              "has_mfa": false,
-              "uid_alt": "embedded alleged issn"
-            },
-            "desc": "see header five",
-            "signatures": [
-              {
-                "state": "Valid",
-                "certificate": {
-                  "version": "1.9.0",
-                  "issuer": "tokyo song banana",
-                  "is_self_signed": true,
-                  "subject": "az remained permits",
-                  "fingerprints": [
-                    {
-                      "value": "A6B30CA00F9F131FD208FE4F8605B3753C4ADF07CAF39BA52EA68ECAE7AA7DBB4C9C9F7E495646162523B5033A99C96B0DDB5E50AF3EDB8A811C78ED6CC3DB5C",
-                      "algorithm": "xxHash H3 128-bit",
-                      "algorithm_id": 17
-                    }
-                  ],
-                  "created_time": 1788192670495,
-                  "expiration_time": 1788192670495,
-                  "serial_number": "million the na",
-                  "expiration_time_dt": "2026-08-31T16:11:10.495545Z"
-                },
-                "algorithm": "Unknown",
-                "algorithm_id": 0,
-                "serialization": "Authenticode",
-                "serialization_id": 6,
-                "state_id": 1
-              }
-            ],
-            "accessor": {
-              "type": "Unknown",
-              "uid": "94a96bb2-a556-11f1-ac28-aaaf34fe2f3c",
-              "type_id": 0,
-              "has_mfa": false
-            },
-            "parent_folder": "bizrate/passage.fon",
-            "type_id": 0,
-            "confidentiality": "Not Confidential",
-            "confidentiality_id": 1,
-            "data_classification": {
-              "status": "that",
-              "uid": "94a995a6-a556-11f1-890c-aaaf34fe2f3c",
-              "category": "Governmental",
-              "category_id": 2,
-              "classifier_details": {
-                "name": "reporting collar marilyn",
-                "type": "posted christian born",
-                "uid": "94a9f870-a556-11f1-bb6a-aaaf34fe2f3c"
-              },
-              "confidentiality": "Secret",
-              "confidentiality_id": 3,
-              "discovery_details": [
-                {
-                  "count": 74,
-                  "type": "extraordinary sega also",
-                  "rule": {
-                    "name": "studios denmark pig",
-                    "uid": "94aa4ad2-a556-11f1-9bc1-aaaf34fe2f3c"
-                  }
-                },
-                {
-                  "count": 40,
-                  "type": "pray tri furthermore",
-                  "rule": {
-                    "name": "altered correct saying",
-                    "desc": "rid comic prayer",
-                    "uid": "94aab1d4-a556-11f1-80f8-aaaf34fe2f3c",
-                    "uid_numeric": 2965246413
-                  }
-                }
-              ],
-              "src_url": "po",
-              "status_id": 99
-            },
-            "data_classifications": [
-              {
-                "status": "Fail",
-                "category": "Business",
-                "category_id": 4,
-                "classifier_details": {
-                  "name": "origin up rocks",
-                  "type": "watching limiting reservations",
-                  "uid": "94a7ef4e-a556-11f1-9c36-aaaf34fe2f3c"
-                },
-                "confidentiality": "Unknown",
-                "confidentiality_id": 0,
-                "discovery_details": [
-                  {
-                    "count": 2,
-                    "type": "anti phrase survive",
-                    "value": "background beans aquatic",
-                    "rule": {
-                      "name": "comes nationally hard"
-                    }
-                  },
-                  {
-                    "count": 94,
-                    "type": "frame happiness incoming",
-                    "rule": {
-                      "name": "mins children things",
-                      "type": "reunion creative bosnia",
-                      "uid": "94a896f6-a556-11f1-a8f1-aaaf34fe2f3c"
-                    }
-                  }
-                ],
-                "status_id": 3
-              }
-            ],
-            "drive_type": "bargain webcast unexpected",
-            "hashes": [
-              {
-                "value": "ADEFE0485B6E8892B4612E5C526FBA61458912AF94FE8FCE027CBCF1DCDAFE00AD437ADBE9A8E733ACD427FBF4E1E6329BCEE5EB8DC657FE4D4B18C5307A7B37",
-                "algorithm": "SHA-384",
-                "algorithm_id": 9
-              },
-              {
-                "value": "67963C59C73E07C3064618D5A3BD10DB39A9DF5C1C47AB740CE19D89A5248AAA2A3DD8A9DB659907DD91C36D91E231F62D7CA175E3C9332AFE03DC79CE68E12D",
-                "algorithm": "SHA3-384",
-                "algorithm_id": 14
-              }
-            ],
-            "is_system": false,
-            "volume": "cameron citizens without",
-            "accessed_time_dt": "2026-08-31T16:11:10.518214Z"
-          },
-          "end_line": 47,
-          "rule": {
-            "name": "inserted contained monitored",
-            "desc": "implications reported violin",
-            "uid": "94aaec62-a556-11f1-a815-aaaf34fe2f3c"
-          },
-          "start_line": 62
-        }
-      ],
-      "cwe": {
-        "uid": "94abdc62-a556-11f1-a466-aaaf34fe2f3c"
-      },
-      "last_seen_time": 1788192670525,
-      "first_seen_time_dt": "2026-08-31T16:11:10.525782Z"
-    }
-  ],
-  "category_uid": 2,
-  "message": "lightbox retention deer",
-  "evidence": "voip",
-  "resources": [
-    {
-      "name": "parties atlanta bolivia",
-      "owner": {
-        "name": "Yields",
-        "type": "Admin",
-        "domain": "peak crystal sources",
-        "uid": "9499d3d2-a556-11f1-893f-aaaf34fe2f3c",
-        "type_id": 2,
-        "account": {
-          "name": "contemporary value texts",
-          "type": "AWS Account",
-          "uid": "949a497a-a556-11f1-a6d4-aaaf34fe2f3c",
-          "labels": [
-            "insured"
-          ],
-          "type_id": 10,
-          "is_locked": false
-        },
-        "has_mfa": true
-      },
-      "device": {
-        "owner": {
-          "name": "Craig",
-          "type": "routine",
-          "uid": "94984eb8-a556-11f1-925b-aaaf34fe2f3c",
-          "type_id": 99,
-          "account": {
-            "name": "puerto recorders apps",
-            "type": "publication",
-            "uid": "9498b65a-a556-11f1-9916-aaaf34fe2f3c",
-            "labels": [
-              "coupled"
-            ],
-            "type_id": 99
-          },
-          "has_mfa": false,
-          "programmatic_credentials": [
-            {
-              "type": "opposite max mint",
-              "uid": "9498e792-a556-11f1-b5b7-aaaf34fe2f3c"
-            },
-            {
-              "uid": "9498edf0-a556-11f1-bd4f-aaaf34fe2f3c"
-            }
-          ]
-        },
-        "type": "Desktop",
-        "ip": "129.120.144.181",
-        "pool": {
-          "name": "lexus analytical bidder",
-          "type": "drainage cab cw",
-          "desc": "cw th fighting"
-        },
-        "desc": "cms ye wallpaper",
-        "hostname": "camcorder.arpa",
-        "image": {
-          "name": "argued flyer ruth",
-          "uid": "949918ca-a556-11f1-9374-aaaf34fe2f3c"
-        },
-        "type_id": 2,
-        "container": {
-          "name": "manchester translation nepal",
-          "size": 1509551043,
-          "tag": "off married constant",
-          "uid": "94973eec-a556-11f1-8d77-aaaf34fe2f3c",
-          "hash": {
-            "value": "52012B0C582E4B71F437631C21518766B3C2EC5C03FA7D97F9AC6CF487F3CD98E92D2CE6BA9CC31953AFF198C3B59B6E078959AC43700DDEF540153603D37478",
-            "algorithm": "TLSH",
-            "algorithm_id": 6
-          },
-          "image": {
-            "name": "conducting lay leslie",
-            "uid": "949790cc-a556-11f1-8993-aaaf34fe2f3c"
-          },
-          "labels": [
-            "steel",
-            "majority"
-          ],
-          "tags": [
-            {
-              "name": "absolute cabinets volumes",
-              "value": "clinical head doctor",
-              "values": [
-                "forbes must genius"
-              ]
-            },
-            {
-              "name": "shepherd qualifications seems",
-              "value": "unusual ink seal",
-              "values": [
-                "victim soil feeds",
-                "live chuck rangers"
-              ]
-            }
-          ]
-        },
-        "eid": "addiction large pmc",
-        "instance_uid": "9497fc9c-a556-11f1-b3ee-aaaf34fe2f3c",
-        "interface_name": "indirect institutes gratuit",
-        "is_backed_up": false,
-        "namespace_pid": 52,
-        "udid": "kill techno travis",
-        "vendor_name": "toner finally styles",
-        "created_time_dt": "2026-08-31T16:11:10.395122Z"
-      },
-      "ip": "230.172.180.155",
-      "hostname": "stylish.pro",
-      "uid": "949a5172-a556-11f1-8965-aaaf34fe2f3c",
-      "role": "harper",
-      "agent_list": [
-        {
-          "name": "salad ciao answer",
-          "type": "Vulnerability Management",
-          "uid": "94950924-a556-11f1-b79a-aaaf34fe2f3c",
-          "type_id": 5
-        }
-      ],
-      "created_time": 1788192670406,
-      "data_classification": {
-        "status": "Fail",
-        "category": "Governmental",
-        "category_id": 2,
-        "confidentiality": "Restricted",
-        "confidentiality_id": 6,
-        "policy": {
-          "version": "1.9.0",
-          "uid": "9499a268-a556-11f1-982d-aaaf34fe2f3c",
-          "is_applied": true
-        },
-        "status_id": 3
-      },
-      "data_classifications": [
-        {
-          "status": "Partial",
-          "category": "Governmental",
-          "category_id": 2,
-          "classifier_details": {
-            "name": "wifi when garage",
-            "type": "starting born occasionally",
-            "uid": "9495616c-a556-11f1-8ea7-aaaf34fe2f3c"
-          },
-          "status_id": 2
-        },
-        {
-          "status": "Unknown",
-          "total": 50,
-          "category": "Personal",
-          "category_id": 1,
-          "classifier_details": {
-            "name": "scanning phillips croatia",
-            "type": "portuguese ccd lenders",
-            "uid": "9495ced6-a556-11f1-be0f-aaaf34fe2f3c"
-          },
-          "confidentiality": "Not Confidential",
-          "confidentiality_id": 1,
-          "discovery_details": [
-            {
-              "count": 28,
-              "rule": {
-                "name": "on mt flux",
-                "uid": "94962570-a556-11f1-99c7-aaaf34fe2f3c"
-              }
-            }
-          ],
-          "policy": {
-            "name": "ctrl wider leaving",
-            "version": "1.9.0",
-            "group": {
-              "domain": "unique zambia paperbacks",
-              "desc": "impaired investing size",
-              "uid": "9496aebe-a556-11f1-b39b-aaaf34fe2f3c"
-            },
-            "uid": "9496b44a-a556-11f1-9fc1-aaaf34fe2f3c",
-            "is_applied": true
-          },
-          "status_id": 0
-        }
-      ],
-      "modified_time": 1788192670410,
-      "role_id": 99,
-      "created_time_dt": "2026-08-31T16:11:10.376204Z"
+    "severity_id": 5,
+    "severity": "Critical",
+    "status": "New",
+    "status_code": "PASS",
+    "status_detail": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-elasticsearch is not public.",
+    "status_id": 1,
+
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+        "created_time": 1788199834,
+        "created_time_dt": "2026-08-31T20:10:34.984528",
+        "desc": "**Amazon S3 buckets** are evaluated for **public access** via ACLs and bucket policies. The check identifies account or bucket `PublicAccessBlock` protections (`IgnorePublicAcls`, `RestrictPublicBuckets`) and flags buckets granting group access to `AllUsers` or `AuthenticatedUsers`, or with a public bucket policy.",
+        "title": "S3 bucket is not publicly accessible to Everyone or Authenticated Users",
+        "types": [
+            "Software and Configuration Checks/AWS Security Best Practices/Network Reachability",
+            "Software and Configuration Checks/Industry and Regulatory Standards/AWS Foundational Security Best Practices",
+            "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark",
+            "Effects/Data Exposure"
+        ],
+        "uid": "prowler-aws-s3_bucket_public_access-006621354852-eu-central-1-eu-west-staging-main-ff-oaev-openaev-elasticsearch"
     },
-    {
-      "name": "front supplies deaths",
-      "owner": {
-        "name": "Benjamin",
-        "type": "User",
-        "uid": "949d6510-a556-11f1-be31-aaaf34fe2f3c",
-        "type_id": 1,
-        "has_mfa": false,
-        "uid_alt": "thickness hd debt"
-      },
-      "hostname": "con.cat",
-      "uid": "949d7712-a556-11f1-bd3a-aaaf34fe2f3c",
-      "role": "Unknown",
-      "agent_list": [
+    "resources": [
         {
-          "name": "scene sleep lit",
-          "type": "Endpoint Detection and Response",
-          "uid": "949a85f2-a556-11f1-8e88-aaaf34fe2f3c",
-          "type_id": 1
-        },
-        {
-          "name": "types fans approval",
-          "type": "Log Forwarding",
-          "uid": "949a8c32-a556-11f1-bebe-aaaf34fe2f3c",
-          "type_id": 6,
-          "policies": [
-            {
-              "data": "mozilla",
-              "name": "vietnamese lined buses",
-              "type": "treaty networks programmers",
-              "uid": "949ab8b0-a556-11f1-8e9b-aaaf34fe2f3c"
-            },
-            {
-              "name": "liberia legends wrestling",
-              "version": "1.9.0",
-              "uid": "949abefa-a556-11f1-b366-aaaf34fe2f3c"
-            }
-          ]
-        }
-      ],
-      "data_classification": {
-        "size": 1217422818,
-        "status": "attacks",
-        "classifier_details": {
-          "name": "regular complexity constitutional",
-          "type": "dodge draft mem",
-          "uid": "949c0828-a556-11f1-a737-aaaf34fe2f3c"
-        },
-        "confidentiality": "Top Secret",
-        "confidentiality_id": 4,
-        "discovery_details": [
-          {
-            "count": 92,
-            "type": "techniques alone link",
-            "occurrence_details": {
-              "page_number": 81
-            },
-            "rule": {
-              "name": "matters oils gauge",
-              "uid": "949cc1f0-a556-11f1-a6a3-aaaf34fe2f3c"
-            }
-          },
-          {
-            "count": 88,
-            "value": "harper diagram brave",
-            "rule": {
-              "type": "solely bacteria selling",
-              "uid": "949cf2d8-a556-11f1-b919-aaaf34fe2f3c"
-            }
-          }
-        ],
-        "status_details": [
-          "blow latest pass",
-          "spread abortion brighton"
-        ],
-        "status_id": 99
-      },
-      "data_classifications": [
-        {
-          "status": "dvds",
-          "classifier_details": {
-            "name": "glass fake webcast",
-            "type": "skills belle http",
-            "uid": "949b50b8-a556-11f1-a3ba-aaaf34fe2f3c"
-          },
-          "confidentiality": "Private",
-          "confidentiality_id": 5,
-          "policy": {
-            "version": "1.9.0",
-            "uid": "949b7bce-a556-11f1-97bb-aaaf34fe2f3c",
-            "is_applied": true
-          },
-          "status_details": [
-            "cl bang graham"
-          ],
-          "status_id": 99
-        }
-      ],
-      "is_backed_up": false,
-      "role_id": 0
-    }
-  ],
-  "impact_id": 1,
-  "severity_id": 4,
-  "timezone_offset": 78,
-  "activity_name": "Create",
-  "action_id": 2,
-  "confidence": "Low",
-  "osint": [
-    {
-      "type": "IP Address",
-      "value": "zip ended every",
-      "signatures": [
-        {
-          "digest": {
-            "value": "7E79E6C8C640BC4F6889298C4D2256B212BAD6D9",
-            "algorithm": "SHA-1",
-            "algorithm_id": 2
-          },
-          "certificate": {
-            "version": "1.9.0",
-            "issuer": "soc dig hollywood",
-            "is_self_signed": false,
-            "subject": "independently ch compressed",
-            "fingerprints": [
-              {
-                "value": "72B672427A922ABE0E4297DD5CD1AB4921033417DD577A1E6D4E954E072A7139",
-                "algorithm": "SHA-256",
-                "algorithm_id": 3
-              },
-              {
-                "value": "E42FAF321D23DCDCC10D3D3065B685EF4A86260F2D63451CD25AA53512A98F1E6A04C9995CADCC762C1FB170E0B89B15FDA30D076FA81D08894067ADAC1FD425",
-                "algorithm": "SHA3-384",
-                "algorithm_id": 14
-              }
-            ],
-            "created_time": 1788192670355,
-            "expiration_time": 1788192670355,
-            "serial_number": "himself jerusalem customs",
-            "expiration_time_dt": "2026-08-31T16:11:10.355086Z"
-          },
-          "algorithm": "App Package",
-          "algorithm_id": 6,
-          "serialization": "Flat",
-          "serialization_id": 1,
-          "created_time_dt": "2026-08-31T16:11:10.355113Z"
-        }
-      ],
-      "type_id": 1,
-      "autonomous_system": {
-        "name": "algeria wishes raleigh",
-        "number": 57
-      },
-      "confidence": "Low",
-      "confidence_id": 1,
-      "created_time": 1788192670355,
-      "detection_pattern": "copper penalties closed",
-      "detection_pattern_type": "Snort",
-      "detection_pattern_type_id": 4,
-      "intrusion_sets": [
-        "behavior saying twice",
-        "clerk doctor chase"
-      ],
-      "reputation": {
-        "base_score": 52.9939,
-        "provider": "bill attachment bid",
-        "score": "Exercise Caution",
-        "score_id": 6
-      },
-      "tlp": "AMBER",
-      "created_time_dt": "2026-08-31T16:11:10.348709Z"
-    },
-    {
-      "name": "antarctica nobody proper",
-      "type": "Unknown",
-      "value": "occupations recommendation status",
-      "comment": "violation web sometimes",
-      "signatures": [
-        {
-          "state": "peas dry trying",
-          "certificate": {
-            "version": "1.9.0",
-            "issuer": "chrome positioning kansas",
-            "is_self_signed": false,
-            "subject": "costumes replace yes",
-            "fingerprints": [
-              {
-                "value": "4C7BAB74D289B4C06D2598BAA3ACDEBAE1EB9EB9F29CA158A05C8A066A1291CAF18B0B2E50EE01F6183EC88D6E65B50EFE715E6C923F548B1AF1D41C0B3E5F84",
-                "algorithm": "SHA-384",
-                "algorithm_id": 9
-              },
-              {
-                "value": "E0787D272A439BB74B762D96F1CEF3D04A18328A8D900F5C13A6E925D9DA681C",
-                "algorithm": "SHA-256",
-                "algorithm_id": 3
-              }
-            ],
-            "created_time": 1788192670363,
-            "expiration_time": 1788192670363,
-            "sans": [
-              {
-                "name": "resume excited collaborative",
-                "type": "acer cheers reform"
-              },
-              {
-                "name": "correspondence cookie mae",
-                "type": "lower belongs wound"
-              }
-            ],
-            "serial_number": "fiction been potential"
-          },
-          "algorithm": "RSA",
-          "algorithm_id": 2,
-          "serialization": "COSE",
-          "serialization_id": 4
-        },
-        {
-          "certificate": {
-            "version": "1.9.0",
-            "uid": "949395bc-a556-11f1-8713-aaaf34fe2f3c",
-            "issuer": "earliest untitled same",
-            "is_self_signed": false,
-            "subject": "arch objects obj",
-            "fingerprints": [
-              {
-                "value": "710D0A511A6F973A9DACD1DA2B68B62451714DB932CB59D16D3C74B51BD19DA241AFB0CBCEDE869E77DB6E0C3B3BA1D03D51C94831DE205AF3C043BF9BD3CD55",
-                "algorithm": "xxHash H3 64-bit",
-                "algorithm_id": 16
-              }
-            ],
-            "created_time": 1788192670367,
-            "expiration_time": 1788192670367,
-            "serial_number": "included historic gain"
-          },
-          "algorithm": "contrary",
-          "algorithm_id": 99,
-          "serialization": "Authenticode",
-          "serialization_id": 6
-        }
-      ],
-      "attacks": [
-        {
-          "version": "12.1",
-          "tactics": [
-            {
-              "name": "Discovery The adversary is trying to figure out your environment.",
-              "uid": "TA0007"
-            }
-          ],
-          "technique": {
-            "name": "SID-History Injection",
-            "uid": "T1134.005"
-          }
-        },
-        {
-          "version": "12.1",
-          "tactics": [
-            {
-              "name": "Command and Control The adversary is trying to communicate with compromised systems to control them.",
-              "uid": "TA0011"
-            },
-            {
-              "name": "Credential Access The adversary is trying to steal account names and passwords.",
-              "uid": "TA0006"
-            },
-            {
-              "name": "Command and Control The adversary is trying to communicate with compromised systems to control them.",
-              "uid": "TA0011"
-            }
-          ],
-          "technique": {
-            "name": "Search Victim-Owned Websites",
-            "uid": "T1594"
-          }
-        }
-      ],
-      "type_id": 0,
-      "autonomous_system": {
-        "name": "auto hats fin",
-        "number": 77
-      },
-      "confidence": "Low",
-      "confidence_id": 1,
-      "created_time": 1788192670367,
-      "kill_chain": [
-        {
-          "phase": "Unknown",
-          "phase_id": 0
-        },
-        {
-          "phase": "Actions on Objectives",
-          "phase_id": 7
-        }
-      ],
-      "malware": [
-        {
-          "name": "flex damages sender",
-          "path": "bill",
-          "uid": "9493f1f6-a556-11f1-879a-aaaf34fe2f3c",
-          "severity": "Critical",
-          "classification_ids": [
-            1
-          ],
-          "classifications": [
-            "adjustments mouse il",
-            "souls aids deposit"
-          ],
-          "provider": "nuts introduces arg",
-          "severity_id": 5
-        },
-        {
-          "name": "scanning plates ng",
-          "path": "proceed",
-          "uid": "9493f9bc-a556-11f1-a016-aaaf34fe2f3c",
-          "severity": "assumed",
-          "classification_ids": [
-            99,
-            20
-          ],
-          "num_infected": 69,
-          "provider": "contains deutsch drop",
-          "severity_id": 99
-        }
-      ],
-      "tlp": "AMBER"
-    }
-  ],
-  "category_name": "Findings",
-  "confidence_id": 1,
-  "severity": "High",
-  "cloud": {
-    "provider": "invention returning pen",
-    "region": "workout border descriptions"
-  },
-  "observables": [
-    {
-      "name": "flex authentication anne",
-      "type": "Message UID",
-      "value": "stylish profession pix",
-      "type_id": 42,
-      "event_uid": "949025a8-a556-11f1-9b02-aaaf34fe2f3c"
-    },
-    {
-      "name": "reproductive daughters monkey",
-      "type": "HTTP User-Agent",
-      "type_uid": 2952982998,
-      "type_id": 16
-    }
-  ],
-  "analytic": {
-    "name": "bases island racks",
-    "type": "Keyword Match",
-    "uid": "948f88e6-a556-11f1-ac54-aaaf34fe2f3c",
-    "type_id": 7,
-    "sensor_info_list": [
-      {
-        "name": "licensing aberdeen deferred",
-        "uid": "948fb6ae-a556-11f1-808d-aaaf34fe2f3c",
-        "sensor_layer": "Network",
-        "sensor_layer_id": 1
-      }
-    ]
-  },
-  "actor": {
-    "process": {
-      "name": "Combined",
-      "file": {
-        "attributes": 77,
-        "name": "dim.7z",
-        "type": "Regular File",
-        "version": "1.9.0",
-        "path": "portsmouth/ion.jsp/dim.7z",
-        "signature": {
-          "state": "airports supervisor net",
-          "certificate": {
-            "version": "1.9.0",
-            "uid": "9458b618-a556-11f1-925b-aaaf34fe2f3c",
-            "issuer": "nvidia bowl not",
-            "subject": "women medication lined",
-            "fingerprints": [
-              {
-                "value": "E8A2910EE1F1955F0003DDAE72A2C36591C7506097AD619B13C9A496D143AD2038650D7A9E49A89FD69037C27117CFC450371561E696DE8B00828C4A4C37CAD1",
-                "algorithm": "SHA3-512",
-                "algorithm_id": 15
-              }
-            ],
-            "created_time": 1788192669983,
-            "expiration_time": 1788192669983,
-            "serial_number": "baking quick donate",
-            "created_time_dt": "2026-08-31T16:11:09.983881Z"
-          },
-          "algorithm": "Code Signing",
-          "algorithm_id": 5,
-          "serialization": "Unknown",
-          "serialization_id": 0
-        },
-        "desc": "pf porter accent",
-        "uid": "94599330-a556-11f1-b9bc-aaaf34fe2f3c",
-        "ext": "permits advertisers oz",
-        "mime_type": "parties/accommodations",
-        "parent_folder": "portsmouth/ion.jsp",
-        "type_id": 1,
-        "data_classifications": [
-          {
-            "status": "Partial",
-            "category": "Business",
-            "category_id": 4,
-            "classifier_details": {
-              "name": "pie velocity cells",
-              "type": "fwd cabin roots",
-              "uid": "94598a0c-a556-11f1-8ca0-aaaf34fe2f3c"
-            },
-            "confidentiality": "Not Confidential",
-            "confidentiality_id": 1,
-            "status_id": 2
-          }
-        ]
-      },
-      "user": {
-        "name": "Solely",
-        "type": "User",
-        "uid": "948d3d02-a556-11f1-b89a-aaaf34fe2f3c",
-        "type_id": 1,
-        "forward_addr": "Cherlyn@thompson.mil",
-        "has_mfa": false
-      },
-      "group": {
-        "name": "promises eau near",
-        "type": "incorporate nights buying",
-        "uid": "948d0fbc-a556-11f1-8d21-aaaf34fe2f3c",
-        "uid_numeric": 3795329939
-      },
-      "uid": "948d4450-a556-11f1-ba46-aaaf34fe2f3c",
-      "ai_agent": {
-        "name": "finnish ann roller",
-        "type": "LangChain",
-        "version": "1.9.0",
-        "uid": "9459fd7a-a556-11f1-86cf-aaaf34fe2f3c",
-        "type_id": 2,
-        "ai_model": {
-          "name": "wood chan specialists",
-          "version": "1.9.0",
-          "uid": "945a2dea-a556-11f1-9bf7-aaaf34fe2f3c",
-          "ai_provider": "stuck shell great",
-          "uid_numeric": 3352821204
-        },
-        "instance_uid": "945a33c6-a556-11f1-800a-aaaf34fe2f3c"
-      },
-      "cmd_line": "advance lucky rear",
-      "cpid": "cheats",
-      "created_time": 1788192670323,
-      "environment_variables": [
-        {
-          "name": "automatic modify snowboard",
-          "value": "modules alot celebrities"
-        },
-        {
-          "name": "telephone breathing presentation",
-          "value": "sections pictures knowledge"
-        }
-      ],
-      "namespace_pid": 31,
-      "parent_process": {
-        "name": "Posted",
-        "pid": 40,
-        "file": {
-          "name": "servers.ai",
-          "size": 2715194397,
-          "type": "Folder",
-          "path": "repairs/campaign.cgi/servers.ai",
-          "signature": {
-            "state": "Expired",
-            "certificate": {
-              "version": "1.9.0",
-              "uid": "945c04b2-a556-11f1-bedb-aaaf34fe2f3c",
-              "issuer": "harm eagles achieving",
-              "is_self_signed": false,
-              "subject": "nascar error sticks",
-              "fingerprints": [
-                {
-                  "value": "3115735BA341C5DC2F113DBB0B260B3D4039507F78AB6B8FA41492D88F51687D7B1927623C9BBB83BB69E411F61B036F0B027AC44AED57097BC758F1948D2DCE",
-                  "algorithm": "SHA-512/224",
-                  "algorithm_id": 10
-                }
-              ],
-              "created_time": 1788192670003,
-              "expiration_time": 1788192670003,
-              "serial_number": "province regions refinance"
-            },
-            "algorithm": "App Package",
-            "algorithm_id": 6,
-            "serialization": "Code Signing",
-            "serialization_id": 7,
-            "state_id": 2
-          },
-          "url": {
-            "port": 48882,
-            "scheme": "orlando wanna token",
-            "path": "travis searched pierce",
-            "hostname": "lexus.web",
-            "query_string": "pose searches navigator",
-            "category_ids": [
-              31
-            ],
-            "url_string": "chips"
-          },
-          "ext": "tuner louis leon",
-          "parent_folder": "repairs/campaign.cgi",
-          "type_id": 2,
-          "accessed_time": 1788192670003,
-          "data_classifications": [
-            {
-              "status": "Fail",
-              "category": "Governmental",
-              "category_id": 2,
-              "classifier_details": {
-                "name": "polls formula task",
-                "type": "cbs gg trigger",
-                "uid": "945d045c-a556-11f1-ab46-aaaf34fe2f3c"
-              },
-              "confidentiality": "leon",
-              "confidentiality_id": 99,
-              "discovery_details": [
-                {
-                  "count": 13,
-                  "type": "regards reminder compatibility",
-                  "occurrence_details": {
-                    "cell_name": "gtk they fig",
-                    "page_number": 59,
-                    "row_number": 74
-                  },
-                  "rule": {
-                    "name": "engaged adelaide herb",
-                    "desc": "query atmosphere brunette",
-                    "uid": "945ddfee-a556-11f1-a92c-aaaf34fe2f3c"
-                  }
-                },
-                {
-                  "count": 39,
-                  "type": "testament late probably",
-                  "rule": {
-                    "name": "combined could villages",
-                    "uid": "945e1fd6-a556-11f1-be8b-aaaf34fe2f3c"
-                  }
-                }
-              ],
-              "src_url": "subcommittee",
-              "status_details": [
-                "deserve strongly lonely",
-                "carrying loan freebsd"
-              ],
-              "status_id": 3
-            }
-          ],
-          "drive_type": "learners indians partnerships",
-          "hashes": [
-            {
-              "value": "2E522A0CC4119A131D0D91F7D96BA5432EEC5CA194DD13257E47195BB8A33B9345AEA1A08BE63489B43127EF686D6F686871B6D28D76207B67D47869F49AC2AD",
-              "algorithm": "Unknown",
-              "algorithm_id": 0
-            },
-            {
-              "value": "115751C3A0F5273A9E039B96B44250AE",
-              "algorithm": "MD5",
-              "algorithm_id": 1
-            }
-          ],
-          "modified_time": 1788192670020,
-          "volume": "hamburg wisdom easter",
-          "xattributes": {}
-        },
-        "path": "statistical start scheduling",
-        "group": {
-          "name": "tolerance productions hide",
-          "domain": "sporting heating bon",
-          "desc": "titten exhibition catering",
-          "uid": "948cd07e-a556-11f1-b8eb-aaaf34fe2f3c",
-          "uid_numeric": 669631226
-        },
-        "uid": "948cd8bc-a556-11f1-914b-aaaf34fe2f3c",
-        "ai_agent": {
-          "type": "aspects",
-          "version": "1.9.0",
-          "uid": "94609752-a556-11f1-aafd-aaaf34fe2f3c",
-          "type_id": 99,
-          "ai_model": {
-            "name": "massage had employer",
-            "uid": "9460cab0-a556-11f1-a669-aaaf34fe2f3c",
-            "ai_provider": "fraction physically breakdown"
-          },
-          "instance_uid": "9460d2e4-a556-11f1-bcc1-aaaf34fe2f3c"
-        },
-        "cmd_line": "prototype itself replaced",
-        "container": {
-          "name": "soup recipe stored",
-          "size": 3122392327,
-          "hash": {
-            "value": "ED5455131B07B1D6616CD90F39987DA9BE83DEC6E501577EF9DCE164F4D385EBED158E36B6A58B7913E5FC6B6C273ADD6D86AC3AE2A8D9B8A177E13867B56B89",
-            "algorithm": "SHA3-256",
-            "algorithm_id": 13
-          },
-          "image": {
-            "name": "safety yale contributions",
-            "uid": "945fa248-a556-11f1-84ef-aaaf34fe2f3c",
-            "uid_numeric": 1833108326
-          },
-          "network_driver": "unable buffer research",
-          "pod_uuid": "european"
-        },
-        "cpid": "statutes",
-        "created_time": 1788192670322,
-        "environment_variables": [
-          {
-            "name": "teaches qc virtually",
-            "value": "beaches cam boost"
-          },
-          {
-            "name": "compatible bedrooms spice",
-            "value": "global syndrome pvc"
-          }
-        ],
-        "hosted_ai_agent_list": [
-          {
-            "name": "issn slight referred",
-            "type": "AutoGen",
-            "version": "1.9.0",
-            "uid": "945fdd1c-a556-11f1-be52-aaaf34fe2f3c",
-            "type_id": 3,
-            "ai_model": {
-              "name": "location britannica percentage",
-              "version": "1.9.0",
-              "uid": "946050f8-a556-11f1-aabd-aaaf34fe2f3c",
-              "ai_provider": "formation arabic cases"
-            },
-            "instance_uid": "946057b0-a556-11f1-b2f3-aaaf34fe2f3c",
-            "uid_numeric": 1725483741
-          }
-        ],
-        "integrity": "High",
-        "integrity_id": 4,
-        "lineage": [
-          "yrs",
-          "roller"
-        ],
-        "namespace_pid": 94,
-        "parent_process": {
-          "name": "Banking",
-          "file": {
-            "attributes": 23,
-            "name": "images.mp3",
-            "size": 3413545736,
-            "type": "Local Socket",
-            "path": "jet/counter.cpl/images.mp3",
-            "desc": "citysearch sonic gravity",
-            "signatures": [
-              {
-                "digest": {
-                  "value": "A80A0B2A1287CA43D2790A78EF329C1E34319C6D6CF58875062EC3C142FEA501EB14D1DFFB1B130F78AA9476349764246C7EB9976381B0D4FCE6CBE5B476770A",
-                  "algorithm": "SHA-512/256",
-                  "algorithm_id": 11
-                },
-                "certificate": {
-                  "version": "1.9.0",
-                  "uid": "94623c10-a556-11f1-ae60-aaaf34fe2f3c",
-                  "issuer": "williams nikon escape",
-                  "subject": "champions convergence cancellation",
-                  "fingerprints": [
-                    {
-                      "value": "7D3CB3EF4896088D015ED915D4EC7C7194AAC2218D155400964D3B80677BFAB0A86D6D3840F72ABD7270F0B0A5DAD9E3322A9833AB5F94C2639A754C80CD8854",
-                      "algorithm": "SHA-224",
-                      "algorithm_id": 8
+            "cloud_partition": "aws",
+            "region": "eu-central-1",
+            "data": {
+                "details": "",
+                "metadata": {
+                    "arn": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-elasticsearch",
+                    "name": "eu-west-staging-main-ff-oaev-openaev-elasticsearch",
+                    "owner_id": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                    "owner": null,
+                    "versioning": false,
+                    "logging": false,
+                    "public_access_block": {
+                        "block_public_acls": true,
+                        "ignore_public_acls": true,
+                        "block_public_policy": false,
+                        "restrict_public_buckets": false
                     },
-                    {
-                      "value": "389C98CECF032BE58356AB69CF6B4067A61E260D2C794CF54D2D7B0665CDDC207B8584809D1912173DB6893C96CEA303BDF043F293BCD6F868EB2A36E0D159D4",
-                      "algorithm": "HASSH",
-                      "algorithm_id": 20
-                    }
-                  ],
-                  "created_time": 1788192670046,
-                  "expiration_time": 1788192670046,
-                  "serial_number": "enjoy red rebel",
-                  "created_time_dt": "2026-08-31T16:11:10.046722Z"
-                },
-                "algorithm": "RSA",
-                "algorithm_id": 2,
-                "developer_uid": "9462d03a-a556-11f1-b07a-aaaf34fe2f3c",
-                "serialization": "COSE",
-                "serialization_id": 4
-              },
-              {
-                "digest": {
-                  "value": "93CD62E1986B59936B3D18732D5EF19DC02D69980566A08CE7B7A3FF8077EA765B06BDBB6C7436C324BC06D9161B990FB727662DC9FFB9B5049B94538C08EBEA",
-                  "algorithm": "CTPH",
-                  "algorithm_id": 5
-                },
-                "certificate": {
-                  "version": "1.9.0",
-                  "issuer": "wallpaper reaches foto",
-                  "is_self_signed": true,
-                  "subject": "paths sharp roger",
-                  "fingerprints": [
-                    {
-                      "value": "BA80A53F981C4D0D6A2797B69F12F6E94C212F14685AC4B74B12BB6FDBFFA2D17D87C5392AAB792DC252D5DE4533CC9518D38AA8DBF1925AB92386EDD4009923",
-                      "algorithm": "SHA3-384",
-                      "algorithm_id": 14
-                    },
-                    {
-                      "value": "CC32AC19011C3D3D2FABF488F7F56467",
-                      "algorithm": "MD5",
-                      "algorithm_id": 1
-                    }
-                  ],
-                  "created_time": 1788192670052,
-                  "expiration_time": 1788192670052,
-                  "serial_number": "sh circular thirty",
-                  "created_time_dt": "2026-08-31T16:11:10.052191Z"
-                },
-                "algorithm": "App Package",
-                "algorithm_id": 6,
-                "serialization": "COSE",
-                "serialization_id": 4
-              }
-            ],
-            "ext": "ts ar robertson",
-            "accessor": {
-              "name": "Fine",
-              "type": "System",
-              "uid": "9464f1b2-a556-11f1-b175-aaaf34fe2f3c",
-              "org": {
-                "name": "fault uncle elizabeth",
-                "uid": "946527b8-a556-11f1-856d-aaaf34fe2f3c",
-                "ou_name": "realty roommates connector",
-                "ou_uid": "94653726-a556-11f1-ae2e-aaaf34fe2f3c"
-              },
-              "full_name": "Khadijah Lavone",
-              "type_id": 3,
-              "has_mfa": true,
-              "risk_level": "karl ton laws"
-            },
-            "creator": {
-              "name": "Debug",
-              "uid": "946447d0-a556-11f1-b77c-aaaf34fe2f3c",
-              "account": {
-                "name": "silly dayton corp",
-                "type": "Mac OS Account",
-                "uid": "94648182-a556-11f1-bec5-aaaf34fe2f3c",
-                "type_id": 7
-              },
-              "has_mfa": false
-            },
-            "parent_folder": "jet/counter.cpl",
-            "type_id": 5,
-            "data_classification": {
-              "status": "austin",
-              "category": "Governmental",
-              "category_id": 2,
-              "classifier_details": {
-                "name": "raises note founded",
-                "type": "johnny committed toys",
-                "uid": "9465d19a-a556-11f1-93ea-aaaf34fe2f3c"
-              },
-              "confidentiality": "Restricted",
-              "confidentiality_id": 6,
-              "status_id": 99
-            },
-            "drive_type": "RAM Disk",
-            "drive_type_id": 5,
-            "hashes": [
-              {
-                "value": "EBF0AB75D00735F8FBCFB8D09E3D0308C535EC186143073A0E065E0B189E6291FBFFC72D1290DD9FD5928E6BDCAA44285A3181591F78095C89B416C65BB7D413",
-                "algorithm": "xxHash H3 64-bit",
-                "algorithm_id": 16
-              },
-              {
-                "value": "9CEAAB0B57E8F8AD97620A9D928B5F153377AA63B7EB27ECBEB104501D6E3DEE57311287D551B842A4A580A827D7562A62C3A8339B48C4BCFA8A82431E70CB0E",
-                "algorithm": "NPF",
-                "algorithm_id": 19
-              }
-            ],
-            "is_public": false,
-            "is_system": true,
-            "storage_class": "committees garage automatic",
-            "xattributes": {},
-            "accessed_time_dt": "2026-08-31T16:11:10.067964Z"
-          },
-          "user": {
-            "name": "Ed",
-            "type": "Admin",
-            "uid": "948b8598-a556-11f1-a651-aaaf34fe2f3c",
-            "org": {
-              "name": "babies implementing beneficial",
-              "ou_name": "antivirus weddings preservation",
-              "uid_numeric": 2939681414
-            },
-            "full_name": "Nelida Stella",
-            "type_id": 2,
-            "account": {
-              "name": "details prix mj",
-              "type": "Windows Account",
-              "uid": "948c2afc-a556-11f1-a8f2-aaaf34fe2f3c",
-              "type_id": 2,
-              "is_disabled": true
-            },
-            "display_name": "pieces purchases treating",
-            "forward_addr": "Demetrius@wires.web",
-            "ldap_person": {
-              "labels": [
-                "minerals"
-              ],
-              "cost_center": "ranging str titled",
-              "given_name": "membership font community",
-              "ldap_cn": "granted dance packages",
-              "modified_time": 1788192670319,
-              "surname": "treasurer restore varying",
-              "hire_time_dt": "2026-08-31T16:11:10.319133Z"
-            },
-            "phone_number": "regarded chains strengthening",
-            "risk_level": "listen libs institute"
-          },
-          "group": {
-            "name": "everyday continent bridge",
-            "type": "armenia stunning area",
-            "uid": "948b5618-a556-11f1-8ead-aaaf34fe2f3c",
-            "uid_alt": "dow marc bristol"
-          },
-          "uid": "948c6558-a556-11f1-94e3-aaaf34fe2f3c",
-          "cmd_line": "sentence advance also",
-          "cpid": "hat",
-          "created_time": 1788192670312,
-          "namespace_pid": 93,
-          "parent_process": {
-            "name": "Involvement",
-            "pid": 57,
-            "file": {
-              "name": "edgar.pages",
-              "type": "Character Device",
-              "path": "overcome/switzerland.crx/edgar.pages",
-              "product": {
-                "name": "consider sorry handy",
-                "version": "1.9.0",
-                "uid": "946a114c-a556-11f1-a3af-aaaf34fe2f3c",
-                "data_classifications": [
-                  {
-                    "status": "Complete",
-                    "category": "Governmental",
-                    "category_id": 2,
-                    "classifier_details": {
-                      "name": "spreading ana ethnic",
-                      "type": "qt announcements vampire"
-                    },
-                    "confidentiality": "Restricted",
-                    "confidentiality_id": 6,
-                    "discovery_details": [
-                      {
-                        "count": 92,
-                        "type": "nebraska doctrine parents",
-                        "value": "tap dirt jar",
-                        "occurrence_details": {
-                          "cell_name": "alcohol warranties sept"
-                        },
-                        "rule": {
-                          "name": "diffs euro represents",
-                          "uid": "946b2a46-a556-11f1-9323-aaaf34fe2f3c",
-                          "uid_numeric": 3409784980
-                        }
-                      },
-                      {
-                        "count": 28,
-                        "type": "prizes charged theory",
-                        "rule": {
-                          "desc": "arrivals opposition reset",
-                          "uid": "946ba5b6-a556-11f1-a16e-aaaf34fe2f3c"
-                        }
-                      }
-                    ],
-                    "policy": {
-                      "data": "aluminium",
-                      "name": "drainage spelling filling",
-                      "version": "1.9.0",
-                      "uid": "946bec4c-a556-11f1-b4bc-aaaf34fe2f3c"
-                    },
-                    "src_url": "median",
-                    "status_id": 1
-                  },
-                  {
-                    "status": "counting",
-                    "category": "Unknown",
-                    "category_id": 0,
-                    "classifier_details": {
-                      "type": "capability flexible groundwater",
-                      "uid": "946c2860-a556-11f1-b859-aaaf34fe2f3c"
-                    },
-                    "status_id": 99
-                  }
-                ],
-                "uid_numeric": 501023742,
-                "vendor_name": "albuquerque intellectual halifax"
-              },
-              "signatures": [
-                {
-                  "state": "cf switched lc",
-                  "digest": {
-                    "value": "A713B2FC8B1D5ECE91641503971D66E4133ACA0B267D47E22C667F9C7B3C1034D3D2F3BD1B8A5F91BE564DCC31703EF1534237E40D541BE1FB2BCD94FCEBDFBE",
-                    "algorithm": "TLSH",
-                    "algorithm_id": 6
-                  },
-                  "certificate": {
-                    "version": "1.9.0",
-                    "issuer": "route stayed comparative",
-                    "is_self_signed": false,
-                    "subject": "hist sponsorship spokesman",
-                    "fingerprints": [
-                      {
-                        "value": "FCC5F5FAB12F34A1D129BDD03484F084533537B6898637295F72FC7FA15407C690940E561FE20F03C156A223C73F66CEC893FAE37317A941B053571FD3F91A19",
-                        "algorithm": "SHA-384",
-                        "algorithm_id": 9
-                      },
-                      {
-                        "value": "4A5F97F6D8B86FD4E8263B19B575530AEF7B649568584905F4B150C507155B916D4A9441788A0F685B8AC718E40E2D7DC70AC15E1738182BF003A3C5FFFD0A18",
-                        "algorithm": "NPF",
-                        "algorithm_id": 19
-                      }
-                    ],
-                    "created_time": 1788192670080,
-                    "expiration_time": 1788192670080,
-                    "sans": [
-                      {
-                        "name": "times genome punk",
-                        "type": "diploma agriculture improving"
-                      },
-                      {
-                        "name": "circuit pam beaver",
-                        "type": "inter documents characteristic"
-                      }
-                    ],
-                    "serial_number": "all investigated politicians"
-                  },
-                  "algorithm": "RSA",
-                  "algorithm_id": 2,
-                  "developer_uid": "94685488-a556-11f1-b7db-aaaf34fe2f3c",
-                  "serialization": "Flat",
-                  "serialization_id": 1
-                }
-              ],
-              "ext": "stereo um remedy",
-              "tags": [
-                {
-                  "name": "seventh manhattan master",
-                  "value": "phi occupational alive",
-                  "values": [
-                    "applications sentence portrait"
-                  ]
-                },
-                {
-                  "name": "borders lifestyle nl",
-                  "value": "matters demands guinea",
-                  "values": [
-                    "debug picked rotary",
-                    "upset subject revenue"
-                  ]
-                }
-              ],
-              "mime_type": "distances/released",
-              "parent_folder": "overcome/switzerland.crx",
-              "type_id": 3,
-              "accessed_time": 1788192670083,
-              "confidentiality": "Top Secret",
-              "confidentiality_id": 4,
-              "created_time": 1788192670112,
-              "data_classification": {
-                "size": 2235906090,
-                "status": "Complete",
-                "category": "Personal",
-                "category_id": 1,
-                "classifier_details": {
-                  "name": "wing soldiers category",
-                  "type": "hosts usb w"
-                },
-                "confidentiality": "Private",
-                "confidentiality_id": 5,
-                "status_details": [
-                  "solution cuts treating"
-                ],
-                "status_id": 1
-              },
-              "data_classifications": [
-                {
-                  "status": "congratulations",
-                  "category": "gentleman",
-                  "category_id": 99,
-                  "classifier_details": {
-                    "name": "finances government verde",
-                    "type": "inbox compete kills",
-                    "uid": "9469545a-a556-11f1-a318-aaaf34fe2f3c"
-                  },
-                  "confidentiality": "Unknown",
-                  "confidentiality_id": 0,
-                  "status_id": 99
-                },
-                {
-                  "status": "creative premier links",
-                  "category": "Unknown",
-                  "category_id": 0,
-                  "classifier_details": {
-                    "name": "edited ccd richards",
-                    "type": "elvis title adams",
-                    "uid": "946999c4-a556-11f1-afe3-aaaf34fe2f3c"
-                  },
-                  "confidentiality": "Top Secret",
-                  "confidentiality_id": 4
-                }
-              ],
-              "drive_type": "CD-ROM",
-              "drive_type_id": 4,
-              "hashes": [
-                {
-                  "value": "B9F8663A84156F16C6A18099D2FC216604B7059A",
-                  "algorithm": "SHA-1",
-                  "algorithm_id": 2
-                },
-                {
-                  "value": "41414F3FAA1905FD02BD3C4ACC446056E497D161D4D8D5AC46B10CCF539C48A3B3948E73124B71B02EE2811CB7241B29C7BF4EAD26C1240043DA0049D381BB17",
-                  "algorithm": "Imphash",
-                  "algorithm_id": 18
-                }
-              ],
-              "is_deleted": true,
-              "is_encrypted": false,
-              "is_public": false,
-              "is_system": true,
-              "security_descriptor": "losses symphony chamber",
-              "storage_class": "twice scientist associated",
-              "accessed_time_dt": "2026-08-31T16:11:10.112060Z"
-            },
-            "group": {
-              "name": "tie scholarships african",
-              "type": "guild grab achieve",
-              "uid": "948b1644-a556-11f1-b6f0-aaaf34fe2f3c"
-            },
-            "uid": "948b1dce-a556-11f1-b99b-aaaf34fe2f3c",
-            "cmd_line": "township brass assembled",
-            "container": {
-              "name": "ceiling jeans newspapers",
-              "runtime": "parade responded belgium",
-              "size": 51262676,
-              "tag": "il ringtone responding",
-              "uid": "946ceea8-a556-11f1-a424-aaaf34fe2f3c",
-              "hash": {
-                "value": "FF6B9380E424AA517FEA850862E7FD6B7F3B29C95A6E8237BB05C233843E23B8873DAE5464625AAD453E77F1024173BE2A90EFE63723746997C19D1D7018E2A2",
-                "algorithm": "SHA3-384",
-                "algorithm_id": 14
-              },
-              "image": {
-                "name": "blogging treated p",
-                "uid": "946d896c-a556-11f1-b8ee-aaaf34fe2f3c"
-              },
-              "pod_uuid": "ping"
-            },
-            "cpid": "equivalent",
-            "created_time": 1788192670310,
-            "egid": 42,
-            "integrity": "service",
-            "integrity_id": 99,
-            "parent_process": {
-              "name": "Toe",
-              "pid": 26,
-              "file": {
-                "name": "isolated.drv",
-                "type": "Regular File",
-                "version": "1.9.0",
-                "path": "receives/missouri.dxf/isolated.drv",
-                "uid": "947083ce-a556-11f1-a891-aaaf34fe2f3c",
-                "signatures": [
-                  {
-                    "algorithm": "cherry",
-                    "algorithm_id": 99,
-                    "serialization": "sustained",
-                    "serialization_id": 99
-                  },
-                  {
-                    "digest": {
-                      "value": "E1AF6CCFD9222FC5507B3DBA8B04E48DC1FA534F9BD051702BC910AFE362C94256AC386E6F8D589C45D7F63246F529286E45B0F4D2BBF49186CD80BA3539B574",
-                      "algorithm": "SHA-224",
-                      "algorithm_id": 8
-                    },
-                    "certificate": {
-                      "version": "1.9.0",
-                      "issuer": "org confidential scripting",
-                      "is_self_signed": true,
-                      "subject": "wallpapers tee russia",
-                      "fingerprints": [
+                    "acl_grantees": [
                         {
-                          "value": "14EF26A80B45F8113198D534133F6BD1B720EB249EC0A195B87E82C84495E76517FACA41A0CD7A7C94B7053926FC505A422B886395447F77AE2512C98D148DBB",
-                          "algorithm": "SHA-224",
-                          "algorithm_id": 8
+                            "display_name": null,
+                            "ID": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                            "type": "CanonicalUser",
+                            "URI": null,
+                            "permission": "FULL_CONTROL"
                         }
-                      ],
-                      "created_time": 1788192670128,
-                      "serial_number": "prices progress issues"
-                    },
-                    "algorithm": "Unknown",
-                    "algorithm_id": 0,
-                    "serialization": "COSE",
-                    "serialization_id": 4
-                  }
-                ],
-                "ext": "bed fares modification",
-                "parent_folder": "receives/missouri.dxf",
-                "type_id": 1,
-                "data_classification": {
-                  "size": 1874360155,
-                  "status": "dear",
-                  "category": "Security",
-                  "category_id": 6,
-                  "confidentiality": "ps",
-                  "confidentiality_id": 99,
-                  "src_url": "organic",
-                  "status_id": 99
-                },
-                "data_classifications": [
-                  {
-                    "status": "Complete",
-                    "category": "Business",
-                    "category_id": 4,
-                    "classifier_details": {
-                      "type": "themes modifications consider",
-                      "uid": "946fed42-a556-11f1-b7c4-aaaf34fe2f3c"
-                    },
-                    "confidentiality": "Secret",
-                    "confidentiality_id": 3,
-                    "policy": {
-                      "name": "matching lowest swiss",
-                      "type": "plains leu free",
-                      "version": "1.9.0",
-                      "is_applied": false
-                    },
-                    "status_id": 1
-                  }
-                ],
-                "drive_type": "compatibility",
-                "drive_type_id": 99,
-                "hashes": [
-                  {
-                    "value": "521A55334E74EE3CA147E3C14DD26D697BD510E47E14C7EA2F7DD04AE95C7901EA64293DFB71868FC9E49EB0C5044FCB165B74E46E7EA364721D4F455EEF851C",
-                    "algorithm": "CTPH",
-                    "algorithm_id": 5
-                  },
-                  {
-                    "value": "129E6159A18CF2B9B368B10D7F1D86852D877A11525395EA44BB59F018CC3DDC9FF1EFCB246938C95E7628CB80751027E82A932F60A9C05DB52B697BCF7B5DFB",
-                    "algorithm": "Unknown",
-                    "algorithm_id": 0
-                  }
-                ],
-                "is_readonly": false,
-                "security_descriptor": "username bulk educated",
-                "storage_class": "lawrence yes reasonable",
-                "created_time_dt": "2026-08-31T16:11:10.121882Z"
-              },
-              "user": {
-                "name": "Alt",
-                "type": "desired",
-                "domain": "aquarium rt musician",
-                "uid": "948a7f2c-a556-11f1-8489-aaaf34fe2f3c",
-                "type_id": 99,
-                "credential_uid": "948a8526-a556-11f1-9388-aaaf34fe2f3c",
-                "has_mfa": false
-              },
-              "group": {
-                "name": "classified rated kate",
-                "type": "lindsay bali month",
-                "domain": "adjust coordinator midi",
-                "uid": "948a47dc-a556-11f1-a2a9-aaaf34fe2f3c"
-              },
-              "tid": 67,
-              "loaded_modules": [
-                "/cohen/remind/fx/consent/chocolate.tmp"
-              ],
-              "ai_agent": {
-                "name": "went develop swap",
-                "type": "Native",
-                "version": "1.9.0",
-                "uid": "94717c2a-a556-11f1-9a0b-aaaf34fe2f3c",
-                "type_id": 1,
-                "ai_model": {
-                  "name": "infants gossip muscle",
-                  "version": "1.9.0",
-                  "uid": "9471aea2-a556-11f1-91ab-aaaf34fe2f3c",
-                  "ai_provider": "services schedules fred"
-                },
-                "instance_uid": "9471b51e-a556-11f1-8639-aaaf34fe2f3c"
-              },
-              "auid": 33,
-              "cmd_line": "des geographical huge",
-              "container": {
-                "name": "camcorder sensitive emphasis",
-                "size": 2748879557,
-                "tag": "flooring analyze pediatric",
-                "uid": "9470b768-a556-11f1-9340-aaaf34fe2f3c",
-                "hash": {
-                  "value": "B35B0F6C5FC60146126BF4DCCC1A1FFF5E0E6ED869309FDF1F5D9A01B7F06FAE69410B2B481F971721456429CC6F8D6C45D4D4E6DA69A8EAAB347F583E660C3D",
-                  "algorithm": "CTPH",
-                  "algorithm_id": 5
-                },
-                "image": {
-                  "name": "travels flooring names",
-                  "tag": "nbc observations outdoors",
-                  "path": "tears",
-                  "uid": "94714818-a556-11f1-89b9-aaaf34fe2f3c"
-                }
-              },
-              "created_time": 1788192670305,
-              "environment_variables": [
-                {
-                  "name": "thou intake anytime",
-                  "value": "candle did japanese"
-                },
-                {
-                  "name": "dual apply penetration",
-                  "value": "nuclear steam specs"
-                }
-              ],
-              "namespace_pid": 22,
-              "parent_process": {
-                "name": "Edward",
-                "pid": 56,
-                "user": {
-                  "uid": "9489d50e-a556-11f1-9976-aaaf34fe2f3c",
-                  "has_mfa": true,
-                  "risk_level": "light plugins mod",
-                  "uid_numeric": 4016862032
-                },
-                "path": "refund mitsubishi taylor",
-                "group": {
-                  "name": "clusters defence graduate",
-                  "domain": "luggage unions protect",
-                  "uid": "9489a7be-a556-11f1-9e8c-aaaf34fe2f3c"
-                },
-                "uid": "9489db4e-a556-11f1-ae98-aaaf34fe2f3c",
-                "cmd_line": "rob homework blanket",
-                "container": {
-                  "name": "bookmarks occupational derek",
-                  "size": 619811450,
-                  "uid": "947268a6-a556-11f1-b999-aaaf34fe2f3c",
-                  "hash": {
-                    "value": "5531DB748D838FE531D414E408303EB897AF9CAC6BBB9745733FD0A4AEED2E6738DE2FA0522D998ECDE57E6C469EAAF712822B86809EFDF9C393E961663DC1C9",
-                    "algorithm": "SHA-512/256",
-                    "algorithm_id": 11
-                  },
-                  "image": {
-                    "name": "beast grateful raleigh",
-                    "uid": "9472f7d0-a556-11f1-9393-aaaf34fe2f3c",
-                    "labels": [
-                      "sig",
-                      "exceptional"
-                    ]
-                  },
-                  "pod_uuid": "oliver"
-                },
-                "cpid": "conversation",
-                "created_time": 1788192670301,
-                "namespace_pid": 50,
-                "parent_process": {
-                  "name": "Conditioning",
-                  "pid": 57,
-                  "file": {
-                    "name": "amber.tex",
-                    "owner": {
-                      "name": "Mothers",
-                      "type": "Service",
-                      "domain": "successful posting went",
-                      "uid": "9476f268-a556-11f1-8d4c-aaaf34fe2f3c",
-                      "groups": [
-                        {
-                          "name": "conferencing modified atlanta",
-                          "type": "concern structural suit",
-                          "domain": "beta copyrights seventh",
-                          "desc": "reform really dealer",
-                          "uid_alt": "financing voyuer basketball",
-                          "uid_numeric": 2224988717
-                        }
-                      ],
-                      "type_id": 4,
-                      "display_name": "painting recipient recommendation",
-                      "has_mfa": false,
-                      "risk_score": 84,
-                      "uid_alt": "playback discovery george"
-                    },
-                    "size": 3574085928,
-                    "type": "Local Socket",
-                    "path": "accounting/must.dds/amber.tex",
-                    "desc": "farm indoor campaign",
-                    "uid": "947764c8-a556-11f1-b0ea-aaaf34fe2f3c",
-                    "ext": "product fragrance bless",
-                    "parent_folder": "accounting/must.dds",
-                    "type_id": 5,
-                    "accessed_time": 1788192670157,
-                    "created_time": 1788192670177,
-                    "data_classification": {
-                      "status": "Partial",
-                      "total": 49,
-                      "category": "Security",
-                      "category_id": 6,
-                      "classifier_details": {
-                        "name": "builders exams rides",
-                        "type": "assistance planner planners",
-                        "uid": "94769566-a556-11f1-aad4-aaaf34fe2f3c"
-                      },
-                      "confidentiality": "Secret",
-                      "confidentiality_id": 3,
-                      "policy": {
-                        "data": "pointed",
-                        "name": "solaris wings ide",
-                        "version": "1.9.0",
-                        "is_applied": false
-                      },
-                      "src_url": "grocery",
-                      "status_details": [
-                        "spots discover perfume",
-                        "ebooks zinc streets"
-                      ],
-                      "status_id": 2
-                    },
-                    "data_classifications": [
-                      {
-                        "status": "Unknown",
-                        "classifier_details": {
-                          "name": "discuss organizational layout",
-                          "type": "harmony dealers cz",
-                          "uid": "94746d04-a556-11f1-9706-aaaf34fe2f3c"
-                        },
-                        "confidentiality": "Top Secret",
-                        "confidentiality_id": 4,
-                        "status_id": 0
-                      },
-                      {
-                        "status": "Complete",
-                        "uid": "9474756a-a556-11f1-b4cd-aaaf34fe2f3c",
-                        "category": "Personal",
-                        "category_id": 1,
-                        "classifier_details": {
-                          "name": "cookies best eh",
-                          "type": "hydrogen coalition wilson",
-                          "uid": "9474a7ba-a556-11f1-b87d-aaaf34fe2f3c"
-                        },
-                        "confidentiality": "parallel",
-                        "confidentiality_id": 99,
-                        "discovery_details": [
-                          {
-                            "count": 29,
-                            "type": "rapid threatened defeat",
-                            "rule": {
-                              "type": "religions deliver greece",
-                              "uid": "94753770-a556-11f1-8a62-aaaf34fe2f3c"
-                            }
-                          },
-                          {
-                            "type": "indexed attitudes community",
-                            "value": "recorded movies outputs",
-                            "occurrence_details": {
-                              "json_path": "classes declared rate"
-                            },
-                            "occurrences": [
-                              {
-                                "column_number": 6,
-                                "page_number": 60
-                              }
-                            ],
-                            "rule": {
-                              "name": "lonely talent reading",
-                              "version": "1.9.0",
-                              "uid": "947602d6-a556-11f1-8084-aaaf34fe2f3c",
-                              "category": "ranger issue living"
-                            }
-                          }
-                        ],
-                        "status_id": 1
-                      }
                     ],
-                    "download_info": {
-                      "type": "child",
-                      "type_id": 99,
-                      "src_url": "o"
-                    },
-                    "encryption_details": {
-                      "type": "actively strings drawings",
-                      "algorithm": "DES",
-                      "algorithm_id": 1,
-                      "key_uid": "947798a8-a556-11f1-9c5b-aaaf34fe2f3c"
-                    },
-                    "hashes": [
-                      {
-                        "value": "F9417411CEF9A0446724F1C11E30AA6AE6656243512B74BFDA4F1351F1A6F2D6C9CDE399E701E7811E5F8DFB4895B3B1D42A38014E8D20E15D5E2EA91E9241C6",
-                        "algorithm": "SHA-512",
-                        "algorithm_id": 4
-                      }
-                    ],
-                    "is_public": false,
-                    "is_readonly": true,
-                    "accessed_time_dt": "2026-08-31T16:11:10.177776Z",
-                    "modified_time_dt": "2026-08-31T16:11:10.156671Z"
-                  },
-                  "path": "spending accident quick",
-                  "group": {
-                    "name": "baskets jazz damaged",
-                    "type": "hot ware tribal",
-                    "uid": "94896fa6-a556-11f1-a0eb-aaaf34fe2f3c"
-                  },
-                  "uid": "948976f4-a556-11f1-b1bb-aaaf34fe2f3c",
-                  "auid": 75,
-                  "cmd_line": "sensitivity yeast omaha",
-                  "container": {
-                    "name": "split rover tan",
-                    "size": 2974623516,
-                    "uid": "9477cb3e-a556-11f1-978c-aaaf34fe2f3c",
-                    "hash": {
-                      "value": "65483DA9BCCC687D487A4DDE92600DBE816CFAA609BB362CD15FD568652C87773F5589B3B393B319B08EC0B5A4BE7B7856483B842A8A4AEAA0F3E816C45C8518",
-                      "algorithm": "SHA3-256",
-                      "algorithm_id": 13
-                    },
-                    "image": {
-                      "uid": "94785d7e-a556-11f1-a675-aaaf34fe2f3c",
-                      "tags": [
-                        {
-                          "name": "nearby o driver",
-                          "values": [
-                            "inform chaos cups"
-                          ]
-                        }
-                      ],
-                      "uid_numeric": 3466052134
-                    },
+                    "policy": {},
+                    "encryption": "AES256",
+                    "region": "eu-central-1",
+                    "logging_target_bucket": null,
+                    "ownership": "BucketOwnerEnforced",
+                    "object_lock": false,
+                    "mfa_delete": false,
                     "tags": [
-                      {
-                        "name": "user always gallery",
-                        "value": "time trainers afraid",
-                        "values": [
-                          "biblical thereby gadgets",
-                          "immigrants cartridges typically"
-                        ]
-                      },
-                      {
-                        "name": "mapping diameter fx",
-                        "value": "magnet hughes wx",
-                        "values": [
-                          "violation undo departments"
-                        ]
-                      }
+                        {
+                            "Key": "customer",
+                            "Value": "main-ff-oaev"
+                        }
                     ],
-                    "orchestrator": "singing stored reunion"
-                  },
-                  "cpid": "anthropology",
-                  "created_time": 1788192670300,
-                  "integrity": "Untrusted",
-                  "integrity_id": 1,
-                  "namespace_pid": 58,
-                  "parent_process": {
-                    "name": "Technologies",
-                    "pid": 85,
-                    "file": {
-                      "name": "uni.asp",
-                      "type": "Character Device",
-                      "path": "scoop/oregon.cbr/uni.asp",
-                      "ext": "dump styles finishing",
-                      "parent_folder": "scoop/oregon.cbr",
-                      "type_id": 3,
-                      "created_time": 1788192670210,
-                      "data_classification": {
-                        "status": "Unknown",
-                        "category": "Military and Law Enforcement",
-                        "category_id": 5,
-                        "classifier_details": {
-                          "name": "conditions arts barriers",
-                          "type": "databases item rs",
-                          "uid": "947aad2c-a556-11f1-9fe2-aaaf34fe2f3c"
-                        },
-                        "confidentiality": "Unknown",
-                        "confidentiality_id": 0,
-                        "discovery_details": [
-                          {
-                            "count": 8,
-                            "type": "pamela above ciao",
-                            "occurrences": [
-                              {
-                                "end_line": 27,
-                                "json_path": "rebate consent comm",
-                                "row_number": 68
-                              }
-                            ],
-                            "rule": {
-                              "version": "1.9.0",
-                              "uid": "947b5dbc-a556-11f1-839b-aaaf34fe2f3c"
-                            }
-                          },
-                          {
-                            "count": 18,
-                            "type": "october strategy end",
-                            "rule": {
-                              "name": "shaw womens walking",
-                              "desc": "rather director prevention",
-                              "uid": "947bc1c6-a556-11f1-ae84-aaaf34fe2f3c"
-                            }
-                          }
-                        ],
-                        "src_url": "modeling",
-                        "status_id": 0
-                      },
-                      "data_classifications": [
-                        {
-                          "status": "Fail",
-                          "category": "Unknown",
-                          "category_id": 0,
-                          "classifier_details": {
-                            "type": "serum dsc rewards",
-                            "uid": "9479e63a-a556-11f1-936d-aaaf34fe2f3c"
-                          },
-                          "confidentiality": "Top Secret",
-                          "confidentiality_id": 4,
-                          "src_url": "outdoors",
-                          "status_id": 3
-                        },
-                        {
-                          "status": "Complete",
-                          "category": "Business",
-                          "category_id": 4,
-                          "classifier_details": {
-                            "name": "customized highs tissue",
-                            "type": "ah toner aircraft",
-                            "uid": "947a530e-a556-11f1-a9ee-aaaf34fe2f3c"
-                          },
-                          "confidentiality": "Not Confidential",
-                          "confidentiality_id": 1,
-                          "status_id": 1
-                        }
-                      ],
-                      "hashes": [
-                        {
-                          "value": "E5BBBD0EFBD1017F09433BE3DD5EC03CF877963BDA0D227DF113B8117081259BC9F59319EEDE4CE64BF42C265802D62AA7E53752FC33BF8649201D9F70200988",
-                          "algorithm": "SHA3-224",
-                          "algorithm_id": 12
-                        },
-                        {
-                          "value": "527BBC73374B9B53909BE3332137596D804594FD54160C953D3196CBF035CF16",
-                          "algorithm": "magic",
-                          "algorithm_id": 99
-                        }
-                      ],
-                      "imported_symbols": [
-                        "quick proc contributing",
-                        "toys ant confirm"
-                      ],
-                      "uid_numeric": 1954648742
-                    },
-                    "group": {
-                      "name": "here capability jr",
-                      "type": "adaptation changelog welcome",
-                      "domain": "eligibility cars retrieved",
-                      "uid": "9488fdfa-a556-11f1-ab96-aaaf34fe2f3c"
-                    },
-                    "uid": "948904ee-a556-11f1-bf3c-aaaf34fe2f3c",
-                    "auid": 14,
-                    "cmd_line": "ng enjoying outside",
-                    "container": {
-                      "name": "finding explaining standards",
-                      "size": 2794042473,
-                      "uid": "947bf704-a556-11f1-890e-aaaf34fe2f3c",
-                      "hash": {
-                        "value": "35137AF06EFCD6E5AFA84DE7456985A075DDD0F4C1F31F72B97DAD997FD3AA83C35963F6869D81816E305C7233B64FB184EB73D85D503996A3BCFDC07B0D02BD",
-                        "algorithm": "TLSH",
-                        "algorithm_id": 6
-                      },
-                      "image": {
-                        "name": "cp cycling crash",
-                        "uid": "947c85f2-a556-11f1-a60b-aaaf34fe2f3c",
-                        "labels": [
-                          "statute",
-                          "surplus"
-                        ],
-                        "tags": [
-                          {
-                            "name": "attraction attacked belarus",
-                            "value": "unlimited wright roster",
-                            "values": [
-                              "obligation polished transaction"
-                            ]
-                          }
-                        ]
-                      }
-                    },
-                    "cpid": "mm",
-                    "created_time": 1788192670297,
-                    "euid": 46,
-                    "hosted_ai_agent_list": [
-                      {
-                        "name": "carnival internship mt",
-                        "type": "CrewAI",
-                        "version": "1.9.0",
-                        "uid": "947cebb4-a556-11f1-99ef-aaaf34fe2f3c",
-                        "type_id": 4,
-                        "ai_model": {
-                          "name": "situations explicit money",
-                          "version": "1.9.0",
-                          "uid": "947d55c2-a556-11f1-ace2-aaaf34fe2f3c",
-                          "ai_provider": "wrapping surprising replaced",
-                          "uid_numeric": 2344541505
-                        },
-                        "instance_uid": "947d5ce8-a556-11f1-bcdd-aaaf34fe2f3c"
-                      },
-                      {
-                        "name": "hood sheffield trauma",
-                        "type": "LangChain",
-                        "version": "1.9.0",
-                        "uid": "947d62d8-a556-11f1-aca2-aaaf34fe2f3c",
-                        "type_id": 2,
-                        "ai_model": {
-                          "name": "nsw org coated",
-                          "uid": "947d92f8-a556-11f1-90bd-aaaf34fe2f3c",
-                          "ai_provider": "semiconductor dozens writer"
-                        },
-                        "instance_uid": "947d98a2-a556-11f1-bcb4-aaaf34fe2f3c"
-                      }
-                    ],
-                    "integrity": "jeremy cad vitamin",
-                    "namespace_pid": 63,
-                    "parent_process": {
-                      "name": "Influences",
-                      "file": {
-                        "attributes": 39,
-                        "name": "outlets.tiff",
-                        "type": "served",
-                        "version": "1.9.0",
-                        "path": "interesting/specializing.avi/outlets.tiff",
-                        "url": {
-                          "port": 10613,
-                          "scheme": "fundamentals recycling stevens",
-                          "path": "restriction responded encourage",
-                          "hostname": "gradually.travel",
-                          "category_ids": [
-                            58
-                          ],
-                          "resource_type": "kathy er mom",
-                          "url_string": "oriented"
-                        },
-                        "ext": "guides masters attach",
-                        "creator": {
-                          "name": "Strange",
-                          "type": "System",
-                          "domain": "peterson celebs navy",
-                          "uid": "947fbb0a-a556-11f1-bd9c-aaaf34fe2f3c",
-                          "full_name": "Rudy Reba",
-                          "type_id": 3,
-                          "has_mfa": true,
-                          "programmatic_credentials": [
-                            {
-                              "type": "ac phoenix florist",
-                              "uid": "947fee90-a556-11f1-9674-aaaf34fe2f3c",
-                              "last_used_time": 1788192670237
-                            },
-                            {
-                              "type": "collar review enclosure",
-                              "uid": "947ff548-a556-11f1-a579-aaaf34fe2f3c"
-                            }
-                          ],
-                          "risk_level": "Critical",
-                          "risk_level_id": 4
-                        },
-                        "parent_folder": "interesting/specializing.avi",
-                        "type_id": 99,
-                        "created_time": 1788192670242,
-                        "data_classification": {
-                          "status": "positive specially chair",
-                          "uid": "9480223e-a556-11f1-9bfc-aaaf34fe2f3c",
-                          "category": "Security",
-                          "category_id": 6,
-                          "confidentiality": "Restricted",
-                          "confidentiality_id": 6,
-                          "discovery_details": [
-                            {
-                              "count": 14,
-                              "type": "sara commitments individuals",
-                              "rule": {
-                                "name": "probe clinic suppliers",
-                                "uid": "9480aec0-a556-11f1-b70e-aaaf34fe2f3c"
-                              }
-                            }
-                          ]
-                        },
-                        "data_classifications": [
-                          {
-                            "size": 208983092,
-                            "status": "caution",
-                            "category": "Governmental",
-                            "category_id": 2,
-                            "classifier_details": {
-                              "name": "georgia providing qui",
-                              "type": "suppose acrobat competitions",
-                              "uid": "947ee96e-a556-11f1-99c8-aaaf34fe2f3c"
-                            },
-                            "confidentiality": "Unknown",
-                            "confidentiality_id": 0,
-                            "policy": {
-                              "version": "1.9.0",
-                              "uid": "947f2974-a556-11f1-8f25-aaaf34fe2f3c",
-                              "is_applied": true,
-                              "uid_numeric": 693551246
-                            },
-                            "status_details": [
-                              "designed seats mysterious",
-                              "nintendo remains mode"
-                            ],
-                            "status_id": 99
-                          }
-                        ],
-                        "drive_type": "Fixed",
-                        "drive_type_id": 2,
-                        "hashes": [
-                          {
-                            "value": "3C9E8A66D2E78E82971510F96936B2DA8E85ADD5AB7178A0F56043C0328A29943BFEDA3F8DCD650C086369CF3F9146BC5473062F32D8425DA51B1C38D40A1231",
-                            "algorithm": "xxHash H3 64-bit",
-                            "algorithm_id": 16
-                          },
-                          {
-                            "value": "EE97D2F28CCFFBC411ABAFD0A61751A89BF3A9BF",
-                            "algorithm": "SHA-1",
-                            "algorithm_id": 2
-                          }
-                        ],
-                        "storage_class": "merger producers scheduled"
-                      },
-                      "user": {
-                        "name": "Refuse",
-                        "type": "User",
-                        "uid": "94882e66-a556-11f1-861f-aaaf34fe2f3c",
-                        "org": {
-                          "name": "correct engine promising",
-                          "uid": "94889702-a556-11f1-882b-aaaf34fe2f3c",
-                          "ou_name": "blessed guinea ministry"
-                        },
-                        "type_id": 1,
-                        "forward_addr": "Kathi@shine.museum",
-                        "has_mfa": true,
-                        "phone_number": "solaris auditor recycling",
-                        "risk_level": "integer sharp aggressive",
-                        "uid_alt": "important bras right"
-                      },
-                      "group": {
-                        "name": "residents features silent",
-                        "domain": "dosage jet lingerie",
-                        "desc": "bedford calgary gas",
-                        "uid": "9487f86a-a556-11f1-98bd-aaaf34fe2f3c",
-                        "uid_numeric": 1440989059
-                      },
-                      "tid": 83,
-                      "uid": "9488a1a2-a556-11f1-8f73-aaaf34fe2f3c",
-                      "ancestry": [
-                        {
-                          "name": "Calendars",
-                          "pid": 92,
-                          "uid": "94816ebe-a556-11f1-a9f1-aaaf34fe2f3c",
-                          "cmd_line": "adobe gather patches",
-                          "cpid": "cosmetic",
-                          "created_time": 1788192670247
-                        },
-                        {
-                          "name": "Perform",
-                          "pid": 7,
-                          "path": "rose yugoslavia ease",
-                          "uid": "948176fc-a556-11f1-9842-aaaf34fe2f3c",
-                          "cmd_line": "payroll seems richardson",
-                          "cpid": "specialty",
-                          "created_time": 1788192670247
-                        }
-                      ],
-                      "cmd_line": "jackie oven groove",
-                      "container": {
-                        "name": "complaints corporations valuable",
-                        "size": 2942506740,
-                        "uid": "9480df08-a556-11f1-86fe-aaaf34fe2f3c",
-                        "hash": {
-                          "value": "FE3E1AE8A1C10B65D5CB78791EB9F3329A2DEFBA3B099A1AF80BCCB05340E4E1C44C39093AA40A7D62605E5572F6CFACBDBB6176AB45830C001D8BFD922CFE87",
-                          "algorithm": "quickXorHash",
-                          "algorithm_id": 7
-                        },
-                        "network_driver": "banking interim define"
-                      },
-                      "cpid": "na",
-                      "created_time": 1788192670290,
-                      "egid": 24,
-                      "environment_variables": [
-                        {
-                          "name": "read border wilson",
-                          "value": "edgar examined health"
-                        },
-                        {
-                          "name": "reasonable geography chain",
-                          "value": "looked meaningful bb"
-                        }
-                      ],
-                      "hosted_ai_agent_list": [
-                        {
-                          "name": "honey activities rg",
-                          "type": "Unknown",
-                          "version": "1.9.0",
-                          "uid": "9481a33e-a556-11f1-9435-aaaf34fe2f3c",
-                          "type_id": 0,
-                          "ai_model": {
-                            "name": "norman carlos creative",
-                            "version": "1.9.0",
-                            "uid": "94820d38-a556-11f1-adab-aaaf34fe2f3c",
-                            "ai_provider": "williams apollo traveler"
-                          },
-                          "instance_uid": "94821a08-a556-11f1-8f80-aaaf34fe2f3c"
-                        },
-                        {
-                          "name": "arm optimization priced",
-                          "type": "finder",
-                          "version": "1.9.0",
-                          "type_id": 99,
-                          "ai_model": {
-                            "name": "switches trinity graphical",
-                            "version": "1.9.0",
-                            "uid": "94824c3a-a556-11f1-a940-aaaf34fe2f3c",
-                            "ai_provider": "sacrifice lack research"
-                          },
-                          "instance_uid": "9482518a-a556-11f1-91d8-aaaf34fe2f3c"
-                        }
-                      ],
-                      "integrity": "cooper identical highly",
-                      "lineage": [
-                        "unauthorized"
-                      ],
-                      "namespace_pid": 4,
-                      "parent_process": {
-                        "name": "Lid",
-                        "pid": 96,
-                        "session": {
-                          "count": 79,
-                          "uid": "94861a90-a556-11f1-95e6-aaaf34fe2f3c",
-                          "created_time": 1788192670278,
-                          "is_remote": false,
-                          "uid_alt": "forecasts captured property"
-                        },
-                        "file": {
-                          "name": "intro.fon",
-                          "type": "chorus",
-                          "path": "liver/muscle.7z/intro.fon",
-                          "modifier": {
-                            "name": "Peter",
-                            "type": "Service",
-                            "domain": "doom rim evaluation",
-                            "uid": "94832e16-a556-11f1-935a-aaaf34fe2f3c",
-                            "type_id": 4,
-                            "display_name": "creek heart manor",
-                            "forward_addr": "Kathern@jamie.int",
-                            "has_mfa": false,
-                            "risk_score": 9
-                          },
-                          "signatures": [
-                            {
-                              "state": "pin",
-                              "certificate": {
-                                "version": "1.9.0",
-                                "issuer": "outer gd vendor",
-                                "subject": "surgical curriculum sheriff",
-                                "fingerprints": [
-                                  {
-                                    "value": "1BF7B3B5AB8C499762D703B416024ED11095DDDF11A17E3285812A9B044C714318A6BB3422FFEBB9C8783A0CA7DA297D06F1B5734F671B89AACFBD6ECE4EB548",
-                                    "algorithm": "Imphash",
-                                    "algorithm_id": 18
-                                  },
-                                  {
-                                    "value": "3F25A15D9F51D7AAE3D1F844E1A641253786E16AC8AA828ED57E4A14A9F5C73828B3C28CC90C433B9BF8F94551EB1FA4CAD6B456C110541FA8C0BCCFAEB59955",
-                                    "algorithm": "SHA-512/224",
-                                    "algorithm_id": 10
-                                  }
-                                ],
-                                "created_time": 1788192670266,
-                                "expiration_time": 1788192670266,
-                                "serial_number": "dd rebel rides"
-                              },
-                              "algorithm": "Code Signing",
-                              "algorithm_id": 5,
-                              "serialization": "App Package",
-                              "serialization_id": 8,
-                              "state_id": 99
-                            },
-                            {
-                              "digest": {
-                                "value": "9C4F2DD3C368AC49933A7BB289045214F28335A11B7C7B0EB0A266D168D14E59BC897CA9C20674C7CD146FDBC9DEE11919B5DBB1E7C6FB0A5DA0C2B5461FFB83",
-                                "algorithm": "SHA3-512",
-                                "algorithm_id": 15
-                              },
-                              "algorithm": "Authenticode",
-                              "algorithm_id": 4,
-                              "created_time": 1788192670267,
-                              "serialization": "mls alive caught"
-                            }
-                          ],
-                          "ext": "teachers pictures tax",
-                          "accessor": {
-                            "name": "Bid",
-                            "type": "durable",
-                            "uid": "94852cfc-a556-11f1-8b5b-aaaf34fe2f3c",
-                            "org": {
-                              "name": "clothing slim bl",
-                              "uid": "948567e4-a556-11f1-bea8-aaaf34fe2f3c",
-                              "ou_name": "butterfly montreal wall"
-                            },
-                            "type_id": 99,
-                            "has_mfa": false,
-                            "phone_number": "fashion enb reserves"
-                          },
-                          "parent_folder": "liver/muscle.7z",
-                          "type_id": 99,
-                          "confidentiality": "photographic ol minimize",
-                          "data_classification": {
-                            "size": 222119791,
-                            "status": "sixth allowance maybe",
-                            "category": "restriction",
-                            "category_id": 99
-                          },
-                          "hashes": [
-                            {
-                              "value": "94923AA0D13FBFA8065CAA02EB2756050FF47F72B79E5B2BE1C2DB4000ECEC0FCF5694450B0B096108284C3DCFF8D244269E6F9B51CD2A7D3D211D5AB85693E3",
-                              "algorithm": "SHA3-224",
-                              "algorithm_id": 12
-                            }
-                          ],
-                          "internal_name": "sheer physical cuts",
-                          "modified_time": 1788192670275,
-                          "accessed_time_dt": "2026-08-31T16:11:10.275352Z"
-                        },
-                        "path": "main iran regulatory",
-                        "group": {
-                          "name": "implement fell toward",
-                          "domain": "pcs soon sword",
-                          "uid": "9487bad0-a556-11f1-88e2-aaaf34fe2f3c"
-                        },
-                        "uid": "9487c1a6-a556-11f1-8887-aaaf34fe2f3c",
-                        "auid": 18,
-                        "container": {
-                          "name": "london unix wifi",
-                          "size": 2398115404,
-                          "tag": "totals acts huge",
-                          "uid": "94865f6e-a556-11f1-a5d1-aaaf34fe2f3c",
-                          "hash": {
-                            "value": "2E5E76F0B350B5E87FA3B08EDA445C1BB774109C",
-                            "algorithm": "SHA-1",
-                            "algorithm_id": 2
-                          },
-                          "image": {
-                            "name": "suggests hang regulation",
-                            "uid": "9486f3d4-a556-11f1-ad58-aaaf34fe2f3c"
-                          },
-                          "tags": [
-                            {
-                              "name": "although congress belgium",
-                              "value": "turtle sailing rated",
-                              "values": [
-                                "miss fp workers"
-                              ]
-                            }
-                          ],
-                          "orchestrator": "determined younger fwd"
-                        },
-                        "cpid": "arrangements",
-                        "created_time": 1788192670288,
-                        "environment_variables": [
-                          {
-                            "name": "voip promotion tolerance",
-                            "value": "graph suspected heater"
-                          },
-                          {
-                            "name": "pe ala guard",
-                            "value": "hub war educational"
-                          }
-                        ]
-                      },
-                      "working_directory": "plumbing wait able"
-                    },
-                    "terminated_time": 1788192670222,
-                    "working_directory": "host panel sa",
-                    "xattributes": {}
-                  },
-                  "uid_numeric": 1301049691,
-                  "terminated_time_dt": "2026-08-31T16:11:10.300196Z"
-                },
-                "sandbox": "movies blanket moderators",
-                "uid_numeric": 3804818841
-              },
-              "ptid": 2222510461,
-              "created_time_dt": "2026-08-31T16:11:10.141870Z"
+                    "lifecycle": [],
+                    "replication_rules": [],
+                    "notification_config": {},
+                    "object_sampling": null
+                }
             },
-            "xattributes": {},
-            "terminated_time_dt": "2026-08-31T16:11:10.311016Z"
-          },
-          "terminated_time": 1788192670068,
-          "created_time_dt": "2026-08-31T16:11:10.068033Z"
-        },
-        "sandbox": "presentation compressed gcc",
-        "working_directory": "rock jackie adaptation"
-      },
-      "ptid": 867746610,
-      "terminated_time": 1788192669986
-    },
-    "user": {
-      "name": "Sunday",
-      "type": "System",
-      "uid": "948daeea-a556-11f1-98e1-aaaf34fe2f3c",
-      "groups": [
-        {
-          "uid": "948de0a4-a556-11f1-971f-aaaf34fe2f3c"
-        },
-        {
-          "name": "through gl can",
-          "uid": "948de7b6-a556-11f1-a238-aaaf34fe2f3c",
-          "privileges": [
-            "dairy intermediate chess"
-          ]
+            "group": {
+                "name": "s3"
+            },
+            "labels": [
+                "customer:main-ff-oaev"
+            ],
+            "name": "eu-west-staging-main-ff-oaev-openaev-elasticsearch",
+            "type": "AwsS3Bucket",
+            "uid": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-elasticsearch"
         }
-      ],
-      "type_id": 3,
-      "has_mfa": true,
-      "phone_number": "races regional strike",
-      "programmatic_credentials": [
-        {
-          "uid": "948e156a-a556-11f1-9594-aaaf34fe2f3c"
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+        "account": {
+            "name": "",
+            "type": "AWS Account",
+            "type_id": 10,
+            "uid": "006621354852",
+            "labels": []
         },
-        {
-          "type": "oh territory af",
-          "uid": "948e1cd6-a556-11f1-a2f2-aaaf34fe2f3c"
-        }
-      ],
-      "risk_level": "kept neural shopzilla"
+        "org": {
+            "name": "",
+            "ou_uid": "",
+            "ou_name": "",
+            "uid": ""
+        },
+        "provider": "aws",
+        "region": "eu-central-1"
     },
-    "application": {
-      "name": "angels associates barely",
-      "owner": {
-        "type": "User",
-        "uid": "948eb344-a556-11f1-af23-aaaf34fe2f3c",
-        "groups": [
-          {
-            "name": "impacts ef sublime",
-            "type": "expired therapeutic several",
-            "domain": "epic labs inch",
-            "uid": "948ee580-a556-11f1-9bf0-aaaf34fe2f3c"
-          }
+    "remediation": {
+        "desc": "Enforce defense in depth: enable **S3 Block Public Access** at org/account and bucket levels (`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, `RestrictPublicBuckets`). Apply **least privilege** with explicit principals; avoid ACLs via Object Ownership. Use private access patterns (e.g., CloudFront OAC or presigned URLs) and monitor with analyzers.",
+        "references": [
+            "https://hub.prowler.com/check/s3_bucket_public_access"
+        ]
+    },
+    "risk_details": "Publicly accessible buckets jeopardize **confidentiality** through unauthenticated reads, **integrity** through write or ACL changes, and **availability** via object deletion or overwrite. Attackers can mass-exfiltrate data, host malware, or pivot after discovering secrets stored in objects.",
+    "time": 1788199834,
+    "time_dt": "2026-08-31T20:10:34.984528",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+},{
+    "message": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-minio is not public.",
+    "metadata": {
+        "event_code": "s3_bucket_public_access",
+        "product": {
+            "name": "Prowler",
+            "uid": "prowler",
+            "vendor_name": "Prowler",
+            "version": "5.35.0"
+        },
+        "profiles": [
+            "cloud",
+            "datetime"
         ],
-        "type_id": 1,
-        "has_mfa": false
-      },
-      "group": {
-        "name": "detail cool accepts",
-        "uid": "948f4d2c-a556-11f1-a3b8-aaaf34fe2f3c",
-        "uid_numeric": 1946455323
-      },
-      "hostname": "fy.mil",
-      "uid": "948f54a2-a556-11f1-9b9b-aaaf34fe2f3c"
-    }
-  },
-  "status": "request prague calls",
-  "class_uid": 2001
+        "tenant_uid": "",
+        "version": "1.5.0"
+    },
+    "severity_id": 5,
+    "severity": "Critical",
+    "status": "New",
+    "status_code": "PASS",
+    "status_detail": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-minio is not public.",
+    "status_id": 1,
+    "unmapped": {
+        "related_url": "",
+        "categories": [
+            "internet-exposed"
+        ],
+        "depends_on": [],
+        "related_to": [],
+        "additional_urls": [
+            "https://docs.aws.amazon.com/id_id/kitchensink/latest/testguide/access-control-block-public-access.html",
+            "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html"
+        ],
+        "notes": "",
+        "compliance": {
+            "CCC-v2025.10": [
+                "CCC.Core.CN05.AR01",
+                "CCC.Core.CN05.AR04",
+                "CCC.Core.CN05.AR05",
+                "CCC.AuditLog.CN10.AR01",
+                "CCC.AuditLog.CN10.AR02",
+                "CCC.Logging.CN05.AR01",
+                "CCC.Logging.CN05.AR02"
+            ],
+            "NIST-CSF-2.0": [
+                "ra_1",
+                "ac_3",
+                "ds_5",
+                "ip_1"
+            ],
+            "GxP-21-CFR-Part-11": [
+                "11.10-c",
+                "11.10-d",
+                "11.10-g",
+                "11.10-k"
+            ],
+            "NIST-800-171-Revision-2": [
+                "3_1_1",
+                "3_1_2",
+                "3_1_3",
+                "3_3_8",
+                "3_4_6",
+                "3_13_2",
+                "3_13_5"
+            ],
+            "NIST-CSF-1.1": [
+                "ac_3",
+                "ac_5",
+                "ds_5",
+                "ip_8",
+                "pt_3"
+            ],
+            "AWS-Well-Architected-Framework-Security-Pillar": [
+                "SEC03-BP07"
+            ],
+            "MITRE-ATTACK": [
+                "T1530"
+            ],
+            "AWS-Audit-Manager-Control-Tower-Guardrails": [
+                "4.1.1"
+            ],
+            "AWS-Foundational-Technical-Review": [
+                "S3-001"
+            ],
+            "FedRAMP-Low-Revision-4": [
+                "ac-3",
+                "ac-17",
+                "cm-2",
+                "sc-7"
+            ],
+            "NIST-800-53-Revision-4": [
+                "ac_3",
+                "ac_4",
+                "ac_6",
+                "ac_21",
+                "sc_7_3",
+                "sc_7"
+            ],
+            "SecNumCloud-3.2": [
+                "9.7"
+            ],
+            "NIST-800-53-Revision-5": [
+                "ac_2_6",
+                "ac_3",
+                "ac_3_7",
+                "ac_4_21",
+                "ac_6",
+                "ac_17_b",
+                "ac_17_1",
+                "ac_17_4_a",
+                "ac_17_9",
+                "ac_17_10",
+                "cm_6_a",
+                "cm_9_b",
+                "mp_2",
+                "sc_7_2",
+                "sc_7_3",
+                "sc_7_7",
+                "sc_7_9_a",
+                "sc_7_11",
+                "sc_7_12",
+                "sc_7_16",
+                "sc_7_20",
+                "sc_7_21",
+                "sc_7_24_b",
+                "sc_7_25",
+                "sc_7_26",
+                "sc_7_27",
+                "sc_7_28",
+                "sc_7_a",
+                "sc_7_b",
+                "sc_7_c",
+                "sc_25"
+            ],
+            "CISA": [
+                "your-systems-3",
+                "your-data-2"
+            ],
+            "C5-2025": [
+                "PS-03.02B",
+                "IAM-10.01B",
+                "COS-02.01B"
+            ],
+            "AWS-AI-Security-Framework-1.0": [
+                "AISF-DATA-04"
+            ],
+            "RBI-Cyber-Security-Framework": [
+                "annex_i_1_3"
+            ],
+            "KISA-ISMS-P-2023-korean": [
+                "2.6.1",
+                "2.6.2",
+                "2.10.2"
+            ],
+            "SOC2": [
+                "cc_6_1"
+            ],
+            "HIPAA": [
+                "164_308_a_1_ii_b",
+                "164_308_a_3_i",
+                "164_312_a_1",
+                "164_312_a_2_i"
+            ],
+            "PCI-4.0": [
+                "1.2.8.33",
+                "1.2.8.34",
+                "1.3.1.37",
+                "1.3.1.38",
+                "1.3.2.37",
+                "1.3.2.38",
+                "1.4.2.35",
+                "1.4.2.36",
+                "1.5.1.33",
+                "1.5.1.34",
+                "10.3.2.21",
+                "10.3.2.23",
+                "10.3.3.23",
+                "10.3.4.8",
+                "3.5.1.3.26",
+                "3.5.1.3.28",
+                "A1.1.2.17",
+                "A1.1.2.19",
+                "A1.1.3.33",
+                "A1.1.3.34",
+                "A1.2.1.31",
+                "A3.4.1.19",
+                "A3.4.1.21"
+            ],
+            "KISA-ISMS-P-2023": [
+                "2.6.1",
+                "2.6.2",
+                "2.10.2"
+            ],
+            "AWS-Account-Security-Onboarding": [
+                "S3 Block Public Access"
+            ],
+            "FedRamp-Moderate-Revision-4": [
+                "ac-3",
+                "ac-4",
+                "ac-6",
+                "ac-17-1",
+                "ac-21-b",
+                "cm-2",
+                "sc-4",
+                "sc-7-3",
+                "sc-7"
+            ],
+            "ISO27001-2022": [
+                "A.8.1"
+            ],
+            "ENS-RD2022": [
+                "op.exp.8.r4.aws.ct.2"
+            ],
+            "FFIEC": [
+                "d3-pc-im-b-1"
+            ]
+        },
+        "scan_id": "01a05971-f268-7b39-9196-640902c918eb",
+        "provider_uid": "006621354852",
+        "provider": "aws"
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+        "created_time": 1788199834,
+        "created_time_dt": "2026-08-31T20:10:34.984528",
+        "desc": "**Amazon S3 buckets** are evaluated for **public access** via ACLs and bucket policies. The check identifies account or bucket `PublicAccessBlock` protections (`IgnorePublicAcls`, `RestrictPublicBuckets`) and flags buckets granting group access to `AllUsers` or `AuthenticatedUsers`, or with a public bucket policy.",
+        "title": "S3 bucket is not publicly accessible to Everyone or Authenticated Users",
+        "types": [
+            "Software and Configuration Checks/AWS Security Best Practices/Network Reachability",
+            "Software and Configuration Checks/Industry and Regulatory Standards/AWS Foundational Security Best Practices",
+            "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark",
+            "Effects/Data Exposure"
+        ],
+        "uid": "prowler-aws-s3_bucket_public_access-006621354852-eu-central-1-eu-west-staging-main-ff-oaev-openaev-minio"
+    },
+    "resources": [
+        {
+            "cloud_partition": "aws",
+            "region": "eu-central-1",
+            "data": {
+                "details": "",
+                "metadata": {
+                    "arn": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-minio",
+                    "name": "eu-west-staging-main-ff-oaev-openaev-minio",
+                    "owner_id": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                    "owner": null,
+                    "versioning": true,
+                    "logging": false,
+                    "public_access_block": {
+                        "block_public_acls": true,
+                        "ignore_public_acls": true,
+                        "block_public_policy": false,
+                        "restrict_public_buckets": false
+                    },
+                    "acl_grantees": [
+                        {
+                            "display_name": null,
+                            "ID": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                            "type": "CanonicalUser",
+                            "URI": null,
+                            "permission": "FULL_CONTROL"
+                        }
+                    ],
+                    "policy": {},
+                    "encryption": "AES256",
+                    "region": "eu-central-1",
+                    "logging_target_bucket": null,
+                    "ownership": "BucketOwnerEnforced",
+                    "object_lock": false,
+                    "mfa_delete": false,
+                    "tags": [
+                        {
+                            "Key": "20260826032605",
+                            "Value": "20260826033116"
+                        },
+                        {
+                            "Key": "20260827034223",
+                            "Value": "20260827034813"
+                        },
+                        {
+                            "Key": "20260829033803",
+                            "Value": "20260829035202"
+                        },
+                        {
+                            "Key": "20260830032804",
+                            "Value": "20260830034025"
+                        },
+                        {
+                            "Key": "20260831032051",
+                            "Value": "20260831033008"
+                        },
+                        {
+                            "Key": "20260828032804",
+                            "Value": "20260828033828"
+                        },
+                        {
+                            "Key": "20260825034738",
+                            "Value": "20260825035832"
+                        }
+                    ],
+                    "lifecycle": [],
+                    "replication_rules": [],
+                    "notification_config": {},
+                    "object_sampling": null
+                }
+            },
+            "group": {
+                "name": "s3"
+            },
+            "labels": [
+                "20260826032605:20260826033116",
+                "20260827034223:20260827034813",
+                "20260829033803:20260829035202",
+                "20260830032804:20260830034025",
+                "20260831032051:20260831033008",
+                "20260828032804:20260828033828",
+                "20260825034738:20260825035832"
+            ],
+            "name": "eu-west-staging-main-ff-oaev-openaev-minio",
+            "type": "AwsS3Bucket",
+            "uid": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-minio"
+        }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+        "account": {
+            "name": "",
+            "type": "AWS Account",
+            "type_id": 10,
+            "uid": "006621354852",
+            "labels": []
+        },
+        "org": {
+            "name": "",
+            "ou_uid": "",
+            "ou_name": "",
+            "uid": ""
+        },
+        "provider": "aws",
+        "region": "eu-central-1"
+    },
+    "remediation": {
+        "desc": "Enforce defense in depth: enable **S3 Block Public Access** at org/account and bucket levels (`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, `RestrictPublicBuckets`). Apply **least privilege** with explicit principals; avoid ACLs via Object Ownership. Use private access patterns (e.g., CloudFront OAC or presigned URLs) and monitor with analyzers.",
+        "references": [
+            "https://hub.prowler.com/check/s3_bucket_public_access"
+        ]
+    },
+    "risk_details": "Publicly accessible buckets jeopardize **confidentiality** through unauthenticated reads, **integrity** through write or ACL changes, and **availability** via object deletion or overwrite. Attackers can mass-exfiltrate data, host malware, or pivot after discovering secrets stored in objects.",
+    "time": 1788199834,
+    "time_dt": "2026-08-31T20:10:34.984528",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+},{
+    "message": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-postgres is not public.",
+    "metadata": {
+        "event_code": "s3_bucket_public_access",
+        "product": {
+            "name": "Prowler",
+            "uid": "prowler",
+            "vendor_name": "Prowler",
+            "version": "5.35.0"
+        },
+        "profiles": [
+            "cloud",
+            "datetime"
+        ],
+        "tenant_uid": "",
+        "version": "1.5.0"
+    },
+    "severity_id": 5,
+    "severity": "Critical",
+    "status": "New",
+    "status_code": "PASS",
+    "status_detail": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-postgres is not public.",
+    "status_id": 1,
+    "unmapped": {
+        "related_url": "",
+        "categories": [
+            "internet-exposed"
+        ],
+        "depends_on": [],
+        "related_to": [],
+        "additional_urls": [
+            "https://docs.aws.amazon.com/id_id/kitchensink/latest/testguide/access-control-block-public-access.html",
+            "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html"
+        ],
+        "notes": "",
+        "compliance": {
+            "CCC-v2025.10": [
+                "CCC.Core.CN05.AR01",
+                "CCC.Core.CN05.AR04",
+                "CCC.Core.CN05.AR05",
+                "CCC.AuditLog.CN10.AR01",
+                "CCC.AuditLog.CN10.AR02",
+                "CCC.Logging.CN05.AR01",
+                "CCC.Logging.CN05.AR02"
+            ],
+            "NIST-CSF-2.0": [
+                "ra_1",
+                "ac_3",
+                "ds_5",
+                "ip_1"
+            ],
+            "GxP-21-CFR-Part-11": [
+                "11.10-c",
+                "11.10-d",
+                "11.10-g",
+                "11.10-k"
+            ],
+            "NIST-800-171-Revision-2": [
+                "3_1_1",
+                "3_1_2",
+                "3_1_3",
+                "3_3_8",
+                "3_4_6",
+                "3_13_2",
+                "3_13_5"
+            ],
+            "NIST-CSF-1.1": [
+                "ac_3",
+                "ac_5",
+                "ds_5",
+                "ip_8",
+                "pt_3"
+            ],
+            "AWS-Well-Architected-Framework-Security-Pillar": [
+                "SEC03-BP07"
+            ],
+            "MITRE-ATTACK": [
+                "T1530"
+            ],
+            "AWS-Audit-Manager-Control-Tower-Guardrails": [
+                "4.1.1"
+            ],
+            "AWS-Foundational-Technical-Review": [
+                "S3-001"
+            ],
+            "FedRAMP-Low-Revision-4": [
+                "ac-3",
+                "ac-17",
+                "cm-2",
+                "sc-7"
+            ],
+            "NIST-800-53-Revision-4": [
+                "ac_3",
+                "ac_4",
+                "ac_6",
+                "ac_21",
+                "sc_7_3",
+                "sc_7"
+            ],
+            "SecNumCloud-3.2": [
+                "9.7"
+            ],
+            "NIST-800-53-Revision-5": [
+                "ac_2_6",
+                "ac_3",
+                "ac_3_7",
+                "ac_4_21",
+                "ac_6",
+                "ac_17_b",
+                "ac_17_1",
+                "ac_17_4_a",
+                "ac_17_9",
+                "ac_17_10",
+                "cm_6_a",
+                "cm_9_b",
+                "mp_2",
+                "sc_7_2",
+                "sc_7_3",
+                "sc_7_7",
+                "sc_7_9_a",
+                "sc_7_11",
+                "sc_7_12",
+                "sc_7_16",
+                "sc_7_20",
+                "sc_7_21",
+                "sc_7_24_b",
+                "sc_7_25",
+                "sc_7_26",
+                "sc_7_27",
+                "sc_7_28",
+                "sc_7_a",
+                "sc_7_b",
+                "sc_7_c",
+                "sc_25"
+            ],
+            "CISA": [
+                "your-systems-3",
+                "your-data-2"
+            ],
+            "C5-2025": [
+                "PS-03.02B",
+                "IAM-10.01B",
+                "COS-02.01B"
+            ],
+            "AWS-AI-Security-Framework-1.0": [
+                "AISF-DATA-04"
+            ],
+            "RBI-Cyber-Security-Framework": [
+                "annex_i_1_3"
+            ],
+            "KISA-ISMS-P-2023-korean": [
+                "2.6.1",
+                "2.6.2",
+                "2.10.2"
+            ],
+            "SOC2": [
+                "cc_6_1"
+            ],
+            "HIPAA": [
+                "164_308_a_1_ii_b",
+                "164_308_a_3_i",
+                "164_312_a_1",
+                "164_312_a_2_i"
+            ],
+            "PCI-4.0": [
+                "1.2.8.33",
+                "1.2.8.34",
+                "1.3.1.37",
+                "1.3.1.38",
+                "1.3.2.37",
+                "1.3.2.38",
+                "1.4.2.35",
+                "1.4.2.36",
+                "1.5.1.33",
+                "1.5.1.34",
+                "10.3.2.21",
+                "10.3.2.23",
+                "10.3.3.23",
+                "10.3.4.8",
+                "3.5.1.3.26",
+                "3.5.1.3.28",
+                "A1.1.2.17",
+                "A1.1.2.19",
+                "A1.1.3.33",
+                "A1.1.3.34",
+                "A1.2.1.31",
+                "A3.4.1.19",
+                "A3.4.1.21"
+            ],
+            "KISA-ISMS-P-2023": [
+                "2.6.1",
+                "2.6.2",
+                "2.10.2"
+            ],
+            "AWS-Account-Security-Onboarding": [
+                "S3 Block Public Access"
+            ],
+            "FedRamp-Moderate-Revision-4": [
+                "ac-3",
+                "ac-4",
+                "ac-6",
+                "ac-17-1",
+                "ac-21-b",
+                "cm-2",
+                "sc-4",
+                "sc-7-3",
+                "sc-7"
+            ],
+            "ISO27001-2022": [
+                "A.8.1"
+            ],
+            "ENS-RD2022": [
+                "op.exp.8.r4.aws.ct.2"
+            ],
+            "FFIEC": [
+                "d3-pc-im-b-1"
+            ]
+        },
+        "scan_id": "01a05971-f268-7b39-9196-640902c918eb",
+        "provider_uid": "006621354852",
+        "provider": "aws"
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+        "created_time": 1788199834,
+        "created_time_dt": "2026-08-31T20:10:34.984528",
+        "desc": "**Amazon S3 buckets** are evaluated for **public access** via ACLs and bucket policies. The check identifies account or bucket `PublicAccessBlock` protections (`IgnorePublicAcls`, `RestrictPublicBuckets`) and flags buckets granting group access to `AllUsers` or `AuthenticatedUsers`, or with a public bucket policy.",
+        "title": "S3 bucket is not publicly accessible to Everyone or Authenticated Users",
+        "types": [
+            "Software and Configuration Checks/AWS Security Best Practices/Network Reachability",
+            "Software and Configuration Checks/Industry and Regulatory Standards/AWS Foundational Security Best Practices",
+            "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark",
+            "Effects/Data Exposure"
+        ],
+        "uid": "prowler-aws-s3_bucket_public_access-006621354852-eu-central-1-eu-west-staging-main-ff-oaev-openaev-postgres"
+    },
+    "resources": [
+        {
+            "cloud_partition": "aws",
+            "region": "eu-central-1",
+            "data": {
+                "details": "",
+                "metadata": {
+                    "arn": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-postgres",
+                    "name": "eu-west-staging-main-ff-oaev-openaev-postgres",
+                    "owner_id": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                    "owner": null,
+                    "versioning": false,
+                    "logging": false,
+                    "public_access_block": {
+                        "block_public_acls": true,
+                        "ignore_public_acls": true,
+                        "block_public_policy": false,
+                        "restrict_public_buckets": false
+                    },
+                    "acl_grantees": [
+                        {
+                            "display_name": null,
+                            "ID": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                            "type": "CanonicalUser",
+                            "URI": null,
+                            "permission": "FULL_CONTROL"
+                        }
+                    ],
+                    "policy": {},
+                    "encryption": "AES256",
+                    "region": "eu-central-1",
+                    "logging_target_bucket": null,
+                    "ownership": "BucketOwnerEnforced",
+                    "object_lock": false,
+                    "mfa_delete": false,
+                    "tags": [
+                        {
+                            "Key": "customer",
+                            "Value": "main-ff-oaev"
+                        }
+                    ],
+                    "lifecycle": [],
+                    "replication_rules": [],
+                    "notification_config": {},
+                    "object_sampling": null
+                }
+            },
+            "group": {
+                "name": "s3"
+            },
+            "labels": [
+                "customer:main-ff-oaev"
+            ],
+            "name": "eu-west-staging-main-ff-oaev-openaev-postgres",
+            "type": "AwsS3Bucket",
+            "uid": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-postgres"
+        }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+        "account": {
+            "name": "",
+            "type": "AWS Account",
+            "type_id": 10,
+            "uid": "006621354852",
+            "labels": []
+        },
+        "org": {
+            "name": "",
+            "ou_uid": "",
+            "ou_name": "",
+            "uid": ""
+        },
+        "provider": "aws",
+        "region": "eu-central-1"
+    },
+    "remediation": {
+        "desc": "Enforce defense in depth: enable **S3 Block Public Access** at org/account and bucket levels (`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, `RestrictPublicBuckets`). Apply **least privilege** with explicit principals; avoid ACLs via Object Ownership. Use private access patterns (e.g., CloudFront OAC or presigned URLs) and monitor with analyzers.",
+        "references": [
+            "https://hub.prowler.com/check/s3_bucket_public_access"
+        ]
+    },
+    "risk_details": "Publicly accessible buckets jeopardize **confidentiality** through unauthenticated reads, **integrity** through write or ACL changes, and **availability** via object deletion or overwrite. Attackers can mass-exfiltrate data, host malware, or pivot after discovering secrets stored in objects.",
+    "time": 1788199834,
+    "time_dt": "2026-08-31T20:10:34.984528",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
 }]
