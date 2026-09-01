@@ -14,13 +14,10 @@ public class ReferentialSource extends Source {
     super(version, dimension, ctx);
   }
 
-  public ReferentialSource(
-      Version version, SchemaDimension dimension, PluginContext ctx, String name)
-      throws IOException {
-    super(version, dimension, ctx, name, null, null);
-  }
-
   public List<ResourceKey> getSubsourceKeys() throws IOException {
+    if (!this.fileResource.fileExists()) {
+      this.refresh();
+    }
     if (this.fileResource instanceof ReferentialResource) {
       return ((ReferentialResource) this.fileResource).getSubresourceKeys();
     }
