@@ -8,8 +8,6 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
-import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
@@ -54,7 +52,6 @@ public class TeamService {
   private final ExerciseTeamUserRepository exerciseTeamUserRepository;
   private final ScenarioTeamUserRepository scenarioTeamUserRepository;
   private final BulkDeleteExecutor bulkDeleteExecutor;
-  private final TenantScopedTransaction tenantTx;
 
   /**
    * Bulk delete of teams, either from an explicit list of ids or from a search input (select all).
@@ -266,16 +263,22 @@ public class TeamService {
     return teamRepository.findAllById(teamIds);
   }
 
-  @Transactional(rollbackFor = Exception.class)
-  public void removeUsersFromTeamActivations(String teamId, List<String> userIds, TxCtx txCtx) {
+  /**
+   * Removes the players dropped from a team from the simulation and scenario audiences that had
+   * activated them, so an audience never keeps a user the team no longer contains.
+   *
+   * <p>Both deletes are {@code clearAutomatically = true} native queries: they run immediately but
+   * also detach the caller's persistence context. A {@code Team} loaded before this call therefore
+   * becomes stale, and re-saving it would MERGE its now-obsolete {@code exerciseTeamUsers}
+   * collection (mapped {@code cascade = ALL}) and re-insert the rows just deleted. Callers must
+   * reload the team after this call; see {@code TeamApi#updateTeamUsers}.
+   */
+  @Transactional
+  public void removeUsersFromTeamActivations(String teamId, List<String> userIds) {
     if (CollectionUtils.isEmpty(userIds)) {
       return;
     }
-    tenantTx.executeNew(
-        txCtx,
-        () -> {
-          exerciseTeamUserRepository.deleteByTeamIdAndUserIds(teamId, userIds);
-          scenarioTeamUserRepository.deleteByTeamIdAndUserIds(teamId, userIds);
-        });
+    exerciseTeamUserRepository.deleteByTeamIdAndUserIds(teamId, userIds);
+    scenarioTeamUserRepository.deleteByTeamIdAndUserIds(teamId, userIds);
   }
 }

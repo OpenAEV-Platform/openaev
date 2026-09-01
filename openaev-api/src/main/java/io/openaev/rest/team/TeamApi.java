@@ -14,7 +14,6 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.context.TenantContext;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.*;
@@ -307,7 +306,6 @@ public class TeamApi extends RestBehavior {
       description = "Update the list of users of a team team",
       summary = "Update team players")
   public Team updateTeamUsers(
-      TxCtx ctx,
       @PathVariable @Schema(description = "ID of the team") String teamId,
       @Valid @RequestBody UpdateUsersTeamInput input) {
     Team team =
@@ -326,9 +324,20 @@ public class TeamApi extends RestBehavior {
             .map(User::getId)
             .filter(existingUserId -> !nextTeamUserIds.contains(existingUserId))
             .toList();
-    team.setUsers(nextTeamUsers);
-    teamService.removeUsersFromTeamActivations(teamId, removedUserIds, ctx);
-    return teamRepository.save(team);
+
+    teamService.removeUsersFromTeamActivations(teamId, removedUserIds);
+
+    // The deletes above clear the persistence context, so the team loaded before them is stale:
+    // saving it would merge its obsolete exerciseTeamUsers collection (cascade = ALL) and
+    // re-insert the audience rows just deleted. Reload it so the entity matches the database.
+    Team refreshedTeam =
+        removedUserIds.isEmpty()
+            ? team
+            : teamRepository
+                .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+                .orElseThrow(ElementNotFoundException::new);
+    refreshedTeam.setUsers(nextTeamUsers);
+    return teamRepository.save(refreshedTeam);
   }
 
   // -- OPTION --
