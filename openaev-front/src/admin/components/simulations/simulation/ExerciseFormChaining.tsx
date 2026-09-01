@@ -75,11 +75,11 @@ const ExerciseForm: FunctionComponent<Props> = ({
         exercise_name: z.string().min(EXERCISE_NAME_MIN_LENGTH, { message: t('Should not be empty') })
           .max(EXERCISE_NAME_MAX_LENGTH, { message: t('Should not exceed {max_length} characters', { max_length: EXERCISE_NAME_MAX_LENGTH.toString() }) }),
         exercise_subtitle: z.string().optional(),
-        exercise_category: z.string().optional(),
-        exercise_main_focus: z.string().optional(),
-        exercise_severity: z.string().optional(),
-        exercise_default_kill_chain: z.string().optional(),
-        exercise_description: z.string().optional(),
+        exercise_category: z.string().optional().nullable(),
+        exercise_main_focus: z.string().optional().nullable(),
+        exercise_severity: z.string().optional().nullable(),
+        exercise_default_kill_chain: z.string().optional().nullable(),
+        exercise_description: z.string().optional().nullable(),
         exercise_start_date: z.iso.datetime().optional().nullable(),
         exercise_tags: z.string().array().optional(),
         exercise_mail_from_name: z.string().max(100, t('Should not exceed {max_length} characters', { max_length: '100' })).optional(),
@@ -203,7 +203,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
           <DefaultKillChainSelectField<CreateExerciseInput>
             name="exercise_default_kill_chain"
             control={control}
-            defaultValue={initialValues.exercise_default_kill_chain}
+            defaultValue={initialValues.exercise_default_kill_chain ?? undefined}
           />
         </GridLegacy>
       </GridLegacy>

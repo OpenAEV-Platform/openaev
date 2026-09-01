@@ -52,4 +52,13 @@ public record CredentialFullOutput(
         AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
     @Schema(description = "AWS source profile access key id")
         @JsonProperty("credential_aws_source_profile_access_key_id")
-        String awsSourceProfileAccessKeyId) {}
+        String awsSourceProfileAccessKeyId,
+    // AZURE
+    @Schema(description = "Azure environment") @JsonProperty("credential_azure_environment")
+        String azureEnvironment,
+    @Schema(description = "Azure client id") @JsonProperty("credential_azure_client_id")
+        String azureClientId,
+    @Schema(description = "Azure tenant id") @JsonProperty("credential_azure_tenant_id")
+        String azureTenantId,
+    @Schema(description = "Azure subscription id") @JsonProperty("credential_azure_subscription_id")
+        String azureSubscriptionId) {}

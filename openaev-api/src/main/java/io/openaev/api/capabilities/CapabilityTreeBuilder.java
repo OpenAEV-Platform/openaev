@@ -76,9 +76,12 @@ public final class CapabilityTreeBuilder {
             .filter(c -> !c.isHidden())
             .filter(c -> isCredentialAssetEnabled || !c.isCredentialCapability())
             .filter(c -> scope == null || c.getScopes().contains(scope))
+            // Stable sort on the group: keeps the CapabilityGroup declaration order between
+            // groups, and the Capability declaration order inside a group.
+            .sorted(Comparator.comparing(Capability::getGroup))
             .toList();
 
-    // Group roots by CapabilityGroup, preserving enum declaration order
+    // Group roots by CapabilityGroup, preserving CapabilityGroup declaration order
     Map<CapabilityGroup, List<Capability>> rootsByGroup = new LinkedHashMap<>();
     for (Capability root : roots) {
       rootsByGroup.computeIfAbsent(root.getGroup(), k -> new ArrayList<>()).add(root);

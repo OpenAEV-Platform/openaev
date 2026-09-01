@@ -28,6 +28,14 @@ public class MvcConfig implements WebMvcConfigurer {
 
   private static final int CACHE_PERIOD = 3600;
 
+  /**
+   * Must stay above {@code XtmOneClient#CHAT_STREAM_RESPONSE_TIMEOUT}: the upstream read has to
+   * time out first and unwind its own reader thread, which Spring cannot interrupt once parked in
+   * {@code read()}. Both must clear XTM One's 30-minute abandonment bound, since a turn paused for
+   * tool approval is silent for as long as the reviewer takes.
+   */
+  private static final int ASYNC_REQUEST_TIMEOUT_MS = 45 * 60 * 1000;
+
   @Resource private ObjectMapper objectMapper;
   @Resource private TenantInterceptor tenantInterceptor;
   @Resource private OrchestratorRunTenantInterceptor orchestratorRunTenantInterceptor;
@@ -71,7 +79,7 @@ public class MvcConfig implements WebMvcConfigurer {
   @Override
   public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
     configurer.setTaskExecutor(getTaskExecutor());
-    configurer.setDefaultTimeout(900_000);
+    configurer.setDefaultTimeout(ASYNC_REQUEST_TIMEOUT_MS);
   }
 
   @Bean

@@ -10,24 +10,28 @@ import {
   Menu,
   MenuItem,
 } from '@mui/material';
-import * as R from 'ramda';
-import { useContext, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { type FunctionComponent, type MouseEvent, useContext, useState } from 'react';
 
 import { deleteChallenge, updateChallenge } from '../../../../actions/challenge-action';
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
-import { useHelper } from '../../../../store';
-import { tagOptions } from '../../../../utils/Option';
+import { type Challenge, type ChallengeInput } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ChallengeForm from './ChallengeForm';
 
-const ChallengePopover = ({ challenge, onRemoveChallenge, inline, disabled = false }) => {
-  // utils
+interface Props {
+  challenge: Challenge;
+  onRemoveChallenge?: (challengeId: string) => void;
+  inline?: boolean;
+  disabled?: boolean;
+}
 
-  const dispatch = useDispatch();
+const ChallengePopover: FunctionComponent<Props> = ({ challenge, onRemoveChallenge, inline = false, disabled = false }) => {
+  // utils
+  const dispatch = useAppDispatch();
   const { t } = useFormatter();
   const ability = useContext(AbilityContext);
 
@@ -35,29 +39,27 @@ const ChallengePopover = ({ challenge, onRemoveChallenge, inline, disabled = fal
   const [openDelete, setOpenDelete] = useState(false);
   const [openRemove, setOpenRemove] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   // popover management
-  const { tagsMap } = useHelper(helper => ({ tagsMap: helper.getTagsMap() }));
-  const handlePopoverOpen = (event) => {
+  const handlePopoverOpen = (event: MouseEvent<HTMLElement>) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
   };
   const handlePopoverClose = () => setAnchorEl(null);
+
   // Edit action
   const handleOpenEdit = () => {
     setOpenEdit(true);
     handlePopoverClose();
   };
   const handleCloseEdit = () => setOpenEdit(false);
-  const onSubmitEdit = (data) => {
-    const inputValues = R.pipe(
-      R.assoc('challenge_tags', R.pluck('id', data.challenge_tags)),
-    )(data);
-    return dispatch(updateChallenge(challenge.challenge_id, inputValues)).then(
+  const onSubmitEdit = (data: ChallengeInput) => {
+    return dispatch(updateChallenge(challenge.challenge_id, data)).then(
       () => handleCloseEdit(),
     );
   };
+
   // Delete action
   const handleOpenDelete = () => {
     setOpenDelete(true);
@@ -67,32 +69,43 @@ const ChallengePopover = ({ challenge, onRemoveChallenge, inline, disabled = fal
   const submitDelete = () => {
     dispatch(deleteChallenge(challenge.challenge_id)).then(() => handleCloseDelete());
   };
+
+  // Remove action
   const handleOpenRemove = () => {
     setOpenRemove(true);
     handlePopoverClose();
   };
-  const handleCloseRemove = () => {
-    setOpenRemove(false);
-  };
+  const handleCloseRemove = () => setOpenRemove(false);
   const submitRemove = () => {
-    onRemoveChallenge(challenge.challenge_id);
+    onRemoveChallenge?.(challenge.challenge_id);
     handleCloseRemove();
   };
 
   // Rendering
-  const challengeTags = tagOptions(challenge.challenge_tags, tagsMap);
-  const initialValues = R.pipe(
-    R.assoc('challenge_tags', challengeTags),
-    R.pick([
-      'challenge_name',
-      'challenge_category',
-      'challenge_content',
-      'challenge_score',
-      'challenge_tags',
-      'challenge_max_attempts',
-      'challenge_flags',
-    ]),
-  )(challenge);
+  const initialValues: Partial<ChallengeInput> = {
+    challenge_name: challenge.challenge_name,
+    challenge_category: challenge.challenge_category ?? '',
+    challenge_content: challenge.challenge_content ?? '',
+    challenge_score: challenge.challenge_score,
+    challenge_max_attempts: challenge.challenge_max_attempts,
+    challenge_tags: challenge.challenge_tags ?? [],
+    challenge_documents: challenge.challenge_documents ?? [],
+    challenge_flags: challenge.challenge_flags.map(flag => ({
+      flag_type: flag.flag_type ?? 'VALUE',
+      flag_value: flag.flag_value ?? '',
+    })),
+  };
+
+  const challengeForm = (
+    <ChallengeForm
+      challengeId={challenge.challenge_id}
+      editing
+      onSubmit={onSubmitEdit}
+      handleClose={handleCloseEdit}
+      initialValues={initialValues}
+    />
+  );
+
   return (
     <>
       {(ability.can(ACTIONS.MANAGE, SUBJECTS.CHALLENGES) || ability.can(ACTIONS.DELETE, SUBJECTS.CHALLENGES) || onRemoveChallenge) && (
@@ -119,9 +132,9 @@ const ChallengePopover = ({ challenge, onRemoveChallenge, inline, disabled = fal
       </Menu>
       <Dialog
         open={openDelete}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         onClose={handleCloseDelete}
-        PaperProps={{ elevation: 1 }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>
@@ -139,22 +152,15 @@ const ChallengePopover = ({ challenge, onRemoveChallenge, inline, disabled = fal
       {inline ? (
         <Dialog
           open={openEdit}
-          TransitionComponent={Transition}
+          slots={{ transition: Transition }}
           onClose={handleCloseEdit}
           fullWidth
           maxWidth="md"
-          PaperProps={{ elevation: 1 }}
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>{t('Update the challenge')}</DialogTitle>
           <DialogContent>
-            <ChallengeForm
-              challengeId={challenge.challenge_id}
-              editing
-              onSubmit={onSubmitEdit}
-              handleClose={handleCloseEdit}
-              initialValues={initialValues}
-              documentsIds={challenge.challenge_documents || []}
-            />
+            {challengeForm}
           </DialogContent>
         </Dialog>
       ) : (
@@ -163,22 +169,15 @@ const ChallengePopover = ({ challenge, onRemoveChallenge, inline, disabled = fal
           handleClose={handleCloseEdit}
           title={t('Update the challenge')}
         >
-          <ChallengeForm
-            challengeId={challenge.challenge_id}
-            editing
-            onSubmit={onSubmitEdit}
-            handleClose={handleCloseEdit}
-            initialValues={initialValues}
-            documentsIds={challenge.challenge_documents || []}
-          />
+          {challengeForm}
         </Drawer>
       )}
 
       <Dialog
         open={openRemove}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
         onClose={handleCloseRemove}
-        PaperProps={{ elevation: 1 }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>

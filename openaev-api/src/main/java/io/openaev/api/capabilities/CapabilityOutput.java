@@ -1,6 +1,7 @@
 package io.openaev.api.capabilities;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.database.model.CapabilityScope;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -20,6 +21,6 @@ public record CapabilityOutput(
     @JsonProperty("capability_scopes")
         @Schema(description = "Scopes where this capability applies (PLATFORM, TENANT)")
         @NotBlank
-        Set<String> scopes,
+        Set<CapabilityScope> scopes,
     @JsonProperty("capability_children") @Schema(description = "Child capabilities") @NotBlank
         List<CapabilityOutput> children) {}

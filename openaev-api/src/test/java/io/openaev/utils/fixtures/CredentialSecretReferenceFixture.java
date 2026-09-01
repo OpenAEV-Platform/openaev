@@ -33,6 +33,16 @@ public class CredentialSecretReferenceFixture {
         CREDENTIAL_TYPE.CLOUD_AWS, CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE);
   }
 
+  public static CredentialSecretReference getAzureServicePrincipalReference() {
+    return getCredentialSecretReference(
+        CREDENTIAL_TYPE.CLOUD_AZURE, CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL);
+  }
+
+  public static CredentialSecretReference getAzureManagedIdentityReference() {
+    return getCredentialSecretReference(
+        CREDENTIAL_TYPE.CLOUD_AZURE, CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY);
+  }
+
   public static CredentialSecretReference getUsernamePasswordReference() {
     return getCredentialSecretReference(
         CREDENTIAL_TYPE.IDENTITY, CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD);

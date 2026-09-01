@@ -888,11 +888,16 @@ public class InjectImportService {
                           .map(column -> InjectImportUtils.getValueAsString(row, column))
                           .collect(Collectors.joining(","))
                           .split(","))
+                  .map(String::trim)
+                  .filter(value -> !value.isBlank())
+                  .distinct()
                   .toList();
         }
-        if (columnValues.isEmpty() || columnValues.stream().allMatch(String::isEmpty)) {
+        if (columnValues.isEmpty()) {
           List<String> defaultValues =
-              Arrays.stream(ruleAttribute.getDefaultValue().split(",")).toList();
+              ruleAttribute.getDefaultValue() == null
+                  ? List.of()
+                  : Arrays.stream(ruleAttribute.getDefaultValue().split(",")).toList();
           inject
               .getTeams()
               .addAll(

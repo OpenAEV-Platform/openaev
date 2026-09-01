@@ -3,6 +3,11 @@ package io.openaev.api.credentials;
 import static io.openaev.api.credentials.CredentialApi.TENANT_CREDENTIALS_URI;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_CLIENT_ID;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_CLIENT_SECRET;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_ENVIRONMENT;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_SUBSCRIPTION_ID;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_TENANT_ID;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -21,6 +26,7 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CredentialFixture;
+import io.openaev.utils.fixtures.CredentialInputFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -78,7 +84,9 @@ class CredentialApiTest extends IntegrationTest {
               CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD.name(),
               CredentialSecretReference.CREDENTIAL_AUTH_METHOD.HASH.name(),
               CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY.name(),
-              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE.name());
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE.name(),
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL.name(),
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY.name());
     }
   }
 
@@ -420,6 +428,167 @@ class CredentialApiTest extends IntegrationTest {
       assertThat(errorResponse).isNotBlank();
       assertThat(errorResponse).containsIgnoringCase("password");
     }
+
+    @Test
+    @DisplayName("given_azureServicePrincipalInput_should_createAzureServicePrincipalSecret")
+    void given_azureServicePrincipalInput_should_createAzureServicePrincipalSecret()
+        throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-sp");
+      CredentialInput input = CredentialInputFixture.azureServicePrincipalInput("azure-sp");
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      CredentialSecretReference credential =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      assertThat(credential.getCredentialType())
+          .isEqualTo(CredentialSecretReference.CREDENTIAL_TYPE.CLOUD_AZURE);
+
+      Secret secret = secretRepository.findById(credential.getLocation()).orElseThrow();
+      assertThat(secret).isInstanceOf(AzureServicePrincipalSecret.class);
+      assertThat(secret.getTenant().getId()).isEqualTo(tenant.getId());
+      AzureServicePrincipalSecret azureSecret = (AzureServicePrincipalSecret) secret;
+      assertThat(azureSecret.getAzureEnvironment()).isEqualTo(AZURE_ENVIRONMENT);
+      assertThat(azureSecret.getAzureClientId()).isEqualTo(AZURE_CLIENT_ID);
+      assertThat(azureSecret.getAzureTenantId()).isEqualTo(AZURE_TENANT_ID);
+      // The client secret is stored encrypted, never in clear text
+      assertThat(azureSecret.getAzureClientSecret()).isNotEqualTo(AZURE_CLIENT_SECRET);
+    }
+
+    @Test
+    @DisplayName("given_azureManagedIdentityInput_should_createAzureManagedIdentitySecret")
+    void given_azureManagedIdentityInput_should_createAzureManagedIdentitySecret()
+        throws Exception {
+      // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-mi");
+      CredentialInput input =
+          CredentialInputFixture.azureSystemAssignedManagedIdentityInput("azure-mi");
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      CredentialSecretReference credential =
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
+      Secret secret = secretRepository.findById(credential.getLocation()).orElseThrow();
+      assertThat(secret).isInstanceOf(AzureManagedIdentitySecret.class);
+      AzureManagedIdentitySecret azureSecret = (AzureManagedIdentitySecret) secret;
+      assertThat(azureSecret.getAzureEnvironment()).isEqualTo(AZURE_ENVIRONMENT);
+      assertThat(azureSecret.getAzureClientId()).isNull();
+    }
+
+    @Test
+    @DisplayName("given_azureCredentialWithoutEnvironment_should_failCreation")
+    void given_azureCredentialWithoutEnvironment_should_failCreation() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-no-env");
+      CredentialInput input =
+          CredentialInputFixture.azureInput(
+              "azure-no-env",
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY,
+              null,
+              null,
+              null,
+              null,
+              null);
+
+      // Act & Assert
+      String errorResponse =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(errorResponse).containsIgnoringCase("Azure environment");
+    }
+
+    @Test
+    @DisplayName("given_azureCredentialWithUnsupportedEnvironment_should_failCreation")
+    void given_azureCredentialWithUnsupportedEnvironment_should_failCreation() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-bad-env");
+      CredentialInput input =
+          CredentialInputFixture.azureInput(
+              "azure-bad-env",
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY,
+              "NotAnAzureCloud",
+              null,
+              null,
+              null,
+              null);
+
+      // Act & Assert
+      String errorResponse =
+          mvc.perform(
+                  post(tenantCredentialsUri(tenant.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat(errorResponse).containsIgnoringCase("Unsupported Azure environment");
+    }
+
+    @Test
+    @DisplayName("given_azureTypeWithAwsAuthMethod_should_failCreation")
+    void given_azureTypeWithAwsAuthMethod_should_failCreation() throws Exception {
+      // Arrange
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-bad-method");
+      CredentialInput input =
+          CredentialInputFixture.azureInput(
+              "azure-bad-method",
+              CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY,
+              AZURE_ENVIRONMENT,
+              null,
+              null,
+              null,
+              null);
+
+      // Act & Assert
+      mvc.perform(
+              post(tenantCredentialsUri(tenant.getId()))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isBadRequest());
+    }
   }
 
   @Nested
@@ -464,6 +633,45 @@ class CredentialApiTest extends IntegrationTest {
       assertThatJson(ownTenantResponse).node("credential_hash").isAbsent();
       assertThatJson(ownTenantResponse).node("credential_username").isEqualTo("user");
       assertThatJson(ownTenantResponse).node("credential_password").isAbsent();
+    }
+
+    @Test
+    @DisplayName("given_azureCredential_should_returnNonSensitiveFieldsOnly")
+    void given_azureCredential_should_returnNonSensitiveFieldsOnly() throws Exception { // Arrange
+      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-get");
+      String credentialId =
+          JsonPath.read(
+              mvc.perform(
+                      post(tenantCredentialsUri(tenant.getId()))
+                          .with(csrf())
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .content(
+                              asJsonString(
+                                  CredentialInputFixture.azureServicePrincipalInput("azure-get")))
+                          .accept(MediaType.APPLICATION_JSON))
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString(),
+              "$.credential_id");
+
+      // Act
+      String response =
+          mvc.perform(get(tenantCredentialsUri(tenant.getId()) + "/" + credentialId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert: those identifiers are not credentials, the form needs them to prefill
+      assertThatJson(response).node("credential_azure_environment").isEqualTo(AZURE_ENVIRONMENT);
+      assertThatJson(response).node("credential_azure_client_id").isEqualTo(AZURE_CLIENT_ID);
+      assertThatJson(response).node("credential_azure_tenant_id").isEqualTo(AZURE_TENANT_ID);
+      assertThatJson(response)
+          .node("credential_azure_subscription_id")
+          .isEqualTo(AZURE_SUBSCRIPTION_ID);
+      // The client secret must never travel back to the client, even encrypted
+      assertThat(response).doesNotContain(AZURE_CLIENT_SECRET);
     }
   }
 

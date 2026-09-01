@@ -42,8 +42,14 @@ The recommended approach is to create a Simulation from a [Scenario](../../build
 | Scheduled | Initial state, ready for launch |
 | Running | Actively executing Injects |
 | Paused | Paused mid-execution, can be resumed |
-| Finished | Execution complete |
+| Finished | All Injects executed and all their Expectations resolved or expired |
 | Canceled | Manually stopped before completion |
+
+!!! note "When does a Simulation become Finished?"
+
+    A Simulation does **not** finish as soon as its Injects are sent. It stays **Running** until, for every Inject, execution has completed **and** all of the Inject's [Expectations](../expectations/expectations.md) are resolved -- either fulfilled (by a Collector, a security platform, or manual validation) or [expired](../expectations/expectations.md#expiration). Only then does it move to **Finished**.
+
+    Expectations that are never fulfilled expire after their configured window (see [Expiration](../expectations/expectations.md#expiration)), which guarantees a Simulation always reaches **Finished** even when a Collector never reports.
 
 ### Actions
 
