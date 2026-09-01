@@ -9,9 +9,9 @@ public class OcsfObjectRegValue extends OcsfObject {
    * a type-specific attribute, i.e. <code>reg_binary_data</code>, <code>reg_integer_data</code>,
    * <code>reg_string_data</code>, or <code>reg_string_list_data</code>.
    */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
       using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT dataField;
 
   /**

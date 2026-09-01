@@ -5,10 +5,11 @@ import java.lang.annotation.Annotation;
 import java.text.MessageFormat;
 import java.util.HashSet;
 import java.util.Set;
+import lombok.Getter;
 
 public class AnnotationMeta implements Emitter {
   private final Set<AttributeMeta<?>> attributes = new HashSet<>();
-  private final Class<? extends Annotation> cls;
+  @Getter private final Class<? extends Annotation> cls;
 
   public AnnotationMeta(Class<? extends Annotation> cls) {
     this.cls = cls;

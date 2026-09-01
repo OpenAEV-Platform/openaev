@@ -4,10 +4,7 @@ import io.openaev.ocsf.parser.generator.emission.Emitter;
 import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
 import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
 import io.openaev.ocsf.parser.generator.emission.render.Helper;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
 
@@ -48,6 +45,7 @@ public class MethodMeta implements Emitter {
         (this.annotations.isEmpty()
                 ? ""
                 : this.annotations.stream()
+                        .sorted(Comparator.comparing(left -> left.getCls().getCanonicalName()))
                         .map(AnnotationMeta::emit)
                         .collect(Collectors.joining("\n"))
                     + "\n")

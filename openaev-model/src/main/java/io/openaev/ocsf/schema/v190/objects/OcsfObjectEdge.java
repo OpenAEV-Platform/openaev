@@ -5,9 +5,9 @@ import io.openaev.ocsf.schema.OcsfObject;
 @lombok.Getter
 public class OcsfObjectEdge extends OcsfObject {
   /** Additional data about the edge such as weight, distance, or custom properties. */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
       using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT dataField;
 
   /** Indicates whether the edge is (<code>true</code>) or undirected (<code>false</code>). */

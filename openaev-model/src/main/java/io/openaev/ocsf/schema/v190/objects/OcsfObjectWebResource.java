@@ -31,9 +31,9 @@ public class OcsfObjectWebResource extends OcsfObject {
    * Details of the web resource, e.g, <code>file</code> details, <code>search</code> results or
    * application-defined resource.
    */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
       using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT dataField;
 
   /** Description of the web resource. */

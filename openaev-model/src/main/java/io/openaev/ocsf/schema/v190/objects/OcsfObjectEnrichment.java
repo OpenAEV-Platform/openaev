@@ -16,9 +16,9 @@ public class OcsfObjectEnrichment extends OcsfObject {
    * The enrichment data associated with the attribute and value. The meaning of this data depends
    * on the type the enrichment record.
    */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
       using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT dataField;
 
   /** A long description of the enrichment data. */

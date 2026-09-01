@@ -211,8 +211,8 @@ public class OcsfObjectProcess extends OcsfObject {
    * container-specific attributes, or platform-specific process metadata not covered by standard
    * OCSF attributes.
    */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "xattributes")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
       using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "xattributes")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT xattributesField;
 }

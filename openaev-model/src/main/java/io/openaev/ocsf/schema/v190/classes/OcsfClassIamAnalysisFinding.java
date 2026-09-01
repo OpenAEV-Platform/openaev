@@ -525,9 +525,9 @@ public class OcsfClassIamAnalysisFinding extends OcsfClass {
    * preferred approach to unmapped attributes is to create a custom extension with the desired
    * structure.
    */
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "unmapped")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
       using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "unmapped")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT unmappedField;
 
   /**

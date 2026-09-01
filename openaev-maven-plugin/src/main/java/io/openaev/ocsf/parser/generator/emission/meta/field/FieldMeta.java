@@ -4,6 +4,7 @@ import io.openaev.ocsf.parser.generator.emission.Emitter;
 import io.openaev.ocsf.parser.generator.emission.meta.Modifier;
 import io.openaev.ocsf.parser.generator.emission.meta.annotation.AnnotationMeta;
 import io.openaev.ocsf.parser.generator.emission.meta.doc.JavadocMeta;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -46,6 +47,7 @@ public class FieldMeta implements Emitter {
             + (this.annotations.isEmpty()
                 ? ""
                 : this.annotations.stream()
+                    .sorted(Comparator.comparing(left -> left.getCls().getCanonicalName()))
                     .map(AnnotationMeta::emit)
                     .collect(Collectors.joining("\n")))
             + "\n"
