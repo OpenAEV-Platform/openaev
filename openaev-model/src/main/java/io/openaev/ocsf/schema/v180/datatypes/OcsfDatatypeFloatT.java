@@ -2,9 +2,9 @@ package io.openaev.ocsf.schema.v180.datatypes;
 
 import io.openaev.ocsf.schema.OcsfDatatype;
 
-public class OcsfDatatypeFloatT extends OcsfDatatype<java.lang.Float> {
+public class OcsfDatatypeFloatT extends OcsfDatatype<java.lang.Double> {
 
-  public OcsfDatatypeFloatT(java.lang.Float value) {
+  public OcsfDatatypeFloatT(java.lang.Double value) {
     super(value);
   }
 }

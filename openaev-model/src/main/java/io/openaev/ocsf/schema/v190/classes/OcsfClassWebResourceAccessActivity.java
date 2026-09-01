@@ -508,8 +508,10 @@ public class OcsfClassWebResourceAccessActivity extends OcsfClass {
    * preferred approach to unmapped attributes is to create a custom extension with the desired
    * structure.
    */
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
   @com.fasterxml.jackson.annotation.JsonProperty(value = "unmapped")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectObject unmappedField;
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT unmappedField;
 
   /** Details about the resource that is the target of the activity. */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "web_resources")

@@ -13,6 +13,11 @@ public class DictionaryHelper {
   private final Map<String, ClassMetadata> tracker;
   private final ReferentialSource dictionarySource;
 
+  private final Map<String, String> hardcodedTypeSwaps =
+      Map.of(
+          "object", "json_t" // the 'object' type is not useful in Java; change it to plain JSON
+          );
+
   public DictionaryHelper(Map<String, ClassMetadata> tracker, ReferentialSource dictionarySource) {
     this.tracker = tracker;
     this.dictionarySource = dictionarySource;
@@ -44,11 +49,20 @@ public class DictionaryHelper {
     String type = attribute.get().get("type").asText();
     String typeArg =
         "object_t".equals(type) && attribute.get().has("object_type")
-            ? tracker.get(attribute.get().get("object_type").asText()).fullyQualifiedClassName()
+            ? tracker
+                .get(swap(attribute.get().get("object_type").asText()))
+                .fullyQualifiedClassName()
             : tracker.get(type).fullyQualifiedClassName();
 
     return !attribute.get().has("is_array") || !attribute.get().get("is_array").asBoolean(false)
         ? typeArg
         : java.util.List.class.getCanonicalName() + "<" + typeArg + ">";
+  }
+
+  private String swap(String in) {
+    if (hardcodedTypeSwaps.containsKey(in)) {
+      return hardcodedTypeSwaps.get(in);
+    }
+    return in;
   }
 }

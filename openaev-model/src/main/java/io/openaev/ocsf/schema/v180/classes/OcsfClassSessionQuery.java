@@ -323,5 +323,7 @@ public class OcsfClassSessionQuery extends OcsfClass {
    * attributes are specific to the event source.
    */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "unmapped")
-  private io.openaev.ocsf.schema.v180.objects.OcsfObjectObject unmappedField;
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v180.ObjectNodeDeserialiser.class)
+  private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeJsonT unmappedField;
 }

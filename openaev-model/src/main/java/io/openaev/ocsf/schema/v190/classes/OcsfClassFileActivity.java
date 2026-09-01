@@ -489,5 +489,7 @@ public class OcsfClassFileActivity extends OcsfClass {
    * structure.
    */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "unmapped")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectObject unmappedField;
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT unmappedField;
 }

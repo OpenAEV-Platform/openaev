@@ -4,27 +4,37 @@ import io.openaev.ocsf.schema.OcsfObject;
 
 @lombok.Getter
 public class OcsfObjectResponse extends OcsfObject {
-
+  /** The numeric response sent to a request. */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "code")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeIntegerT codeField;
 
+  /**
+   * When working with containerized applications, the set of containers which write to the standard
+   * the output of a particular logging driver. For example, this may be the set of containers
+   * involved in handling api requests and responses for a containerized application.
+   */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "containers")
   private java.util.List<io.openaev.ocsf.schema.v190.objects.OcsfObjectContainer> containersField;
 
+  /** The additional data that is associated with the api response. */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
       using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT dataField;
 
+  /** Error Code */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "error")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT errorField;
 
+  /** Error Message */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "error_message")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT errorMessageField;
 
+  /** The communication flags that are associated with the api response. */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "flags")
   private java.util.List<io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT> flagsField;
 
+  /** The response message provided by the service or API. */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "message")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeStringT messageField;
 }

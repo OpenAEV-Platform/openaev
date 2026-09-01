@@ -172,6 +172,8 @@ public class OcsfClassSecurityFinding extends OcsfClass {
   private java.util.List<io.openaev.ocsf.schema.v180.objects.OcsfObjectEnrichment> enrichmentsField;
 
   /** The data the finding exposes to the analyst. */
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v180.ObjectNodeDeserialiser.class)
   @com.fasterxml.jackson.annotation.JsonProperty(value = "evidence")
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeJsonT evidenceField;
 
@@ -391,8 +393,10 @@ public class OcsfClassSecurityFinding extends OcsfClass {
    * The attributes that are not mapped to the event schema. The names and values of those
    * attributes are specific to the event source.
    */
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v180.ObjectNodeDeserialiser.class)
   @com.fasterxml.jackson.annotation.JsonProperty(value = "unmapped")
-  private io.openaev.ocsf.schema.v180.objects.OcsfObjectObject unmappedField;
+  private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeJsonT unmappedField;
 
   /** This object describes vulnerabilities reported in a security finding. */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "vulnerabilities")

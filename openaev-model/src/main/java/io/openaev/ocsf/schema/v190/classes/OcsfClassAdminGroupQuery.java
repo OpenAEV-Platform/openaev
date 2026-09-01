@@ -442,7 +442,9 @@ public class OcsfClassAdminGroupQuery extends OcsfClass {
    * structure.
    */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "unmapped")
-  private io.openaev.ocsf.schema.v190.objects.OcsfObjectObject unmappedField;
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
+  private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT unmappedField;
 
   /** The users that belong to the administrative group. */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "users")

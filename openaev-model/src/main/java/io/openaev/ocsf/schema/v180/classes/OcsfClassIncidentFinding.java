@@ -367,8 +367,10 @@ public class OcsfClassIncidentFinding extends OcsfClass {
    * The attributes that are not mapped to the event schema. The names and values of those
    * attributes are specific to the event source.
    */
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v180.ObjectNodeDeserialiser.class)
   @com.fasterxml.jackson.annotation.JsonProperty(value = "unmapped")
-  private io.openaev.ocsf.schema.v180.objects.OcsfObjectObject unmappedField;
+  private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeJsonT unmappedField;
 
   /**
    * The Vendor Attributes object can be used to represent values of attributes populated by the

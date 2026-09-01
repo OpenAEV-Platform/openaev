@@ -357,7 +357,9 @@ public class OcsfClassWebResourcesActivity extends OcsfClass {
    * attributes are specific to the event source.
    */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "unmapped")
-  private io.openaev.ocsf.schema.v180.objects.OcsfObjectObject unmappedField;
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v180.ObjectNodeDeserialiser.class)
+  private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeJsonT unmappedField;
 
   /** Describes details about web resources that were affected by an activity/event. */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "web_resources")

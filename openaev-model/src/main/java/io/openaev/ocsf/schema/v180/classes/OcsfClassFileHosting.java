@@ -14,6 +14,8 @@ public class OcsfClassFileHosting extends OcsfClass {
 
   /** The list of access check results. */
   @com.fasterxml.jackson.annotation.JsonProperty(value = "access_result")
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v180.ObjectNodeDeserialiser.class)
   private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeJsonT accessResultField;
 
   /** The normalized caption of <code>action_id</code>. */
@@ -368,6 +370,8 @@ public class OcsfClassFileHosting extends OcsfClass {
    * The attributes that are not mapped to the event schema. The names and values of those
    * attributes are specific to the event source.
    */
+  @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+      using = io.openaev.ocsf.schema.v180.ObjectNodeDeserialiser.class)
   @com.fasterxml.jackson.annotation.JsonProperty(value = "unmapped")
-  private io.openaev.ocsf.schema.v180.objects.OcsfObjectObject unmappedField;
+  private io.openaev.ocsf.schema.v180.datatypes.OcsfDatatypeJsonT unmappedField;
 }
