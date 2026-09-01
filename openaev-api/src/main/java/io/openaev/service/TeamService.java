@@ -8,10 +8,14 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawTeamIndexing;
+import io.openaev.database.repository.ExerciseTeamUserRepository;
+import io.openaev.database.repository.ScenarioTeamUserRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.exception.BadRequestException;
@@ -29,6 +33,7 @@ import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotNull;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.function.TriFunction;
 import org.hibernate.TransientObjectException;
@@ -47,6 +52,8 @@ public class TeamService {
   private final EntityManager entityManager;
   private final TeamRepository teamRepository;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final ExerciseTeamUserRepository exerciseTeamUserRepository;
+  private final ScenarioTeamUserRepository scenarioTeamUserRepository;
 
   /**
    * Bulk delete of teams, either from an explicit list of ids or from a search input (select all).
@@ -256,5 +263,71 @@ public class TeamService {
    */
   public List<Team> getTeamsByIds(List<String> teamIds) {
     return teamRepository.findAllById(teamIds);
+  }
+
+  /**
+   * Synchronizes simulation audiences (`exercises_teams_users`) with the current users of a team
+   * for every simulation linked to this team.
+   */
+  public void synchronizeExerciseTeamUsers(
+      @NotNull final Team team, @NotNull final Set<String> previousUserIds) {
+    List<String> userIds = team.getUsers().stream().map(User::getId).distinct().toList();
+    if (userIds.isEmpty()) {
+      exerciseTeamUserRepository.deleteByTeamId(team.getId());
+      return;
+    }
+
+    exerciseTeamUserRepository.deleteByTeamIdAndUserIdNotIn(team.getId(), userIds);
+
+    List<String> exerciseIds =
+        team.getExercises().stream().map(Exercise::getId).distinct().toList();
+    if (exerciseIds.isEmpty()) {
+      return;
+    }
+
+    List<String> addedUserIds =
+        userIds.stream().filter(userId -> !previousUserIds.contains(userId)).toList();
+    if (addedUserIds.isEmpty()) {
+      return;
+    }
+
+    exerciseIds.forEach(
+        exerciseId ->
+            addedUserIds.forEach(
+                userId ->
+                    exerciseTeamUserRepository.insertIfAbsent(exerciseId, team.getId(), userId)));
+  }
+
+  /**
+   * Synchronizes scenario audiences (`scenarios_teams_users`) with the current users of a team for
+   * every scenario linked to this team.
+   */
+  public void synchronizeScenarioTeamUsers(
+      @NotNull final Team team, @NotNull final Set<String> previousUserIds) {
+    List<String> userIds = team.getUsers().stream().map(User::getId).distinct().toList();
+    if (userIds.isEmpty()) {
+      scenarioTeamUserRepository.deleteByTeamId(team.getId());
+      return;
+    }
+
+    scenarioTeamUserRepository.deleteByTeamIdAndUserIdNotIn(team.getId(), userIds);
+
+    List<String> scenarioIds =
+        team.getScenarios().stream().map(Scenario::getId).distinct().toList();
+    if (scenarioIds.isEmpty()) {
+      return;
+    }
+
+    List<String> addedUserIds =
+        userIds.stream().filter(userId -> !previousUserIds.contains(userId)).toList();
+    if (addedUserIds.isEmpty()) {
+      return;
+    }
+
+    scenarioIds.forEach(
+        scenarioId ->
+            addedUserIds.forEach(
+                userId ->
+                    scenarioTeamUserRepository.insertIfAbsent(scenarioId, team.getId(), userId)));
   }
 }

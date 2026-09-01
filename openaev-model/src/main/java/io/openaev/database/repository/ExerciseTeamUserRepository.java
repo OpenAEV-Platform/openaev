@@ -77,5 +77,31 @@ public interface ExerciseTeamUserRepository
   void deleteByExerciseIdAndTeamIds(
       @Param("exerciseId") String exerciseId, @Param("teamIds") Collection<String> teamIds);
 
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      value =
+          "delete from exercises_teams_users "
+              + "where exercise_id = :exerciseId and team_id = :teamId and user_id in :userIds",
+      nativeQuery = true)
+  @Transactional
+  void deleteByExerciseIdAndTeamIdAndUserIds(
+      @Param("exerciseId") String exerciseId,
+      @Param("teamId") String teamId,
+      @Param("userIds") Collection<String> userIds);
+
   boolean existsByExerciseIdAndTeamIdAndUserId(String exerciseId, String teamId, String userId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(value = "delete from exercises_teams_users where team_id = :teamId", nativeQuery = true)
+  @Transactional
+  void deleteByTeamId(@Param("teamId") String teamId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      value =
+          "delete from exercises_teams_users where team_id = :teamId and user_id not in :userIds",
+      nativeQuery = true)
+  @Transactional
+  void deleteByTeamIdAndUserIdNotIn(
+      @Param("teamId") String teamId, @Param("userIds") Collection<String> userIds);
 }
