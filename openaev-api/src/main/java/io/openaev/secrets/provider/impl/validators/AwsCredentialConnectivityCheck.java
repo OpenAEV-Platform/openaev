@@ -12,6 +12,8 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.ApiCallAttemptTimeoutException;
+import software.amazon.awssdk.core.exception.ApiCallTimeoutException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.model.AssumeRoleResponse;
@@ -191,7 +193,9 @@ public class AwsCredentialConnectivityCheck {
 
   private static boolean isTimeout(Throwable failure) {
     for (Throwable current = failure; current != null; current = current.getCause()) {
-      if (current instanceof TimeoutException
+      if (current instanceof ApiCallTimeoutException
+          || current instanceof ApiCallAttemptTimeoutException
+          || current instanceof TimeoutException
           || current instanceof java.net.SocketTimeoutException) {
         return true;
       }

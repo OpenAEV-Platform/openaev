@@ -1,5 +1,6 @@
 import { Tooltip } from '@mui/material';
 
+import { useFormatter } from '../../../../components/i18n';
 import type { CredentialOutput } from '../../../../utils/api-types';
 import AssetStatus from '../AssetStatus';
 
@@ -22,7 +23,9 @@ const INACTIVE_STATUS_MESSAGES: Record<InactiveStatusWithMessage, string> = {
   FORMAT_ERROR: 'Credential format is invalid',
   UNKNOWN: 'Unknown validation error',
 };
+
 const CredentialStatusChip = ({ status, variant = 'list' }: Props) => {
+  const { t } = useFormatter();
   if (!status || status === 'UNSET') {
     return '-';
   }
@@ -33,7 +36,7 @@ const CredentialStatusChip = ({ status, variant = 'list' }: Props) => {
 
   if (status in INACTIVE_STATUS_MESSAGES) {
     const statusCode = status as InactiveStatusWithMessage;
-    const tooltipTitle = `${statusCode}: ${INACTIVE_STATUS_MESSAGES[statusCode]}`;
+    const tooltipTitle = `${statusCode}: ${t(INACTIVE_STATUS_MESSAGES[statusCode])}`;
 
     return (
       <Tooltip title={tooltipTitle}>

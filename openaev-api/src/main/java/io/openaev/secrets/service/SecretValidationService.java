@@ -54,7 +54,8 @@ public class SecretValidationService {
       EnumSet.of(
           CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL,
           CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY,
-          CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY);
+          CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY,
+          CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE);
 
   /**
    * Oldest first, id as tie-breaker. Without the id the order of equal {@code lastVerifiedAt} rows
@@ -148,9 +149,8 @@ public class SecretValidationService {
       return probe != null ? probe : SecretConnectionProbe.of(SecretConnectionResult.notChecked());
     } catch (RuntimeException e) {
       log.warn(
-          "Credential validation: provider failed to prepare a check for reference {}: {}",
-          reference.getId(),
-          e.getMessage());
+          "Credential validation: provider failed to prepare a check for reference {}",
+          reference.getId());
       return SecretConnectionProbe.of(SecretConnectionResult.notChecked());
     }
   }
@@ -175,7 +175,7 @@ public class SecretValidationService {
       SecretConnectionResult result = probe.run();
       return result != null ? result : SecretConnectionResult.notChecked();
     } catch (RuntimeException e) {
-      log.warn("Credential validation: validator failed: {}", e.getMessage());
+      log.warn("Credential validation: validator failed");
       return SecretConnectionResult.unknown();
     }
   }
@@ -225,8 +225,7 @@ public class SecretValidationService {
       log.warn(
           "Credential connectivity check after secret write failed for reference {} in tenant {}",
           referenceId,
-          tenantId,
-          e);
+          tenantId);
     }
   }
 

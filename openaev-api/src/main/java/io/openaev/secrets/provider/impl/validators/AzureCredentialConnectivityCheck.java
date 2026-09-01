@@ -178,7 +178,7 @@ public class AzureCredentialConnectivityCheck {
     }
     return switch (statusCode) {
       // The token was refused: the credential is genuinely not usable.
-      case 401 -> SecretConnectionResult.permissionDenied();
+      case 400, 401 -> SecretConnectionResult.authFailed();
       // Authenticated but not authorized, and 404 is what ARM returns for a subscription the
       // principal cannot see: in both cases the credential no longer grants what it is stored
       // for.
@@ -196,37 +196,33 @@ public class AzureCredentialConnectivityCheck {
   private SecretConnectionResult mapFailure(RuntimeException failure) {
     // Managed identity outside Azure, or no identity assigned: never a rejection.
     if (failure instanceof CredentialUnavailableException) {
-      return SecretConnectionResult.networkError();
+      return SecretConnectionResult.unknown();
     }
     if (failure instanceof ClientAuthenticationException authenticationFailure) {
       Integer statusCode = statusCodeOf(authenticationFailure);
       // Entra ID answers 400 with an AADSTS code for a bad secret or an unknown application, and
       // 401 when the credential is refused outright.
-      if (statusCode == null || statusCode == 400 || statusCode == 401) {
-        return SecretConnectionResult.permissionDenied();
+      if (statusCode == null) {
+        return SecretConnectionResult.authFailed();
       }
       return mapStatusCode(statusCode);
     }
     if (failure instanceof HttpResponseException httpFailure) {
       // No status means no response at all: inconclusive, so fall back to a 5xx-like reading.
-      return mapStatusCode(statusCodeOf(httpFailure, 503));
+      Integer statusCode = statusCodeOf(httpFailure);
+      return mapStatusCode(statusCode != null ? statusCode : 503);
     }
     if (isTimeout(failure)) {
       return SecretConnectionResult.timeout();
     }
     // Everything left is unclassified — inconclusive by default, never a rejection. Message only:
     // an Azure error body would leak identifiers into the logs.
-    log.debug("Azure credential probe failed with an unmapped error: {}", failure.getMessage());
+    log.debug("Azure credential probe failed with an unmapped error");
     return SecretConnectionResult.networkError();
   }
 
   private static Integer statusCodeOf(HttpResponseException failure) {
     return failure.getResponse() != null ? failure.getResponse().getStatusCode() : null;
-  }
-
-  private static int statusCodeOf(HttpResponseException failure, int fallback) {
-    Integer statusCode = statusCodeOf(failure);
-    return statusCode != null ? statusCode : fallback;
   }
 
   /**

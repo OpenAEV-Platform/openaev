@@ -1,6 +1,7 @@
 package io.openaev.secrets.provider.impl.validators;
 
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.ACTIVE;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.AUTH_FAILED;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.FORMAT_ERROR;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.NETWORK_ERROR;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.PERMISSION_DENIED;
@@ -275,9 +276,9 @@ class AzureCredentialConnectivityCheckTest {
       SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
-      assertThat(result.status()).isEqualTo(PERMISSION_DENIED);
+      assertThat(result.status()).isEqualTo(AUTH_FAILED);
       assertThat(result.wasChecked()).isTrue();
-      assertThat(result.statusToPersist()).contains(PERMISSION_DENIED);
+      assertThat(result.statusToPersist()).contains(AUTH_FAILED);
     }
 
     @Test

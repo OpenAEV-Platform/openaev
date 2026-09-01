@@ -62,7 +62,7 @@ public record SecretConnectionResult(SECRET_STATUS status, boolean checked) {
 
   /** No validator implemented for this secret type: the default for every handler. */
   public static SecretConnectionResult unsupported() {
-    return new SecretConnectionResult(SECRET_STATUS.UNSUPPORTED, true);
+    return new SecretConnectionResult(SECRET_STATUS.UNSUPPORTED, false);
   }
 
   /**
