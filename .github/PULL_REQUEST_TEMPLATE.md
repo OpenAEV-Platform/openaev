@@ -17,7 +17,7 @@ Thus already a BIG THANK YOU upfront to you for choosing to help with your PR.
 
 ### Related issues
 
-* Closes #ISSUE-NUMBER
+* Related #ISSUE-NUMBER
 *
 
 ### Checklist

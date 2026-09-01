@@ -46,7 +46,7 @@ runs:
         search-engine-image: ${{ inputs.search-engine-image }}
 
     - name: Set up Java 21
-      uses: actions/setup-java@v5
+      uses: actions/setup-java@v6
       with:
         java-version: "21"
         distribution: temurin

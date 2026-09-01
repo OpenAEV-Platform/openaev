@@ -126,8 +126,12 @@ public class UserService {
 
   // -- CREATE --
 
+  /**
+   * Creates a user. The {@link UserCreationScope} decides which auto-assign groups are granted, and
+   * whether the tenants carried by the input are honoured.
+   */
   @Transactional(rollbackFor = Exception.class)
-  public User createUser(UserInput input) {
+  public User createUser(UserInput input, UserCreationScope scope) {
     if (!StringUtils.hasLength(input.plainPassword())) {
       throw new IllegalArgumentException("Password is required when creating a user");
     }
@@ -137,24 +141,32 @@ public class UserService {
           "User with email " + input.email() + " already exists");
     }
     PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), false);
+    // A tenant creator has no authority over other tenants: it never attaches any, the caller
+    // attaches its own right after.
+    List<String> tenantIds = scope == UserCreationScope.PLATFORM ? input.tenantIds() : List.of();
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
     user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
     user.setTenants(
         new ArrayList<>(
-            referenceResolver.resolve(
-                input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
+            referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
     // The user's id is generated on save (UUID generator), not before: evict only after
     // persisting, using the saved user's id, or evictForUser is called with a null key.
-    User createdUser = createUser(user, input.plainPassword(), UUID.randomUUID().toString());
-    if (!CollectionUtils.isEmpty(input.tenantIds())) {
-      tenantMembershipCacheManager.evictForUser(createdUser.getId(), input.tenantIds());
+    User createdUser = createUser(user, input.plainPassword(), UUID.randomUUID().toString(), scope);
+    if (!CollectionUtils.isEmpty(tenantIds)) {
+      tenantMembershipCacheManager.evictForUser(createdUser.getId(), tenantIds);
     }
     return createdUser;
   }
 
-  /** Creates a user for internal/technical purposes (SSO login, connector provisioning). */
+  /**
+   * Creates a user for internal/technical purposes (SSO login, connector provisioning, service
+   * accounts). Such a user always lands in a tenant, attached by the caller right after: the
+   * platform auto-assign groups are therefore never granted. Callers own the group assignment —
+   * either explicitly (technical accounts) or through {@link #assignAutoAssignGroups(String,
+   * Collection)} once the tenant is attached (SSO).
+   */
   @Transactional(rollbackFor = Exception.class)
   public User createInternalUser(
       String email, String firstname, String lastname, boolean isAdmin, String token) {
@@ -166,15 +178,19 @@ public class UserService {
     user.setFirstname(firstname);
     user.setLastname(lastname);
     user.setAdmin(isAdmin);
-    return createUser(user, null, token);
+    return createUser(user, null, token, UserCreationScope.TENANT);
   }
 
-  private User createUser(User user, String password, String token) {
+  private User createUser(User user, String password, String token, UserCreationScope scope) {
     if (StringUtils.hasLength(password)) {
       user.setPassword(this.encodeUserPassword(password));
     }
-    // Creation enters every scope at once: platform, plus each tenant attached in the input.
-    assignAutoAssignGroups(user, user.getTenants().stream().map(Tenant::getId).toList(), true);
+    // Creation enters every scope at once: the platform when created from the platform screen,
+    // plus each tenant attached in the input.
+    assignAutoAssignGroups(
+        user,
+        user.getTenants().stream().map(Tenant::getId).toList(),
+        scope == UserCreationScope.PLATFORM);
     User savedUser = userRepository.save(user);
     this.createUserToken(savedUser, token);
     return savedUser;
@@ -245,12 +261,14 @@ public class UserService {
                 input.tenantIds(), Tenant.class, tenantRepository::countByIdIn)));
     // Only tenants the user just joined trigger auto-assignment: re-applying it to tenants he
     // already belonged to would restore groups deliberately removed from within those tenants.
+    List<String> currentTenantIds = existing.getTenants().stream().map(Tenant::getId).toList();
     List<String> attachedTenantIds =
-        existing.getTenants().stream()
-            .map(Tenant::getId)
-            .filter(tenantId -> !oldTenantIds.contains(tenantId))
-            .toList();
+        currentTenantIds.stream().filter(tenantId -> !oldTenantIds.contains(tenantId)).toList();
     assignAutoAssignGroups(existing, attachedTenantIds, false);
+    // Symmetrically, a membership must not outlive the tenant attachment that granted it.
+    List<String> detachedTenantIds =
+        oldTenantIds.stream().filter(tenantId -> !currentTenantIds.contains(tenantId)).toList();
+    revokeTenantGroups(existing, detachedTenantIds);
     User savedUser = userRepository.save(existing);
     // Evict cache for old tenants (removed memberships) and new tenants (added memberships)
     List<String> newTenantIds = input.tenantIds() != null ? input.tenantIds() : List.of();
@@ -602,5 +620,35 @@ public class UserService {
       }
     }
     user.setGroups(current);
+  }
+
+  /**
+   * Revokes the groups of the given tenants from an already persisted user. Used when a user leaves
+   * a tenant outside of the update flow, i.e. when detached from a tenant screen.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void revokeTenantGroups(
+      @NotBlank final String userId, @NotNull final Collection<String> tenantIds) {
+    if (tenantIds.isEmpty()) {
+      return;
+    }
+    User user = user(userId);
+    revokeTenantGroups(user, tenantIds);
+    User savedUser = userRepository.save(user);
+    sessionManager.refreshUserSessions(savedUser);
+  }
+
+  /**
+   * Drops every group scoped to a tenant the user just left: a group grants capabilities inside its
+   * own tenant only, so keeping it would leave access to a tenant the user no longer belongs to.
+   * Platform groups and the groups of the remaining tenants are untouched.
+   */
+  private void revokeTenantGroups(User user, Collection<String> tenantIds) {
+    if (tenantIds.isEmpty()) {
+      return;
+    }
+    user.getUnscopedGroups()
+        .removeIf(
+            group -> group.getTenant() != null && tenantIds.contains(group.getTenant().getId()));
   }
 }

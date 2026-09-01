@@ -14,8 +14,11 @@ import org.slf4j.Marker;
 import org.slf4j.event.KeyValuePair;
 
 /**
- * Extends the built-in Logback {@link JsonEncoder} to limit the depth of stack traces and cause
- * chains in JSON log output.
+ * Extends the built-in Logback {@link JsonEncoder} to resolve message placeholders and to limit the
+ * depth of stack traces and cause chains in JSON log output.
+ *
+ * <p>{@link JsonEncoder} puts the raw SLF4J pattern in {@code message} and the values in {@code
+ * arguments}; this encoder resolves the placeholders so {@code message} reads as is.
  *
  * <p>Deep stack traces (e.g. from Spring proxy chains or Hibernate cascades) can produce JSON log
  * lines that exceed Loki's {@code max_line_size}, causing silent mid-JSON truncation and {@code
@@ -30,6 +33,7 @@ import org.slf4j.event.KeyValuePair;
  *
  * <pre>{@code
  * <encoder class="io.openaev.logging.StackDepthLimitingJsonEncoder">
+ *     <withArguments>false</withArguments>
  *     <withThrowable>true</withThrowable>
  *     <maxStackDepth>80</maxStackDepth>
  * </encoder>
@@ -48,12 +52,10 @@ public class StackDepthLimitingJsonEncoder extends JsonEncoder {
 
   @Override
   public byte[] encode(ILoggingEvent event) {
-    if (event.getThrowableProxy() == null) {
-      return super.encode(event);
-    }
+    IThrowableProxy throwableProxy = event.getThrowableProxy();
     IThrowableProxy truncated =
-        new TruncatedThrowableProxy(event.getThrowableProxy(), maxStackDepth);
-    return super.encode(new TruncatedThrowableEvent(event, truncated));
+        throwableProxy == null ? null : new TruncatedThrowableProxy(throwableProxy, maxStackDepth);
+    return super.encode(new FormattedMessageEvent(event, truncated));
   }
 
   /**
@@ -189,14 +191,14 @@ public class StackDepthLimitingJsonEncoder extends JsonEncoder {
   }
 
   /**
-   * Delegates all {@link ILoggingEvent} methods to the original event, except {@link
-   * #getThrowableProxy()} which returns the truncated proxy.
+   * Delegates all {@link ILoggingEvent} methods to the original event, except {@link #getMessage()}
+   * (formatted message) and {@link #getThrowableProxy()} (truncated proxy).
    */
-  static class TruncatedThrowableEvent implements ILoggingEvent {
+  static class FormattedMessageEvent implements ILoggingEvent {
     private final ILoggingEvent delegate;
     private final IThrowableProxy throwableProxy;
 
-    TruncatedThrowableEvent(ILoggingEvent delegate, IThrowableProxy throwableProxy) {
+    FormattedMessageEvent(ILoggingEvent delegate, IThrowableProxy throwableProxy) {
       this.delegate = delegate;
       this.throwableProxy = throwableProxy;
     }
@@ -218,7 +220,7 @@ public class StackDepthLimitingJsonEncoder extends JsonEncoder {
 
     @Override
     public String getMessage() {
-      return delegate.getMessage();
+      return delegate.getFormattedMessage();
     }
 
     @Override

@@ -326,28 +326,28 @@ export interface AiGenericTextInput {
 }
 
 export interface AiMediaInput {
-  ai_author?: string;
-  ai_context?: string;
+  ai_author?: string | null;
+  ai_context?: string | null;
   /** @minLength 1 */
-  ai_format: string;
+  ai_format: string | null;
   /** @minLength 1 */
   ai_input: string;
   /** @format int32 */
-  ai_paragraphs?: number;
-  ai_tone?: string;
+  ai_paragraphs?: number | null;
+  ai_tone?: string | null;
 }
 
 export interface AiMessageInput {
-  ai_context?: string;
+  ai_context?: string | null;
   /** @minLength 1 */
   ai_format: string;
   /** @minLength 1 */
   ai_input: string;
   /** @format int32 */
-  ai_paragraphs?: number;
-  ai_recipient?: string;
-  ai_sender?: string;
-  ai_tone?: string;
+  ai_paragraphs?: number | null;
+  ai_recipient?: string | null;
+  ai_sender?: string | null;
+  ai_tone?: string | null;
 }
 
 export interface AiResult {
@@ -2098,7 +2098,7 @@ export interface CapabilityOutput {
    * Scopes where this capability applies (PLATFORM, TENANT)
    * @uniqueItems true
    */
-  capability_scopes: string[];
+  capability_scopes: ("PLATFORM" | "TENANT")[];
   /**
    * Enum key of the capability or group
    * @minLength 1
@@ -3068,10 +3068,10 @@ export interface CreateConnectorInstanceInput {
 }
 
 export interface CreateExerciseInput {
-  exercise_category?: string;
+  exercise_category?: string | null;
   exercise_custom_dashboard?: string;
-  exercise_default_kill_chain?: string;
-  exercise_description?: string;
+  exercise_default_kill_chain?: string | null;
+  exercise_description?: string | null;
   exercise_is_chaining?: boolean;
   /**
    * @minLength 0
@@ -3080,7 +3080,7 @@ export interface CreateExerciseInput {
    */
   exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
-  exercise_main_focus?: string;
+  exercise_main_focus?: string | null;
   exercise_message_footer?: string;
   exercise_message_header?: string;
   /**
@@ -3088,7 +3088,7 @@ export interface CreateExerciseInput {
    * @maxLength 255
    */
   exercise_name: string;
-  exercise_severity?: string;
+  exercise_severity?: string | null;
   /** @format date-time */
   exercise_start_date?: string | null;
   exercise_subtitle?: string;
@@ -3117,8 +3117,10 @@ export interface CredentialContractOutput {
     | "USERNAME_PASSWORD"
     | "HASH"
     | "AWS_ACCESS_KEY"
-    | "AWS_ASSUME_ROLE";
-  credential_type: "IDENTITY" | "CLOUD_AWS";
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
   fields?: CredentialContractField[];
 }
 
@@ -3135,7 +3137,9 @@ export interface CredentialFullOutput {
     | "USERNAME_PASSWORD"
     | "HASH"
     | "AWS_ACCESS_KEY"
-    | "AWS_ASSUME_ROLE";
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY";
   /** AWS access key ID */
   credential_aws_access_key_id?: string;
   /** Secret AWS default region */
@@ -3184,6 +3188,14 @@ export interface CredentialFullOutput {
     | "INSTANCE_DEFAULT";
   /** AWS source profile access key id */
   credential_aws_source_profile_access_key_id?: string;
+  /** Azure client id */
+  credential_azure_client_id?: string;
+  /** Azure environment */
+  credential_azure_environment?: string;
+  /** Azure subscription id */
+  credential_azure_subscription_id?: string;
+  /** Azure tenant id */
+  credential_azure_tenant_id?: string;
   /**
    * Credential creation timestamp
    * @format date-time
@@ -3212,7 +3224,7 @@ export interface CredentialFullOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type: "IDENTITY" | "CLOUD_AWS";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
   /** Secret username */
   credential_username?: string;
 }
@@ -3263,11 +3275,18 @@ export interface CredentialInput {
   aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
   aws_source_profile_access_key_id?: string;
   aws_source_profile_secret_access_key?: string;
+  azure_client_id?: string;
+  azure_client_secret?: string;
+  azure_environment?: string;
+  azure_subscription_id?: string;
+  azure_tenant_id?: string;
   credential_auth_method:
     | "USERNAME_PASSWORD"
     | "HASH"
     | "AWS_ACCESS_KEY"
-    | "AWS_ASSUME_ROLE";
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY";
   credential_description?: string;
   credential_hash?: string;
   credential_hash_algorithm?: "SHA" | "NTLM";
@@ -3275,7 +3294,7 @@ export interface CredentialInput {
   credential_name: string;
   credential_password?: string;
   credential_tags?: string[];
-  credential_type: "IDENTITY" | "CLOUD_AWS";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
   credential_username?: string;
 }
 
@@ -3285,7 +3304,9 @@ export interface CredentialOutput {
     | "USERNAME_PASSWORD"
     | "HASH"
     | "AWS_ACCESS_KEY"
-    | "AWS_ASSUME_ROLE";
+    | "AWS_ASSUME_ROLE"
+    | "AZURE_SERVICE_PRINCIPAL"
+    | "AZURE_MANAGED_IDENTITY";
   /**
    * Credential creation timestamp
    * @format date-time
@@ -3310,7 +3331,7 @@ export interface CredentialOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type?: "IDENTITY" | "CLOUD_AWS";
+  credential_type?: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
 }
 
 export interface CustomDashboard {
@@ -3411,7 +3432,7 @@ export interface CveCreateInput {
    * CVSS score
    * @min 0
    * @max 10
-   * @example "7.5"
+   * @example 7.5
    */
   cve_cvss_v31: number;
   /**
@@ -4638,7 +4659,7 @@ export interface EngineSortField {
 
 export interface EntitiesPaginationInput {
   /** Pagination to set (optional) */
-  pagination?: Pagination;
+  pagination?: null;
   /** Parameters to set */
   parameters?: Record<string, string>;
 }
@@ -6802,7 +6823,7 @@ export interface InjectorContract {
   injector_contract_created_at: string;
   injector_contract_custom?: boolean;
   injector_contract_domains?: string[];
-  injector_contract_external_id?: string;
+  injector_contract_external_id?: string | null;
   /** @minLength 1 */
   injector_contract_id: string;
   injector_contract_import_available?: boolean;
@@ -7904,6 +7925,7 @@ export interface NotificationTriggerInput {
     | "STEP"
     | "CONDITION"
     | "SESSION"
+    | "PLATFORM_SESSION"
     | "SKIP_RBAC";
   /** Digest firing time (UTC): DAY=HH:mm, WEEK=<1-7>-HH:mm, MONTH=<1-31>-HH:mm */
   notification_trigger_time?: string;
@@ -8009,6 +8031,7 @@ export interface NotificationTriggerOutput {
     | "STEP"
     | "CONDITION"
     | "SESSION"
+    | "PLATFORM_SESSION"
     | "SKIP_RBAC";
   /** Digest firing time (UTC) */
   notification_trigger_time?: string;
@@ -9650,9 +9673,10 @@ export interface PlatformRoleInput {
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
-    | "MANAGE_SESSIONS"
   )[];
   platform_role_description?: string;
   /** @minLength 1 */
@@ -10479,9 +10503,10 @@ export interface RoleInput {
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
-    | "MANAGE_SESSIONS"
   )[];
   role_description?: string;
   /** @minLength 1 */
@@ -10637,12 +10662,12 @@ export interface ScenarioIdsAndInjectorContractsInputs {
 }
 
 export interface ScenarioInput {
-  scenario_category?: string;
+  scenario_category?: string | null;
   scenario_custom_dashboard?: string;
-  scenario_default_kill_chain?: string;
+  scenario_default_kill_chain?: string | null;
   scenario_description?: string;
-  scenario_external_reference?: string;
-  scenario_external_url?: string;
+  scenario_external_reference?: string | null;
+  scenario_external_url?: string | null;
   scenario_is_chaining?: boolean;
   /**
    * @minLength 0
@@ -10651,7 +10676,7 @@ export interface ScenarioInput {
    */
   scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
-  scenario_main_focus?: string;
+  scenario_main_focus?: string | null;
   scenario_message_footer?: string;
   scenario_message_header?: string;
   /** @minLength 1 */
@@ -11309,6 +11334,8 @@ export interface SessionOutput {
   session_last_access_at?: string;
   /** Identifier of the user owning the session */
   session_user_id?: string;
+  /** Display name of the user owning the session, or their email */
+  session_user_name?: string;
 }
 
 export interface SettingsChatbotAiCguUpdateInput {
@@ -11414,7 +11441,7 @@ export interface SimulationsResultsLatest {
 }
 
 export interface SortField {
-  direction?: string;
+  direction?: string | null;
   nullHandling?: "NATIVE" | "NULLS_FIRST" | "NULLS_LAST";
   property?: string;
 }
@@ -12453,10 +12480,10 @@ export interface UpdateConnectorInstanceRequestedStatus {
 
 export interface UpdateExerciseInput {
   apply_tag_rule?: boolean;
-  exercise_category?: string;
+  exercise_category?: string | null;
   exercise_custom_dashboard?: string;
-  exercise_default_kill_chain?: string;
-  exercise_description?: string;
+  exercise_default_kill_chain?: string | null;
+  exercise_description?: string | null;
   exercise_is_chaining?: boolean;
   /**
    * @minLength 0
@@ -12465,7 +12492,7 @@ export interface UpdateExerciseInput {
    */
   exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
-  exercise_main_focus?: string;
+  exercise_main_focus?: string | null;
   exercise_message_footer?: string;
   exercise_message_header?: string;
   /**
@@ -12473,7 +12500,7 @@ export interface UpdateExerciseInput {
    * @maxLength 255
    */
   exercise_name: string;
-  exercise_severity?: string;
+  exercise_severity?: string | null;
   exercise_subtitle?: string;
   exercise_tags?: string[];
 }
@@ -12506,12 +12533,12 @@ export interface UpdateProfileInput {
 
 export interface UpdateScenarioInput {
   apply_tag_rule?: boolean;
-  scenario_category?: string;
+  scenario_category?: string | null;
   scenario_custom_dashboard?: string;
-  scenario_default_kill_chain?: string;
+  scenario_default_kill_chain?: string | null;
   scenario_description?: string;
-  scenario_external_reference?: string;
-  scenario_external_url?: string;
+  scenario_external_reference?: string | null;
+  scenario_external_url?: string | null;
   scenario_is_chaining?: boolean;
   /**
    * @minLength 0
@@ -12520,7 +12547,7 @@ export interface UpdateScenarioInput {
    */
   scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
-  scenario_main_focus?: string;
+  scenario_main_focus?: string | null;
   scenario_message_footer?: string;
   scenario_message_header?: string;
   /** @minLength 1 */
@@ -12615,9 +12642,10 @@ export interface User {
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "MANAGE_PLATFORM_SESSIONS"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
-    | "MANAGE_SESSIONS"
   )[];
   /** City of the user */
   user_city?: string;
@@ -12802,7 +12830,7 @@ export interface VulnerabilityCreateInput {
    * CVSS score
    * @min 0
    * @max 10
-   * @example "7.5"
+   * @example 7.5
    */
   vulnerability_cvss_v31: number;
   /**
@@ -12854,7 +12882,7 @@ export interface VulnerabilityCreateInput {
 export interface VulnerabilityOutput {
   /**
    * CVSS score
-   * @example "7.8"
+   * @example 7.8
    */
   vulnerability_cvss_v31: number;
   /**
@@ -12905,7 +12933,7 @@ export interface VulnerabilityOutput {
 export interface VulnerabilitySimple {
   /**
    * CVSS score
-   * @example "7.8"
+   * @example 7.8
    */
   vulnerability_cvss_v31: number;
   /**
