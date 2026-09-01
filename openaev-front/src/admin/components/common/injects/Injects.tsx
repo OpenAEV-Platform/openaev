@@ -296,12 +296,6 @@ const Injects: FunctionComponent<Props> = ({
     }
   };
 
-  const onBulkUpdate = (updatedResults: Inject[]) => {
-    setInjects(injects.map((originalInject) => {
-      return updatedResults.find(updatedInject => updatedInject.inject_id === originalInject.inject_id) as unknown as InjectOutputType || originalInject;
-    }));
-  };
-
   const onDelete = (result: string) => {
     if (result) {
       setInjects(injects.filter(i => (i.inject_id !== result)));
@@ -439,10 +433,9 @@ const Injects: FunctionComponent<Props> = ({
       inject_ids_to_ignore: injectIdsToIgnore(selectAll),
       simulation_or_scenario_id: contextId,
       update_operations: operationsToPerform,
-    })
-      .then((result) => {
-        if (result) onBulkUpdate(result);
-      });
+    });
+    handleClearSelectedElements();
+    setReloadInjectCount(prev => prev + 1);
   };
 
   const bulkDeleteInjects = () => {
