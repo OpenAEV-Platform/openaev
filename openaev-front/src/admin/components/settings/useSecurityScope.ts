@@ -3,7 +3,7 @@ import { useLocation, useSearchParams } from 'react-router';
 
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
-import { ACTIONS, type CapabilityScope, SUBJECTS } from '../../../utils/permissions/types';
+import { ACTIONS, type CapabilityScope, SUBJECTS, type Subjects } from '../../../utils/permissions/types';
 
 export type SecurityScope = CapabilityScope;
 
@@ -18,7 +18,7 @@ const PLATFORM_ONLY_PATHS = ['/admin/settings/security/tenants'];
 const SESSION_SUBJECT = {
   TENANT: SUBJECTS.SESSIONS,
   PLATFORM: SUBJECTS.PLATFORM_SESSIONS,
-} as const;
+} as const satisfies Record<CapabilityScope, Subjects>;
 
 interface UseSecurityScope {
   scope: SecurityScope;

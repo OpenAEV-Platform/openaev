@@ -4,13 +4,19 @@ import NoEnterpriseEdition from '../../../../utils/permissions/NoEnterpriseEditi
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
 import useSecurityScope from '../useSecurityScope';
-import PlatformRolesTab from './platform_roles/PlatformRolesTab';
-import TenantRolesTab from './tenant_roles/TenantRolesTab';
+import RoleScopeProvider from './RoleScopeProvider';
+import RolesTab from './RolesTab';
 
 const Roles = () => {
   const { t } = useFormatter();
   const { scope, canAccessTenantUsers, canAccessPlatformUsers, isEnterpriseEdition } = useSecurityScope();
   const platformScope = scope === 'PLATFORM';
+  // Keyed on the scope: switching it starts over from that scope's own list and stored query.
+  const rolesTab = (
+    <RoleScopeProvider key={scope} scope={scope}>
+      <RolesTab />
+    </RoleScopeProvider>
+  );
 
   return (
     <div style={{ display: 'flex' }}>
@@ -22,8 +28,8 @@ const Roles = () => {
             current: true,
           }]}
         />
-        {!platformScope && canAccessTenantUsers && <TenantRolesTab />}
-        {platformScope && canAccessPlatformUsers && (isEnterpriseEdition ? <PlatformRolesTab /> : <NoEnterpriseEdition />)}
+        {!platformScope && canAccessTenantUsers && rolesTab}
+        {platformScope && canAccessPlatformUsers && (isEnterpriseEdition ? rolesTab : <NoEnterpriseEdition />)}
       </div>
       <SecurityMenu />
     </div>

@@ -150,6 +150,43 @@ Below is a full list of capabilities in OpenAEV:
 Once the role is created, it can be assigned to a **group**. All users in that group will automatically inherit the role's permissions.
 
 
+## Delegating capabilities
+
+A user can only grant what they hold themselves. This prevents privilege escalation: no one can widen their own reach, or someone else's, beyond their own capabilities. The rule is enforced by the API, and the interface shows it before anything is submitted.
+
+Users with the `Bypass (user has all rights)` capability hold everything, so they never see these restrictions.
+
+### In a role
+
+When creating or updating a role, capabilities you do not hold are shown in grey with a padlock, and their checkbox is disabled. A capability group whose entire content is locked is greyed as a whole.
+
+![Locked capabilities in a role](assets/capability-lock-role.png)
+
+A locked capability that the role **already carries** stays removable: you can narrow an existing role even where you could not have created it. What you cannot do is add such a capability back. If a restricted capability is still selected when you save, the form refuses and lists the capabilities to remove.
+
+!!! warning "Narrowing is possible, widening is not"
+
+    Removing a capability you do not hold is allowed, and it is a one-way door: once removed and saved, you will not be able to put it back.
+
+### In a group's roles
+
+The same rule applies when attaching roles to a group. A role carrying at least one capability you do not hold is locked in the picker, and the **Update** button stays disabled while such a role is selected.
+
+![Locked roles in a group](assets/capability-lock-group-roles.png)
+
+Here too, a restricted role already attached to the group can be detached, but not re-attached.
+
+### In a group's members
+
+Group membership is governed by the capabilities the group's own roles carry. If those roles include capabilities you do not hold, adding or removing a member would indirectly grant or revoke them, so the whole member list is frozen and a message names the missing capabilities.
+
+![Locked group membership](assets/capability-lock-group-users.png)
+
+!!! tip "Getting access"
+
+    These restrictions follow your own capabilities, not your seniority. To manage a role or a group you are locked out of, ask an administrator to grant you the missing capabilities listed in the message.
+
+
 
 ## Example: creating a crisis content creator role
 

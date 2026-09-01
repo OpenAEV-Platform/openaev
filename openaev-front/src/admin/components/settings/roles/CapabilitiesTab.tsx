@@ -1,11 +1,12 @@
-import { LocalPoliceOutlined } from '@mui/icons-material';
-import { Box, Checkbox, Divider } from '@mui/material';
+import { LocalPoliceOutlined, LockOutlined } from '@mui/icons-material';
+import { Box, Checkbox, Divider, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Controller, type FieldValues, type Path, useFormContext, useWatch } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type CapabilityOutput } from '../../../../utils/api-types';
+import useCapabilityGrants from '../../../../utils/hooks/useCapabilityGrants';
 
 interface CapabilitiesTabProps<T extends FieldValues> {
   capabilities: CapabilityOutput[];
@@ -17,12 +18,13 @@ interface CapabilitiesTabProps<T extends FieldValues> {
 function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fieldName, depth = 0 }: CapabilitiesTabProps<T>) {
   const { t } = useFormatter();
   const theme = useTheme();
+  const { holdsCapability } = useCapabilityGrants(capabilities);
 
   const { classes } = makeStyles()(() => ({
     capability_name: {
       display: 'flex',
       alignItems: 'center',
-      gap: 4,
+      gap: theme.spacing(0.5),
       margin: theme.spacing(1),
     },
   }))();
@@ -32,6 +34,9 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
     control,
     name: fieldName,
   }) ?? []) as string[];
+
+  const canGrantCapability = (cap: CapabilityOutput): boolean =>
+    !cap.capability_checkable || holdsCapability(cap.capability_value);
 
   // Get all children's capabilities
   const getAllChildren = (cap: CapabilityOutput): string[] => {
@@ -68,6 +73,10 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
   };
 
   const toggle = (checked: boolean, cap: CapabilityOutput, allCapabilities: CapabilityOutput[]) => {
+    if (checked && !canGrantCapability(cap)) {
+      return selected;
+    }
+
     let newSelected = [...selected];
 
     if (checked) {
@@ -91,6 +100,17 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
     return newSelected;
   };
 
+  const hasGrantableDescendant = (cap: CapabilityOutput): boolean =>
+    (cap.capability_children ?? []).some(child =>
+      (child.capability_checkable ? canGrantCapability(child) : hasGrantableDescendant(child)));
+
+  const isSelected = capability.capability_value ? selected.includes(capability.capability_value) : false;
+  // The API validates the resulting set, so an unheld capability can be revoked but never granted.
+  const isCapabilityRestricted = capability.capability_checkable
+    ? !canGrantCapability(capability)
+    : (capability.capability_children?.length ?? 0) > 0 && !hasGrantableDescendant(capability);
+  const isCapabilityDisabled = isCapabilityRestricted && !isSelected;
+
   return (
     <>
       <Box
@@ -100,16 +120,31 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
         justifyContent="space-between"
         width="100%"
         sx={{
-          backgroundColor: selected.includes(capability.capability_value)
+          backgroundColor: isSelected
             ? 'action.selected'
             : 'transparent',
           paddingRight: theme.spacing(2),
+          opacity: isCapabilityRestricted ? 0.5 : 1,
         }}
       >
-        <div className={classes.capability_name}>
+        <Box
+          className={classes.capability_name}
+          sx={{ color: isCapabilityRestricted ? 'text.disabled' : 'inherit' }}
+        >
           <LocalPoliceOutlined sx={{ opacity: capability.capability_checkable ? 1 : 0.5 }} />
           {t(capability.capability_value)}
-        </div>
+          {isCapabilityRestricted && (
+            <Tooltip title={t('The current user does not have this capability: it can only be removed, not granted')}>
+              <LockOutlined
+                sx={{
+                  ml: theme.spacing(0.5),
+                  fontSize: theme.typography.body1.fontSize,
+                  color: 'text.disabled',
+                }}
+              />
+            </Tooltip>
+          )}
+        </Box>
         {capability.capability_checkable && capability.capability_value
           && (
             <Controller
@@ -121,7 +156,8 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
                     m: 0,
                     p: 0,
                   }}
-                  checked={selected.includes(capability.capability_value)}
+                  checked={isSelected}
+                  disabled={isCapabilityDisabled}
                   onChange={e => field.onChange(toggle(e.target.checked, capability, capabilities))}
                 />
               )}

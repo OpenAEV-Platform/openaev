@@ -88,11 +88,8 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
     void given_nonReservedId_should_succeed_onCreate() throws Exception {
       // -------- Arrange --------
       RoleInput input =
-          RoleInput.builder()
-              .name("NonReservedRole-" + UUID.randomUUID())
-              .description("desc")
-              .capabilities(Set.of(Capability.ACCESS_ASSETS))
-              .build();
+          new RoleInput(
+              "NonReservedRole-" + UUID.randomUUID(), "desc", Set.of(Capability.ACCESS_ASSETS));
 
       // -------- Act & Assert --------
       mvc.perform(
@@ -121,11 +118,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
       // -------- Arrange --------
       Role reserved = persistRoleWithId(reservedServiceRoleId(), "ReservedByIdService");
       RoleInput input =
-          RoleInput.builder()
-              .name("NotReservedAnymore")
-              .description("desc")
-              .capabilities(Set.of(Capability.ACCESS_ASSETS))
-              .build();
+          new RoleInput("NotReservedAnymore", "desc", Set.of(Capability.ACCESS_ASSETS));
 
       // -------- Act & Assert --------
       mvc.perform(
@@ -144,11 +137,7 @@ public class TenantRoleReservedKeyApiTest extends IntegrationTest {
       // -------- Arrange --------
       Role reserved = persistRoleWithId(reservedStixRoleId(), "ReservedByIdStix");
       RoleInput input =
-          RoleInput.builder()
-              .name("NotReservedAnymore")
-              .description("desc")
-              .capabilities(Set.of(Capability.ACCESS_ASSETS))
-              .build();
+          new RoleInput("NotReservedAnymore", "desc", Set.of(Capability.ACCESS_ASSETS));
 
       // -------- Act & Assert --------
       mvc.perform(
