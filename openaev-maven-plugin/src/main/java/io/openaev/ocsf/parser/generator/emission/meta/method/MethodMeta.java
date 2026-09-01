@@ -45,8 +45,12 @@ public class MethodMeta implements Emitter {
   @Override
   public String emit() {
     String render =
-        this.annotations.stream().map(AnnotationMeta::emit).collect(Collectors.joining("\n"))
-            + "\n"
+        (this.annotations.isEmpty()
+                ? ""
+                : this.annotations.stream()
+                        .map(AnnotationMeta::emit)
+                        .collect(Collectors.joining("\n"))
+                    + "\n")
             + modifier.getValue()
             + " "
             + returnType
@@ -60,7 +64,7 @@ public class MethodMeta implements Emitter {
           " throws "
               + throwables.stream().map(Class::getCanonicalName).collect(Collectors.joining(", "));
     }
-    render += " {" + "\n" + Helper.indent(1, body) + "\n" + "}";
+    render += " {" + "\n" + Helper.indent(1, body.stripTrailing()) + "\n" + "}";
 
     return render;
   }

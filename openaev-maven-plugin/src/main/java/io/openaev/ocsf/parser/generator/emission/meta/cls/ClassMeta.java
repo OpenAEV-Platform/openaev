@@ -71,18 +71,18 @@ public class ClassMeta implements Emitter {
         + (this.extend != null ? " extends " + this.extend.emit() : "")
         + " {"
         + "\n"
-        + Helper.indent(
-            1,
-            this.fields.stream()
+        + (this.fields.isEmpty()
+            ? ""
+            : this.fields.stream()
                 .sorted(Comparator.comparing(FieldMeta::getName))
-                .map(FieldMeta::emit)
+                .map(f -> Helper.indent(1, f.emit()))
                 .collect(Collectors.joining("\n\n")))
         + "\n"
-        + Helper.indent(
-            1,
-            this.methods.stream()
+        + (this.methods.isEmpty()
+            ? ""
+            : this.methods.stream()
                 .sorted(Comparator.comparing(MethodMeta::getName))
-                .map(MethodMeta::emit)
+                .map(m -> Helper.indent(1, m.emit()))
                 .collect(Collectors.joining("\n\n")))
         + "\n"
         + "}\n";

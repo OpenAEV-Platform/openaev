@@ -43,7 +43,11 @@ public class FieldMeta implements Emitter {
     String render =
         (this.javadoc != null ? this.javadoc.emit() : "")
             + "\n"
-            + this.annotations.stream().map(AnnotationMeta::emit).collect(Collectors.joining("\n"))
+            + (this.annotations.isEmpty()
+                ? ""
+                : this.annotations.stream()
+                    .map(AnnotationMeta::emit)
+                    .collect(Collectors.joining("\n")))
             + "\n"
             + modifier.getValue()
             + " "
