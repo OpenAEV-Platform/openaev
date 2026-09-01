@@ -47,9 +47,12 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -58,6 +61,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,7 +78,10 @@ class CredentialApiTest extends IntegrationTest {
   @Autowired private CredentialSecretReferenceRepository credentialSecretReferenceRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private SecretsRepository secretRepository;
+  @Autowired private EntityManager entityManager;
   @MockitoBean private AwsCredentialConnectivityCheck awsCredentialConnectivityCheck;
+
+  private final List<String> committedTenantIds = new ArrayList<>();
 
   @Nested
   @DisplayName("Get Credential contract")
@@ -268,12 +275,15 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_validInput_should_createCredentialInRequestedTenant")
     void given_validInput_should_createCredentialInRequestedTenant() throws Exception {
       // Arrange
-      Tenant tenantA = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-create-a");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-create-a");
+      String tenantId = tenant.getId();
+      String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
+      String credentialName = "cred-a-" + uniqueSuffix;
 
       // Act
       CredentialInput input =
           new CredentialInput(
-              "cred-a",
+              credentialName,
               CredentialSecretReference.CREDENTIAL_TYPE.IDENTITY,
               CredentialSecretReference.CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD,
               "description-cred-a",
@@ -285,7 +295,7 @@ class CredentialApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  post(tenantCredentialsUri(tenantA.getId()))
+                  post(tenantCredentialsUri(tenantId))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input))
@@ -300,13 +310,13 @@ class CredentialApiTest extends IntegrationTest {
           credentialSecretReferenceRepository
               .findById(JsonPath.read(response, "$.credential_id"))
               .orElseThrow();
-      assertThat(credentialSecretReference.getTenant().getId()).isEqualTo(tenantA.getId());
-      assertThat(credentialSecretReference.getName()).isEqualTo("cred-a");
+      assertThat(credentialSecretReference.getTenant().getId()).isEqualTo(tenantId);
+      assertThat(credentialSecretReference.getName()).isEqualTo(credentialName);
 
       Secret secret =
           secretRepository.findById(credentialSecretReference.getLocation()).orElseThrow();
       assertThat(secret).isInstanceOf(UsernamePasswordSecret.class);
-      assertThat(secret.getTenant().getId()).isEqualTo(tenantA.getId());
+      assertThat(secret.getTenant().getId()).isEqualTo(tenantId);
       UsernamePasswordSecret usernamePasswordSecret = (UsernamePasswordSecret) secret;
       assertThat(usernamePasswordSecret.getUsername()).isEqualTo("user-a");
     }
@@ -318,8 +328,7 @@ class CredentialApiTest extends IntegrationTest {
         given_awsAccessKeyCredential_when_created_should_runConnectivityCheckAndReturnUpdatedStatus()
             throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-create-aws-ak");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-create-aws-ak");
       CredentialInput input = awsAccessKeyInput("aws-ak-create");
       when(awsCredentialConnectivityCheck.validateAccessKey(
               eq(AWS_DEFAULT_REGION), eq(AWS_ACCESS_KEY_ID), eq(AWS_SECRET_ACCESS_KEY), eq(null)))
@@ -359,8 +368,7 @@ class CredentialApiTest extends IntegrationTest {
         given_awsAssumeRoleCredential_when_created_should_runConnectivityCheckAndReturnFailureStatus()
             throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-create-aws-assume");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-create-aws-assume");
       CredentialInput input = awsAssumeRoleInput("aws-assume-create");
       when(awsCredentialConnectivityCheck.validateAssumeRole(
               eq(AWS_DEFAULT_REGION),
@@ -408,8 +416,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_hashCredentialWithoutHash_should_failCreation")
     void given_hashCredentialWithoutHash_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-post-hash-no-hash");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-post-hash-no-hash");
       CredentialInput input =
           new CredentialInput(
               "invalid-hash-missing-hash",
@@ -442,8 +449,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_hashCredentialWithoutHashAlgorithm_should_failCreation")
     void given_hashCredentialWithoutHashAlgorithm_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-post-hash-no-algo");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-post-hash-no-algo");
       CredentialInput input =
           new CredentialInput(
               "invalid-hash-missing-algo",
@@ -476,8 +482,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_usernameCredentialWithoutUsername_should_failCreation")
     void given_usernameCredentialWithoutUsername_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-post-up-no-user");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-post-up-no-user");
       CredentialInput input =
           new CredentialInput(
               "invalid-up-missing-username",
@@ -510,8 +515,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_usernameCredentialWithoutPassword_should_failCreation")
     void given_usernameCredentialWithoutPassword_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-post-up-no-pass");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-post-up-no-pass");
       CredentialInput input =
           new CredentialInput(
               "invalid-up-missing-password",
@@ -545,7 +549,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_azureServicePrincipalInput_should_createAzureServicePrincipalSecret()
         throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-sp");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-sp");
       CredentialInput input = CredentialInputFixture.azureServicePrincipalInput("azure-sp");
 
       // Act
@@ -585,7 +589,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_azureManagedIdentityInput_should_createAzureManagedIdentitySecret()
         throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-mi");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-mi");
       CredentialInput input =
           CredentialInputFixture.azureSystemAssignedManagedIdentityInput("azure-mi");
 
@@ -618,8 +622,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_azureCredentialWithoutEnvironment_should_failCreation")
     void given_azureCredentialWithoutEnvironment_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-no-env");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-no-env");
       CredentialInput input =
           CredentialInputFixture.azureInput(
               "azure-no-env",
@@ -649,8 +652,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_azureCredentialWithUnsupportedEnvironment_should_failCreation")
     void given_azureCredentialWithUnsupportedEnvironment_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-bad-env");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-bad-env");
       CredentialInput input =
           CredentialInputFixture.azureInput(
               "azure-bad-env",
@@ -680,8 +682,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_azureTypeWithAwsAuthMethod_should_failCreation")
     void given_azureTypeWithAwsAuthMethod_should_failCreation() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-bad-method");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-bad-method");
       CredentialInput input =
           CredentialInputFixture.azureInput(
               "azure-bad-method",
@@ -725,6 +726,7 @@ class CredentialApiTest extends IntegrationTest {
       initialPasswordReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
       CredentialSecretReference credentialReference =
           credentialSecretReferenceRepository.save(initialPasswordReference);
+      commitArrangeAndStartFreshTransaction();
 
       // Act
       String ownTenantResponse =
@@ -749,7 +751,7 @@ class CredentialApiTest extends IntegrationTest {
     @Test
     @DisplayName("given_azureCredential_should_returnNonSensitiveFieldsOnly")
     void given_azureCredential_should_returnNonSensitiveFieldsOnly() throws Exception { // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-get");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-get");
       String credentialId =
           JsonPath.read(
               mvc.perform(
@@ -794,7 +796,8 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_existingCredential_should_updateMetadataAndSecret")
     void given_existingCredential_should_updateMetadataAndSecret() throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-update");
+      tenantIsolationTestHelper.switchToTenantNoFlush(tenant.getId());
 
       UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
       initialSecret.setTenant(tenant);
@@ -809,6 +812,7 @@ class CredentialApiTest extends IntegrationTest {
       initialPasswordReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
       CredentialSecretReference credentialReference =
           credentialSecretReferenceRepository.save(initialPasswordReference);
+      commitArrangeAndStartFreshTransaction();
 
       CredentialInput updateInput =
           new CredentialInput(
@@ -851,8 +855,7 @@ class CredentialApiTest extends IntegrationTest {
         given_existingCredential_when_updatedToAwsAccessKey_should_runConnectivityCheckAndReturnUpdatedStatus()
             throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update-aws-ak");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-update-aws-ak");
 
       String credentialId =
           JsonPath.read(
@@ -903,7 +906,8 @@ class CredentialApiTest extends IntegrationTest {
     void given_usernameCredential_when_updatingToHash_should_replaceUsernameSecret()
         throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-update");
+      tenantIsolationTestHelper.switchToTenantNoFlush(tenant.getId());
 
       UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
       initialSecret.setTenant(tenant);
@@ -918,6 +922,7 @@ class CredentialApiTest extends IntegrationTest {
       initialPasswordReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
       CredentialSecretReference credentialReference =
           credentialSecretReferenceRepository.save(initialPasswordReference);
+      commitArrangeAndStartFreshTransaction();
 
       CredentialInput updateInput =
           new CredentialInput(
@@ -961,7 +966,8 @@ class CredentialApiTest extends IntegrationTest {
     void given_usernameCredential_when_updatingToHashWithoutHashAlgorithm_should_throwError()
         throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-update");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-update");
+      tenantIsolationTestHelper.switchToTenantNoFlush(tenant.getId());
 
       UsernamePasswordSecret initialSecret = new UsernamePasswordSecret();
       initialSecret.setTenant(tenant);
@@ -976,6 +982,7 @@ class CredentialApiTest extends IntegrationTest {
       initialPasswordReference.setConnectorInstanceId(LOCAL_SECRETS_PROVIDER_ID);
       CredentialSecretReference credentialReference =
           credentialSecretReferenceRepository.save(initialPasswordReference);
+      commitArrangeAndStartFreshTransaction();
 
       CredentialInput invalidUpdateInput =
           new CredentialInput(
@@ -1055,7 +1062,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_accessCredentials_should_allowSearch() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-search", Set.of(Capability.ACCESS_CREDENTIALS));
 
       // Act
@@ -1080,7 +1087,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_manageCredentials_should_allowCreate() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-create", Set.of(Capability.MANAGE_CREDENTIALS));
       CredentialInput input = validUsernamePasswordInput("credential-cap-create");
 
@@ -1107,7 +1114,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_manageCredentials_should_allowUpdate() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-update", Set.of(Capability.MANAGE_CREDENTIALS));
       CredentialInput input = validUsernamePasswordInput("credential-cap-update");
 
@@ -1133,7 +1140,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_accessCredentials_should_forbidUpdate() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-forbid-update", Set.of(Capability.ACCESS_CREDENTIALS));
       CredentialInput input = validUsernamePasswordInput("credential-cap-forbid-update");
 
@@ -1153,7 +1160,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_deleteCredentials_should_allowDelete() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-delete", Set.of(Capability.DELETE_CREDENTIALS));
 
       // Act
@@ -1175,7 +1182,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_unrelatedCapability_should_forbidCredentialRead() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-forbid-read", Set.of(Capability.MANAGE_ASSETS));
 
       // Act & Assert
@@ -1191,7 +1198,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_unrelatedCapability_should_forbidCredentialWrite() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-forbid-write", Set.of(Capability.MANAGE_ASSETS));
       CredentialInput input = validUsernamePasswordInput("credential-cap-forbid-write");
 
@@ -1211,7 +1218,7 @@ class CredentialApiTest extends IntegrationTest {
     void given_unrelatedCapability_should_forbidCredentialDelete() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCapabilities(
+          createCommittedTenantWithCapabilities(
               "credential-cap-forbid-delete", Set.of(Capability.MANAGE_ASSETS));
 
       // Act & Assert
@@ -1389,6 +1396,38 @@ class CredentialApiTest extends IntegrationTest {
       CredentialSecretReference saved = credentialSecretReferenceRepository.save(reference);
       return new Persisted(saved.getId(), savedSecret.getId());
     }
+  }
+
+  @AfterEach
+  void cleanupCommittedTenants() {
+    if (committedTenantIds.isEmpty()) {
+      return;
+    }
+    tenantIsolationTestHelper.deleteCommittedTenants(committedTenantIds.toArray(String[]::new));
+    committedTenantIds.clear();
+  }
+
+  private void commitArrangeAndStartFreshTransaction() {
+    entityManager.flush();
+    entityManager.clear();
+    TestTransaction.flagForCommit();
+    TestTransaction.end();
+    TestTransaction.start();
+  }
+
+  private Tenant createCommittedTenantWithCurrentUser(String name) throws Exception {
+    Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser(name);
+    committedTenantIds.add(tenant.getId());
+    commitArrangeAndStartFreshTransaction();
+    return tenant;
+  }
+
+  private Tenant createCommittedTenantWithCapabilities(String name, Set<Capability> capabilities)
+      throws Exception {
+    Tenant tenant = tenantIsolationTestHelper.createTenantWithCapabilities(name, capabilities);
+    committedTenantIds.add(tenant.getId());
+    commitArrangeAndStartFreshTransaction();
+    return tenant;
   }
 
   private record Persisted(String credentialId, String secretId) {}

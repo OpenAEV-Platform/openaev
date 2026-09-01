@@ -367,8 +367,8 @@ class SecretHandlerValidateConnectionTest {
 
       // Assert
       assertThat(result.status()).isEqualTo(UNSUPPORTED);
-      assertThat(result.wasChecked()).isTrue();
-      assertThat(result.statusToPersist()).contains(UNSUPPORTED);
+      assertThat(result.wasChecked()).isFalse();
+      assertThat(result.statusToPersist()).isEmpty();
     }
 
     @Test
@@ -382,7 +382,8 @@ class SecretHandlerValidateConnectionTest {
 
       // Assert
       assertThat(result.status()).isEqualTo(UNSUPPORTED);
-      assertThat(result.wasChecked()).isTrue();
+      assertThat(result.wasChecked()).isFalse();
+      assertThat(result.statusToPersist()).isEmpty();
     }
   }
 }

@@ -4,8 +4,8 @@ import static io.openaev.database.model.SecretReference.SECRET_STATUS.ACTIVE;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.AUTH_FAILED;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.FORMAT_ERROR;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.NETWORK_ERROR;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.PERMISSION_DENIED;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.TIMEOUT;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.UNKNOWN;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -236,9 +236,9 @@ class AzureCredentialConnectivityCheckTest {
           validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null);
 
       // Assert
-      assertThat(result.status()).isEqualTo(NETWORK_ERROR);
+      assertThat(result.status()).isEqualTo(UNKNOWN);
       assertThat(result.wasChecked()).isTrue();
-      assertThat(result.statusToPersist()).contains(NETWORK_ERROR);
+      assertThat(result.statusToPersist()).contains(UNKNOWN);
     }
 
     @Test
@@ -366,7 +366,7 @@ class AzureCredentialConnectivityCheckTest {
       SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
-      assertThat(result.status()).isEqualTo(PERMISSION_DENIED);
+      assertThat(result.status()).isEqualTo(AUTH_FAILED);
       assertThat(result.wasChecked()).isTrue();
     }
 

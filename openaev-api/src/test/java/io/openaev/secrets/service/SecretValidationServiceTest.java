@@ -344,8 +344,8 @@ class SecretValidationServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("An unsupported check result writes UNSUPPORTED and stamps the attempt")
-    void given_unsupportedOutcome_should_writeUnsupported() { // Arrange
+    @DisplayName("An unsupported check result writes nothing")
+    void given_unsupportedOutcome_should_writeNothing() { // Arrange
       CredentialSecretReference reference = seedReference(AZURE_SERVICE_PRINCIPAL, UNSET, null);
 
       // Act
@@ -354,11 +354,11 @@ class SecretValidationServiceTest extends IntegrationTest {
               Map.of(reference.getId(), SecretConnectionResult.unsupported()));
 
       // Assert
-      assertThat(updated).isEqualTo(1);
+      assertThat(updated).isZero();
       SecretReference reloaded =
           secretReferenceRepository.findById(reference.getId()).orElseThrow();
-      assertThat(reloaded.getStatus()).isEqualTo(UNSUPPORTED);
-      assertThat(reloaded.getLastVerifiedAt()).isNotNull();
+      assertThat(reloaded.getStatus()).isEqualTo(UNSET);
+      assertThat(reloaded.getLastVerifiedAt()).isNull();
     }
 
     @Test
