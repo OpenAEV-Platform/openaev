@@ -608,6 +608,7 @@
   "Chain this inject to others: a parent runs before it, children run after. Add execution conditions to branch on whether the parent succeeded or failed.": "将此注入与其他注入串联：父项先运行，子项后运行。添加执行条件以根据父项成功或失败进行分支。",
   "Chained": "Chained",
   "Chained an unauthenticated file upload into a shell on the target host.": "将未经身份验证的文件上传串联，在目标主机上获得了 shell。",
+  "Chained scenarios are not listed: their injects are driven by their workflow": "不显示链式场景：其注入由工作流驱动",
   "chaining.chaining-scenario.description": "运行全自动端到端序列，其中每个步骤都会触发下一个潜在步骤。",
   "chaining.chaining-scenario.title": "连锁方案",
   "chaining.chaining-simulation.title": "连锁模拟",

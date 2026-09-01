@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { searchScenarios, updateScenariosWithInjectorContracts } from '../../../../actions/scenarios/scenario-actions';
+import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useFormatter } from '../../../../components/i18n';
 import ItemSeverity from '../../../../components/ItemSeverity';
@@ -29,6 +30,7 @@ import {
   type ScenarioSimple,
   type ThreatArsenalAction,
 } from '../../../../utils/api-types';
+import { SCENARIO_TYPE_TIME_BASED } from '../../scenarios/scenario/ScenarioType';
 
 interface Props {
   isExclusionMode: boolean;
@@ -72,6 +74,16 @@ const ThreatArsenalScenarioUpdateComponent = ({
       page: pageToLoad,
       size: PAGE_SIZE,
       textSearch: search,
+      filterGroup: {
+        mode: 'and',
+        filters: [{
+          id: generateFilterId(),
+          key: 'scenario_type',
+          operator: 'eq',
+          mode: 'or',
+          values: [SCENARIO_TYPE_TIME_BASED],
+        }],
+      },
       sorts: [{
         property: 'scenario_updated_at',
         direction: 'DESC',
@@ -148,6 +160,9 @@ const ThreatArsenalScenarioUpdateComponent = ({
       >
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
           {t('Select the scenarios that will receive the selected actions')}
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+          {t('Chained scenarios are not listed: their injects are driven by their workflow')}
         </Typography>
 
         <TextField
