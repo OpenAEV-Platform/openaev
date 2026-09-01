@@ -1,6 +1,10 @@
 package io.openaev.secrets.provider.impl.validators;
 
-import static io.openaev.secrets.provider.SecretConnectionDetails.*;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.ACTIVE;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.FORMAT_ERROR;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.NETWORK_ERROR;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.PERMISSION_DENIED;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.TIMEOUT;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -14,7 +18,6 @@ import com.azure.core.http.HttpResponse;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
 import io.openaev.secrets.provider.SecretConnectionResult;
-import io.openaev.secrets.provider.SecretConnectionResult.OUTCOME;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.concurrent.TimeoutException;
@@ -98,9 +101,9 @@ class AzureCredentialConnectivityCheckTest {
               AZURE_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(OUTCOME.ACTIVE);
-      assertThat(result.statusToPersist())
-          .contains(io.openaev.database.model.SecretReference.SECRET_STATUS.ACTIVE);
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      assertThat(result.wasChecked()).isTrue();
+      assertThat(result.statusToPersist()).contains(ACTIVE);
     }
 
     @Test
@@ -133,8 +136,8 @@ class AzureCredentialConnectivityCheckTest {
               UNSUPPORTED_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(OUTCOME.UNKNOWN);
-      assertThat(result.detail()).isEqualTo(INVALID_CONFIGURATION);
+      assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(result.wasChecked()).isTrue();
       verifyNoInteractions(tokenCredentialFactory);
     }
 
@@ -149,8 +152,8 @@ class AzureCredentialConnectivityCheckTest {
               environment, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, null);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(OUTCOME.UNKNOWN);
-      assertThat(result.detail()).isEqualTo(INVALID_CONFIGURATION);
+      assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(result.wasChecked()).isTrue();
       verifyNoInteractions(tokenCredentialFactory);
     }
 
@@ -170,9 +173,12 @@ class AzureCredentialConnectivityCheckTest {
               AZURE_ENVIRONMENT, AZURE_TENANT_ID, AZURE_CLIENT_ID, missing, null);
 
       // Assert
-      assertThat(missingTenant.detail()).isEqualTo(INVALID_CONFIGURATION);
-      assertThat(missingClient.detail()).isEqualTo(INVALID_CONFIGURATION);
-      assertThat(missingSecret.detail()).isEqualTo(INVALID_CONFIGURATION);
+      assertThat(missingTenant.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(missingClient.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(missingSecret.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(missingTenant.wasChecked()).isTrue();
+      assertThat(missingClient.wasChecked()).isTrue();
+      assertThat(missingSecret.wasChecked()).isTrue();
       verifyNoInteractions(tokenCredentialFactory);
     }
   }
@@ -193,7 +199,8 @@ class AzureCredentialConnectivityCheckTest {
           validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(OUTCOME.ACTIVE);
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      assertThat(result.wasChecked()).isTrue();
       verify(tokenCredentialFactory).forManagedIdentity(isNull());
     }
 
@@ -210,7 +217,8 @@ class AzureCredentialConnectivityCheckTest {
           validator.validateManagedIdentity(AZURE_ENVIRONMENT, AZURE_CLIENT_ID, null);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(OUTCOME.ACTIVE);
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      assertThat(result.wasChecked()).isTrue();
       verify(tokenCredentialFactory).forManagedIdentity(eq(AZURE_CLIENT_ID));
     }
 
@@ -227,9 +235,9 @@ class AzureCredentialConnectivityCheckTest {
           validator.validateManagedIdentity(AZURE_ENVIRONMENT, null, null);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(OUTCOME.UNKNOWN);
-      assertThat(result.detail()).isEqualTo(UNREACHABLE);
-      assertThat(result.statusToPersist()).isEmpty();
+      assertThat(result.status()).isEqualTo(NETWORK_ERROR);
+      assertThat(result.wasChecked()).isTrue();
+      assertThat(result.statusToPersist()).contains(NETWORK_ERROR);
     }
 
     @Test
@@ -240,7 +248,8 @@ class AzureCredentialConnectivityCheckTest {
           validator.validateManagedIdentity(UNSUPPORTED_ENVIRONMENT, null, null);
 
       // Assert
-      assertThat(result.detail()).isEqualTo(INVALID_CONFIGURATION);
+      assertThat(result.status()).isEqualTo(FORMAT_ERROR);
+      assertThat(result.wasChecked()).isTrue();
       verifyNoInteractions(tokenCredentialFactory);
     }
   }
@@ -266,10 +275,9 @@ class AzureCredentialConnectivityCheckTest {
       SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(OUTCOME.INACTIVE);
-      assertThat(result.detail()).isEqualTo(AUTH_REJECTED);
-      assertThat(result.statusToPersist())
-          .contains(io.openaev.database.model.SecretReference.SECRET_STATUS.INACTIVE);
+      assertThat(result.status()).isEqualTo(PERMISSION_DENIED);
+      assertThat(result.wasChecked()).isTrue();
+      assertThat(result.statusToPersist()).contains(PERMISSION_DENIED);
     }
 
     @Test
@@ -282,9 +290,9 @@ class AzureCredentialConnectivityCheckTest {
       SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(OUTCOME.UNKNOWN);
-      assertThat(result.detail()).isEqualTo(THROTTLED);
-      assertThat(result.statusToPersist()).isEmpty();
+      assertThat(result.status()).isEqualTo(NETWORK_ERROR);
+      assertThat(result.wasChecked()).isTrue();
+      assertThat(result.statusToPersist()).contains(NETWORK_ERROR);
     }
 
     @Test
@@ -297,8 +305,8 @@ class AzureCredentialConnectivityCheckTest {
       SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(OUTCOME.UNKNOWN);
-      assertThat(result.detail()).isEqualTo(UNREACHABLE);
+      assertThat(result.status()).isEqualTo(NETWORK_ERROR);
+      assertThat(result.wasChecked()).isTrue();
     }
 
     @Test
@@ -311,8 +319,8 @@ class AzureCredentialConnectivityCheckTest {
       SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(OUTCOME.UNKNOWN);
-      assertThat(result.detail()).isEqualTo(TIMEOUT);
+      assertThat(result.status()).isEqualTo(TIMEOUT);
+      assertThat(result.wasChecked()).isTrue();
     }
 
     @Test
@@ -327,8 +335,8 @@ class AzureCredentialConnectivityCheckTest {
       SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(OUTCOME.UNKNOWN);
-      assertThat(result.detail()).isEqualTo(TIMEOUT);
+      assertThat(result.status()).isEqualTo(TIMEOUT);
+      assertThat(result.wasChecked()).isTrue();
     }
 
     @Test
@@ -341,8 +349,8 @@ class AzureCredentialConnectivityCheckTest {
       SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(OUTCOME.UNKNOWN);
-      assertThat(result.detail()).isEqualTo(UNREACHABLE);
+      assertThat(result.status()).isEqualTo(NETWORK_ERROR);
+      assertThat(result.wasChecked()).isTrue();
     }
 
     @Test
@@ -357,7 +365,8 @@ class AzureCredentialConnectivityCheckTest {
       SecretConnectionResult result = validateServicePrincipal();
 
       // Assert
-      assertThat(result.detail()).isEqualTo(AUTH_REJECTED).doesNotContain(AZURE_CLIENT_SECRET);
+      assertThat(result.status()).isEqualTo(PERMISSION_DENIED);
+      assertThat(result.wasChecked()).isTrue();
     }
 
     private SecretConnectionResult validateServicePrincipal() {
