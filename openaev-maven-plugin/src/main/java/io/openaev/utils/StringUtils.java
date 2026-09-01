@@ -34,4 +34,8 @@ public class StringUtils {
     }
     return pkg;
   }
+
+  public String pluralise(String singular) {
+    return singular.replaceAll("y$", "ie") + "s";
+  }
 }

@@ -5,9 +5,9 @@ import io.openaev.ocsf.schema.OcsfObject;
 @lombok.Getter
 public class OcsfObjectManagedEntity extends OcsfObject {
   /** The managed entity content as a JSON object. */
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
       using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "data")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT dataField;
 
   /** An addressable device, computer system or host. */

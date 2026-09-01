@@ -81,9 +81,9 @@ public class OcsfObjectScim extends OcsfObject {
    * <code>urn:ietf:params:scim:schemas:core:2.0:Group</code> as defined in RFC 7634. This attribute
    * will capture key-value pairs for the scheme implemented in a SCIM resource.
    */
-  @com.fasterxml.jackson.annotation.JsonProperty(value = "scim_group_schema")
   @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
       using = io.openaev.ocsf.schema.v190.ObjectNodeDeserialiser.class)
+  @com.fasterxml.jackson.annotation.JsonProperty(value = "scim_group_schema")
   private io.openaev.ocsf.schema.v190.datatypes.OcsfDatatypeJsonT scimGroupSchemaField;
 
   /**

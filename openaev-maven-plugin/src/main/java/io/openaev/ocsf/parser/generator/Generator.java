@@ -12,6 +12,7 @@ import io.openaev.ocsf.parser.generator.emission.ObjectClassGenerator;
 import io.openaev.ocsf.parser.generator.utility.ObjectNodeDeserialiserEmitter;
 import io.openaev.ocsf.parser.generator.utility.OcsfClassUidEmitter;
 import io.openaev.ocsf.parser.generator.utility.OcsfConverterEmitter;
+import io.openaev.ocsf.parser.generator.utility.OcsfFilterEmitter;
 import io.openaev.ocsf.parser.schema.SchemaSource;
 import io.openaev.ocsf.parser.schema.source.ReferentialSource;
 import io.openaev.ocsf.parser.schema.source.Source;
@@ -139,5 +140,13 @@ public class Generator {
             .toString(),
         "ObjectNodeDeserialiser",
         new ObjectNodeDeserialiserEmitter(helperClassPackage, tracker.get("json_t")).emit());
+
+    classFileWriter.overwrite(
+        pluginContext
+            .getRootOpenAEVAPISourceDirectory()
+            .resolve(stringUtils.packageToPath(helperClassPackage))
+            .toString(),
+        "OcsfFilter",
+        new OcsfFilterEmitter(tracker, helperClassPackage).emit());
   }
 }
