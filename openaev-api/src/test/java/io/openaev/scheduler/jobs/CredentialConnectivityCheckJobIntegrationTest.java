@@ -1,6 +1,7 @@
 package io.openaev.scheduler.jobs;
 
 import static io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.UNKNOWN;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.UNSET;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
 import static org.junit.jupiter.api.Assertions.*;
@@ -155,8 +156,8 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
       // precisely the "transient failure must not flip a credential" contract, observed end to end.
       assertNotNull(lastVerifiedAt(referenceA), "tenant A's credential was verified");
       assertNotNull(lastVerifiedAt(referenceB), "tenant B's credential was verified");
-      assertEquals(UNSET.name(), status(referenceA), "an inconclusive probe keeps the status");
-      assertEquals(UNSET.name(), status(referenceB), "an inconclusive probe keeps the status");
+      assertEquals(UNKNOWN.name(), status(referenceA), "an inconclusive probe keeps the status");
+      assertEquals(UNKNOWN.name(), status(referenceB), "an inconclusive probe keeps the status");
     }
 
     @Test
