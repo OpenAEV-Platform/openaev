@@ -12,7 +12,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Data;
-import org.springframework.beans.BeanUtils;
 
 @Data
 public class ScenarioSimple {
@@ -31,9 +30,17 @@ public class ScenarioSimple {
   @JsonProperty("scenario_tags")
   private Set<Tag> tags = new HashSet<>();
 
+  /**
+   * Builds the DTO from a managed entity. Must be called inside the transaction that loaded the
+   * scenario: the tag set is copied into a detached {@link HashSet} so the DTO carries no lazy
+   * Hibernate collection once serialization happens outside the session.
+   */
   public static ScenarioSimple fromScenario(@NotNull final Scenario scenario) {
     ScenarioSimple simple = new ScenarioSimple();
-    BeanUtils.copyProperties(scenario, simple);
+    simple.setId(scenario.getId());
+    simple.setName(scenario.getName());
+    simple.setSubtitle(scenario.getSubtitle());
+    simple.setTags(new HashSet<>(scenario.getTags()));
     return simple;
   }
 

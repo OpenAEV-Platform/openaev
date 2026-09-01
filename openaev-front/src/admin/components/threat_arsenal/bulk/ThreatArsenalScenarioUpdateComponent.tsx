@@ -25,8 +25,8 @@ import {
   type InjectorContractSearchPaginationInput,
   type PageRawPaginationScenario,
   type RawPaginationScenario,
-  type Scenario,
   type ScenarioIdsAndInjectorContractsInputs,
+  type ScenarioSimple,
   type ThreatArsenalAction,
 } from '../../../../utils/api-types';
 
@@ -132,7 +132,7 @@ const ThreatArsenalScenarioUpdateComponent = ({
         injector_contract_ids_to_ignore: isExclusionMode ? Object.keys(deSelectedElements) : [],
       },
     };
-    updateScenariosWithInjectorContracts(inputs).then((result: AxiosResponse<Scenario[]>) => {
+    updateScenariosWithInjectorContracts(inputs).then((result: AxiosResponse<ScenarioSimple[]>) => {
       navigate(`/admin/scenarios/${result.data[0].scenario_id}/injects`);
     }).finally(() => setSubmitting(false));
   };
