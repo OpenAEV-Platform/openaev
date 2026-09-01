@@ -452,7 +452,8 @@ public class CredentialService {
    * @return created credential reference
    */
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
-  public CredentialOutput createCredential(CredentialInput input, String tenantId, byte[] gcpPrivateKeyJson) {
+  public CredentialOutput createCredential(
+      CredentialInput input, String tenantId, byte[] gcpPrivateKeyJson) {
     SecretsProvider provider = secretsProviderResolver.resolveLocalProvider(tenantId);
 
     // Build Credential Reference
@@ -465,7 +466,9 @@ public class CredentialService {
             TxCtx.forTenant(tenantId),
             () ->
                 (CredentialSecretReference)
-                    provider.store(credential, convertCredentialInputToSecretStoreRequest(input), gcpPrivateKeyJson));
+                    provider.store(
+                        credential,
+                        convertCredentialInputToSecretStoreRequest(input, gcpPrivateKeyJson)));
 
     // Phase 2 — validate connectivity after write, in a separate transaction to avoid any rollback
     // of the credential creation
@@ -507,7 +510,8 @@ public class CredentialService {
               CredentialSecretReference updatedCredential =
                   (CredentialSecretReference)
                       secretProvider.update(
-                          credential, convertCredentialInputToSecretStoreRequest(input, gcpPrivateKeyJson));
+                          credential,
+                          convertCredentialInputToSecretStoreRequest(input, gcpPrivateKeyJson));
               return new UpdatedCredentialContext(updatedCredential, secretProvider);
             });
 

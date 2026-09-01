@@ -34,14 +34,14 @@ public record SecretMetadata(
 
   public static SecretMetadata empty() {
     return new SecretMetadata(
-        null, null, null, null, false, null, null, null, null, null, null, null, null, null, false, null,
-        false, false);
+        null, null, null, null, false, null, null, null, null, null, null, null, null, null, false,
+        null, false, false);
   }
 
   public static SecretMetadata forUsername(String username) {
     return new SecretMetadata(
-        username, null, null, null, false, null,null, null, null, null, null, null, null, null, false,
-        null, false, false);
+        username, null, null, null, false, null, null, null, null, null, null, null, null, null,
+        false, null, false, false);
   }
 
   public static SecretMetadata forHashAlgorithm(HashSecret.HASH_ALGORITHM hashAlgorithm) {
@@ -74,6 +74,7 @@ public record SecretMetadata(
         awsDefaultRegion,
         awsAccessKeyId,
         awsSessionTokenPresent,
+        null,
         null,
         null,
         null,
