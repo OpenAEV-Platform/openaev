@@ -30,7 +30,12 @@ set -euo pipefail
 
 OPENAEV_URL="${OPENAEV_URL:-http://localhost:8080}"
 TOKEN="${TOKEN:-5ccddea0-613c-4a91-a602-6a4eb243d21c}"
-TENANT="${TENANT:-801b2e9e-9407-405f-9c61-21200c500311}"
+# Resolved from the database rather than hardcoded: a dev stack rebuilt from
+# scratch gets a fresh tenant id, and a stale literal here fails as
+# TENANT_ACCESS_DENIED - which used to surface as an opaque Python KeyError.
+# Override TENANT to pin a specific one.
+TENANT="${TENANT:-$(docker exec openaev-dev-pgsql psql -U openaev -d openaev -tA \
+  -c "select tenant_id from tenants order by tenant_created_at limit 1" | tr -d '[:space:]')}"
 # The vite dev server (`yarn start` in openaev-front, port 3001) is the default
 # because it always matches the working tree. :8080 also serves a UI, but only
 # whatever was last copied into openaev-front/builder/prod/build - which can be
@@ -78,10 +83,24 @@ jqr() { python3 -c "import sys,json;d=json.load(sys.stdin);print($1)"; }
 
 # --------------------------------------------------------------------------
 say "0. Resolving the seeded marking definitions"
+echo "  tenant = ${TENANT}"
+
+[ -n "$TENANT" ] || { echo "  ERROR: could not resolve a tenant id (is the dev stack up?)" >&2; exit 1; }
 
 markings="$(curl -s "${admin[@]}" -X POST \
   "${OPENAEV_URL}/api/tenants/${TENANT}/marking-definitions/search" \
   -d '{"page":0,"size":50,"sorts":[{"property":"marking_order","direction":"asc"}]}')"
+
+# Fail with the server's own message rather than letting the JSON parse below
+# blow up on an error payload - TENANT_ACCESS_DENIED used to surface as a bare
+# KeyError: 'content', which says nothing about the actual cause.
+case "$markings" in
+  *'"content"'*) ;;
+  *) echo "  ERROR: marking-definitions/search did not return a page:" >&2
+     echo "         ${markings}" >&2
+     echo "         check OPENAEV_URL, TOKEN and TENANT." >&2
+     exit 1 ;;
+esac
 
 pick() { echo "$markings" | python3 -c "
 import sys,json
