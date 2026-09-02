@@ -3605,6 +3605,7 @@
   "The deployment from this catalog requires an Enterprise Edition license.": "このカタログからのデプロイには Enterprise Edition のライセンスが必要です。",
   "The document is used in the following sections:": "ドキュメントは以下のセクションで使用されます：",
   "The element already exists": "その要素はすでに存在する",
+  "The element has been successfully created": "要素が正常に作成されました",
   "The element has been successfully deleted": "要素の削除に成功した",
   "The element has been successfully updated": "要素は正常に更新された",
   "The element has been updated": "要素は更新されました。",

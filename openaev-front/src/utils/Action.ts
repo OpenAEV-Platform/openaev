@@ -178,7 +178,7 @@ export const postReferential = (schema: Schema | null, uri: string, data: unknow
         payload: response.data,
       });
       if (defaultSuccessBehavior) {
-        notifySuccess('The element has been successfully updated');
+        notifySuccess('The element has been successfully created');
       }
       return response.data;
     })
