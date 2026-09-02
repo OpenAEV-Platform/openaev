@@ -1,11 +1,14 @@
 package io.openaev.rest.kill_chain_phase.service;
 
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.KillChainPhase;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.helper.StreamHelper;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseUtils;
 import io.openaev.rest.kill_chain_phase.form.KillChainPhaseCreateInput;
-import java.time.Instant;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -13,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class KillChainPhaseService {
 
   private final KillChainPhaseRepository killChainPhaseRepository;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   /**
    * Upserts a batch of kill chain phases.
@@ -37,7 +42,9 @@ public class KillChainPhaseService {
    * rolled back and the endpoint retries once in a fresh transaction.
    */
   @Transactional(rollbackFor = Exception.class)
-  public List<KillChainPhase> upsertKillChainPhases(List<KillChainPhaseCreateInput> inputs) {
+  public List<KillChainPhase> upsertKillChainPhases(
+      TxCtx ctx, List<KillChainPhaseCreateInput> inputs) {
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
     // In-batch de-duplication tracks pending entities under BOTH unique keys the database
     // enforces (STIX id and natural key). Keying on a single one is not enough: the same phase
     // can appear once with a STIX id and once without, or two entries can share a STIX id under
@@ -53,9 +60,9 @@ public class KillChainPhaseService {
         phase = byStixId.get(stixId);
       }
       if (phase == null) {
-        phase = resolveExisting(input).orElseGet(KillChainPhase::new);
+        phase = resolveExisting(input, writeTenant).orElseGet(KillChainPhase::new);
       }
-      apply(phase, input);
+      apply(phase, input, writeTenant);
       byNaturalKey.put(naturalKey, phase);
       if (stixId != null) {
         byStixId.put(stixId, phase);
@@ -69,6 +76,25 @@ public class KillChainPhaseService {
     return StreamHelper.fromIterable(killChainPhaseRepository.saveAll(phases));
   }
 
+  public Map<String, List<String>> phaseIdsByAttackPatternId(Collection<String> attackPatternIds) {
+    if (attackPatternIds.isEmpty()) {
+      return Map.of();
+    }
+    return killChainPhaseRepository.findPhaseIdsByAttackPatternIds(attackPatternIds).stream()
+        .collect(
+            Collectors.groupingBy(
+                row -> (String) row[0],
+                Collectors.mapping(row -> (String) row[1], Collectors.toList())));
+  }
+
+  public KillChainPhase resolveOrCreateForImport(String writeTenant, KillChainPhase candidate) {
+    return killChainPhaseRepository
+        .findAllByExternalIdInIgnoreCaseAndTenantId(List.of(candidate.getExternalId()), writeTenant)
+        .stream()
+        .findFirst()
+        .orElseGet(() -> killChainPhaseRepository.save(candidate));
+  }
+
   private String naturalKey(KillChainPhaseCreateInput input) {
     return input.getKillChainName() + "|" + input.getShortName();
   }
@@ -77,20 +103,25 @@ public class KillChainPhaseService {
     return input.getStixId() != null && !input.getStixId().isBlank() ? input.getStixId() : null;
   }
 
-  private Optional<KillChainPhase> resolveExisting(KillChainPhaseCreateInput input) {
+  private Optional<KillChainPhase> resolveExisting(
+      KillChainPhaseCreateInput input, String writeTenant) {
     String stixId = normalizedStixId(input);
     if (stixId != null) {
-      Optional<KillChainPhase> byStixId = killChainPhaseRepository.findByStixId(stixId);
+      Optional<KillChainPhase> byStixId =
+          killChainPhaseRepository.findByStixIdAndTenantId(stixId, writeTenant);
       if (byStixId.isPresent()) {
         return byStixId;
       }
     }
-    return killChainPhaseRepository.findByKillChainNameAndShortName(
-        input.getKillChainName(), input.getShortName());
+    return killChainPhaseRepository.findByKillChainNameAndShortNameAndTenantId(
+        input.getKillChainName(), input.getShortName(), writeTenant);
   }
 
-  private void apply(KillChainPhase phase, KillChainPhaseCreateInput input) {
+  private void apply(KillChainPhase phase, KillChainPhaseCreateInput input, String writeTenant) {
     boolean isNew = phase.getId() == null;
+    if (isNew) {
+      phase.setTenant(new Tenant(writeTenant));
+    }
     phase.setKillChainName(input.getKillChainName());
     // Never clobber a known STIX id with null: entries without a STIX id can target the same
     // phase as entries with one, and the STIX id is part of the database unique key.
@@ -111,8 +142,6 @@ public class KillChainPhaseService {
           inputOrder != null && inputOrder != 0L
               ? inputOrder
               : KillChainPhaseUtils.orderFor(input.getKillChainName(), input.getShortName()));
-    } else {
-      phase.setUpdatedAt(Instant.now());
     }
   }
 }

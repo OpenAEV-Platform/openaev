@@ -5,6 +5,7 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Exercise;
@@ -51,6 +52,7 @@ public class ImportService {
   }
 
   private ImportResult handleDataImport(
+      TxCtx ctx,
       InputStream inputStream,
       Map<String, ImportEntry> docReferences,
       Exercise exercise,
@@ -64,7 +66,7 @@ public class ImportService {
       Importer importer = dataImporters.get(importVersion);
       if (importer != null) {
         return importer.importData(
-            importNode, docReferences, exercise, scenario, asset, assetGroup, suffix);
+            ctx, importNode, docReferences, exercise, scenario, asset, assetGroup, suffix);
       } else {
         throw new ImportException("Export with version " + importVersion + " is not supported");
       }
@@ -74,9 +76,10 @@ public class ImportService {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public ImportResult handleFileImport(MultipartFile file, Exercise exercise, Scenario scenario)
-      throws Exception {
+  public ImportResult handleFileImport(
+      TxCtx ctx, MultipartFile file, Exercise exercise, Scenario scenario) throws Exception {
     return handleInputStreamImport(
+        ctx,
         file.getInputStream(),
         exercise,
         scenario,
@@ -87,6 +90,7 @@ public class ImportService {
 
   @Transactional(rollbackFor = Exception.class)
   public ImportResult handleInputStreamFileImport(
+      TxCtx ctx,
       InputStream is,
       Exercise exercise,
       Scenario scenario,
@@ -94,10 +98,11 @@ public class ImportService {
       AssetGroup assetGroup,
       String suffix)
       throws Exception {
-    return handleInputStreamImport(is, exercise, scenario, asset, assetGroup, suffix);
+    return handleInputStreamImport(ctx, is, exercise, scenario, asset, assetGroup, suffix);
   }
 
   private ImportResult handleInputStreamImport(
+      TxCtx ctx,
       InputStream is,
       Exercise exercise,
       Scenario scenario,
@@ -254,7 +259,7 @@ public class ImportService {
       for (InputStream dataStream : dataImports) {
         ImportResult result =
             handleDataImport(
-                dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix);
+                ctx, dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix);
         aggregatedMissingActions.addAll(result.missingActions());
       }
       return new ImportResult(aggregatedMissingActions);

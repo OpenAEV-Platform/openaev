@@ -2,6 +2,7 @@ package io.openaev.processor.datapack;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.DataPackService;
@@ -61,7 +62,7 @@ public class V20260805_Observer_and_manager_users extends DataPack {
   }
 
   @Override
-  protected boolean doProcess() {
+  protected boolean doProcess(Tenant tenant) {
     String password = resolveUserPassword();
     ensureRolesAndGroups();
     createUserInGroup(OBSERVER_EMAIL, "Test", "Observer", "Observer", password);

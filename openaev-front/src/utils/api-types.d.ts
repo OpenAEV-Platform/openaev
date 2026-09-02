@@ -1253,6 +1253,35 @@ export interface AttackPatternCreateInput {
   attack_pattern_stix_id?: string;
 }
 
+/** Attack pattern as returned by the read endpoints */
+export interface AttackPatternOutput {
+  /**
+   * Creation date
+   * @format date-time
+   */
+  attack_pattern_created_at?: string;
+  /** Description of the attack pattern */
+  attack_pattern_description?: string;
+  /** External id, e.g. the MITRE technique id */
+  attack_pattern_external_id?: string;
+  /** Id of the attack pattern */
+  attack_pattern_id?: string;
+  attack_pattern_kill_chain_phases?: string[];
+  /** Name of the attack pattern */
+  attack_pattern_name?: string;
+  /** Id of the parent attack pattern */
+  attack_pattern_parent?: string;
+  attack_pattern_permissions_required?: string[];
+  attack_pattern_platforms?: string[];
+  /** STIX id */
+  attack_pattern_stix_id?: string;
+  /**
+   * Last update date
+   * @format date-time
+   */
+  attack_pattern_updated_at?: string;
+}
+
 export interface AttackPatternSimple {
   /** @minLength 1 */
   attack_pattern_external_id: string;
@@ -1325,6 +1354,12 @@ export interface AutonomousAttackPathStepState {
 export interface AutonomousConvertToManualInput {
   /** DUPLICATE creates a new manual chained scenario from a copy and leaves the AI run untouched; IN_PLACE turns this scenario manual for good (irreversible). */
   mode: "DUPLICATE" | "IN_PLACE";
+}
+
+/** Identifier of the scenario resulting from the conversion */
+export interface AutonomousConvertToManualOutput {
+  /** Id of the resulting manual scenario. */
+  scenario_id?: string;
 }
 
 /** Tenant default additional agents for autonomous runs */
@@ -8237,8 +8272,8 @@ export interface PageAssetOutput {
   totalPages?: number;
 }
 
-export interface PageAttackPattern {
-  content?: AttackPattern[];
+export interface PageAttackPatternOutput {
+  content?: AttackPatternOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;

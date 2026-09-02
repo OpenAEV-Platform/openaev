@@ -1,6 +1,7 @@
 package io.openaev.processor.datapack;
 
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.jsonapi.JsonApiDocument;
@@ -87,7 +88,7 @@ public class V20260101_Starter_pack extends DataPack {
   private final ResourcePatternResolver resolver;
 
   @Override
-  protected boolean doProcess() {
+  protected boolean doProcess(Tenant tenant) {
     // early break for when the starter pack was already run
     if (!isStarterPackEnabled) {
       log.info("Starter pack is disabled by configuration");
@@ -133,7 +134,7 @@ public class V20260101_Starter_pack extends DataPack {
           new ArrayList<>(List.of(allEndpointAssetGroup.getId())),
           TenantContext.getCurrentTenant());
 
-      this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
+      this.importScenariosFromResources(tenant.getId(), honeyScanMeEndpoint, allEndpointAssetGroup);
       this.importDashboardsFromResources();
       return true;
     } catch (Exception e) {
@@ -172,13 +173,19 @@ public class V20260101_Starter_pack extends DataPack {
     return this.assetGroupService.createAssetGroup(allEndpointsAssetGroup);
   }
 
-  private void importScenariosFromResources(Asset asset, AssetGroup assetGroup) {
+  private void importScenariosFromResources(String tenantId, Asset asset, AssetGroup assetGroup) {
     listFilesInResourceFolder(Config.SCENARIOS_FOLDER_NAME)
         .forEach(
             resourceToAdd -> {
               try {
                 this.importService.handleInputStreamFileImport(
-                    resourceToAdd.getInputStream(), null, null, asset, assetGroup, "");
+                    TxCtx.forTenant(tenantId),
+                    resourceToAdd.getInputStream(),
+                    null,
+                    null,
+                    asset,
+                    assetGroup,
+                    "");
                 log.info(
                     "Successfully imported StarterPack scenario file : {}",
                     resourceToAdd.getFilename());

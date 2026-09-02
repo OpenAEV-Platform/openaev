@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.dashboard.dto.AdHocWidgetInput;
 import io.openaev.api.dashboard.dto.AdHocWidgetToEntitiesInput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.engine.model.EsSearch;
@@ -101,6 +102,7 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public List<EsAttackPath> attackPaths(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {

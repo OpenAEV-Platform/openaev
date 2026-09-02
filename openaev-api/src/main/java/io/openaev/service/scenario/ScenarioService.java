@@ -54,6 +54,7 @@ import io.openaev.rest.exercise.form.ExerciseSimple;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.openaev.rest.scenario.export.ScenarioFileExport;
 import io.openaev.rest.scenario.form.ScenarioBulkProcessingInput;
@@ -186,10 +187,7 @@ public class ScenarioService {
 
   @Transactional
   public ScenarioSimple createScenarioWithInjectorContracts(
-      // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for this transaction (the arsenal selection resolves injector contracts and their linked
-      // injector, both v2 tenant-scoped through the injectors table).
-      TxCtx ctx,
+      final TxCtx ctx,
       @NotBlank final String tenantId,
       @NotNull final ScenarioInput scenarioInput,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
@@ -198,20 +196,21 @@ public class ScenarioService {
     Scenario scenario = computeAndCreateScenario(preparedScenario);
     this.injectService.createInjectsFromInjectorContractInput(
         null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
+    KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
     return ScenarioSimple.fromScenario(scenario);
   }
 
   @Transactional
   public List<ScenarioSimple> updateScenariosWithInjectorContracts(
-      // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for this transaction (same reason as createScenarioWithInjectorContracts above).
-      TxCtx ctx,
+      final TxCtx ctx,
       @NotNull final List<String> scenarioIds,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
     List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
     this.injectService.createInjectsFromInjectorContractInput(
         null, scenarios, injectorContractSearchPaginationInput, locale);
+    scenarios.forEach(
+        scenario -> KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects()));
     return scenarios.stream().map(ScenarioSimple::fromScenario).toList();
   }
 

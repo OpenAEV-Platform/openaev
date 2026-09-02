@@ -4,6 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.CweRepository;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.UserRepository;
@@ -45,7 +46,7 @@ public class V20260330_Default_tenant_data extends DataPack {
   }
 
   @Override
-  public boolean doProcess() {
+  public boolean doProcess(Tenant tenant) {
     try {
       if (!Tenant.DEFAULT_TENANT_UUID.equals(TenantContext.getCurrentTenant())) {
         // Init vulnerabilities

@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -363,7 +364,8 @@ class InjectServiceTest {
     when(injectRepository.saveAll(expectedUpdatedInjects)).thenReturn(expectedUpdatedInjects);
 
     // Act
-    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);
@@ -440,7 +442,8 @@ class InjectServiceTest {
     when(injectRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     // Act
-    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);
@@ -505,7 +508,8 @@ class InjectServiceTest {
     when(injectRepository.saveAll(injectsToUpdate)).thenReturn(injectsToUpdate);
 
     // Act
-    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);
@@ -545,7 +549,8 @@ class InjectServiceTest {
     when(injectRepository.saveAll(expectedUpdatedInjects)).thenReturn(expectedUpdatedInjects);
 
     // Act
-    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);

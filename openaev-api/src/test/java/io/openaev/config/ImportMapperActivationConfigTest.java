@@ -113,4 +113,20 @@ class ImportMapperActivationConfigTest {
             + active
             + "'");
   }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains kill_chain_phases")
+  void prodConfigActivatesKillChainPhases() throws Exception {
+    Properties props = new Properties();
+    try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
+      props.load(in);
+    }
+    String active = props.getProperty("openaev.tenant.active-tables", "");
+    assertTrue(
+        active.contains("kill_chain_phases"),
+        "kill_chain_phases must stay in openaev.tenant.active-tables: its v1 @Filter was removed, so"
+            + " dropping it would leave the table with no tenant isolation. Found: '"
+            + active
+            + "'");
+  }
 }

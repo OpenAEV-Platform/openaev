@@ -14,7 +14,7 @@ import org.hibernate.Session;
 @Slf4j
 /**
  * Base class for tenant-scoped data packs (initial/seed data). Subclasses implement {@link
- * #doProcess()} which is executed exactly once per tenant (idempotency tracked via {@link
+ * #doProcess(Tenant)} which is executed exactly once per tenant (idempotency tracked via {@link
  * DataPackService}).
  *
  * <p>Implementations must follow the {@code V{YYYYMMDD}_Description} naming convention to ensure
@@ -24,8 +24,8 @@ import org.hibernate.Session;
  * <p>Deliberately NOT {@code @Transactional}: this class is background code, driven by {@link
  * io.openaev.processor.MigrationProcessor MigrationProcessor}, which opens the single tenant-scoped
  * transaction (via {@code TenantScopedTransaction.execute}) around the whole {@link
- * #process(Tenant)} call, idempotency check included. A subclass's {@link #doProcess()} must NOT
- * open its own transaction/scope (no {@code @Transactional}, no {@code TenantScopedTransaction}
+ * #process(Tenant)} call, idempotency check included. A subclass's {@link #doProcess(Tenant)} must
+ * NOT open its own transaction/scope (no {@code @Transactional}, no {@code TenantScopedTransaction}
  * call) — it runs inside the caller's transaction and inherits its scope automatically.
  */
 public abstract class DataPack implements Processable {
@@ -37,7 +37,7 @@ public abstract class DataPack implements Processable {
     this.dataPackService = dataPackService;
   }
 
-  protected abstract boolean doProcess();
+  protected abstract boolean doProcess(Tenant tenant);
 
   /**
    * Enables the v1 Hibernate {@code tenantFilter} for the current tenant. Call this explicitly,
@@ -67,7 +67,7 @@ public abstract class DataPack implements Processable {
         .orElseGet(
             () -> {
               log.info("Processing datapack '{}' for tenant {}.", packId, tenant.getId());
-              if (doProcess()) {
+              if (doProcess(tenant)) {
                 dataPackService.registerDataPack(packId, tenant);
               }
               return MigrationProcessingResult.PROCESSED;

@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.IndexEvent;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
@@ -52,6 +53,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
@@ -684,7 +686,9 @@ public class InjectService {
    */
   @Transactional(rollbackFor = Exception.class)
   public List<Inject> bulkUpdateInject(
-      final List<Inject> injectsToUpdate, final List<InjectBulkUpdateOperation> operations) {
+      final TxCtx ctx,
+      final List<Inject> injectsToUpdate,
+      final List<InjectBulkUpdateOperation> operations) {
     // We aggregate the different field values in distinct sets in order to avoid retrieving the
     // same data multiple times
     Set<String> teamsIDs = new HashSet<>();
@@ -723,7 +727,9 @@ public class InjectService {
         });
 
     // Save updated injects and return them
-    return this.injectRepository.saveAll(injectsToUpdate);
+    List<Inject> updated = this.injectRepository.saveAll(injectsToUpdate);
+    KillChainPhaseInitializer.initializeFromInjects(updated);
+    return updated;
   }
 
   /**
