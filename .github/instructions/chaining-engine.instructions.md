@@ -315,7 +315,7 @@ io.openaev.database.repository/
 
 ```
 openaev-front/src/actions/chaining/
-  ├── chaining-actions.ts             ← API calls: fetchChaining, CRUD steps/conditions
+  ├── chaining-actions.ts             ← API calls: CRUD steps/conditions
   ├── workflow-actions.ts             ← API calls: workflow configuration, valid assets
   ├── workflow-schema.ts              ← Zod schemas for workflow configuration
   └── workflow-helper.d.ts            ← TypeScript type declarations
