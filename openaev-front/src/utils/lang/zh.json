@@ -3605,6 +3605,7 @@
   "The deployment from this catalog requires an Enterprise Edition license.": "从该目录进行部署需要企业版许可证。",
   "The document is used in the following sections:": "本文件在以下章节中使用：",
   "The element already exists": "元素已存在.",
+  "The element has been successfully created": "元素已成功创建",
   "The element has been successfully deleted": "元素已成功删除",
   "The element has been successfully updated": "元素已成功更新",
   "The element has been updated": "元素已更新",
