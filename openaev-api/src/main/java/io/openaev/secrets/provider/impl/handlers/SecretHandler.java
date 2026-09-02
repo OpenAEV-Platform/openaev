@@ -19,18 +19,14 @@ public interface SecretHandler {
   SecretMetadata toMetadata(Secret secret);
 
   /**
-   * Checks the credential against its provider to tell whether it is still usable.
+   * Validates that the stored secret is still usable.
    *
-   * <p>Opt-in by design: the default answers {@link SecretConnectionResult#unsupported()}, so a
-   * handler with no remote counterpart to call (local hashes, username/password pairs) needs no
-   * change, and a cloud handler only implements this once its provider SDK is wired.
+   * <p>Handlers opt in explicitly: the default implementation reports {@link
+   * SecretConnectionResult#unsupported()} so callers can distinguish "this secret type has no
+   * connectivity validator" from an actual validation failure.
    *
-   * <p>Implementations run OUTSIDE any transaction, on the background validation job's thread, and
-   * perform network I/O. They must be self-bounded (own timeout) and must never let a transient
-   * failure surface as {@code INACTIVE} — see {@link SecretConnectionResult#inactive(String)}.
-   *
-   * @param secret the secret to check
-   * @return the validation outcome, never null
+   * @param secret the stored secret to validate
+   * @return the normalized validation result, never {@code null}
    */
   default SecretConnectionResult validateConnection(Secret secret) {
     return SecretConnectionResult.unsupported();

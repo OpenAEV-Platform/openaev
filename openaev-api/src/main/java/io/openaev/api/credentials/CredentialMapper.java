@@ -30,6 +30,7 @@ public final class CredentialMapper {
         .hashAlgorithm(secretMetadata.hashAlgorithm())
         .awsDefaultRegion(secretMetadata.awsDefaultRegion())
         .awsAccessKeyId(secretMetadata.awsAccessKeyId())
+        .awsSessionTokenPresent(secretMetadata.awsSessionTokenPresent())
         .awsRoleArn(secretMetadata.awsRoleArn())
         .awsSourceIdentityType(secretMetadata.awsSourceIdentityType())
         .awsSourceProfileAccessKeyId(secretMetadata.awsSourceProfileAccessKeyId())

@@ -1,8 +1,5 @@
 package io.openaev.secrets.provider.impl;
 
-import static io.openaev.secrets.provider.SecretConnectionDetails.HANDLER_NOT_FOUND;
-import static io.openaev.secrets.provider.SecretConnectionDetails.SECRET_NOT_FOUND;
-
 import io.openaev.database.model.Secret;
 import io.openaev.database.model.SecretReference;
 import io.openaev.secrets.provider.SecretConnectionProbe;
@@ -107,7 +104,7 @@ public class LocalSecretsProvider extends SecretsProvider {
     String location = secretReference.getLocation();
     if (location == null || location.isBlank()) {
       log.warn("Credential validation: reference {} has no location", secretReference.getId());
-      return SecretConnectionProbe.of(SecretConnectionResult.notChecked(SECRET_NOT_FOUND));
+      return SecretConnectionProbe.of(SecretConnectionResult.notChecked());
     }
 
     Secret secret;
@@ -118,7 +115,7 @@ public class LocalSecretsProvider extends SecretsProvider {
           "Credential validation: reference {} points at a missing secret {}",
           secretReference.getId(),
           location);
-      return SecretConnectionProbe.of(SecretConnectionResult.notChecked(SECRET_NOT_FOUND));
+      return SecretConnectionProbe.of(SecretConnectionResult.notChecked());
     }
 
     Optional<SecretHandler> handler = secretHandlerResolver.findFor(secret);
@@ -127,7 +124,7 @@ public class LocalSecretsProvider extends SecretsProvider {
           "Credential validation: no handler supports secret type {} of reference {}",
           secret.getType(),
           secretReference.getId());
-      return SecretConnectionProbe.of(SecretConnectionResult.notChecked(HANDLER_NOT_FOUND));
+      return SecretConnectionProbe.of(SecretConnectionResult.notChecked());
     }
 
     // Both captured by value: the probe never goes back to the session.
