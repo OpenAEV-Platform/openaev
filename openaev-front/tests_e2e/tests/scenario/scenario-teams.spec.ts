@@ -7,7 +7,6 @@ import ScenarioPage from '../../model/scenario/ScenarioPage';
 import { tenantUrl } from '../../utils/url';
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const auditLogTimeoutMs = Number(process.env.E2E_AUDIT_LOG_TIMEOUT_MS ?? '45000');
 const auditLogAssertionsEnabled = !process.env.CI
   || (Boolean(process.env.OPENAEV_APPLICATION_LICENSE));
 
@@ -200,7 +199,7 @@ const expectAuditLogContainsAll = async (
       expect(matchers.every(matcher => entries.some(entry => matcher.test(entry)))).toBeTruthy();
     }).toPass({
       intervals: [1_000, 2_000, 5_000],
-      timeout: auditLogTimeoutMs,
+      timeout: 45000,
     });
   } catch (error) {
     await attachAuditDebugOnFailure(request, testInfo, context, matchers);
@@ -226,7 +225,7 @@ const expectTeamAddedAuditLog = async (
       expect(entries.some(entry => teamAddedMatcher.test(entry))).toBeTruthy();
     }).toPass({
       intervals: [1_000, 2_000, 5_000],
-      timeout: auditLogTimeoutMs,
+      timeout: 45000,
     });
   } catch (error) {
     await attachAuditDebugOnFailure(request, testInfo, 'team-add', [teamAddedMatcher]);
