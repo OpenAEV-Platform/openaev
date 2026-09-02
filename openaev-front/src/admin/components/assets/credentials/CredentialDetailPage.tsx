@@ -18,8 +18,8 @@ import { type CredentialFullOutput, type CredentialOutput } from '../../../../ut
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import CredentialPopover from './CredentialPopover';
-import convertCredentialFullOutputToCredentialInput, { type CredentialFormInitialValues } from './credentialUtils';
 import CredentialStatusChip from './CredentialStatusChip';
+import convertCredentialFullOutputToCredentialInput, { type CredentialFormInitialValues } from './credentialUtils';
 
 const CredentialDetailPage = () => {
   const { t, fldt } = useFormatter();
