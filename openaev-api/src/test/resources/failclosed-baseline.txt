@@ -1,0 +1,25 @@
+# WS1 fail-closed gate - waived production call sites (class.method, no line number).
+#
+# Each line is a production method that emits a tenant-gated read reached, in a test, without a
+# scope. All were traced to their production entry points and found BENIGN or SCOPED-OK (the real
+# prod path establishes the scope; the test calls the method directly). See findings-1-baseline.md.
+# A production fail-closed read NOT listed here fails the gate: scope the path, or add it here with
+# a reason. Test-caller and fixture reads are auto-waived (not listed).
+#
+# Lines starting with # and blank lines are ignored.
+
+# BENIGN - eager init of the nullable Exercise.securityCoverage association (null under empty scope;
+# tenant is taken from the simulation, coverage is re-read under scope where it matters).
+io.openaev.service.SecurityCoverageSendJobService.getPendingSecurityCoverageSendJobs
+io.openaev.service.SecurityCoverageSendJobService.consumeJobs
+io.openaev.database.model.Exercise.getInjects
+
+# SCOPED-OK - production path wraps the read in a scope; the test invokes the method directly.
+io.openaev.rest.collector.service.CollectorService.securityPlatformCollectors
+io.openaev.engine.model.injectexpectation.InjectExpectationHandler.fetch
+io.openaev.service.autonomous.AutonomousRunService.require
+io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService.persistExecution
+
+# TEST-ARTIFACT / latent - tags is not active in production; this JSON serializer would fail closed
+# only if tags is ever activated (serialization runs after the request transaction closes).
+io.openaev.helper.MultiIdSetSerializer.serialize
