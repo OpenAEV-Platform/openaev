@@ -359,7 +359,8 @@ public class PhishingTrackingService {
     result.setInject(injectRepository.getReferenceById(injectId));
     PhishingResult saved = phishingResultRepository.save(result);
 
-    // If tracking events were recorded before the inject existed, reconcile expectation scoring now.
+    // If tracking events were recorded before the inject existed, reconcile expectation scoring
+    // now.
     if (saved.getSubmittedAt() != null) {
       compromiseSteps(
           saved,
