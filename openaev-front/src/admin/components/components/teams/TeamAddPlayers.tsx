@@ -106,14 +106,14 @@ const TeamAddPlayers: FunctionComponent<Props> = ({ addedUsersIds, teamId }) => 
   return (
     <div>
       <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
-        <ButtonCreate onClick={() => setOpen(true)} label={t('Add players in this team')} />
+        <ButtonCreate onClick={() => setOpen(true)} label={t('Add players')} />
       </Can>
       {/* Inline dialog: TeamPlayers itself renders in a drawer (never drawer over drawer). */}
       <SelectListPicker<PlayerOutput>
         open={open}
         onClose={handleClose}
         onSubmit={submitAddUsers}
-        title={t('Add players in this team')}
+        title={t('Add players')}
         submitLabel={t('Add')}
         inline
         headerComponent={paginationComponent}
