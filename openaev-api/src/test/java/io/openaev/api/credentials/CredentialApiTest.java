@@ -57,8 +57,8 @@ import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
-import java.util.ArrayList;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -336,7 +336,7 @@ class CredentialApiTest extends IntegrationTest {
 
       String response =
           mvc.perform(
-                  multipartCreate(tenantCredentialsUri(tenantA.getId()), input)
+                  multipartCreate(tenantCredentialsUri(tenantId), input)
                       .with(csrf())
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
@@ -376,10 +376,8 @@ class CredentialApiTest extends IntegrationTest {
       // Act
       String response =
           mvc.perform(
-                  post(tenantCredentialsUri(tenant.getId()))
+                  multipartCreate(tenantCredentialsUri(tenant.getId()), input)
                       .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input))
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
@@ -421,10 +419,8 @@ class CredentialApiTest extends IntegrationTest {
       // Act
       String response =
           mvc.perform(
-                  post(tenantCredentialsUri(tenant.getId()))
+                  multipartCreate(tenantCredentialsUri(tenant.getId()), input)
                       .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input))
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
@@ -732,7 +728,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_gcpServiceAccountInput_should_createGcpServiceAccountSecret")
     void given_gcpServiceAccountInput_should_createGcpServiceAccountSecret() throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-sa");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-gcp-sa");
       CredentialInput input = CredentialInputFixture.gcpServiceAccountInput("gcp-sa");
 
       // Act
@@ -787,7 +783,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_gcpOAuth2Input_should_createGcpOAuth2Secret")
     void given_gcpOAuth2Input_should_createGcpOAuth2Secret() throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-oauth");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-gcp-oauth");
       CredentialInput input = CredentialInputFixture.gcpOAuth2Input("gcp-oauth");
 
       // Act: no file part here, every OAuth field travels as plain text in the input part
@@ -951,7 +947,7 @@ class CredentialApiTest extends IntegrationTest {
     @DisplayName("given_gcpServiceAccountCredential_should_returnNonSensitiveFieldsOnly")
     void given_gcpServiceAccountCredential_should_returnNonSensitiveFieldsOnly() throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-get");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-gcp-get");
       String credentialId =
           JsonPath.read(
               mvc.perform(
@@ -979,15 +975,17 @@ class CredentialApiTest extends IntegrationTest {
       assertThatJson(response).node("credential_gcp_project_id").isEqualTo(GCP_PROJECT_ID);
       // A boolean is all the form gets about the key: enough for the placeholder, nothing more
       assertThatJson(response).node("credential_gcp_private_key_defined").isEqualTo(true);
-      assertThat(response).doesNotContain(GCP_PRIVATE_KEY_JSON).doesNotContain("private_key");
+      // Only the boolean flag mentions the key: the material itself never travels back
+      assertThat(response)
+          .doesNotContain(GCP_PRIVATE_KEY_JSON)
+          .doesNotContain("credential_gcp_private_key_json");
     }
 
     @Test
     @DisplayName("given_gcpOAuth2Credential_should_returnNonSensitiveFieldsOnly")
     void given_gcpOAuth2Credential_should_returnNonSensitiveFieldsOnly() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-oauth-get");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-gcp-oauth-get");
       String credentialId =
           JsonPath.read(
               mvc.perform(
@@ -1096,10 +1094,10 @@ class CredentialApiTest extends IntegrationTest {
       String credentialId =
           JsonPath.read(
               mvc.perform(
-                      post(tenantCredentialsUri(tenant.getId()))
+                      multipartCreate(
+                              tenantCredentialsUri(tenant.getId()),
+                              validUsernamePasswordInput("before-aws-ak-update"))
                           .with(csrf())
-                          .contentType(MediaType.APPLICATION_JSON)
-                          .content(asJsonString(validUsernamePasswordInput("before-aws-ak-update")))
                           .accept(MediaType.APPLICATION_JSON))
                   .andExpect(status().is2xxSuccessful())
                   .andReturn()
@@ -1115,10 +1113,9 @@ class CredentialApiTest extends IntegrationTest {
       // Act
       String response =
           mvc.perform(
-                  put(tenantCredentialsUri(tenant.getId()) + "/" + credentialId)
+                  multipartUpdate(
+                          tenantCredentialsUri(tenant.getId()) + "/" + credentialId, updateInput)
                       .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(updateInput))
                       .accept(MediaType.APPLICATION_JSON))
               .andExpect(status().is2xxSuccessful())
               .andReturn()
@@ -1696,6 +1693,12 @@ class CredentialApiTest extends IntegrationTest {
         null,
         null,
         null,
+        // GCP
+        null,
+        null,
+        null,
+        null,
+        null,
         List.of());
   }
 
@@ -1721,6 +1724,12 @@ class CredentialApiTest extends IntegrationTest {
         AWS_SOURCE_PROFILE_ACCESS_KEY_ID,
         AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY,
         // AZURE
+        null,
+        null,
+        null,
+        null,
+        null,
+        // GCP
         null,
         null,
         null,
