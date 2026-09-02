@@ -357,7 +357,31 @@ public class PhishingTrackingService {
       return;
     }
     result.setInject(injectRepository.getReferenceById(injectId));
-    phishingResultRepository.save(result);
+    PhishingResult saved = phishingResultRepository.save(result);
+
+    // If tracking events were recorded before the inject existed, reconcile expectation scoring now.
+    if (saved.getSubmittedAt() != null) {
+      compromiseSteps(
+          saved,
+          Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED),
+          "Submitted data on the phishing page",
+          saved.getIp(),
+          saved.getUserAgent());
+    } else if (saved.getClickedAt() != null) {
+      compromiseSteps(
+          saved,
+          Set.of(STEP_OPENED, STEP_CLICKED),
+          "Opened the phishing landing page",
+          saved.getIp(),
+          saved.getUserAgent());
+    } else if (saved.getOpenedAt() != null) {
+      compromiseSteps(
+          saved,
+          Set.of(STEP_OPENED),
+          "Opened the phishing email",
+          saved.getIp(),
+          saved.getUserAgent());
+    }
   }
 
   /**
