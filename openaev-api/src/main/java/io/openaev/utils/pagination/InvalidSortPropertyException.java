@@ -6,4 +6,8 @@ public class InvalidSortPropertyException extends IllegalArgumentException {
   public InvalidSortPropertyException(String property) {
     super("Unknown sort property '%s', please try an other one".formatted(property));
   }
+
+  public InvalidSortPropertyException(String property, String reason) {
+    super("Cannot sort on property '%s': %s".formatted(property, reason));
+  }
 }
