@@ -4,7 +4,7 @@ import LogoCollapsed from '../static/images/logo_dark.png';
 import LogoText from '../static/images/logo_text_dark.png';
 import { hexToRGB } from '../utils/Colors';
 import { fileUri } from '../utils/Environment';
-import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
+import { FONT_FAMILY_CODE, INLINE_CONTROL_HEIGHT, type LabelColor, LabelColorDict } from './Theme';
 
 // Aligned with OpenCTI's dark theme (opencti-front/src/components/ThemeDark.ts):
 // same default palette, typography, and component overrides, so both platforms
@@ -444,7 +444,7 @@ const ThemeDark = (
       defaultProps: { size: 'small' },
       styleOverrides: {
         root: {
-          'height': 36,
+          'height': INLINE_CONTROL_HEIGHT,
           '& .MuiTouchRipple-root': { display: 'none' },
           '& .MuiToggleButton-root': {
             'border': '1px solid #2B3447',
