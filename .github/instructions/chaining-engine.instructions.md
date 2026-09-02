@@ -157,7 +157,7 @@ WorkflowTimeoutJob (Quartz, @DisallowConcurrentExecution)
 
 | Diagram Element | Code Implementation |
 |---|---|
-| Creation of Simulation | `ChainingApi.createSimulation()` / `createScenarioChaining()` |
+| Creation of Scenario / Simulation | `ScenarioApi.createScenario()` / `ExerciseApi.createExercise()` |
 | Creation of Step Template | `StepService.createStepTemplate()` |
 | Creation of Workflow Template/RUN | `WorkflowService` (status TEMPLATE → RUN) |
 | Conditions Event Valid? | `ConditionUtils` evaluation against event conditions |
@@ -222,7 +222,8 @@ WorkflowTimeoutJob (Quartz, @DisallowConcurrentExecution)
 
 ```
 io.openaev.api.chaining/              ← API layer (controllers, mappers, DTOs)
-  ├── ChainingApi.java                ← Main REST: create simulation/scenario for chaining, findAll
+  ├── ScenarioApi.java                ← Create/duplicate scenarios
+  ├── ExerciseApi.java                ← Create/duplicate simulations
   ├── StepApi.java                    ← CRUD for step templates (scoped to workflow)
   ├── ConditionApi.java               ← CRUD for condition trees (event payload → conditions)
   ├── WorkflowApi.java                ← Workflow configuration + valid assets
