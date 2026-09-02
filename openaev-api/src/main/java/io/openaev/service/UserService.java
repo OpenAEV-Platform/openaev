@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.model.User.ROLE_ADMIN;
 import static io.openaev.database.model.User.ROLE_USER;
 import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
@@ -43,6 +44,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -504,6 +506,26 @@ public class UserService {
     return createdToken;
   }
 
+  public Token renewUserToken(String tokenId) {
+    User user =
+        userRepository
+            .findById(currentUser().getId())
+            .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    Token token =
+        tokenRepository
+            .findByIdAndDeletedAtIsNull(tokenId)
+            .orElseThrow(ElementNotFoundException::new);
+    if (!user.equals(token.getUser())) {
+      throw new AccessDeniedException("You are not allowed to renew this token");
+    }
+
+    token.setDeletedAt(Instant.now());
+    token.setValue("[RENEWED:%s]".formatted(token.getId()));
+    tokenRepository.save(token);
+
+    return createUserToken(user);
+  }
+
   /**
    * Emits an audit event for a token creation.
    *
@@ -520,7 +542,7 @@ public class UserService {
     contextData.put("token_id", createdToken.getId());
     contextData.put("token_user_id", tokenUserId);
     contextData.put("actor_user_id", actor != null ? actor.getId() : null);
-    contextData.put("timestamp", createdToken.getCreated());
+    contextData.put("token_created_at", createdToken.getCreated());
 
     auditLogger.logEvent(
         AuditEvent.builder()

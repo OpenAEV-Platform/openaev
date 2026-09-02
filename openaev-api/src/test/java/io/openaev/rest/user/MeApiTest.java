@@ -22,7 +22,6 @@ import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TokenRepository;
-import io.openaev.database.specification.TokenSpecification;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
@@ -118,13 +117,18 @@ public class MeApiTest extends IntegrationTest {
       String response = result.getResponse().getContentAsString();
       String renewedTokenId = JsonPath.read(response, "$.token_id");
 
-      Token oldToken = tokenRepository.findById(persistedToken.getId()).orElseThrow();
-      Token newToken = tokenRepository.findById(renewedTokenId).orElseThrow();
+      Token oldToken =
+          tokenRepository.findByIdIncludingDeleted(persistedToken.getId()).orElseThrow();
+      Token newToken = tokenRepository.findByIdIncludingDeleted(renewedTokenId).orElseThrow();
 
       assertNotNull(oldToken.getDeletedAt());
       assertTrue(oldToken.getValue().startsWith("[RENEWED:"));
       assertNotEquals(oldTokenValue, oldToken.getValue());
-      assertTrue(tokenRepository.findByValueAndDeletedAtIsNull(oldTokenValue).isEmpty());
+      assertTrue(
+          tokenRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAsc(user.getId()).stream()
+              .filter(tokenValue -> tokenValue.equals(oldTokenValue))
+              .toList()
+              .isEmpty());
 
       assertNotEquals(oldToken.getId(), newToken.getId());
       assertTrue(newToken.getDeletedAt() == null);
@@ -184,8 +188,7 @@ public class MeApiTest extends IntegrationTest {
           .andExpect(jsonPath("$[?(@.token_deleted_at && @.token_deleted_at != null)]").isEmpty());
 
       List<Token> activeTokens =
-          tokenRepository.findAll(
-              TokenSpecification.fromUser(user.getId()).and(TokenSpecification.active()));
+          tokenRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAsc(user.getId());
       assertTrue(activeTokens.stream().noneMatch(t -> t.getDeletedAt() != null));
     }
   }

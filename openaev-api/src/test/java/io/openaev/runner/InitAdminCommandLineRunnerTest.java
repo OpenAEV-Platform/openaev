@@ -47,7 +47,7 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
   @DisplayName("Test if admin token is created")
   @Test
   void adminTokenExistTest() {
-    Optional<Token> adminToken = this.tokenRepository.findById(ADMIN_TOKEN_UUID);
+    Optional<Token> adminToken = this.tokenRepository.findByIdIncludingDeleted(ADMIN_TOKEN_UUID);
     assertThat(adminToken.isPresent()).isTrue();
   }
 

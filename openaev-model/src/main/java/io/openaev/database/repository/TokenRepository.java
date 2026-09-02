@@ -1,26 +1,19 @@
 package io.openaev.database.repository;
 
 import io.openaev.database.model.Token;
-import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TokenRepository
-    extends CrudRepository<Token, String>, JpaSpecificationExecutor<Token> {
-
-  @NotNull
-  Optional<Token> findById(@NotNull String id);
+    extends org.springframework.data.repository.Repository<Token, String> {
 
   Optional<Token> findByIdAndDeletedAtIsNull(String id);
-
-  Optional<Token> findByValueAndDeletedAtIsNull(String value);
 
   /**
    * Oldest (most stable) API token of a user. Used by the reporting renderer to authenticate the
@@ -28,7 +21,15 @@ public interface TokenRepository
    */
   Optional<Token> findFirstByUserIdAndDeletedAtIsNullOrderByCreatedAsc(String userId);
 
+  List<Token> findByUserIdAndDeletedAtIsNullOrderByCreatedAsc(String userId);
+
   boolean existsByUserIdAndDeletedAtIsNull(String userId);
+
+  Token save(Token token);
+
+  /** Bootstrap only: resolves the admin token even when soft-deleted, so it can be restored. */
+  @Query("SELECT t FROM Token t WHERE t.id = :id")
+  Optional<Token> findByIdIncludingDeleted(@Param("id") String id);
 
   // -- ADMIN --
 

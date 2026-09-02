@@ -21,7 +21,6 @@ Every REST endpoint must have `@AccessControl`. See the annotation in `io.openae
    - Open for READ (like Player): add to `RESOURCES_OPEN`
    - Sub-resource (like Inject): add to `RESOURCES_USING_PARENT_PERMISSION`
    - Standard capability-based: no change (handled by `Capability.of()` lookup)
-5. When applicable, use tokens from the table token with token_delete_at being NULL.
 
 ### Frontend
 
@@ -57,4 +56,5 @@ Every REST endpoint must have `@AccessControl`. See the annotation in `io.openae
 - Never bypass `@AccessControl` without explicit `skipRBAC = true` and a comment explaining why
 - Never return `tenant_id` in API responses
 - Never use native `@Query` without `WHERE tenant_id = ...`
-- Never assign platform-only capabilities to tenant roles or vice versa
+- Never assign platform-only capabilities to tenant roles or vice versa 
+- Never use tokens from the table token without querying token_delete_at being NULL.

@@ -55,6 +55,7 @@ public class ObjectRedactionUtils {
       Stream.concat(
               ALLOWED_SENSITIVE_FIELDS_REGEX_TO_REDACT.stream(),
               Set.of(
+                  // Allowed for token renewal and user token management endpoints.
                   Pattern.compile("^token_id$"),
                   Pattern.compile("^token_user$"),
                   Pattern.compile("^token_user_id$"))

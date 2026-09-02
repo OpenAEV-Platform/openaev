@@ -1,7 +1,6 @@
 package io.openaev.service.connector_instances;
 
 import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.OPENAEV_KEY_TENANT_ID;
 import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.OPENAEV_KEY_TOKEN;
@@ -657,8 +656,8 @@ public class ConnectorInstanceService {
   private ConnectorInstanceConfiguration createTokenConfiguration(
       ConnectorInstancePersisted instance) {
     Token token =
-        tokenRepository.findAll(fromUser(currentUser().getId())).stream()
-            .findFirst()
+        tokenRepository
+            .findFirstByUserIdAndDeletedAtIsNullOrderByCreatedAsc(currentUser().getId())
             .orElseThrow(() -> new IllegalArgumentException("No token found for current user"));
     return createConfiguration(
         OPENAEV_KEY_TOKEN,

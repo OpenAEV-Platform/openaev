@@ -2,8 +2,6 @@ package io.openaev.rest.user;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.database.specification.TokenSpecification.active;
-import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static io.openaev.helper.DatabaseHelper.updateRelation;
 
 import io.openaev.aop.AccessControl;
@@ -29,11 +27,9 @@ import io.openaev.service.tenants.TenantService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
-import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -131,23 +127,7 @@ public class MeApi extends RestBehavior {
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   @Transactional(rollbackFor = Exception.class)
   public Token renewToken(@Valid @RequestBody RenewTokenInput input) {
-    User user =
-        userRepository
-            .findById(currentUser().getId())
-            .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
-    Token token =
-        tokenRepository
-            .findByIdAndDeletedAtIsNull(input.getTokenId())
-            .orElseThrow(ElementNotFoundException::new);
-    if (!user.equals(token.getUser())) {
-      throw new AccessDeniedException("You are not allowed to renew this token");
-    }
-
-    token.setDeletedAt(Instant.now());
-    token.setValue("[RENEWED:%s]".formatted(token.getId()));
-    tokenRepository.save(token);
-
-    return userService.createUserToken(user);
+    return userService.renewUserToken(input.getTokenId());
   }
 
   @GetMapping(ME_URI + "/tenants")
@@ -163,6 +143,6 @@ public class MeApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public List<Token> tokens() {
-    return tokenRepository.findAll(fromUser(currentUser().getId()).and(active()));
+    return tokenRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAsc(currentUser().getId());
   }
 }
