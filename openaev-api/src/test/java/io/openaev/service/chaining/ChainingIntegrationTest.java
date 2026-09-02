@@ -68,6 +68,7 @@ class ChainingIntegrationTest extends IntegrationTest {
   @Autowired private StepService stepService;
   @Autowired private StepEventService stepEventService;
   @Autowired private WorkflowService workflowService;
+  @Autowired private jakarta.persistence.EntityManager entityManager;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
@@ -185,6 +186,8 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       // A Workflow TEMPLATE must have been created and linked to the scenario
       assertEquals(workflowCountBefore + 1, workflowRepository.count());
+      entityManager.flush();
+      entityManager.clear();
 
       Workflow workflowTemplate =
           workflowRepository.findAll().stream()
@@ -448,6 +451,8 @@ class ChainingIntegrationTest extends IntegrationTest {
       Scenario createdScenario = mapper.readValue(scenarioResponse, Scenario.class);
 
       // Get the workflow template created
+      entityManager.flush();
+      entityManager.clear();
       Workflow workflowTemplate =
           workflowRepository.findAll().stream()
               .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
@@ -586,6 +591,8 @@ class ChainingIntegrationTest extends IntegrationTest {
               .getContentAsString();
       Scenario scenarioDuplicated = mapper.readValue(result, Scenario.class);
 
+      entityManager.flush();
+      entityManager.clear();
       Workflow workflowTemplateDuplicated =
           workflowRepository.findAll().stream()
               .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
@@ -770,6 +777,8 @@ class ChainingIntegrationTest extends IntegrationTest {
   }
 
   private Workflow findTemplateWorkflowBySimulationId(String simulationId) {
+    entityManager.flush();
+    entityManager.clear();
     return workflowRepository.findAll().stream()
         .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
         .filter(w -> w.getSimulation() != null && simulationId.equals(w.getSimulation().getId()))
