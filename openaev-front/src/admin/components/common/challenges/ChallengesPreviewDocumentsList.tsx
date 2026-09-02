@@ -94,7 +94,7 @@ const ChallengesPreviewDocumentsList: FunctionComponent<Props> = ({ currentChall
     {
       field: 'document_tags',
       label: 'Tags',
-      isSortable: true,
+      isSortable: false,
       value: (document: Document) => {
         return (
           <ItemTags
