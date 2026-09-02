@@ -434,7 +434,6 @@ const Injects: FunctionComponent<Props> = ({
       simulation_or_scenario_id: contextId,
       update_operations: operationsToPerform,
     });
-    handleClearSelectedElements();
     setReloadInjectCount(prev => prev + 1);
   };
 
