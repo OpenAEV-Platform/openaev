@@ -3357,6 +3357,7 @@
   "SIMULATION FOOTER": "シミュレーションフッター",
   "SIMULATION HEADER": "シミュレーション・ヘッダー",
   "Simulation id": "Simulation id",
+  "Simulation inject": "Simulation inject",
   "Simulation injects": "Simulation injects",
   "Simulation is currently unavailable or you do not have sufficient permissions to access it.": "シミュレーションは現在利用できません。",
   "Simulation logs": "シミュレーションログ",

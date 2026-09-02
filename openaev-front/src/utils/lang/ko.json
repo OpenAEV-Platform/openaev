@@ -3357,6 +3357,7 @@
   "SIMULATION FOOTER": "시뮬레이션 바닥글",
   "SIMULATION HEADER": "시뮬레이션 헤더",
   "Simulation id": "Simulation id",
+  "Simulation inject": "Simulation inject",
   "Simulation injects": "Simulation injects",
   "Simulation is currently unavailable or you do not have sufficient permissions to access it.": "현재 시뮬레이션을 사용할 수 없거나 액세스할 수 있는 권한이 충분하지 않습니다.",
   "Simulation logs": "시뮬레이션 로그",

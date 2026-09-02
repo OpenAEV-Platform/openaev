@@ -3357,6 +3357,7 @@
   "SIMULATION FOOTER": "模拟页脚",
   "SIMULATION HEADER": "模拟标头",
   "Simulation id": "Simulation id",
+  "Simulation inject": "Simulation inject",
   "Simulation injects": "Simulation injects",
   "Simulation is currently unavailable or you do not have sufficient permissions to access it.": "模拟当前不可用，或您没有足够的权限进行访问。",
   "Simulation logs": "模拟日志",

@@ -3357,6 +3357,7 @@
   "SIMULATION FOOTER": "НИЖНИЙ КОЛОНТИТУЛ СИМУЛЯЦИИ",
   "SIMULATION HEADER": "ВЕРХНИЙ КОЛОНТИТУЛ СИМУЛЯЦИИ",
   "Simulation id": "Simulation id",
+  "Simulation inject": "Simulation inject",
   "Simulation injects": "Simulation injects",
   "Simulation is currently unavailable or you do not have sufficient permissions to access it.": "Симуляция в настоящее время недоступна или у вас нет достаточных прав для доступа к ней.",
   "Simulation logs": "Журналы симуляции",

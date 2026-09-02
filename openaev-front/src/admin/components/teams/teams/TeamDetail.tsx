@@ -64,6 +64,7 @@ const withFilter = (input: SearchPaginationInput, key: string, values: string[])
 // the findings linked to the team. Compact and grid-based.
 const TeamDetail = () => {
   const { t, fldt } = useFormatter();
+  const countLabel = (count: number, singular: string, plural: string) => t(count === 1 ? singular : plural);
   const bodyItemsStyles = useBodyItemsStyles();
   const theme = useTheme();
   const navigate = useNavigate();
@@ -237,11 +238,11 @@ const TeamDetail = () => {
           )}
           stats={(
             <>
-              <HeroStat icon={PersonOutlined} label={t('Players')} value={team.team_users_number ?? players.length} color={theme.palette.success.main} />
-              <HeroStat icon={HubOutlined} label={t('Simulations')} value={team.team_exercises?.length ?? 0} color={theme.palette.primary.main} />
-              <HeroStat icon={AssignmentOutlined} label={t('Scenarios')} value={team.team_scenarios?.length ?? 0} color={theme.palette.secondary.main} />
-              <HeroStat icon={TrackChangesOutlined} label={t('Simulation injects')} value={team.team_exercise_injects_number ?? 0} color={theme.palette.warning.main} />
-              <HeroStat icon={TrackChangesOutlined} label={t('Expectations')} value={team.team_injects_expectations_number ?? 0} />
+              <HeroStat icon={PersonOutlined} label={countLabel(team.team_users_number ?? players.length, 'Player', 'Players')} value={team.team_users_number ?? players.length} color={theme.palette.success.main} />
+              <HeroStat icon={HubOutlined} label={countLabel(team.team_exercises?.length ?? 0, 'Simulation', 'Simulations')} value={team.team_exercises?.length ?? 0} color={theme.palette.primary.main} />
+              <HeroStat icon={AssignmentOutlined} label={countLabel(team.team_scenarios?.length ?? 0, 'Scenario', 'Scenarios')} value={team.team_scenarios?.length ?? 0} color={theme.palette.secondary.main} />
+              <HeroStat icon={TrackChangesOutlined} label={countLabel(team.team_exercise_injects_number ?? 0, 'Simulation inject', 'Simulation injects')} value={team.team_exercise_injects_number ?? 0} color={theme.palette.warning.main} />
+              <HeroStat icon={TrackChangesOutlined} label={countLabel(team.team_injects_expectations_number ?? 0, 'Expectation', 'Expectations')} value={team.team_injects_expectations_number ?? 0} />
               <HeroStat icon={TrackChangesOutlined} label={t('Score')} value={scoreLabel} />
             </>
           )}

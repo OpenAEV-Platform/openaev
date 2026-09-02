@@ -3357,6 +3357,7 @@
   "SIMULATION FOOTER": "FUSSZEILE DER SIMULATION",
   "SIMULATION HEADER": "SIMULATION KOPFZEILE",
   "Simulation id": "Simulation id",
+  "Simulation inject": "Simulation inject",
   "Simulation injects": "Simulation injects",
   "Simulation is currently unavailable or you do not have sufficient permissions to access it.": "Die Simulation ist derzeit nicht verfügbar oder Sie haben keine ausreichenden Berechtigungen, um darauf zuzugreifen.",
   "Simulation logs": "Protokolle der Simulation",
