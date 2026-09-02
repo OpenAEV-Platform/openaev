@@ -91,7 +91,8 @@ public interface VulnerableEndpointRepository extends JpaRepository<Endpoint, St
     JOIN injects i ON i.inject_exercise = rve.inject_exercise
     JOIN findings f ON f.finding_inject_id = i.inject_id AND f.finding_type = 'CVE'
     JOIN findings_assets fa ON f.finding_id = fa.finding_id AND fa.asset_id = a.asset_id
-    GROUP BY a.asset_id, rve.inject_exercise, e.exercise_updated_at, e.exercise_created_at, a.asset_updated_at
+    GROUP BY a.asset_id, rve.inject_exercise, e.exercise_updated_at, e.exercise_created_at, a.asset_updated_at,
+             a.asset_hostname, a.endpoint_platform, a.endpoint_is_eol, a.endpoint_arch, a.tenant_id
     ORDER BY GREATEST(e.exercise_updated_at, a.asset_updated_at, max(f.finding_updated_at)) ASC
     """,
       nativeQuery = true)

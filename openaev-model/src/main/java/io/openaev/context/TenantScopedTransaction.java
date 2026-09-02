@@ -1,5 +1,6 @@
 package io.openaev.context;
 
+import io.openaev.database.repository.MarkingDefinitionRepository;
 import jakarta.persistence.EntityManager;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -55,6 +56,7 @@ public class TenantScopedTransaction {
   private final PlatformTransactionManager transactionManager;
   private final EntityManager entityManager;
   private final TenantScopeIntentionResolver intentionResolver;
+  private final MarkingDefinitionRepository markingDefinitionRepository;
 
   /** Opens a background transaction carrying {@code ctx}; refuses to run inside an active one. */
   public <T> T execute(TxCtx ctx, Supplier<T> work) {
@@ -197,7 +199,9 @@ public class TenantScopedTransaction {
         status -> {
           // Resolved inside the transaction: an intention is re-resolved at every short
           // transaction, so a long-running job naturally sees tenants created in between.
-          setScope(intentionResolver.resolve(ctx).toGuc());
+          TxCtx resolved = intentionResolver.resolve(ctx);
+          setScope(resolved.toGuc());
+          setMarkingScope(systemClearance(resolved).toGuc());
           return work.get();
         });
   }
@@ -211,9 +215,47 @@ public class TenantScopedTransaction {
     }
   }
 
+  /**
+   * The clearance a background transaction runs at: <b>every marking of the tenants in scope</b>.
+   *
+   * <p>Note the asymmetry with the tenant dimension, because it is deliberate rather than an
+   * oversight. The job is <i>narrowed</i> to its tenants, because a tenant is a real boundary it
+   * must respect. It is <i>widened</i> to all markings, because a marking is a boundary between
+   * <b>users</b>, and a scheduler is not a user. This is the {@code isAdminOrBypass()} equivalent,
+   * expressed in the primitive. Concretely it means activating a table on marking is a no-op for
+   * background work: an inject targeting a TLP:RED asset still executes.
+   *
+   * <p>Assigned, never derived. Background work has no principal to derive from, and jobs that
+   * borrow threads from a shared pool (see {@code InjectsExecutionJob}) could otherwise inherit
+   * whatever clearance the borrowed thread happened to carry — non-deterministic, and occasionally
+   * less than the job needs.
+   *
+   * <p>A tenant with no marking definitions yields {@link MarkingCtx#none()}, which is correct
+   * rather than degraded: with nothing marked, every row is unmarked and therefore visible.
+   */
+  private MarkingCtx systemClearance(TxCtx resolved) {
+    if (!(resolved instanceof TxCtx.Restricted restricted)) {
+      // resolve() has already refused Missing and expanded AllTenants, so this is unreachable.
+      throw new IllegalStateException(
+          "a background transaction must carry an explicit tenant scope before its marking scope"
+              + " can be resolved; got "
+              + resolved.getClass().getSimpleName());
+    }
+    List<String> markingIds =
+        markingDefinitionRepository.findAllIdsByTenantIds(restricted.tenantIds());
+    return markingIds.isEmpty() ? MarkingCtx.none() : MarkingCtx.forMarkings(markingIds);
+  }
+
   private void setScope(String scope) {
     entityManager
         .createNativeQuery("SELECT set_config('app.current_tenants', :scope, true)")
+        .setParameter("scope", scope)
+        .getSingleResult();
+  }
+
+  private void setMarkingScope(String scope) {
+    entityManager
+        .createNativeQuery("SELECT set_config('app.current_markings', :scope, true)")
         .setParameter("scope", scope)
         .getSingleResult();
   }

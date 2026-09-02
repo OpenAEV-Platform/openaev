@@ -554,6 +554,7 @@ export interface Asset {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -935,6 +936,10 @@ export interface AssetSnapshotOutput {
   asset_snapshot_id?: string;
   /** Frozen asset name. */
   asset_snapshot_name?: string;
+}
+
+export interface AssetUpdateMarkingsInput {
+  asset_markings: string[];
 }
 
 export interface AtomicInjectorContractOutput {
@@ -3811,6 +3816,7 @@ export interface Endpoint {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;
@@ -4100,6 +4106,11 @@ export interface EndpointOutput {
   asset_internet_facing?: boolean;
   /** Linked person (user id) for identity assets */
   asset_linked_person?: string;
+  /**
+   * Marking definition ids carried by the asset
+   * @uniqueItems true
+   */
+  asset_markings?: string[];
   /**
    * Asset name
    * @minLength 1
@@ -5901,6 +5912,7 @@ export interface Group {
   group_grants?: Grant[];
   /** @minLength 1 */
   group_id: string;
+  group_markings?: string[];
   /** @minLength 1 */
   group_name: string;
   group_roles?: string[];
@@ -5918,6 +5930,10 @@ export interface GroupGrantInput {
     | "THREAT_ARSENAL"
     | "PAYLOAD"
     | "UNKNOWN";
+}
+
+export interface GroupUpdateMarkingsInput {
+  group_markings: string[];
 }
 
 export interface GroupUpdateRolesInput {
@@ -7622,6 +7638,41 @@ export interface MapperConditionOutput {
   condition_value?: string;
 }
 
+export interface MarkingDefinitionInput {
+  /**
+   * Display colour, as a hex code
+   * @pattern ^#[0-9a-fA-F]{6}$
+   */
+  marking_color?: string;
+  /**
+   * Name of the marking, unique within the tenant, e.g. TLP:RED
+   * @minLength 1
+   */
+  marking_name: string;
+  /**
+   * Rank within the scale — higher is more restrictive. Holding a level implies holding every lower level of the same scale.
+   * @format int32
+   */
+  marking_order: number;
+  /**
+   * Classification scale, e.g. TLP or PAP
+   * @minLength 1
+   */
+  marking_type: string;
+}
+
+export interface MarkingDefinitionOutput {
+  marking_color?: string;
+  /** @minLength 1 */
+  marking_id: string;
+  /** @minLength 1 */
+  marking_name: string;
+  /** @format int32 */
+  marking_order: number;
+  /** @minLength 1 */
+  marking_type: string;
+}
+
 export interface MissingImportedAction {
   name?: string;
   type?: string;
@@ -7843,6 +7894,7 @@ export interface NotificationTriggerInput {
     | "JOB"
     | "TAG"
     | "TAG_RULE"
+    | "MARKING_DEFINITION"
     | "KILL_CHAIN_PHASE"
     | "ATTACK_PATTERN"
     | "ASSET_GROUP"
@@ -7948,6 +8000,7 @@ export interface NotificationTriggerOutput {
     | "JOB"
     | "TAG"
     | "TAG_RULE"
+    | "MARKING_DEFINITION"
     | "KILL_CHAIN_PHASE"
     | "ATTACK_PATTERN"
     | "ASSET_GROUP"
@@ -8507,6 +8560,25 @@ export interface PageKillChainPhase {
 
 export interface PageLessonsTemplate {
   content?: LessonsTemplate[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageMarkingDefinitionOutput {
+  content?: MarkingDefinitionOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -11036,6 +11108,7 @@ export interface SecurityPlatform {
   asset_ips?: string[];
   asset_linked_person?: string;
   asset_mac_addresses?: string[];
+  asset_markings?: string[];
   asset_metadata?: Record<string, any>;
   /** @minLength 1 */
   asset_name: string;

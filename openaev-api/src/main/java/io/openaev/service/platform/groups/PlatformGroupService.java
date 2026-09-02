@@ -6,6 +6,7 @@ import static io.openaev.database.specification.GroupSpecification.platformScope
 import static io.openaev.service.account.PrivilegeEscalationValidator.assertCanAssignCapabilities;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
@@ -38,6 +39,7 @@ public class PlatformGroupService {
   private final UserRepository userRepository;
   private final UserService userService;
   private final ReferenceResolver referenceResolver;
+  private final MarkingClearanceCacheManager markingClearanceCacheManager;
 
   // -- CREATE --
 
@@ -139,10 +141,16 @@ public class PlatformGroupService {
     assertCanAssignCapabilities(
         userService.currentUser(), capabilitiesOf(group.getRoles()), PLATFORM);
     Set<String> uniqueUserIds = new LinkedHashSet<>(userIds);
+    // Union of before and after: a user dropped from the group loses clearance (fail-open if the
+    // stale entry survives), a user added gains it (fail-closed, but still wrong until evicted).
+    Set<String> affected = new LinkedHashSet<>(group.getUsers().stream().map(User::getId).toList());
+    affected.addAll(uniqueUserIds);
+
     group.setUsers(
         new ArrayList<>(
             referenceResolver.resolve(uniqueUserIds, User.class, userRepository::countByIdIn)));
     groupRepository.save(group);
+    markingClearanceCacheManager.evictForUsers(affected);
     return groupRepository.findUserIdsByGroupId(groupId);
   }
 
@@ -152,7 +160,10 @@ public class PlatformGroupService {
     Group group = findById(groupId);
     // Clear bidirectional associations before delete to avoid TransientObjectException
     // (User entities in the persistence context would otherwise still reference the removed Group)
+    List<String> members = group.getUsers().stream().map(User::getId).toList();
     group.getUsers().forEach(user -> user.getUnscopedGroups().remove(group));
     groupRepository.delete(group);
+    // Deleting the group revokes whatever markings it granted, for every member at once.
+    markingClearanceCacheManager.evictForUsers(members);
   }
 }

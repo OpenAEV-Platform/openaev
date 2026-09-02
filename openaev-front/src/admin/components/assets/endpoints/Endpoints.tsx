@@ -27,6 +27,7 @@ import useBodyItemsStyles from '../../../../components/common/queryable/style/st
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCriticality from '../../../../components/ItemCriticality';
+import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
@@ -34,6 +35,7 @@ import { type EndpointOutput, type SearchPaginationInput } from '../../../../uti
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
+import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import { AbilityContext, Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
@@ -60,7 +62,8 @@ const inlineStyles: Record<string, CSSProperties> = {
   endpoint_agents_executor: { width: '12%' },
   asset_criticality: { width: '9%' },
   asset_posture: { width: '10%' },
-  asset_tags: { width: '19%' },
+  asset_tags: { width: '10%' },
+  asset_markings: { width: '9%' },
 };
 
 const Endpoints = () => {
@@ -69,6 +72,8 @@ const Endpoints = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
+  // Resolved once for the whole page; the Markings column maps ids per row.
+  const markingDefinitions = useMarkingDefinitions();
 
   // Load the executors once for the whole page; the per-row Executors column
   // reads them from the store (previously each row fetched them, firing
@@ -213,6 +218,19 @@ const Endpoints = () => {
       label: 'Tags',
       isSortable: false,
       value: (endpoint: EndpointOutput) => <ItemTags variant="list" tags={endpoint.asset_tags ?? []} />,
+    },
+    {
+      field: 'asset_markings',
+      label: 'Markings',
+      // Not sortable: markings are stored as a text[] on the row, not a joinable column.
+      isSortable: false,
+      value: (endpoint: EndpointOutput) => (
+        <ItemMarkings
+          variant="list"
+          markingIds={endpoint.asset_markings ?? []}
+          definitions={markingDefinitions}
+        />
+      ),
     },
   ];
 

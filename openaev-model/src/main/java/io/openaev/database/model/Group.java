@@ -81,6 +81,33 @@ public class Group implements DualScopeBase {
   @Fetch(value = FetchMode.SUBSELECT)
   private List<Role> roles = new ArrayList<>();
 
+  /**
+   * The markings this group <b>grants</b> its members — the source of their clearance.
+   *
+   * <p>Mapped even though the clearance <i>read</i> path deliberately does not use JPA: {@code
+   * MarkingClearanceCacheManager} runs before any transaction exists and must not pin a Hibernate
+   * session, so it queries {@code groups_markings} with {@code JdbcTemplate}. The <b>write</b> path
+   * has no such constraint — it runs inside a normal transactional service — so it uses the ORM
+   * like every other group association. The two agree on the table, not on the access mechanism.
+   *
+   * <p>🔴 A change here changes what every member of the group may see, so every write must be
+   * followed by {@code MarkingClearanceCacheManager#evictForUsers}: the cached clearance is pure
+   * set containment and never re-consults this table, so a stale entry fails <b>open</b>.
+   *
+   * <p>EAGER + SUBSELECT to match {@link #users} and {@link #roles}: one extra query per batch of
+   * groups, and the collection is serialized with the group.
+   */
+  @Schema(implementation = String[].class)
+  @ManyToMany(fetch = FetchType.EAGER)
+  @JoinTable(
+      name = "groups_markings",
+      joinColumns = @JoinColumn(name = "group_id"),
+      inverseJoinColumns = @JoinColumn(name = "marking_id"))
+  @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonProperty("group_markings")
+  @Fetch(value = FetchMode.SUBSELECT)
+  private List<MarkingDefinition> markings = new ArrayList<>();
+
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false)
   @JsonIgnore

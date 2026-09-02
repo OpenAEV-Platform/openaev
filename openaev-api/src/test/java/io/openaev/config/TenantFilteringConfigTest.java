@@ -35,7 +35,7 @@ class TenantFilteringConfigTest {
 
   @Autowired private DataSource dataSource;
   @Autowired private EntityManagerFactory entityManagerFactory;
-  @Autowired private TenantStatementInspector inspector;
+  @Autowired private ScopeStatementInspector inspector;
 
   @Test
   @DisplayName("classifies tenant tables by the nullability of their tenant_id column")
