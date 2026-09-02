@@ -37,8 +37,6 @@ export const searchPlayerByIdAsOption = (ids) => {
 
 export const addUser = data => dispatch => postReferential(schema.user, '/api/users', data)(dispatch);
 
-export const updateUserPassword = (userId, data) => dispatch => putReferential(schema.user, `/api/users/${userId}/password`, data)(dispatch);
-
 export const updateUser = (userId, data) => dispatch => putReferential(schema.user, `/api/users/${userId}`, data)(dispatch);
 
 export const deleteUser = userId => dispatch => delReferential(`/api/users/${userId}`, 'users', userId)(dispatch);

@@ -59,6 +59,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @Slf4j
 public class InjectImportService {
+  private static final ObjectMapper mapper = new ObjectMapper();
 
   private final InjectRepository injectRepository;
   private final ScenarioTeamUserRepository scenarioTeamUserRepository;
@@ -738,7 +739,6 @@ public class InjectImportService {
     }
 
     // Initializing the content with a root node
-    ObjectMapper mapper = new ObjectMapper();
     inject.setContent(mapper.createObjectNode());
 
     // Once it's done, we set the injectorContract
@@ -888,11 +888,16 @@ public class InjectImportService {
                           .map(column -> InjectImportUtils.getValueAsString(row, column))
                           .collect(Collectors.joining(","))
                           .split(","))
+                  .map(String::trim)
+                  .filter(value -> !value.isBlank())
+                  .distinct()
                   .toList();
         }
-        if (columnValues.isEmpty() || columnValues.stream().allMatch(String::isEmpty)) {
+        if (columnValues.isEmpty()) {
           List<String> defaultValues =
-              Arrays.stream(ruleAttribute.getDefaultValue().split(",")).toList();
+              ruleAttribute.getDefaultValue() == null
+                  ? List.of()
+                  : Arrays.stream(ruleAttribute.getDefaultValue().split(",")).toList();
           inject
               .getTeams()
               .addAll(

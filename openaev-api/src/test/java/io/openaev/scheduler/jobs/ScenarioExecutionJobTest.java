@@ -10,11 +10,17 @@ import static org.mockito.Mockito.mockStatic;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
+import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -26,14 +32,12 @@ import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestExecutionListeners;
-import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ScenarioExecutionJobTest extends IntegrationTest {
 
@@ -41,12 +45,22 @@ class ScenarioExecutionJobTest extends IntegrationTest {
   @Autowired private ScenarioComposer scenarioComposer;
 
   @Autowired private ScenarioService scenarioService;
+  @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private ExerciseRepository exerciseRepository;
+
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
+  @Autowired private EntityManager entityManager;
 
   static String SCENARIO_ID_1;
   static String SCENARIO_ID_2;
   static String SCENARIO_ID_3;
   static String EXERCISE_ID;
+
+  @AfterEach
+  void after() {
+    exerciseRepository.deleteAll();
+    scenarioRepository.deleteAll();
+  }
 
   @Nested
   @DisplayName("When using cron-based recurrence")
@@ -174,6 +188,57 @@ class ScenarioExecutionJobTest extends IntegrationTest {
               .toList();
       assertEquals(0, createdExercises.size());
     }
+
+    @Nested
+    @DisplayName("With recurring scenarios in multiple tenants")
+    @WithMockUser
+    class WithRecurringScenariosInMultipleTenants {
+      @Test
+      @DisplayName("Simulations are created in correct tenant")
+      void simulationAreCreatedInCorrectTenant()
+          throws DependenciesManagerException, JobExecutionException {
+        Tenant tenantA = tenantIsolationTestHelper.createTenant("tenantA");
+        Tenant tenantB = tenantIsolationTestHelper.createTenant("tenantB");
+
+        ZonedDateTime zonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"));
+        int minuteToStart = (zonedDateTime.getMinute() + 1) % 60;
+        int hourToStart = zonedDateTime.getHour() + ((zonedDateTime.getMinute() + 1) / 60);
+        hourToStart = hourToStart % 24;
+
+        // save in tenant A
+        tenantIsolationTestHelper.switchToTenantNoFlush(tenantA.getId());
+        Scenario scenarioTempA = ScenarioFixture.getScenario();
+        scenarioTempA.setRecurrence(
+            "0 " + minuteToStart + " " + hourToStart + " * * *"); // Every day now + 1 minute
+        Scenario recurringScenarioInTenantA = scenarioService.createScenario(scenarioTempA);
+
+        tenantIsolationTestHelper.switchToTenantNoFlush(tenantB.getId());
+        Scenario scenarioTempB = ScenarioFixture.getScenario();
+        scenarioTempB.setRecurrence(
+            "0 " + minuteToStart + " " + hourToStart + " * * *"); // Every day now + 1 minute
+        Scenario recurringScenarioInTenantB = scenarioService.createScenario(scenarioTempB);
+
+        tenantIsolationTestHelper.switchToTenantNoFlush(Tenant.DEFAULT_TENANT_UUID);
+
+        // ACT
+        job.execute(null);
+
+        // ASSERT
+        for (Scenario scenario : List.of(recurringScenarioInTenantA, recurringScenarioInTenantB)) {
+          tenantIsolationTestHelper.switchToTenantNoFlush(scenario.getTenant().getId());
+          List<Exercise> createdExercises =
+              fromIterable(exerciseRepository.findAll()).stream()
+                  .filter(
+                      exercise -> exercise.getTenant().getId().equals(scenario.getTenant().getId()))
+                  .toList();
+          assertThat(createdExercises).isNotEmpty();
+          assertThat(createdExercises)
+              .allSatisfy(
+                  exercise ->
+                      assertThat(exercise.getScenario().getId()).isEqualTo(scenario.getId()));
+        }
+      }
+    }
   }
 
   @Nested
@@ -244,7 +309,9 @@ class ScenarioExecutionJobTest extends IntegrationTest {
         assertThat(createdExercises)
             .singleElement()
             .satisfies(
-                exercise -> assertThat(exercise.getScenario()).isEqualTo(scenarioWrapper.get()));
+                exercise ->
+                    assertThat(exercise.getScenario().getId())
+                        .isEqualTo(scenarioWrapper.get().getId()));
       }
     }
 
@@ -276,7 +343,9 @@ class ScenarioExecutionJobTest extends IntegrationTest {
         assertThat(createdExercises)
             .singleElement()
             .satisfies(
-                exercise -> assertThat(exercise.getScenario()).isEqualTo(scenarioWrapper.get()));
+                exercise ->
+                    assertThat(exercise.getScenario().getId())
+                        .isEqualTo(scenarioWrapper.get().getId()));
       }
     }
 

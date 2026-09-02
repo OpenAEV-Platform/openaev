@@ -113,6 +113,7 @@ import org.springframework.validation.annotation.Validated;
 @Slf4j
 @Validated
 public class ScenarioService {
+  private static final ObjectMapper objectMapper = new ObjectMapper();
 
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
@@ -184,7 +185,7 @@ public class ScenarioService {
   }
 
   @Transactional
-  public Scenario createScenarioWithInjectorContracts(
+  public ScenarioSimple createScenarioWithInjectorContracts(
       // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
       // for this transaction (the arsenal selection resolves injector contracts and their linked
       // injector, both v2 tenant-scoped through the injectors table).
@@ -197,11 +198,11 @@ public class ScenarioService {
     Scenario scenario = computeAndCreateScenario(preparedScenario);
     this.injectService.createInjectsFromInjectorContractInput(
         null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
-    return scenario;
+    return ScenarioSimple.fromScenario(scenario);
   }
 
   @Transactional
-  public List<Scenario> updateScenariosWithInjectorContracts(
+  public List<ScenarioSimple> updateScenariosWithInjectorContracts(
       // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
       // for this transaction (same reason as createScenarioWithInjectorContracts above).
       TxCtx ctx,
@@ -211,7 +212,7 @@ public class ScenarioService {
     List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
     this.injectService.createInjectsFromInjectorContractInput(
         null, scenarios, injectorContractSearchPaginationInput, locale);
-    return scenarios;
+    return scenarios.stream().map(ScenarioSimple::fromScenario).toList();
   }
 
   public void computeEmails(@NotNull Scenario scenario) {
@@ -423,7 +424,6 @@ public class ScenarioService {
   }
 
   public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
-    ObjectMapper objectMapper = new ObjectMapper();
     RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
     if (rawScenario == null) {
       throw new ElementNotFoundException("Scenario not found");

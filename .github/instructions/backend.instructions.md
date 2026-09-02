@@ -77,7 +77,7 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - Prefer unidirectional relationships
 - `@Transactional` does NOT work on self-calls (Spring proxy bypass)
 - Background tasks: explicit `@Transactional` (no OSIV outside controllers)
-- `deleteById()` does a SELECT first — use native `@Query @Modifying` for perf-critical deletes
+- `deleteById()` does a SELECT first — use native `@Query @Modifying` for perf-critical deletes, but only when the entity is not `@Indexable`, `@AuditDiffTracked`, or streamed: a native or bulk delete skips the listener chain, so the search index, audit log, and activity stream are not updated (see `orm.instructions.md`)
 - **Never mutate a managed entity in a read path — `readOnly = true` does NOT make it safe**:
   with OSIV the Hibernate session outlives the controller's read-only transaction, and any later
   read-write transaction on the same thread (e.g. the spring-session JDBC save at response commit)

@@ -29,4 +29,8 @@ public class RandomUtils {
     }
     return builder.toString();
   }
+
+  public long getRandomLong(long low, long high) {
+    return csprng.nextLong(low, high);
+  }
 }

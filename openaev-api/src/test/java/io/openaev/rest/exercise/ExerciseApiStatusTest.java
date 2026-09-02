@@ -40,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -118,11 +119,6 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @Autowired private CacheManager cacheManager;
   @Autowired private PlatformTransactionManager transactionManager;
 
-  // Runs work in its own transaction: participates in the framework's test transaction when one
-  // is active (no behavior change for the @Transactional tests), or opens (and commits) a real
-  // transaction when the caller runs with @Transactional(propagation = NOT_SUPPORTED) - needed so
-  // entityManager.flush() and the InjectHelper.getInjectsToRun() call later in those tests both
-  // have a transaction to work with.
   private void inTransaction(Runnable work) {
     new TransactionTemplate(transactionManager).executeWithoutResult(status -> work.run());
   }
@@ -133,6 +129,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   }
 
   private void createFixtures() {
+    String uniqueSuffix = UUID.randomUUID().toString();
     REFERENCE_TIME =
         Instant.now(Clock.fixed(Instant.parse("2024-12-17T10:30:45Z"), ZoneId.of("UTC")));
     Exercise scheduledExercise = ExerciseFixture.createDefaultAttackExercise(REFERENCE_TIME);
@@ -140,6 +137,11 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     Exercise pausedExercise = ExerciseFixture.createPausedAttackExercise(REFERENCE_TIME);
     Exercise canceledExercise = ExerciseFixture.createCanceledAttackExercise(REFERENCE_TIME);
     Exercise finishedExercise = ExerciseFixture.createFinishedAttackExercise(REFERENCE_TIME);
+    scheduledExercise.setName(scheduledExercise.getName() + "-" + uniqueSuffix);
+    runningExercise.setName(runningExercise.getName() + "-" + uniqueSuffix);
+    pausedExercise.setName(pausedExercise.getName() + "-" + uniqueSuffix);
+    canceledExercise.setName(canceledExercise.getName() + "-" + uniqueSuffix);
+    finishedExercise.setName(finishedExercise.getName() + "-" + uniqueSuffix);
 
     InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
     Inject inject1 = getInjectForEmailContract(injectorContract);
@@ -165,8 +167,13 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     inject5.setContent(this.mapper.valueToTree(content));
     inject5.setExercise(finishedExercise);
 
-    User user = userRepository.save(UserFixture.getUser("Tom", "TEST", "tom-test@fake.email"));
-    Team team = TeamFixture.getTeam(user, "TeamA", true);
+    User user =
+        userRepository.save(
+            UserFixture.getUser(
+                "Tom-" + uniqueSuffix,
+                "TEST-" + uniqueSuffix,
+                "tom-test+" + uniqueSuffix + "@fake.email"));
+    Team team = TeamFixture.getTeam(user, "TeamA-" + uniqueSuffix, true);
     team.setExercises(
         Arrays.asList(
             scheduledExercise,
@@ -220,12 +227,6 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     entityManager.clear();
   }
 
-  // Cleanup for the tests that suspend the framework's test transaction
-  // (@Transactional(propagation = NOT_SUPPORTED)) in order to call InjectHelper.getInjectsToRun(),
-  // which opens its own TenantScopedTransaction and refuses to run inside an already-active
-  // transaction. Those tests genuinely commit the @BeforeEach fixtures instead of relying on the
-  // framework's automatic rollback, so they must clean up manually. FK cascades (ON DELETE
-  // CASCADE) take care of injects, inject statuses, pauses and lessons hanging off each exercise.
   private void cleanupSharedFixtures() {
     exerciseRepository.deleteById(SCHEDULED_EXERCISE.getId());
     exerciseRepository.deleteById(RUNNING_EXERCISE.getId());
@@ -239,10 +240,6 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @DisplayName("Start an exercise manually")
   @Test
   @WithMockUser(isAdmin = true)
-  // InjectHelper.getInjectsToRun() opens its own TenantScopedTransaction, which refuses to run
-  // inside an already-active transaction. Suspend the framework's test transaction so the
-  // fixtures created in @BeforeEach are genuinely committed and visible to it, and clean them up
-  // manually afterwards since they are no longer rolled back automatically.
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   void manualStartExerciseTest() throws Exception {
     try {

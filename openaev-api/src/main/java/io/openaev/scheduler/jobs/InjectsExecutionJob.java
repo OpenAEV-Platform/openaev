@@ -22,10 +22,10 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
-import io.openaev.execution.ProtectUser;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
+import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -80,6 +80,8 @@ public class InjectsExecutionJob implements Job {
 
   // Thread-safe and expensive to instantiate; never recreate per dependency evaluation
   private static final ExpressionParser SPEL_PARSER = new SpelExpressionParser();
+
+  private static final String ATOMIC_BATCH_KEY = "atomic";
 
   @Value("${openaev.notification.simulation-completed-delay-seconds:3600}")
   private long delayForSimulationCompletedEvent;
@@ -142,35 +144,56 @@ public class InjectsExecutionJob implements Job {
         mustBeFinishedSimulations.stream()
             .filter(simulation -> !workflowService.existsBySimulationId(simulation.getId()))
             .toList();
-    List<Exercise> exercisesToFinish = new ArrayList<>(mustBeFinishedSimulations);
-    exercisesToFinish.forEach(
-        exercise -> {
-          exercise.setStatus(ExerciseStatus.FINISHED);
-          exercise.setEnd(now());
-          exercise.setUpdatedAt(now());
-        });
-    List<Exercise> exercisesFinished = exerciseRepository.saveAll(exercisesToFinish);
+    if (mustBeFinishedSimulations.isEmpty()) {
+      return;
+    }
 
-    // maybe trigger stix coverage background job
-    securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
-        exercisesFinished);
+    Map<String, List<String>> simulationIdsByTenant = new LinkedHashMap<>();
+    mustBeFinishedSimulations.forEach(
+        simulation ->
+            simulationIdsByTenant
+                .computeIfAbsent(simulation.getTenant().getId(), key -> new ArrayList<>())
+                .add(simulation.getId()));
 
-    // send notification
-    exercisesFinished.stream()
-        .filter(
-            ex ->
-                ex.getScenario()
-                    != null) // only send notification for exercise associated to a scenario
-        .forEach(
-            ex ->
-                notificationEventService.sendNotificationEventWithDelay(
-                    NotificationEvent.builder()
-                        .eventType(NotificationEventType.SIMULATION_COMPLETED)
-                        .resourceType(ResourceType.SCENARIO)
-                        .resourceId(ex.getScenario().getId())
-                        .timestamp(Instant.now())
-                        .build(),
-                    delayForSimulationCompletedEvent));
+    simulationIdsByTenant.forEach(
+        (tenantId, simulationIds) ->
+            executeInTenant(
+                tenantId,
+                () -> {
+                  // Refetch in tenant scope so eager securityCoverage is resolved under multitenant
+                  // v2.
+                  List<Exercise> exercisesToFinish =
+                      new ArrayList<>(exerciseRepository.findAllById(simulationIds));
+                  exercisesToFinish.forEach(
+                      exercise -> {
+                        exercise.setStatus(ExerciseStatus.FINISHED);
+                        exercise.setEnd(now());
+                        exercise.setUpdatedAt(now());
+                      });
+                  List<Exercise> exercisesFinished = exerciseRepository.saveAll(exercisesToFinish);
+
+                  // maybe trigger stix coverage background job
+                  securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(
+                      exercisesFinished);
+
+                  // send notification
+                  exercisesFinished.stream()
+                      .filter(
+                          ex ->
+                              ex.getScenario()
+                                  != null) // only send notification for exercise associated to a
+                      // scenario
+                      .forEach(
+                          ex ->
+                              notificationEventService.sendNotificationEventWithDelay(
+                                  NotificationEvent.builder()
+                                      .eventType(NotificationEventType.SIMULATION_COMPLETED)
+                                      .resourceType(ResourceType.SCENARIO)
+                                      .resourceId(ex.getScenario().getId())
+                                      .timestamp(Instant.now())
+                                      .build(),
+                                  delayForSimulationCompletedEvent));
+                }));
   }
 
   public void handlePendingInject() {
@@ -473,6 +496,18 @@ public class InjectsExecutionJob implements Job {
       Map<String, List<ExecutableInject>> byExercises =
           injects.stream()
               .filter(
+                  executableInject -> {
+                    Inject inject = executableInject.getInjection().getInject();
+                    if (inject.getTenant() != null) {
+                      return true;
+                    }
+                    String message =
+                        "Inject " + inject.getId() + " has no tenant, cannot be executed";
+                    log.warn(message);
+                    injectStatusService.failInjectStatus(inject.getId(), message);
+                    return false;
+                  })
+              .filter(
                   executableInject ->
                       // If we got dependencies, we check that the parents are not part of the
                       // current batch of injects running. If so, we're filtering them out and
@@ -495,21 +530,23 @@ public class InjectsExecutionJob implements Job {
                   groupingBy(
                       ex ->
                           ex.getInjection().getExercise() == null
-                              ? "atomic"
+                              // Atomic injects have no exercise to group by.
+                              ? ATOMIC_BATCH_KEY
                               : ex.getInjection().getExercise().getId()));
 
-      // Execute injects in parallel for each exercise.
+      // Execute exercise batches in parallel. Each inject execution resolves and opens its own
+      // tenant scope - a plain field lookup, not a DB call - so nested parallel workers never
+      // share or leak tenant context, and the correctness of the scope no longer depends on a
+      // batch being single-tenant.
       byExercises.entrySet().parallelStream()
           .forEach(
               entry -> {
-                // Execute each inject for the exercise in order.
                 entry.getValue().parallelStream()
                     .forEach(
                         executableInject -> {
                           Inject inject = executableInject.getInjection().getInject();
-                          String tenantId = inject.getTenant().getId();
                           executeInTenant(
-                              tenantId,
+                              inject.getTenant().getId(),
                               () -> {
                                 try {
                                   this.executeInject(executableInject);
@@ -525,9 +562,17 @@ public class InjectsExecutionJob implements Job {
                                 }
                               });
                         });
-                // Update the exercise
-                if (!entry.getKey().equals("atomic")) {
-                  updateExercise(entry.getKey());
+
+                // Update the exercise once all injects of the batch are processed.
+                if (!entry.getKey().equals(ATOMIC_BATCH_KEY)) {
+                  entry.getValue().stream()
+                      .findFirst()
+                      .map(
+                          executableInject ->
+                              executableInject.getInjection().getInject().getTenant().getId())
+                      .ifPresent(
+                          tenantId ->
+                              executeInTenant(tenantId, () -> updateExercise(entry.getKey())));
                 }
               });
       // Change status of finished simulations.
@@ -638,7 +683,7 @@ public class InjectsExecutionJob implements Job {
               executableInject.getUsers().stream()
                   .map(ExecutionContext::getUser)
                   .filter(Objects::nonNull)
-                  .map(ProtectUser::getId)
+                  .map(UserContract::getId)
                   .filter(Objects::nonNull)
                   .toList());
           contextData.put("total_endpoints", endpointResolutions.size());

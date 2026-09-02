@@ -1,12 +1,15 @@
 package io.openaev.scheduler.jobs;
 
+import static io.openaev.context.TxCtx.forTenant;
 import static io.openaev.database.specification.ExerciseSpecification.recurringInstanceNotStarted;
 
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.TenantRepository;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.scenario.ScenarioService;
@@ -25,7 +28,6 @@ import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -37,65 +39,94 @@ public class ScenarioExecutionJob implements Job {
   private final ExerciseRepository exerciseRepository;
   private final ScenarioToExerciseService scenarioToExerciseService;
   private final EntityManager entityManager;
+  private final TenantScopedTransaction tenantTx;
+  private final TenantRepository tenantRepository;
 
   @Override
-  @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     // Disable tenant filter — this job runs cross-tenant
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     createExercisesFromScenarios();
     cleanOutdatedRecurringScenario();
   }
 
   private void createExercisesFromScenarios() {
     Instant now = Instant.now();
-    // Find each scenario with cron where now is between start and end date
-    List<Scenario> scenarios = this.scenarioService.recurringScenarios(now);
-    // Filter on valid cron scenario -> Start date on cron is in 1 minute
-    List<Scenario> validScenarios =
-        scenarios.stream()
-            .filter(
-                scenario -> {
-                  Optional<Instant> nextOccurrence =
-                      scenarioRecurrenceService.getNextExecutionTime(scenario, now);
-                  if (nextOccurrence.isEmpty()) {
-                    return false;
-                  }
-                  Instant startDate = nextOccurrence.get().minus(1, ChronoUnit.MINUTES);
-                  ZonedDateTime startDateMinute =
-                      startDate.atZone(ZoneId.of("UTC")).truncatedTo(ChronoUnit.MINUTES);
-                  ZonedDateTime nowMinute =
-                      now.atZone(ZoneId.of("UTC")).truncatedTo(ChronoUnit.MINUTES);
-                  return startDateMinute.equals(nowMinute);
-                })
-            .toList();
-    // Check if a simulation link to this scenario already exists
-    // Retrieve simulations not started, link to a scenario
-    List<String> alreadyExistIds =
-        this.exerciseRepository.findAll(recurringInstanceNotStarted()).stream()
-            .map(Exercise::getScenario)
-            .map(Scenario::getId)
-            .toList();
-    // Filter scenarios with this results
-    validScenarios.stream()
-        .filter(scenario -> !alreadyExistIds.contains(scenario.getId()))
-        // Create simulation with start date provided by cron
-        .forEach(
-            scenario -> {
-              try {
-                TenantContext.setCurrentTenant(scenario.getTenant().getId());
-                this.scenarioToExerciseService.toExercise(
-                    scenario,
-                    scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now),
-                    false);
-              } finally {
-                TenantContext.clearCurrentTenant();
-              }
-            });
+    tenantRepository
+        .findAllIdsByDeletedAtIsNull()
+        .forEach(tenantId -> createExercisesFromScenariosAndByTenant(tenantId, now));
+  }
+
+  private void createExercisesFromScenariosAndByTenant(String tenantId, Instant now) {
+    executeInTenant(
+        tenantId,
+        () -> {
+          // MT v1 compatibility: the tenant filter must be active for now
+          // we ust enable the filter here for lack of the @Transactional aspect
+          // (forbidden by usage of the TenantScopedTransaction)
+          entityManager
+              .unwrap(Session.class)
+              .enableFilter("tenantFilter")
+              .setParameter("tenantId", tenantId);
+          // Find each scenario with cron where now is between start and end date
+          List<Scenario> scenarios = this.scenarioService.recurringScenarios(now);
+          // Filter on valid cron scenario -> Start date on cron is in 1 minute
+          List<Scenario> validScenarios =
+              scenarios.stream()
+                  .filter(
+                      scenario -> {
+                        Optional<Instant> nextOccurrence =
+                            scenarioRecurrenceService.getNextExecutionTime(scenario, now);
+                        if (nextOccurrence.isEmpty()) {
+                          return false;
+                        }
+                        Instant startDate = nextOccurrence.get().minus(1, ChronoUnit.MINUTES);
+                        ZonedDateTime startDateMinute =
+                            startDate.atZone(ZoneId.of("UTC")).truncatedTo(ChronoUnit.MINUTES);
+                        ZonedDateTime nowMinute =
+                            now.atZone(ZoneId.of("UTC")).truncatedTo(ChronoUnit.MINUTES);
+                        return startDateMinute.equals(nowMinute);
+                      })
+                  .toList();
+          // Check if a simulation link to this scenario already exists
+          // Retrieve simulations not started, link to a scenario
+          List<String> alreadyExistIds =
+              this.exerciseRepository.findAll(recurringInstanceNotStarted()).stream()
+                  .map(Exercise::getScenario)
+                  .map(Scenario::getId)
+                  .toList();
+          // Filter scenarios with this results
+          validScenarios.stream()
+              .filter(scenario -> !alreadyExistIds.contains(scenario.getId()))
+              // Create simulation with start date provided by cron
+              .forEach(
+                  scenario -> {
+                    this.scenarioToExerciseService.toExercise(
+                        scenario,
+                        scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now),
+                        false);
+                  });
+        });
+  }
+
+  private void executeInTenant(@NotNull final String tenantId, @NotNull final Runnable work) {
+    String previousTenant =
+        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
+    TenantContext.setCurrentTenant(tenantId);
+    try {
+      tenantTx.execute(forTenant(tenantId), work);
+    } finally {
+      if (previousTenant == null) {
+        TenantContext.clearCurrentTenant();
+      } else {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+    }
   }
 
   private void cleanOutdatedRecurringScenario() {
+    // MT v1: disable filter here to act on all tenants
+    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     // Find each scenario with cron is outdated:
     List<Scenario> scenarios =
         this.scenarioService.potentialOutdatedRecurringScenario(Instant.now());

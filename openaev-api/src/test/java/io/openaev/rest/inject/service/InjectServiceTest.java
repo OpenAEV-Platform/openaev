@@ -18,6 +18,7 @@ import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.injectors.email.service.ImapService;
 import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.collector.service.CollectorService;
@@ -136,7 +137,9 @@ class InjectServiceTest {
 
   @Mock private ConditionService conditionService;
 
-  @Spy private InjectorContractContentUtils injectorContractContentUtils;
+  @Spy
+  private InjectorContractContentUtils injectorContractContentUtils =
+      new InjectorContractContentUtils(ObjectMapperHelper.openAEVJsonMapper());
 
   @Mock private ApplicationEventPublisher eventPublisher;
 

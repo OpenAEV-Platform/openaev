@@ -9,23 +9,19 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
-import io.openaev.config.SessionManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
-import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawUser;
-import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.database.specification.GroupSpecification;
 import io.openaev.database.specification.UserSpecification;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exception.InputValidationException;
-import io.openaev.rest.user.form.user.ChangePasswordInput;
+import io.openaev.service.UserCreationScope;
 import io.openaev.service.UserService;
+import io.openaev.service.account.PrivilegeEscalationValidator;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.users.UserQueryHelper;
@@ -48,9 +44,7 @@ public class TenantUserService implements DependenciesManager {
   private final UserService userService;
   private final UserRepository userRepository;
   private final TenantRepository tenantRepository;
-  private final GroupRepository groupRepository;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
-  private final SessionManager sessionManager;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -64,14 +58,14 @@ public class TenantUserService implements DependenciesManager {
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
       attachToTenant(userId, tenantId);
-      assignDefaultTenantGroups(userId, tenantId);
+      userService.assignAutoAssignGroups(userId, List.of(tenantId));
       // Reload user after @Modifying queries cleared the persistence context
       User reloaded = userRepository.findById(userId).orElseThrow();
       return UserMapper.toOutput(reloaded);
     }
-    User user = userService.createUser(input);
+    User user = userService.createUser(input, UserCreationScope.TENANT);
     attachToTenant(user.getId(), tenantId);
-    assignDefaultTenantGroups(user.getId(), tenantId);
+    userService.assignAutoAssignGroups(user.getId(), List.of(tenantId));
     // Reload user after @Modifying queries cleared the persistence context
     User reloaded = userRepository.findById(user.getId()).orElseThrow();
     return UserMapper.toOutput(reloaded);
@@ -145,37 +139,10 @@ public class TenantUserService implements DependenciesManager {
         userRepository
             .findOne(spec)
             .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
-    existing.setEmail(input.email());
-    existing.setFirstname(input.firstname());
-    existing.setLastname(input.lastname());
-    existing.setPhone(input.phone());
-    existing.setPhone2(input.phone2());
-    existing.setPgpKey(input.pgpKey());
-    existing.setOrganization(userService.resolveOrganization(input.organizationId()));
-    existing.setTags(userService.resolveTags(input.tagIds()));
-    User savedUser = userRepository.save(existing);
-    return UserMapper.toOutput(savedUser);
-  }
-
-  /**
-   * Changes the password of a user within the current tenant scope. The tenant membership check
-   * ensures a tenant admin can only reset passwords of its own tenant's users.
-   */
-  public UserOutput updatePassword(@NotBlank String userId, ChangePasswordInput input)
-      throws InputValidationException {
-    if (!input.getPassword().equals(input.getPasswordValidation())) {
-      throw new InputValidationException("password_validation", "Bad password validation");
-    }
-    Specification<User> spec = inTenant(tenantId()).and(UserSpecification.byId(userId));
-    User existing =
-        userRepository
-            .findOne(spec)
-            .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
-    existing.setPassword(userService.encodeUserPassword(input.getPassword()));
-    User savedUser = userRepository.save(existing);
-    // Security: an administrative password change kills every live session of the user
-    sessionManager.invalidateUserSession(userId);
-    return UserMapper.toOutput(savedUser);
+    ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
+    PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), existing.isAdmin());
+    userService.applyProfile(existing, input);
+    return UserMapper.toOutput(userRepository.save(existing));
   }
 
   // -- DELETE --
@@ -184,6 +151,8 @@ public class TenantUserService implements DependenciesManager {
   public void detach(String userId) {
     User user = userService.user(userId);
     ReservedKeyValidator.validateUserEmailPattern(user.getEmail());
+    // Before the membership row goes away, so the groups it granted go with it.
+    userService.revokeTenantGroups(userId, List.of(tenantId()));
     tenantRepository.removeUserFromTenant(userId, tenantId());
     tenantMembershipCacheManager.evict(userId, tenantId());
   }
@@ -209,23 +178,5 @@ public class TenantUserService implements DependenciesManager {
       throw new IllegalStateException("TenantUserService requires a tenant context");
     }
     return tenantId;
-  }
-
-  private void assignDefaultTenantGroups(String userId, String tenantId) {
-    List<Group> defaultGroups =
-        groupRepository.findAll(GroupSpecification.defaultUserAssignableTenant(tenantId));
-    if (defaultGroups.isEmpty()) {
-      return;
-    }
-    User user =
-        userRepository
-            .findById(userId)
-            .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
-    for (Group group : defaultGroups) {
-      if (!group.getUsers().contains(user)) {
-        group.getUsers().add(user);
-        groupRepository.save(group);
-      }
-    }
   }
 }

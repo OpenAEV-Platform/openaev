@@ -8,7 +8,7 @@ import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.secrets.provider.SecretsProviderType;
-import io.openaev.secrets.provider.impl.handlers.SecretHandler;
+import io.openaev.secrets.provider.impl.handlers.SecretHandlerResolver;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
 import io.openaev.service.FileService;
@@ -28,7 +28,7 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
   private final SecretReferenceService secretReferenceService;
   private final PreviewFeatureService previewFeatureService;
   private final FileService fileService;
-  private final List<SecretHandler> secretHandlers;
+  private final SecretHandlerResolver secretHandlerResolver;
 
   public LocalSecretsProviderIntegrationFactory(
       ConnectorInstanceService connectorInstanceService,
@@ -39,14 +39,14 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
       SecretReferenceService secretReferenceService,
       PreviewFeatureService previewFeatureService,
       FileService fileService,
-      List<SecretHandler> secretHandlers) {
+      SecretHandlerResolver secretHandlerResolver) {
     super(connectorInstanceService, catalogConnectorService, httpClientFactory);
     this.componentRequestEngine = componentRequestEngine;
     this.secretService = secretService;
     this.secretReferenceService = secretReferenceService;
     this.previewFeatureService = previewFeatureService;
     this.fileService = fileService;
-    this.secretHandlers = secretHandlers;
+    this.secretHandlerResolver = secretHandlerResolver;
   }
 
   @Override
@@ -84,7 +84,7 @@ public class LocalSecretsProviderIntegrationFactory extends BuiltinIntegrationFa
         componentRequestEngine,
         secretService,
         secretReferenceService,
-        secretHandlers);
+        secretHandlerResolver);
   }
 
   @Override

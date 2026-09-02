@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { type SortField } from '../../../../utils/api-types';
 import { type SortHelpers } from './SortHelpers';
 
-const computeDirection = (direction?: string) => {
+const computeDirection = (direction?: string | null) => {
   if (direction) {
     return direction === 'ASC';
   }

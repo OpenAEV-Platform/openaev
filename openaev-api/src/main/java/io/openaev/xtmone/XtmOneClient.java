@@ -51,6 +51,15 @@ public class XtmOneClient {
   private static final int AGENT_LIST_TIMEOUT_SECONDS = 10;
 
   /**
+   * Clears XTM One's 30-minute abandonment bound, so a turn paused for tool approval is not cut off
+   * by a deadline nobody chose. Finite rather than {@link Timeout#DISABLED} on purpose: a paused
+   * turn produces no bytes, so this is the only thing that frees the reader thread if the
+   * connection dies without a FIN. Paired with {@code MvcConfig#ASYNC_REQUEST_TIMEOUT_MS}, which
+   * must stay above it.
+   */
+  private static final Timeout CHAT_STREAM_RESPONSE_TIMEOUT = Timeout.ofMinutes(40);
+
+  /**
    * Intent binding the specialist agents the autonomous attack-path orchestrator may consult (see
    * XTM One {@code aev.attack_path_additional_agent}). Curated list the operator picks from.
    */
@@ -137,6 +146,9 @@ public class XtmOneClient {
       body.put("enterprise_license_pem", enterpriseLicensePem != null ? enterpriseLicensePem : "");
       body.put("license_type", licenseType != null ? licenseType : "");
       if (businessVertical != null) body.put("business_vertical", businessVertical);
+      // Platform-level twin of the per-message supports_tool_approval: this one says the
+      // integration can be gated at all, that one says a given client will answer a prompt.
+      body.put("supports_approval_prompts", true);
       body.put("intents", intents != null ? intents : List.of());
       String json = objectMapper.writeValueAsString(body);
 
@@ -399,6 +411,88 @@ public class XtmOneClient {
       log.warn("[XTM One] Steer message error: ", e);
       throw new ResponseStatusException(
           HttpStatus.INTERNAL_SERVER_ERROR, "[XTM One] Unexpected error while steering", e);
+    }
+  }
+
+  /**
+   * @param decisions one entry per proposed call — {@code {tool_call_id, decision,
+   *     rejection_reason}}. Every proposal must be decided: resuming with an undecided call leaves
+   *     a {@code tool_use} block without its {@code tool_result}, which the model providers reject.
+   */
+  @SuppressWarnings("unchecked")
+  public Map<String, Object> approveToolCalls(
+      String conversationId, List<Map<String, Object>> decisions) {
+    if (!config.isConfigured()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      Map<String, Object> body = new HashMap<>();
+      body.put("conversation_id", conversationId);
+      body.put("decisions", decisions);
+      String json = objectMapper.writeValueAsString(body);
+
+      HttpPost httpPost = chatPostBuilder("/api/v1/platform/chat/messages/approve", jwt, json);
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+
+      return httpClient.execute(
+          httpPost,
+          response -> {
+            if (response.getCode() == 200) {
+              return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
+            }
+            throw mapUpstreamErrorPreservingStatus(response);
+          });
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      if (e.getCause() instanceof ResponseStatusException rse) {
+        throw rse;
+      }
+      log.warn("[XTM One] Approve tool calls error: ", e);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "[XTM One] Unexpected error while approving", e);
+    }
+  }
+
+  /**
+   * Calling this also refreshes upstream's client-seen marker, restarting the abandonment clock.
+   */
+  @SuppressWarnings("unchecked")
+  public Map<String, Object> getPendingApprovals(String conversationId) {
+    if (!config.isConfigured()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      String encodedConversationId = URLEncoder.encode(conversationId, StandardCharsets.UTF_8);
+      HttpGet httpGet =
+          chatGetBuilder(
+              "/api/v1/platform/chat/conversations/" + encodedConversationId + "/pending-approvals",
+              jwt);
+      httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+
+      return httpClient.execute(
+          httpGet,
+          response -> {
+            if (response.getCode() == 200) {
+              return objectMapper.readValue(EntityUtils.toString(response.getEntity()), Map.class);
+            }
+            throw mapUpstreamErrorPreservingStatus(response);
+          });
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      if (e.getCause() instanceof ResponseStatusException rse) {
+        throw rse;
+      }
+      log.warn("[XTM One] Pending approvals error: ", e);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          "[XTM One] Unexpected error while reading pending approvals",
+          e);
     }
   }
 
@@ -687,7 +781,20 @@ public class XtmOneClient {
    */
   public void streamChatMessage(
       String content, String conversationId, String agentSlug, StreamConsumer streamConsumer) {
-    streamChatMessage(content, conversationId, agentSlug, null, streamConsumer);
+    streamChatMessage(content, conversationId, agentSlug, null, false, streamConsumer);
+  }
+
+  /**
+   * @deprecated use the overload carrying {@code supportsToolApproval}.
+   */
+  @Deprecated
+  public void streamChatMessage(
+      String content,
+      String conversationId,
+      String agentSlug,
+      Map<String, Object> context,
+      StreamConsumer streamConsumer) {
+    streamChatMessage(content, conversationId, agentSlug, context, false, streamConsumer);
   }
 
   /**
@@ -700,6 +807,8 @@ public class XtmOneClient {
    * @param conversationId optional conversation ID
    * @param agentSlug optional agent slug
    * @param context optional host page/application context (forwarded verbatim)
+   * @param supportsToolApproval whether the caller can answer an approval prompt. Declaring it is a
+   *     promise to answer: a turn paused for a client that never answers waits indefinitely.
    * @param streamConsumer callback that receives the SSE {@link InputStream}
    */
   public void streamChatMessage(
@@ -707,6 +816,7 @@ public class XtmOneClient {
       String conversationId,
       String agentSlug,
       Map<String, Object> context,
+      boolean supportsToolApproval,
       StreamConsumer streamConsumer) {
     if (!config.isConfigured()) {
       log.warn("[XTM One] Chat message skipped: not configured");
@@ -719,10 +829,12 @@ public class XtmOneClient {
       if (conversationId != null) body.put("conversation_id", conversationId);
       if (agentSlug != null) body.put("agent_slug", agentSlug);
       if (context != null && !context.isEmpty()) body.put("context", context);
+      if (supportsToolApproval) body.put("supports_tool_approval", true);
       String json = objectMapper.writeValueAsString(body);
 
       HttpPost httpPost = chatPostBuilder("/api/v1/platform/chat/messages", jwt, json);
-      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofMinutes(15)).build());
+      httpPost.setConfig(
+          RequestConfig.custom().setResponseTimeout(CHAT_STREAM_RESPONSE_TIMEOUT).build());
 
       httpClient.execute(
           httpPost,

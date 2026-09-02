@@ -87,7 +87,7 @@ const PlatformUsersTab = () => {
                   <PlatformUserPopover
                     inList
                     platformUser={user}
-                    actions={['Update', 'Update password', 'Delete']}
+                    actions={['Update', 'Delete']}
                     onUpdate={updatePlatformUserInList}
                     onDelete={removePlatformUser}
                   />

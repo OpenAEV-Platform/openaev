@@ -30,7 +30,7 @@ const InjectContentFieldComponent = ({
 }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const { control, getValues, formState: { errors } } = useFormContext();
+  const { control, getValues, formState: { errors, isSubmitting } } = useFormContext();
   const values = getValues();
 
   const selectedValue = useWatch({
@@ -66,7 +66,7 @@ const InjectContentFieldComponent = ({
           <TagFieldController
             name={field.key}
             label={t(label)}
-            disabled={readOnly}
+            disabled={readOnly || isSubmitting}
             required={field.settings?.required}
           />
         );
@@ -119,7 +119,7 @@ const InjectContentFieldComponent = ({
             label={t(label)}
             items={choices as ChoiceItem[]}
             multiple={field.cardinality === 'n'}
-            disabled={readOnly}
+            disabled={isSubmitting || readOnly}
             required={field.settings?.required}
           />
         );
@@ -144,7 +144,7 @@ const InjectContentFieldComponent = ({
                 label={label}
                 value={(value as string) || undefined}
                 onChange={v => onChange(v ?? '')}
-                disabled={readOnly}
+                disabled={isSubmitting || readOnly}
                 required={field.settings?.required}
                 error={!!error}
               />
@@ -166,7 +166,7 @@ const InjectContentFieldComponent = ({
           <TextFieldController
             name={field.key}
             label={t(label)}
-            disabled={readOnly}
+            disabled={isSubmitting || readOnly}
             multiline={field.type === 'textarea'}
             rows={field.type === 'textarea' ? (field.settings?.rows ?? 10) : 1}
             required={field.settings?.required}

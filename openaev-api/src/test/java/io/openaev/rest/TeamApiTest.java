@@ -18,6 +18,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.team.form.TeamBulkProcessingInput;
 import io.openaev.rest.team.form.TeamCreateInput;
 import io.openaev.rest.team.form.UpdateUsersTeamInput;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -295,6 +296,68 @@ class TeamApiTest extends IntegrationTest {
 
     // --ASSERT--
     assertTrue(actualMessage.contains(expectedMessage));
+  }
+
+  @DisplayName("Given a team linked to injects, should delete the team and keep the injects")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_teamLinkedToInjects_should_deleteTeamSuccessfully() throws Exception {
+    // --PREPARE--
+    Team team = this.teamRepository.save(createTeamWithName(TEAM_NAME + "-linked"));
+    Inject inject = saveInjectWithTeams(List.of(team));
+
+    // --EXECUTE--
+    mvc.perform(delete(TEAM_URI + "/" + team.getId()).with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+    entityManager.flush();
+
+    // --ASSERT--
+    assertFalse(this.teamRepository.existsById(team.getId()));
+    assertTrue(this.injectRepository.findById(inject.getId()).isPresent());
+  }
+
+  @DisplayName("Given teams linked to injects, should bulk delete the teams and keep the injects")
+  @Test
+  @WithMockUser(isAdmin = true)
+  void given_teamsLinkedToInjects_should_bulkDeleteTeamsSuccessfully() throws Exception {
+    // --PREPARE--
+    Team firstTeam = this.teamRepository.save(createTeamWithName(TEAM_NAME + "-bulk-1"));
+    Team secondTeam = this.teamRepository.save(createTeamWithName(TEAM_NAME + "-bulk-2"));
+    Inject inject = saveInjectWithTeams(List.of(firstTeam, secondTeam));
+
+    TeamBulkProcessingInput input = new TeamBulkProcessingInput();
+    input.setTeamIdsToProcess(List.of(firstTeam.getId(), secondTeam.getId()));
+
+    // --EXECUTE--
+    mvc.perform(
+            delete(TEAM_URI)
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+    entityManager.flush();
+
+    // --ASSERT--
+    assertFalse(this.teamRepository.existsById(firstTeam.getId()));
+    assertFalse(this.teamRepository.existsById(secondTeam.getId()));
+    assertTrue(this.injectRepository.findById(inject.getId()).isPresent());
+  }
+
+  private Inject saveInjectWithTeams(List<Team> teams) {
+    Exercise exercise = this.exerciseService.createExercise(ExerciseFixture.getExercise());
+    // Linking the teams to the simulation too, as the import does: this is what makes the delete
+    // event load the injects back into the session
+    exercise.getTeams().addAll(teams);
+    Inject inject =
+        getInjectForEmailContract(injectorContractFixture.getWellKnownSingleEmailContract());
+    inject.setExercise(exercise);
+    inject.setTeams(new ArrayList<>(teams));
+    Inject savedInject = this.injectRepository.save(inject);
+    // The deletion must start from a cold session, as in production
+    entityManager.flush();
+    entityManager.clear();
+    return savedInject;
   }
 
   // Options endpoint tests

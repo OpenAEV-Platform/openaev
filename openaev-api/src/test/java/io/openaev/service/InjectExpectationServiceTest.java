@@ -46,6 +46,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -533,7 +534,7 @@ class InjectExpectationServiceTest {
         InjectExpectationFixture.createPreventionInjectExpectation(inject, null);
     BaseInjectExpectation expectation2 =
         InjectExpectationFixture.createPreventionInjectExpectation(inject, null);
-    when(injectExpectationRepository.findAll(any()))
+    when(injectExpectationRepository.findAll(any(Specification.class)))
         .thenReturn(List.of(expectation1, expectation2));
 
     List<BaseInjectExpectation> result =
@@ -552,7 +553,7 @@ class InjectExpectationServiceTest {
         InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
     BaseInjectExpectation expectation2 =
         InjectExpectationFixture.createDetectionInjectExpectation(inject, null);
-    when(injectExpectationRepository.findAll(any()))
+    when(injectExpectationRepository.findAll(any(Specification.class)))
         .thenReturn(List.of(expectation1, expectation2));
 
     List<BaseInjectExpectation> result =
@@ -571,7 +572,7 @@ class InjectExpectationServiceTest {
         InjectExpectationFixture.createManualInjectExpectation(null, inject);
     BaseInjectExpectation expectation2 =
         InjectExpectationFixture.createManualInjectExpectation(null, inject);
-    when(injectExpectationRepository.findAll(any()))
+    when(injectExpectationRepository.findAll(any(Specification.class)))
         .thenReturn(List.of(expectation1, expectation2));
 
     List<BaseInjectExpectation> result =

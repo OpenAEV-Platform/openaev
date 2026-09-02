@@ -1,4 +1,5 @@
 import { Slide } from '@mui/material';
+import { type AxiosResponse } from 'axios';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
@@ -11,6 +12,7 @@ import {
   type PlatformSettings,
   type ScenarioAndInjectorContractsInputs,
   type ScenarioInput,
+  type ScenarioSimple,
   type ThreatArsenalAction,
 } from '../../../../utils/api-types';
 import ScenarioForm from '../../scenarios/ScenarioForm';
@@ -41,7 +43,7 @@ const ThreatArsenalScenarioCreationComponent = ({ isExclusionMode, selectedEleme
         injector_contract_ids_to_ignore: isExclusionMode ? Object.keys(deSelectedElements) : [],
       },
     };
-    const result = await addScenarioWithInjectorContracts(inputs);
+    const result: AxiosResponse<ScenarioSimple> = await addScenarioWithInjectorContracts(inputs);
     navigate(`/admin/scenarios/${result.data.scenario_id}/injects`);
   };
 
