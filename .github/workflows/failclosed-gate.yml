@@ -1,0 +1,106 @@
+name: "Fail-closed Gate"
+
+# WS1 defense-in-depth layer 1 (#7723). Runs the tenant fail-closed detector as a gate:
+# it fails when a NEW production path reads a v2-active table without a tenant scope
+# (which would silently return zero rows in production). Off in the normal pipeline; this
+# dedicated lane turns it on with -Dopenaev.failclosed.detector=on. Only the tests that
+# activate a table can produce a gated read, so the lane runs exactly those.
+
+on:
+  pull_request:
+    paths:
+      - "openaev-api/**"
+      - "openaev-model/**"
+      - "openaev-framework/**"
+      - ".github/workflows/failclosed-gate.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "failclosed-gate-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  failclosed-gate:
+    name: "🔒 Fail-closed Gate"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
+      SPRING_DATASOURCE_USERNAME: openaev
+      SPRING_DATASOURCE_PASSWORD: openaev
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: 11000
+      ENGINE_URL: http://localhost:9200
+      ENGINE_ENGINESELECTOR: elk
+      OPENBAS_RABBITMQ_HOSTNAME: localhost
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/start-dev-services
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: maven
+
+      - name: Compile and install all modules (skip tests)
+        run: >-
+          mvn -U -B -ntp -T 1 install -DskipTests
+          -Dspring-boot.repackage.skip=true
+
+      - name: Wait for services
+        run: |
+          echo "⏳ Waiting for PostgreSQL..."
+          for i in $(seq 1 30); do
+            docker exec pgsql pg_isready -U openaev && break
+            sleep 1
+          done
+          docker exec pgsql pg_isready -U openaev || { echo "❌ PostgreSQL failed to start"; exit 1; }
+
+          echo "⏳ Waiting for the search engine..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9200/_cluster/health && break
+            sleep 2
+          done
+          curl -sf http://localhost:9200/_cluster/health || { echo "❌ Search engine failed to start"; exit 1; }
+
+          echo "⏳ Waiting for RabbitMQ..."
+          for i in $(seq 1 30); do
+            docker exec rabbitmq rabbitmq-diagnostics -q check_running 2>/dev/null && break
+            sleep 2
+          done
+          docker exec rabbitmq rabbitmq-diagnostics -q check_running || { echo "❌ RabbitMQ failed to start"; exit 1; }
+
+          echo "⏳ Waiting for MinIO..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:11000/minio/health/live && break
+            sleep 1
+          done
+          curl -sf http://localhost:11000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
+
+          echo "✅ All services ready"
+
+      - name: Run the fail-closed gate
+        run: |
+          set -euo pipefail
+          # Only tests that activate a table can trigger a gated (can_access_tenant) read, so the gate
+          # runs exactly those. New activating tests are picked up automatically by this same scan.
+          TESTS=$(grep -rlE "openaev\.tenant\.active-tables" openaev-api/src/test --include=*.java \
+            | sed 's#.*/##; s#\.java$##' \
+            | grep -vE "FailClosedDetectorListener|Benchmark" \
+            | sort -u | paste -sd, -)
+          if [ -z "$TESTS" ]; then
+            echo "❌ No table-activating tests found - the gate would be a no-op. Check the scan."
+            exit 1
+          fi
+          echo "🔒 Gating $(echo "$TESTS" | tr ',' '\n' | wc -l) table-activating test class(es) with the detector on."
+          mvn -B -ntp -pl openaev-api test \
+            -Dmaven.compiler.skip=true \
+            -Dopenaev.failclosed.detector=on \
+            -Dtest="$TESTS" \
+            -Dsurefire.failIfNoSpecifiedTests=false
