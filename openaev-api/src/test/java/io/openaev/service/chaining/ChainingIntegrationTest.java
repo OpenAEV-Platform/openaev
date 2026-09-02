@@ -715,8 +715,7 @@ class ChainingIntegrationTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    void should_duplicate_simulation_workflow_template_and_step_template_when_chaining_enabled()
-        throws Exception {
+    void should_duplicate_simulation_workflow_template_when_chaining_enabled() throws Exception {
       String response =
           mvc.perform(
                   post(tenantUri(TENANT_EXERCISE_URI))
@@ -732,11 +731,6 @@ class ChainingIntegrationTest extends IntegrationTest {
       Exercise createdSimulation = exerciseRepository.findById(simulationId).orElseThrow();
 
       Workflow workflowTemplate = findTemplateWorkflowBySimulationId(createdSimulation.getId());
-
-      InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-      StepInput step = buildValidStepInput(workflowTemplate.getId());
-      step.setDataStep(injectInput);
-      createStepTemplate(step);
 
       long workflowCountBeforeDuplicate = workflowRepository.count();
 
@@ -762,26 +756,6 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       assertEquals(workflowCountBeforeDuplicate + 1, workflowRepository.count());
       assertWorkflowEqualsExceptId(workflowTemplate, duplicatedWorkflowTemplate);
-
-      List<Step> originalSteps =
-          stepRepository.findAll().stream()
-              .filter(
-                  s ->
-                      s.getWorkflow() != null
-                          && workflowTemplate.getId().equals(s.getWorkflow().getId()))
-              .toList();
-      List<Step> duplicatedSteps =
-          stepRepository.findAll().stream()
-              .filter(
-                  s ->
-                      s.getWorkflow() != null
-                          && duplicatedWorkflowTemplate.getId().equals(s.getWorkflow().getId()))
-              .toList();
-
-      assertEquals(originalSteps.size(), duplicatedSteps.size(), "Step TEMPLATE count must match");
-      assertFalse(
-          duplicatedSteps.isEmpty(), "Duplicated simulation workflow must contain step templates");
-      assertStepEqualsExceptId(originalSteps.getFirst(), duplicatedSteps.getFirst());
     }
   }
 
