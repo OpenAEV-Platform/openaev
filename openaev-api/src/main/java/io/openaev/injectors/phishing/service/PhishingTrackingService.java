@@ -391,8 +391,7 @@ public class PhishingTrackingService {
           }
           applyRequestMetadata(result, ip, userAgent);
           PhishingResult saved = phishingResultRepository.save(result);
-              compromiseSteps(
-                  saved, Set.of(STEP_OPENED), "Opened the phishing email", ip, userAgent);
+          compromiseSteps(saved, Set.of(STEP_OPENED), "Opened the phishing email", ip, userAgent);
           return saved;
         });
   }
