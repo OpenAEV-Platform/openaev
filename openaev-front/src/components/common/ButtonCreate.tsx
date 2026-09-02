@@ -33,6 +33,7 @@ const ButtonCreate: FunctionComponent<Props> = ({ onClick, style, label, disable
       sx={{
         whiteSpace: 'nowrap',
         flexShrink: 0,
+        minHeight: 36,
       }}
     >
       {label ?? t('Create')}
