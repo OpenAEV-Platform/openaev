@@ -45,6 +45,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -311,11 +312,32 @@ public class TeamApi extends RestBehavior {
         teamRepository
             .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
-    Iterable<User> teamUsers = userRepository.findAllById(input.getUserIds());
+    List<String> nextUserIds =
+        input.getUserIds() == null ? Collections.emptyList() : input.getUserIds();
+    Iterable<User> teamUsers = userRepository.findAllById(nextUserIds);
     // Reserved service/connector accounts are system users, never players: silently drop them so
     // team membership stays consistent with the player lists that hide them.
-    team.setUsers(ReservedKeyValidator.excludeReservedUsers(teamUsers));
-    return teamRepository.save(team);
+    List<User> nextTeamUsers = ReservedKeyValidator.excludeReservedUsers(teamUsers);
+    List<String> nextTeamUserIds = nextTeamUsers.stream().map(User::getId).toList();
+    List<String> removedUserIds =
+        team.getUsers().stream()
+            .map(User::getId)
+            .filter(existingUserId -> !nextTeamUserIds.contains(existingUserId))
+            .toList();
+
+    teamService.removeUsersFromTeamActivations(teamId, removedUserIds);
+
+    // The deletes above clear the persistence context, so the team loaded before them is stale:
+    // saving it would merge its obsolete exerciseTeamUsers collection (cascade = ALL) and
+    // re-insert the audience rows just deleted. Reload it so the entity matches the database.
+    Team refreshedTeam =
+        removedUserIds.isEmpty()
+            ? team
+            : teamRepository
+                .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
+                .orElseThrow(ElementNotFoundException::new);
+    refreshedTeam.setUsers(nextTeamUsers);
+    return teamRepository.save(refreshedTeam);
   }
 
   // -- OPTION --

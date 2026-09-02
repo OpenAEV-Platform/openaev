@@ -1,5 +1,6 @@
 import { type Dispatch } from 'redux';
 
+import { DATA_DELETE_BATCH_SUCCESS } from '../../constants/ActionTypes';
 import {
   delReferential,
   getReferential,
@@ -68,7 +69,20 @@ export const deleteTeam = (teamId: Team['team_id']) => (dispatch: Dispatch) => {
 };
 
 export const bulkDeleteTeams = (input: TeamBulkProcessingInput) => {
-  return simpleDelCall(TEAMS_URI, { data: input });
+  return (dispatch: Dispatch) => simpleDelCall(TEAMS_URI, { data: input })
+    .then((result) => {
+      const deletedIds: string[] = result.data ?? [];
+      if (deletedIds.length > 0) {
+        dispatch({
+          type: DATA_DELETE_BATCH_SUCCESS,
+          payload: deletedIds.map(id => ({
+            type: 'teams',
+            id,
+          })),
+        });
+      }
+      return result;
+    });
 };
 
 export const searchTeamsAsOption = (searchText: string = '', sourceId: string = '', inputFilterOption: string = '') => {
