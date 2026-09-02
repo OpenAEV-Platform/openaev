@@ -22,18 +22,37 @@ public class V6_20260901180000000__Add_step_to_phishing_results extends BaseJava
       statement.execute(
           """
           ALTER TABLE phishing_results
-              ADD COLUMN IF NOT EXISTS phishing_result_step varchar(255)
-                  CONSTRAINT phishing_results_step_fk
-                      REFERENCES steps (step_id) ON DELETE CASCADE;
+              ADD COLUMN IF NOT EXISTS phishing_result_step varchar(255);
+          """);
+      statement.executeUpdate(
+          """
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint WHERE conname = 'phishing_results_step_fk'
+            ) THEN
+              ALTER TABLE phishing_results
+                ADD CONSTRAINT phishing_results_step_fk
+                FOREIGN KEY (phishing_result_step) REFERENCES steps (step_id)
+                ON DELETE CASCADE;
+            END IF;
+          END $$;
           """);
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_phishing_results_step "
               + "ON phishing_results (phishing_result_step)");
-      statement.execute(
+      statement.executeUpdate(
           """
-          ALTER TABLE phishing_results
-              ADD CONSTRAINT phishing_results_step_or_inject_chk
-                  CHECK (phishing_result_step IS NOT NULL OR phishing_result_inject IS NOT NULL);
+          DO $$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint WHERE conname = 'phishing_results_step_or_inject_chk'
+            ) THEN
+              ALTER TABLE phishing_results
+                ADD CONSTRAINT phishing_results_step_or_inject_chk
+                CHECK (phishing_result_step IS NOT NULL OR phishing_result_inject IS NOT NULL);
+            END IF;
+          END $$;
           """);
     }
   }
