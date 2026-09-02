@@ -1,9 +1,8 @@
 import { simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import type { EventInput, EventOutput, StepInput, StepOutput } from '../../utils/api-types';
 
-const CHAINING_URI = '/api/chaining';
-const STEPS_URI = `${CHAINING_URI}/steps`;
-const CONDITIONS_URI = `${CHAINING_URI}/conditions`;
+const STEPS_URI = '/api/steps';
+const CONDITIONS_URI = '/api/conditions';
 const INJECTOR_CONTRACTS_URI = '/api/injector_contracts';
 
 // -- Injector contracts --

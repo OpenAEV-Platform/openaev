@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @DisplayName("Chaining APIs Enterprise Edition access tests")
-class ChainingApiEnterpriseEditionAccessTest extends IntegrationTest {
+class ChainingApisEnterpriseEditionAccessTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;

@@ -450,9 +450,8 @@ openaev-front/src/components/common/chaining/
 
 | Controller | Base Path | Description |
 |---|---|---|
-| `ChainingApi` | `/{tenant}/chaining` | Main chaining: findAll, create simulation/scenario, duplicate |
-| `StepApi` | `/{tenant}/chaining/steps` | CRUD step templates |
-| `ConditionApi` | `/{tenant}/chaining/conditions` | CRUD condition trees |
+| `StepApi` | `/{tenant}/steps` | CRUD step templates |
+| `ConditionApi` | `/{tenant}/conditions` | CRUD condition trees |
 | `WorkflowApi` | `/{tenant}/workflows` | Workflow configuration, valid assets |
 
 All endpoints use `@AccessControl` with appropriate `Action` and `ResourceType`.
