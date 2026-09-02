@@ -166,6 +166,7 @@ public class TenantUserService implements DependenciesManager {
 
   @Override
   public void deleteDependencyForTenant(String tenantId) {
+    // users_tenants rows are cascade-deleted via FK on tenants table
     for (String userId : userRepository.findUserIdsByTenantId(tenantId)) {
       tenantMembershipCacheManager.evict(userId, tenantId);
     }
