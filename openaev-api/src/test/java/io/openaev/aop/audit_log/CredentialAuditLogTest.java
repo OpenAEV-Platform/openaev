@@ -26,11 +26,16 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.credentials.form.CredentialInput;
 import io.openaev.database.model.Tenant;
 import io.openaev.engine.model.log.LogEvent;
+import io.openaev.service.LogService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CredentialInputFixture;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import io.openaev.utils.mockUser.WithMockUser;
+import jakarta.persistence.EntityManager;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -42,6 +47,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
@@ -70,14 +76,20 @@ class CredentialAuditLogTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper objectMapper;
   @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
+  @Autowired private EntityManager entityManager;
+
+  private final List<String> committedTenantIds = new ArrayList<>();
 
   @MockitoSpyBean private AuditLogger auditLogger;
+  @MockitoSpyBean private LogService logService;
   @MockitoSpyBean private AuditLogTransportDispatcherUtils auditLogTransportDispatcherUtils;
 
   @BeforeEach
   void setup() {
-    reset(auditLogger, auditLogTransportDispatcherUtils);
+    reset(auditLogger, logService, auditLogTransportDispatcherUtils);
     doReturn(true).when(auditLogger).isAuditLoggingEnabled();
+    doReturn(true).when(auditLogger).isAuditLoggingValid(any());
+    doReturn(true).when(logService).isEnabled();
   }
 
   @Nested
@@ -88,8 +100,7 @@ class CredentialAuditLogTest extends IntegrationTest {
     @DisplayName("given_gcpOAuth2Credential_should_notAuditClientSecretNorRefreshToken")
     void given_gcpOAuth2Credential_should_notAuditClientSecretNorRefreshToken() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-audit-gcp-oauth");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-audit-gcp-oauth");
       CredentialInput input = CredentialInputFixture.gcpOAuth2Input("gcp-audit-oauth");
 
       // Act
@@ -112,8 +123,7 @@ class CredentialAuditLogTest extends IntegrationTest {
     @DisplayName("given_gcpServiceAccountCredential_should_notAuditUploadedKeyFile")
     void given_gcpServiceAccountCredential_should_notAuditUploadedKeyFile() throws Exception {
       // Arrange
-      Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-audit-gcp-sa");
+      Tenant tenant = createCommittedTenantWithCurrentUser("credential-audit-gcp-sa");
       CredentialInput input = CredentialInputFixture.gcpServiceAccountInput("gcp-audit-sa");
 
       // Act
@@ -126,6 +136,31 @@ class CredentialAuditLogTest extends IntegrationTest {
       String audited = capturedAuditEvent();
       assertThat(audited).doesNotContain(GCP_PRIVATE_KEY_JSON).doesNotContain("private_key");
     }
+  }
+
+  /**
+   * The credential write runs outside the ambient transaction ({@code
+   * CredentialService.createCredential} is {@code Propagation.NOT_SUPPORTED}), so the tenant must
+   * already be committed or the secret insert trips the {@code secrets_tenant_fk} constraint.
+   */
+  private Tenant createCommittedTenantWithCurrentUser(String name) throws Exception {
+    Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser(name);
+    committedTenantIds.add(tenant.getId());
+    entityManager.flush();
+    entityManager.clear();
+    TestTransaction.flagForCommit();
+    TestTransaction.end();
+    TestTransaction.start();
+    return tenant;
+  }
+
+  @AfterEach
+  void cleanupCommittedTenants() {
+    if (committedTenantIds.isEmpty()) {
+      return;
+    }
+    tenantIsolationTestHelper.deleteCommittedTenants(committedTenantIds.toArray(String[]::new));
+    committedTenantIds.clear();
   }
 
   /** Serializes the audit event handed to the transports, which is the redacted one. */
