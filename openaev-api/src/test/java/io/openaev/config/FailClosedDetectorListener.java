@@ -106,7 +106,8 @@ public class FailClosedDetectorListener implements QueryExecutionListener {
    * this precise signal does not.
    */
   private static boolean isTenantGated(String sql) {
-    // The function-call form, so a hypothetical identifier merely containing the name does not match.
+    // The function-call form, so a hypothetical identifier merely containing the name does not
+    // match.
     return sql.toLowerCase(Locale.ROOT).contains("can_access_tenant(");
   }
 
