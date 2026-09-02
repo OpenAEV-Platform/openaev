@@ -499,16 +499,9 @@ public class UserService {
     return createdToken;
   }
 
-  /**
-   * Delete an existing API token
-   *
-   * @param user the user to create a token for
-   * @param discreteToken the specific token value to use
-   * @return the created token
-   */
+  /** Delete an existing API token */
   public void deleteUserToken(Token token) {
     tokenRepository.delete(token);
-    ;
     logTokenDeleted(token);
   }
 
@@ -560,7 +553,7 @@ public class UserService {
   }
 
   /**
-   * Emits an audit event for a token creation.
+   * Emits an audit event for a token deleted.
    *
    * @param token the token that was deleted
    */
