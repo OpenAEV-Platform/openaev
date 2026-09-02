@@ -20,6 +20,8 @@ public interface TokenRepository
 
   Optional<Token> findByValue(String value);
 
+  Optional<Token> findByUserId(String value);
+
   /**
    * Oldest (most stable) API token of a user. Used by the reporting renderer to authenticate the
    * headless browser as the acting user; the token value never leaves the server process.
