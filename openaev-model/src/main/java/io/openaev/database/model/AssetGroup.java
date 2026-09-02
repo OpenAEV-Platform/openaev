@@ -105,7 +105,7 @@ public class AssetGroup implements TenantBase {
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
   @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("asset_group_tags")
-  @Queryable(filterable = true, sortable = true, dynamicValues = true, path = "tags.id")
+  @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
 
   // -- INJECT --

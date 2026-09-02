@@ -56,7 +56,7 @@ public class TagRule implements TenantBase {
       name = "tag_rule_asset_groups",
       joinColumns = @JoinColumn(name = "tag_rule_id"),
       inverseJoinColumns = @JoinColumn(name = "asset_group_id"))
-  @Queryable(filterable = true, sortable = true, path = "assetGroups.name")
+  @Queryable(filterable = true, path = "assetGroups.name")
   @JsonProperty("tag_rule_asset_groups")
   private List<AssetGroup> assetGroups = new ArrayList<>();
 
