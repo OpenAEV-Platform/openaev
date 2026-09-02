@@ -33,6 +33,6 @@ public record UserInput(
     @JsonProperty(ALIAS_TAGS) List<String> tagIds,
     @JsonProperty(ALIAS_ADMIN) boolean admin,
     @JsonProperty(ALIAS_TENANTS) List<String> tenantIds) {
-  /** Input-only: a password is submitted at creation, and never returned by any endpoint. */
+  /** Input-only: password is optional at creation and never returned by any endpoint. */
   public static final String ALIAS_PLAIN_PASSWORD = "user_plain_password";
 }

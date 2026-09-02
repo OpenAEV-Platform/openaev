@@ -9,14 +9,22 @@ To create a user, click on the `+` button:
 ![Create user](assets/user-creation.png)
 ![Create user](assets/user-creation-input.png)
 
+- If the user does not exist yet, OpenAEV creates the account and automatically sends a reset code
+  by email so the user can choose their own password.
+- If the user already exists, OpenAEV attaches that user to your tenant and keeps their current
+  password unchanged.
+
+The user can complete onboarding from the login reset screen in two ways:
+1. Request a new code with **Send reset code**.
+2. If they already received one, click **I already have a code** and enter it directly.
+
 To update a user, click on the ellipsis menu:
 
 ![User manage](assets/user-update.png)
 
-Here, you can modify parameters such as the organization, phone number, password, and even your GPG public key:
+Here, you can modify parameters such as the organization, phone number, and even your GPG public key:
 
 ![User manage](assets/user-update-input.png)
-![User manage](assets/user-update-pwd.png)
 
 To delete a user:
 
