@@ -6,7 +6,10 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Token;
+import io.openaev.database.repository.TokenRepository;
 import jakarta.servlet.http.Cookie;
 import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AppSecurityConfigTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private TokenRepository tokenRepository;
 
   @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
   private String adminToken;
@@ -188,5 +192,51 @@ public class AppSecurityConfigTest extends IntegrationTest {
 
     assertThat(result.getResponse().getCookie("JSESSIONID")).isNull();
     assertThat(result.getRequest().getSession(false)).isNull();
+  }
+
+  @Test
+  @DisplayName("given renewed token, should reject old bearer and accept new bearer")
+  void given_renewedToken_should_reject_old_bearer_and_accept_new_bearer() throws Exception {
+    // -- ARRANGE --
+    Token currentAdminToken = tokenRepository.findByValue(adminToken).orElseThrow();
+    String refreshBody =
+        """
+        {
+          "token_id": "%s"
+        }
+        """
+            .formatted(currentAdminToken.getId());
+
+    // -- ACT --
+    MvcResult refreshResult =
+        mockMvc
+            .perform(
+                post("/api/me/token/refresh")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(refreshBody))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    String refreshedToken =
+        JsonPath.read(refreshResult.getResponse().getContentAsString(), "$.token_value");
+    assertThat(refreshedToken).isNotBlank().isNotEqualTo(adminToken);
+
+    // -- ASSERT --
+    mockMvc
+        .perform(
+            post(SCENARIO_SEARCH_URI)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(SEARCH_BODY))
+        .andExpect(status().isUnauthorized());
+
+    mockMvc
+        .perform(
+            post(SCENARIO_SEARCH_URI)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + refreshedToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(SEARCH_BODY))
+        .andExpect(status().isOk());
   }
 }
