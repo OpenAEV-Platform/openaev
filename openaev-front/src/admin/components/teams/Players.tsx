@@ -194,7 +194,12 @@ const Players = () => {
             <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
               <CreatePlayer
-                onCreate={result => setPlayers([result, ...players])}
+                onCreate={(result) => {
+                  setPlayers([result, ...players]);
+                  queryableHelpers.paginationHelpers.handleChangeTotalElements(
+                    queryableHelpers.paginationHelpers.getTotalElements() + 1,
+                  );
+                }}
               />
             </Can>
           </Box>
@@ -268,7 +273,12 @@ const Players = () => {
                           ...result,
                         }
                       : p)))}
-                    onDelete={result => setPlayers(players.filter(p => (p.user_id !== result)))}
+                    onDelete={(result) => {
+                      setPlayers(players.filter(p => (p.user_id !== result)));
+                      queryableHelpers.paginationHelpers.handleChangeTotalElements(
+                        Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - 1),
+                      );
+                    }}
                   />
                 )}
               >
