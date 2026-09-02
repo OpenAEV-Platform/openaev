@@ -11,14 +11,22 @@ import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.queue.QueueExecution;
 import io.openaev.service.queue.Queueable;
 import io.openaev.service.rabbitmq.RabbitmqManagementClient;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -61,6 +69,15 @@ public class RabbitmqService {
 
   /** Connection timeout for health check probes, so a degraded broker fails fast. */
   private static final int HEALTH_CHECK_CONNECTION_TIMEOUT_MS = 5_000;
+
+  @Value("${openaev.rabbitmq.publish-timeout-ms:30000}")
+  private long publishTimeoutMs;
+
+  /** A publish always holds a database connection, so it cannot outrun the pool. */
+  @Value("${spring.datasource.hikari.maximum-pool-size:20}")
+  private int publishThreads;
+
+  private ExecutorService publishExecutor;
 
   private final RabbitmqConfig rabbitmqConfig;
   private final ConnectionFactory connectionFactory;
@@ -115,6 +132,40 @@ public class RabbitmqService {
       throw new IllegalArgumentException("publishedJson cannot be null or empty");
     }
 
+    Future<Void> pending =
+        publishExecutor.submit(
+            () -> {
+              doPublish(injectType, publishedJson);
+              return null;
+            });
+    try {
+      pending.get(publishTimeoutMs, TimeUnit.MILLISECONDS);
+    } catch (TimeoutException ex) {
+      pending.cancel(true);
+      log.error(
+          "Publish to RabbitMQ did not return within {} ms for inject type '{}'; giving up so the"
+              + " caller's transaction is not held open",
+          publishTimeoutMs,
+          injectType);
+      throw ex;
+    } catch (InterruptedException ex) {
+      pending.cancel(true);
+      Thread.currentThread().interrupt();
+      throw new IOException("Interrupted while publishing to RabbitMQ", ex);
+    } catch (ExecutionException ex) {
+      Throwable cause = ex.getCause();
+      if (cause instanceof IOException ioCause) {
+        throw ioCause;
+      }
+      if (cause instanceof TimeoutException timeoutCause) {
+        throw timeoutCause;
+      }
+      throw new IOException("Failed to publish to RabbitMQ", cause);
+    }
+  }
+
+  private void doPublish(String injectType, String publishedJson)
+      throws IOException, TimeoutException {
     try (Connection connection = connectionFactory.newConnection();
         Channel channel = connection.createChannel()) {
       String routingKey = rabbitmqConfig.getPrefix() + ROUTING_KEY + injectType;
@@ -135,6 +186,25 @@ public class RabbitmqService {
     } catch (TimeoutException ex) {
       log.error("Timeout while publishing to RabbitMQ for inject type '{}'", injectType, ex);
       throw ex;
+    }
+  }
+
+  @PostConstruct
+  void initPublishExecutor() {
+    publishExecutor =
+        Executors.newFixedThreadPool(
+            publishThreads,
+            runnable -> {
+              Thread thread = new Thread(runnable, "rabbitmq-publish");
+              thread.setDaemon(true);
+              return thread;
+            });
+  }
+
+  @PreDestroy
+  void shutdownPublishExecutor() {
+    if (publishExecutor != null) {
+      publishExecutor.shutdownNow();
     }
   }
 
