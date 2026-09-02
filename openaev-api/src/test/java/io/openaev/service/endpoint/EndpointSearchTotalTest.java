@@ -3,18 +3,10 @@ package io.openaev.service.endpoint;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Agent;
-import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Filters;
-import io.openaev.database.model.Tenant;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.service.EndpointService;
-import io.openaev.utils.fixtures.AgentFixture;
-import io.openaev.utils.fixtures.AssetGroupFixture;
-import io.openaev.utils.fixtures.EndpointFixture;
-import io.openaev.utils.fixtures.ExecutorFixture;
-import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
@@ -60,6 +52,11 @@ class EndpointSearchTotalTest extends IntegrationTest {
 
   @BeforeEach
   void setUp() {
+    endpointComposer.reset();
+    agentComposer.reset();
+    assetGroupComposer.reset();
+    executorComposer.reset();
+
     executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
     if (testUserHolder.get() != null) {
       tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
