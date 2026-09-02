@@ -144,13 +144,15 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
     userRight: true,
   });
 
-  // It's not possible to delete your own player
-  if (user.user_id !== currentUser.user_id) entries.push({
+  const isSelf = user.user_id === currentUser.user_id;
+  entries.push({
     label: 'Delete',
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TEAMS_AND_PLAYERS),
-    disabled: isAdminTarget,
-    disabledMessage: 'This person is a platform administrator. The account can only be managed from the security settings.',
+    disabled: isAdminTarget || isSelf,
+    disabledMessage: isAdminTarget
+      ? 'The administrator account cannot be deleted.'
+      : 'You cannot delete your own account.',
   });
 
   return (

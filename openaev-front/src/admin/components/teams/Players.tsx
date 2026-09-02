@@ -16,6 +16,7 @@ import SortHeadersComponentV2 from '../../../components/common/queryable/sort/So
 import useBodyItemsStyles from '../../../components/common/queryable/style/style';
 import { useQueryableWithLocalStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type Header } from '../../../components/common/SortHeadersList';
+import DangerZone from '../../../components/common/tag/DangerZone';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
@@ -71,7 +72,19 @@ const Players = () => {
       field: 'user_email',
       label: 'Email address',
       isSortable: true,
-      value: (player: PlayerOutput) => player.user_email,
+      value: (player: PlayerOutput) => (player.user_admin
+        ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+            >
+              {player.user_email}
+              <DangerZone tooltip={t('This is a platform administrator account. It can be updated but cannot be deleted.')} />
+            </div>
+          )
+        : player.user_email),
     },
     {
       field: 'user_firstname',
@@ -97,7 +110,7 @@ const Players = () => {
       isSortable: false,
       value: (player: PlayerOutput) => <ItemTags variant="list" tags={player.user_tags} />,
     },
-  ], [organizationsMap]);
+  ], [organizationsMap, t]);
 
   const availableFilterNames = [
     'user_email',
