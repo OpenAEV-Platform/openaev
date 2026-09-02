@@ -1,12 +1,15 @@
 package io.openaev.rest.health_check;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.api.health_check.dto.HealthCheckDetailsOutput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.HealthCheckService;
+import io.openaev.service.HealthCheckService.StorageUsage;
 import io.openaev.service.exception.HealthCheckFailureException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,9 +24,12 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
+@Slf4j
 public class HealthCheckApi extends RestBehavior {
 
   public static final String HEALTH_CHECK_URI = "/api/health";
+
+  private static final String SUCCESS_STATUS = "success";
 
   private HealthCheckService healthCheckService;
 
@@ -46,7 +52,10 @@ public class HealthCheckApi extends RestBehavior {
   // No RBAC check for health check endpoint
   @Operation(
       summary = "Run an healthcheck ",
-      description = "Tries to connect to dependencies (DB/Minio/RabbitMQ)")
+      description =
+          "Tries to connect to dependencies (DB/Minio/RabbitMQ). With details=true, also returns"
+              + " the storage used by each dependency (periodically refreshed, not computed on"
+              + " every call)")
   // NOT_SUPPORTED: this endpoint performs external network I/O (RabbitMQ, MinIO). Opening a
   // transaction here pins a Hikari connection for the whole request, which exhausts the pool
   // when a dependency is slow (frequent LB probes x 30s+ waits). The DB check runs in its own
@@ -57,8 +66,9 @@ public class HealthCheckApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Service is healthy"),
         @ApiResponse(responseCode = "503", description = "Service is not running properly")
       })
-  public ResponseEntity<?> healthCheck(
-      @RequestParam("health_access_key") String requestHealthAccessKey) {
+  public ResponseEntity<HealthCheckDetailsOutput> healthCheck(
+      @RequestParam("health_access_key") String requestHealthAccessKey,
+      @RequestParam(value = "details", required = false, defaultValue = "false") boolean details) {
     if (StringUtils.isBlank(requestHealthAccessKey)
         || StringUtils.isBlank(healthCheckKey)
         || !healthCheckKey.equals(requestHealthAccessKey)) {
@@ -68,9 +78,21 @@ public class HealthCheckApi extends RestBehavior {
       healthCheckService.runHealthCheck();
     } catch (HealthCheckFailureException e) {
       String message = String.format("Health check failure : %s", e.getMessage());
+      log.error(message, e);
       throw new ResponseStatusException(
           HttpStatusCode.valueOf(HttpStatus.SERVICE_UNAVAILABLE.value()), message);
     }
-    return new ResponseEntity<>("success", HttpStatus.OK);
+    if (!details) {
+      return new ResponseEntity<>(
+          new HealthCheckDetailsOutput(SUCCESS_STATUS, null, null, null), HttpStatus.OK);
+    }
+    StorageUsage storageUsage = healthCheckService.getStorageUsage();
+    return new ResponseEntity<>(
+        new HealthCheckDetailsOutput(
+            SUCCESS_STATUS,
+            storageUsage.pgUsedSize(),
+            storageUsage.esUsedSize(),
+            storageUsage.s3UsedSize()),
+        HttpStatus.OK);
   }
 }

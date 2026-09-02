@@ -4,10 +4,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.health_check.dto.HealthCheckDetailsOutput;
 import io.openaev.rest.health_check.HealthCheckApi;
 import io.openaev.service.HealthCheckService;
+import io.openaev.service.HealthCheckService.StorageUsage;
 import io.openaev.service.exception.HealthCheckFailureException;
 import io.openaev.utilstest.RabbitMQTestListener;
 import org.junit.jupiter.api.*;
@@ -41,9 +45,35 @@ public class HealthCheckApiTest extends IntegrationTest {
   @DisplayName("Test healthCheck")
   @Test
   void test_healthCheck() throws Exception {
-    ResponseEntity<?> responseEntity = healthCheckApi.healthCheck(KEY);
+    ResponseEntity<HealthCheckDetailsOutput> responseEntity =
+        healthCheckApi.healthCheck(KEY, false);
     verify(healthCheckService).runHealthCheck();
-    assertEquals(new ResponseEntity<>("success", HttpStatus.OK), responseEntity);
+    assertEquals(
+        new ResponseEntity<>(
+            new HealthCheckDetailsOutput("success", null, null, null), HttpStatus.OK),
+        responseEntity);
+  }
+
+  @DisplayName("Test healthCheck without details does not compute the storage usage")
+  @Test
+  void test_healthCheck_WITHOUT_details() throws Exception {
+    healthCheckApi.healthCheck(KEY, false);
+
+    verify(healthCheckService).runHealthCheck();
+    verifyNoMoreInteractions(healthCheckService);
+  }
+
+  @DisplayName("Test healthCheck with details returns the storage usage")
+  @Test
+  void test_healthCheck_WITH_details() throws Exception {
+    when(healthCheckService.getStorageUsage()).thenReturn(new StorageUsage(1L, 2L, 3L));
+
+    ResponseEntity<HealthCheckDetailsOutput> responseEntity = healthCheckApi.healthCheck(KEY, true);
+
+    verify(healthCheckService).runHealthCheck();
+    assertEquals(
+        new ResponseEntity<>(new HealthCheckDetailsOutput("success", 1L, 2L, 3L), HttpStatus.OK),
+        responseEntity);
   }
 
   @DisplayName("Test healthCheck with wrong key")
@@ -53,7 +83,7 @@ public class HealthCheckApiTest extends IntegrationTest {
         assertThrows(
             ResponseStatusException.class,
             () -> {
-              healthCheckApi.healthCheck("wrong key");
+              healthCheckApi.healthCheck("wrong key", false);
             });
     assertEquals(
         HttpStatusCode.valueOf(HttpStatus.UNAUTHORIZED.value()), exceptionThrown.getStatusCode());
@@ -67,7 +97,7 @@ public class HealthCheckApiTest extends IntegrationTest {
         assertThrows(
             ResponseStatusException.class,
             () -> {
-              healthCheckApi.healthCheck(KEY);
+              healthCheckApi.healthCheck(KEY, false);
             });
     assertEquals(
         HttpStatusCode.valueOf(HttpStatus.SERVICE_UNAVAILABLE.value()),
@@ -82,7 +112,7 @@ public class HealthCheckApiTest extends IntegrationTest {
     assertThrows(
         RuntimeException.class,
         () -> {
-          healthCheckApi.healthCheck(KEY);
+          healthCheckApi.healthCheck(KEY, false);
         });
   }
 }
