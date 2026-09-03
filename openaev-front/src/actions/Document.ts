@@ -14,7 +14,7 @@ export const searchDocuments = (paginationInput: SearchPaginationInput) => {
   return simplePostCall(uri, data);
 };
 
-export const addDocument = (data: DocumentCreateInput) => (dispatch: Dispatch) => {
+export const addDocument = (data: DocumentCreateInput | FormData) => (dispatch: Dispatch) => {
   const uri = '/api/documents';
   return postReferential(schema.document, uri, data)(dispatch);
 };
