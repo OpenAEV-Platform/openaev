@@ -31,14 +31,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
-/**
- * Guards the behaviour whose aspect order {@link
- * io.openaev.config.TenantScopeLockOrderingIntegrationTest} pins: with {@code injectors}
- * v2-activated, a non-admin read of a simulation inject must resolve {@code inject_type} instead of
- * serving it null. Non-admin because {@code hasPermission} returns at {@code isAdmin()} before
- * resolving the inject's parent, and transaction-free because a test-managed transaction
- * pre-hydrates the seeded entities, leaving the endpoint no read to poison.
- */
 @TestPropertySource(properties = "openaev.tenant.active-tables=injectors")
 @WithMockUser(isAdmin = false)
 @DisplayName("A non-admin reading a simulation inject gets a resolved inject_type")
