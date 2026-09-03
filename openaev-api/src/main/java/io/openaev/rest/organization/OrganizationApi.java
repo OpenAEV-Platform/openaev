@@ -8,6 +8,7 @@ import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawOrganization;
 import io.openaev.database.repository.OrganizationRepository;
@@ -50,7 +51,7 @@ public class OrganizationApi extends RestBehavior {
   @GetMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
-  public Iterable<RawOrganization> organizations() {
+  public Iterable<RawOrganization> organizations(TxCtx ctx) {
     List<RawOrganization> organizations;
     organizations = fromIterable(organizationRepository.rawAll());
     return organizations;
@@ -60,7 +61,7 @@ public class OrganizationApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Page<Organization> organizations(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
     return this.organizationService.organizationPagination(searchPaginationInput);
   }
 
@@ -105,7 +106,8 @@ public class OrganizationApi extends RestBehavior {
   @PostMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ORGANIZATION)
   @Transactional(rollbackFor = Exception.class)
-  public Organization createOrganization(@Valid @RequestBody OrganizationCreateInput input) {
+  public Organization createOrganization(
+      @Valid @RequestBody OrganizationCreateInput input, TxCtx ctx) {
     Organization organization = new Organization();
     organization.setUpdateAttributes(input);
     organization.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
@@ -162,7 +164,7 @@ public class OrganizationApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ORGANIZATION)
   public List<String> bulkDeleteOrganizations(
-      @RequestBody @Valid final OrganizationBulkProcessingInput input) {
+      @RequestBody @Valid final OrganizationBulkProcessingInput input, TxCtx ctx) {
     return organizationService.bulkDelete(input);
   }
 
@@ -172,7 +174,7 @@ public class OrganizationApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText) {
+      @RequestParam(required = false) final String searchText, TxCtx ctx) {
     return fromIterable(
             this.organizationRepository.findAll(
                 byName(searchText), Sort.by(Sort.Direction.ASC, "name")))
@@ -184,7 +186,7 @@ public class OrganizationApi extends RestBehavior {
   @PostMapping({ORGANIZATION_URI + "/options", TENANT_ORGANIZATION_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
     return fromIterable(this.organizationRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

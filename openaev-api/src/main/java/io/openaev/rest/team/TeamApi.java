@@ -14,6 +14,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.*;
@@ -92,7 +93,7 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of teams")})
   @Operation(summary = "List teams", description = "Return the teams")
   @Transactional
-  public Iterable<TeamSimple> getTeams() {
+  public Iterable<TeamSimple> getTeams(TxCtx ctx) {
     List<RawTeamIndexing> teams;
     // We get all the teams as raw
     teams = fromIterable(teamRepository.rawTeams());
@@ -120,7 +121,8 @@ public class TeamApi extends RestBehavior {
   @Transactional(readOnly = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of teams")})
   @Operation(description = "Find a list of teams based on their ids", summary = "Find teams")
-  public List<TeamOutput> findTeams(@RequestBody @Valid @NotNull final List<String> teamIds) {
+  public List<TeamOutput> findTeams(
+      @RequestBody @Valid @NotNull final List<String> teamIds, TxCtx ctx) {
     return this.teamService.find(fromIds(teamIds));
   }
 
@@ -189,7 +191,7 @@ public class TeamApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The created team")})
   @Operation(description = "Create a new team", summary = "Create team")
-  public Team createTeam(@Valid @RequestBody TeamCreateInput input) {
+  public Team createTeam(@Valid @RequestBody TeamCreateInput input, TxCtx ctx) {
     isTeamAlreadyExists(input);
     Team team = new Team();
     team.setUpdateAttributes(input);
@@ -347,7 +349,8 @@ public class TeamApi extends RestBehavior {
   public List<FilterUtilsJpa.Option> optionsByName(
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId,
-      @RequestParam(required = false) final String inputFilterOption) {
+      @RequestParam(required = false) final String inputFilterOption,
+      TxCtx ctx) {
     List<FilterUtilsJpa.Option> options = List.of();
     InputFilterOptions injectFilterOptionEnum;
     try {
@@ -399,7 +402,7 @@ public class TeamApi extends RestBehavior {
   @PostMapping({TEAM_URI + "/options", TENANT_TEAM_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TEAM)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
     return fromIterable(this.teamRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -119,7 +120,8 @@ public class TenantSettingsApi extends RestBehavior {
   public EsCountInterval homeDashboardCount(
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
+      @RequestBody(required = false) Map<String, String> parameters,
+      TxCtx ctx) {
     return customDashboardTenantService.homeDashboardCount(tenantId, widgetId, parameters);
   }
 
@@ -131,7 +133,8 @@ public class TenantSettingsApi extends RestBehavior {
   public EsAvgs homeDashboardAverage(
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
+      @RequestBody(required = false) Map<String, String> parameters,
+      TxCtx ctx) {
     return customDashboardTenantService.homeDashboardAverage(tenantId, widgetId, parameters);
   }
 
@@ -143,7 +146,8 @@ public class TenantSettingsApi extends RestBehavior {
   public List<EsSeries> homeDashboardSeries(
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters) {
+      @RequestBody(required = false) Map<String, String> parameters,
+      TxCtx ctx) {
     return customDashboardTenantService.homeDashboardSeries(tenantId, widgetId, parameters);
   }
 
@@ -155,7 +159,8 @@ public class TenantSettingsApi extends RestBehavior {
   public EsEntities homeDashboardEntities(
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
-      @RequestBody(required = false) EntitiesPaginationInput input) {
+      @RequestBody(required = false) EntitiesPaginationInput input,
+      TxCtx ctx) {
     return customDashboardTenantService.homeDashboardEntities(tenantId, widgetId, input);
   }
 
@@ -167,7 +172,8 @@ public class TenantSettingsApi extends RestBehavior {
   public WidgetToEntitiesOutput homeWidgetToEntitiesRuntime(
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
-      @Valid @RequestBody WidgetToEntitiesInput input) {
+      @Valid @RequestBody WidgetToEntitiesInput input,
+      TxCtx ctx) {
     return customDashboardTenantService.homeDashboardEntitiesRuntime(tenantId, widgetId, input);
   }
 
@@ -179,7 +185,8 @@ public class TenantSettingsApi extends RestBehavior {
   public List<EsAttackPath> homeDashboardAttackPaths(
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters)
+      @RequestBody(required = false) Map<String, String> parameters,
+      TxCtx ctx)
       throws ExecutionException, InterruptedException {
     return customDashboardTenantService.homeDashboardAttackPaths(tenantId, widgetId, parameters);
   }

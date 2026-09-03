@@ -82,7 +82,8 @@ public class ThreatArsenalApi {
   @AccessControl(skipRBAC = true)
   public List<PropertySchemaDTO> schemas(
       @RequestParam final boolean filterableOnly,
-      @RequestBody @Valid @NotNull List<String> filterNames)
+      @RequestBody @Valid @NotNull List<String> filterNames,
+      TxCtx ctx)
       throws ClassNotFoundException {
     return threatArsenalService.getSchemas(filterableOnly, filterNames);
   }
@@ -114,7 +115,7 @@ public class ThreatArsenalApi {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalFacetCountsOutput getFacetCounts(
-      @RequestBody @Valid final SearchPaginationInput input) {
+      @RequestBody @Valid final SearchPaginationInput input, TxCtx ctx) {
     return threatArsenalService.getFacetCounts(input);
   }
 

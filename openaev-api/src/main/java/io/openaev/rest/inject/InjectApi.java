@@ -146,7 +146,9 @@ public class InjectApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExportFromSearch(
-      @RequestBody @Valid InjectExportFromSearchRequestInput input, HttpServletResponse response)
+      @RequestBody @Valid InjectExportFromSearchRequestInput input,
+      HttpServletResponse response,
+      TxCtx ctx)
       throws IOException {
 
     // Control and format inputs
@@ -171,7 +173,8 @@ public class InjectApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExport(
       @RequestBody @Valid final InjectExportRequestInput injectExportRequestInput,
-      HttpServletResponse response)
+      HttpServletResponse response,
+      TxCtx ctx)
       throws IOException {
     List<String> targetIds = injectExportRequestInput.getTargetsIds();
     User currentUser = userService.currentUser();
@@ -535,7 +538,7 @@ public class InjectApi extends RestBehavior {
   @GetMapping({INJECT_URI + "/next", TENANT_INJECT_URI + "/next"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
-  public List<Inject> nextInjectsToExecute(@RequestParam Optional<Integer> size) {
+  public List<Inject> nextInjectsToExecute(@RequestParam Optional<Integer> size, TxCtx ctx) {
     return injectRepository.findAll(InjectSpecification.next()).stream()
         // Keep only injects visible by the user
         .filter(inject -> inject.getDate().isPresent())
@@ -563,7 +566,8 @@ public class InjectApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> optionsByTitleLinkedToFindings(
       @RequestParam(required = false) final String searchText,
-      @RequestParam(required = false) final String sourceId) {
+      @RequestParam(required = false) final String sourceId,
+      TxCtx ctx) {
     return injectService.getOptionsByNameLinkedToFindings(
         searchText, sourceId, PageRequest.of(0, 50));
   }
@@ -571,7 +575,7 @@ public class InjectApi extends RestBehavior {
   @PostMapping({INJECT_URI + "/options", TENANT_INJECT_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
     return fromIterable(this.injectRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getTitle()))
         .toList();

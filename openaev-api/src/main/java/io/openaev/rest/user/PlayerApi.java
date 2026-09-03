@@ -8,6 +8,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.SessionManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
@@ -57,7 +58,7 @@ public class PlayerApi extends RestBehavior {
   @GetMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
-  public Iterable<RawPlayer> players() {
+  public Iterable<RawPlayer> players(TxCtx ctx) {
     List<RawPlayer> players;
     User currentUser = userService.currentUser();
     players = fromIterable(userRepository.rawAllPlayers());
@@ -69,7 +70,7 @@ public class PlayerApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public Page<PlayerOutput> players(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      @RequestBody @Valid SearchPaginationInput searchPaginationInput, TxCtx ctx) {
     return this.playerService.playerPagination(searchPaginationInput);
   }
 
@@ -98,14 +99,14 @@ public class PlayerApi extends RestBehavior {
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
-  public User createPlayer(@Valid @RequestBody PlayerInput input) {
+  public User createPlayer(@Valid @RequestBody PlayerInput input, TxCtx ctx) {
     return playerService.createPlayer(input);
   }
 
   @PostMapping({PLAYER_URI + "/upsert", TENANT_PLAYER_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
-  public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
+  public User upsertPlayer(@Valid @RequestBody PlayerInput input, TxCtx ctx) {
     return playerService.upsertPlayer(input);
   }
 
@@ -170,7 +171,8 @@ public class PlayerApi extends RestBehavior {
   // deadlock retry; a request-wide transaction would force everything back into one transaction.
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
-  public List<String> bulkDeletePlayers(@RequestBody @Valid final PlayerBulkProcessingInput input) {
+  public List<String> bulkDeletePlayers(
+      @RequestBody @Valid final PlayerBulkProcessingInput input, TxCtx ctx) {
     return playerService.bulkDeletePlayers(input);
   }
 
@@ -182,7 +184,7 @@ public class PlayerApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText) {
+      @RequestParam(required = false) final String searchText, TxCtx ctx) {
     String search = searchText == null ? "" : searchText.toLowerCase();
     return fromIterable(userRepository.findAll()).stream()
         .filter(
@@ -199,7 +201,7 @@ public class PlayerApi extends RestBehavior {
   @PostMapping({PLAYER_URI + "/options", TENANT_PLAYER_URI + "/options"})
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
     return fromIterable(userRepository.findAllById(ids)).stream()
         .map(user -> new FilterUtilsJpa.Option(user.getId(), user.getNameOrEmail()))
         .toList();

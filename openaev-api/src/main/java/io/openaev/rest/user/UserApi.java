@@ -5,6 +5,7 @@ import io.openaev.aop.UserRoleDescription;
 import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.SessionManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
@@ -69,7 +70,8 @@ public class UserApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   @UserRoleDescription(needAuthenticated = false)
-  public User login(@Valid @RequestBody LoginUserInput input, HttpServletRequest httpRequest) {
+  public User login(
+      @Valid @RequestBody LoginUserInput input, HttpServletRequest httpRequest, TxCtx ctx) {
     Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
@@ -118,7 +120,7 @@ public class UserApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
-  public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input) {
+  public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input, TxCtx ctx) {
     // async execution; check method annotation
     userService.requestPasswordReset(input);
     // force a 200 OK response even if no user was found
@@ -140,7 +142,8 @@ public class UserApi extends RestBehavior {
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User changePasswordReset(
       @PathVariable @Schema(description = "Token generated during reset") String token,
-      @Valid @RequestBody ChangePasswordInput input)
+      @Valid @RequestBody ChangePasswordInput input,
+      TxCtx ctx)
       throws InputValidationException {
     return userService.resetPassword(token, input);
   }

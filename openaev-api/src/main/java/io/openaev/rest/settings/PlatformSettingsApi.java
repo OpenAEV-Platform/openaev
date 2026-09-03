@@ -2,6 +2,7 @@ package io.openaev.rest.settings;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -87,7 +88,7 @@ public class PlatformSettingsApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The platform version")})
   @Operation(summary = "Get platform version", description = "Return the platform version")
   @Transactional
-  public String platformVersion() {
+  public String platformVersion(TxCtx ctx) {
     return platformSettingsService.getPlatformVersion();
   }
 
@@ -146,7 +147,7 @@ public class PlatformSettingsApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update dark theme settings", description = "Update the dark theme settings")
-  public PlatformSettings updateThemeDark(@Valid @RequestBody ThemeInput input) {
+  public PlatformSettings updateThemeDark(@Valid @RequestBody ThemeInput input, TxCtx ctx) {
     return platformSettingsService.updateThemeDark(input);
   }
 
@@ -155,7 +156,7 @@ public class PlatformSettingsApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update policies settings", description = "Update the policies settings")
-  public PlatformSettings updateSettingsPolicies(@Valid @RequestBody PolicyInput input) {
+  public PlatformSettings updateSettingsPolicies(@Valid @RequestBody PolicyInput input, TxCtx ctx) {
     return platformSettingsService.updateSettingsPolicies(input);
   }
 

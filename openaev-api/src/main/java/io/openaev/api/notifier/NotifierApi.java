@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -62,7 +63,7 @@ public class NotifierApi {
   @Operation(summary = "List notifiers", description = "Get all notifiers of the current tenant")
   @Transactional
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of notifiers")})
-  public List<NotifierOutput> notifiers() {
+  public List<NotifierOutput> notifiers(TxCtx ctx) {
     boolean includeConfiguration = canSeeConfiguration();
     return notifierService.findAll().stream()
         .map(notifier -> notifierMapper.toNotifierOutput(notifier, includeConfiguration))
@@ -109,7 +110,7 @@ public class NotifierApi {
   @Operation(summary = "Create notifier", description = "Create a notifier")
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Notifier created")})
-  public NotifierOutput createNotifier(@Valid @RequestBody final NotifierInput input) {
+  public NotifierOutput createNotifier(@Valid @RequestBody final NotifierInput input, TxCtx ctx) {
     // caller passed the CREATE capability gate, so the configuration is safe to return
     return notifierMapper.toNotifierOutput(
         notifierService.create(notifierMapper.toNotifier(input)), true);

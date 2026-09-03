@@ -3,6 +3,7 @@ package io.openaev.rest.reporting;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Reporting;
@@ -51,7 +52,7 @@ public class ReportingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.REPORT)
   @Operation(summary = "Create a reporting template")
   public ResponseEntity<Reporting> createReporting(
-      @RequestBody @Valid @NotNull final ReportingInput input) {
+      @RequestBody @Valid @NotNull final ReportingInput input, TxCtx ctx) {
     return ResponseEntity.ok(
         this.reportingService.createReporting(input.toReporting(new Reporting())));
   }
@@ -63,7 +64,7 @@ public class ReportingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.REPORT)
   @Operation(summary = "Search reporting templates with pagination")
   public ResponseEntity<Page<Reporting>> reportings(
-      @RequestBody @Valid @NotNull final SearchPaginationInput searchPaginationInput) {
+      @RequestBody @Valid @NotNull final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
     return ResponseEntity.ok(this.reportingService.reportings(searchPaginationInput));
   }
 
@@ -84,7 +85,8 @@ public class ReportingApi extends RestBehavior {
   @Operation(summary = "List the reporting templates of a subject (context)")
   public ResponseEntity<List<Reporting>> reportingsByContext(
       @PathVariable @NotNull final ReportingContextType contextType,
-      @PathVariable(required = false) final String contextId) {
+      @PathVariable(required = false) final String contextId,
+      TxCtx ctx) {
     return ResponseEntity.ok(this.reportingService.reportingsByContext(contextType, contextId));
   }
 
@@ -152,7 +154,7 @@ public class ReportingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.REPORT)
   @Operation(summary = "Get a reporting generation by id")
   public ResponseEntity<ReportingGeneration> reportingGeneration(
-      @PathVariable @NotBlank final String generationId) {
+      @PathVariable @NotBlank final String generationId, TxCtx ctx) {
     return ResponseEntity.ok(this.reportingService.generation(generationId));
   }
 
@@ -161,7 +163,7 @@ public class ReportingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.REPORT)
   @Operation(summary = "Delete a reporting generation and its document")
   public ResponseEntity<Void> deleteReportingGeneration(
-      @PathVariable @NotBlank final String generationId) {
+      @PathVariable @NotBlank final String generationId, TxCtx ctx) {
     this.reportingService.deleteGeneration(generationId);
     return ResponseEntity.noContent().build();
   }
@@ -171,7 +173,7 @@ public class ReportingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.REPORT)
   @Operation(summary = "Download the document of a successful reporting generation")
   public ResponseEntity<InputStreamResource> downloadReportingGeneration(
-      @PathVariable @NotBlank final String generationId) {
+      @PathVariable @NotBlank final String generationId, TxCtx ctx) {
     Document document = this.reportingService.generationDocument(generationId);
     String encodedFilename = DocumentService.encodeFileName(document.getName());
     InputStream in =

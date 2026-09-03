@@ -7,6 +7,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.EventOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -52,7 +53,7 @@ public class ConditionApi extends RestBehavior {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
-  public EventOutput create(@Valid @RequestBody EventInput input) {
+  public EventOutput create(@Valid @RequestBody EventInput input, TxCtx ctx) {
     return toOutput(conditionService.createConditionTree(input));
   }
 
@@ -108,7 +109,7 @@ public class ConditionApi extends RestBehavior {
   @PutMapping("/{conditionId}")
   @Transactional
   public EventOutput update(
-      @PathVariable String conditionId, @Valid @RequestBody EventInput input) {
+      @PathVariable String conditionId, @Valid @RequestBody EventInput input, TxCtx ctx) {
     return toOutput(conditionService.updateConditionTree(conditionId, input));
   }
 
@@ -129,7 +130,7 @@ public class ConditionApi extends RestBehavior {
   @DeleteMapping("/{conditionId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void delete(@PathVariable String conditionId) {
+  public void delete(@PathVariable String conditionId, TxCtx ctx) {
     conditionService.deleteConditionTree(conditionId);
   }
 }

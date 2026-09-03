@@ -6,6 +6,7 @@ import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
@@ -51,7 +52,7 @@ public class ComcheckApi extends RestBehavior {
   @GetMapping("/api/comcheck/{comcheckStatusId}")
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackFor = Exception.class)
-  public ComcheckStatus checkValidation(@PathVariable String comcheckStatusId) {
+  public ComcheckStatus checkValidation(@PathVariable String comcheckStatusId, TxCtx ctx) {
     ComcheckStatus comcheckStatus =
         comcheckStatusRepository
             .findById(comcheckStatusId)

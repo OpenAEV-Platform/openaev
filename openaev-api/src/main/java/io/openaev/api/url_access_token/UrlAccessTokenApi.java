@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.UrlAccessToken;
@@ -41,7 +42,7 @@ public class UrlAccessTokenApi {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Validate URL access token, set secure cookie and redirect")
   @Transactional
-  public ResponseEntity<Void> access(@RequestParam("token") String rawToken) {
+  public ResponseEntity<Void> access(@RequestParam("token") String rawToken, TxCtx ctx) {
     try {
       UrlAccessToken token = urlAccessTokenService.validateTokenExpiration(rawToken);
       urlAccessTokenService.updateLastUsed(token);
@@ -68,7 +69,7 @@ public class UrlAccessTokenApi {
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
   @Operation(summary = "Revoke a URL access token by id (admin only)")
   @Transactional
-  public ResponseEntity<Void> revokeByTokenId(@PathVariable("tokenId") String tokenId) {
+  public ResponseEntity<Void> revokeByTokenId(@PathVariable("tokenId") String tokenId, TxCtx ctx) {
     ensureCurrentUserIsAdmin();
     urlAccessTokenService.revokeToken(tokenId);
     return ResponseEntity.noContent().build();

@@ -6,6 +6,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.service.utils.BulkOperationMonitor.BulkOperation;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,7 +42,7 @@ public class BulkOperationApi {
   // Scoped to the caller's own operations and exposes only aggregate counts and entity labels,
   // never entity data: no per-resource RBAC applies.
   @AccessControl(skipRBAC = true)
-  public List<BulkOperation> bulkOperations() {
+  public List<BulkOperation> bulkOperations(TxCtx ctx) {
     return bulkOperationMonitor.findForUser(
         currentUser().getId(), TenantContext.getCurrentTenant());
   }

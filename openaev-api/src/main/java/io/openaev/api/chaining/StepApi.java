@@ -8,6 +8,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Workflow;
@@ -52,7 +53,8 @@ public class StepApi {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional(rollbackFor = Exception.class)
-  public StepOutput createStep(@Valid @RequestBody StepInput input) throws ChainingException {
+  public StepOutput createStep(@Valid @RequestBody StepInput input, TxCtx ctx)
+      throws ChainingException {
     StepsCreateInput.StepInput createInput =
         StepsCreateInput.StepInput.builder()
             .stepAction(input.getStepAction())
@@ -114,7 +116,8 @@ public class StepApi {
       isEnterpriseEdition = true)
   @PutMapping("/{stepId}")
   @Transactional(rollbackFor = Exception.class)
-  public StepOutput updateStep(@PathVariable String stepId, @Valid @RequestBody StepInput input)
+  public StepOutput updateStep(
+      @PathVariable String stepId, @Valid @RequestBody StepInput input, TxCtx ctx)
       throws ChainingException {
     return toOutput(stepService.updateStepTemplate(stepId, input));
   }
@@ -134,7 +137,7 @@ public class StepApi {
   @DeleteMapping("/{stepId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void deleteStep(@PathVariable String stepId) {
+  public void deleteStep(@PathVariable String stepId, TxCtx ctx) {
     stepService.deleteStepTemplate(stepId);
   }
 }

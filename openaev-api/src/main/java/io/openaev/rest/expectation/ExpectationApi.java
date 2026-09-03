@@ -80,7 +80,8 @@ public class ExpectationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   @Transactional
   public List<InjectExpectationOutput> getInjectExpectationsNotFilledAndNotExpired(
-      @RequestParam(required = false, name = "expiration_time") final Integer expirationTime) {
+      @RequestParam(required = false, name = "expiration_time") final Integer expirationTime,
+      TxCtx ctx) {
     String tenantId = TenantContext.getCurrentTenant();
     if (expirationTime == null) {
       return toOutputs(

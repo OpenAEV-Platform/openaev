@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.custom_domain.form.CustomDomainInput;
 import io.openaev.api.custom_domain.response.CustomDomainInstructions;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDomain;
 import io.openaev.database.model.ResourceType;
@@ -44,7 +45,7 @@ public class CustomDomainApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @Operation(summary = "Search custom domains")
   public Page<CustomDomain> searchCustomDomains(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
     return customDomainService.search(searchPaginationInput);
   }
 
@@ -52,7 +53,7 @@ public class CustomDomainApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @Operation(summary = "Get a custom domain")
-  public CustomDomain customDomain(@PathVariable String id) {
+  public CustomDomain customDomain(@PathVariable String id, TxCtx ctx) {
     return customDomainService.customDomain(id);
   }
 
@@ -71,7 +72,7 @@ public class CustomDomainApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @Operation(summary = "Register a custom domain")
-  public CustomDomain createCustomDomain(@Valid @RequestBody CustomDomainInput input) {
+  public CustomDomain createCustomDomain(@Valid @RequestBody CustomDomainInput input, TxCtx ctx) {
     return customDomainService.create(input.getHostname());
   }
 
@@ -79,7 +80,7 @@ public class CustomDomainApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @Operation(summary = "Run the DNS ownership verification for a custom domain")
-  public CustomDomain verifyCustomDomain(@PathVariable String id) {
+  public CustomDomain verifyCustomDomain(@PathVariable String id, TxCtx ctx) {
     return customDomainService.verify(id);
   }
 
@@ -87,7 +88,7 @@ public class CustomDomainApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @Operation(summary = "Delete a custom domain")
-  public void deleteCustomDomain(@PathVariable String id) {
+  public void deleteCustomDomain(@PathVariable String id, TxCtx ctx) {
     customDomainService.delete(id);
   }
 }

@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.context.TxCtx;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.notification.NotificationTriggerService;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -88,7 +89,7 @@ public class NotificationTriggerApi {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Trigger created")})
   public NotificationTriggerOutput createNotificationTrigger(
-      @Valid @RequestBody final NotificationTriggerInput input) {
+      @Valid @RequestBody final NotificationTriggerInput input, TxCtx ctx) {
     return notificationTriggerMapper.toNotificationTriggerOutput(
         notificationTriggerService.create(notificationTriggerMapper.toNotificationTrigger(input)));
   }

@@ -11,6 +11,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.raw.RawPaginationDocument;
@@ -89,7 +90,8 @@ public class DocumentApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Document uploadDocument(
       @Valid @RequestPart("input") DocumentCreateInput input,
-      @RequestPart("file") MultipartFile file)
+      @RequestPart("file") MultipartFile file,
+      TxCtx ctx)
       throws Exception {
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
     String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
@@ -144,7 +146,8 @@ public class DocumentApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Document upsertDocument(
       @Valid @RequestPart("input") DocumentCreateInput input,
-      @RequestPart("file") MultipartFile file)
+      @RequestPart("file") MultipartFile file,
+      TxCtx ctx)
       throws Exception {
     return documentService.upsert(
         file.getOriginalFilename(),
@@ -157,7 +160,7 @@ public class DocumentApi extends RestBehavior {
   @GetMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
-  public List<RawDocument> documents() {
+  public List<RawDocument> documents(TxCtx ctx) {
     return documentRepository.rawAllDocuments();
   }
 
@@ -165,7 +168,7 @@ public class DocumentApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public Page<RawPaginationDocument> searchDocuments(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
     List<Document> securityPlatformLogos = securityPlatformRepository.securityPlatformLogo();
     // Report generation outputs are read-only from this generic surface: their lifecycle
     // (naming, storage, deletion) belongs to the Reporting module.
@@ -458,7 +461,7 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
-      @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId)
+      @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId, TxCtx ctx)
       throws AuthenticationError {
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(

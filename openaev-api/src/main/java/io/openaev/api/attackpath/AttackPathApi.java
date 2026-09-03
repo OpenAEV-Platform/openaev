@@ -235,7 +235,8 @@ public class AttackPathApi extends RestBehavior {
   @PostMapping("/seed")
   @Transactional
   @AccessControl(skipRBAC = true)
-  public AttackPathSeedResultDTO seed(@RequestBody(required = false) AttackPathSeedInput input) {
+  public AttackPathSeedResultDTO seed(
+      @RequestBody(required = false) AttackPathSeedInput input, TxCtx ctx) {
     if (!SessionHelper.currentUser().isAdmin()) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attack path seeding is admin-only");
     }

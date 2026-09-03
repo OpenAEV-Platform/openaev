@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Domain;
 import io.openaev.database.model.ResourceType;
@@ -35,7 +36,7 @@ public class DomainApi extends RestBehavior {
   @Transactional
   @GetMapping
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DOMAIN)
-  public List<Domain> domains() {
+  public List<Domain> domains(TxCtx ctx) {
     return domainService.searchDomains();
   }
 
@@ -55,7 +56,7 @@ public class DomainApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted domain")})
   @Operation(description = "Upsert a domain", summary = "Upsert domain")
-  public Domain upsertDomain(@Valid @RequestBody DomainBaseInput input) {
+  public Domain upsertDomain(@Valid @RequestBody DomainBaseInput input, TxCtx ctx) {
     return domainService.upsert(input);
   }
 
@@ -65,14 +66,15 @@ public class DomainApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
   public List<FilterUtilsJpa.Option> findAllAsOptionsByName(
-      @RequestParam(required = false) final String searchText) {
+      @RequestParam(required = false) final String searchText, TxCtx ctx) {
     return domainService.findAllAsOptionsByName(searchText);
   }
 
   @PostMapping("/options")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
-  public List<FilterUtilsJpa.Option> findAllAsOptionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> findAllAsOptionsById(
+      @RequestBody final List<String> ids, TxCtx ctx) {
     return domainService.findAllAsOptionsById(ids);
   }
 }

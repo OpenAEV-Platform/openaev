@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -43,7 +44,7 @@ public class CustomDashboardApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<CustomDashboard> createCustomDashboard(
-      @RequestBody @Valid @NotNull final CustomDashboardInput input) {
+      @RequestBody @Valid @NotNull final CustomDashboardInput input, TxCtx ctx) {
     return ResponseEntity.ok(
         this.customDashboardService.createCustomDashboard(
             input.toCustomDashboard(new CustomDashboard())));
@@ -52,7 +53,7 @@ public class CustomDashboardApi extends RestBehavior {
   @GetMapping
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
-  public ResponseEntity<List<CustomDashboardOutput>> customDashboards() {
+  public ResponseEntity<List<CustomDashboardOutput>> customDashboards(TxCtx ctx) {
     return ResponseEntity.ok(this.customDashboardService.customDashboards());
   }
 
@@ -60,7 +61,7 @@ public class CustomDashboardApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Page<CustomDashboard>> customDashboards(
-      @RequestBody @NotNull @Valid final SearchPaginationInput searchPaginationInput) {
+      @RequestBody @NotNull @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
     return ResponseEntity.ok(this.customDashboardService.customDashboards(searchPaginationInput));
   }
 
@@ -110,14 +111,14 @@ public class CustomDashboardApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText) {
+      @RequestParam(required = false) final String searchText, TxCtx ctx) {
     return this.customDashboardService.findAllAsOptions(searchText);
   }
 
   @PostMapping("/options")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
     return this.customDashboardService.findAllByIdsAsOptions(ids);
   }
 

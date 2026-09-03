@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -81,7 +82,7 @@ public class TenantRoleApi extends RestBehavior {
   @Operation(description = "Get All Roles", summary = "Get Roles")
   @Transactional
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of all Roles")})
-  public List<RoleOutput> roles() {
+  public List<RoleOutput> roles(TxCtx ctx) {
     return tenantRoleService.findAll(TenantContext.getCurrentTenant()).stream()
         .map(roleMapper::toRoleOutput)
         .toList();

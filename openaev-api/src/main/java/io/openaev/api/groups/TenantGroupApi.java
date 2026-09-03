@@ -7,6 +7,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
@@ -39,7 +40,7 @@ public class TenantGroupApi extends RestBehavior {
   @PostMapping
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER_GROUP)
-  public Group createGroup(@Valid @RequestBody TenantGroupCreateInput input) {
+  public Group createGroup(@Valid @RequestBody TenantGroupCreateInput input, TxCtx ctx) {
     return tenantGroupService.createGroup(input);
   }
 
@@ -69,7 +70,8 @@ public class TenantGroupApi extends RestBehavior {
   @PostMapping("/search")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER_GROUP)
-  public Page<Group> groups(@RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+  public Page<Group> groups(
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
     return tenantGroupService.search(searchPaginationInput);
   }
 

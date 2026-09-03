@@ -9,6 +9,7 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
@@ -58,7 +59,7 @@ public class ChannelApi extends RestBehavior {
   @GetMapping({CHANNEL_URI, TENANT_CHANNEL_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHANNEL)
-  public Iterable<Channel> channels() {
+  public Iterable<Channel> channels(TxCtx ctx) {
     return channelRepository.findAll();
   }
 
@@ -113,7 +114,7 @@ public class ChannelApi extends RestBehavior {
   @PostMapping({CHANNEL_URI, TENANT_CHANNEL_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHANNEL)
   @Transactional(rollbackFor = Exception.class)
-  public Channel createChannel(@Valid @RequestBody ChannelCreateInput input) {
+  public Channel createChannel(@Valid @RequestBody ChannelCreateInput input, TxCtx ctx) {
     Channel channel = new Channel();
     channel.setUpdateAttributes(input);
     return channelRepository.save(channel);

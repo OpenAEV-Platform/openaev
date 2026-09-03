@@ -486,7 +486,7 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public Exercise createExercise(@Valid @RequestBody CreateExerciseInput input) {
+  public Exercise createExercise(@Valid @RequestBody CreateExerciseInput input, TxCtx ctx) {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exercise input cannot be null");
     }
@@ -645,7 +645,8 @@ public class ExerciseApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
       @RequestParam(required = false) final String searchText,
-      @RequestParam(required = false) final String scenarioId) {
+      @RequestParam(required = false) final String scenarioId,
+      TxCtx ctx) {
     return exerciseService.getOptionsByNameLinkedToFindings(
         searchText, scenarioId, PageRequest.of(0, 50));
   }
@@ -654,7 +655,7 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping({EXERCISE_URI + "/options", TENANT_EXERCISE_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
     return fromIterable(this.exerciseRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
@@ -704,7 +705,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SIMULATION)
   public List<String> bulkDeleteExercises(
-      @RequestBody @Valid final ExerciseBulkProcessingInput input) {
+      @RequestBody @Valid final ExerciseBulkProcessingInput input, TxCtx ctx) {
     return exerciseService.bulkDelete(input);
   }
 
@@ -811,7 +812,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public ExercisesGlobalScoresOutput getExercisesGlobalScores(
-      @Valid @RequestBody ExercisesGlobalScoresInput input) {
+      @Valid @RequestBody ExercisesGlobalScoresInput input, TxCtx ctx) {
     return exerciseService.getExercisesGlobalScores(input);
   }
 
@@ -884,7 +885,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional
   @GetMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
-  public List<ExerciseSimple> exercises() {
+  public List<ExerciseSimple> exercises(TxCtx ctx) {
     return exerciseService.exercises();
   }
 
@@ -905,7 +906,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public Page<ExerciseSimple> exercises(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
     User currentUser = userService.currentUser();
     if (currentUser.isAdminOrBypass()
@@ -960,7 +961,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   //
-  public void downloadAttachment(@RequestParam String file, HttpServletResponse response)
+  public void downloadAttachment(@RequestParam String file, HttpServletResponse response, TxCtx ctx)
       throws IOException {
     FileContainer fileContainer =
         fileService.getFileContainer(file).orElseThrow(ElementNotFoundException::new);

@@ -92,7 +92,7 @@ public class AutonomousRunApi extends RestBehavior {
   @GetMapping("/objective-templates")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public List<AutonomousObjectiveTemplate> objectiveTemplates() {
+  public List<AutonomousObjectiveTemplate> objectiveTemplates(TxCtx ctx) {
     return autonomousRunService.objectiveTemplates();
   }
 
@@ -105,7 +105,7 @@ public class AutonomousRunApi extends RestBehavior {
   @GetMapping("/available-agents")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public List<ChatbotAgentOutput> availableAgents() {
+  public List<ChatbotAgentOutput> availableAgents(TxCtx ctx) {
     return autonomousRunService.availableAdditionalAgents();
   }
 
@@ -117,7 +117,7 @@ public class AutonomousRunApi extends RestBehavior {
   @GetMapping("/default-agents")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public AutonomousDefaultAgentsOutput defaultAgents() {
+  public AutonomousDefaultAgentsOutput defaultAgents(TxCtx ctx) {
     return new AutonomousDefaultAgentsOutput(
         autonomousRunService.defaultAdditionalAgentIds(),
         autonomousRunService.defaultAdditionalAgentModes());
@@ -130,7 +130,7 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousDefaultAgentsOutput setDefaultAgents(
-      @RequestBody AutonomousDefaultAgentsInput input) {
+      @RequestBody AutonomousDefaultAgentsInput input, TxCtx ctx) {
     List<String> ids =
         autonomousRunService.updateDefaultAdditionalAgentIds(
             input != null ? input.getAgentIds() : null);
@@ -257,7 +257,7 @@ public class AutonomousRunApi extends RestBehavior {
   @GetMapping("/scenario-config/{scenarioId}")
   @Transactional(readOnly = true)
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public AutonomousRunCreateInput getScenarioConfig(@PathVariable String scenarioId) {
+  public AutonomousRunCreateInput getScenarioConfig(@PathVariable String scenarioId, TxCtx ctx) {
     return autonomousRunService.getScenarioAutonomousConfig(scenarioId);
   }
 
@@ -272,7 +272,8 @@ public class AutonomousRunApi extends RestBehavior {
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public AutonomousRunCreateInput saveScenarioConfig(
       @PathVariable String scenarioId,
-      @RequestBody(required = false) AutonomousRunCreateInput input) {
+      @RequestBody(required = false) AutonomousRunCreateInput input,
+      TxCtx ctx) {
     return autonomousRunService.saveScenarioAutonomousConfig(scenarioId, input);
   }
 

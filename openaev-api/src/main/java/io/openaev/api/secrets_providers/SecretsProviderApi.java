@@ -99,7 +99,7 @@ public class SecretsProviderApi extends RestBehavior {
   @Operation(summary = "Get secrets provider image by type")
   @Transactional
   public ResponseEntity<InputStreamResource> getSecretsProviderImage(
-      @PathVariable String secretProviderType) {
+      @PathVariable String secretProviderType, TxCtx ctx) {
     return fileService.getConnectorImage(ConnectorType.SECRETS_PROVIDER, secretProviderType);
   }
 }

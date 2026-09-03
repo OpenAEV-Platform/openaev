@@ -3,6 +3,7 @@ package io.openaev.api.platform.roles;
 import static io.openaev.api.platform.roles.PlatformRoleMapper.toOutput;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.ResourceType;
@@ -36,7 +37,7 @@ public class PlatformRoleApi {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
-  public PlatformRoleOutput create(@Valid @RequestBody PlatformRoleInput input) {
+  public PlatformRoleOutput create(@Valid @RequestBody PlatformRoleInput input, TxCtx ctx) {
     return toOutput(
         platformRoleService.createPlatformRole(
             input.name(), input.description(), input.capabilities()));
@@ -76,7 +77,7 @@ public class PlatformRoleApi {
   @PostMapping("/search")
   @Transactional
   public Page<PlatformRoleOutput> search(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
     return platformRoleService.search(searchPaginationInput).map(PlatformRoleMapper::toOutput);
   }
 
@@ -87,7 +88,7 @@ public class PlatformRoleApi {
       isEnterpriseEdition = true)
   @PostMapping("/find")
   @Transactional
-  public List<PlatformRoleOutput> find(@RequestBody @Valid final List<String> ids) {
+  public List<PlatformRoleOutput> find(@RequestBody @Valid final List<String> ids, TxCtx ctx) {
     return platformRoleService.findByIds(ids).stream().map(PlatformRoleMapper::toOutput).toList();
   }
 
@@ -102,7 +103,7 @@ public class PlatformRoleApi {
   @PutMapping("/{platformRoleId}")
   @Transactional
   public PlatformRoleOutput update(
-      @PathVariable String platformRoleId, @Valid @RequestBody PlatformRoleInput input) {
+      @PathVariable String platformRoleId, @Valid @RequestBody PlatformRoleInput input, TxCtx ctx) {
     return toOutput(
         platformRoleService.updatePlatformRole(
             platformRoleId, input.name(), input.description(), input.capabilities()));
@@ -119,7 +120,7 @@ public class PlatformRoleApi {
   @DeleteMapping("/{platformRoleId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void delete(@PathVariable String platformRoleId) {
+  public void delete(@PathVariable String platformRoleId, TxCtx ctx) {
     platformRoleService.delete(platformRoleId);
   }
 }

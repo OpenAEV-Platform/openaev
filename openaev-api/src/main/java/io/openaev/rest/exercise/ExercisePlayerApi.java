@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.UserRepository;
@@ -35,7 +36,7 @@ public class ExercisePlayerApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public PublicExercise playerExercise(
-      @PathVariable String exerciseId, @RequestParam Optional<String> userId)
+      @PathVariable String exerciseId, @RequestParam Optional<String> userId, TxCtx ctx)
       throws AuthenticationError {
     impersonateUser(this.userRepository, userId);
     Exercise exercise =

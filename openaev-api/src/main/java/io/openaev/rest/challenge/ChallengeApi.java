@@ -49,7 +49,7 @@ public class ChallengeApi extends RestBehavior {
   @GetMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CHALLENGE)
-  public Iterable<Challenge> challenges() {
+  public Iterable<Challenge> challenges(TxCtx ctx) {
     return fromIterable(challengeRepository.findAll()).stream()
         .map(challengeService::enrichChallengeWithExercisesOrScenarios)
         .toList();
@@ -60,7 +60,7 @@ public class ChallengeApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHALLENGE)
   @Transactional(readOnly = true)
   public List<Challenge> findEndpoints(
-      @RequestBody @Valid @NotNull final List<String> challengeIds) {
+      @RequestBody @Valid @NotNull final List<String> challengeIds, TxCtx ctx) {
     return this.challengeRepository.findAll(fromIds(challengeIds));
   }
 
@@ -102,7 +102,7 @@ public class ChallengeApi extends RestBehavior {
   @PostMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
-  public Challenge createChallenge(@Valid @RequestBody ChallengeInput input)
+  public Challenge createChallenge(@Valid @RequestBody ChallengeInput input, TxCtx ctx)
       throws InputValidationException {
     challengeService.validateFlags(input.flags());
     Challenge challenge = new Challenge();
