@@ -12,9 +12,6 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
-import io.openaev.expectation.ChallengeExpectation;
-import io.openaev.expectation.Expectation;
-import io.openaev.expectation.ManualExpectation;
 import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.injectors.challenge.model.ChallengeVariable;
@@ -71,6 +68,7 @@ public class ChallengeExecutor extends Injector {
       if (challenges.isEmpty()) {
         throw new UnsupportedOperationException("Inject needs at least one challenge");
       }
+      injection.cacheExpectationContext(challenges);
       String contract =
           injection
               .getInjection()
@@ -133,28 +131,7 @@ public class ChallengeExecutor extends Injector {
             });
 
         injectExpectationService.computeAndSaveExpectations(
-            injection,
-            content.getExpectations(),
-            null,
-            entry ->
-                switch (entry.getType()) {
-                  case MANUAL ->
-                      List.of(injectExpectationService.toExpectationTemplate(injection, entry));
-                  case CHALLENGE ->
-                      challenges.stream()
-                          .map(
-                              challenge -> {
-                                ChallengeInjectExpectation template =
-                                    (ChallengeInjectExpectation)
-                                        injectExpectationService.toExpectationTemplate(
-                                            injection, entry);
-                                template.setChallenge(challenge);
-                                template.setName(challenge.getName());
-                                return (BaseInjectExpectation) template;
-                              })
-                          .toList();
-                  default -> List.of();
-                });
+            injection, content.getExpectations(), null);
 
         return new ExecutionProcess(false);
       } else {

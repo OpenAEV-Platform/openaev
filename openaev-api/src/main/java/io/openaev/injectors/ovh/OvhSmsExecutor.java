@@ -4,7 +4,6 @@ import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
 import static org.springframework.util.StringUtils.hasText;
 
-import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.Inject;
@@ -12,8 +11,6 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
-import io.openaev.expectation.Expectation;
-import io.openaev.expectation.ManualExpectation;
 import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.injectors.ovh.model.OvhSmsContent;
 import io.openaev.injectors.ovh.service.OvhSmsService;
@@ -103,13 +100,7 @@ public class OvhSmsExecutor extends Injector {
             });
     if (isSmsSent.get()) {
       injectExpectationService.computeAndSaveExpectations(
-          injection,
-          content.getExpectations(),
-          null,
-          entry ->
-              entry.getType() == BaseInjectExpectation.EXPECTATION_TYPE.MANUAL
-                  ? List.of(injectExpectationService.toExpectationTemplate(injection, entry))
-                  : List.of());
+          injection, content.getExpectations(), null);
     }
     return new ExecutionProcess(false);
   }

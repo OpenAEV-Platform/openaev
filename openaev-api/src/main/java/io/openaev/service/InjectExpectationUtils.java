@@ -2,7 +2,6 @@ package io.openaev.service;
 
 import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
-import static io.openaev.utils.ExpectationSignatureUtils.convertToInjectExpectationSignatures;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
 import static java.util.Optional.ofNullable;
 
@@ -31,6 +30,7 @@ public class InjectExpectationUtils {
 
   public static final double FAILED_SCORE_VALUE = 0.0;
 
+  //  public static buildChallengeExpectation
   // -- VALIDATION --
 
   /**
@@ -65,178 +65,6 @@ public class InjectExpectationUtils {
   public static double computeScore(
       @NotNull final BaseInjectExpectation expectation, final boolean success) {
     return success ? expectation.getExpectedScore() : FAILED_SCORE_VALUE;
-  }
-
-  // -- CONVERTER --
-
-  public static BaseInjectExpectation expectationConverter(
-      @NotNull final ExecutableInject executableInject,
-      Expectation expectation,
-      ExpectationPropertiesConfig expectationPropertiesConfig) {
-    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation.type());
-    return expectationConverter(
-        baseInjectExpectation, executableInject, expectation, expectationPropertiesConfig);
-  }
-
-  public static BaseInjectExpectation expectationConverter(
-      @NotNull final Team team,
-      @NotNull final ExecutableInject executableInject,
-      Expectation expectation,
-      ExpectationPropertiesConfig expectationPropertiesConfig) {
-    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation.type());
-    if (baseInjectExpectation instanceof TableTopInjectExpectation tableTop) {
-      tableTop.setTeam(team);
-    }
-    return expectationConverter(
-        baseInjectExpectation, executableInject, expectation, expectationPropertiesConfig);
-  }
-
-  public static BaseInjectExpectation expectationConverter(
-      @NotNull final Team team,
-      @NotNull final User user,
-      @NotNull final ExecutableInject executableInject,
-      Expectation expectation,
-      ExpectationPropertiesConfig expectationPropertiesConfig) {
-    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation.type());
-    if (baseInjectExpectation instanceof TableTopInjectExpectation tableTop) {
-      tableTop.setTeam(team);
-      tableTop.setUser(user);
-    }
-    return expectationConverter(
-        baseInjectExpectation, executableInject, expectation, expectationPropertiesConfig);
-  }
-
-  private static BaseInjectExpectation expectationConverter(
-      @NotNull BaseInjectExpectation baseInjectExpectation,
-      @NotNull final ExecutableInject executableInject,
-      @NotNull final Expectation expectation,
-      ExpectationPropertiesConfig expectationPropertiesConfig) {
-
-    setCommonFields(
-        baseInjectExpectation,
-        executableInject,
-        expectation.getScore(),
-        expectation.isExpectationGroup(),
-        expectation.getName(),
-        expectation.getOrder(),
-        expectation.getExpirationTime(),
-        expectation.type(),
-        expectationPropertiesConfig);
-
-    switch (expectation) {
-      case ChannelExpectation e when expectation.type() == ARTICLE ->
-          ((ArticleInjectExpectation) baseInjectExpectation).setArticle(e.getArticle());
-      case io.openaev.expectation.ChallengeExpectation e when expectation.type() == CHALLENGE ->
-          ((ChallengeInjectExpectation) baseInjectExpectation).setChallenge(e.getChallenge());
-      case DetectionExpectation e when expectation.type() == DETECTION -> {
-        TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
-        tech.setAgent(e.getAgent());
-        tech.setAsset(e.getAsset());
-        tech.setAssetGroup(e.getAssetGroup());
-        tech.setExpectedSecurityPlatforms(e.getExpectedSecurityPlatformTypes());
-        baseInjectExpectation
-            .getSignatures()
-            .addAll(
-                convertToInjectExpectationSignatures(
-                    e.getExpectationSignatures(), baseInjectExpectation));
-      }
-      case PreventionExpectation e when expectation.type() == PREVENTION -> {
-        TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
-        tech.setAgent(e.getAgent());
-        tech.setAsset(e.getAsset());
-        tech.setAssetGroup(e.getAssetGroup());
-        tech.setExpectedSecurityPlatforms(e.getExpectedSecurityPlatformTypes());
-        baseInjectExpectation
-            .getSignatures()
-            .addAll(
-                convertToInjectExpectationSignatures(
-                    e.getExpectationSignatures(), baseInjectExpectation));
-      }
-      case VulnerabilityExpectation e when expectation.type() == VULNERABILITY -> {
-        TechnicalInjectExpectation tech = (TechnicalInjectExpectation) baseInjectExpectation;
-        tech.setAgent(e.getAgent());
-        tech.setAsset(e.getAsset());
-        tech.setAssetGroup(e.getAssetGroup());
-        tech.setExpectedSecurityPlatforms(e.getExpectedSecurityPlatformTypes());
-        baseInjectExpectation
-            .getSignatures()
-            .addAll(
-                convertToInjectExpectationSignatures(
-                    e.getExpectationSignatures(), baseInjectExpectation));
-      }
-      case ManualExpectation e when expectation.type() == MANUAL ->
-          baseInjectExpectation.setDescription(e.getDescription());
-      default -> throw new IllegalStateException("Unexpected value: " + expectation);
-    }
-    return baseInjectExpectation;
-  }
-
-  /**
-   * Converts a raw, untargeted expectation declared in the inject's content (JSON form payload)
-   * into a BaseInjectExpectation *template*: common attributes (score, name, expiration,
-   * expectationGroup, description for MANUAL) are set, but no target (agent/asset/assetGroup) is
-   * attached yet.
-   *
-   * <p>Target resolution is deferred to the matching {@link
-   * io.openaev.service.expectation.ExpectationBehavior}, which resolves concrete targets
-   * (agents/assets/asset groups) for its own expectation type from the {@link ExecutableInject}.
-   *
-   * @param executableInject the executable inject (for exercise/inject linkage)
-   * @param expectation the raw expectation declared in the inject content
-   * @param expectationPropertiesConfig default expiration times per type
-   * @return an untargeted BaseInjectExpectation template
-   */
-  public static BaseInjectExpectation expectationConverter(
-      @NotNull final ExecutableInject executableInject,
-      @NotNull final io.openaev.model.inject.form.Expectation expectation,
-      ExpectationPropertiesConfig expectationPropertiesConfig) {
-
-    BaseInjectExpectation baseInjectExpectation = newExpectationByType(expectation.getType());
-
-    setCommonFields(
-        baseInjectExpectation,
-        executableInject,
-        // Old or partially populated content can carry a null score: normalize it to the same
-        // 100.0 default the legacy expectation factories applied, otherwise the first collector
-        // update unboxes a null expected score.
-        Objects.requireNonNullElse(expectation.getScore(), 100.0),
-        expectation.isExpectationGroup(),
-        expectation.getName(),
-        expectation.getOrder(),
-        expectation.getExpirationTime(),
-        expectation.getType(),
-        expectationPropertiesConfig);
-
-    //    switch (expectation.getType()) {
-    //      case ARTICLE ->
-    //              ((ArticleInjectExpectation)
-    // baseInjectExpectation).setArticle(expectation.getArticle());
-    //    }
-    if (MANUAL.equals(expectation.getType())) {
-      baseInjectExpectation.setDescription(expectation.getDescription());
-    }
-
-    // Without this the expectation loses its expected platform types, so every connected
-    // collector is seeded as a pending result instead of only the expected ones.
-    // Only technical expectations carry expected security platforms.
-    if (baseInjectExpectation instanceof TechnicalInjectExpectation technicalInjectExpectation) {
-      technicalInjectExpectation.setExpectedSecurityPlatforms(
-          expectation.getExpectedSecurityPlatformTypes());
-    }
-
-    return baseInjectExpectation;
-  }
-
-  private static BaseInjectExpectation newExpectationByType(
-      @NotNull final BaseInjectExpectation.EXPECTATION_TYPE type) {
-    return switch (type) {
-      case ARTICLE -> new ArticleInjectExpectation();
-      case CHALLENGE -> new ChallengeInjectExpectation();
-      case MANUAL -> new ManualInjectExpectation();
-      case PREVENTION -> new PreventionInjectExpectation();
-      case DETECTION -> new DetectionInjectExpectation();
-      case VULNERABILITY -> new VulnerabilityInjectExpectation();
-    };
   }
 
   // -- RULES OF ENGAGEMENT --
@@ -474,25 +302,24 @@ public class InjectExpectationUtils {
         .anyMatch(predicate);
   }
 
-  private static void setCommonFields(
-      BaseInjectExpectation baseInjectExpectation,
-      ExecutableInject executableInject,
-      Double expectedScore,
-      boolean isGroup,
-      String name,
-      Integer order,
-      Long expirationTime,
-      BaseInjectExpectation.EXPECTATION_TYPE type,
-      ExpectationPropertiesConfig config) {
-
-    baseInjectExpectation.setExercise(executableInject.getInjection().getExercise());
-    baseInjectExpectation.setInject(executableInject.getInjection().getInject());
-    baseInjectExpectation.setExpectedScore(expectedScore);
-    baseInjectExpectation.setExpectationGroup(isGroup);
-    baseInjectExpectation.setName(name);
-    baseInjectExpectation.setOrder(order);
+  public static void setCommonFields(
+      @NotNull BaseInjectExpectation baseInjectExpectation,
+      @NotNull io.openaev.model.inject.form.Expectation formExpectation,
+      @NotNull Exercise exercise,
+      @NotNull Inject inject,
+      @NotNull ExpectationPropertiesConfig expectationPropertiesConfig) {
+    baseInjectExpectation.setExercise(exercise);
+    baseInjectExpectation.setInject(inject);
+    baseInjectExpectation.setExpectedScore(
+        Objects.requireNonNullElse(formExpectation.getScore(), 100.0));
+    baseInjectExpectation.setExpectationGroup(formExpectation.isExpectationGroup());
+    baseInjectExpectation.setName(formExpectation.getName());
+    baseInjectExpectation.setOrder(formExpectation.getOrder());
+    baseInjectExpectation.setDescription(formExpectation.getDescription());
     baseInjectExpectation.setExpirationTime(
-        ofNullable(expirationTime).orElse(config.getExpirationTimeByType(type)));
+        ofNullable(formExpectation.getExpirationTime())
+            .orElse(
+                expectationPropertiesConfig.getExpirationTimeByType(formExpectation.getType())));
   }
 
   // -- EXPECTED SECURITY PLATFORMS --

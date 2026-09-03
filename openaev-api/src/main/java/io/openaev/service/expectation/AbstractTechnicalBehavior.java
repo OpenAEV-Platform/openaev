@@ -9,11 +9,13 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.ExpectationUtils;
 import jakarta.annotation.Nullable;
+import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -24,9 +26,25 @@ import lombok.RequiredArgsConstructor;
 public abstract class AbstractTechnicalBehavior
     implements ExpectationBehavior<TechnicalInjectExpectation> {
 
+  @Resource protected ExpectationPropertiesConfig expectationPropertiesConfig;
+
   protected final CollectorService collectorService;
   protected final InjectService injectService;
   protected final InjectExpectationRepository injectExpectationRepository;
+
+  /** Builds the concrete technical expectation instance handled by this behavior. */
+  protected abstract TechnicalInjectExpectation newTechnicalExpectation();
+
+  /** {@inheritDoc} Builds an untargeted technical template carrying the expected platform types. */
+  @Override
+  public TechnicalInjectExpectation convertFormExpectationToBaseInjectExpectation(
+      io.openaev.model.inject.form.Expectation formExpectation, Exercise exercise, Inject inject) {
+    TechnicalInjectExpectation expectation = newTechnicalExpectation();
+    setCommonFields(
+        expectation, formExpectation, exercise, inject, this.expectationPropertiesConfig);
+    expectation.setExpectedSecurityPlatforms(formExpectation.getExpectedSecurityPlatformTypes());
+    return expectation;
+  }
 
   // -- INITIALIZE AND SAVE --
 

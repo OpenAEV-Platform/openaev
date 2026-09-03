@@ -6,7 +6,9 @@ import static io.openaev.utils.ExpectationUtils.*;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.expectation.ExpectationPropertiesConfig;
 import jakarta.annotation.Nullable;
+import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -17,6 +19,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public abstract class AbstractTableTopBehavior
     implements ExpectationBehavior<TableTopInjectExpectation> {
+
+  @Resource protected ExpectationPropertiesConfig expectationPropertiesConfig;
 
   protected final InjectExpectationRepository injectExpectationRepository;
 
@@ -45,17 +49,38 @@ public abstract class AbstractTableTopBehavior
       return;
     }
 
+    List<TableTopInjectExpectation> templates =
+        expandTemplatesForContext(executableInject, expectationTemplate);
+
     List<TableTopInjectExpectation> allExpectations = new ArrayList<>();
 
-    if (isAtomicTesting) {
-      buildExpectationsForAtomicTesting(expectationTemplate, teams, allExpectations);
-    } else {
-      buildExpectationsForExerciseInject(
-          executableInject, expectationTemplate, teams, allExpectations);
+    for (TableTopInjectExpectation template : templates) {
+      if (isAtomicTesting) {
+        buildExpectationsForAtomicTesting(template, teams, allExpectations);
+      } else {
+        buildExpectationsForExerciseInject(executableInject, template, teams, allExpectations);
+      }
     }
 
     allExpectations.forEach(this::initializeResults);
     injectExpectationRepository.saveAll(allExpectations);
+  }
+
+  /**
+   * Expands a single template into several context-specific templates before target multiplication.
+   *
+   * <p>Default behavior returns the template unchanged. Behaviors whose form expectation maps to
+   * several domain entities (e.g. one expectation per challenge or per article) override this to
+   * clone the template and attach each entity.
+   *
+   * @param executableInject the executable inject providing the content and resolved context
+   * @param template the untargeted template produced by {@link
+   *     #convertFormExpectationToBaseInjectExpectation}
+   * @return one template per context entity (at least one)
+   */
+  protected List<TableTopInjectExpectation> expandTemplatesForContext(
+      ExecutableInject executableInject, TableTopInjectExpectation template) {
+    return List.of(template);
   }
 
   /**

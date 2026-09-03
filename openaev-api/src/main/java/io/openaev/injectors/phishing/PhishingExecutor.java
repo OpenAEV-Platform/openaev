@@ -3,7 +3,6 @@ package io.openaev.injectors.phishing;
 import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewInfoTrace;
 
-import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.CustomDomain;
 import io.openaev.database.model.CustomDomain.CustomDomainStatus;
 import io.openaev.database.model.Execution;
@@ -21,8 +20,6 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
-import io.openaev.expectation.Expectation;
-import io.openaev.expectation.ManualExpectation;
 import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.injectors.phishing.api.HostedPublicApi;
@@ -120,14 +117,7 @@ public class PhishingExecutor extends Injector {
     // per-recipient tracking token before its email is sent, so an early recipient can open/click
     // while the loop is still sending. If the expectations did not exist yet, that open/click would
     // find nothing to fulfill and would never be retried.
-    injectExpectationService.computeAndSaveExpectations(
-        injection,
-        content.getExpectations(),
-        null,
-        entry ->
-            entry.getType() == BaseInjectExpectation.EXPECTATION_TYPE.MANUAL
-                ? List.of(injectExpectationService.toExpectationTemplate(injection, entry))
-                : List.of());
+    injectExpectationService.computeAndSaveExpectations(injection, content.getExpectations(), null);
 
     // The execution context carries each recipient's team NAME (see InjectHelper), but
     // phishing_result_team is an FK to teams.team_id. Map the name back to the real id from the

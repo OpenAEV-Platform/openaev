@@ -34,6 +34,15 @@ public class PhishingBehavior extends ManualBehavior {
   }
 
   @Override
+  public boolean supportsFormExpectation(
+      io.openaev.model.inject.form.Expectation formExpectation,
+      io.openaev.database.model.Inject inject) {
+    return formExpectation.getType() == BaseInjectExpectation.EXPECTATION_TYPE.MANUAL
+        && inject != null
+        && PhishingContract.TYPE.equals(inject.getType());
+  }
+
+  @Override
   protected InjectExpectationResult buildDefaultPlayerResult(Double expectedScore) {
     return buildForPlayerManualValidation(NO_INTERACTION_MESSAGE, expectedScore);
   }

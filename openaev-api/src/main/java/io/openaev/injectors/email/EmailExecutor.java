@@ -171,14 +171,7 @@ public class EmailExecutor extends Injector {
               message,
               attachments);
     }
-    injectExpectationService.computeAndSaveExpectations(
-        injection,
-        content.getExpectations(),
-        null,
-        entry ->
-            entry.getType() == BaseInjectExpectation.EXPECTATION_TYPE.MANUAL
-                ? List.of(injectExpectationService.toExpectationTemplate(injection, entry))
-                : List.of());
+    injectExpectationService.computeAndSaveExpectations(injection, content.getExpectations(), null);
 
     return new ExecutionProcess(false);
   }

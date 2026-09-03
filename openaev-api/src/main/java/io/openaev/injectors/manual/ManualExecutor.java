@@ -1,6 +1,5 @@
 package io.openaev.injectors.manual;
 
-import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.ExecutionTrace;
 import io.openaev.database.model.ExecutionTraceAction;
@@ -11,7 +10,6 @@ import io.openaev.injectors.manual.model.ManualContent;
 import io.openaev.model.ExecutionProcess;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
-import java.util.List;
 
 public class ManualExecutor extends Injector {
 
@@ -29,14 +27,7 @@ public class ManualExecutor extends Injector {
       throws Exception {
 
     ManualContent content = injectExpectationService.contentConvert(injection, ManualContent.class);
-    injectExpectationService.computeAndSaveExpectations(
-        injection,
-        content.getExpectations(),
-        null,
-        entry ->
-            entry.getType() == BaseInjectExpectation.EXPECTATION_TYPE.MANUAL
-                ? List.of(injectExpectationService.toExpectationTemplate(injection, entry))
-                : List.of());
+    injectExpectationService.computeAndSaveExpectations(injection, content.getExpectations(), null);
     execution.addTrace(
         ExecutionTrace.getNewSuccessTrace(
             "Manual inject execution", ExecutionTraceAction.COMPLETE));

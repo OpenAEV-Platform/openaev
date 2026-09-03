@@ -6,7 +6,6 @@ import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*
 import static io.openaev.expectation.ExpectationType.VULNERABILITY;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.InjectExpectationUtils.computeScores;
-import static io.openaev.service.InjectExpectationUtils.expectationConverter;
 import static io.openaev.utils.AgentUtils.getPrimaryAgents;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_END_DATE;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_START_DATE;
@@ -40,6 +39,7 @@ import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.expectation.ExpectationBehavior;
+import io.openaev.service.expectation.ExpectationBehaviorResolver;
 import io.openaev.utils.TargetType;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -85,34 +85,9 @@ public class InjectExpectationService {
 
   @Resource protected ObjectMapper mapper;
 
-  private final List<ExpectationBehavior<?>> behaviors;
-
-  /**
-   * Resolves the behavior handling the given expectation. The unchecked cast is safe: the behavior
-   * is selected by its own {@link ExpectationBehavior#supports(BaseInjectExpectation)}, so its type
-   * parameter always matches the runtime type of the expectation passed back to it.
-   */
-  @SuppressWarnings("unchecked")
-  private ExpectationBehavior<BaseInjectExpectation> resolveFor(BaseInjectExpectation expectation) {
-    return (ExpectationBehavior<BaseInjectExpectation>)
-        behaviors.stream()
-            .filter(b -> b.supports(expectation))
-            .findFirst()
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "No behavior found for " + expectation.getClass().getSimpleName()));
-  }
+  private final ExpectationBehaviorResolver expectationBehaviorResolver;
 
   // -- BEHAVIOR-BASED EXPECTATION CREATION --
-
-  /** Converts one content expectation into an untargeted BaseInjectExpectation template. */
-  public BaseInjectExpectation toExpectationTemplate(
-      ExecutableInject executableInject,
-      io.openaev.model.inject.form.Expectation expectationFromContent) {
-    return expectationConverter(
-        executableInject, expectationFromContent, expectationPropertiesConfig);
-  }
 
   /**
    * Simple entry point: reads expectations from inject content and initializes them through
@@ -123,52 +98,33 @@ public class InjectExpectationService {
       throws JsonProcessingException {
     BaseInjectContent content = contentConvert(executableInject, BaseInjectContent.class);
     computeAndSaveExpectations(
-        executableInject,
-        content != null ? content.getExpectations() : null,
-        implantType,
-        entry -> List.of(toExpectationTemplate(executableInject, entry)));
+        executableInject, content != null ? content.getExpectations() : null, implantType);
   }
 
   /**
-   * Single entry point used by executors: expands content expectations into templates, resolves the
-   * proper behavior per type, then initializes and persists expectations.
+   * Single entry point used by executors: for each content-form expectation, resolves the behavior
+   * for its type, builds a template, then delegates target/context expansion and persistence to the
+   * behavior handling the produced expectation.
    */
   public void computeAndSaveExpectations(
       ExecutableInject executableInject,
       List<io.openaev.model.inject.form.Expectation> contentExpectations,
-      @Nullable String implantType,
-      Function<io.openaev.model.inject.form.Expectation, List<BaseInjectExpectation>>
-          convertFormExpectationToBaseInjectExpectationFunction) {
+      @Nullable String implantType) {
     if (contentExpectations == null || contentExpectations.isEmpty()) {
       return;
     }
 
-    List<BaseInjectExpectation> expectations =
-        contentExpectations.stream()
-            .flatMap(
-                entry -> {
-                  List<BaseInjectExpectation> expanded =
-                      convertFormExpectationToBaseInjectExpectationFunction.apply(entry);
-                  return expanded != null ? expanded.stream() : Stream.empty();
-                })
-            .toList();
+    Exercise exercise = executableInject.getInjection().getExercise();
+    Inject inject = executableInject.getInjection().getInject();
 
-    initializeExpectationsUsingBehaviors(executableInject, expectations, implantType);
-  }
-
-  private void initializeExpectationsUsingBehaviors(
-      ExecutableInject executableInject,
-      List<BaseInjectExpectation> expectations,
-      @Nullable String implantType) {
-    if (expectations.isEmpty()) {
-      return;
-    }
-
-    expectations.forEach(
-        expectationTemplate -> {
-          ExpectationBehavior<BaseInjectExpectation> behavior = resolveFor(expectationTemplate);
+    contentExpectations.forEach(
+        entry -> {
+          ExpectationBehavior<BaseInjectExpectation> behavior =
+              expectationBehaviorResolver.resolveForForm(entry, inject);
+          BaseInjectExpectation template =
+              behavior.convertFormExpectationToBaseInjectExpectation(entry, exercise, inject);
           behavior.initializeAndSaveInjectExpectationsFromExecutableInject(
-              executableInject, expectationTemplate, implantType);
+              executableInject, template, implantType);
         });
   }
 
@@ -190,7 +146,8 @@ public class InjectExpectationService {
       throw new ElementNotFoundException("Inject expectation not found for id: " + expectationId);
     }
 
-    ExpectationBehavior<BaseInjectExpectation> behavior = resolveFor(injectExpectation);
+    ExpectationBehavior<BaseInjectExpectation> behavior =
+        expectationBehaviorResolver.resolveFor(injectExpectation);
     List<? extends BaseInjectExpectation> updatedLeaves =
         behavior.applyResultToLeaves(injectExpectation, input);
     List<? extends BaseInjectExpectation> updatedParents =

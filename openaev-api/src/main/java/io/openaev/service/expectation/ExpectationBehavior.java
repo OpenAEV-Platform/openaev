@@ -4,6 +4,8 @@ import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilde
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.computeResultsScore;
 
 import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Inject;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import jakarta.annotation.Nullable;
@@ -105,4 +107,45 @@ public interface ExpectationBehavior<T extends BaseInjectExpectation> {
    * @return the list of parent expectations that were modified
    */
   List<? extends BaseInjectExpectation> recomputeParentScores(BaseInjectExpectation expectation);
+
+  /**
+   * Returns {@code true} if this behavior can build a template from a content-form expectation of
+   * the given type.
+   *
+   * @param type the content-form expectation type
+   */
+  default boolean supportsFormExpectationType(BaseInjectExpectation.EXPECTATION_TYPE type) {
+    return false;
+  }
+
+  /**
+   * Returns {@code true} if this behavior handles the given content-form expectation for the given
+   * inject. Defaults to a pure type match; inject-aware behaviors (e.g. phishing) override this to
+   * discriminate on the inject type for a shared expectation type.
+   *
+   * @param formExpectation the content-form expectation
+   * @param inject the inject the expectation is attached to
+   */
+  default boolean supportsFormExpectation(
+      io.openaev.model.inject.form.Expectation formExpectation, Inject inject) {
+    return supportsFormExpectationType(formExpectation.getType());
+  }
+
+  /**
+   * Converts a content-form expectation into a single, untargeted expectation template.
+   *
+   * <p>Target and context multiplication (teams/users, assets/agents, challenges/articles) is
+   * deferred to {@link #initializeAndSaveInjectExpectationsFromExecutableInject}, so each behavior
+   * expands the template into as many concrete expectations as its type requires.
+   *
+   * @param formExpectation the raw expectation declared in the inject content
+   * @param exercise the exercise the inject belongs to
+   * @param inject the inject the expectation is attached to
+   * @return an untargeted expectation template
+   */
+  default T convertFormExpectationToBaseInjectExpectation(
+      io.openaev.model.inject.form.Expectation formExpectation, Exercise exercise, Inject inject) {
+    throw new UnsupportedOperationException(
+        "Behavior " + getClass().getSimpleName() + " does not support form conversion");
+  }
 }
