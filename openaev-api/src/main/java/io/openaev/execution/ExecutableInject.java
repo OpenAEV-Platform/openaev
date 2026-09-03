@@ -24,6 +24,7 @@ public class ExecutableInject {
   private final List<AssetGroup> assetGroups;
   private final List<ExecutionContext> users;
   private final boolean chainingExecution;
+  private final String stepId;
 
   @JsonIgnore private final List<MultipartFile> directAttachments = new ArrayList<>();
 
@@ -35,7 +36,7 @@ public class ExecutableInject {
       List<Asset> assets,
       List<AssetGroup> assetGroups,
       List<ExecutionContext> users) {
-    this(runtime, direct, injection, teams, assets, assetGroups, users, false);
+    this(runtime, direct, injection, teams, assets, assetGroups, users, false, null);
   }
 
   public ExecutableInject(
@@ -47,11 +48,31 @@ public class ExecutableInject {
       List<AssetGroup> assetGroups,
       List<ExecutionContext> users,
       boolean chainingExecution) {
+    this(runtime, direct, injection, teams, assets, assetGroups, users, chainingExecution, null);
+  }
+
+  /**
+   * @param stepId the chaining step this execution was created for, or {@code null} outside
+   *     chaining (e.g. the time-based scheduler). Lets executors that need a stable, already
+   *     persisted reference (unlike the inject, still uncommitted at this point) attribute tracking
+   *     rows to the step instead - see {@code PhishingExecutor}.
+   */
+  public ExecutableInject(
+      boolean runtime,
+      boolean direct,
+      Injection injection,
+      List<Team> teams,
+      List<Asset> assets,
+      List<AssetGroup> assetGroups,
+      List<ExecutionContext> users,
+      boolean chainingExecution,
+      String stepId) {
     this.injection = injection;
     this.exerciseId = ofNullable(injection.getExercise()).map(Exercise::getId).orElse(null);
     this.runtime = runtime;
     this.direct = direct;
     this.chainingExecution = chainingExecution;
+    this.stepId = stepId;
     this.users = users;
     this.teams = teams;
     this.teams.forEach(team -> Hibernate.initialize(team.getTags()));
@@ -65,7 +86,7 @@ public class ExecutableInject {
 
   public ExecutableInject(
       boolean runtime, boolean direct, Injection injection, List<ExecutionContext> users) {
-    this(runtime, direct, injection, List.of(), List.of(), List.of(), users, false);
+    this(runtime, direct, injection, List.of(), List.of(), List.of(), users, false, null);
   }
 
   public void addDirectAttachment(MultipartFile file) {

@@ -71,6 +71,19 @@ public class PhishingResult implements TenantBase {
   @Schema(implementation = String.class)
   private Inject inject;
 
+  /**
+   * The chaining step that produced this result, set instead of {@link #inject} when the row is
+   * created before its inject is committed (see {@code PhishingTrackingService#createResult}): the
+   * step is already persisted at that point, unlike the inject. Backfilled to {@link #inject} once
+   * the inject is committed and read (see {@code PhishingTrackingService#resolveByToken}).
+   */
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "phishing_result_step")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("phishing_result_step")
+  @Schema(implementation = String.class)
+  private Step step;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "phishing_result_landing_page")
   @JsonSerialize(using = MonoIdSerializer.class)

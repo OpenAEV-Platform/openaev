@@ -24,7 +24,9 @@ import io.openaev.database.model.PhishingResult;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.PhishingResultRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.finding.FindingService;
@@ -45,8 +47,10 @@ class PhishingTrackingServiceTest {
 
   @Mock private PhishingResultRepository phishingResultRepository;
   @Mock private InjectExpectationRepository injectExpectationRepository;
+  @Mock private InjectRepository injectRepository;
   @Mock private UserRepository userRepository;
   @Mock private TeamRepository teamRepository;
+  @Mock private StepRepository stepRepository;
   @Mock private FindingService findingService;
 
   @InjectMocks private PhishingTrackingService phishingTrackingService;
