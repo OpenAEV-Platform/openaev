@@ -1,11 +1,5 @@
 package io.openaev.utils;
 
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregation.Builder.ContainerBuilder;
-import co.elastic.clients.elasticsearch._types.aggregations.DateHistogramAggregation;
-import co.elastic.clients.elasticsearch._types.aggregations.ExtendedBounds;
-import co.elastic.clients.elasticsearch._types.aggregations.FieldDateMath;
-import co.elastic.clients.elasticsearch._types.query_dsl.*;
 import io.openaev.database.model.Filters;
 import io.openaev.engine.api.HistogramInterval;
 import io.openaev.exception.InvalidDateRangeException;
@@ -13,25 +7,54 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import org.opensearch.client.json.JsonData;
+import org.opensearch.client.opensearch._types.FieldValue;
+import org.opensearch.client.opensearch._types.aggregations.*;
+import org.opensearch.client.opensearch._types.aggregations.Aggregation.Builder.ContainerBuilder;
+import org.opensearch.client.opensearch._types.query_dsl.*;
 
-public class ElasticUtils {
+public class OpenSearchUtils {
 
-  private ElasticUtils() {}
+  private OpenSearchUtils() {}
 
+  /**
+   * Get a query to check if field exists
+   *
+   * @param field the field
+   * @return the resulting query
+   */
   public static Query existsQuery(@NotBlank final String field) {
-    return ExistsQuery.of(e -> e.field(field))._toQuery();
+    return ExistsQuery.of(e -> e.field(field)).toQuery();
   }
 
+  /**
+   * Get a query to check if field does not exists
+   *
+   * @param field the field
+   * @return the resulting query
+   */
   public static Query notExistsQuery(@NotBlank final String field) {
-    return BoolQuery.of(b -> b.mustNot(List.of(existsQuery(field))))._toQuery();
+    return BoolQuery.of(b -> b.mustNot(List.of(existsQuery(field)))).toQuery();
   }
 
+  /**
+   * Get a query to check if field is empty
+   *
+   * @param field the field
+   * @return the resulting query
+   */
   public static Query emptyFieldQuery(@NotBlank final String field) {
-    return TermQuery.of(t -> t.field(field).value(""))._toQuery();
+    return TermQuery.of(t -> t.field(field).value(FieldValue.of(""))).toQuery();
   }
 
+  /**
+   * Get a query to check if field is not empty
+   *
+   * @param field the field
+   * @return the resulting query
+   */
   public static Query notEmptyFieldQuery(@NotBlank final String field) {
-    return BoolQuery.of(b -> b.mustNot(List.of(emptyFieldQuery(field))))._toQuery();
+    return BoolQuery.of(b -> b.mustNot(List.of(emptyFieldQuery(field)))).toQuery();
   }
 
   /**
@@ -46,9 +69,7 @@ public class ElasticUtils {
     if (!start.isBefore(end)) {
       throw new InvalidDateRangeException("Start date must be before end date");
     }
-    return DateRangeQuery.of(d -> d.field(field).gt(String.valueOf(start)).lt(String.valueOf(end)))
-        ._toRangeQuery()
-        ._toQuery();
+    return RangeQuery.of(d -> d.field(field).gt(JsonData.of(start)).lt(JsonData.of(end))).toQuery();
   }
 
   /**
@@ -63,21 +84,20 @@ public class ElasticUtils {
       @NotBlank final String field,
       @NotNull final Filters.FilterOperator operator,
       @NotBlank final String value) {
-    return DateRangeQuery.of(
+    return RangeQuery.of(
             d -> {
               d.field(field);
               return switch (operator) {
-                case gt -> d.gt(value);
-                case gte -> d.gte(value);
-                case lt -> d.lt(value);
-                case lte -> d.lte(value);
+                case gt -> d.gt(JsonData.of(value));
+                case gte -> d.gte(JsonData.of(value));
+                case lt -> d.lt(JsonData.of(value));
+                case lte -> d.lte(JsonData.of(value));
                 default ->
                     throw new UnsupportedOperationException(
                         "Not a comparison operator: " + operator);
               };
             })
-        ._toRangeQuery()
-        ._toQuery();
+        .toQuery();
   }
 
   /**
@@ -99,12 +119,23 @@ public class ElasticUtils {
               h.field(field)
                   .minDocCount(0)
                   .format(interval.format)
-                  .calendarInterval(interval.esType)
+                  .calendarInterval(toOsInterval(interval))
                   .keyed(false);
           if (extendedBounds != null) {
             builder.extendedBounds(extendedBounds);
           }
           return builder;
         });
+  }
+
+  private static CalendarInterval toOsInterval(HistogramInterval interval) {
+    return switch (interval) {
+      case day -> CalendarInterval.Day;
+      case week -> CalendarInterval.Week;
+      case month -> CalendarInterval.Month;
+      case year -> CalendarInterval.Year;
+      case hour -> CalendarInterval.Hour;
+      case quarter -> CalendarInterval.Quarter;
+    };
   }
 }

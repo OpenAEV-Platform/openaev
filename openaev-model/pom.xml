@@ -13,8 +13,6 @@
     <description>OpenAEV model</description>
 
     <properties>
-        <elasticsearch.version>8.19.21</elasticsearch.version>
-        <opensearch.version>3.9.0</opensearch.version>
         <amqp-client.version>5.35.0</amqp-client.version>
         <azure-core-management.version>1.19.7</azure-core-management.version>
     </properties>
@@ -110,22 +108,6 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>co.elastic.clients</groupId>
-            <artifactId>elasticsearch-java</artifactId>
-            <version>${elasticsearch.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.opensearch.client</groupId>
-            <artifactId>opensearch-java</artifactId>
-            <version>${opensearch.version}</version>
-            <exclusions>
-              <exclusion>
-                <groupId>commons-logging</groupId>
-                <artifactId>commons-logging</artifactId>
-              </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>apache-client</artifactId>
         </dependency>
@@ -150,6 +132,12 @@
             <groupId>io.swagger.core.v3</groupId>
             <artifactId>swagger-annotations-jakarta</artifactId>
             <version>2.2.54</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+            <version>3.0.2</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>

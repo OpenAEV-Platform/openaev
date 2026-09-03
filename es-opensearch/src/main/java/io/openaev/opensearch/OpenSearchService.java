@@ -1,5 +1,11 @@
 package io.openaev.opensearch;
 
+import static io.openaev.utils.CustomDashboardQueryUtils.*;
+import static io.openaev.utils.CustomDashboardTimeRange.ALL_TIME;
+import static io.openaev.utils.OpenSearchUtils.*;
+import static java.util.Optional.ofNullable;
+import static org.springframework.util.StringUtils.hasText;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
 import io.openaev.context.TenantContext;
@@ -25,6 +31,13 @@ import io.openaev.service.EsIndexingUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.util.Strings;
 import org.opensearch.client.json.JsonData;
@@ -36,20 +49,6 @@ import org.opensearch.client.opensearch.core.*;
 import org.opensearch.client.opensearch.core.bulk.*;
 import org.opensearch.client.opensearch.core.search.*;
 import org.opensearch.client.opensearch.generic.*;
-
-import java.io.IOException;
-import java.lang.reflect.ParameterizedType;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static io.openaev.utils.CustomDashboardQueryUtils.*;
-import static io.openaev.utils.CustomDashboardTimeRange.ALL_TIME;
-import static io.openaev.utils.OpenSearchUtils.*;
-import static java.util.Optional.ofNullable;
-import static org.springframework.util.StringUtils.hasText;
 
 @Slf4j
 public class OpenSearchService implements EngineService {
@@ -64,7 +63,7 @@ public class OpenSearchService implements EngineService {
   @Resource private ObjectMapper mapper;
 
   static final String SIDE_CLEANUP_SCRIPT =
-          """
+      """
           boolean changed = false;
           // For each EsBase attribute of each document
           for (String key : ctx._source.keySet().toArray()) {

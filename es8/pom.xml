@@ -15,6 +15,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <elasticsearch.version>8.19.21</elasticsearch.version>
     </properties>
 
     <dependencies>
@@ -33,6 +34,11 @@
             <artifactId>openaev-model</artifactId>
             <version>3.260831.0</version>
             <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>co.elastic.clients</groupId>
+            <artifactId>elasticsearch-java</artifactId>
+            <version>${elasticsearch.version}</version>
         </dependency>
     </dependencies>
 </project>

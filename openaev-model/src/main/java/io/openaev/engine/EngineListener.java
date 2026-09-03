@@ -3,13 +3,12 @@ package io.openaev.engine;
 import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
 
 import io.openaev.database.audit.IndexEvent;
+import io.openaev.engine.facade.EngineService;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-
-import io.openaev.engine.facade.EngineService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;

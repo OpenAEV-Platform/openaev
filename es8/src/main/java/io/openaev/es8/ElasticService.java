@@ -1,5 +1,10 @@
 package io.openaev.es8;
 
+import static io.openaev.utils.CustomDashboardQueryUtils.*;
+import static io.openaev.utils.ElasticUtils.*;
+import static java.util.Optional.ofNullable;
+import static org.springframework.util.StringUtils.hasText;
+
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.*;
 import co.elastic.clients.elasticsearch._types.aggregations.*;
@@ -33,9 +38,6 @@ import io.openaev.service.EsIndexingUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.util.Strings;
-
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
@@ -43,11 +45,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static io.openaev.utils.CustomDashboardQueryUtils.*;
-import static io.openaev.utils.ElasticUtils.*;
-import static java.util.Optional.ofNullable;
-import static org.springframework.util.StringUtils.hasText;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
 
 @Slf4j
 public class ElasticService implements EngineService {
@@ -1011,8 +1010,8 @@ public class ElasticService implements EngineService {
         extendedBounds = null;
       } else {
         ExtendedBounds.Builder<FieldDateMath> bounds = new ExtendedBounds.Builder<>();
-        bounds.min(FieldDateMath.of(m -> m.value((double) finalStart.toEpochMilli())));
-        bounds.max(FieldDateMath.of(m -> m.value((double) finalEnd.toEpochMilli())));
+        bounds.min(FieldDateMath.of(m -> m.value(finalStart.toEpochMilli())));
+        bounds.max(FieldDateMath.of(m -> m.value(finalEnd.toEpochMilli())));
         extendedBounds = bounds.build();
       }
       SearchResponse<Void> response =

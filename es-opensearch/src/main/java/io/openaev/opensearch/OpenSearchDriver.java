@@ -11,6 +11,14 @@ import io.openaev.engine.RetiredIndexes;
 import io.openaev.engine.model.EsBase;
 import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.exception.StartupException;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.net.URISyntaxException;
+import java.security.cert.X509Certificate;
+import java.time.Instant;
+import java.util.*;
+import javax.net.ssl.SSLContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.auth.AuthScope;
@@ -46,15 +54,6 @@ import org.springframework.stereotype.Component;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
-
-import javax.net.ssl.SSLContext;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.net.URISyntaxException;
-import java.security.cert.X509Certificate;
-import java.time.Instant;
-import java.util.*;
 
 @Component
 @RequiredArgsConstructor
