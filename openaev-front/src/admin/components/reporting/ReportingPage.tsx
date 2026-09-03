@@ -115,6 +115,10 @@ const ReportingPage = () => {
       if (polls > MAX_POLLS) {
         stopPolling();
         setGenerating(false);
+        // Giving up on the poll is not giving up on the generation: the render is
+        // bounded server-side and always ends on a status, so send the user to the
+        // list that will show it instead of just stopping the spinner.
+        MESSAGING$.notifyError(t('The generation is taking longer than expected - its result will appear in the generations list.'));
         loadGenerations();
         return;
       }

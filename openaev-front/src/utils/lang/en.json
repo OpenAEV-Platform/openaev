@@ -3614,6 +3614,7 @@
   "The expectations of this atomic testing no longer match the validation requirements defined by its action.": "The expectations of this atomic testing no longer match the validation requirements defined by its action.",
   "The expectations of this atomic testing no longer match the validation requirements defined by its threat arsenal item.": "The expectations of this atomic testing no longer match the validation requirements defined by its threat arsenal item.",
   "The generation is still running - check the report page for the result.": "The generation is still running - check the report page for the result.",
+  "The generation is taking longer than expected - its result will appear in the generations list.": "The generation is taking longer than expected - its result will appear in the generations list.",
   "The host this finding was found on, shown as its IP address and platform (operating system family). \"Unknown\" means the platform could not be determined from the data collected during the run.": "The host this finding was found on, shown as its IP address and platform (operating system family). \"Unknown\" means the platform could not be determined from the data collected during the run.",
   "The hostname your recipients will see, e.g. security.acme.com": "The hostname your recipients will see, e.g. security.acme.com",
   "The import is partial, the following actions could not be created:": "The import is partial, the following actions could not be created:",

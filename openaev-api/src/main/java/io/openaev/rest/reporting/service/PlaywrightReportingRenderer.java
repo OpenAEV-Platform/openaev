@@ -72,7 +72,7 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
    * window.OPENAEV_REPORT_SECTION_ERRORS}; a fresh reload re-runs the whole pipeline, which clears
    * transient backend hiccups that outlived the in-page retries.
    */
-  private static final int MAX_PAGE_ATTEMPTS = 3;
+  static final int MAX_PAGE_ATTEMPTS = 3;
 
   /** Pause between two page attempts, giving a transient backend condition time to clear. */
   private static final double PAGE_RETRY_PAUSE_MS = 2_000;

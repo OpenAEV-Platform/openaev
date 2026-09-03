@@ -7,6 +7,7 @@ import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_JOB;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_JOB;
 import static io.openaev.scheduler.jobs.notification.NotificationDigestJob.NOTIFICATION_DIGEST_JOB;
 import static io.openaev.scheduler.jobs.notification.NotificationEventRetentionJob.NOTIFICATION_EVENT_RETENTION_JOB;
+import static io.openaev.scheduler.jobs.reporting.ReportingGenerationReaperJob.REPORTING_GENERATION_REAPER_JOB;
 import static io.openaev.scheduler.jobs.reporting.ReportingScheduleJob.REPORTING_SCHEDULE_JOB;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_JOB;
 import static org.quartz.JobKey.jobKey;
@@ -14,6 +15,7 @@ import static org.quartz.JobKey.jobKey;
 import io.openaev.scheduler.jobs.*;
 import io.openaev.scheduler.jobs.notification.NotificationDigestJob;
 import io.openaev.scheduler.jobs.notification.NotificationEventRetentionJob;
+import io.openaev.scheduler.jobs.reporting.ReportingGenerationReaperJob;
 import io.openaev.scheduler.jobs.reporting.ReportingScheduleJob;
 import io.openaev.scheduler.jobs.user_event.UserEventRetentionJob;
 import org.quartz.JobBuilder;
@@ -161,6 +163,14 @@ public class PlatformJobDefinitions {
   public JobDetail reportingScheduleJobDetail() {
     return JobBuilder.newJob(ReportingScheduleJob.class)
         .withIdentity(REPORTING_SCHEDULE_JOB)
+        .storeDurably()
+        .build();
+  }
+
+  @Bean
+  public JobDetail reportingGenerationReaperJobDetail() {
+    return JobBuilder.newJob(ReportingGenerationReaperJob.class)
+        .withIdentity(REPORTING_GENERATION_REAPER_JOB)
         .storeDurably()
         .build();
   }
