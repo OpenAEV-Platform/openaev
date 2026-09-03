@@ -80,7 +80,7 @@ describe('ExecutionResultTerminalPanel execution-status badge', () => {
 
     // The technical verdict surfaces in the Result tab even though the run produced no
     // prevention/detection rows at all.
-    expect(await screen.findByText('ERROR')).toBeDefined();
+    expect(await screen.findByText('Error')).toBeDefined();
     expect(mocks.getInjectStatusWithGlobalExecutionTraces).toHaveBeenCalledWith('inject-1');
     // A network injector never goes through the per-target payload pipeline.
     expect(mocks.fetchInjectExecutionResult).not.toHaveBeenCalled();
