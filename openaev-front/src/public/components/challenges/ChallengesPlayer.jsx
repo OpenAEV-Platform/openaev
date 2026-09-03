@@ -128,8 +128,6 @@ const inlineStyles = {
   },
 };
 
-// An expectation carries a result once the challenge is answered, or once the attempts run out:
-// a failed challenge must not be reported like a solved one.
 const challengeStatus = (results) => {
   if ((results ?? []).some(r => r.result === FAILED)) {
     return {
