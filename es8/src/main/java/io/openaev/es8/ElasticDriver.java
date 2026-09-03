@@ -1,4 +1,4 @@
-package io.openaev.driver;
+package io.openaev.es8;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.repository.IndexingStatusRepository;
+import io.openaev.driver.EngineObjectMapperFactory;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.RetiredIndexes;

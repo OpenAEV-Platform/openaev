@@ -3,6 +3,7 @@ package io.openaev.engine;
 import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
 
 import io.openaev.database.audit.IndexEvent;
+import io.openaev.engine.facade.EngineService;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;

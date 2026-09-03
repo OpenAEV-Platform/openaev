@@ -7,7 +7,7 @@ import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
 import io.openaev.rest.exception.BadRequestException;
