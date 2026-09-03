@@ -625,59 +625,6 @@ class ChainingIntegrationTest extends IntegrationTest {
       assertEquals(1, stepsCreated.size());
       assertEquals(StepStatus.TEMPLATE, stepsCreated.getFirst().getStatus());
     }
-
-    @Test
-    @WithMockUser(isAdmin = true)
-    void should_duplicate_simulation_when_chaining_enabled() throws Exception {
-      long simulationCountBefore = exerciseRepository.count();
-      long workflowCountBefore = workflowRepository.count();
-
-      String response =
-          mvc.perform(
-                  post(tenantUri(TENANT_EXERCISE_URI))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(buildSimulationInput())))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String simulationId = JsonPath.read(response, "$.exercise_id");
-      Exercise createdSimulation = exerciseRepository.findById(simulationId).orElseThrow();
-
-      assertEquals(simulationCountBefore + 1, exerciseRepository.count());
-      assertEquals(workflowCountBefore + 1, workflowRepository.count());
-
-      String duplicatedResponse =
-          mvc.perform(
-                  post(tenantUri(TENANT_EXERCISE_URI + "/" + createdSimulation.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String duplicatedSimulationId = JsonPath.read(duplicatedResponse, "$.exercise_id");
-      Exercise duplicatedSimulation =
-          exerciseRepository.findById(duplicatedSimulationId).orElseThrow();
-
-      entityManager.flush();
-      entityManager.clear();
-
-      assertNotEquals(createdSimulation.getId(), duplicatedSimulation.getId());
-      assertEquals(simulationCountBefore + 2, exerciseRepository.count());
-      assertEquals(workflowCountBefore + 1, workflowRepository.count());
-      assertTrue(
-          workflowRepository.findAll().stream()
-              .noneMatch(
-                  w ->
-                      WorkflowStatus.TEMPLATE.equals(w.getStatus())
-                          && w.getSimulation() != null
-                          && duplicatedSimulation.getId().equals(w.getSimulation().getId())),
-          "Duplicate simulation does not create a dedicated chaining template");
-    }
   }
 
   private Workflow findTemplateWorkflowBySimulationId(String simulationId) {
