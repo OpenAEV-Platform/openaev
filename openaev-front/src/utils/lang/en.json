@@ -227,6 +227,7 @@
   "Adds a lessons learned tab to collect feedback with objectives and questionnaires.": "Adds a lessons learned tab to collect feedback with objectives and questionnaires.",
   "Adjust or clear the filters to widen the scope.": "Adjust or clear the filters to widen the scope.",
   "Admin": "Admin",
+  "Admin users cannot renew their token. Please change the token directly in the configuration.": "Admin users cannot renew their token. Please change the token directly in the configuration.",
   "Admin_username": "Admin username",
   "Administrator": "Administrator",
   "Adminusername": "Admin username",

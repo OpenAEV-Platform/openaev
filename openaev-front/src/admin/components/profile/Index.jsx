@@ -1,4 +1,4 @@
-import { Button, Typography } from '@mui/material';
+import { Button, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useDispatch } from 'react-redux';
@@ -115,14 +115,19 @@ const Index = () => {
           {t('Token key')}
         </Typography>
         <pre>{userToken?.token_value}</pre>
-        <Button
-          variant="contained"
-          color="primary"
-          component="a"
-          onClick={() => onRenew(userToken?.token_id)}
-        >
-          {t('RENEW')}
-        </Button>
+        <Tooltip title={initialValues.user_is_external ? t('Admin users cannot renew their token. Please change the token directly in the configuration.') : ''}>
+          <span>
+            <Button
+              variant="contained"
+              color="primary"
+              component="a"
+              disabled={initialValues.user_is_external}
+              onClick={() => onRenew(userToken?.token_id)}
+            >
+              {t('RENEW')}
+            </Button>
+          </span>
+        </Tooltip>
         <Typography
           gutterBottom={true}
           sx={{

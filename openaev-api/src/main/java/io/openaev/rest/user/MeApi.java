@@ -77,6 +77,10 @@ public class MeApi extends RestBehavior {
         userRepository
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    if (user.isExternal() && !input.getEmail().equals(user.getEmail())) {
+      throw new IllegalStateException(
+          "The admin email cannot be changed using the API. Please change it in the configuration.");
+    }
     user.setUpdateAttributes(input);
     user.setOrganization(
         updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
@@ -111,6 +115,10 @@ public class MeApi extends RestBehavior {
         userRepository
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    if (user.isExternal()) {
+      throw new IllegalStateException(
+          "The admin password cannot be changed using the API. Please change it in the configuration.");
+    }
     if (userService.isUserPasswordValid(user, input.getCurrentPassword())) {
       user.setPassword(userService.encodeUserPassword(input.getPassword()));
       User savedUser = userRepository.save(user);
@@ -128,7 +136,15 @@ public class MeApi extends RestBehavior {
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   @Transactional(rollbackFor = Exception.class)
   public Token renewToken(@Valid @RequestBody RenewTokenInput input) {
-    return userService.renewUserToken(input.getTokenId());
+    User user =
+        userRepository
+            .findById(currentUser().getId())
+            .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    if (user.isExternal()) {
+      throw new IllegalStateException(
+          "The admin token cannot be renewed using the API. Please change it in the configuration.");
+    }
+    return userService.renewUserToken(user, input.getTokenId());
   }
 
   @GetMapping(ME_URI + "/tenants")

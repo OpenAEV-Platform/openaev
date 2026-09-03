@@ -227,6 +227,7 @@
   "Adds a lessons learned tab to collect feedback with objectives and questionnaires.": "目標とアンケートでフィードバックを収集するためのタブを追加します。",
   "Adjust or clear the filters to widen the scope.": "フィルターを調整またはクリアして範囲を広げてください。",
   "Admin": "管理者",
+  "Admin users cannot renew their token. Please change the token directly in the configuration.": "管理者ユーザーはトークンを更新できません。設定画面で直接トークンを変更してください。",
   "Admin_username": "管理者ユーザー名",
   "Administrator": "管理者",
   "Adminusername": "管理者ユーザー名",

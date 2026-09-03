@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.model.User.ROLE_ADMIN;
 import static io.openaev.database.model.User.ROLE_USER;
 import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
@@ -510,6 +511,10 @@ public class UserService {
         userRepository
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    return renewUserToken(user, tokenId);
+  }
+
+  public Token renewUserToken(User user, String tokenId) {
     Token token = tokenRepository.findById(tokenId).orElseThrow(ElementNotFoundException::new);
     if (!user.equals(token.getUser())) {
       throw new AccessDeniedException("You are not allowed to renew this token");

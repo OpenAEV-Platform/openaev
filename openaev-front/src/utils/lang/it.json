@@ -227,6 +227,7 @@
   "Adds a lessons learned tab to collect feedback with objectives and questionnaires.": "Aggiunge una scheda delle lezioni apprese per raccogliere feedback con obiettivi e questionari.",
   "Adjust or clear the filters to widen the scope.": "Modifica o cancella i filtri per ampliare l’ambito.",
   "Admin": "Admin",
+  "Admin users cannot renew their token. Please change the token directly in the configuration.": "Gli utenti amministratori non possono rinnovare il proprio token. Si prega di modificare il token direttamente nella configurazione.",
   "Admin_username": "Nome utente amministratore",
   "Administrator": "Amministratore",
   "Adminusername": "Nome utente amministratore",
