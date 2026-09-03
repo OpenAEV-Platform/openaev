@@ -57,7 +57,7 @@
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-hibernate6</artifactId>
+            <artifactId>jackson-datatype-hibernate7</artifactId>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
@@ -69,8 +69,8 @@
         </dependency>
         <dependency>
             <groupId>io.hypersistence</groupId>
-            <artifactId>hypersistence-utils-hibernate-63</artifactId>
-            <version>3.13.3</version>
+            <artifactId>hypersistence-utils-hibernate-71</artifactId>
+            <version>3.15.5</version>
         </dependency>
         <dependency>
             <groupId>io.minio</groupId>

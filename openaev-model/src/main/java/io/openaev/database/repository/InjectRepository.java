@@ -312,6 +312,29 @@ public interface InjectRepository
       nativeQuery = true)
   void addTeam(@Param("injectId") String injectId, @Param("teamId") String teamId);
 
+  // Inserted directly through a native query rather than via the JPA-managed collection: the
+  // assetGroups field is a @Filter(tenantFilter)'d, EAGER, FetchMode.SUBSELECT many-to-many, and
+  // Hibernate 7 refuses to plan a delete-all+reinsert ("recreate") for such a collection while the
+  // filter is enabled (HibernateException: "cannot recreate collection while filter is enabled").
+  // Hibernate 6 tolerated this recreate plan; Hibernate 7 enforces it strictly, so collection
+  // mutation must be bypassed here the same way addTag/addTeam already do above.
+  @Modifying
+  @Query(
+      value =
+          "insert into injects_asset_groups (inject_id, asset_group_id) values (:injectId,"
+              + " :assetGroupId)",
+      nativeQuery = true)
+  void addAssetGroup(
+      @Param("injectId") String injectId, @Param("assetGroupId") String assetGroupId);
+
+  // See addAssetGroup above: same Hibernate 7 collection-recreate-under-filter constraint applies
+  // to the assets field.
+  @Modifying
+  @Query(
+      value = "insert into injects_assets (inject_id, asset_id) values (:injectId, :assetId)",
+      nativeQuery = true)
+  void addAsset(@Param("injectId") String injectId, @Param("assetId") String assetId);
+
   @Override
   @Query(
       "select count(distinct i) from Inject i "
