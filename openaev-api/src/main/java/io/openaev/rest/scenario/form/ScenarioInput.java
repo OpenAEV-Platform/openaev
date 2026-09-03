@@ -52,7 +52,7 @@ public class ScenarioInput {
   private String externalUrl;
 
   @JsonProperty("scenario_lessons_enabled")
-  private Boolean lessonsEnabled = false;
+  private boolean lessonsEnabled;
 
   @JsonProperty("scenario_tags")
   private List<String> tagIds = new ArrayList<>();

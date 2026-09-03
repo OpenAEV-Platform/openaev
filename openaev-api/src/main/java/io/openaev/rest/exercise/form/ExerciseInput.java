@@ -51,7 +51,7 @@ public class ExerciseInput {
   private String description;
 
   @JsonProperty("exercise_lessons_enabled")
-  private Boolean lessonsEnabled = false;
+  private boolean lessonsEnabled;
 
   @JsonProperty("exercise_tags")
   private List<String> tagIds = new ArrayList<>();
