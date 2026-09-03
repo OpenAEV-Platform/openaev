@@ -7,7 +7,6 @@ import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.notification.NotificationDigestJob.NOTIFICATION_DIGEST_TRIGGER;
 import static io.openaev.scheduler.jobs.notification.NotificationEventRetentionJob.NOTIFICATION_EVENT_RETENTION_TRIGGER;
-import static io.openaev.scheduler.jobs.reporting.ReportingGenerationReaperJob.REPORTING_GENERATION_REAPER_TRIGGER;
 import static io.openaev.scheduler.jobs.reporting.ReportingScheduleJob.REPORTING_SCHEDULE_TRIGGER;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_TRIGGER;
 import static org.quartz.CronScheduleBuilder.cronSchedule;
@@ -221,16 +220,6 @@ public class PlatformTriggers {
     return newTrigger()
         .forJob(this.platformJobs.reportingScheduleJobDetail())
         .withIdentity(REPORTING_SCHEDULE_TRIGGER)
-        .withSchedule(cronSchedule("0 0/1 * * * ?")) // Every minute align on clock
-        .build();
-  }
-
-  @Bean
-  @Profile("!test")
-  public Trigger reportingGenerationReaperTrigger() {
-    return newTrigger()
-        .forJob(this.platformJobs.reportingGenerationReaperJobDetail())
-        .withIdentity(REPORTING_GENERATION_REAPER_TRIGGER)
         .withSchedule(cronSchedule("0 0/1 * * * ?")) // Every minute align on clock
         .build();
   }

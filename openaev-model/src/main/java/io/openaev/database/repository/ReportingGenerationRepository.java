@@ -3,8 +3,6 @@ package io.openaev.database.repository;
 import io.openaev.database.model.ReportingGeneration;
 import io.openaev.database.model.ReportingGenerationStatus;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -33,13 +31,8 @@ public interface ReportingGenerationRepository
 
   List<ReportingGeneration> findAllByReportingIdOrderByCreatedAtDesc(@NotNull String reportingId);
 
-  /**
-   * Generations left in a transient status (PENDING, RUNNING) since before the given instant, all
-   * tenants together: a render whose thread died, hung or was lost to a restart never writes a
-   * terminal status by itself. Used by the reaper job.
-   */
-  List<ReportingGeneration> findAllByStatusInAndCreatedAtBefore(
-      @NotNull Collection<ReportingGenerationStatus> statuses, @NotNull Instant createdAt);
+  /** Used by cleanup jobs to reap generations stuck in a transient status. */
+  List<ReportingGeneration> findAllByStatus(@NotNull ReportingGenerationStatus status);
 
   /**
    * Ids of the documents produced by report generations, used by the generic documents management
