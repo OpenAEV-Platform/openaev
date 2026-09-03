@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
@@ -115,6 +116,34 @@ public class ScenarioExportTest extends IntegrationTest {
               Option.IGNORING_EXTRA_ARRAY_ITEMS)
           .node("scenario_documents")
           .isEqualTo("[{\"document_id\": \"%s\"}]".formatted(docId));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given_lessonsEnabledScenario_should_exportLessonsFlags")
+    void given_lessonsEnabledScenario_should_exportLessonsFlags() throws Exception {
+      ScenarioComposer.Composer scenarioComposerRef =
+          scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario());
+      Scenario scenario = scenarioComposerRef.get();
+      scenario.setLessonsEnabled(true);
+      scenario.setLessonsAnonymized(true);
+      scenarioComposerRef.persist();
+      manager.flush();
+      manager.clear();
+
+      byte[] response =
+          mvc.perform(
+                  get(SCENARIO_URI + "/" + scenario.getId() + "/export")
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+
+      String actualJson = getJsonExportFromZip(response, scenario.getName());
+      JsonNode scenarioInfo = mapper.readTree(actualJson).get("scenario_information");
+      assertTrue(scenarioInfo.get("scenario_lessons_enabled").asBoolean());
+      assertTrue(scenarioInfo.get("scenario_lessons_anonymized").asBoolean());
     }
   }
 

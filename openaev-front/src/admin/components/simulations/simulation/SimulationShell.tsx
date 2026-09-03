@@ -10,57 +10,7 @@ import Loader from '../../../../components/Loader';
 import { type SimulationDetails } from '../../../../utils/api-types';
 import useHasInjectTests from '../../injects/useHasInjectTests';
 import ExerciseHeader from './ExerciseHeader';
-
-export const buildSimulationTabs = (params: {
-  lessonsEnabled: boolean;
-  isAutonomous: boolean;
-  hasWorkflow: boolean;
-  hasInjectTests: boolean;
-  t: (value: string) => string;
-}): [string, string][] => {
-  const {
-    lessonsEnabled,
-    isAutonomous,
-    hasWorkflow,
-    hasInjectTests,
-    t,
-  } = params;
-
-  if (isAutonomous) {
-    return [
-      ['', t('Overview')],
-      ['/scope', t('Scope')],
-      ['/logic', t('Logic')],
-      ...(hasWorkflow ? [['/attack-path', t('Attack Path')] as [string, string]] : []),
-      ['/execution', t('Execution')],
-      ['/findings', t('Findings')],
-      ['/statistics', t('Statistics')],
-    ];
-  }
-
-  if (hasWorkflow) {
-    return [
-      ['', t('Overview')],
-      ['/scope', t('Scope')],
-      ['/logic', t('Logic')],
-      ['/execution', t('Execution')],
-      ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
-      ['/attack-path', t('Attack Path')],
-      ['/findings', t('Findings')],
-      ['/statistics', t('Statistics')],
-    ];
-  }
-
-  return [
-    ['', t('Overview')],
-    ['/injects', t('Injects')],
-    ...(hasInjectTests ? [['/tests', t('Tests')] as [string, string]] : []),
-    ['/execution', t('Execution')],
-    ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
-    ['/findings', t('Findings')],
-    ['/statistics', t('Statistics')],
-  ];
-};
+import buildSimulationTabs from './simulationTabs';
 
 // Shared simulation chrome: breadcrumbs + hero header + navigation tabs.
 // Used by the simulation Index and by screens that must live OUTSIDE the Index
@@ -99,7 +49,8 @@ const SimulationShell: FunctionComponent<{
   // Tab set depends on the simulation flavour:
   // - autonomous (AI-driven): the AI provisions and drives the attack path, so Scope and Logic are
   //   surfaced in read-only mode (inspection only) while the operator steers from the reasoning panel;
-  // - chained (workflow-backed): Overview / Scope / Logic / Execution / Attack path / Findings / Statistics;
+  // - chained (workflow-backed): Overview / Scope / Logic / Execution / Lessons / Attack path /
+  //   Findings / Statistics;
   // - time-based: Overview / Injects / Tests / Execution / Lessons / Findings / Statistics.
   const tabs: [string, string][] = buildSimulationTabs({
     lessonsEnabled: exercise.exercise_lessons_enabled,

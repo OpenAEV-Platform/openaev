@@ -154,6 +154,48 @@ class V1_DataImporterTest extends IntegrationTest {
 
   @Test
   @Transactional
+  void testScenario_import_preserves_lessons_flags() {
+    ObjectMapper mapper = new ObjectMapper();
+    ObjectNode root = mapper.createObjectNode();
+    ObjectNode scenarioNode = root.putObject("scenario_information");
+    scenarioNode.put("scenario_name", "Lessons scenario");
+    scenarioNode.put("scenario_description", "Lessons scenario");
+    scenarioNode.put("scenario_subtitle", "Lessons scenario");
+    scenarioNode.put("scenario_category", "crisis-communication");
+    scenarioNode.put("scenario_main_focus", "crisis-communication");
+    scenarioNode.put("scenario_message_header", "HEADER");
+    scenarioNode.put("scenario_message_footer", "FOOTER");
+    scenarioNode.put("scenario_mail_from", "scenario@mail.fr");
+    scenarioNode.put("scenario_lessons_enabled", true);
+    scenarioNode.put("scenario_lessons_anonymized", true);
+    root.putArray("scenario_tags");
+    root.putArray("scenario_documents");
+    root.putArray("scenario_organizations");
+    root.putArray("scenario_users");
+    root.putArray("scenario_teams");
+    root.putArray("scenario_challenges");
+    root.putArray("scenario_channels");
+    root.putArray("scenario_articles");
+    root.putArray("scenario_objectives");
+    root.putArray("scenario_lessons_categories");
+    root.putArray("scenario_lessons_questions");
+    root.putArray("scenario_variables");
+    root.putArray("scenario_injects");
+
+    this.importer.importData(
+        root, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+
+    Scenario imported =
+        this.scenarioRepository.findAll().stream()
+            .filter(s -> s.getName().startsWith("Lessons scenario"))
+            .findFirst()
+            .orElseThrow();
+    assertTrue(imported.isLessonsEnabled());
+    assertTrue(imported.isLessonsAnonymized());
+  }
+
+  @Test
+  @Transactional
   void testScenario_with_attackpattern() throws Exception {
     openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     MockitoAnnotations.openMocks(this);

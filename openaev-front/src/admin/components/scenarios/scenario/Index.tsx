@@ -28,6 +28,7 @@ import { DocumentContext, type DocumentContextType, InjectContext, PermissionsCo
 import useHasInjectTests from '../../injects/useHasInjectTests';
 import injectContextForScenario from './ScenarioContext';
 import ScenarioHeader from './ScenarioHeader';
+import buildScenarioTabs from './scenarioTabs';
 
 const ScenarioComponent = lazy(() => import('./Scenario'));
 const Injects = lazy(() => import('./injects/ScenarioInjects'));
@@ -41,43 +42,6 @@ const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
 const ScenarioStatistics = lazy(() => import('./analysis/ScenarioAnalysis'));
 const ScenarioAttackPath = lazy(() => import('./attack_path/ScenarioAttackPath'));
 const ScenarioExecution = lazy(() => import('./execution/ScenarioExecution'));
-
-export const buildScenarioTabs = (params: {
-  isChained: boolean;
-  hasInjectTests: boolean;
-  lessonsEnabled: boolean;
-  t: (value: string) => string;
-}): [string, string][] => {
-  const {
-    isChained,
-    hasInjectTests,
-    lessonsEnabled,
-    t,
-  } = params;
-
-  if (isChained) {
-    return [
-      ['', t('Overview')],
-      ['/scope', t('Scope')],
-      ['/logic', t('Logic')],
-      ['/attack-path', t('Attack Path')],
-      ['/execution', t('Execution')],
-      ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
-      ['/findings', t('Findings')],
-      ['/statistics', t('Statistics')],
-    ];
-  }
-
-  return [
-    ['', t('Overview')],
-    ['/injects', t('Injects')],
-    ...(hasInjectTests ? [['/tests', t('Tests')] as [string, string]] : []),
-    ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
-    ['/execution', t('Execution')],
-    ['/findings', t('Findings')],
-    ['/statistics', t('Statistics')],
-  ];
-};
 
 const IndexScenarioComponent: FunctionComponent<{
   scenario: ScenarioOutput;
@@ -162,12 +126,13 @@ const IndexScenarioComponent: FunctionComponent<{
   const [openInstantiateSimulationAndStart, setOpenInstantiateSimulationAndStart] = useState<boolean>(false);
 
   // Chained scenarios expose Scope / Logic / Attack path (workflow-backed); time-based scenarios
-  // keep the classic Injects / Tests / Lessons tab set. Autonomy is a launch-time mode now, so the
-  // AI cockpit lives on the resulting simulation's detail page, never on the reusable scenario.
+  // keep the classic Injects / Tests / Lessons tab set. The Lessons tab is available in both
+  // flows when the scenario has lessons enabled. Autonomy is a launch-time mode now, so the AI
+  // cockpit lives on the resulting simulation's detail page, never on the reusable scenario.
   const renderTabs = () => {
     return (
       <Tabs value={tabValue} variant="scrollable" scrollButtons="auto">
-        {        buildScenarioTabs({
+        {buildScenarioTabs({
           isChained,
           hasInjectTests,
           lessonsEnabled: scenario.scenario_lessons_enabled,
