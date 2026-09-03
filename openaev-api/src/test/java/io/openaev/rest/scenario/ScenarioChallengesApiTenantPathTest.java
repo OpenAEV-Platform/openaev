@@ -6,9 +6,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,7 +46,7 @@ class ScenarioChallengesApiTenantPathTest extends IntegrationTest {
   void seedTenantAndScenario() throws Exception {
     tenantId = tenantHelper.createTenantWithCurrentUser("scenario-challenges-tenant").getId();
     when(scenarioRepository.findByIdAndTenantId(anyString(), anyString()))
-        .thenReturn(Optional.of(new Scenario()));
+        .thenReturn(Optional.of(ScenarioFixture.getScenario()));
   }
 
   @Test
