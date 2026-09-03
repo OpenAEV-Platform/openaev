@@ -32,30 +32,12 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Behavioural companion of {@link io.openaev.config.TenantScopeLockOrderingIntegrationTest}: that
- * test pins the aspect order, this one pins what the order is for.
- *
- * <p>{@code GET /atomic-testings/{injectId}} serves simulation injects too and carries a {@code
- * TxCtx}, so the tenant scope IS set for its transaction. The bug was purely one of order: tied on
- * {@code LOWEST_PRECEDENCE}, {@code AccessControlAspect} could run before the scoping advices of
- * the same transaction. For an INJECT it resolves the parent simulation by loading the inject
- * itself, which eagerly walks {@code injectorContract -> injectorLinks -> injector}; with {@code
- * injectors} v2-activated and no scope yet, {@code can_access_tenant} denied the row (fail-closed),
- * {@code @NotFound(IGNORE)} hydrated the association as null, and that null stayed cached in the
- * persistence context. The endpoint then served a 200 with {@code inject_type: null} and the
- * frontend, which gates the whole "Results by target" panel on that field, rendered an empty
- * column.
- *
- * <p>Two properties of this test are load-bearing:
- *
- * <ul>
- *   <li><b>non-admin</b>: {@code hasPermission} returns at {@code user.isAdmin()} before ever
- *       resolving the parent, so an admin caller cannot reach the poisoning read;
- *   <li><b>not {@code @Transactional}</b>: a test-managed transaction would pre-hydrate the seeded
- *       entities in the shared persistence context, so the endpoint would never issue the read that
- *       gets poisoned. Seeding commits through the tenant-scoped primitive and is undone in
- *       {@code @AfterEach}.
- * </ul>
+ * Guards the behaviour whose aspect order {@link
+ * io.openaev.config.TenantScopeLockOrderingIntegrationTest} pins: with {@code injectors}
+ * v2-activated, a non-admin read of a simulation inject must resolve {@code inject_type} instead of
+ * serving it null. Non-admin because {@code hasPermission} returns at {@code isAdmin()} before
+ * resolving the inject's parent, and transaction-free because a test-managed transaction
+ * pre-hydrates the seeded entities, leaving the endpoint no read to poison.
  */
 @TestPropertySource(properties = "openaev.tenant.active-tables=injectors")
 @WithMockUser(isAdmin = false)
