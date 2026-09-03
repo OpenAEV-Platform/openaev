@@ -114,7 +114,7 @@ public class ChannelApi extends RestBehavior {
   @PostMapping({CHANNEL_URI, TENANT_CHANNEL_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHANNEL)
   @Transactional(rollbackFor = Exception.class)
-  public Channel createChannel(@Valid @RequestBody ChannelCreateInput input, TxCtx ctx) {
+  public Channel createChannel(TxCtx ctx, @Valid @RequestBody ChannelCreateInput input) {
     Channel channel = new Channel();
     channel.setUpdateAttributes(input);
     return channelRepository.save(channel);

@@ -110,7 +110,7 @@ public class NotifierApi {
   @Operation(summary = "Create notifier", description = "Create a notifier")
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Notifier created")})
-  public NotifierOutput createNotifier(@Valid @RequestBody final NotifierInput input, TxCtx ctx) {
+  public NotifierOutput createNotifier(TxCtx ctx, @Valid @RequestBody final NotifierInput input) {
     // caller passed the CREATE capability gate, so the configuration is safe to return
     return notifierMapper.toNotifierOutput(
         notifierService.create(notifierMapper.toNotifier(input)), true);

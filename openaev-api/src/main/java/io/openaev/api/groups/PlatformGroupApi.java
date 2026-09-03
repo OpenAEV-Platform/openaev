@@ -40,7 +40,7 @@ public class PlatformGroupApi extends RestBehavior {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
-  public PlatformGroupOutput create(@Valid @RequestBody PlatformGroupInput input, TxCtx ctx) {
+  public PlatformGroupOutput create(TxCtx ctx, @Valid @RequestBody PlatformGroupInput input) {
     return toOutput(
         platformGroupService.createPlatformGroup(
             input.name(), input.description(), input.defaultUserAssignation()));
@@ -68,7 +68,7 @@ public class PlatformGroupApi extends RestBehavior {
   @PostMapping("/search")
   @Transactional
   public Page<PlatformGroupOutput> search(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return platformGroupService.search(searchPaginationInput).map(PlatformGroupMapper::toOutput);
   }
 
@@ -107,9 +107,9 @@ public class PlatformGroupApi extends RestBehavior {
   @PutMapping("/{platformGroupId}")
   @Transactional
   public PlatformGroupOutput update(
+      TxCtx ctx,
       @PathVariable String platformGroupId,
-      @Valid @RequestBody PlatformGroupInput input,
-      TxCtx ctx) {
+      @Valid @RequestBody PlatformGroupInput input) {
     return toOutput(
         platformGroupService.updatePlatformGroup(
             platformGroupId, input.name(), input.description(), input.defaultUserAssignation()));
@@ -124,9 +124,9 @@ public class PlatformGroupApi extends RestBehavior {
   @PutMapping("/{platformGroupId}/users")
   @Transactional
   public List<String> updateUsers(
+      TxCtx ctx,
       @PathVariable String platformGroupId,
-      @Valid @RequestBody PlatformGroupUpdateUsersInput input,
-      TxCtx ctx) {
+      @Valid @RequestBody PlatformGroupUpdateUsersInput input) {
     return platformGroupService.updateGroupUsers(platformGroupId, input.userIds());
   }
 
@@ -139,9 +139,9 @@ public class PlatformGroupApi extends RestBehavior {
   @PutMapping("/{platformGroupId}/platform-roles")
   @Transactional
   public Set<String> updatePlatformRoles(
+      TxCtx ctx,
       @PathVariable String platformGroupId,
-      @Valid @RequestBody PlatformGroupUpdateRolesInput input,
-      TxCtx ctx) {
+      @Valid @RequestBody PlatformGroupUpdateRolesInput input) {
     return platformGroupService.updateGroupRoles(platformGroupId, input.platformRoleIds());
   }
 
@@ -156,7 +156,7 @@ public class PlatformGroupApi extends RestBehavior {
   @DeleteMapping("/{platformGroupId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void delete(@PathVariable String platformGroupId, TxCtx ctx) {
+  public void delete(TxCtx ctx, @PathVariable String platformGroupId) {
     platformGroupService.delete(platformGroupId);
   }
 }

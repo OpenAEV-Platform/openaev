@@ -38,7 +38,7 @@ public class CustomDashboardApiExporter extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<byte[]> export(
-      @PathVariable @NotBlank final String customDashboardId, TxCtx ctx) throws IOException {
+      TxCtx ctx, @PathVariable @NotBlank final String customDashboardId) throws IOException {
     CustomDashboard customDashboard = customDashboardService.customDashboard(customDashboardId);
     return zipJsonApi.handleExport(customDashboard);
   }

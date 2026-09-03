@@ -53,7 +53,7 @@ public class FindingApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.FINDING)
   public ResponseEntity<Finding> createFinding(
-      @RequestBody @Valid @NotNull final FindingInput input, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid @NotNull final FindingInput input) {
     return ResponseEntity.ok(
         this.findingService.createFinding(input.toFinding(new Finding()), input.getInjectId()));
   }

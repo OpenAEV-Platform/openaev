@@ -40,7 +40,7 @@ public class TenantGroupApi extends RestBehavior {
   @PostMapping
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER_GROUP)
-  public Group createGroup(@Valid @RequestBody TenantGroupCreateInput input, TxCtx ctx) {
+  public Group createGroup(TxCtx ctx, @Valid @RequestBody TenantGroupCreateInput input) {
     return tenantGroupService.createGroup(input);
   }
 
@@ -71,7 +71,7 @@ public class TenantGroupApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.USER_GROUP)
   public Page<Group> groups(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return tenantGroupService.search(searchPaginationInput);
   }
 

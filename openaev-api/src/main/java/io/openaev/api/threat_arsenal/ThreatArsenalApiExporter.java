@@ -38,9 +38,9 @@ public class ThreatArsenalApiExporter {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.THREAT_ARSENAL)
   public void exportCsv(
+      TxCtx ctx,
       @RequestBody @Valid final SearchPaginationInput input,
-      HttpServletResponse response,
-      TxCtx ctx) {
+      HttpServletResponse response) {
     mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
   }
 
@@ -50,7 +50,7 @@ public class ThreatArsenalApiExporter {
   @GetMapping(value = "/{actionId}/export", produces = "application/zip")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.THREAT_ARSENAL)
-  public ResponseEntity<byte[]> export(@PathVariable @NotBlank final String actionId, TxCtx ctx)
+  public ResponseEntity<byte[]> export(TxCtx ctx, @PathVariable @NotBlank final String actionId)
       throws IOException {
     Map<String, IncludeOptions.IncludeMode> opts = new HashMap<>();
     opts.put("exclude from action export", IncludeOptions.IncludeMode.FALSE);

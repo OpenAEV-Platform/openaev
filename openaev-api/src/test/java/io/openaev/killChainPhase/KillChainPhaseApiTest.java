@@ -21,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.specification.KillChainPhaseSpecification;
@@ -422,7 +423,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
           .thenThrow(uniqueViolation("kill_chain_phases_stix_id_tenant_unique"))
           .thenReturn(winner);
 
-      Iterable<KillChainPhase> result = api.upsertKillChainPhases(input);
+      Iterable<KillChainPhase> result = api.upsertKillChainPhases(TxCtx.missing(), input);
 
       assertSame(winner, result);
       verify(service, times(2)).upsertKillChainPhases(input.getKillChainPhases());
@@ -440,7 +441,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
 
       DataIntegrityViolationException thrown =
           assertThrows(
-              DataIntegrityViolationException.class, () -> api.upsertKillChainPhases(input));
+              DataIntegrityViolationException.class,
+              () -> api.upsertKillChainPhases(TxCtx.missing(), input));
 
       assertSame(notNullViolation, thrown);
       verify(service, times(1)).upsertKillChainPhases(input.getKillChainPhases());
@@ -454,7 +456,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     try (MockedStatic<KillChainPhaseSpecification> mocked =
         Mockito.mockStatic(KillChainPhaseSpecification.class)) {
       when(KillChainPhaseSpecification.byNameOrKillChainName(SEARCH_INPUT)).thenReturn(spec);
-      List<FilterUtilsJpa.Option> result = killChainPhaseApi.optionsByName(SEARCH_INPUT);
+      List<FilterUtilsJpa.Option> result =
+          killChainPhaseApi.optionsByName(TxCtx.missing(), SEARCH_INPUT);
 
       // Multi kill chain platform: options are sorted by kill chain then phase order, and
       // labelled "[kill chain] phase" (see KillChainPhaseApi#toOption)

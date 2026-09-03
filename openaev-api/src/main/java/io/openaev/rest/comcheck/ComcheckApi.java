@@ -52,7 +52,7 @@ public class ComcheckApi extends RestBehavior {
   @GetMapping("/api/comcheck/{comcheckStatusId}")
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackFor = Exception.class)
-  public ComcheckStatus checkValidation(@PathVariable String comcheckStatusId, TxCtx ctx) {
+  public ComcheckStatus checkValidation(TxCtx ctx, @PathVariable String comcheckStatusId) {
     ComcheckStatus comcheckStatus =
         comcheckStatusRepository
             .findById(comcheckStatusId)

@@ -31,7 +31,7 @@ public class CapabilityApi {
   @Transactional
   @GetMapping
   public ResponseEntity<List<CapabilityOutput>> getCapabilities(
-      @RequestParam(required = false) CapabilityScope scope, TxCtx ctx) {
+      TxCtx ctx, @RequestParam(required = false) CapabilityScope scope) {
     boolean credentialAssetEnabled =
         previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET);
     List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(scope, credentialAssetEnabled);

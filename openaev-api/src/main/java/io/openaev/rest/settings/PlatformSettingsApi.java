@@ -147,7 +147,7 @@ public class PlatformSettingsApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update dark theme settings", description = "Update the dark theme settings")
-  public PlatformSettings updateThemeDark(@Valid @RequestBody ThemeInput input, TxCtx ctx) {
+  public PlatformSettings updateThemeDark(TxCtx ctx, @Valid @RequestBody ThemeInput input) {
     return platformSettingsService.updateThemeDark(input);
   }
 
@@ -156,7 +156,7 @@ public class PlatformSettingsApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update policies settings", description = "Update the policies settings")
-  public PlatformSettings updateSettingsPolicies(@Valid @RequestBody PolicyInput input, TxCtx ctx) {
+  public PlatformSettings updateSettingsPolicies(TxCtx ctx, @Valid @RequestBody PolicyInput input) {
     return platformSettingsService.updateSettingsPolicies(input);
   }
 

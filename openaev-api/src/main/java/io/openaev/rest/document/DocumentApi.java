@@ -89,9 +89,9 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackFor = Exception.class)
   public Document uploadDocument(
+      TxCtx ctx,
       @Valid @RequestPart("input") DocumentCreateInput input,
-      @RequestPart("file") MultipartFile file,
-      TxCtx ctx)
+      @RequestPart("file") MultipartFile file)
       throws Exception {
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
     String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
@@ -145,9 +145,9 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackFor = Exception.class)
   public Document upsertDocument(
+      TxCtx ctx,
       @Valid @RequestPart("input") DocumentCreateInput input,
-      @RequestPart("file") MultipartFile file,
-      TxCtx ctx)
+      @RequestPart("file") MultipartFile file)
       throws Exception {
     return documentService.upsert(
         file.getOriginalFilename(),
@@ -168,7 +168,7 @@ public class DocumentApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOCUMENT)
   public Page<RawPaginationDocument> searchDocuments(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     List<Document> securityPlatformLogos = securityPlatformRepository.securityPlatformLogo();
     // Report generation outputs are read-only from this generic surface: their lifecycle
     // (naming, storage, deletion) belongs to the Reporting module.
@@ -461,7 +461,7 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
-      @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId, TxCtx ctx)
+      TxCtx ctx, @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(

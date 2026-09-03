@@ -37,7 +37,7 @@ public class PlatformRoleApi {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
-  public PlatformRoleOutput create(@Valid @RequestBody PlatformRoleInput input, TxCtx ctx) {
+  public PlatformRoleOutput create(TxCtx ctx, @Valid @RequestBody PlatformRoleInput input) {
     return toOutput(
         platformRoleService.createPlatformRole(
             input.name(), input.description(), input.capabilities()));
@@ -77,7 +77,7 @@ public class PlatformRoleApi {
   @PostMapping("/search")
   @Transactional
   public Page<PlatformRoleOutput> search(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return platformRoleService.search(searchPaginationInput).map(PlatformRoleMapper::toOutput);
   }
 
@@ -88,7 +88,7 @@ public class PlatformRoleApi {
       isEnterpriseEdition = true)
   @PostMapping("/find")
   @Transactional
-  public List<PlatformRoleOutput> find(@RequestBody @Valid final List<String> ids, TxCtx ctx) {
+  public List<PlatformRoleOutput> find(TxCtx ctx, @RequestBody @Valid final List<String> ids) {
     return platformRoleService.findByIds(ids).stream().map(PlatformRoleMapper::toOutput).toList();
   }
 
@@ -103,7 +103,7 @@ public class PlatformRoleApi {
   @PutMapping("/{platformRoleId}")
   @Transactional
   public PlatformRoleOutput update(
-      @PathVariable String platformRoleId, @Valid @RequestBody PlatformRoleInput input, TxCtx ctx) {
+      TxCtx ctx, @PathVariable String platformRoleId, @Valid @RequestBody PlatformRoleInput input) {
     return toOutput(
         platformRoleService.updatePlatformRole(
             platformRoleId, input.name(), input.description(), input.capabilities()));
@@ -120,7 +120,7 @@ public class PlatformRoleApi {
   @DeleteMapping("/{platformRoleId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void delete(@PathVariable String platformRoleId, TxCtx ctx) {
+  public void delete(TxCtx ctx, @PathVariable String platformRoleId) {
     platformRoleService.delete(platformRoleId);
   }
 }

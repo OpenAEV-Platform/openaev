@@ -111,7 +111,7 @@ public class DashboardApi extends RestBehavior {
   @GetMapping("/search/{search}")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
-  public List<EsSearch> search(@PathVariable final String search, TxCtx ctx) {
+  public List<EsSearch> search(TxCtx ctx, @PathVariable final String search) {
     return this.dashboardService.search(search);
   }
 
@@ -124,21 +124,21 @@ public class DashboardApi extends RestBehavior {
   @PostMapping("/adhoc/series")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
-  public List<EsSeries> adHocSeries(@Valid @RequestBody AdHocWidgetInput input, TxCtx ctx) {
+  public List<EsSeries> adHocSeries(TxCtx ctx, @Valid @RequestBody AdHocWidgetInput input) {
     return this.dashboardService.adHocSeries(input.getWidgetConfiguration(), input.getParameters());
   }
 
   @PostMapping("/adhoc/count")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
-  public EsCountInterval adHocCount(@Valid @RequestBody AdHocWidgetInput input, TxCtx ctx) {
+  public EsCountInterval adHocCount(TxCtx ctx, @Valid @RequestBody AdHocWidgetInput input) {
     return this.dashboardService.adHocCount(input.getWidgetConfiguration(), input.getParameters());
   }
 
   @PostMapping("/adhoc/average")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
-  public EsAvgs adHocAverage(@Valid @RequestBody AdHocWidgetInput input, TxCtx ctx) {
+  public EsAvgs adHocAverage(TxCtx ctx, @Valid @RequestBody AdHocWidgetInput input) {
     return this.dashboardService.adHocAverage(
         input.getWidgetConfiguration(), input.getParameters());
   }
@@ -146,7 +146,7 @@ public class DashboardApi extends RestBehavior {
   @PostMapping("/adhoc/entities")
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
-  public EsEntities adHocEntities(@Valid @RequestBody AdHocWidgetInput input, TxCtx ctx) {
+  public EsEntities adHocEntities(TxCtx ctx, @Valid @RequestBody AdHocWidgetInput input) {
     return this.dashboardService.adHocEntities(
         input.getWidgetConfiguration(), input.getParameters(), input.getPagination());
   }
@@ -155,7 +155,7 @@ public class DashboardApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   public WidgetToEntitiesOutput adHocEntitiesRuntime(
-      @Valid @RequestBody AdHocWidgetToEntitiesInput input, TxCtx ctx) {
+      TxCtx ctx, @Valid @RequestBody AdHocWidgetToEntitiesInput input) {
     return this.dashboardService.adHocEntitiesRuntime(
         input.getWidgetType(), input.getWidgetConfiguration(), input);
   }

@@ -62,7 +62,7 @@ public class AssetGroupApi extends RestBehavior {
   @PostMapping({ASSET_GROUP_URI, TENANT_ASSET_GROUP_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET_GROUP)
   @Transactional(rollbackFor = Exception.class)
-  public AssetGroup createAssetGroup(@Valid @RequestBody final AssetGroupInput input, TxCtx ctx) {
+  public AssetGroup createAssetGroup(TxCtx ctx, @Valid @RequestBody final AssetGroupInput input) {
     AssetGroup assetGroup = new AssetGroup();
     assetGroup.setUpdateAttributes(input);
     assetGroup.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
@@ -81,7 +81,7 @@ public class AssetGroupApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public Page<AssetGroupOutput> assetGroups(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return this.assetGroupCriteriaBuilderService.assetGroupPagination(searchPaginationInput);
   }
 
@@ -157,7 +157,7 @@ public class AssetGroupApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   @Transactional(readOnly = true)
   public List<AssetGroupOutput> findAssetGroups(
-      @RequestBody @Valid @NotNull final List<String> assetGroupIds, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid @NotNull final List<String> assetGroupIds) {
     return this.assetGroupCriteriaBuilderService.find(fromIds(assetGroupIds));
   }
 
@@ -228,7 +228,7 @@ public class AssetGroupApi extends RestBehavior {
   // (chunked, with deadlock retry) - a request-wide transaction would defeat that.
   @Transactional(propagation = Propagation.SUPPORTS)
   public List<String> bulkDeleteAssetGroups(
-      @RequestBody @Valid final AssetGroupBulkProcessingInput input, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final AssetGroupBulkProcessingInput input) {
     return this.assetGroupService.bulkDeleteAssetGroups(input);
   }
 
@@ -238,10 +238,10 @@ public class AssetGroupApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public List<FilterUtilsJpa.Option> optionsByName(
+      TxCtx ctx,
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId,
-      @RequestParam(required = false) final String inputFilterOption,
-      TxCtx ctx) {
+      @RequestParam(required = false) final String inputFilterOption) {
     List<FilterUtilsJpa.Option> options = List.of();
     InputFilterOptions injectFilterOptionEnum;
     try {
@@ -298,9 +298,9 @@ public class AssetGroupApi extends RestBehavior {
   @GetMapping({ASSET_GROUP_URI + "/findings/options", TENANT_ASSET_GROUP_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
+      TxCtx ctx,
       @RequestParam(required = false) final String searchText,
-      @RequestParam(required = false) final String sourceId,
-      TxCtx ctx) {
+      @RequestParam(required = false) final String sourceId) {
     return assetGroupService.getOptionsByNameLinkedToFindings(
         searchText, sourceId, PageRequest.of(0, 50));
   }
@@ -309,7 +309,7 @@ public class AssetGroupApi extends RestBehavior {
   @PostMapping({ASSET_GROUP_URI + "/options", TENANT_ASSET_GROUP_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET_GROUP)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.assetGroupRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

@@ -56,7 +56,7 @@ public class DomainApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The upserted domain")})
   @Operation(description = "Upsert a domain", summary = "Upsert domain")
-  public Domain upsertDomain(@Valid @RequestBody DomainBaseInput input, TxCtx ctx) {
+  public Domain upsertDomain(TxCtx ctx, @Valid @RequestBody DomainBaseInput input) {
     return domainService.upsert(input);
   }
 
@@ -66,7 +66,7 @@ public class DomainApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
   public List<FilterUtilsJpa.Option> findAllAsOptionsByName(
-      @RequestParam(required = false) final String searchText, TxCtx ctx) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return domainService.findAllAsOptionsByName(searchText);
   }
 
@@ -74,7 +74,7 @@ public class DomainApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DOMAIN)
   public List<FilterUtilsJpa.Option> findAllAsOptionsById(
-      @RequestBody final List<String> ids, TxCtx ctx) {
+      TxCtx ctx, @RequestBody final List<String> ids) {
     return domainService.findAllAsOptionsById(ids);
   }
 }

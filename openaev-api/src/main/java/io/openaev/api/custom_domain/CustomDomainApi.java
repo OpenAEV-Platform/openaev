@@ -45,7 +45,7 @@ public class CustomDomainApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @Operation(summary = "Search custom domains")
   public Page<CustomDomain> searchCustomDomains(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return customDomainService.search(searchPaginationInput);
   }
 
@@ -53,7 +53,7 @@ public class CustomDomainApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @Operation(summary = "Get a custom domain")
-  public CustomDomain customDomain(@PathVariable String id, TxCtx ctx) {
+  public CustomDomain customDomain(TxCtx ctx, @PathVariable String id) {
     return customDomainService.customDomain(id);
   }
 
@@ -72,7 +72,7 @@ public class CustomDomainApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @Operation(summary = "Register a custom domain")
-  public CustomDomain createCustomDomain(@Valid @RequestBody CustomDomainInput input, TxCtx ctx) {
+  public CustomDomain createCustomDomain(TxCtx ctx, @Valid @RequestBody CustomDomainInput input) {
     return customDomainService.create(input.getHostname());
   }
 
@@ -80,7 +80,7 @@ public class CustomDomainApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @Operation(summary = "Run the DNS ownership verification for a custom domain")
-  public CustomDomain verifyCustomDomain(@PathVariable String id, TxCtx ctx) {
+  public CustomDomain verifyCustomDomain(TxCtx ctx, @PathVariable String id) {
     return customDomainService.verify(id);
   }
 
@@ -88,7 +88,7 @@ public class CustomDomainApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @Operation(summary = "Delete a custom domain")
-  public void deleteCustomDomain(@PathVariable String id, TxCtx ctx) {
+  public void deleteCustomDomain(TxCtx ctx, @PathVariable String id) {
     customDomainService.delete(id);
   }
 }

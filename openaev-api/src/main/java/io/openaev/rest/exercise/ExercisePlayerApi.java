@@ -36,7 +36,7 @@ public class ExercisePlayerApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public PublicExercise playerExercise(
-      @PathVariable String exerciseId, @RequestParam Optional<String> userId, TxCtx ctx)
+      TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
     impersonateUser(this.userRepository, userId);
     Exercise exercise =

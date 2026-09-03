@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.context.TxCtx;
 import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
@@ -48,7 +49,7 @@ class XtmOneChatApiUnitTest {
     body.put("context", context);
 
     // -- ACT --
-    ResponseEntity<StreamingResponseBody> response = api.sendMessage(body);
+    ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
@@ -66,7 +67,7 @@ class XtmOneChatApiUnitTest {
     body.put("agent_slug", "agent-1");
 
     // -- ACT --
-    ResponseEntity<StreamingResponseBody> response = api.sendMessage(body);
+    ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
@@ -85,7 +86,7 @@ class XtmOneChatApiUnitTest {
     body.put("supports_tool_approval", true);
 
     // -- ACT --
-    ResponseEntity<StreamingResponseBody> response = api.sendMessage(body);
+    ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
@@ -103,7 +104,7 @@ class XtmOneChatApiUnitTest {
     body.put("supports_tool_approval", false);
 
     // -- ACT --
-    ResponseEntity<StreamingResponseBody> response = api.sendMessage(body);
+    ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
@@ -120,7 +121,7 @@ class XtmOneChatApiUnitTest {
     body.put("supports_tool_approval", "true");
 
     // -- ACT --
-    ResponseEntity<StreamingResponseBody> response = api.sendMessage(body);
+    ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --

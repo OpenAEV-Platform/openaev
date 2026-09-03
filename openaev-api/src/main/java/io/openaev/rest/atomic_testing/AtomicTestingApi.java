@@ -59,7 +59,7 @@ public class AtomicTestingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(readOnly = true)
   public Page<InjectResultOutput> findAllAtomicTestings(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return atomicTestingService.searchAtomicTestingsForCurrentUser(searchPaginationInput);
   }
 
@@ -143,7 +143,7 @@ public class AtomicTestingApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ATOMIC_TESTING)
   public List<String> bulkDeleteAtomicTestings(
-      @RequestBody @Valid final InjectBulkProcessingInput input, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final InjectBulkProcessingInput input) {
     return atomicTestingService.bulkDelete(input);
   }
 

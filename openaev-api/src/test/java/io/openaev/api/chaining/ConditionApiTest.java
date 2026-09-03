@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.EventOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.MappingType;
@@ -33,7 +34,7 @@ class ConditionApiTest {
 
     when(conditionService.createConditionTree(input)).thenReturn(root);
 
-    EventOutput result = conditionApi.create(input);
+    EventOutput result = conditionApi.create(TxCtx.missing(), input);
 
     assertNotNull(result);
     assertEquals("cond-root", result.getId());
@@ -85,7 +86,7 @@ class ConditionApiTest {
 
     when(conditionService.updateConditionTree("c-upd", input)).thenReturn(updatedRoot);
 
-    EventOutput result = conditionApi.update("c-upd", input);
+    EventOutput result = conditionApi.update(TxCtx.missing(), "c-upd", input);
 
     assertNotNull(result);
     assertEquals("c-upd", result.getId());
@@ -95,7 +96,7 @@ class ConditionApiTest {
 
   @Test
   void delete_shouldDelegateToService() {
-    conditionApi.delete("c-del");
+    conditionApi.delete(TxCtx.missing(), "c-del");
     verify(conditionService).deleteConditionTree("c-del");
   }
 

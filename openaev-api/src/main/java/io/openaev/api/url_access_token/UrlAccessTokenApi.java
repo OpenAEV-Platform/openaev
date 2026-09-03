@@ -42,7 +42,7 @@ public class UrlAccessTokenApi {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Validate URL access token, set secure cookie and redirect")
   @Transactional
-  public ResponseEntity<Void> access(@RequestParam("token") String rawToken, TxCtx ctx) {
+  public ResponseEntity<Void> access(TxCtx ctx, @RequestParam("token") String rawToken) {
     try {
       UrlAccessToken token = urlAccessTokenService.validateTokenExpiration(rawToken);
       urlAccessTokenService.updateLastUsed(token);
@@ -69,7 +69,7 @@ public class UrlAccessTokenApi {
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
   @Operation(summary = "Revoke a URL access token by id (admin only)")
   @Transactional
-  public ResponseEntity<Void> revokeByTokenId(@PathVariable("tokenId") String tokenId, TxCtx ctx) {
+  public ResponseEntity<Void> revokeByTokenId(TxCtx ctx, @PathVariable("tokenId") String tokenId) {
     ensureCurrentUserIsAdmin();
     urlAccessTokenService.revokeToken(tokenId);
     return ResponseEntity.noContent().build();

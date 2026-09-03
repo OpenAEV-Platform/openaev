@@ -53,7 +53,7 @@ public class ConditionApi extends RestBehavior {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
-  public EventOutput create(@Valid @RequestBody EventInput input, TxCtx ctx) {
+  public EventOutput create(TxCtx ctx, @Valid @RequestBody EventInput input) {
     return toOutput(conditionService.createConditionTree(input));
   }
 
@@ -109,7 +109,7 @@ public class ConditionApi extends RestBehavior {
   @PutMapping("/{conditionId}")
   @Transactional
   public EventOutput update(
-      @PathVariable String conditionId, @Valid @RequestBody EventInput input, TxCtx ctx) {
+      TxCtx ctx, @PathVariable String conditionId, @Valid @RequestBody EventInput input) {
     return toOutput(conditionService.updateConditionTree(conditionId, input));
   }
 
@@ -130,7 +130,7 @@ public class ConditionApi extends RestBehavior {
   @DeleteMapping("/{conditionId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void delete(@PathVariable String conditionId, TxCtx ctx) {
+  public void delete(TxCtx ctx, @PathVariable String conditionId) {
     conditionService.deleteConditionTree(conditionId);
   }
 }

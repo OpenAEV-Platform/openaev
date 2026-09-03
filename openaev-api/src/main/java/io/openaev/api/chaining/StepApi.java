@@ -53,7 +53,7 @@ public class StepApi {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional(rollbackFor = Exception.class)
-  public StepOutput createStep(@Valid @RequestBody StepInput input, TxCtx ctx)
+  public StepOutput createStep(TxCtx ctx, @Valid @RequestBody StepInput input)
       throws ChainingException {
     StepsCreateInput.StepInput createInput =
         StepsCreateInput.StepInput.builder()
@@ -117,7 +117,7 @@ public class StepApi {
   @PutMapping("/{stepId}")
   @Transactional(rollbackFor = Exception.class)
   public StepOutput updateStep(
-      @PathVariable String stepId, @Valid @RequestBody StepInput input, TxCtx ctx)
+      TxCtx ctx, @PathVariable String stepId, @Valid @RequestBody StepInput input)
       throws ChainingException {
     return toOutput(stepService.updateStepTemplate(stepId, input));
   }
@@ -137,7 +137,7 @@ public class StepApi {
   @DeleteMapping("/{stepId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void deleteStep(@PathVariable String stepId, TxCtx ctx) {
+  public void deleteStep(TxCtx ctx, @PathVariable String stepId) {
     stepService.deleteStepTemplate(stepId);
   }
 }

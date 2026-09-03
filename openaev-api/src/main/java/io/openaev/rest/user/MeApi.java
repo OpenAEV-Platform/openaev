@@ -52,7 +52,7 @@ public class MeApi extends RestBehavior {
   @GetMapping("/api/logout")
   @Transactional
   @AccessControl(skipRBAC = true)
-  public ResponseEntity<Object> logout(HttpServletRequest request, TxCtx ctx) {
+  public ResponseEntity<Object> logout(TxCtx ctx, HttpServletRequest request) {
     HttpSession session = request.getSession(false);
     if (session != null) {
       session.setAttribute(SessionManager.EXPLICIT_LOGOUT, Boolean.TRUE);
@@ -73,7 +73,7 @@ public class MeApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
-  public User updateProfile(@Valid @RequestBody UpdateProfileInput input, TxCtx ctx) {
+  public User updateProfile(TxCtx ctx, @Valid @RequestBody UpdateProfileInput input) {
     User user =
         userRepository
             .findById(currentUser().getId())
@@ -90,7 +90,7 @@ public class MeApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
-  public User updateInformation(@Valid @RequestBody UpdateUserInfoInput input, TxCtx ctx) {
+  public User updateInformation(TxCtx ctx, @Valid @RequestBody UpdateUserInfoInput input) {
     User user =
         userRepository
             .findById(currentUser().getId())
@@ -106,7 +106,7 @@ public class MeApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User updatePassword(
-      @Valid @RequestBody UpdateMePasswordInput input, HttpServletRequest httpRequest, TxCtx ctx)
+      TxCtx ctx, @Valid @RequestBody UpdateMePasswordInput input, HttpServletRequest httpRequest)
       throws InputValidationException {
     User user =
         userRepository
@@ -128,7 +128,7 @@ public class MeApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   @Transactional(rollbackFor = Exception.class)
-  public Token renewToken(@Valid @RequestBody RenewTokenInput input, TxCtx ctx) {
+  public Token renewToken(TxCtx ctx, @Valid @RequestBody RenewTokenInput input) {
     return userService.renewUserToken(input.getTokenId());
   }
 

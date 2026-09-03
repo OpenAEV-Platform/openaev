@@ -108,7 +108,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiFixSpelling(
-      @Valid @RequestBody final AiGenericTextInput aiGenericTextInput, TxCtx ctx)
+      TxCtx ctx, @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -136,7 +136,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiMakeShorter(
-      @Valid @RequestBody final AiGenericTextInput aiGenericTextInput, TxCtx ctx)
+      TxCtx ctx, @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -164,7 +164,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiMakeLonger(
-      @Valid @RequestBody final AiGenericTextInput aiGenericTextInput, TxCtx ctx)
+      TxCtx ctx, @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -193,7 +193,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiChangeTone(
-      @Valid @RequestBody final AiGenericTextInput aiGenericTextInput, TxCtx ctx)
+      TxCtx ctx, @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -223,7 +223,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiSummarize(
-      @Valid @RequestBody final AiGenericTextInput aiGenericTextInput, TxCtx ctx)
+      TxCtx ctx, @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -250,7 +250,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiExplain(
-      @Valid @RequestBody final AiGenericTextInput aiGenericTextInput, TxCtx ctx)
+      TxCtx ctx, @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -275,7 +275,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiGenerateMessage(
-      @Valid @RequestBody final AiMessageInput aiMessageInput, TxCtx ctx)
+      TxCtx ctx, @Valid @RequestBody final AiMessageInput aiMessageInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -317,7 +317,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiGenerateSubject(
-      @Valid @RequestBody final AiMessageInput aiMessageInput, TxCtx ctx)
+      TxCtx ctx, @Valid @RequestBody final AiMessageInput aiMessageInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -356,7 +356,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiGenerateMedia(
-      @Valid @RequestBody final AiMediaInput aiMediaInput, TxCtx ctx)
+      TxCtx ctx, @Valid @RequestBody final AiMediaInput aiMediaInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(

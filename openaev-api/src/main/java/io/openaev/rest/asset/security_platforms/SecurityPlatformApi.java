@@ -87,7 +87,7 @@ public class SecurityPlatformApi {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform createSecurityPlatform(
-      @Valid @RequestBody final SecurityPlatformInput input, TxCtx ctx) {
+      TxCtx ctx, @Valid @RequestBody final SecurityPlatformInput input) {
     SecurityPlatform securityPlatform = new SecurityPlatform();
     securityPlatform.setUpdateAttributes(input);
     securityPlatform.setSecurityPlatformType(input.getSecurityPlatformType());
@@ -109,7 +109,7 @@ public class SecurityPlatformApi {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
   public SecurityPlatform upsertSecurityPlatform(
-      @Valid @RequestBody SecurityPlatformUpsertInput input, TxCtx ctx) {
+      TxCtx ctx, @Valid @RequestBody SecurityPlatformUpsertInput input) {
     // A collector redeployed through the Integration Manager registers with a freshly
     // generated collector id (the external reference), while the platform row created by
     // the previous deployment still exists: fall back to the unique (name, type) pair so
@@ -271,7 +271,7 @@ public class SecurityPlatformApi {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText, TxCtx ctx) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return securityPlatformRepository.findAllByName(StringUtils.trimToNull(searchText)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
@@ -280,7 +280,7 @@ public class SecurityPlatformApi {
   @PostMapping({SECURITY_PLATFORM_URI + "/options", TENANT_SECURITY_PLATFORM_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SECURITY_PLATFORM)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.securityPlatformRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

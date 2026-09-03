@@ -37,7 +37,7 @@ public class PayloadApiExporter extends RestBehavior {
   @GetMapping(value = "/{payloadId}/export", produces = "application/zip")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.PAYLOAD)
-  public ResponseEntity<byte[]> export(@PathVariable @NotBlank final String payloadId, TxCtx ctx)
+  public ResponseEntity<byte[]> export(TxCtx ctx, @PathVariable @NotBlank final String payloadId)
       throws IOException {
     Map<String, IncludeOptions.IncludeMode> opts = new HashMap<>();
     opts.put("exclude from payload export", IncludeOptions.IncludeMode.FALSE);

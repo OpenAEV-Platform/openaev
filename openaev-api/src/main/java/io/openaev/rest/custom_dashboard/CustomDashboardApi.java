@@ -44,7 +44,7 @@ public class CustomDashboardApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<CustomDashboard> createCustomDashboard(
-      @RequestBody @Valid @NotNull final CustomDashboardInput input, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid @NotNull final CustomDashboardInput input) {
     return ResponseEntity.ok(
         this.customDashboardService.createCustomDashboard(
             input.toCustomDashboard(new CustomDashboard())));
@@ -61,7 +61,7 @@ public class CustomDashboardApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Page<CustomDashboard>> customDashboards(
-      @RequestBody @NotNull @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @NotNull @Valid final SearchPaginationInput searchPaginationInput) {
     return ResponseEntity.ok(this.customDashboardService.customDashboards(searchPaginationInput));
   }
 
@@ -111,14 +111,14 @@ public class CustomDashboardApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText, TxCtx ctx) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return this.customDashboardService.findAllAsOptions(searchText);
   }
 
   @PostMapping("/options")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.DASHBOARD)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return this.customDashboardService.findAllByIdsAsOptions(ids);
   }
 

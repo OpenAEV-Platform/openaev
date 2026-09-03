@@ -63,14 +63,14 @@ public class AiTargetApi {
   @PostMapping({AI_TARGET_URI, TENANT_AI_TARGET_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
-  public Asset createAiTarget(@Valid @RequestBody final AiTargetInput input, TxCtx ctx) {
+  public Asset createAiTarget(TxCtx ctx, @Valid @RequestBody final AiTargetInput input) {
     return this.aiTargetRepository.save(prepareAiTarget(new Asset(), input));
   }
 
   @GetMapping({AI_TARGET_URI + "/{aiTargetId}", TENANT_AI_TARGET_URI + "/{aiTargetId}"})
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.ASSET)
-  public Asset aiTarget(@PathVariable @NotBlank final String aiTargetId, TxCtx ctx) {
+  public Asset aiTarget(TxCtx ctx, @PathVariable @NotBlank final String aiTargetId) {
     return this.aiTargetRepository
         .findAiTargetById(aiTargetId)
         .orElseThrow(ElementNotFoundException::new);
@@ -80,7 +80,7 @@ public class AiTargetApi {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public Page<Asset> aiTargets(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
         (Specification<Asset> spec, org.springframework.data.domain.Pageable pageable) ->
             this.aiTargetRepository.findAll(aiTargetCategory().and(spec), pageable),
@@ -92,9 +92,9 @@ public class AiTargetApi {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
   public Asset updateAiTarget(
+      TxCtx ctx,
       @PathVariable @NotBlank final String aiTargetId,
-      @Valid @RequestBody final AiTargetInput input,
-      TxCtx ctx) {
+      @Valid @RequestBody final AiTargetInput input) {
     Asset aiTarget =
         this.aiTargetRepository
             .findAiTargetById(aiTargetId)
@@ -105,7 +105,7 @@ public class AiTargetApi {
   @DeleteMapping({AI_TARGET_URI + "/{aiTargetId}", TENANT_AI_TARGET_URI + "/{aiTargetId}"})
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ASSET)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteAiTarget(@PathVariable @NotBlank final String aiTargetId, TxCtx ctx) {
+  public void deleteAiTarget(TxCtx ctx, @PathVariable @NotBlank final String aiTargetId) {
     // Resolve through the tenant-filtered, category-scoped lookup first: a raw deleteById would
     // bypass the Hibernate tenant filter (em.find) and could delete any asset type by id.
     Asset aiTarget =
@@ -119,7 +119,7 @@ public class AiTargetApi {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText, TxCtx ctx) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return aiTargetRepository.findAllByName(StringUtils.trimToNull(searchText)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
@@ -128,7 +128,7 @@ public class AiTargetApi {
   @PostMapping({AI_TARGET_URI + "/options", TENANT_AI_TARGET_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return this.aiTargetRepository.findAiTargetsByIds(ids).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

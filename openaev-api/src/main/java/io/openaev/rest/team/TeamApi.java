@@ -122,7 +122,7 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of teams")})
   @Operation(description = "Find a list of teams based on their ids", summary = "Find teams")
   public List<TeamOutput> findTeams(
-      @RequestBody @Valid @NotNull final List<String> teamIds, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid @NotNull final List<String> teamIds) {
     return this.teamService.find(fromIds(teamIds));
   }
 
@@ -191,7 +191,7 @@ public class TeamApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The created team")})
   @Operation(description = "Create a new team", summary = "Create team")
-  public Team createTeam(@Valid @RequestBody TeamCreateInput input, TxCtx ctx) {
+  public Team createTeam(TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
     isTeamAlreadyExists(input);
     Team team = new Team();
     team.setUpdateAttributes(input);
@@ -347,10 +347,10 @@ public class TeamApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TEAM)
   public List<FilterUtilsJpa.Option> optionsByName(
+      TxCtx ctx,
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId,
-      @RequestParam(required = false) final String inputFilterOption,
-      TxCtx ctx) {
+      @RequestParam(required = false) final String inputFilterOption) {
     List<FilterUtilsJpa.Option> options = List.of();
     InputFilterOptions injectFilterOptionEnum;
     try {
@@ -402,7 +402,7 @@ public class TeamApi extends RestBehavior {
   @PostMapping({TEAM_URI + "/options", TENANT_TEAM_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TEAM)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.teamRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

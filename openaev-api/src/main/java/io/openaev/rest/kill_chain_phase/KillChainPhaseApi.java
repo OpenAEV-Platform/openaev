@@ -56,7 +56,7 @@ public class KillChainPhaseApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public Page<KillChainPhase> killChainPhases(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
         (Specification<KillChainPhase> specification, Pageable pageable) ->
             this.killChainPhaseRepository.findAll(specification, pageable),
@@ -97,7 +97,7 @@ public class KillChainPhaseApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
   @Transactional(rollbackFor = Exception.class)
   public KillChainPhase createKillChainPhase(
-      @Valid @RequestBody KillChainPhaseCreateInput input, TxCtx ctx) {
+      TxCtx ctx, @Valid @RequestBody KillChainPhaseCreateInput input) {
     KillChainPhase killChainPhase = new KillChainPhase();
     killChainPhase.setUpdateAttributes(input);
     return killChainPhaseRepository.save(killChainPhase);
@@ -116,7 +116,7 @@ public class KillChainPhaseApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public Iterable<KillChainPhase> upsertKillChainPhases(
-      @Valid @RequestBody KillChainPhaseUpsertInput input, TxCtx ctx) {
+      TxCtx ctx, @Valid @RequestBody KillChainPhaseUpsertInput input) {
     try {
       return killChainPhaseService.upsertKillChainPhases(input.getKillChainPhases());
     } catch (DataIntegrityViolationException e) {
@@ -157,7 +157,7 @@ public class KillChainPhaseApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText, TxCtx ctx) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return fromIterable(
             this.killChainPhaseRepository.findAll(
                 byNameOrKillChainName(searchText),
@@ -170,7 +170,7 @@ public class KillChainPhaseApi extends RestBehavior {
   @PostMapping("/options")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.KILL_CHAIN_PHASE)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.killChainPhaseRepository.findAllById(ids)).stream()
         .map(KillChainPhaseApi::toOption)
         .toList();

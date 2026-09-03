@@ -41,7 +41,7 @@ public class TagApi extends RestBehavior {
   @PostMapping({TAG_URI, TENANT_TAG_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TAG)
   @Transactional(rollbackFor = Exception.class)
-  public Tag createTag(@Valid @RequestBody TagCreateInput input, TxCtx ctx) {
+  public Tag createTag(TxCtx ctx, @Valid @RequestBody TagCreateInput input) {
     return tagService.createTag(input);
   }
 
@@ -49,7 +49,7 @@ public class TagApi extends RestBehavior {
   @PostMapping({TAG_URI + "/upsert", TENANT_TAG_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.TAG)
   @Transactional(rollbackFor = Exception.class)
-  public Tag upsertTag(@Valid @RequestBody TagCreateInput input, TxCtx ctx) {
+  public Tag upsertTag(TxCtx ctx, @Valid @RequestBody TagCreateInput input) {
     return tagService.upsertTag(input);
   }
 
@@ -68,7 +68,7 @@ public class TagApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG)
   public Page<Tag> tags(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return tagService.search(searchPaginationInput);
   }
 
@@ -107,8 +107,9 @@ public class TagApi extends RestBehavior {
   @GetMapping({TAG_URI + "/options", TENANT_TAG_URI + "/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) @Schema(description = "Search text") final String searchText,
-      TxCtx ctx) {
+      TxCtx ctx,
+      @RequestParam(required = false) @Schema(description = "Search text")
+          final String searchText) {
     return tagService.optionsByName(searchText);
   }
 
@@ -116,7 +117,7 @@ public class TagApi extends RestBehavior {
   @PostMapping({TAG_URI + "/options", TENANT_TAG_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TAG)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return tagService.optionsById(ids);
   }
 }

@@ -71,7 +71,7 @@ public class UserApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UserRoleDescription(needAuthenticated = false)
   public User login(
-      @Valid @RequestBody LoginUserInput input, HttpServletRequest httpRequest, TxCtx ctx) {
+      TxCtx ctx, @Valid @RequestBody LoginUserInput input, HttpServletRequest httpRequest) {
     Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
@@ -120,7 +120,7 @@ public class UserApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
-  public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input, TxCtx ctx) {
+  public ResponseEntity<?> passwordReset(TxCtx ctx, @Valid @RequestBody ResetUserInput input) {
     // async execution; check method annotation
     userService.requestPasswordReset(input);
     // force a 200 OK response even if no user was found
@@ -141,9 +141,9 @@ public class UserApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public User changePasswordReset(
+      TxCtx ctx,
       @PathVariable @Schema(description = "Token generated during reset") String token,
-      @Valid @RequestBody ChangePasswordInput input,
-      TxCtx ctx)
+      @Valid @RequestBody ChangePasswordInput input)
       throws InputValidationException {
     return userService.resetPassword(token, input);
   }

@@ -52,7 +52,7 @@ public class ReportingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.REPORT)
   @Operation(summary = "Create a reporting template")
   public ResponseEntity<Reporting> createReporting(
-      @RequestBody @Valid @NotNull final ReportingInput input, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid @NotNull final ReportingInput input) {
     return ResponseEntity.ok(
         this.reportingService.createReporting(input.toReporting(new Reporting())));
   }
@@ -64,7 +64,7 @@ public class ReportingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.REPORT)
   @Operation(summary = "Search reporting templates with pagination")
   public ResponseEntity<Page<Reporting>> reportings(
-      @RequestBody @Valid @NotNull final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid @NotNull final SearchPaginationInput searchPaginationInput) {
     return ResponseEntity.ok(this.reportingService.reportings(searchPaginationInput));
   }
 
@@ -84,9 +84,9 @@ public class ReportingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.REPORT)
   @Operation(summary = "List the reporting templates of a subject (context)")
   public ResponseEntity<List<Reporting>> reportingsByContext(
+      TxCtx ctx,
       @PathVariable @NotNull final ReportingContextType contextType,
-      @PathVariable(required = false) final String contextId,
-      TxCtx ctx) {
+      @PathVariable(required = false) final String contextId) {
     return ResponseEntity.ok(this.reportingService.reportingsByContext(contextType, contextId));
   }
 
@@ -154,7 +154,7 @@ public class ReportingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.REPORT)
   @Operation(summary = "Get a reporting generation by id")
   public ResponseEntity<ReportingGeneration> reportingGeneration(
-      @PathVariable @NotBlank final String generationId, TxCtx ctx) {
+      TxCtx ctx, @PathVariable @NotBlank final String generationId) {
     return ResponseEntity.ok(this.reportingService.generation(generationId));
   }
 
@@ -163,7 +163,7 @@ public class ReportingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.REPORT)
   @Operation(summary = "Delete a reporting generation and its document")
   public ResponseEntity<Void> deleteReportingGeneration(
-      @PathVariable @NotBlank final String generationId, TxCtx ctx) {
+      TxCtx ctx, @PathVariable @NotBlank final String generationId) {
     this.reportingService.deleteGeneration(generationId);
     return ResponseEntity.noContent().build();
   }
@@ -173,7 +173,7 @@ public class ReportingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.REPORT)
   @Operation(summary = "Download the document of a successful reporting generation")
   public ResponseEntity<InputStreamResource> downloadReportingGeneration(
-      @PathVariable @NotBlank final String generationId, TxCtx ctx) {
+      TxCtx ctx, @PathVariable @NotBlank final String generationId) {
     Document document = this.reportingService.generationDocument(generationId);
     String encodedFilename = DocumentService.encodeFileName(document.getName());
     InputStream in =

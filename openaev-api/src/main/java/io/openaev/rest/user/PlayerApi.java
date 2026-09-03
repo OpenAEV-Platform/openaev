@@ -70,7 +70,7 @@ public class PlayerApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public Page<PlayerOutput> players(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return this.playerService.playerPagination(searchPaginationInput);
   }
 
@@ -99,14 +99,14 @@ public class PlayerApi extends RestBehavior {
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
-  public User createPlayer(@Valid @RequestBody PlayerInput input, TxCtx ctx) {
+  public User createPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
     return playerService.createPlayer(input);
   }
 
   @PostMapping({PLAYER_URI + "/upsert", TENANT_PLAYER_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
-  public User upsertPlayer(@Valid @RequestBody PlayerInput input, TxCtx ctx) {
+  public User upsertPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
     return playerService.upsertPlayer(input);
   }
 
@@ -172,7 +172,7 @@ public class PlayerApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
   public List<String> bulkDeletePlayers(
-      @RequestBody @Valid final PlayerBulkProcessingInput input, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final PlayerBulkProcessingInput input) {
     return playerService.bulkDeletePlayers(input);
   }
 
@@ -184,7 +184,7 @@ public class PlayerApi extends RestBehavior {
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText, TxCtx ctx) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     String search = searchText == null ? "" : searchText.toLowerCase();
     return fromIterable(userRepository.findAll()).stream()
         .filter(
@@ -201,7 +201,7 @@ public class PlayerApi extends RestBehavior {
   @PostMapping({PLAYER_URI + "/options", TENANT_PLAYER_URI + "/options"})
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PLAYER)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(userRepository.findAllById(ids)).stream()
         .map(user -> new FilterUtilsJpa.Option(user.getId(), user.getNameOrEmail()))
         .toList();

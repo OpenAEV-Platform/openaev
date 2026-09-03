@@ -32,7 +32,7 @@ public class AtomicTestingTeamApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   @Transactional(readOnly = true)
   public Page<TeamOutput> searchTeams(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     final Specification<Team> teamSpecification = contextual(false);
     return this.teamService.teamPagination(searchPaginationInput, teamSpecification);
   }

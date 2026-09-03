@@ -118,10 +118,10 @@ public class TenantSettingsApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget count")
   public EsCountInterval homeDashboardCount(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters,
-      TxCtx ctx) {
+      @RequestBody(required = false) Map<String, String> parameters) {
     return customDashboardTenantService.homeDashboardCount(tenantId, widgetId, parameters);
   }
 
@@ -131,10 +131,10 @@ public class TenantSettingsApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget average")
   public EsAvgs homeDashboardAverage(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters,
-      TxCtx ctx) {
+      @RequestBody(required = false) Map<String, String> parameters) {
     return customDashboardTenantService.homeDashboardAverage(tenantId, widgetId, parameters);
   }
 
@@ -144,10 +144,10 @@ public class TenantSettingsApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget series")
   public List<EsSeries> homeDashboardSeries(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters,
-      TxCtx ctx) {
+      @RequestBody(required = false) Map<String, String> parameters) {
     return customDashboardTenantService.homeDashboardSeries(tenantId, widgetId, parameters);
   }
 
@@ -157,10 +157,10 @@ public class TenantSettingsApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget entities")
   public EsEntities homeDashboardEntities(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
-      @RequestBody(required = false) EntitiesPaginationInput input,
-      TxCtx ctx) {
+      @RequestBody(required = false) EntitiesPaginationInput input) {
     return customDashboardTenantService.homeDashboardEntities(tenantId, widgetId, input);
   }
 
@@ -170,10 +170,10 @@ public class TenantSettingsApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget entities runtime")
   public WidgetToEntitiesOutput homeWidgetToEntitiesRuntime(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
-      @Valid @RequestBody WidgetToEntitiesInput input,
-      TxCtx ctx) {
+      @Valid @RequestBody WidgetToEntitiesInput input) {
     return customDashboardTenantService.homeDashboardEntitiesRuntime(tenantId, widgetId, input);
   }
 
@@ -183,10 +183,10 @@ public class TenantSettingsApi extends RestBehavior {
   @LogExecutionTime
   @Operation(summary = "Get tenant home dashboard widget attack paths")
   public List<EsAttackPath> homeDashboardAttackPaths(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable final String widgetId,
-      @RequestBody(required = false) Map<String, String> parameters,
-      TxCtx ctx)
+      @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {
     return customDashboardTenantService.homeDashboardAttackPaths(tenantId, widgetId, parameters);
   }

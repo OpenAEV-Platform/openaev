@@ -53,7 +53,7 @@ public class TenantUserApi extends RestBehavior {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
-  public UserOutput create(@Valid @RequestBody UserInput input, TxCtx ctx) {
+  public UserOutput create(TxCtx ctx, @Valid @RequestBody UserInput input) {
     return tenantUserService.createOrAttach(input);
   }
 
@@ -74,7 +74,7 @@ public class TenantUserApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
   @PostMapping("/find")
   @Transactional
-  public List<UserOutput> find(@RequestBody @Valid @NotNull final List<String> userIds, TxCtx ctx) {
+  public List<UserOutput> find(TxCtx ctx, @RequestBody @Valid @NotNull final List<String> userIds) {
     return tenantUserService.find(userIds);
   }
 
@@ -94,7 +94,7 @@ public class TenantUserApi extends RestBehavior {
   @PostMapping("/search")
   @Transactional
   public Page<UserOutput> search(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return tenantUserService.search(searchPaginationInput);
   }
 
@@ -108,7 +108,7 @@ public class TenantUserApi extends RestBehavior {
   @PutMapping("/{userId}")
   @Transactional
   public UserOutput update(
-      @PathVariable String userId, @Valid @RequestBody UserInput input, TxCtx ctx) {
+      TxCtx ctx, @PathVariable String userId, @Valid @RequestBody UserInput input) {
     return tenantUserService.update(userId, input);
   }
 
@@ -122,7 +122,7 @@ public class TenantUserApi extends RestBehavior {
   @DeleteMapping("/{userId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void delete(@PathVariable String userId, TxCtx ctx) {
+  public void delete(TxCtx ctx, @PathVariable String userId) {
     tenantUserService.detach(userId);
   }
 }

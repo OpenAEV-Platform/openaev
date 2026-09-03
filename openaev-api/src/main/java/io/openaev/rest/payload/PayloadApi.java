@@ -48,7 +48,7 @@ public class PayloadApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
   public Page<Payload> payloads(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.payloadService.searchPayloads(searchPaginationInput);
   }
 
@@ -138,7 +138,7 @@ public class PayloadApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
   public void deprecateNonProcessedPayloadsByCollector(
-      @Valid @RequestBody PayloadsDeprecateInput input, TxCtx ctx) {
+      TxCtx ctx, @Valid @RequestBody PayloadsDeprecateInput input) {
     this.payloadService.deprecateNonProcessedPayloadsByCollector(
         input.collectorId(), input.processedPayloadExternalIds());
   }

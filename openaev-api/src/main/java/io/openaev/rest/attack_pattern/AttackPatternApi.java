@@ -60,7 +60,7 @@ public class AttackPatternApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
   public Page<AttackPattern> attackPatterns(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return buildPaginationJPA(
         this.attackPatternRepository::findAll, searchPaginationInput, AttackPattern.class);
   }
@@ -93,7 +93,7 @@ public class AttackPatternApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATTACK_PATTERN)
   @Transactional(rollbackFor = Exception.class)
   public AttackPattern createAttackPattern(
-      @Valid @RequestBody AttackPatternCreateInput input, TxCtx ctx) {
+      TxCtx ctx, @Valid @RequestBody AttackPatternCreateInput input) {
     AttackPattern attackPattern = new AttackPattern();
     attackPattern.setUpdateAttributes(input);
     attackPattern.setKillChainPhases(
@@ -139,7 +139,7 @@ public class AttackPatternApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATTACK_PATTERN)
   @Transactional(rollbackFor = Exception.class)
   public Iterable<AttackPattern> upsertAttackPatterns(
-      @Valid @RequestBody AttackPatternUpsertInput input, TxCtx ctx) {
+      TxCtx ctx, @Valid @RequestBody AttackPatternUpsertInput input) {
     List<AttackPattern> upserted = new ArrayList<>();
     List<AttackPatternCreateInput> attackPatterns = input.getAttackPatterns();
     List<AttackPatternCreateInput> patternsWithoutParent =
@@ -171,7 +171,7 @@ public class AttackPatternApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText, TxCtx ctx) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return fromIterable(
             this.attackPatternRepository.findAll(
                 byName(searchText), Sort.by(Sort.Direction.ASC, "name")))
@@ -183,7 +183,7 @@ public class AttackPatternApi extends RestBehavior {
   @PostMapping("/options")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.attackPatternRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

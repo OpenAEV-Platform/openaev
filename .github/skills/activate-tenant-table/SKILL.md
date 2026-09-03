@@ -92,6 +92,35 @@ incident. Do not trade them away to make a test pass.
    (`git log --oneline --follow --all -- <path>`). Never substitute an
    invented pattern for a missing reference.
 
+## Baseline: controller entrypoints already carry `TxCtx`
+
+Every `@Transactional` method under `io.openaev.api/**` and
+`io.openaev.rest/**` already declares a bare `TxCtx ctx` parameter, added in
+one pass across every already-`@Transactional` controller endpoint in the
+codebase. This is safe by construction — a `TxCtx` parameter is inert until
+the table it touches is added to `active-tables` — and it changes what a
+single-table activation needs to do:
+
+- **Phase 1 no longer hunts for missing `TxCtx` on controller entrypoints.**
+  That search (the biggest source of the regressions cited throughout this
+  skill — #6409, #6410, #7026, #7605/#7621) is done, once, for the whole
+  codebase. Phase 1 is now scoped to what the blanket wiring does NOT cover:
+  background paths (Phase 5b), non-`@Transactional` handlers, native/raw SQL
+  shapes, and OSIV/lazy-serialization sinks (Phase 3b) — a `TxCtx` parameter
+  on a method signature does not by itself fix a lazy association or computed
+  getter resolved by Jackson AFTER the transaction has already closed.
+- **This is a point-in-time fact, not a self-enforcing invariant**, until a
+  codebase-wide ArchUnit rule requires `TxCtx` on every `@Transactional`
+  controller method (tracked as a follow-up). A NEW controller endpoint added
+  after this baseline, or one that was not yet `@Transactional` at the time,
+  may still be missing it — spot-check the entrypoints this activation
+  actually needs (Phase 1) rather than assuming.
+- **Phase 5's `TX_SCOPED_ENTRYPOINTS` registration is now mostly
+  documentation and drift-detection, not discovery.** Most entries you would
+  have added by hand already exist; add a new one only for a genuinely new
+  gap (a Phase 3b force-initialize fix, a handler that just became
+  `@Transactional`, or a converted background path).
+
 ## Procedure
 
 ### Phase 0 — Eligibility gate (stop conditions)
@@ -187,11 +216,30 @@ discussion)>
 The evidence rule (hard rule 8) applies here too: quote the actual grep
 output or file lines behind each gate verdict, do not paraphrase them.
 
-### Phase 1 — Inventory every code path that touches the table
+### Phase 1 — Inventory what the mass `TxCtx` wiring does NOT already cover
 
-The table does not belong to one API. Any `@Transactional` path that reads it
-without a `TxCtx` gets no scope once the table is active, and no scope means
-zero rows, silently.
+Because of the baseline above, Phase 1 no longer hunts for missing `TxCtx` on
+controller entrypoints. It is still fully required for everything the
+blanket wiring cannot fix by construction:
+
+1. **Background paths** (scheduler jobs, queue consumers, startup runners,
+   `@Async` tasks) — untouched by the mass wiring, since none of it is a
+   `@RestController`. Every writer found here is a Phase 5b conversion; every
+   reader is a documented degradation (Phase 0) or gets an explicit scope.
+2. **Non-`@Transactional` handlers.** The aspect only fires on `@Transactional`
+   methods, so a handler that wasn't `@Transactional` at baseline time was
+   correctly left untouched. If its call graph reaches `{table}`, make it
+   `@Transactional` and add `TxCtx` now (Phase 2).
+3. **OSIV / lazy-serialization sinks (Phase 3b).** A `TxCtx` parameter on an
+   entrypoint's signature does not fix a lazy association or computed getter
+   resolved by Jackson AFTER the transaction (and its GUC) has already ended.
+   Phase 3b is unaffected by the baseline and remains mandatory.
+4. **Native/raw SQL shapes** that `JOIN {table}` — orthogonal to `TxCtx`
+   entirely, since the inspector inspects SQL text, not method signatures.
+5. **Drift since the baseline.** A controller method added, or made
+   `@Transactional`, after the mass-wiring PR may still be missing `TxCtx`.
+   Spot-check the entrypoints this activation actually needs rather than
+   assuming full coverage.
 
 ```bash
 grep -rln "{EntityRepository}" openaev-api/src/main/java openaev-model/src/main/java
@@ -202,190 +250,82 @@ The table-name grep matches string literals too (e.g. "apply mitigations"
 inside seeded CVE descriptions). Read each hit before classifying it; a
 textual match is not a code path.
 
-Write down every hit and classify it:
-- the table's own API and service → wired in Phases 3-4
-- another API or service that reads the table → needs `TxCtx` too (Phase 5).
-  The pilot found two: `ScenarioImportApi` and `ExerciseImportApi` both look up
-  an import mapper.
+Classify every hit:
+- the table's own API and service → verified in Phase 2 (should already carry
+  `TxCtx`; wire it only if genuinely missing)
+- another API or service that reads the table → verify it already carries
+  `TxCtx` (Phase 5 is now mostly a confirmation, not new wiring)
 - background reader → documented degradation (Phase 0), or give it a scope too
   (wrap its read in `tenantTx.execute(scope, …)`) if it must keep seeing rows
 - background writer → convert to the primitive in Phase 5b. If you are not
   converting it in this run, it is a blocker: stop and report (Phase 0)
 
-**Walk the FULL transitive closure of callers, not just one hop.** A single
-hop only finds direct callers of the repository. It misses the case where the
-repository sits behind a shared utility (`InjectUtils.resolveInjector`,
-`CollectorService.getCollectorRelationsId`, ...) that is itself called from
-several unrelated controllers through several unrelated services — each of
-those is a separate hop, and a one-hop walk stops at the first layer. This is
-exactly the gap that let `injectors` ship without `AtomicTestingApi` wired
-(#7026-class): the inventory found `InjectorRepository` used by
-`InjectUtils.resolveInjector`, walked one hop to its callers, and stopped at
-the ones already expected (`InjectService`, `SimulationInjectApi`) — a SECOND
-independent caller two hops away, `AtomicTestingService.createOrUpdate`
-(parallel implementation, not routed through `InjectService`), was never
-visited because nothing re-ran the caller-search on `InjectUtils` itself as a
-newly flagged symbol.
+**Still walk the transitive closure of callers — but now for background
+paths, association/computed-getter sinks, and other non-controller code, not
+for missing `TxCtx` on REST entrypoints.** A single hop only finds direct
+callers of the repository; it misses a shared utility
+(`InjectUtils.resolveInjector`, `CollectorService.getCollectorRelationsId`,
+...) called from several unrelated places, each a separate hop. Most of the
+historical regressions this walk used to catch were exactly "a REST
+controller sibling was never re-grepped once one caller looked wired" — the
+`injectors` #7026-class gap (`AtomicTestingService.createOrUpdate`, a second,
+never-visited caller of `InjectUtils.resolveInjector` two hops from
+`InjectService`), the `executors` #6409 gap (`ExerciseApi#changeExerciseStatus`,
+a third, unenumerated caller of `throwIfExerciseNotLaunchable`), and the
+`injectors` #6410 gap (`ThreatArsenalApi`'s sibling callers of
+`InjectorContractService.searchInjectorContracts`, never re-grepped once
+`InjectorContractApi#injectorContracts` looked done) were all controller
+entrypoints missing `TxCtx` — the exact failure mode the baseline now
+prevents by construction. The risk that remains is the OTHER shape: a shared
+symbol whose new caller is NOT a `@Transactional` controller method, so the
+baseline never touched it:
 
-Treat this as a worklist/BFS over caller edges, not a fixed one-hop lookup:
+- `collectors` (#7026): `SecurityPlatform#collectors`, a lazy association
+  serialized by a custom serializer AFTER the transaction returned — no
+  amount of `TxCtx` on the controller method fixes this; it needs a
+  force-initialize inside the transaction (Phase 3b).
+- a background job, queue consumer, or startup task calling the same shared
+  utility — invisible to the baseline entirely, and a Phase 5b conversion if
+  it writes, a documented degradation or explicit scope if it only reads.
+- a DEPRECATED controller sharing the same service as an already-wired one
+  (the cwes activation had to wire `CveApi`, deprecated since 1.19, still
+  deployed, alongside `VulnerabilityApi`) — this one IS a REST entrypoint, so
+  it should already carry `TxCtx` per the baseline; treat a miss here as
+  baseline drift to fix directly, not as a new discovery to wire by hand.
 
-```bash
-# 1.0 Seed the worklist with every accessor method the repository exposes
-#     that a caller could invoke to reach {table} (repository method names,
-#     the entity's association accessors, and any shared utility already
-#     found wrapping the repository, e.g. resolveInjector).
-seeds=("findByInjectorId" "resolveInjector" "getConnectorRelationsId")  # adapt per table
+The point of the BFS is no longer REST controllers — it's finding the
+NON-controller leaves the baseline cannot reach. Use a worklist/BFS over
+caller edges (an IDE's "Find Usages"/"Call Hierarchy" or a code-intelligence
+tool, if available, is more reliable than chained greps; fall back to
+`grep -rn "\.{symbol}("` per newly found symbol otherwise) and keep expanding
+each newly found caller until it resolves to one of two outcomes:
+- a `@RestController` `@Transactional` method → a cheap, immediate stop: it
+  already carries `TxCtx` per the baseline, nothing to do. This is the ONLY
+  leaf type the walk can skip without further action.
+- anything else — a `@RestController` method that is NOT `@Transactional`, a
+  `@Scheduled`/`@RabbitListener`/background entrypoint, or a lazy/computed
+  serialization sink — is real work: Phase 2 (make it `@Transactional`),
+  Phase 5b (convert the background writer), or Phase 3b (force-initialize the
+  sink) respectively.
 
-visited=()
-frontier=("${seeds[@]}")
-
-while [ "${#frontier[@]}" -gt 0 ]; do
-  next=()
-  for symbol in "${frontier[@]}"; do
-    # every call site of this symbol, anywhere in main code
-    hits=$(grep -rln "\.${symbol}(\|${symbol}(" \
-      openaev-api/src/main/java openaev-model/src/main/java --include="*.java")
-    for file in $hits; do
-      # extract the enclosing method name(s) in this file that contain a call
-      # to $symbol - read the file, do not trust this blindly, grep only
-      # narrows candidates
-      methods=$(grep -B40 "\.${symbol}(\|${symbol}(" "$file" \
-        | grep -oE '(public|private|protected)[^(]*\s([a-zA-Z0-9_]+)\(' \
-        | grep -oE '[a-zA-Z0-9_]+\(' | tail -1 | tr -d '(')
-      for m in $methods; do
-        if [[ ! " ${visited[*]} " =~ " ${m} " ]]; then
-          visited+=("$m")
-          next+=("$m")
-        fi
-      done
-    done
-  done
-  frontier=("${next[@]}")
-done
-echo "Transitive callers found: ${visited[*]}"
-```
-
-This is a heuristic, not a real call graph (the enclosing-method extraction is
-approximate and multi-method files need manual review) — treat its output as
-candidates to READ, not as ground truth. If a proper call-hierarchy tool is
-available (an IDE's "Find Usages"/"Call Hierarchy", a language server, or a
-code-intelligence tool in this environment), prefer it over the grep worklist
-and use it recursively on every newly found method until the frontier is
-empty. The point is the STOPPING RULE, not the tool: stop only when every leaf
-in the closure is a real entrypoint (a `@RequestMapping` controller method, a
-`@Scheduled`/`@RabbitListener` background entrypoint, or a public API of a
-module you are not touching) — never stop at "a service I already expected to
-see," which is exactly the trap that hid `AtomicTestingService`.
-
-**Explicitly hunt for parallel/sibling implementations.** The recurring
-pattern behind these misses is two independent services doing the same
-conceptual operation on the same entity: `AtomicTestingService.createOrUpdate`
-duplicates what `InjectService` does for scenario/simulation injects;
-`AbstractConnectorService.getConnectorRelationsId` has a near-identical
-sibling in `CollectorService.getCollectorRelationsId`. Neither grep (name nor
-one-hop caller) reliably surfaces the sibling, because they are different
-classes with different method names calling the same shared utility or
-repository. After the transitive closure above, explicitly search for other
-services that plausibly do the same kind of operation on the entity that owns
-{table}'s data (e.g. `grep -rln "class.*Service" openaev-api/src/main/java
---include="*.java" | xargs grep -l "{Entity}\b"` and read each one, not just
-the one the greps already flagged) and confirm each either shares the wired
-code path or gets its own `TxCtx`. This is also where DEPRECATED controllers
-hide: the cwes activation had to wire `CveApi` (deprecated since 1.19, still
-deployed, same `VulnerabilityService` underneath) alongside
-`VulnerabilityApi`; neither grep sees it because it only references the
-service. A deprecated controller that still ships is a live path.
-
-**Walk shared gates up to every entrypoint, not just one hop.** A helper or
-service method shared by several controllers (a launch gate, a mapper, a
-projection builder, a search/query method, ...) can have more callers than the
-ones you happened to notice. Stopping at the first caller is the #7188-class
-regression: the executors activation (#6409) found
-`ExerciseService.throwIfExerciseNotLaunchable`'s callers `updateExerciseStart`
-and `deprecatedUpdateExerciseStart` and wired `TxCtx` on both, but
-`ExerciseApi#changeExerciseStatus` — a third, equally direct caller of the
-exact same gate — was never enumerated and shipped with the tenant-scope gap
-undetected. Every intermediate method found this way becomes its own grep
-target, repeated until every hit is a real entrypoint (`@RestController`
-method, `@Scheduled`/`@RabbitListener`, ...).
-
-The same failure shipped again on the `injectors` activation (#6410): the
-inventory found `InjectorContractService.searchInjectorContracts` used by
-`InjectorContractApi#injectorContracts` (its `/injector_contracts/search`
-endpoint), wired `TxCtx` there, added it to `TX_SCOPED_ENTRYPOINTS`, and
-STOPPED — treating the shared service method as "done" because ONE caller was
-now covered. `ThreatArsenalApi#threatArsenals` / `#threatArsenalsNonTabletop`
-/ `#threatArsenal` are three independent, sibling controller methods calling
-that identical shared `InjectorContractService` search/association code
-(`injectorContract.getInjectorType()` → `getFirstInjector()` joins the
-activated `injectors` table exactly like the search projection does), and none
-were ever grepped for because nothing re-ran the caller-search on
-`InjectorContractService.searchInjectorContracts` (or on
-`InjectorContract#getInjectorType`/`getFirstInjector`) as its own symbol once
-it was flagged as shared. The bug shipped silently (200 OK,
-`injector_contract_injector_type: null`) and surfaced weeks later as a
-frontend regression (Threat Arsenal "Update" wrongly disabled), not as a test
-failure — the same silent-empty-join shape as #7026/#7007.
-
-**This is why "repeated until every hit is a real entrypoint" is a hard
-stopping rule, not a suggestion to use best judgment on when to stop.**
-Concretely, for EVERY shared method (helper gate OR service method) found
-while walking the closure:
-
-1. Grep every call site of that exact method name, codebase-wide — not just
-   in the file/package you were already looking at.
-2. For each call site, walk up to its enclosing method.
-3. If that enclosing method is ALREADY a `@RestController`
-   endpoint/`@Scheduled`/`@RabbitListener` entrypoint, it is a leaf: pin it in
-   `TX_SCOPED_ENTRYPOINTS` (or classify it as a background path, Phase 5b).
-4. If it is NOT yet a real entrypoint (another shared helper/service method),
-   treat IT as a newly found shared method and go back to step 1 for it too.
-5. Do this even after you have already wired and tested one caller — finding
-   and fixing the first caller is not a signal to stop, it is the signal that
-   THIS symbol is shared and every other caller must now be enumerated.
-
-```bash
-# for EVERY shared method discovered while walking up (not just the first one
-# found, and not just the first one you fixed) - repeat until the hit list is
-# only entrypoints
-grep -rn "\.{sharedMethodName}(" openaev-api/src/main/java --include="*.java"
-```
-
-When a shared gate or service method has N callers, count them: N entrypoints
-in the inventory must produce N `TxCtx` additions (or N documented exceptions)
-— a gate or service method found with only "the callers I happened to notice"
-is not a complete inventory. Before closing Phase 1/3b, re-run the grep above
-on every shared symbol you touched in this activation, one last time, and
-confirm the hit count still matches the entrypoint count in your report.
-
-**Hunt every association accessor, whether or not the table has its own API.**
-An association load (`entity.get{Entities}()`) bypasses the repository
-entirely, so neither the repository grep nor the table-name grep sees it.
-This applies in two shapes:
-- the table has NO API of its own and is reached only through another
-  aggregate's association (the cwes model: only `Vulnerability`'s
-  `@ManyToMany` reaches it);
-- the table HAS its own API, but a separate, unrelated aggregate also holds an
-  eager or lazy reference to it. Having an own API and being reached through
-  another aggregate's association are independent facts — the executors table
-  has `ExecutorApi`, yet `Agent.getExecutor()` (an EAGER `@ManyToOne`, read by
-  `EnterpriseEditionService.detectEEExecutors` several calls away from any
-  executor-specific code) was the exact path that broke.
-
-Find every owning entity and every caller of its accessor, then confirm each
-caller either runs inside an already-scoped transaction or gets its own
-`TxCtx`:
-
-```bash
-# every entity field of type {Entity} (or a collection of it), anywhere in the model
-grep -rln "private {Entity} \|private List<{Entity}>\|private Set<{Entity}>" openaev-model/src/main/java --include="*.java"
-# then, for each owning entity found, every caller of its accessor
-grep -rn "\.get{Entity}()\|\.get{Entities}()" openaev-api/src/main/java openaev-model/src/main/java --include="*.java"
-```
+Never stop at "a service I already expected to see" — that is exactly the
+trap that hid `AtomicTestingService.createOrUpdate` and `SecurityPlatform`'s
+collectors association above. For every shared helper or service method
+found while walking, grep every call site of that exact method name
+codebase-wide, walk each one up to its enclosing method, and repeat until
+every hit is a real entrypoint. Finding and fixing the first caller is a
+signal that the symbol is shared, never a signal to stop.
 
 Also list child tables (FKs pointing at `{table}`). A child without its own
 `tenant_id` rides along with the parent and is NOT added to `active-tables`.
 A child with its own `tenant_id` is a separate activation; report it.
+
+**Association and computed-getter accessors** (`entity.get{Entities}()`, or a
+computed `@JsonProperty` getter deriving a scalar from `{table}`) bypass the
+repository grep entirely and are NOT fixed by the mass `TxCtx` wiring even
+when their controller already carries the parameter — this is exactly the
+OSIV timing problem above. Do the full scan in Phase 3b now; do not defer it
+or duplicate it here.
 
 **Native query shape scan (#7007).** Activating `{table}` does not just gate
 the queries that read `{table}` itself — it pulls into the fail-closed
@@ -428,43 +368,51 @@ tests never exercise the rewriter for `{table}` and cannot catch this class
 of regression — `TenantStatementInspectorTest` (constructed directly with
 `{table}` in its active-table set) is the only test layer that does.
 
-**Test compatibility scan.** Adding a `TxCtx` parameter to an endpoint breaks
-tests that the repository grep misses. Three failure modes exist:
-
-1. A `standaloneSetup` or `@WebMvcTest` MockMvc test hitting the URL → 500
-   (`No primary or single unique constructor found for interface TxCtx`)
-   because the test has no `TxCtxArgumentResolver`.
-2. A test calling the controller method directly in Java → compile error
-   (missing argument).
-3. A test relying on the v1 `@Filter` you remove at go-live: any test that
-   calls `session.enableFilter("tenantFilter")` (or otherwise counts on
-   implicit filtering) and then asserts a `findAll()`-style read on the entity
-   silently changes meaning — once the filter is gone and the test context
-   keeps the allowlist empty, the read returns EVERY tenant's rows. Found on
-   the cwes activation: `TenantServiceTest` expected 7 cwes and saw 14. Fix by
-   asserting on explicit attribution instead
-   (`.filteredOn(e -> tenantId.equals(e.getTenant().getId()))`), never by
-   re-adding the filter.
-
-Scan for all three:
+**Test compatibility scan — now scoped to genuinely NEW wiring only.** The
+mass-wiring baseline already fixed every test broken by adding a `TxCtx`
+parameter to an already-`@Transactional` controller method (`standaloneSetup`/
+`@WebMvcTest` MockMvc tests missing a `TxCtxArgumentResolver`, direct Java
+calls to the controller method missing the argument). This scan is needed
+only for an entrypoint THIS activation newly makes `@Transactional` (item 2
+above), and for the v1-filter case, which is unaffected by the baseline: any
+test that calls `session.enableFilter("tenantFilter")` and then asserts a
+`findAll()`-style read on the entity silently changes meaning once the filter
+is removed at go-live and the test context keeps the allowlist empty — the
+read returns EVERY tenant's rows. Found on the cwes activation:
+`TenantServiceTest` expected 7 cwes and saw 14.
 
 ```bash
-# 1.1 standaloneSetup tests that hit the API's URL patterns
-grep -rln "standaloneSetup" openaev-api/src/test/java | xargs grep -l "{Api}\|/{entities}"
-
-# 1.2 direct Java calls to the API class
-grep -rn "{Api}" openaev-api/src/test/java --include="*.java"
-
-# 1.3 tests relying on the v1 filter over the entity you are activating
+# tests relying on the v1 filter over the entity you are activating
 grep -rln 'enableFilter("tenantFilter")' openaev-api/src/test/java | xargs grep -l "{EntityRepository}\|{Entity}"
 ```
 
-Fix: register the resolver on the standalone builder
-(`.setCustomArgumentResolvers(new TxCtxTestArgumentResolver(...))`) or migrate
-to the full-context `IntegrationTest` base class; add the `TxCtx` arg to
-direct calls. List every affected test file in the inventory.
+Fix by asserting on explicit attribution instead
+(`.filteredOn(e -> tenantId.equals(e.getTenant().getId()))`), never by
+re-adding the filter. If item 2 above did convert a handler to
+`@Transactional` for the first time, also register the
+`TxCtxArgumentResolver` on any `standaloneSetup` test hitting that URL (or
+migrate it to the full-context `IntegrationTest` base class) and add the
+`TxCtx` arg to any direct Java call to that method.
 
 ### Phase 2 — RED: write the HTTP isolation test first
+
+**Before writing the test, map the controller on both URIs** — this is a
+structural, per-table change the `TxCtx` baseline does not touch:
+`@RequestMapping({{Api}.URI, {Api}.TENANT_URI})` with
+`TENANT_URI = TenantUriUtils.TENANT_PREFIX + "/..."`. Without both mappings
+the tenant-path assertions below have no route to hit.
+
+Per the baseline, every already-`@Transactional` handler on `{Api}` should
+already declare `TxCtx ctx`; confirm it while you're in the file rather than
+assuming it (baseline drift, or a handler just made `@Transactional` in
+Phase 1 item 2, are the two ways it can be missing). The aspect only fires on
+`@Transactional` methods — a `TxCtx` parameter without the annotation is
+silently ignored and the endpoint stays fail-closed, so if a handler that
+touches the table isn't `@Transactional`, make it so and add `TxCtx ctx` with
+the pilot's one-line comment explaining the parameter (so a reviewer doesn't
+delete the "unused" argument). A handler that provably never touches the
+table (works on other tables, or on transient objects never persisted) needs
+neither.
 
 Model: `openaev-api/src/test/java/io/openaev/rest/mapper/ImportMapperHttpIsolationTest.java`.
 If the table has NO API of its own and is reached through another aggregate's
@@ -554,24 +502,10 @@ and returns nothing. `@Disabled` that one test with a comment saying exactly
 that, referencing the go-live phase. This is the ONE allowed `@Disabled`, and
 Phase 6 removes it.
 
-### Phase 3 — GREEN: wire `TxCtx` on the table's own API (reads)
-
-Model: `openaev-api/src/main/java/io/openaev/rest/mapper/MapperApi.java`.
-
-- Map the controller on both URIs:
-  `@RequestMapping({{Api}.URI, {Api}.TENANT_URI})` with
-  `TENANT_URI = TenantUriUtils.TENANT_PREFIX + "/..."`.
-- Add a `TxCtx ctx` parameter to every handler whose transaction reads or
-  writes the table. The handler body does not use it; the transaction aspect
-  does. Copy the pilot's one-line comment explaining that, so a reviewer does
-  not delete the "unused" parameter.
-- The aspect only fires on `@Transactional` methods. If a handler is not
-  `@Transactional`, make it so; a `TxCtx` parameter without the annotation is
-  silently ignored and the endpoint stays fail-closed.
-- A handler that provably never touches the table (works on other tables, or
-  on transient objects never persisted) does not need one. When in doubt, wire it.
-
-Re-run the test class after each endpoint. Read tests go green one by one.
+**GREEN.** Model: `openaev-api/src/main/java/io/openaev/rest/mapper/MapperApi.java`.
+Re-run the test class after each endpoint. Read tests go green one by one —
+confirming a handler's `TxCtx` was already there (baseline) or adding it
+(genuine gap) is the only production change needed to turn a read test green.
 Do not move to writes until all reads are green.
 
 ### Phase 3b — Every direct or indirect link to the table, everywhere
@@ -830,8 +764,10 @@ Re-run: create/import/upsert tests green, including "no selector → 400".
 
 ### Phase 5 — Other paths from the inventory
 
-For every other API or service found in Phase 1 that reads the table:
-- add a `TxCtx` parameter on its `@Transactional` entrypoint
+For every other API or service found in Phase 1 that reads the table: per
+the baseline, its `@Transactional` entrypoint should already carry `TxCtx` —
+confirm it, and only add the parameter if it is genuinely missing (baseline
+drift, or a handler newly made `@Transactional`). Then:
 - add an isolation test proving the cross-tenant case through that path.
   Models: `openaev-api/src/test/java/io/openaev/rest/scenario/ScenarioImportApiTenantIsolationTest.java`
   and `openaev-api/src/test/java/io/openaev/rest/exercise/ExerciseImportApiTenantIsolationTest.java`.
@@ -1259,14 +1195,18 @@ Before marking the issue done, write down:
       Phase 5b or reported as blockers), stop conditions reported if hit
 - [ ] unique constraints on business keys include tenant_id, or a prep
       migration was done first (own reviewed change)
-- [ ] inventory complete; every reader classified; redone before go-live
-- [ ] call graph walked to every `@RestController` entrypoint (not one hop):
-      for each shared gate/helper/service method found along the way, its full
-      caller list was grepped and the count of `TxCtx` additions matches the
-      count of callers found; the caller-search was RE-RUN on that symbol even
-      after the first caller was wired and tested, not just the first time it
-      was seen (#6409 regression: `changeExerciseStatus` was a third, unwired
-      caller of `throwIfExerciseNotLaunchable` missed this way; #6410
+- [ ] inventory complete for what the mass `TxCtx` baseline does not cover:
+      background paths, non-`@Transactional` handlers, native/raw SQL shapes,
+      and association/computed-getter sinks; redone before go-live
+- [ ] controller entrypoints this activation touches were spot-checked for
+      `TxCtx` (should already be present per baseline — a miss means baseline
+      drift, fix it here rather than assuming); for each shared gate/helper/
+      service method found while walking the closure, its full caller list was
+      grepped and every non-baseline-covered caller (background path, OSIV
+      sink) got its Phase 3b/5b treatment — the caller-search was RE-RUN on
+      that symbol even after the first caller looked done, not just the first
+      time it was seen (#6409 regression: `changeExerciseStatus` was a third,
+      unwired caller of `throwIfExerciseNotLaunchable` missed this way; #6410
       regression: `ThreatArsenalApi#threatArsenals` / `#threatArsenalsNonTabletop`
       / `#threatArsenal` were three sibling callers of the same
       `InjectorContractService` search/association code already wired for

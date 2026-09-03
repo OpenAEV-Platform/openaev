@@ -142,10 +142,10 @@ public class MapperApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.MAPPER)
   @LogExecutionTime
   public void exportMappersCsv(
+      TxCtx ctx,
       @RequestParam CsvType csvType,
       @RequestBody @Valid final SearchPaginationInput input,
-      HttpServletResponse response,
-      TxCtx ctx) {
+      HttpServletResponse response) {
     mapperService.exportMappersCsv(csvType, input, response);
   }
 
@@ -211,7 +211,7 @@ public class MapperApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Import injects into an xls file")
   public ImportPostSummary importXLSFile(
-      @RequestPart("file") @NotNull MultipartFile file, TxCtx ctx) {
+      TxCtx ctx, @RequestPart("file") @NotNull MultipartFile file) {
     validateUploadedFile(file);
     return injectImportService.storeXlsFileForImport(file);
   }
@@ -254,7 +254,7 @@ public class MapperApi extends RestBehavior {
   @LogExecutionTime
   @Transactional(rollbackFor = Exception.class)
   public void importEndpoints(
-      @RequestParam CsvType csvType, @RequestPart("file") @NotNull MultipartFile file, TxCtx ctx)
+      TxCtx ctx, @RequestParam CsvType csvType, @RequestPart("file") @NotNull MultipartFile file)
       throws Exception {
     mapperService.importMappersCsv(file, csvType);
   }

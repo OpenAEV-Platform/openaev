@@ -89,7 +89,7 @@ public class NotificationTriggerApi {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Trigger created")})
   public NotificationTriggerOutput createNotificationTrigger(
-      @Valid @RequestBody final NotificationTriggerInput input, TxCtx ctx) {
+      TxCtx ctx, @Valid @RequestBody final NotificationTriggerInput input) {
     return notificationTriggerMapper.toNotificationTriggerOutput(
         notificationTriggerService.create(notificationTriggerMapper.toNotificationTrigger(input)));
   }

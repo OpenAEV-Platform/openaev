@@ -39,7 +39,7 @@ public class PlatformUserApi {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
-  public UserOutput create(@Valid @RequestBody UserInput input, TxCtx ctx) {
+  public UserOutput create(TxCtx ctx, @Valid @RequestBody UserInput input) {
     return toPlatformOutput(userService.createUser(input, UserCreationScope.PLATFORM));
   }
 
@@ -67,7 +67,7 @@ public class PlatformUserApi {
   @PostMapping("/search")
   @Transactional
   public Page<UserOutput> search(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return userService.search(searchPaginationInput);
   }
 
@@ -78,7 +78,7 @@ public class PlatformUserApi {
       isEnterpriseEdition = true)
   @PostMapping("/find")
   @Transactional
-  public List<UserOutput> find(@RequestBody @Valid @NotNull final List<String> userIds, TxCtx ctx) {
+  public List<UserOutput> find(TxCtx ctx, @RequestBody @Valid @NotNull final List<String> userIds) {
     return userService.find(userIds).stream().map(UserMapper::toPlatformOutput).toList();
   }
 
@@ -93,7 +93,7 @@ public class PlatformUserApi {
   @PutMapping("/{userId}")
   @Transactional
   public UserOutput update(
-      @PathVariable String userId, @Valid @RequestBody UserInput input, TxCtx ctx) {
+      TxCtx ctx, @PathVariable String userId, @Valid @RequestBody UserInput input) {
     return toPlatformOutput(userService.updateUser(userId, input));
   }
 
@@ -108,7 +108,7 @@ public class PlatformUserApi {
   @DeleteMapping("/{userId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void delete(@PathVariable String userId, TxCtx ctx) {
+  public void delete(TxCtx ctx, @PathVariable String userId) {
     userService.delete(userId);
   }
 }

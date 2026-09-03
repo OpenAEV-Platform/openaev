@@ -100,7 +100,7 @@ public class ScenarioApi extends RestBehavior {
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
-  public Scenario createScenario(@Valid @RequestBody final ScenarioInput input, TxCtx ctx) {
+  public Scenario createScenario(TxCtx ctx, @Valid @RequestBody final ScenarioInput input) {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
     }
@@ -206,7 +206,7 @@ public class ScenarioApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public Page<RawPaginationScenario> scenarios(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.scenarioService.scenarios(searchPaginationInput);
   }
 
@@ -586,7 +586,7 @@ public class ScenarioApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText, TxCtx ctx) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return fromIterable(
             this.scenarioRepository.findAll(
                 byName(searchText), Sort.by(Sort.Direction.ASC, "name")))
@@ -598,7 +598,7 @@ public class ScenarioApi extends RestBehavior {
   @PostMapping({SCENARIO_URI + "/options", TENANT_SCENARIO_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.scenarioRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
@@ -608,7 +608,7 @@ public class ScenarioApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> categoryOptionsByName(
-      @RequestParam(required = false) final String searchText, TxCtx ctx) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return this.scenarioRepository
         .findDistinctCategoriesBySearchTerm(searchText, PageRequest.of(0, 10))
         .stream()

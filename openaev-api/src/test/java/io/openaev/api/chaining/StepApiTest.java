@@ -8,6 +8,7 @@ import static org.mockito.Mockito.*;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.chaining.StepService;
@@ -43,7 +44,7 @@ class StepApiTest {
         .thenReturn(created);
 
     // Act
-    StepOutput result = stepApi.createStep(input);
+    StepOutput result = stepApi.createStep(TxCtx.missing(), input);
 
     // Assert
     assertNotNull(result);
@@ -94,7 +95,7 @@ class StepApiTest {
         .thenReturn(step("s-1", 9, StepStatus.TEMPLATE, "{\"updated\":true}"));
 
     // Act
-    StepOutput result = stepApi.updateStep("s-1", input);
+    StepOutput result = stepApi.updateStep(TxCtx.missing(), "s-1", input);
 
     // Assert
     assertNotNull(result);
@@ -105,7 +106,7 @@ class StepApiTest {
   @Test
   void given_stepId_should_deleteStep() {
     // Act
-    stepApi.deleteStep("s-del");
+    stepApi.deleteStep(TxCtx.missing(), "s-del");
 
     // Assert
     verify(stepService).deleteStepTemplate("s-del");

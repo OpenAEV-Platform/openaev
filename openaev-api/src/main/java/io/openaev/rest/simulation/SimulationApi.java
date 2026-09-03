@@ -29,14 +29,14 @@ public class SimulationApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<Option> optionsByName(
-      @RequestParam(required = false) final String searchText, TxCtx ctx) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return this.simulationService.findAllAsOptions(searchText);
   }
 
   @PostMapping("/options")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
-  public List<Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
+  public List<Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return this.simulationService.findAllByIdsAsOptions(ids);
   }
 }

@@ -66,7 +66,7 @@ public class XtmOneChatApi extends RestBehavior {
   @PostMapping(XTM_ONE_URI + "/chat/sessions")
   @Transactional(propagation = Propagation.NEVER)
   public ResponseEntity<Map<String, Object>> createSession(
-      @RequestBody Map<String, Object> body, TxCtx ctx) {
+      TxCtx ctx, @RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -104,7 +104,7 @@ public class XtmOneChatApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public ResponseEntity<Void> deleteSession(@PathVariable String conversationId, TxCtx ctx) {
+  public ResponseEntity<Void> deleteSession(TxCtx ctx, @PathVariable String conversationId) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -127,7 +127,7 @@ public class XtmOneChatApi extends RestBehavior {
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<Map<String, Object>> steerMessage(
-      @RequestBody Map<String, Object> body, TxCtx ctx) {
+      TxCtx ctx, @RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -147,7 +147,7 @@ public class XtmOneChatApi extends RestBehavior {
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<Map<String, Object>> approveToolCalls(
-      @RequestBody Map<String, Object> body, TxCtx ctx) {
+      TxCtx ctx, @RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -200,7 +200,7 @@ public class XtmOneChatApi extends RestBehavior {
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<Map<String, Object>> pendingApprovals(
-      @PathVariable String conversationId, TxCtx ctx) {
+      TxCtx ctx, @PathVariable String conversationId) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -215,7 +215,7 @@ public class XtmOneChatApi extends RestBehavior {
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<StreamingResponseBody> sendMessage(
-      @RequestBody Map<String, Object> body, TxCtx ctx) {
+      TxCtx ctx, @RequestBody Map<String, Object> body) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -284,9 +284,9 @@ public class XtmOneChatApi extends RestBehavior {
   @PostMapping(path = XTM_ONE_URI + "/chat/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @Transactional(propagation = Propagation.NEVER)
   public ResponseEntity<Map<String, Object>> uploadFiles(
+      TxCtx ctx,
       @RequestParam("conversation_id") String conversationId,
-      MultipartHttpServletRequest request,
-      TxCtx ctx) {
+      MultipartHttpServletRequest request) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -326,7 +326,7 @@ public class XtmOneChatApi extends RestBehavior {
    */
   @GetMapping(XTM_ONE_URI + "/chat/files/{fileId}/download")
   @Transactional(propagation = Propagation.NEVER)
-  public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId, TxCtx ctx) {
+  public ResponseEntity<byte[]> downloadFile(TxCtx ctx, @PathVariable String fileId) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }

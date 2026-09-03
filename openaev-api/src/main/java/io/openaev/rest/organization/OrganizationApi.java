@@ -61,7 +61,7 @@ public class OrganizationApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public Page<Organization> organizations(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.organizationService.organizationPagination(searchPaginationInput);
   }
 
@@ -107,7 +107,7 @@ public class OrganizationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ORGANIZATION)
   @Transactional(rollbackFor = Exception.class)
   public Organization createOrganization(
-      @Valid @RequestBody OrganizationCreateInput input, TxCtx ctx) {
+      TxCtx ctx, @Valid @RequestBody OrganizationCreateInput input) {
     Organization organization = new Organization();
     organization.setUpdateAttributes(input);
     organization.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
@@ -164,7 +164,7 @@ public class OrganizationApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ORGANIZATION)
   public List<String> bulkDeleteOrganizations(
-      @RequestBody @Valid final OrganizationBulkProcessingInput input, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final OrganizationBulkProcessingInput input) {
     return organizationService.bulkDelete(input);
   }
 
@@ -174,7 +174,7 @@ public class OrganizationApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText, TxCtx ctx) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return fromIterable(
             this.organizationRepository.findAll(
                 byName(searchText), Sort.by(Sort.Direction.ASC, "name")))
@@ -186,7 +186,7 @@ public class OrganizationApi extends RestBehavior {
   @PostMapping({ORGANIZATION_URI + "/options", TENANT_ORGANIZATION_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ORGANIZATION)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids, TxCtx ctx) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.organizationRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

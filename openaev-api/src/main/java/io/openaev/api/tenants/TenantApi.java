@@ -37,7 +37,7 @@ public class TenantApi extends RestBehavior {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
-  public TenantOutput create(@Valid @RequestBody TenantInput input, TxCtx ctx)
+  public TenantOutput create(TxCtx ctx, @Valid @RequestBody TenantInput input)
       throws DependenciesManagerException {
     return toOutput(tenantService.create(TenantMapper.fromInput(null, input)));
   }
@@ -70,7 +70,7 @@ public class TenantApi extends RestBehavior {
   @PostMapping("/search")
   @Transactional
   public Page<TenantOutput> search(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return tenantService.search(searchPaginationInput);
   }
 
@@ -85,7 +85,7 @@ public class TenantApi extends RestBehavior {
   @PutMapping("/{tenantId}")
   @Transactional
   public TenantOutput update(
-      @PathVariable String tenantId, @Valid @RequestBody TenantInput input, TxCtx ctx) {
+      TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody TenantInput input) {
 
     return toOutput(tenantService.update(tenantId, input));
   }
@@ -102,7 +102,7 @@ public class TenantApi extends RestBehavior {
       isEnterpriseEdition = true)
   @PostMapping("/{tenantId}/reactivate")
   @Transactional
-  public TenantOutput reactivate(@PathVariable String tenantId, TxCtx ctx) {
+  public TenantOutput reactivate(TxCtx ctx, @PathVariable String tenantId) {
     return toOutput(tenantService.reactivate(tenantId));
   }
 

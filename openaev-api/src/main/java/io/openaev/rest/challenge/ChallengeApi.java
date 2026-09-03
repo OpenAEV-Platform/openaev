@@ -60,7 +60,7 @@ public class ChallengeApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.CHALLENGE)
   @Transactional(readOnly = true)
   public List<Challenge> findEndpoints(
-      @RequestBody @Valid @NotNull final List<String> challengeIds, TxCtx ctx) {
+      TxCtx ctx, @RequestBody @Valid @NotNull final List<String> challengeIds) {
     return this.challengeRepository.findAll(fromIds(challengeIds));
   }
 
@@ -102,7 +102,7 @@ public class ChallengeApi extends RestBehavior {
   @PostMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
-  public Challenge createChallenge(@Valid @RequestBody ChallengeInput input, TxCtx ctx)
+  public Challenge createChallenge(TxCtx ctx, @Valid @RequestBody ChallengeInput input)
       throws InputValidationException {
     challengeService.validateFlags(input.flags());
     Challenge challenge = new Challenge();
