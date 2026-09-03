@@ -4,6 +4,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.OrganizationRepository;
@@ -63,7 +64,8 @@ public class OrganizationService {
    * @param input the bulk processing input
    * @return the ids of the deleted organizations
    */
-  public List<String> bulkDelete(@NotNull final OrganizationBulkProcessingInput input) {
+  public List<String> bulkDelete(
+      final TxCtx ctx, @NotNull final OrganizationBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getOrganizationIdsToProcess())
             && input.getSearchPaginationInput() == null)
         || (!CollectionUtils.isEmpty(input.getOrganizationIdsToProcess())
@@ -73,6 +75,7 @@ public class OrganizationService {
     }
     List<String> organizationIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
+            ctx,
             () -> {
               Specification<Organization> specification;
               if (input.getSearchPaginationInput() != null) {
@@ -95,6 +98,7 @@ public class OrganizationService {
                   .toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
+        ctx,
         "organizations",
         organizationIdsToDelete,
         chunk -> organizationRepository.deleteAll(organizationRepository.findAllById(chunk)));

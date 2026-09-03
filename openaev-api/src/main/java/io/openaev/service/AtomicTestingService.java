@@ -8,6 +8,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
@@ -200,13 +201,14 @@ public class AtomicTestingService {
    *     progress events.
    * @return the list of deleted inject ids
    */
-  public List<String> bulkDelete(@NotNull final InjectBulkProcessingInput input) {
+  public List<String> bulkDelete(final TxCtx ctx, @NotNull final InjectBulkProcessingInput input) {
     // The generic inject specification is unrestricted when no simulation/scenario id is given:
     // constrain it to atomic testings only so a select-all can never touch simulation or scenario
     // injects.
     input.setSimulationOrScenarioId(null);
     List<String> injectIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
+            ctx,
             () -> {
               Specification<Inject> specification =
                   injectService
@@ -215,7 +217,7 @@ public class AtomicTestingService {
               return injectRepository.findAll(specification).stream().map(Inject::getId).toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
-        "atomic testings", injectIdsToDelete, injectService::deleteAllByIds);
+        ctx, "atomic testings", injectIdsToDelete, injectService::deleteAllByIds);
   }
 
   // -- ACTIONS --

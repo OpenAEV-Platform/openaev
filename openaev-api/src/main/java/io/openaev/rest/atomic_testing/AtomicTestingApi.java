@@ -144,7 +144,7 @@ public class AtomicTestingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ATOMIC_TESTING)
   public List<String> bulkDeleteAtomicTestings(
       TxCtx ctx, @RequestBody @Valid final InjectBulkProcessingInput input) {
-    return atomicTestingService.bulkDelete(input);
+    return atomicTestingService.bulkDelete(ctx, input);
   }
 
   @PostMapping("/{atomicTestingId}/duplicate")

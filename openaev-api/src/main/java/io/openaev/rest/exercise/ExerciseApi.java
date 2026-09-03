@@ -706,7 +706,7 @@ public class ExerciseApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SIMULATION)
   public List<String> bulkDeleteExercises(
       TxCtx ctx, @RequestBody @Valid final ExerciseBulkProcessingInput input) {
-    return exerciseService.bulkDelete(input);
+    return exerciseService.bulkDelete(ctx, input);
   }
 
   @GetMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})

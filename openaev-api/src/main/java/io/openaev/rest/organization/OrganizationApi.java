@@ -165,7 +165,7 @@ public class OrganizationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ORGANIZATION)
   public List<String> bulkDeleteOrganizations(
       TxCtx ctx, @RequestBody @Valid final OrganizationBulkProcessingInput input) {
-    return organizationService.bulkDelete(input);
+    return organizationService.bulkDelete(ctx, input);
   }
 
   // -- OPTION --

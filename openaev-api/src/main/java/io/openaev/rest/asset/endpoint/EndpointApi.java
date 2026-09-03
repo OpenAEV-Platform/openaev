@@ -360,7 +360,7 @@ public class EndpointApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   public List<String> bulkDeleteAssets(
       TxCtx ctx, @RequestBody @Valid final AssetBulkProcessingInput input) {
-    return this.assetService.bulkDeleteAssets(input);
+    return this.assetService.bulkDeleteAssets(ctx, input);
   }
 
   @GetMapping({ENDPOINT_URI + "/resolve", TENANT_ENDPOINT_URI + "/resolve"})

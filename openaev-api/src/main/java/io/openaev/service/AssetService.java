@@ -5,6 +5,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.asset.AssetOptionOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
 import io.openaev.database.model.AssetType;
@@ -114,7 +115,8 @@ public class AssetService {
    * @param input the bulk processing input (ids or search input, plus ids to ignore)
    * @return the ids of the deleted assets
    */
-  public List<String> bulkDeleteAssets(@NotNull final AssetBulkProcessingInput input) {
+  public List<String> bulkDeleteAssets(
+      final TxCtx ctx, @NotNull final AssetBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getAssetIdsToProcess())
             && input.getSearchPaginationInput() == null)
         || (!CollectionUtils.isEmpty(input.getAssetIdsToProcess())
@@ -124,6 +126,7 @@ public class AssetService {
     }
     List<String> assetIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
+            ctx,
             () -> {
               Specification<Asset> specification;
               if (input.getSearchPaginationInput() != null) {
@@ -154,6 +157,7 @@ public class AssetService {
               return resolveAssetIds(specification);
             });
     return bulkDeleteExecutor.deleteInChunks(
+        ctx,
         "assets",
         assetIdsToDelete,
         chunk -> this.assetRepository.deleteAll(this.assetRepository.findAllById(chunk)));

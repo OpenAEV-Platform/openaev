@@ -24,6 +24,7 @@ import io.openaev.api.url_access_token.UrlAccessTokenService;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.IndexEvent;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
@@ -598,7 +599,8 @@ public class ExerciseService {
    * @param input the bulk processing input (ids or search input, plus ids to ignore)
    * @return the list of deleted simulation ids
    */
-  public List<String> bulkDelete(@NotNull final ExerciseBulkProcessingInput input) {
+  public List<String> bulkDelete(
+      final TxCtx ctx, @NotNull final ExerciseBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getExerciseIdsToProcess())
             && input.getSearchPaginationInput() == null)
         || (!CollectionUtils.isEmpty(input.getExerciseIdsToProcess())
@@ -609,6 +611,7 @@ public class ExerciseService {
     User user = userService.currentUser();
     List<String> exerciseIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
+            ctx,
             () -> {
               Specification<Exercise> specification;
               if (input.getSearchPaginationInput() != null) {
@@ -640,7 +643,7 @@ public class ExerciseService {
                   .toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
-        "simulations", exerciseIdsToDelete, chunk -> chunk.forEach(this::deleteById));
+        ctx, "simulations", exerciseIdsToDelete, chunk -> chunk.forEach(this::deleteById));
   }
 
   // Still declares ChainingException: startWorkflowBySimulationId (chaining engine start)

@@ -173,7 +173,7 @@ public class PlayerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
   public List<String> bulkDeletePlayers(
       TxCtx ctx, @RequestBody @Valid final PlayerBulkProcessingInput input) {
-    return playerService.bulkDeletePlayers(input);
+    return playerService.bulkDeletePlayers(ctx, input);
   }
 
   // -- OPTIONS (for the shared filter autocomplete: id + display name) --

@@ -229,7 +229,7 @@ public class AssetGroupApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   public List<String> bulkDeleteAssetGroups(
       TxCtx ctx, @RequestBody @Valid final AssetGroupBulkProcessingInput input) {
-    return this.assetGroupService.bulkDeleteAssetGroups(input);
+    return this.assetGroupService.bulkDeleteAssetGroups(ctx, input);
   }
 
   // -- OPTION --
