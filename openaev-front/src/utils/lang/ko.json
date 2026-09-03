@@ -3614,7 +3614,7 @@
   "The expectations of this atomic testing no longer match the validation requirements defined by its action.": "이 아토믹 테스트의 기대치가 액션에 정의된 유효성 검사 요구 사항과 더 이상 일치하지 않습니다.",
   "The expectations of this atomic testing no longer match the validation requirements defined by its threat arsenal item.": "이 원자 테스트의 기대치가 무기고 항목에 정의된 유효성 검사 요구 사항과 더 이상 일치하지 않습니다.",
   "The generation is still running - check the report page for the result.": "The generation is still running - check the report page for the result.",
-  "The generation is taking longer than expected - its result will appear in the generations list.": "The generation is taking longer than expected - its result will appear in the generations list.",
+  "The generation is taking longer than expected - its result will appear in the generations list.": "생성에 예상보다 시간이 오래 걸리고 있습니다 - 결과는 생성 목록에 표시됩니다.",
   "The host this finding was found on, shown as its IP address and platform (operating system family). \"Unknown\" means the platform could not be determined from the data collected during the run.": "The host this finding was found on, shown as its IP address and platform (operating system family). \"Unknown\" means the platform could not be determined from the data collected during the run.",
   "The hostname your recipients will see, e.g. security.acme.com": "The hostname your recipients will see, e.g. security.acme.com",
   "The import is partial, the following actions could not be created:": "가져오기가 부분적으로 완료되었습니다. 다음 작업을 생성할 수 없습니다:",
