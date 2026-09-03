@@ -106,7 +106,7 @@ class ChallengeBehaviorTest extends IntegrationTest {
 
       // Act
       challengeBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
-          executableInject, template, null, null);
+          executableInject, template, null);
       entityManager.flush();
 
       // Assert

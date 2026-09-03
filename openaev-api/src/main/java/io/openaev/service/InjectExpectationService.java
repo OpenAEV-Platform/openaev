@@ -26,7 +26,6 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.database.specification.InjectExpectationSpecification;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.expectation.ExpectationType;
 import io.openaev.injectors.common.model.BaseInjectContent;
@@ -78,7 +77,6 @@ public class InjectExpectationService {
   private final InjectExpectationRepository injectExpectationRepository;
   private final CollectorService collectorService;
   private final SecurityPlatformRepository securityPlatformRepository;
-  @Resource private ExpectationPropertiesConfig expectationPropertiesConfig;
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final InjectExpectationLockService injectExpectationLockService;
   private final InjectService injectService;

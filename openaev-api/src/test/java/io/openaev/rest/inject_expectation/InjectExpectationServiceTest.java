@@ -1,8 +1,7 @@
 package io.openaev.rest.inject_expectation;
 
 import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
-import static io.openaev.utils.fixtures.ExpectationFixture.createDetectionExpectations;
-import static io.openaev.utils.fixtures.ExpectationFixture.createPreventionExpectations;
+import static io.openaev.utils.fixtures.ExpectationFixture.*;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -11,7 +10,6 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.expectation.Expectation;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
@@ -115,19 +113,18 @@ class InjectExpectationServiceTest extends IntegrationTest {
     Agent savedAgent = createAgent("external01");
     Inject savedInject = saveInject(savedInjectorContract);
     ExecutableInject executableInject = createExecutableInject(savedInject, emptyList());
-    List<Expectation> detectionExpectations =
-        createDetectionExpectations(
-            List.of(savedAgent), savedAsset, null, DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-    List<Expectation> preventionExpectations =
-        createPreventionExpectations(
-            List.of(savedAgent), savedAsset, null, DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-    List<Expectation> expectations =
-        java.util.stream.Stream.concat(
-                detectionExpectations.stream(), preventionExpectations.stream())
-            .toList();
+    io.openaev.model.inject.form.Expectation detectionExpectation =
+        createExpectation(
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+    detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+    io.openaev.model.inject.form.Expectation preventionExpectation =
+        createExpectation(
+            BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION, "Detection Expectation");
+    detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
 
     // -- EXECUTE --
-    injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
+    injectExpectationService.computeAndSaveExpectations(
+        executableInject, List.of(detectionExpectation, preventionExpectation), "implantType");
 
     // -- ASSERT --
     assertEquals(4, injectExpectationRepository.findAll().spliterator().getExactSizeIfKnown());
@@ -153,25 +150,18 @@ class InjectExpectationServiceTest extends IntegrationTest {
     Inject savedInject = saveInject(savedInjectorContract);
     ExecutableInject executableInject =
         createExecutableInject(savedInject, List.of(savedAssetGroup));
-    List<Expectation> detectionExpectations =
-        createDetectionExpectations(
-            List.of(savedAgent),
-            savedAsset,
-            savedAssetGroup,
-            DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-    List<Expectation> preventionExpectations =
-        createPreventionExpectations(
-            List.of(savedAgent),
-            savedAsset,
-            savedAssetGroup,
-            DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-    List<Expectation> expectations =
-        java.util.stream.Stream.concat(
-                detectionExpectations.stream(), preventionExpectations.stream())
-            .toList();
+    io.openaev.model.inject.form.Expectation detectionExpectation =
+        createExpectation(
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+    detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+    io.openaev.model.inject.form.Expectation preventionExpectation =
+        createExpectation(
+            BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION, "Detection Expectation");
+    detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
 
     // -- EXECUTE --
-    injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
+    injectExpectationService.computeAndSaveExpectations(
+        executableInject, List.of(detectionExpectation, preventionExpectation), "implantType");
 
     // -- ASSERT --
     assertEquals(6, injectExpectationRepository.findAll().spliterator().getExactSizeIfKnown());
@@ -200,25 +190,18 @@ class InjectExpectationServiceTest extends IntegrationTest {
     Agent savedAgent1 = createAgent("external02");
     Inject savedInject = saveInject(savedInjectorContract);
     ExecutableInject executableInject = createExecutableInject(savedInject, emptyList());
-    List<Expectation> detectionExpectations =
-        createDetectionExpectations(
-            List.of(savedAgent, savedAgent1),
-            savedAsset,
-            null,
-            DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-    List<Expectation> preventionExpectations =
-        createPreventionExpectations(
-            List.of(savedAgent, savedAgent1),
-            savedAsset,
-            null,
-            DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-    List<Expectation> expectations =
-        java.util.stream.Stream.concat(
-                detectionExpectations.stream(), preventionExpectations.stream())
-            .toList();
+    io.openaev.model.inject.form.Expectation detectionExpectation =
+        createExpectation(
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+    detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+    io.openaev.model.inject.form.Expectation preventionExpectation =
+        createExpectation(
+            BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION, "Detection Expectation");
+    detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
 
     // -- EXECUTE --
-    injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
+    injectExpectationService.computeAndSaveExpectations(
+        executableInject, List.of(detectionExpectation, preventionExpectation), "implantType");
 
     // -- ASSERT --
     assertEquals(6, injectExpectationRepository.findAll().spliterator().getExactSizeIfKnown());
@@ -250,25 +233,18 @@ class InjectExpectationServiceTest extends IntegrationTest {
     ExecutableInject executableInject =
         createExecutableInject(savedInject, List.of(savedAssetGroup));
 
-    List<Expectation> detectionExpectations =
-        createDetectionExpectations(
-            List.of(savedAgent, savedAgent1),
-            savedAsset,
-            savedAssetGroup,
-            DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-    List<Expectation> preventionExpectations =
-        createPreventionExpectations(
-            List.of(savedAgent, savedAgent1),
-            savedAsset,
-            savedAssetGroup,
-            DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-    List<Expectation> expectations =
-        java.util.stream.Stream.concat(
-                detectionExpectations.stream(), preventionExpectations.stream())
-            .toList();
+    io.openaev.model.inject.form.Expectation detectionExpectation =
+        createExpectation(
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+    detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+    io.openaev.model.inject.form.Expectation preventionExpectation =
+        createExpectation(
+            BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION, "Detection Expectation");
+    detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
 
     // -- EXECUTE --
-    injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
+    injectExpectationService.computeAndSaveExpectations(
+        executableInject, List.of(detectionExpectation, preventionExpectation), "implantType");
 
     // -- ASSERT --
     assertEquals(8, injectExpectationRepository.findAll().spliterator().getExactSizeIfKnown());
@@ -308,14 +284,13 @@ class InjectExpectationServiceTest extends IntegrationTest {
     Inject savedInject = saveInject(savedInjectorContract);
     ExecutableInject executableInject =
         createExecutableInject(savedInject, List.of(savedAssetGroup));
-    List<Expectation> detectionExpectations =
-        createDetectionExpectations(
-            List.of(savedAgent, savedAgent1),
-            savedAsset,
-            savedAssetGroup,
-            DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-    injectExpectationService.buildAndSaveInjectExpectations(
-        executableInject, detectionExpectations);
+
+    io.openaev.model.inject.form.Expectation detectionExpectation =
+        createExpectation(
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+    detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+    injectExpectationService.computeAndSaveExpectations(
+        executableInject, List.of(detectionExpectation), "implantType");
     // Detach everything so the service works on freshly loaded entities (incl. the inject's
     // expectations collection), exactly like the production collector callback path
     entityManager.flush();

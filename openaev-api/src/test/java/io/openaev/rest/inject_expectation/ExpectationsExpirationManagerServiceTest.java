@@ -1,9 +1,8 @@
 package io.openaev.rest.inject_expectation;
 
 import static io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig.COLLECTOR_ID;
+import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
 import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_ID;
-import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAsset;
-import static io.openaev.utils.VulnerabilityExpectationUtils.vulnerabilityExpectationForAssetGroup;
 import static io.openaev.utils.fixtures.ExpectationFixture.*;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,7 +16,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.expectation.Expectation;
+import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
@@ -116,16 +115,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // -- PREPARE --
       // Build and save expectations for asset group with one asset and two agents
       ExecutableInject executableInject = newExecutableInjectWithTargets();
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1, savedAgent2),
-              savedEndpoint,
-              savedAssetGroup,
-              EXPIRATION_TIME_1_s);
-      detectionExpectations.add(
-          createTechnicalDetectionExpectationForAsset(savedEndpoint, null, EXPIRATION_TIME_1_s));
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
 
       em.flush();
       em.clear();
@@ -183,14 +178,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // -- PREPARE --
       // Build and save expectations for asset group with one asset and two agents
       ExecutableInject executableInject = newExecutableInjectWithTargets();
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1, savedAgent2),
-              savedEndpoint,
-              savedAssetGroup,
-              EXPIRATION_TIME_1_s);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
 
       em.flush();
       em.clear();
@@ -270,14 +263,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // Build and save expectations for asset group with one asset and two agents
 
       ExecutableInject executableInject = newExecutableInjectWithTargets();
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1, savedAgent2),
-              savedEndpoint,
-              savedAssetGroup,
-              EXPIRATION_TIME_1_s);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
 
       em.flush();
       em.clear();
@@ -373,13 +364,17 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // "Expired" result, permanently showing "Not prevented"/"Not detected" on the asset while
       // its only agent showed green, corrupting the verdicts and all statistics built on them.
       ExecutableInject executableInject = newExecutableInjectWithTargets();
-      List<Expectation> expectations =
-          createPreventionExpectations(
-              List.of(savedAgent1), savedEndpoint, savedAssetGroup, EXPIRATION_TIME_1_s);
-      expectations.addAll(
-          createDetectionExpectations(
-              List.of(savedAgent1), savedEndpoint, savedAssetGroup, EXPIRATION_TIME_1_s));
-      injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
+
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      Expectation preventionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION, "Detection Expectation");
+      preventionExpectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation, preventionExpectation), "implantType");
 
       em.flush();
       em.clear();
@@ -449,14 +444,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // expiration window) must stay pending - the verdict belongs to the children.
       long agentExpirationSeconds = 3600L;
       ExecutableInject executableInject = newExecutableInjectWithTargets();
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1, savedAgent2),
-              savedEndpoint,
-              savedAssetGroup,
-              agentExpirationSeconds);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(agentExpirationSeconds);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
 
       em.flush();
       em.clear();
@@ -495,14 +488,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // -- PREPARE --
       // Build and save expectations for asset group with one asset and two agents
       ExecutableInject executableInject = newExecutableInjectWithTargets();
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1, savedAgent2),
-              savedEndpoint,
-              savedAssetGroup,
-              EXPIRATION_TIME_1_s);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
 
       em.flush();
       em.clear();
@@ -556,12 +547,13 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // -- PREPARE --
       // Build and save an expectation for an asset and one agent
       ExecutableInject executableInject = newExecutableInjectWithTargets();
-      Expectation expectation =
-          createTechnicalVulnerabilityExpectationForAgent(
-              savedAgent1, savedEndpoint, null, EXPIRATION_TIME_1_s, null);
 
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, List.of(expectation));
+      Expectation expectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY, "Detection Expectation");
+      expectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(expectation), "implantType");
 
       em.flush();
       em.clear();
@@ -595,19 +587,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // children rollup overwrote the proven vulnerable verdict with "Not vulnerable / 100" and
       // stamped a contradicting expiration result on the asset row.
       ExecutableInject executableInject = newExecutableInjectWithTargets();
-      List<Expectation> expectations = new ArrayList<>();
-      expectations.add(
-          createTechnicalVulnerabilityExpectationForAgent(
-              savedAgent1, savedEndpoint, null, EXPIRATION_TIME_1_s, null));
-      expectations.add(
-          vulnerabilityExpectationForAsset(
-              100.0,
-              "Vulnerability",
-              "Vulnerability Expectation",
-              savedEndpoint,
-              null,
-              EXPIRATION_TIME_1_s));
-      injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
+      Expectation expectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY, "Vulnerability Expectation");
+      expectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(expectation), "implantType");
 
       em.flush();
       em.clear();
@@ -668,27 +653,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // "Not vulnerable", success polarity) onto the group row, displaying a contradictory entry
       // next to the genuine platform verdict and planting a success score in the results list.
       ExecutableInject executableInject = newExecutableInjectWithTargets();
-      List<Expectation> expectations = new ArrayList<>();
-      expectations.add(
-          createTechnicalVulnerabilityExpectationForAgent(
-              savedAgent1, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_1_s, null));
-      expectations.add(
-          vulnerabilityExpectationForAsset(
-              100.0,
-              "Vulnerability",
-              "Vulnerability Expectation",
-              savedEndpoint,
-              savedAssetGroup,
-              EXPIRATION_TIME_1_s));
-      expectations.add(
-          vulnerabilityExpectationForAssetGroup(
-              100.0,
-              "Vulnerability",
-              "Vulnerability Expectation",
-              savedAssetGroup,
-              false,
-              EXPIRATION_TIME_1_s));
-      injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
+      Expectation expectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY, "Vulnerability Expectation");
+      expectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(expectation), "implantType");
 
       em.flush();
       em.clear();
@@ -761,27 +731,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // The expiration default is the absence-of-signal fallback: it has nothing to add to a row a
       // real platform already answered.
       ExecutableInject executableInject = newExecutableInjectWithTargets();
-      List<Expectation> expectations = new ArrayList<>();
-      expectations.add(
-          createTechnicalVulnerabilityExpectationForAgent(
-              savedAgent1, savedEndpoint, savedAssetGroup, EXPIRATION_TIME_1_s, null));
-      expectations.add(
-          vulnerabilityExpectationForAsset(
-              100.0,
-              "Vulnerability",
-              "Vulnerability Expectation",
-              savedEndpoint,
-              savedAssetGroup,
-              EXPIRATION_TIME_1_s));
-      expectations.add(
-          vulnerabilityExpectationForAssetGroup(
-              100.0,
-              "Vulnerability",
-              "Vulnerability Expectation",
-              savedAssetGroup,
-              false,
-              EXPIRATION_TIME_1_s));
-      injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
+      Expectation expectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY, "Vulnerability Expectation");
+      expectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(expectation), "implantType");
 
       em.flush();
       em.clear();
@@ -856,19 +811,12 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // agentless injector never fills - and stayed PENDING until the expiration manager fired
       // minutes later, contradicting the verdict already displayed on the row.
       ExecutableInject executableInject = newExecutableInjectWithTargets();
-      List<Expectation> expectations = new ArrayList<>();
-      expectations.add(
-          createTechnicalVulnerabilityExpectationForAgent(
-              savedAgent1, savedEndpoint, null, EXPIRATION_TIME_1_s, null));
-      expectations.add(
-          vulnerabilityExpectationForAsset(
-              100.0,
-              "Vulnerability",
-              "Vulnerability Expectation",
-              savedEndpoint,
-              null,
-              EXPIRATION_TIME_1_s));
-      injectExpectationService.buildAndSaveInjectExpectations(executableInject, expectations);
+      Expectation expectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY, "Vulnerability Expectation");
+      expectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(expectation), "implantType");
 
       em.flush();
       em.clear();
@@ -917,15 +865,11 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
       // agent-level expiration behavior - not to a failed "Vulnerable" verdict.
       ExecutableInject executableInject = newExecutableInjectWithTargets();
       Expectation expectation =
-          vulnerabilityExpectationForAsset(
-              100.0,
-              "Vulnerability",
-              "Vulnerability Expectation",
-              savedEndpoint,
-              null,
-              EXPIRATION_TIME_1_s);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, List.of(expectation));
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY, "Vulnerability Expectation");
+      expectation.setExpirationTime(EXPIRATION_TIME_1_s);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(expectation), "implantType");
 
       em.flush();
       em.clear();

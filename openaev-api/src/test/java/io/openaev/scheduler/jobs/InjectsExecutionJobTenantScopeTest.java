@@ -17,8 +17,6 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.Injection;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.database.repository.InjectDependenciesRepository;
-import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
@@ -68,8 +66,6 @@ class InjectsExecutionJobTenantScopeTest {
   @Mock private InjectHelper injectHelper;
   @Mock private InjectService injectService;
   @Mock private ExerciseRepository exerciseRepository;
-  @Mock private InjectDependenciesRepository injectDependenciesRepository;
-  @Mock private InjectExpectationRepository injectExpectationRepository;
   @Mock private InjectStatusService injectStatusService;
   @Mock private io.openaev.executors.Executor executor;
   @Mock private ActionMetricCollector actionMetricCollector;
@@ -126,7 +122,7 @@ class InjectsExecutionJobTenantScopeTest {
         .when(tenantTx)
         .execute(any(TxCtx.class), any(Runnable.class));
 
-    when(executor.execute(any(ExecutableInject.class), any()))
+    when(executor.execute(any(ExecutableInject.class)))
         .thenAnswer(
             invocation -> {
               tenantDuringExecution.set(TenantContext.getCurrentTenant());
@@ -226,8 +222,7 @@ class InjectsExecutionJobTenantScopeTest {
   @Test
   @DisplayName("failed inject status update runs under the inject tenant scope")
   void failedStatusUpdateRunsUnderInjectTenant() throws Exception {
-    when(executor.execute(any(ExecutableInject.class), any()))
-        .thenThrow(new RuntimeException("boom"));
+    when(executor.execute(any(ExecutableInject.class))).thenThrow(new RuntimeException("boom"));
 
     job.execute(null);
 
@@ -266,7 +261,7 @@ class InjectsExecutionJobTenantScopeTest {
 
     // Record the tenant scope actually active while each inject executes, keyed by inject id.
     Map<String, String> tenantSeenPerInject = new ConcurrentHashMap<>();
-    when(executor.execute(any(ExecutableInject.class), any()))
+    when(executor.execute(any(ExecutableInject.class)))
         .thenAnswer(
             invocation -> {
               ExecutableInject arg = invocation.getArgument(0);

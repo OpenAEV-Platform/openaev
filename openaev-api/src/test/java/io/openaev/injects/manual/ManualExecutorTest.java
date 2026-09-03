@@ -9,7 +9,6 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.Injection;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.executors.InjectorContext;
-import io.openaev.expectation.ManualExpectation;
 import io.openaev.injectors.manual.ManualExecutor;
 import io.openaev.injectors.manual.model.ManualContent;
 import io.openaev.model.inject.form.Expectation;
@@ -59,7 +58,6 @@ public class ManualExecutorTest extends IntegrationTest {
 
     // verify that the expectations are saved
     verify(injectExpectationService)
-        .buildAndSaveInjectExpectations(
-            executableInject, List.of(new ManualExpectation(expectation)));
+        .computeAndSaveExpectations(executableInject, List.of(expectation), null);
   }
 }

@@ -107,7 +107,7 @@ class ArticleBehaviorTest extends IntegrationTest {
 
       // Act
       articleBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
-          executableInject, template, null, null);
+          executableInject, template, null);
       entityManager.flush();
 
       // Assert

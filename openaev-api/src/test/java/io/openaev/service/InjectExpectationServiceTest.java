@@ -15,23 +15,14 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.expectation.Expectation;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.expectation.ExpectationType;
-import io.openaev.injectors.common.model.BaseInjectContent;
-import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
-import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.service.expectation.DetectionBehavior;
-import io.openaev.service.expectation.PreventionBehavior;
-import io.openaev.service.expectation.VulnerabilityBehavior;
 import io.openaev.utils.fixtures.*;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
-import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +36,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class InjectExpectationServiceTest {
@@ -53,11 +43,8 @@ class InjectExpectationServiceTest {
   static final Long EXPIRATION_TIME_SIX_HOURS = 21600L;
 
   @Mock private InjectExpectationRepository injectExpectationRepository;
-  @Mock private AssetGroupService assetGroupService;
   @Mock private InjectService injectService;
   @Mock private InjectExpectationLockService injectExpectationLockService;
-  @Mock private CollectorService collectorService;
-  @Mock private InjectorContractContentUtils injectorContractContentUtils;
 
   // Unstubbed: findByExternalReference defaults to Optional.empty(), so vulnerability verdicts
   // keep the legacy Expectations Vulnerability Manager attribution in these tests.
@@ -111,14 +98,6 @@ class InjectExpectationServiceTest {
     return captor.getValue();
   }
 
-  private static io.openaev.model.inject.form.Expectation createFormExpectation(
-      BaseInjectExpectation.EXPECTATION_TYPE type) {
-    io.openaev.model.inject.form.Expectation expectation =
-        ExpectationFixture.createExpectation(type, "test-" + type.name().toLowerCase());
-    expectation.setExpectationGroup(false);
-    return expectation;
-  }
-
   @Test
   @DisplayName("Should return early when build input expectations are null or empty")
   void given_nullOrEmptyExpectations_should_notSaveAnyInjectExpectation() {
@@ -126,53 +105,11 @@ class InjectExpectationServiceTest {
     ExecutableInject executableInject = mock(ExecutableInject.class);
 
     // Act
-    injectExpectationService.buildAndSaveInjectExpectations(executableInject, null);
-    injectExpectationService.buildAndSaveInjectExpectations(executableInject, List.of());
+    injectExpectationService.computeAndSaveExpectations(executableInject, List.of(), "implantType");
+    injectExpectationService.computeAndSaveExpectations(executableInject, null, "implantType");
 
     // Assert
     verify(injectExpectationRepository, never()).saveAll(any());
-  }
-
-  @Test
-  @DisplayName("Should skip expectation building for direct non-atomic non-chaining execution")
-  void given_directNonAtomicNonChainingExecution_should_returnBeforeTargetResolution() {
-    ExecutableInject executableInject = mock(ExecutableInject.class);
-    Injection injection = mock(Injection.class);
-    Inject directInject = mock(Inject.class);
-
-    when(executableInject.getInjection()).thenReturn(injection);
-    when(injection.getInject()).thenReturn(directInject);
-    when(directInject.isAtomicTesting()).thenReturn(false);
-    when(executableInject.isDirect()).thenReturn(true);
-    when(executableInject.isChainingExecution()).thenReturn(false);
-
-    injectExpectationService.buildAndSaveInjectExpectations(
-        executableInject, List.of(mock(Expectation.class)));
-
-    verify(executableInject, never()).getTeams();
-    verify(injectExpectationRepository, never()).saveAll(any());
-  }
-
-  @Test
-  @DisplayName("Should build expectations for chaining execution even when direct")
-  void given_directChainingExecution_should_continueTargetResolution() {
-    ExecutableInject executableInject = mock(ExecutableInject.class);
-    Injection injection = mock(Injection.class);
-    Inject directInject = mock(Inject.class);
-
-    when(executableInject.getInjection()).thenReturn(injection);
-    when(injection.getInject()).thenReturn(directInject);
-    when(directInject.isAtomicTesting()).thenReturn(false);
-    when(executableInject.isDirect()).thenReturn(true);
-    when(executableInject.isChainingExecution()).thenReturn(true);
-    when(executableInject.getTeams()).thenReturn(List.of());
-    when(executableInject.getAssets()).thenReturn(List.of());
-    when(executableInject.getAssetGroups()).thenReturn(List.of());
-
-    injectExpectationService.buildAndSaveInjectExpectations(
-        executableInject, List.of(mock(Expectation.class)));
-
-    verify(executableInject, atLeastOnce()).getTeams();
   }
 
   @Test
@@ -189,414 +126,8 @@ class InjectExpectationServiceTest {
     when(injection.getInject()).thenReturn(inject);
 
     assertDoesNotThrow(
-        () ->
-            injectExpectationService.computeAndSaveExpectationsFromInjectContent(
-                executableInject, "implant", null));
+        () -> injectExpectationService.computeAndSaveExpectations(executableInject, "implant"));
 
-    verify(injectExpectationRepository, never()).saveAll(any());
-  }
-
-  @Test
-  @DisplayName("Behavior-based creation resolves asset targets once for all expectation types")
-  void given_multipleTechnicalExpectations_should_resolveAssetTargetsOnlyOnce() throws Exception {
-    InjectorContract contract = mock(InjectorContract.class);
-    when(contract.getNeedsExecutorEffective()).thenReturn(false);
-    inject.setInjectorContract(contract);
-    ReflectionTestUtils.setField(inject, "tenant", TenantFixture.getTenant());
-    ReflectionTestUtils.setField(
-        injectExpectationService,
-        "expectationPropertiesConfig",
-        new io.openaev.expectation.ExpectationPropertiesConfig());
-
-    Endpoint endpoint = EndpointFixture.createEndpoint();
-    endpoint.setId("asset-id");
-    endpoint.setAgents(List.of());
-    when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
-    when(injectService.resolveAllAssetsToExecute(inject))
-        .thenReturn(List.of(new AssetToExecute(endpoint)));
-
-    ExecutableInject executableInject = mock(ExecutableInject.class);
-    Injection injection = mock(Injection.class);
-    when(executableInject.getInjection()).thenReturn(injection);
-    when(injection.getInject()).thenReturn(inject);
-
-    ReflectionTestUtils.setField(
-        injectExpectationService,
-        "behaviors",
-        List.of(
-            new PreventionBehavior(collectorService, injectService, injectExpectationRepository),
-            new DetectionBehavior(collectorService, injectService, injectExpectationRepository),
-            new VulnerabilityBehavior(
-                collectorService, injectService, injectExpectationRepository)));
-
-    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
-        executableInject,
-        List.of(
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION),
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION),
-            createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY)),
-        "implant");
-
-    // The expensive target resolution runs once for the whole call, not once per behavior.
-    verify(injectService, times(1)).resolveAllAssetsToExecute(inject);
-    verify(injectExpectationRepository, times(3)).saveAll(any());
-  }
-
-  @Test
-  @DisplayName("Behavior-based creation skips direct non-atomic non-chaining executions")
-  void given_directNonAtomicNonChainingExecution_should_notCreateBehaviorExpectations()
-      throws Exception {
-    ExecutableInject executableInject = mock(ExecutableInject.class);
-    Injection injection = mock(Injection.class);
-    Inject directInject = mock(Inject.class);
-    when(executableInject.getInjection()).thenReturn(injection);
-    when(injection.getInject()).thenReturn(directInject);
-    when(directInject.isAtomicTesting()).thenReturn(false);
-    when(executableInject.isDirect()).thenReturn(true);
-    when(executableInject.isChainingExecution()).thenReturn(false);
-
-    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
-        executableInject,
-        List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION)),
-        "implant");
-
-    // Same guard as the legacy path: nothing is resolved and nothing is persisted.
-    verify(injectService, never()).resolveAllAssetsToExecute(any());
-    verify(injectExpectationRepository, never()).saveAll(any());
-  }
-
-  @Test
-  @DisplayName("An asset group with several assets gets a single group-level parent expectation")
-  void given_assetGroupWithSeveralAssets_should_createSingleGroupParentExpectation()
-      throws Exception {
-    InjectorContract contract = mock(InjectorContract.class);
-    when(contract.getNeedsExecutorEffective()).thenReturn(false);
-    inject.setInjectorContract(contract);
-    ReflectionTestUtils.setField(inject, "tenant", TenantFixture.getTenant());
-    ReflectionTestUtils.setField(
-        injectExpectationService,
-        "expectationPropertiesConfig",
-        new io.openaev.expectation.ExpectationPropertiesConfig());
-
-    AssetGroup assetGroup = AssetGroupFixture.createDefaultAssetGroup("ag");
-    assetGroup.setId("ag-id");
-    Endpoint endpoint1 = EndpointFixture.createEndpoint();
-    endpoint1.setId("asset-1");
-    endpoint1.setAgents(List.of());
-    Endpoint endpoint2 = EndpointFixture.createEndpoint();
-    endpoint2.setId("asset-2");
-    endpoint2.setAgents(List.of());
-    when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
-    when(injectService.resolveAllAssetsToExecute(inject))
-        .thenReturn(
-            List.of(
-                new AssetToExecute(endpoint1, false, List.of(assetGroup)),
-                new AssetToExecute(endpoint2, false, List.of(assetGroup))));
-    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
-
-    ExecutableInject executableInject = mock(ExecutableInject.class);
-    Injection injection = mock(Injection.class);
-    when(executableInject.getInjection()).thenReturn(injection);
-    when(injection.getInject()).thenReturn(inject);
-
-    ReflectionTestUtils.setField(
-        injectExpectationService,
-        "behaviors",
-        List.of(
-            new DetectionBehavior(collectorService, injectService, injectExpectationRepository)));
-
-    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
-        executableInject,
-        List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION)),
-        "implant");
-
-    ArgumentCaptor<List<BaseInjectExpectation>> savedCaptor = ArgumentCaptor.captor();
-    verify(injectExpectationRepository).saveAll(savedCaptor.capture());
-    List<TechnicalInjectExpectation> saved =
-        savedCaptor.getValue().stream().map(TechnicalInjectExpectation.class::cast).toList();
-    // One asset-level row per asset, but exactly ONE group parent row for the shared group.
-    assertEquals(
-        2, saved.stream().filter(e -> e.getAsset() != null && e.getAssetGroup() != null).count());
-    assertEquals(
-        1, saved.stream().filter(e -> e.getAsset() == null && e.getAssetGroup() != null).count());
-  }
-
-  @Test
-  @DisplayName("Hierarchy rows get level-specific expectation group flags like legacy factories")
-  void given_groupFlagInContent_should_applyLevelSpecificFlags() throws Exception {
-    InjectorContract contract = mock(InjectorContract.class);
-    when(contract.getNeedsExecutorEffective()).thenReturn(false);
-    inject.setInjectorContract(contract);
-    ReflectionTestUtils.setField(inject, "tenant", TenantFixture.getTenant());
-    ReflectionTestUtils.setField(
-        injectExpectationService,
-        "expectationPropertiesConfig",
-        new io.openaev.expectation.ExpectationPropertiesConfig());
-
-    AssetGroup assetGroup = AssetGroupFixture.createDefaultAssetGroup("ag");
-    assetGroup.setId("ag-id");
-    Endpoint directEndpoint = EndpointFixture.createEndpoint();
-    directEndpoint.setId("asset-direct");
-    directEndpoint.setAgents(List.of());
-    Endpoint groupedEndpoint = EndpointFixture.createEndpoint();
-    groupedEndpoint.setId("asset-grouped");
-    groupedEndpoint.setAgents(List.of());
-    when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
-    when(injectService.resolveAllAssetsToExecute(inject))
-        .thenReturn(
-            List.of(
-                new AssetToExecute(directEndpoint),
-                new AssetToExecute(groupedEndpoint, false, List.of(assetGroup))));
-    when(collectorService.securityPlatformCollectors(any())).thenReturn(List.of());
-
-    ExecutableInject executableInject = mock(ExecutableInject.class);
-    Injection injection = mock(Injection.class);
-    when(executableInject.getInjection()).thenReturn(injection);
-    when(injection.getInject()).thenReturn(inject);
-
-    ReflectionTestUtils.setField(
-        injectExpectationService,
-        "behaviors",
-        List.of(
-            new DetectionBehavior(collectorService, injectService, injectExpectationRepository)));
-
-    io.openaev.model.inject.form.Expectation detection =
-        createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION);
-    detection.setExpectationGroup(true);
-
-    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
-        executableInject, List.of(detection), "implant");
-
-    ArgumentCaptor<List<BaseInjectExpectation>> savedCaptor = ArgumentCaptor.captor();
-    verify(injectExpectationRepository).saveAll(savedCaptor.capture());
-    List<TechnicalInjectExpectation> saved =
-        savedCaptor.getValue().stream().map(TechnicalInjectExpectation.class::cast).toList();
-
-    TechnicalInjectExpectation directRow =
-        saved.stream()
-            .filter(e -> e.getAsset() != null && e.getAssetGroup() == null)
-            .findFirst()
-            .orElseThrow();
-    TechnicalInjectExpectation groupedRow =
-        saved.stream()
-            .filter(e -> e.getAsset() != null && e.getAssetGroup() != null)
-            .findFirst()
-            .orElseThrow();
-    TechnicalInjectExpectation parentRow =
-        saved.stream()
-            .filter(e -> e.getAsset() == null && e.getAssetGroup() != null)
-            .findFirst()
-            .orElseThrow();
-
-    // Legacy factory semantics: direct asset rows are individual regardless of the content flag,
-    // asset rows under a group are grouped, and only the parent keeps the configured flag.
-    assertFalse(directRow.isExpectationGroup());
-    assertTrue(groupedRow.isExpectationGroup());
-    assertTrue(parentRow.isExpectationGroup());
-  }
-
-  @Test
-  @DisplayName("A null score in stored content defaults to 100.0 like the legacy factories")
-  void given_nullScoreInContent_should_defaultExpectedScore() {
-    io.openaev.model.inject.form.Expectation raw =
-        createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION);
-    raw.setScore(null);
-
-    ExecutableInject executableInject = mock(ExecutableInject.class);
-    Injection injection = mock(Injection.class);
-    when(executableInject.getInjection()).thenReturn(injection);
-    when(injection.getInject()).thenReturn(inject);
-
-    BaseInjectExpectation template =
-        InjectExpectationUtils.expectationConverter(
-            executableInject, raw, new io.openaev.expectation.ExpectationPropertiesConfig());
-
-    assertEquals(100.0, template.getExpectedScore());
-  }
-
-  @Test
-  @DisplayName("Contract fallback tolerates a contract without predefined expectations")
-  void given_contractFallbackWithoutPredefinedExpectations_should_notFail() throws Exception {
-    // Stored content carries an explicit null expectations field and the contract declares no
-    // predefined expectations: the enriched content still deserializes to a null list, which must
-    // be normalized instead of blowing up on expectations.isEmpty().
-    ObjectNode storedContent = mapper.createObjectNode();
-    storedContent.putNull("expectations");
-    inject.setContent(storedContent);
-    InjectorContract contract = mock(InjectorContract.class);
-    inject.setInjectorContract(contract);
-    when(injectorContractContentUtils.setExpectations(eq(contract), any(ObjectNode.class)))
-        .thenAnswer(invocation -> invocation.getArgument(1));
-
-    ExecutableInject executableInject = mock(ExecutableInject.class);
-    Injection injection = mock(Injection.class);
-    when(executableInject.getInjection()).thenReturn(injection);
-    when(injection.getInject()).thenReturn(inject);
-
-    assertDoesNotThrow(
-        () ->
-            injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
-                executableInject, null, "implant"));
-
-    verify(injectExpectationRepository, never()).saveAll(any());
-  }
-
-  @Test
-  @DisplayName("Technical defaults are restricted to the expected security platform collectors")
-  void given_expectedSecurityPlatformTypes_should_seedOnlyMatchingCollectors() throws Exception {
-    InjectorContract contract = mock(InjectorContract.class);
-    when(contract.getNeedsExecutorEffective()).thenReturn(false);
-    inject.setInjectorContract(contract);
-    ReflectionTestUtils.setField(inject, "tenant", TenantFixture.getTenant());
-    ReflectionTestUtils.setField(
-        injectExpectationService,
-        "expectationPropertiesConfig",
-        new io.openaev.expectation.ExpectationPropertiesConfig());
-
-    Endpoint endpoint = EndpointFixture.createEndpoint();
-    endpoint.setId("asset-id");
-    endpoint.setAgents(List.of());
-    when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
-    when(injectService.resolveAllAssetsToExecute(inject))
-        .thenReturn(List.of(new AssetToExecute(endpoint)));
-    when(collectorService.securityPlatformCollectors(any()))
-        .thenReturn(
-            List.of(
-                collectorOfType("edr", SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR),
-                collectorOfType("xdr", SecurityPlatform.SECURITY_PLATFORM_TYPE.XDR)));
-
-    ExecutableInject executableInject = mock(ExecutableInject.class);
-    Injection injection = mock(Injection.class);
-    when(executableInject.getInjection()).thenReturn(injection);
-    when(injection.getInject()).thenReturn(inject);
-
-    ReflectionTestUtils.setField(
-        injectExpectationService,
-        "behaviors",
-        List.of(
-            new DetectionBehavior(collectorService, injectService, injectExpectationRepository)));
-
-    io.openaev.model.inject.form.Expectation detection =
-        createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION);
-    detection.setExpectedSecurityPlatformTypes(
-        List.of(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR));
-
-    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
-        executableInject, List.of(detection), "implant");
-
-    // Tenant collectors are loaded once for the whole batch, and the pending default results are
-    // restricted to the expected security platform types (EDR only, XDR excluded).
-    verify(collectorService, times(1)).securityPlatformCollectors(any());
-    ArgumentCaptor<List<BaseInjectExpectation>> savedCaptor = ArgumentCaptor.captor();
-    verify(injectExpectationRepository).saveAll(savedCaptor.capture());
-    List<InjectExpectationResult> seededResults =
-        savedCaptor.getValue().stream()
-            .filter(e -> e.getResults() != null)
-            .flatMap(e -> e.getResults().stream())
-            .toList();
-    assertFalse(seededResults.isEmpty());
-    assertTrue(seededResults.stream().allMatch(r -> "edr".equals(r.getSourceId())));
-  }
-
-  private static Collector collectorOfType(
-      String id, SecurityPlatform.SECURITY_PLATFORM_TYPE type) {
-    Collector collector = new Collector();
-    collector.setId(id);
-    collector.setName(id);
-    collector.setPeriod(60);
-    SecurityPlatform platform = new SecurityPlatform();
-    platform.setSecurityPlatformType(type);
-    collector.setSecurityPlatform(platform);
-    return collector;
-  }
-
-  @Test
-  @DisplayName(
-      "Reset/relaunch fallback: contract expectations are used when the inject content has none")
-  void given_contentWithoutExpectations_should_fallBackToContractExpectations() throws Exception {
-    // Inject created before its contract declared predefined expectations: stored content has no
-    // "expectations" field, so resetting + relaunching the simulation used to create none.
-    ObjectNode storedContent = mapper.createObjectNode();
-    inject.setContent(storedContent);
-    InjectorContract contract = mock(InjectorContract.class);
-    // Agentless injector (Nuclei-like): asset-level expectations are created without agents.
-    when(contract.getNeedsExecutorEffective()).thenReturn(false);
-    inject.setInjectorContract(contract);
-    ReflectionTestUtils.setField(inject, "tenant", TenantFixture.getTenant());
-    // @Resource field, not constructor-injected: provide the default expiration configuration.
-    ReflectionTestUtils.setField(
-        injectExpectationService,
-        "expectationPropertiesConfig",
-        new io.openaev.expectation.ExpectationPropertiesConfig());
-
-    BaseInjectContent contractContent = new BaseInjectContent();
-    contractContent.setExpectations(
-        List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY)));
-    ObjectNode enrichedContent = mapper.valueToTree(contractContent);
-    when(injectorContractContentUtils.setExpectations(eq(contract), any(ObjectNode.class)))
-        .thenReturn(enrichedContent);
-
-    Endpoint endpoint = EndpointFixture.createEndpoint();
-    endpoint.setId("asset-id");
-    endpoint.setAgents(List.of());
-    when(injectService.getValueTargetedAssetMap(inject)).thenReturn(Map.of());
-    when(injectService.resolveAllAssetsToExecute(inject))
-        .thenReturn(List.of(new AssetToExecute(endpoint)));
-
-    ExecutableInject executableInject = mock(ExecutableInject.class);
-    Injection injection = mock(Injection.class);
-    when(executableInject.getInjection()).thenReturn(injection);
-    when(injection.getInject()).thenReturn(inject);
-
-    // Constructor-injected in production by Spring: wire the behavior handling VULNERABILITY.
-    ReflectionTestUtils.setField(
-        injectExpectationService,
-        "behaviors",
-        List.of(
-            new VulnerabilityBehavior(
-                collectorService, injectService, injectExpectationRepository)));
-
-    // A null list is what an inject whose content never carried the "expectations" field yields.
-    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
-        executableInject, null, "implant");
-
-    // The contract's predefined expectations were resolved and materialized as a persisted
-    // asset-level vulnerability expectation.
-    verify(injectorContractContentUtils).setExpectations(eq(contract), any(ObjectNode.class));
-    ArgumentCaptor<List<BaseInjectExpectation>> savedCaptor = ArgumentCaptor.captor();
-    verify(injectExpectationRepository).saveAll(savedCaptor.capture());
-    List<BaseInjectExpectation> saved = savedCaptor.getValue();
-    assertEquals(1, saved.size());
-    VulnerabilityInjectExpectation savedExpectation =
-        assertInstanceOf(VulnerabilityInjectExpectation.class, saved.get(0));
-    assertEquals("asset-id", savedExpectation.getAsset().getId());
-    assertNull(savedExpectation.getAgent());
-  }
-
-  @Test
-  @DisplayName(
-      "Reset/relaunch fallback: an explicit empty expectations list is respected, never overridden")
-  void given_contentWithExplicitlyEmptyExpectations_should_notFallBackToContractExpectations()
-      throws Exception {
-    // The user deliberately removed every expectation from the inject: the stored content carries
-    // an explicit empty "expectations" array (that is what the inject form persists on removal).
-    // Execution must respect that customization instead of forcing the contract's predefined
-    // expectations back on every launch - drift realignment is the opt-in way to restore them.
-    ObjectNode storedContent = mapper.createObjectNode();
-    storedContent.putArray("expectations");
-    inject.setContent(storedContent);
-    inject.setInjectorContract(mock(InjectorContract.class));
-
-    ExecutableInject executableInject = mock(ExecutableInject.class);
-    Injection injection = mock(Injection.class);
-    when(executableInject.getInjection()).thenReturn(injection);
-    when(injection.getInject()).thenReturn(inject);
-
-    injectExpectationService.computeAndSaveExpectationsUsingBehaviors(
-        executableInject, List.of(), "implant");
-
-    // No contract fallback and no expectation persisted: the empty list is the user's choice.
-    verify(injectorContractContentUtils, never()).setExpectations(any(), any());
     verify(injectExpectationRepository, never()).saveAll(any());
   }
 
