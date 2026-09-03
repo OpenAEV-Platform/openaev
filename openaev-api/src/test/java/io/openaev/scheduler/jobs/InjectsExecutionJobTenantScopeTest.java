@@ -2,7 +2,6 @@ package io.openaev.scheduler.jobs;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -25,10 +24,7 @@ import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
-import io.openaev.service.NotificationEventService;
-import io.openaev.service.PreviewFeatureService;
-import io.openaev.service.SecurityCoverageSendJobService;
-import io.openaev.service.chaining.WorkflowService;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -77,12 +73,9 @@ class InjectsExecutionJobTenantScopeTest {
   @Mock private InjectStatusService injectStatusService;
   @Mock private io.openaev.executors.Executor executor;
   @Mock private ActionMetricCollector actionMetricCollector;
-  @Mock private NotificationEventService notificationEventService;
-  @Mock private SecurityCoverageSendJobService securityCoverageSendJobService;
   @Mock private EntityManager entityManager;
   @Mock private TenantScopedTransaction tenantTx;
-  @Mock private PreviewFeatureService previewFeatureService;
-  @Mock private WorkflowService workflowService;
+  @Mock private TenantScopedJobRunner tenantScopedJobRunner;
   @Mock private HealthCheckUtils healthCheckUtils;
 
   @InjectMocks private InjectsExecutionJob job;
@@ -97,18 +90,25 @@ class InjectsExecutionJobTenantScopeTest {
 
   @BeforeEach
   void setUp() throws Exception {
-    ReflectionTestUtils.setField(job, "injectExecutionThreshold", 15);
     ReflectionTestUtils.setField(job, "auditLogger", Optional.empty());
     when(entityManager.unwrap(Session.class)).thenReturn(mock(Session.class));
 
+    // The scoping is what this suite asserts, so the runner is the real one over the mocked
+    // primitive - a stub would run the work with no scope opened at all.
+    TenantScopedJobRunner scopedRunner = new TenantScopedJobRunner(tenantTx);
+    doAnswer(
+            invocation -> {
+              scopedRunner.runInTenant(
+                  invocation.getArgument(0), invocation.getArgument(1, Runnable.class));
+              return null;
+            })
+        .when(tenantScopedJobRunner)
+        .runInTenant(anyString(), any(Runnable.class));
+
     // Every sweep around the execution is a no-op here: this test is about the execution scope.
     when(exerciseRepository.findAllShouldBeInRunningState(any())).thenReturn(List.of());
-    when(exerciseRepository.thatMustBeFinished()).thenReturn(List.of());
     doReturn(List.of()).when(exerciseRepository).saveAll(any());
-    when(previewFeatureService.isFeatureEnabled(any())).thenReturn(false);
-    when(injectService.getExecutedAndNotFinished()).thenReturn(List.of());
     when(injectService.resolveAllAssetsToExecute(any(Inject.class))).thenReturn(List.of());
-    when(injectHelper.getAllPendingInjectsWithThresholdMinutes(anyInt())).thenReturn(List.of());
     when(healthCheckUtils.runContentChecks(any(Inject.class))).thenReturn(List.of());
 
     // Built before the when(): the helper stubs its own mocks, and nesting that inside
