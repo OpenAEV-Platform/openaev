@@ -137,14 +137,14 @@ Required sections, in this order:
 | `### Proposed changes` | Bullet list of what changed, one bullet per file or logical group, with the *why* — not a diff paraphrase |
 | `### Testing Instructions` | Numbered, reproducible steps + environment/config notes (services to start, commands run) |
 | `### Related issues` | `* Related #ISSUE-NUMBER` — mandatory, every PR must be linked to an issue |
-| `### Checklist` | Keep every line; tick with `[x]` only what is genuinely done, leave `[ ]` otherwise (never delete a line) |
+| `### Checklist` | Reproduce every line unchecked (`[ ]`); never delete a line and never tick a box — the human author does that |
 | `### Further comments` | Design rationale, alternatives considered, explicit out-of-scope items. Omit only for trivial PRs |
 
 Rules:
 
 - Keep the section headings verbatim (`###` level, exact wording) — tooling and reviewers rely on them.
 - Drop the HTML comments from the template in the final description; keep the checklist items themselves.
-- Never mark a checklist item as done when it is not (e.g. don't tick "I wrote test cases" on a PR without tests).
+- **Never tick a checklist item.** Leave every box as `[ ]` — ticking them is the human author's responsibility, after their own review.
 - State explicitly what is intentionally out of scope, so reviewers don't flag it as missing.
 - The PR title still follows Conventional Commits and ends with the issue reference: `type(scope?): description (#issue)`.
 
