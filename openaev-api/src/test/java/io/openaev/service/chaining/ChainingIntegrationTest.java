@@ -376,7 +376,12 @@ class ChainingIntegrationTest extends IntegrationTest {
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
       StepInput step = buildValidStepInput(workflowTemplate.getId());
       step.setDataStep(injectInput);
-      createStepTemplate(step);
+      mvc.perform(
+              post(tenantUri(TENANT_STEP_URI))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(mapper.writeValueAsString(step)))
+          .andExpect(status().isCreated());
 
       String simulationResult =
           mvc.perform(
@@ -611,7 +616,12 @@ class ChainingIntegrationTest extends IntegrationTest {
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
       StepInput step = buildValidStepInput(workflowTemplate.getId());
       step.setDataStep(injectInput);
-      createStepTemplate(step);
+      mvc.perform(
+              post(tenantUri(TENANT_STEP_URI))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(mapper.writeValueAsString(step)))
+          .andExpect(status().isCreated());
 
       assertEquals(stepCountBefore + 1, stepRepository.count());
 
