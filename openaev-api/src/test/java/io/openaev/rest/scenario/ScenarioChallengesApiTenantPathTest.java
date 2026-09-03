@@ -14,7 +14,8 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -49,27 +50,15 @@ class ScenarioChallengesApiTenantPathTest extends IntegrationTest {
         .thenReturn(Optional.of(ScenarioFixture.getScenario()));
   }
 
-  @Test
-  @DisplayName("the observer challenges of a scenario are readable under the tenant path")
-  void given_theTenantPath_then_readTheObserverChallenges() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {OBSERVER_CHALLENGES, PLAYER_DOCUMENTS})
+  @DisplayName("the scenario challenge reads answer under the tenant path")
+  void given_theTenantPath_then_readTheScenarioChallengeEndpoints(String uri) throws Exception {
     // -- ARRANGE --
     String scenarioId = UUID.randomUUID().toString();
 
     // -- ACT --
-    ResultActions response = mvc.perform(get(OBSERVER_CHALLENGES, tenantId, scenarioId));
-
-    // -- ASSERT --
-    response.andExpect(status().is2xxSuccessful());
-  }
-
-  @Test
-  @DisplayName("the player documents of a scenario are readable under the tenant path")
-  void given_theTenantPath_then_readThePlayerDocuments() throws Exception {
-    // -- ARRANGE --
-    String scenarioId = UUID.randomUUID().toString();
-
-    // -- ACT --
-    ResultActions response = mvc.perform(get(PLAYER_DOCUMENTS, tenantId, scenarioId));
+    ResultActions response = mvc.perform(get(uri, tenantId, scenarioId));
 
     // -- ASSERT --
     response.andExpect(status().is2xxSuccessful());
