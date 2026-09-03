@@ -1,23 +1,16 @@
-package io.openaev.driver;
+package io.openaev.opensearch;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.repository.IndexingStatusRepository;
+import io.openaev.driver.EngineObjectMapperFactory;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.RetiredIndexes;
 import io.openaev.engine.model.EsBase;
 import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.exception.StartupException;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.net.URISyntaxException;
-import java.security.cert.X509Certificate;
-import java.time.Instant;
-import java.util.*;
-import javax.net.ssl.SSLContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.auth.AuthScope;
@@ -53,6 +46,15 @@ import org.springframework.stereotype.Component;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
+
+import javax.net.ssl.SSLContext;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.net.URISyntaxException;
+import java.security.cert.X509Certificate;
+import java.time.Instant;
+import java.util.*;
 
 @Component
 @RequiredArgsConstructor

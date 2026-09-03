@@ -13,6 +13,8 @@ import static org.mockito.Mockito.verify;
 import io.openaev.database.audit.IndexEvent;
 import java.util.Collection;
 import java.util.List;
+
+import io.openaev.engine.facade.EngineService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

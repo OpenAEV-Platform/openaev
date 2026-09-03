@@ -14,7 +14,7 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.api.StructuralHistogramRuntime;
 import io.openaev.engine.api.StructuralHistogramWidget;
 import io.openaev.engine.api.WidgetConfigurationWithSeries;

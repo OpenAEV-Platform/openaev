@@ -1,18 +1,5 @@
-package io.openaev.service;
+package io.openaev.opensearch;
 
-import static io.openaev.utils.CustomDashboardQueryUtils.*;
-import static io.openaev.utils.ElasticUtils.*;
-import static java.util.Optional.ofNullable;
-import static org.springframework.util.StringUtils.hasText;
-
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.*;
-import co.elastic.clients.elasticsearch._types.aggregations.*;
-import co.elastic.clients.elasticsearch._types.query_dsl.*;
-import co.elastic.clients.elasticsearch.core.*;
-import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
-import co.elastic.clients.elasticsearch.core.search.Hit;
-import co.elastic.clients.json.JsonData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
 import io.openaev.context.TenantContext;
@@ -22,21 +9,34 @@ import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.IndexingStatusRepository;
-import io.openaev.driver.ElasticDriver;
 import io.openaev.engine.EngineContext;
-import io.openaev.engine.EngineService;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.Handler;
 import io.openaev.engine.api.*;
 import io.openaev.engine.api.WidgetConfigurationWithSeries.Series;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
 import io.openaev.exception.AnalyticsEngineException;
 import io.openaev.schema.PropertySchema;
+import io.openaev.service.CommonSearchService;
+import io.openaev.service.EsIndexingUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
+import org.opensearch.client.json.JsonData;
+import org.opensearch.client.opensearch.OpenSearchClient;
+import org.opensearch.client.opensearch._types.*;
+import org.opensearch.client.opensearch._types.aggregations.*;
+import org.opensearch.client.opensearch._types.query_dsl.*;
+import org.opensearch.client.opensearch.core.*;
+import org.opensearch.client.opensearch.core.bulk.*;
+import org.opensearch.client.opensearch.core.search.*;
+import org.opensearch.client.opensearch.generic.*;
+
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
@@ -44,36 +44,80 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.util.Strings;
+
+import static io.openaev.utils.CustomDashboardQueryUtils.*;
+import static io.openaev.utils.CustomDashboardTimeRange.ALL_TIME;
+import static io.openaev.utils.OpenSearchUtils.*;
+import static java.util.Optional.ofNullable;
+import static org.springframework.util.StringUtils.hasText;
 
 @Slf4j
-public class ElasticService implements EngineService {
+public class OpenSearchService implements EngineService {
 
-  private final ElasticDriver driver;
+  private final OpenSearchDriver driver;
   private final EngineContext searchEngine;
-  private final ElasticsearchClient elasticClient;
+  private final OpenSearchClient openSearchClient;
   private final IndexingStatusRepository indexingStatusRepository;
   private final EngineConfig engineConfig;
   private final CommonSearchService commonSearchService;
 
-  @Resource protected ObjectMapper mapper;
+  @Resource private ObjectMapper mapper;
 
-  public ElasticService(
+  static final String SIDE_CLEANUP_SCRIPT =
+          """
+          boolean changed = false;
+          // For each EsBase attribute of each document
+          for (String key : ctx._source.keySet().toArray()) {
+            // If it's a "base_XXX_side" (means String id or List of ids), remove all deleted ids from this field.
+            if(key.startsWith("base_") && key.endsWith("_side") && ctx._source[key] != null) {
+                if (ctx._source[key] instanceof List) {
+                    if (ctx._source[key].removeIf(item -> params.valuesToRemove.contains(item))) {
+                        changed = true;
+                    }
+                } else if (ctx._source[key] instanceof String && params.valuesToRemove.contains(ctx._source[key])) {
+                    ctx._source.remove(key);
+                    changed = true;
+                }
+            }
+          }
+          if (!changed) {
+            ctx.op = 'noop';
+          }
+          """;
+
+  /**
+   * Constructor for the opensearch engine
+   *
+   * @param searchEngine the context of the engine
+   * @param driver the driver
+   * @param indexingStatusRepository the repository for the indexing status
+   * @param engineConfig the config of the engine
+   * @param commonSearchService the common search service
+   * @throws Exception in case of an issue during the initialization of the opensearchclient
+   */
+  public OpenSearchService(
       EngineContext searchEngine,
-      ElasticDriver driver,
+      OpenSearchDriver driver,
       IndexingStatusRepository indexingStatusRepository,
       EngineConfig engineConfig,
       CommonSearchService commonSearchService)
       throws Exception {
     this.driver = driver;
-    this.elasticClient = driver.elasticClient();
+    this.openSearchClient = driver.opensearchClient();
     this.searchEngine = searchEngine;
     this.indexingStatusRepository = indexingStatusRepository;
     this.engineConfig = engineConfig;
     this.commonSearchService = commonSearchService;
   }
 
+  /**
+   * Convert a field to a FieldValue
+   *
+   * @param field the field
+   * @param value the value
+   * @param parameters the map of parameters
+   * @return the FieldValue
+   */
   private FieldValue toVal(String field, String value, Map<String, String> parameters) {
     FieldValue.Builder builder = new FieldValue.Builder();
     String target = ofNullable(parameters.getOrDefault(value, value)).orElse("");
@@ -101,12 +145,21 @@ public class ElasticService implements EngineService {
     } else if (propertyField.getType().isAssignableFrom(Boolean.class)) {
       builder.booleanValue(Boolean.parseBoolean(target));
     } else {
-      throw new RuntimeException("Unsupported field type: " + propertyField.getType());
+      throw new AnalyticsEngineException("Unsupported field type: " + propertyField.getType());
     }
     return builder.build();
   }
 
   // region utils
+
+  /**
+   * Query an engine using the filter, parameters and definition
+   *
+   * @param filter the filter
+   * @param parameters the parameters
+   * @param definitionParameters the map of parameters
+   * @return the query
+   */
   private Query queryFromBaseFilter(
       Filters.Filter filter,
       Map<String, String> parameters,
@@ -136,7 +189,7 @@ public class ElasticService implements EngineService {
                       v ->
                           TermQuery.of(
                                   t -> t.field(elasticField).value(toVal(field, v, parameters)))
-                              ._toQuery())
+                              .toQuery())
                   .toList();
           if (filterMode == Filters.FilterMode.and) {
             boolQuery.must(queryList);
@@ -153,7 +206,7 @@ public class ElasticService implements EngineService {
                       v ->
                           TermQuery.of(
                                   t -> t.field(elasticField).value(toVal(field, v, parameters)))
-                              ._toQuery())
+                              .toQuery())
                   .toList();
           boolQuery.mustNot(queryNotList);
         }
@@ -170,11 +223,11 @@ public class ElasticService implements EngineService {
                                 w ->
                                     w.field(toElasticField(field))
                                         .value("*" + val.stringValue() + "*"))
-                            ._toQuery();
+                            .toQuery();
                       } else {
                         // Champ text : match
                         return MatchQuery.of(m -> m.field(toElasticField(field)).query(val))
-                            ._toQuery();
+                            .toQuery();
                       }
                     })
                 .toList();
@@ -194,9 +247,9 @@ public class ElasticService implements EngineService {
                       if (propertyField != null && propertyField.isKeyword()) {
                         return WildcardQuery.of(
                                 w -> w.field(elasticField).value("*" + val.stringValue() + "*"))
-                            ._toQuery();
+                            .toQuery();
                       } else {
-                        return MatchQuery.of(m -> m.field(elasticField).query(val))._toQuery();
+                        return MatchQuery.of(m -> m.field(elasticField).query(val)).toQuery();
                       }
                     })
                 .toList();
@@ -235,36 +288,56 @@ public class ElasticService implements EngineService {
       default:
         throw new UnsupportedOperationException("Filter operator " + operator + " not supported");
     }
-    return boolQuery.build()._toQuery();
+    return boolQuery.build().toQuery();
   }
 
+  /**
+   * Build the query restrictions
+   *
+   * @param user the auth of the user
+   * @return the query
+   */
   private Query buildQueryRestrictions(RawUserAuth user) {
     // If user is admin, no need to check the ACL
     if (user.getUser_admin()) {
       return null;
     }
-    Set<String> grantedResourceIds =
+    Set<String> grantedResource =
         user.getUser_grants().stream().map(RawGrant::getGrant_resource).collect(Collectors.toSet());
-    List<FieldValue> values = grantedResourceIds.stream().map(FieldValue::of).toList();
+    List<FieldValue> values = grantedResource.stream().map(FieldValue::of).toList();
     BoolQuery.Builder authQuery = new BoolQuery.Builder();
     Query compliantField =
         TermsQuery.of(
                 t ->
                     t.field("base_restrictions.keyword")
                         .terms(TermsQueryField.of(tq -> tq.value(values))))
-            ._toQuery();
+            .toQuery();
     BoolQuery.Builder emptyRestrictBuilder = new BoolQuery.Builder();
-    Query existField = ExistsQuery.of(b -> b.field("base_restrictions.keyword"))._toQuery();
-    Query emptyRestrictQuery = emptyRestrictBuilder.mustNot(existField).build()._toQuery();
-    return authQuery.should(compliantField, emptyRestrictQuery).build()._toQuery();
+    Query existField = ExistsQuery.of(b -> b.field("base_restrictions.keyword")).toQuery();
+    Query emptyRestrictQuery = emptyRestrictBuilder.mustNot(existField).build().toQuery();
+    return authQuery.should(compliantField, emptyRestrictQuery).build().toQuery();
   }
 
+  /**
+   * Build the query from a search
+   *
+   * @param search the search
+   * @return the query
+   */
   private Query queryFromSearch(String search) {
     QueryStringQuery.Builder queryStringQuery = new QueryStringQuery.Builder();
     queryStringQuery.query(search).analyzeWildcard(true).fields(BASE_FIELDS);
-    return queryStringQuery.build()._toQuery();
+    return queryStringQuery.build().toQuery();
   }
 
+  /**
+   * Build the query from filter
+   *
+   * @param groupFilter the filter
+   * @param parameters the parameters to use
+   * @param definitionParameters the definition of the parameters
+   * @return the query generated
+   */
   private Query queryFromFilter(
       Filters.FilterGroup groupFilter,
       Map<String, String> parameters,
@@ -281,9 +354,19 @@ public class ElasticService implements EngineService {
       filterQuery.should(filterQueries);
       filterQuery.minimumShouldMatch("1");
     }
-    return filterQuery.build()._toQuery();
+    return filterQuery.build().toQuery();
   }
 
+  /**
+   * Build the query
+   *
+   * @param user the user auth to use
+   * @param search the search to use
+   * @param groupFilter the filter to use
+   * @param parameters the parameters to use
+   * @param definitionParameters the definition parameters to use
+   * @return the query built
+   */
   private Query buildQuery(
       RawUserAuth user,
       String search,
@@ -305,34 +388,40 @@ public class ElasticService implements EngineService {
       shouldList.add(searchQuery);
     }
     if (groupFilter != null && groupFilter.getFilters() != null) {
-
       Query filterQuery = queryFromFilter(groupFilter, parameters, definitionParameters);
       shouldList.add(filterQuery);
     }
     if (shouldList.isEmpty()) {
       throw new IllegalArgumentException("One of search or filter must not be null");
     }
-    Query dataQuery =
-        dataQueryBuilder.should(shouldList).minimumShouldMatch("1").build()._toQuery();
+    Query dataQuery = dataQueryBuilder.should(shouldList).minimumShouldMatch("1").build().toQuery();
     mainMust.add(dataQuery);
 
     // Filter by current tenant: match tenant-scoped documents belonging to this tenant,
     // or platform-level documents that have no tenant field at all.
     Query matchesTenant =
         TermQuery.of(
-                t -> t.field("base_tenant_side.keyword").value(TenantContext.getCurrentTenant()))
-            ._toQuery();
+                t ->
+                    t.field("base_tenant_side.keyword")
+                        .value(v -> v.stringValue(TenantContext.getCurrentTenant())))
+            .toQuery();
     Query noTenantField =
         BoolQuery.of(
-                b -> b.mustNot(ExistsQuery.of(e -> e.field("base_tenant_side.keyword"))._toQuery()))
-            ._toQuery();
+                b -> b.mustNot(ExistsQuery.of(e -> e.field("base_tenant_side.keyword")).toQuery()))
+            .toQuery();
     Query tenantFilter =
-        BoolQuery.of(b -> b.should(matchesTenant, noTenantField).minimumShouldMatch("1"))
-            ._toQuery();
+        BoolQuery.of(b -> b.should(matchesTenant, noTenantField).minimumShouldMatch("1")).toQuery();
     mainQuery.filter(tenantFilter);
-    return mainQuery.must(mainMust).build()._toQuery();
+    return mainQuery.must(mainMust).build().toQuery();
   }
 
+  /**
+   * Resolve the ids of the representative
+   *
+   * @param user the user to use
+   * @param ids the ids to check
+   * @return a map of ids
+   */
   private Map<String, String> resolveIdsRepresentative(RawUserAuth user, List<String> ids) {
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     Filters.Filter filter = new Filters.Filter();
@@ -344,7 +433,7 @@ public class ElasticService implements EngineService {
     Query query = buildQuery(user, null, filterGroup, new HashMap<>(), new HashMap<>());
     try {
       SearchResponse<EsBase> response =
-          elasticClient.search(
+          openSearchClient.search(
               b -> b.index(engineConfig.getIndexPattern()).size(ids.size()).query(query),
               EsBase.class);
       List<Hit<EsBase>> hits = response.hits().hits();
@@ -361,6 +450,7 @@ public class ElasticService implements EngineService {
   // endregion
 
   // region indexing
+
   public <T extends EsBase> void bulkProcessing(Stream<EsModel<T>> models) {
     List<IndexingStatus> statuses =
         models
@@ -397,7 +487,7 @@ public class ElasticService implements EngineService {
                     try {
                       log.info("Indexing ({}) in progress for {}", results.size(), model.getName());
                       BulkRequest bulkRequest = br.build();
-                      BulkResponse result = elasticClient.bulk(bulkRequest);
+                      BulkResponse result = openSearchClient.bulk(bulkRequest);
                       // Log errors, if any
                       if (result.errors()) {
                         long errorCount =
@@ -498,11 +588,6 @@ public class ElasticService implements EngineService {
     }
   }
 
-  @Override
-  public void cleanUpIndex(String model) throws IOException {
-    driver.cleanUpIndex(model, elasticClient);
-  }
-
   public void bulkDelete(List<String> ids) {
     if (ids == null || ids.isEmpty()) {
       return;
@@ -522,21 +607,21 @@ public class ElasticService implements EngineService {
       Query directId =
           TermsQuery.of(
                   t -> t.field("base_id.keyword").terms(TermsQueryField.of(tq -> tq.value(values))))
-              ._toQuery();
+              .toQuery();
       // Delete "cascade" the documents including the id in their "base_dependencies"
       Query dependenciesId =
           TermsQuery.of(
                   t ->
                       t.field("base_dependencies.keyword")
                           .terms(TermsQueryField.of(tq -> tq.value(values))))
-              ._toQuery();
+              .toQuery();
       Query query =
-          BoolQuery.of(b -> b.should(directId, dependenciesId).minimumShouldMatch("1"))._toQuery();
-      elasticClient.deleteByQuery(
+          BoolQuery.of(b -> b.should(directId, dependenciesId).minimumShouldMatch("1")).toQuery();
+      openSearchClient.deleteByQuery(
           new DeleteByQueryRequest.Builder()
               .index(engineConfig.getIndexPattern())
               .query(query)
-              .refresh(true)
+              .refresh(Refresh.True)
               .conflicts(Conflicts.Proceed)
               .build());
       // Remove the deleted ids from the denormalized "base_XXX_side" attributes of the documents
@@ -548,17 +633,19 @@ public class ElasticService implements EngineService {
       if (sideReferences == null) {
         return;
       }
-      elasticClient.updateByQuery(
+      openSearchClient.updateByQuery(
           new UpdateByQueryRequest.Builder()
               .index(engineConfig.getIndexPattern())
               .query(sideReferences)
               .script(
                   Script.of(
                       s ->
-                          s.source(SIDE_CLEANUP_SCRIPT)
-                              .params("valuesToRemove", JsonData.of(ids))
-                              .lang("painless")))
-              .refresh(true)
+                          s.inline(
+                              InlineScript.of(
+                                  is ->
+                                      is.source(SIDE_CLEANUP_SCRIPT)
+                                          .params("valuesToRemove", JsonData.of(ids))))))
+              .refresh(Refresh.True)
               .conflicts(Conflicts.Proceed)
               .build());
     } catch (IOException e) {
@@ -568,33 +655,6 @@ public class ElasticService implements EngineService {
           String.format("bulkDelete failed for %d id(s): %s", ids.size(), e.getMessage()), e);
     }
   }
-
-  /**
-   * Painless script removing the deleted ids from every denormalized {@code base_XXX_side}
-   * attribute. Documents left unchanged are marked {@code noop} so the engine does not re-index
-   * them.
-   */
-  static final String SIDE_CLEANUP_SCRIPT =
-      """
-      boolean changed = false;
-      // For each EsBase attribute of each document
-      for (String key : ctx._source.keySet().toArray()) {
-        // If it's a "base_XXX_side" (means String id or List of ids), remove all deleted ids from this field.
-        if(key.startsWith("base_") && key.endsWith("_side") && ctx._source[key] != null) {
-            if (ctx._source[key] instanceof List) {
-                if (ctx._source[key].removeIf(item -> params.valuesToRemove.contains(item))) {
-                    changed = true;
-                }
-            } else if (ctx._source[key] instanceof String && params.valuesToRemove.contains(ctx._source[key])) {
-                ctx._source.remove(key);
-                changed = true;
-            }
-        }
-      }
-      if (!changed) {
-        ctx.op = 'noop';
-      }
-      """;
 
   /**
    * Matches only the documents that reference one of the deleted ids in a denormalized {@code
@@ -618,12 +678,12 @@ public class ElasticService implements EngineService {
                             t ->
                                 t.field(field + ".keyword")
                                     .terms(TermsQueryField.of(tq -> tq.value(values))))
-                        ._toQuery())
+                        .toQuery())
             .toList();
     if (perField.isEmpty()) {
       return null;
     }
-    return BoolQuery.of(b -> b.should(perField).minimumShouldMatch("1"))._toQuery();
+    return BoolQuery.of(b -> b.should(perField).minimumShouldMatch("1")).toQuery();
   }
 
   @Override
@@ -644,12 +704,12 @@ public class ElasticService implements EngineService {
                   t ->
                       t.field("base_tenant_side.keyword")
                           .terms(TermsQueryField.of(tq -> tq.value(values))))
-              ._toQuery();
-      elasticClient.deleteByQuery(
+              .toQuery();
+      openSearchClient.deleteByQuery(
           new DeleteByQueryRequest.Builder()
               .index(engineConfig.getIndexPattern())
               .query(query)
-              .refresh(true)
+              .refresh(Refresh.True)
               .conflicts(Conflicts.Proceed)
               .build());
     } catch (IOException e) {
@@ -660,9 +720,9 @@ public class ElasticService implements EngineService {
   // endregion
 
   // region query
+
   public EsCountInterval count(RawUserAuth user, CountRuntime runtime) {
     FlatConfiguration widgetConfig = runtime.getConfig();
-
     try {
       Query countQuery =
           buildQuery(
@@ -675,15 +735,14 @@ public class ElasticService implements EngineService {
                   .getFilter(), // 1 count = 1 serie limit = 1 filter group
               runtime.getParameters(),
               runtime.getDefinitionParameters());
-      if (isAllTime(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters())) {
-        BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
-        Query query = queryBuilder.must(countQuery).build()._toQuery();
+      if (widgetConfig.getTimeRange().equals(ALL_TIME)) {
+        Query query = new BoolQuery.Builder().must(countQuery).build().toQuery();
         long allTimeCount =
-            elasticClient.count(c -> c.index(engineConfig.getIndexPattern()).query(query)).count();
+            openSearchClient
+                .count(c -> c.index(engineConfig.getIndexPattern()).query(query))
+                .count();
         return new EsCountInterval(allTimeCount, 0L, allTimeCount);
       } else {
-        // Compute the current interval count
-        BoolQuery.Builder currentBuilder = new BoolQuery.Builder();
         Instant currentIntervalStart =
             calcStartDate(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters());
         Instant currentIntervalEnd =
@@ -692,14 +751,15 @@ public class ElasticService implements EngineService {
             buildDateRangeQuery(
                 widgetConfig.getDateAttribute(), currentIntervalStart, currentIntervalEnd);
         Query currentIntervalQuery =
-            currentBuilder.must(currentIntervalDateRangeQuery, countQuery).build()._toQuery();
+            new BoolQuery.Builder()
+                .must(currentIntervalDateRangeQuery, countQuery)
+                .build()
+                .toQuery();
         long currentIntervalCount =
-            elasticClient
+            openSearchClient
                 .count(c -> c.index(engineConfig.getIndexPattern()).query(currentIntervalQuery))
                 .count();
 
-        // Compute the previous interval
-        BoolQuery.Builder previousBuilder = new BoolQuery.Builder();
         // In our case, to avoid any gap, currentIntervalStart = previousIntervalEnd
         Duration intervalDuration = Duration.between(currentIntervalStart, currentIntervalEnd);
         Instant previousIntervalStart = currentIntervalStart.minus(intervalDuration);
@@ -708,9 +768,12 @@ public class ElasticService implements EngineService {
             buildDateRangeQuery(
                 widgetConfig.getDateAttribute(), previousIntervalStart, currentIntervalStart);
         Query previousIntervalQuery =
-            previousBuilder.must(previousIntervalDateRangeQuery, countQuery).build()._toQuery();
+            new BoolQuery.Builder()
+                .must(previousIntervalDateRangeQuery, countQuery)
+                .build()
+                .toQuery();
         long previousIntervalCount =
-            elasticClient
+            openSearchClient
                 .count(c -> c.index(engineConfig.getIndexPattern()).query(previousIntervalQuery))
                 .count();
 
@@ -736,11 +799,10 @@ public class ElasticService implements EngineService {
             averageRuntime.getConfig().getSeries().getFirst().getFilter(),
             averageRuntime.getParameters(),
             averageRuntime.getDefinitionParameters());
-
     Query query;
     if (isAllTime(
         widgetConfig, averageRuntime.getParameters(), averageRuntime.getDefinitionParameters())) {
-      query = queryBuilder.must(filterQuery).build()._toQuery();
+      query = queryBuilder.must(filterQuery).build().toQuery();
     } else {
       Instant finalStart =
           calcStartDate(
@@ -754,11 +816,10 @@ public class ElasticService implements EngineService {
               averageRuntime.getDefinitionParameters());
       Query dateRangeQuery =
           buildDateRangeQuery(widgetConfig.getDateAttribute(), finalStart, finalEnd);
-      query = queryBuilder.must(dateRangeQuery, filterQuery).build()._toQuery();
+      query = queryBuilder.must(dateRangeQuery, filterQuery).build().toQuery();
     }
 
     try {
-
       Map<String, String> fields = averageRuntime.getConfig().getField();
 
       String domainField = toElasticField(fields.get("domainField"));
@@ -788,7 +849,7 @@ public class ElasticService implements EngineService {
                                           subAg -> subAg.terms(t -> t.field(statusField)))))
               .build();
 
-      SearchResponse<Void> response = elasticClient.search(request, Void.class);
+      SearchResponse<Void> response = openSearchClient.search(request, Void.class);
 
       Buckets<StringTermsBucket> domainBuckets =
           response.aggregations().get(domainAggregationKey).sterms().buckets();
@@ -796,7 +857,7 @@ public class ElasticService implements EngineService {
       return averageSTerms(domainBuckets, user, typeAggregationKey, statusAggregationKey);
 
     } catch (Exception e) {
-      log.error(String.format("Elastic client failed to aggregate data: %s", e.getMessage()), e);
+      log.error(String.format("Opensearch client failed to aggregate data: %s", e.getMessage()), e);
     }
     return new EsAvgs(new ArrayList<>());
   }
@@ -809,7 +870,7 @@ public class ElasticService implements EngineService {
     Map<String, String> resolutions = new HashMap<>();
     List<String> ids =
         domainBuckets.array().stream()
-            .flatMap(s -> Arrays.stream(s.key().stringValue().split(",")))
+            .flatMap(s -> Arrays.stream(s.key().split(",")))
             .distinct()
             .toList();
     resolutions.putAll(resolveIdsRepresentative(user, ids));
@@ -818,7 +879,7 @@ public class ElasticService implements EngineService {
         domainBuckets.array().stream()
             .map(
                 b -> {
-                  String key = b.key().stringValue();
+                  String key = b.key();
                   String label = resolutions.get(key);
                   Buckets<StringTermsBucket> typeBuckets =
                       b.aggregations().get(typeAggregationKey).sterms().buckets();
@@ -826,7 +887,7 @@ public class ElasticService implements EngineService {
                       typeBuckets.array().stream()
                           .map(
                               t -> {
-                                String typeLabel = t.key().stringValue();
+                                String typeLabel = t.key();
                                 long typeCount = t.docCount();
                                 Buckets<StringTermsBucket> statusBuckets =
                                     t.aggregations().get(statusAggregationKey).sterms().buckets();
@@ -834,7 +895,7 @@ public class ElasticService implements EngineService {
                                     statusBuckets.array().stream()
                                         .map(
                                             s -> {
-                                              String statusLabel = s.key().stringValue();
+                                              String statusLabel = s.key();
                                               return new EsSeriesData(
                                                   statusLabel, statusLabel, s.docCount());
                                             })
@@ -860,16 +921,15 @@ public class ElasticService implements EngineService {
     Query filterQuery =
         buildQuery(user, null, config.getFilter(), parameters, definitionParameters);
     Query query;
-    if (isAllTime(widgetConfig, parameters, definitionParameters)) {
-      query = queryBuilder.must(filterQuery).build()._toQuery();
+    if (widgetConfig.getTimeRange().equals(ALL_TIME)) {
+      query = queryBuilder.must(filterQuery).build().toQuery();
     } else {
       Instant finalStart = calcStartDate(widgetConfig, parameters, definitionParameters);
       Instant finalEnd = calcEndDate(widgetConfig, parameters, definitionParameters);
       Query dateRangeQuery =
           buildDateRangeQuery(widgetConfig.getDateAttribute(), finalStart, finalEnd);
-      query = queryBuilder.must(dateRangeQuery, filterQuery).build()._toQuery();
+      query = queryBuilder.must(dateRangeQuery, filterQuery).build().toQuery();
     }
-
     String aggregationKey = "term_histogram";
     try {
       String field = parameters.getOrDefault(widgetConfig.getField(), widgetConfig.getField());
@@ -893,7 +953,7 @@ public class ElasticService implements EngineService {
             aggregationKey, new Aggregation.Builder().terms(termsAggregation).build());
       }
 
-      SearchResponse<Void> response = elasticClient.search(searchBuilder.build(), Void.class);
+      SearchResponse<Void> response = openSearchClient.search(searchBuilder.build(), Void.class);
 
       if (widgetConfig.getLimit() == 0) {
         return new EsSeries(config.getName());
@@ -914,6 +974,15 @@ public class ElasticService implements EngineService {
     return new EsSeries(config.getName());
   }
 
+  /**
+   * Histogram for string type
+   *
+   * @param user the user to use
+   * @param config the config for a structural histogram
+   * @param aggregate the aggregate
+   * @param field the field
+   * @return the series to use
+   */
   private EsSeries termHistogramSTerms(
       @NotNull final RawUserAuth user,
       @NotNull final Series config,
@@ -925,7 +994,7 @@ public class ElasticService implements EngineService {
     if (isSideAggregation) {
       List<String> ids =
           buckets.array().stream()
-              .flatMap(s -> Arrays.stream(s.key().stringValue().split(",")))
+              .flatMap(s -> Arrays.stream(s.key().split(",")))
               .distinct()
               .toList();
       resolutions.putAll(resolveIdsRepresentative(user, ids));
@@ -934,7 +1003,7 @@ public class ElasticService implements EngineService {
         buckets.array().stream()
             .map(
                 b -> {
-                  String key = b.key().stringValue();
+                  String key = b.key();
                   String label = isSideAggregation ? resolutions.get(key) : key;
                   String seriesKey = label != null ? label : "deleted";
                   return new EsSeriesData(key, seriesKey, b.docCount());
@@ -943,6 +1012,13 @@ public class ElasticService implements EngineService {
     return new EsSeries(config.getName(), data);
   }
 
+  /**
+   * Histogram for double type
+   *
+   * @param config the config to use
+   * @param aggregate the aggregate to use
+   * @return a series
+   */
   private EsSeries termHistogramDTerms(
       @NotNull final Series config, @NotNull final Aggregate aggregate) {
     Buckets<DoubleTermsBucket> buckets = aggregate.dterms().buckets();
@@ -957,6 +1033,13 @@ public class ElasticService implements EngineService {
     return new EsSeries(config.getName(), data);
   }
 
+  /**
+   * Histogram for long type
+   *
+   * @param config the config to use
+   * @param aggregate the aggregate to use
+   * @return a series
+   */
   private EsSeries termHistogramLTerms(
       @NotNull final Series config, @NotNull final Aggregate aggregate) {
     Buckets<LongTermsBucket> buckets = aggregate.lterms().buckets();
@@ -986,7 +1069,6 @@ public class ElasticService implements EngineService {
       Map<String, String> parameters,
       Map<String, CustomDashboardParameters> definitionParameters) {
     BoolQuery.Builder queryBuilder = new BoolQuery.Builder();
-
     Query filterQuery =
         buildQuery(user, null, config.getFilter(), parameters, definitionParameters);
 
@@ -994,27 +1076,27 @@ public class ElasticService implements EngineService {
     Instant finalEnd = calcEndDate(widgetConfig, parameters, definitionParameters);
 
     Query query;
-    if (isAllTime(widgetConfig, parameters, definitionParameters)) {
-      query = queryBuilder.must(filterQuery).build()._toQuery();
+    if (widgetConfig.getTimeRange().equals(ALL_TIME)) {
+      query = queryBuilder.must(filterQuery).build().toQuery();
     } else {
       Query dateRangeQuery =
           buildDateRangeQuery(widgetConfig.getDateAttribute(), finalStart, finalEnd);
-      query = queryBuilder.must(dateRangeQuery, filterQuery).build()._toQuery();
+      query = queryBuilder.must(dateRangeQuery, filterQuery).build().toQuery();
     }
+
     try {
       String aggregationKey = "date_histogram";
-
       ExtendedBounds<FieldDateMath> extendedBounds;
-      if (isAllTime(widgetConfig, parameters, definitionParameters)) {
+      if (widgetConfig.getTimeRange().equals(ALL_TIME)) {
         extendedBounds = null;
       } else {
         ExtendedBounds.Builder<FieldDateMath> bounds = new ExtendedBounds.Builder<>();
-        bounds.min(FieldDateMath.of(m -> m.value(finalStart.toEpochMilli())));
-        bounds.max(FieldDateMath.of(m -> m.value(finalEnd.toEpochMilli())));
+        bounds.min(FieldDateMath.of(m -> m.value((double) finalStart.toEpochMilli())));
+        bounds.max(FieldDateMath.of(m -> m.value((double) finalEnd.toEpochMilli())));
         extendedBounds = bounds.build();
       }
       SearchResponse<Void> response =
-          elasticClient.search(
+          openSearchClient.search(
               b ->
                   b.index(engineConfig.getIndexPattern())
                       .size(0)
@@ -1035,9 +1117,7 @@ public class ElasticService implements EngineService {
               .map(
                   b ->
                       new EsSeriesData(
-                          Instant.ofEpochMilli(b.key()).toString(),
-                          Instant.ofEpochMilli(b.key()).toString(),
-                          b.docCount()))
+                          b.keyAsString(), Instant.ofEpochMilli(b.key()).toString(), b.docCount()))
               .toList();
       return new EsSeries(config.getName(), data);
     } catch (IOException e) {
@@ -1095,8 +1175,8 @@ public class ElasticService implements EngineService {
             user, "", searchFilters, runtime.getParameters(), runtime.getDefinitionParameters());
     try {
       Query query;
-      if (isAllTime(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters())) {
-        query = queryBuilder.must(listQuery).build()._toQuery();
+      if (widgetConfig.getTimeRange().equals(ALL_TIME)) {
+        query = queryBuilder.must(listQuery).build().toQuery();
       } else {
         Instant finalStart =
             calcStartDate(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters());
@@ -1104,11 +1184,11 @@ public class ElasticService implements EngineService {
             calcEndDate(widgetConfig, runtime.getParameters(), runtime.getDefinitionParameters());
         Query dateRangeQuery =
             buildDateRangeQuery(widgetConfig.getDateAttribute(), finalStart, finalEnd);
-        query = queryBuilder.must(dateRangeQuery, listQuery).build()._toQuery();
+        query = queryBuilder.must(dateRangeQuery, listQuery).build().toQuery();
       }
       Query finalQuery = query;
       SearchResponse<?> response =
-          elasticClient.search(
+          openSearchClient.search(
               b ->
                   b.index(engineConfig.getIndexPattern())
                       .size(runtime.getPagination().getSize())
@@ -1136,21 +1216,20 @@ public class ElasticService implements EngineService {
     return new EsEntities(new ArrayList<>(), 0, 0, 0, 0);
   }
 
-  private Class<?> getClassForEntity(String entity_name) {
+  /**
+   * Return the class for the entity
+   *
+   * @param entityName the name of the entity
+   * @return the class itself
+   */
+  private Class<?> getClassForEntity(String entityName) {
     Optional<EsModel<EsBase>> model =
         searchEngine.getModels().stream()
-            .filter(esBaseEsModel -> entity_name.equals(esBaseEsModel.getName()))
+            .filter(esBaseEsModel -> entityName.equals(esBaseEsModel.getName()))
             .findAny();
     return model.get().getModel();
   }
 
-  /**
-   * Create a list configuration for the given entity name and filter value map.
-   *
-   * @param entityName the name of the entity to filter on
-   * @param filterValueMap a map of filter
-   * @return a ListConfiguration object
-   */
   public ListConfiguration createListConfiguration(
       String entityName, Map<String, List<String>> filterValueMap) {
     // Create filters
@@ -1169,7 +1248,7 @@ public class ElasticService implements EngineService {
 
     // Create series
     ListConfiguration.ListPerspective listPerspective = new ListConfiguration.ListPerspective();
-    listPerspective.setName("");
+    listPerspective.setName("Attack Paths");
     listPerspective.setFilter(filterGroup);
 
     // Create list configuration
@@ -1183,7 +1262,7 @@ public class ElasticService implements EngineService {
     Query query = buildQuery(user, search, filter, new HashMap<>(), new HashMap<>());
     try {
       SearchResponse<EsSearch> response =
-          elasticClient.search(
+          openSearchClient.search(
               b ->
                   b.index(engineConfig.getIndexPattern())
                       .size(engineConfig.getSearchCap())
@@ -1211,18 +1290,30 @@ public class ElasticService implements EngineService {
 
   @Override
   public String getEngineVersion() {
-    try {
-      Set<String> versions = new HashSet<>();
-      mapper
-          .readTree(elasticClient.cluster().state().valueBody().toJson().toString())
-          .get("nodes")
-          .elements()
-          .forEachRemaining(jsonNode -> versions.add(jsonNode.get("version").textValue()));
-      return Strings.join(versions, ',');
+    String endpoint = "/_nodes";
+    try (Response response =
+        openSearchClient
+            .generic()
+            .execute(Requests.builder().endpoint(endpoint).method("GET").build())) {
+      final int status = response.getStatus();
+      if (status == 200 && response.getBody().isPresent()) {
+        Set<String> versions = new HashSet<>();
+        mapper
+            .readTree(response.getBody().get().bodyAsBytes())
+            .get("nodes")
+            .elements()
+            .forEachRemaining(jsonNode -> versions.add(jsonNode.get("version").textValue()));
+        return Strings.join(versions, ',');
+      }
     } catch (IOException e) {
       log.warn("Unable to retrieve engine version", e);
     }
     return null;
+  }
+
+  @Override
+  public void cleanUpIndex(String model) throws IOException {
+    driver.cleanUpIndex(model, openSearchClient);
   }
 
   @Override
@@ -1232,6 +1323,12 @@ public class ElasticService implements EngineService {
 
   // endregion
 
+  /**
+   * Convert from a string to an elastic field
+   *
+   * @param field the field name
+   * @return the elastic field
+   */
   private String toElasticField(@NotBlank final String field) {
     PropertySchema propertyField = commonSearchService.getIndexingSchema().get(field);
     if (propertyField == null) {

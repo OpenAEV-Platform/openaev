@@ -1,11 +1,13 @@
-package io.openaev.service;
+package io.openaev.engine;
 
 import io.openaev.config.EngineConfig;
 import io.openaev.database.repository.IndexingStatusRepository;
-import io.openaev.driver.ElasticDriver;
-import io.openaev.driver.OpenSearchDriver;
-import io.openaev.engine.EngineContext;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
+import io.openaev.es8.ElasticDriver;
+import io.openaev.es8.ElasticService;
+import io.openaev.opensearch.OpenSearchDriver;
+import io.openaev.opensearch.OpenSearchService;
+import io.openaev.service.CommonSearchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;

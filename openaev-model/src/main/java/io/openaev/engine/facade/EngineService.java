@@ -1,9 +1,10 @@
-package io.openaev.engine;
+package io.openaev.engine.facade;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
 import io.openaev.database.raw.RawUserAuth;
+import io.openaev.engine.EsModel;
 import io.openaev.engine.api.*;
 import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;

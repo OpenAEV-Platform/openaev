@@ -4,7 +4,7 @@ import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.AttackPatternRepository;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.ListRuntime;
 import io.openaev.engine.api.StructuralHistogramRuntime;

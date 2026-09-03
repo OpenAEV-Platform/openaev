@@ -6,7 +6,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.raw.RawUserAuthFlat;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.api.*;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;

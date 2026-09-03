@@ -9,7 +9,7 @@ import io.openaev.config.EngineConfig;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.engine.EngineContext;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.model.EsBase;
 import io.openaev.scheduler.CustomSchedulerFactoryFactory;

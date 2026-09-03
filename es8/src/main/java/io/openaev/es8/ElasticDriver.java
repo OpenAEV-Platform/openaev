@@ -1,4 +1,4 @@
-package io.openaev.driver;
+package io.openaev.es8;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
@@ -18,17 +18,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.EngineConfig;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.repository.IndexingStatusRepository;
+import io.openaev.driver.EngineObjectMapperFactory;
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.RetiredIndexes;
 import io.openaev.engine.model.EsBase;
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.security.cert.X509Certificate;
-import java.time.Instant;
-import java.util.*;
-import javax.net.ssl.SSLContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
@@ -42,6 +36,14 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import javax.net.ssl.SSLContext;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.security.cert.X509Certificate;
+import java.time.Instant;
+import java.util.*;
 
 @Component
 @RequiredArgsConstructor

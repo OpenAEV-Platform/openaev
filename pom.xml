@@ -244,5 +244,7 @@
         <module>openaev-framework</module>
         <module>openaev-api</module>
         <module>openaev-maven-plugin</module>
+        <module>es8</module>
+        <module>es-opensearch</module>
     </modules>
 </project>

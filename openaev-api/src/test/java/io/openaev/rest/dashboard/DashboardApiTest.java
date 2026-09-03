@@ -17,7 +17,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.engine.EngineContext;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.api.EngineSortField;
 import io.openaev.engine.api.HistogramInterval;

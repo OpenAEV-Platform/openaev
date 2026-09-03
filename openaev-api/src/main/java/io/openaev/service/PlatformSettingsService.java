@@ -22,7 +22,7 @@ import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
-import io.openaev.engine.EngineService;
+import io.openaev.engine.facade.EngineService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.settings.PreviewFeature;

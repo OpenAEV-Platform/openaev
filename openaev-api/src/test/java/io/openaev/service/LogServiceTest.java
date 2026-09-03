@@ -52,7 +52,7 @@ class LogServiceTest {
 
   @BeforeEach
   void setUp() {
-    io.openaev.engine.EngineService engineService = mock(io.openaev.engine.EngineService.class);
+    io.openaev.engine.facade.EngineService engineService = mock(io.openaev.engine.facade.EngineService.class);
     lenient().when(engineService.getObjectMapper()).thenReturn(objectMapper);
 
     // Normalization is exercised in LogServiceSignatureNormalizationTest; here it must behave as a
