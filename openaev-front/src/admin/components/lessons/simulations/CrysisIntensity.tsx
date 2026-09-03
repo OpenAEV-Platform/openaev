@@ -1,30 +1,33 @@
 import { TimelineOutlined } from '@mui/icons-material';
 import { Paper } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
+import { type FunctionComponent } from 'react';
 
 import Chart from '../../../../components/Chart';
 import { useFormatter } from '../../../../components/i18n';
+import { type Inject } from '../../../../utils/api-types';
 import { areaChartOptions } from '../../../../utils/Charts';
 import LessonsPlaceholder from '../LessonsPlaceholder';
 
-const CrysisIntensity = ({ injects }) => {
+interface Props { injects: Inject[] }
+
+const CrysisIntensity: FunctionComponent<Props> = ({ injects }) => {
   const theme = useTheme();
   const { t, nsdt } = useFormatter();
-  const injectsData = R.pipe(
-    R.filter(n => n.inject_sent_at !== null),
-    R.map((n) => {
-      const date = new Date(n.inject_sent_at);
-      date.setHours(0, 0, 0, 0);
-      return R.assoc('inject_sent_at_date', date.toISOString(), n);
-    }),
-    R.groupBy(R.prop('inject_sent_at_date')),
-    R.toPairs,
-    R.map(n => ({
-      x: n[0],
-      y: n[1].length,
-    })),
-  )(injects);
+  const injectsByDate = injects.reduce<Record<string, number>>((acc, inject) => {
+    if (inject.inject_sent_at == null) {
+      return acc;
+    }
+    const date = new Date(inject.inject_sent_at);
+    date.setHours(0, 0, 0, 0);
+    const key = date.toISOString();
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+  const injectsData = Object.entries(injectsByDate).map(([date, count]) => ({
+    x: date,
+    y: count,
+  }));
   const chartData = [
     {
       name: t('Number of injects'),

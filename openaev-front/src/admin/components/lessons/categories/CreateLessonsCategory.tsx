@@ -1,38 +1,36 @@
 import { ControlPointOutlined } from '@mui/icons-material';
 import { Dialog, DialogContent, DialogTitle, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { useContext, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
+import { type FunctionComponent, useContext, useState } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import ButtonCreate from '../../../../components/common/ButtonCreate';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { LessonContext } from '../../common/Context';
-import LessonsCategoryForm from './LessonsCategoryForm';
+import LessonsCategoryForm, { type LessonsCategoryFormInputs } from './LessonsCategoryForm';
 
-const useStyles = makeStyles()(theme => ({
-  text: {
-    fontSize: 15,
-    color: theme.palette.primary.main,
-    fontWeight: 500,
-  },
-}));
+interface Props {
+  onCreate?: (lessonsCategoryId: string) => void;
+  inline?: boolean;
+}
 
-const CreateLessonsCategory = (props) => {
-  const { onCreate, inline } = props;
-  const { classes } = useStyles();
+const CreateLessonsCategory: FunctionComponent<Props> = ({ onCreate, inline }) => {
   const { t } = useFormatter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<boolean>(false);
 
   // Context
   const { onAddLessonsCategory } = useContext(LessonContext);
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
-  const onSubmit = (data) => {
+  const onSubmit: SubmitHandler<LessonsCategoryFormInputs> = (data) => {
     return onAddLessonsCategory(data).then((result) => {
-      if (result.result) {
+      // The thunk resolves the normalised `{ result, entities }` payload, whereas the context
+      // types it as the created `LessonsCategory`: keep the original runtime check on `result`.
+      const createdId = (result as unknown as { result?: string }).result;
+      if (createdId) {
         if (onCreate) {
-          onCreate(result.result);
+          onCreate(createdId);
         }
         return handleClose();
       }
@@ -48,7 +46,13 @@ const CreateLessonsCategory = (props) => {
           </ListItemIcon>
           <ListItemText
             primary={t('Create a new lessons learned category')}
-            classes={{ primary: classes.text }}
+            primaryTypographyProps={{
+              sx: {
+                fontSize: 15,
+                color: 'primary.main',
+                fontWeight: 500,
+              },
+            }}
           />
         </ListItemButton>
       ) : (
