@@ -543,93 +543,6 @@ class ChainingIntegrationTest extends IntegrationTest {
           result.contains(injectId),
           "Workflow chaining inject must not be exposed as atomic testing");
     }
-
-    // -------------------------------------------------------------------------
-    // 6. DUPLICATE SCENARIO CHAINING → Scenario + Workflow TEMPLATE + Step TEMPLATE duplicated
-    // -------------------------------------------------------------------------
-
-    @Test
-    @WithMockUser(isAdmin = true)
-    void should_duplicate_scenario_workflow_template_and_step_template_when_chaining_enabled()
-        throws Exception {
-      // Create scenario with chaining enabled
-      String scenarioResponse =
-          mvc.perform(
-                  post(tenantUri(TENANT_SCENARIO_URI))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(buildScenarioInput())))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      Scenario createdScenario = mapper.readValue(scenarioResponse, Scenario.class);
-
-      // Get the workflow template created
-      Workflow workflowTemplate =
-          workflowRepository.findAll().stream()
-              .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
-              .filter(
-                  w ->
-                      w.getScenario() != null
-                          && createdScenario.getId().equals(w.getScenario().getId()))
-              .findFirst()
-              .orElseThrow();
-
-      // Add a step with an inject to the workflow template
-      InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-      StepInput step = buildValidStepInput(workflowTemplate.getId());
-      step.setDataStep(injectInput);
-      createStepTemplate(step);
-
-      long workflowCountBeforeDuplicate = workflowRepository.count();
-
-      String result =
-          mvc.perform(
-                  post(tenantUri(TENANT_SCENARIO_URI + "/" + createdScenario.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      Scenario scenarioDuplicated = mapper.readValue(result, Scenario.class);
-
-      entityManager.flush();
-      entityManager.clear();
-
-      Workflow workflowTemplateDuplicated =
-          workflowRepository.findAll().stream()
-              .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
-              .filter(
-                  w ->
-                      w.getScenario() != null
-                          && scenarioDuplicated.getId().equals(w.getScenario().getId()))
-              .findFirst()
-              .orElseThrow();
-
-      assertEquals(workflowCountBeforeDuplicate + 1, workflowRepository.count());
-      assertWorkflowEqualsExceptId(workflowTemplate, workflowTemplateDuplicated);
-
-      List<Step> originalSteps =
-          stepRepository.findAll().stream()
-              .filter(
-                  s ->
-                      s.getWorkflow() != null
-                          && workflowTemplate.getId().equals(s.getWorkflow().getId()))
-              .toList();
-      List<Step> duplicatedSteps =
-          stepRepository.findAll().stream()
-              .filter(
-                  s ->
-                      s.getWorkflow() != null
-                          && workflowTemplateDuplicated.getId().equals(s.getWorkflow().getId()))
-              .toList();
-
-      assertEquals(originalSteps.size(), duplicatedSteps.size(), "Step TEMPLATE count must match");
-      assertFalse(duplicatedSteps.isEmpty(), "Duplicated workflow must contain step templates");
-      assertStepEqualsExceptId(originalSteps.getFirst(), duplicatedSteps.getFirst());
-    }
   }
 
   @Nested
@@ -715,7 +628,10 @@ class ChainingIntegrationTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    void should_duplicate_simulation_workflow_template_when_chaining_enabled() throws Exception {
+    void should_duplicate_simulation_when_chaining_enabled() throws Exception {
+      long simulationCountBefore = exerciseRepository.count();
+      long workflowCountBefore = workflowRepository.count();
+
       String response =
           mvc.perform(
                   post(tenantUri(TENANT_EXERCISE_URI))
@@ -730,9 +646,8 @@ class ChainingIntegrationTest extends IntegrationTest {
       String simulationId = JsonPath.read(response, "$.exercise_id");
       Exercise createdSimulation = exerciseRepository.findById(simulationId).orElseThrow();
 
-      Workflow workflowTemplate = findTemplateWorkflowBySimulationId(createdSimulation.getId());
-
-      long workflowCountBeforeDuplicate = workflowRepository.count();
+      assertEquals(simulationCountBefore + 1, exerciseRepository.count());
+      assertEquals(workflowCountBefore + 1, workflowRepository.count());
 
       String duplicatedResponse =
           mvc.perform(
@@ -751,11 +666,17 @@ class ChainingIntegrationTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      Workflow duplicatedWorkflowTemplate =
-          findTemplateWorkflowBySimulationId(duplicatedSimulation.getId());
-
-      assertEquals(workflowCountBeforeDuplicate + 1, workflowRepository.count());
-      assertWorkflowEqualsExceptId(workflowTemplate, duplicatedWorkflowTemplate);
+      assertNotEquals(createdSimulation.getId(), duplicatedSimulation.getId());
+      assertEquals(simulationCountBefore + 2, exerciseRepository.count());
+      assertEquals(workflowCountBefore + 1, workflowRepository.count());
+      assertTrue(
+          workflowRepository.findAll().stream()
+              .noneMatch(
+                  w ->
+                      WorkflowStatus.TEMPLATE.equals(w.getStatus())
+                          && w.getSimulation() != null
+                          && duplicatedSimulation.getId().equals(w.getSimulation().getId())),
+          "Duplicate simulation does not create a dedicated chaining template");
     }
   }
 
@@ -791,24 +712,6 @@ class ChainingIntegrationTest extends IntegrationTest {
     assertEquals(expected.isTimeoutEnabled(), actual.isTimeoutEnabled());
     assertEquals(expected.getTimeoutSeconds(), actual.getTimeoutSeconds());
     assertEquals(expected.isSafeModeEnabled(), actual.isSafeModeEnabled());
-  }
-
-  private void assertStepEqualsExceptId(Step expected, Step actual) {
-    assertNotNull(expected.getId());
-    assertNotNull(actual.getId());
-    assertNotEquals(expected.getId(), actual.getId(), "Step ids must differ");
-
-    assertEquals(expected.getStatus(), actual.getStatus());
-    assertEquals(expected.getStepAction(), actual.getStepAction());
-    assertEquals(expected.getInput(), actual.getInput());
-    assertEquals(
-        StepService.setField(expected.getData(), "inject_exercise", ""),
-        StepService.setField(actual.getData(), "inject_exercise", ""),
-        "Step data must be the same expected for simulation id (inject_exercise)");
-    assertEquals(expected.getOutput(), actual.getOutput());
-    assertEquals(expected.getOutputParser(), actual.getOutputParser());
-    assertEquals(expected.getConditionExecuted(), actual.getConditionExecuted());
-    assertEquals(expected.getLimitExecution(), actual.getLimitExecution());
   }
 
   private ScenarioInput buildScenarioInput() {
