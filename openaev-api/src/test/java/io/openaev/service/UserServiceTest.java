@@ -60,7 +60,7 @@ class UserServiceTest extends IntegrationTest {
   }
 
   @Test
-  void given_inputWithoutPassword_should_createUserWithGeneratedPassword() {
+  void given_inputWithoutPassword_should_createUserWithBlankPassword() {
     // -- ACT --
     UserInput input =
         new UserInput(
@@ -80,7 +80,7 @@ class UserServiceTest extends IntegrationTest {
     // -- ASSERT --
     assertThat(created.getId()).isNotNull();
     assertThat(created.getEmail()).isEqualTo("no-password@test.invalid");
-    assertThat(created.getPassword()).isNotBlank();
+    assertThat(created.getPassword()).isBlank();
   }
 
   @Test
