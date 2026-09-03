@@ -356,7 +356,20 @@ public class PhishingTrackingService {
     if (injectId == null) {
       return;
     }
-    result.setInject(injectRepository.getReferenceById(injectId));
+    // Existence check first: without it, a stale/invalid inject_id from the step data would end
+    // up wiping this PhishingResult row entirely (ON DELETE CASCADE on phishing_results_inject_fk
+    // is triggered instead of failing safely). Checking first lets us leave the column null
+    // instead, so the rest of the tracking update still persists.
+    if (injectRepository.existsById(injectId)) {
+      result.setInject(injectRepository.getReferenceById(injectId));
+    } else {
+      log.warn(
+          "Inject {} not found yet for step {}, result kept without inject link for now"
+              + " (will be retried on next resolveByToken call)",
+          injectId,
+          result.getStep().getId());
+    }
+
     PhishingResult saved = phishingResultRepository.save(result);
 
     // If tracking events were recorded before the inject existed, reconcile expectation scoring
