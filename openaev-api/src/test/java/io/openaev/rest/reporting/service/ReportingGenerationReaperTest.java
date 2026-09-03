@@ -53,15 +53,18 @@ class ReportingGenerationReaperTest {
   }
 
   @Test
-  @DisplayName("fails a generation left running past the render budget")
-  void failsStuckGeneration() {
+  @DisplayName("A generation left running past the render budget is failed with a message")
+  void given_aGenerationStuckPastTheRenderBudget_should_failItWithAMessage() {
+    // Arrange
     ReportingGeneration stuck =
         generation(ReportingGenerationStatus.RUNNING, CUTOFF.minusSeconds(1));
     when(generationRepository.findAllByStatusInAndCreatedAtBefore(any(), any()))
         .thenReturn(List.of(stuck));
 
+    // Act
     int failed = reaper.failStuckGenerations(NOW);
 
+    // Assert
     assertThat(failed).isEqualTo(1);
     assertThat(stuck.getStatus()).isEqualTo(ReportingGenerationStatus.ERROR);
     assertThat(stuck.getErrorMessage()).contains("never completed this generation");
@@ -70,14 +73,16 @@ class ReportingGenerationReaperTest {
   }
 
   @Test
-  @DisplayName("sweeps every tenant, both transient statuses, older than the render budget")
-  void sweepsTransientStatusesCrossTenant() {
+  @DisplayName("The sweep covers both transient statuses, every tenant, past the render budget")
+  void given_aSweep_should_queryBothTransientStatusesCrossTenantAtTheRenderBudget() {
+    // Arrange
     when(generationRepository.findAllByStatusInAndCreatedAtBefore(any(), any()))
         .thenReturn(List.of());
 
+    // Act
     reaper.failStuckGenerations(NOW);
 
-    // The job runs outside any tenant context: the sweep must see every tenant's rows.
+    // Assert — the job runs outside any tenant context, so the sweep must see every tenant's rows
     verify(session).disableFilter("tenantFilter");
     ArgumentCaptor<Collection<ReportingGenerationStatus>> statuses =
         ArgumentCaptor.forClass(Collection.class);
@@ -91,13 +96,17 @@ class ReportingGenerationReaperTest {
   }
 
   @Test
-  @DisplayName("writes nothing when no generation is stuck")
-  void writesNothingWhenNothingStuck() {
+  @DisplayName("Nothing is written when no generation is stuck")
+  void given_noStuckGeneration_should_writeNothing() {
+    // Arrange
     when(generationRepository.findAllByStatusInAndCreatedAtBefore(any(), any()))
         .thenReturn(List.of());
 
-    assertThat(reaper.failStuckGenerations(NOW)).isZero();
+    // Act
+    int failed = reaper.failStuckGenerations(NOW);
 
+    // Assert
+    assertThat(failed).isZero();
     verify(generationRepository, never()).saveAll(anyList());
   }
 }
