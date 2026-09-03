@@ -23,3 +23,10 @@ Then install and set as default Node.js 24 (the version used by the CI and the D
 nvm install 24
 nvm use 24
 ```
+
+## What's next?
+
+- [Platform development](platform.md) -- Build and run OpenAEV from source
+- [Build from source](build-from-source.md) -- Detailed build instructions
+- [Prerequisites macOS](environment-macos.md) -- macOS setup instructions
+- [Prerequisites Windows](environment-windows.md) -- Windows setup instructions

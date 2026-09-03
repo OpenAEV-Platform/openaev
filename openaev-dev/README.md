@@ -6,8 +6,10 @@ This folder contains configuration files for setting up a local development envi
 
 - Podman with a Compose provider, or Docker with the Compose plugin
 - Java 21+ (for backend development)
-- Node.js 20+ and Yarn (for frontend development)
+- Node.js 24+ and Yarn (for frontend development)
 - IntelliJ IDEA (recommended IDE)
+
+On macOS, see the [macOS development guide](../docs/docs/development/environment-macos.md) for Homebrew, Java 21, Node 24, and Docker Desktop or Colima.
 
 ## Quick Start
 

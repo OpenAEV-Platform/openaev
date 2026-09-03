@@ -7,6 +7,7 @@ This page explains how to set up a local development environment for the OpenAEV
 Before starting, install the required tools for your operating system:
 
 - [Prerequisites Ubuntu](environment-ubuntu.md)
+- [Prerequisites macOS](environment-macos.md)
 - [Prerequisites Windows](environment-windows.md)
 
 ## Architecture overview
