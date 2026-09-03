@@ -106,7 +106,7 @@ brew install git
 
 ### Node.js
 
-Install Node.js 24 or later with [nvm](https://github.com/nvm-sh/nvm):
+Install Node.js 24.11.0 or later with [nvm](https://github.com/nvm-sh/nvm):
 
 ```bash
 nvm install 24
