@@ -28,6 +28,17 @@ public class InjectExpectationFixture {
     return expectation;
   }
 
+  public static ChallengeInjectExpectation createChallengeInjectExpectation(
+      Challenge challenge, User user, Exercise exercise) {
+    ChallengeInjectExpectation expectation = new ChallengeInjectExpectation();
+    expectation.setChallenge(challenge);
+    expectation.setUser(user);
+    expectation.setExercise(exercise);
+    expectation.setExpectedScore(EXPECTED_SCORE);
+    expectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
+    return expectation;
+  }
+
   public static PreventionInjectExpectation createPreventionInjectExpectation(
       Inject inject, @Nullable Agent agent) {
     PreventionInjectExpectation expectation = new PreventionInjectExpectation();
