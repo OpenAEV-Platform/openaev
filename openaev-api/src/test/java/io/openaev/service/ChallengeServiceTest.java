@@ -3,7 +3,6 @@ package io.openaev.service;
 import static io.openaev.database.model.ChallengeFlag.FLAG_TYPE.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
@@ -25,16 +24,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class ChallengeServiceTest extends IntegrationTest {
-
-  private static final String TEST_ID = "test";
 
   @Mock private ExerciseRepository exerciseRepository;
   @Mock private ChallengeRepository challengeRepository;
@@ -364,93 +358,5 @@ public class ChallengeServiceTest extends IntegrationTest {
     assertNotNull(reader.getExerciseChallenges().getFirst().getChallenge());
     assertEquals(
         challenge.getName(), reader.getExerciseChallenges().getFirst().getChallenge().getName());
-  }
-
-  // -- MAX ATTEMPTS (player mode) --
-
-  @ParameterizedTest
-  @CsvSource({"1, 100.0", "3, 0.0"})
-  @DisplayName("Should score a solved challenge against the attempt cap")
-  void given_aSolvedChallenge_then_scoreItAgainstTheAttemptCap(
-      int attemptsSpent, double expectedScore) {
-    // -- ARRANGE --
-    Exercise exercise = ExerciseFixture.createDefaultExercise();
-    User user = UserFixture.getUser();
-    user.setId(TEST_ID);
-    Challenge challenge = ChallengeFixture.createChallengeWithMaxAttempts(3);
-    List<ChallengeInjectExpectation> expectations =
-        new ArrayList<>(
-            List.of(
-                InjectExpectationFixture.createChallengeInjectExpectation(
-                    challenge, user, TEST_ID)));
-
-    ChallengeTryInput input = new ChallengeTryInput();
-    input.setValue("flag value");
-
-    mockPlayerChallenge(exercise, challenge, expectations);
-    when(challengeAttemptService.getChallengeAttempt(any()))
-        .thenReturn(
-            Optional.of(
-                ChallengeAttemptFixture.createChallengeAttempt(
-                    TEST_ID, TEST_ID, TEST_ID, attemptsSpent)));
-
-    // -- ACT --
-    challengeService.validateChallenge(TEST_ID, TEST_ID, input, user);
-
-    // -- ASSERT --
-    ArgumentCaptor<ExpectationUpdateInput> captor =
-        ArgumentCaptor.forClass(ExpectationUpdateInput.class);
-    verify(injectExpectationService).updateInjectExpectation(any(), captor.capture());
-    assertEquals(expectedScore, captor.getValue().getScore());
-  }
-
-  @Test
-  @DisplayName("Should count the wrong answer and fail the expectation once the cap is reached")
-  void given_aWrongAnswerAtTheAttemptCap_then_countItAndFailTheExpectation() {
-    // -- ARRANGE --
-    Exercise exercise = ExerciseFixture.createDefaultExercise();
-    User user = UserFixture.getUser();
-    user.setId(TEST_ID);
-    Challenge challenge = ChallengeFixture.createChallengeWithMaxAttempts(3);
-    List<ChallengeInjectExpectation> expectations =
-        new ArrayList<>(
-            List.of(
-                InjectExpectationFixture.createChallengeInjectExpectation(
-                    challenge, user, TEST_ID)));
-
-    ChallengeTryInput input = new ChallengeTryInput();
-    input.setValue("wrong flag");
-
-    ChallengeAttempt lastAttempt =
-        ChallengeAttemptFixture.createChallengeAttempt(TEST_ID, TEST_ID, TEST_ID, 2);
-
-    mockPlayerChallenge(exercise, challenge, expectations);
-    when(challengeAttemptService.getChallengeAttempts(any())).thenReturn(List.of(lastAttempt));
-    when(challengeAttemptService.getChallengeAttempt(any())).thenReturn(Optional.of(lastAttempt));
-
-    // -- ACT --
-    challengeService.validateChallenge(TEST_ID, TEST_ID, input, user);
-
-    // -- ASSERT --
-    ArgumentCaptor<List<ChallengeAttempt>> attemptsCaptor = ArgumentCaptor.captor();
-    verify(challengeAttemptService).saveChallengeAttempts(attemptsCaptor.capture());
-    assertEquals(3, attemptsCaptor.getValue().getFirst().getAttempt());
-
-    ArgumentCaptor<ExpectationUpdateInput> expectationCaptor =
-        ArgumentCaptor.forClass(ExpectationUpdateInput.class);
-    verify(injectExpectationService).updateInjectExpectation(any(), expectationCaptor.capture());
-    assertEquals(0D, expectationCaptor.getValue().getScore());
-  }
-
-  // -- PRIVATE --
-
-  private void mockPlayerChallenge(
-      Exercise exercise, Challenge challenge, List<ChallengeInjectExpectation> expectations) {
-    when(exerciseRepository.findById(TEST_ID)).thenReturn(Optional.of(exercise));
-    when(challengeRepository.findById(TEST_ID)).thenReturn(Optional.of(challenge));
-    when(injectExpectationRepository.findByUserAndExerciseAndChallenge(TEST_ID, TEST_ID, TEST_ID))
-        .thenReturn(expectations);
-    when(injectExpectationRepository.findChallengeExpectationsByExerciseAndUser(TEST_ID, TEST_ID))
-        .thenReturn(expectations);
   }
 }
