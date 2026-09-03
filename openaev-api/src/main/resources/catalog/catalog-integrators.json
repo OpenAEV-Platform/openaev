@@ -4,7 +4,7 @@
     "description": "",
     "version": "rolling",
     "contracts": [
-       {
+        {
             "title": "Microsoft Defender for Office 365",
             "slug": "openaev_microsoft_defender_o365",
             "description": "Collect and match Microsoft Defender for Office 365 email alerts",
@@ -4405,6 +4405,124 @@
                     "COLLECTOR_NAME",
                     "COLLECTOR_XTM_ONE_URL",
                     "COLLECTOR_XTM_ONE_TOKEN"
+                ],
+                "additionalProperties": true
+            }
+        },
+        {
+            "title": "Email",
+            "slug": "openaev_email_smtp",
+            "description": "Craft and send emails over SMTP",
+            "short_description": "Craft and send emails over SMTP",
+            "use_cases": [
+                "Communication"
+            ],
+            "verified": true,
+            "last_verified_date": "",
+            "playbook_supported": false,
+            "max_confidence_level": 80,
+            "support_version": "",
+            "subscription_link": "",
+            "source_code": "https://github.com/OpenAEV-Platform/injectors/tree/main/email-smtp",
+            "manager_supported": true,
+            "container_version": "rolling",
+            "container_image": "openaev/injector-email",
+            "container_type": "INJECTOR",
+            "logo": "data:image/png;base64,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",
+            "config_schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "config.schema.json",
+                "type": "object",
+                "properties": {
+                    "OPENAEV_URL": {
+                        "description": "The OpenAEV platform URL.",
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "OPENAEV_TOKEN": {
+                        "description": "The token for the OpenAEV platform.",
+                        "type": "string"
+                    },
+                    "OPENAEV_TENANT_ID": {
+                        "default": null,
+                        "description": "Identifier of the tenant within the OpenAEV platform. Used in multi-tenant environments to scope API requests and ensure data isolation between different tenants.",
+                        "format": "uuid",
+                        "type": "string"
+                    },
+                    "INJECTOR_ID": {
+                        "description": "A unique UUIDv4 identifier for this injector instance.",
+                        "type": "string"
+                    },
+                    "INJECTOR_NAME": {
+                        "default": "Email",
+                        "description": "Name of the injector.",
+                        "type": "string"
+                    },
+                    "INJECTOR_LOG_LEVEL": {
+                        "default": "info",
+                        "description": "Determines the verbosity of the logs. Options: debug, info, warning, error, or critical.",
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warning",
+                            "error",
+                            "critical"
+                        ],
+                        "type": "string"
+                    },
+                    "INJECTOR_PERIOD": {
+                        "default": "PT1M",
+                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
+                        "format": "duration",
+                        "type": "string"
+                    },
+                    "INJECTOR_TYPE": {
+                        "default": "openaev_email_smtp",
+                        "description": "Type of the injector.",
+                        "type": "string"
+                    },
+                    "INJECTOR_AUTHOR": {
+                        "default": null,
+                        "description": "Optional author override for the connector's payloads and contracts. When absent, the platform attributes them to the connector's name.",
+                        "type": "string"
+                    },
+                    "INJECTOR_PLATFORM_DESCRIPTION": {
+                        "default": null,
+                        "description": "Description applied to the security platform auto-created by the collector, so its read-only card is not empty in the platform UI.",
+                        "type": "string"
+                    },
+                    "INJECTOR_PLATFORM_TAGS": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "default": null,
+                        "description": "Tag names applied to the security platform auto-created by the collector. Accepts a list of names or a single comma-separated string (the usual shape when configured through an environment variable)."
+                    },
+                    "EMAIL_HASH_ALGORITHM": {
+                        "default": "sha256",
+                        "description": "Hash algorithm used for signature generation (URL hashes, attachment hashes). Options: sha256, sha1, md5.",
+                        "enum": [
+                            "sha256",
+                            "sha1",
+                            "md5"
+                        ],
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "OPENAEV_URL",
+                    "OPENAEV_TOKEN",
+                    "INJECTOR_ID"
                 ],
                 "additionalProperties": true
             }
