@@ -1,17 +1,24 @@
 package io.openaev.config;
 
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.user.MeApi.ME_URI;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Token;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.TokenRepository;
+import io.openaev.service.UserService;
+import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import jakarta.servlet.http.Cookie;
 import java.util.Objects;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -32,6 +39,8 @@ public class AppSecurityConfigTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private TokenRepository tokenRepository;
+  @Autowired private UserService userService;
+  @Autowired private UserComposer userComposer;
 
   @Value("${openbas.admin.token:${openaev.admin.token:#{null}}}")
   private String adminToken;
@@ -198,21 +207,30 @@ public class AppSecurityConfigTest extends IntegrationTest {
   @DisplayName("given renewed token, should reject old bearer and accept new bearer")
   void given_renewedToken_should_reject_old_bearer_and_accept_new_bearer() throws Exception {
     // -- ARRANGE --
-    Token currentAdminToken = tokenRepository.findByValue(adminToken).orElseThrow();
+    // MeApi refuses to renew the admin token (User#isExternal(), covered in MeApiTest), so the
+    // rotation is exercised on a regular user. ME_URI is the probed endpoint because it only
+    // requires authentication, no capability.
+    User user =
+        userComposer
+            .forUser(UserFixture.getUser("Renew", "Bearer", UUID.randomUUID() + "@test.invalid"))
+            .persist()
+            .get();
+    Token previousToken = userService.createUserToken(user, UUID.randomUUID().toString());
+    String previousTokenValue = previousToken.getValue();
     String refreshBody =
         """
         {
           "token_id": "%s"
         }
         """
-            .formatted(currentAdminToken.getId());
+            .formatted(previousToken.getId());
 
     // -- ACT --
     MvcResult refreshResult =
         mockMvc
             .perform(
-                post("/api/me/token/refresh")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                post(ME_URI + "/token/refresh")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + previousTokenValue)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(refreshBody))
             .andExpect(status().isOk())
@@ -220,23 +238,15 @@ public class AppSecurityConfigTest extends IntegrationTest {
 
     String refreshedToken =
         JsonPath.read(refreshResult.getResponse().getContentAsString(), "$.token_value");
-    assertThat(refreshedToken).isNotBlank().isNotEqualTo(adminToken);
+    assertThat(refreshedToken).isNotBlank().isNotEqualTo(previousTokenValue);
 
     // -- ASSERT --
     mockMvc
-        .perform(
-            post(SCENARIO_SEARCH_URI)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(SEARCH_BODY))
+        .perform(get(ME_URI).header(HttpHeaders.AUTHORIZATION, "Bearer " + previousTokenValue))
         .andExpect(status().isUnauthorized());
 
     mockMvc
-        .perform(
-            post(SCENARIO_SEARCH_URI)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + refreshedToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(SEARCH_BODY))
+        .perform(get(ME_URI).header(HttpHeaders.AUTHORIZATION, "Bearer " + refreshedToken))
         .andExpect(status().isOk());
   }
 }
