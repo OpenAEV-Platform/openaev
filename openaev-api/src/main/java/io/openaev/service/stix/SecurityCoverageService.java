@@ -6,6 +6,7 @@ import static io.openaev.helper.UrlHelper.buildFrontSimulationUrl;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
 import static io.openaev.utils.constants.StixConstants.*;
+import static org.apache.commons.lang3.StringUtils.stripEnd;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -164,7 +165,8 @@ public class SecurityCoverageService {
                 () ->
                     new ConnectorError(
                         "No active OpenCTI connector found for tenant %s".formatted(tenantId)));
-    securityCoverage.setExternalUrl(openCtiUrl + "/dashboard/id/" + coveredRef);
+
+    securityCoverage.setExternalUrl(stripEnd(openCtiUrl, "/") + "/dashboard/id/" + coveredRef);
 
     // Optional fields
     stixCoverageObj.setIfPresent(STIX_DESCRIPTION, securityCoverage::setDescription);
