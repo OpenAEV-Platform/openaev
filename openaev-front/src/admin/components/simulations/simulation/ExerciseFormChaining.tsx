@@ -4,7 +4,7 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
-  Alert, AlertTitle, Autocomplete, Button, Chip, GridLegacy, MenuItem, TextField as MuiTextField, Typography,
+  Alert, AlertTitle, Autocomplete, Button, Chip, FormControlLabel, GridLegacy, MenuItem, Switch, TextField as MuiTextField, Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
@@ -24,10 +24,12 @@ import DefaultKillChainSelectField from '../../common/filters/DefaultKillChainSe
 import { scenarioCategories } from '../../scenarios/constants';
 import { EXERCISE_NAME_MAX_LENGTH, EXERCISE_NAME_MIN_LENGTH } from '../constants';
 
+export type ExerciseFormInput = CreateExerciseInput & { exercise_lessons_enabled?: boolean };
+
 interface Props {
-  onSubmit: SubmitHandler<CreateExerciseInput>;
+  onSubmit: SubmitHandler<ExerciseFormInput>;
   handleClose: () => void;
-  initialValues?: CreateExerciseInput;
+  initialValues?: ExerciseFormInput;
   disabled?: boolean;
   edit: boolean;
   simulationId?: string;
@@ -68,10 +70,10 @@ const ExerciseForm: FunctionComponent<Props> = ({
     handleSubmit,
     formState: { errors, isDirty, isSubmitting },
     setValue,
-  } = useForm<CreateExerciseInput>({
+  } = useForm<ExerciseFormInput>({
     mode: 'onTouched',
     resolver: zodResolver(
-      zodImplement<CreateExerciseInput>().with({
+      zodImplement<ExerciseFormInput>().with({
         exercise_name: z.string().min(EXERCISE_NAME_MIN_LENGTH, { message: t('Should not be empty') })
           .max(EXERCISE_NAME_MAX_LENGTH, { message: t('Should not exceed {max_length} characters', { max_length: EXERCISE_NAME_MAX_LENGTH.toString() }) }),
         exercise_subtitle: z.string().optional(),
@@ -88,6 +90,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
         exercise_message_footer: z.string().optional(),
         exercise_custom_dashboard: z.string().optional(),
         exercise_is_chaining: z.boolean().optional(),
+        exercise_lessons_enabled: z.boolean().optional(),
       }),
     ),
     defaultValues: initialValues,
@@ -257,6 +260,33 @@ const ExerciseForm: FunctionComponent<Props> = ({
           />
         )}
       />
+
+      <Typography
+        variant="h2"
+        gutterBottom
+        style={{ marginTop: 40 }}
+      >
+        {t('Modules')}
+      </Typography>
+      <Controller
+        control={control}
+        name="exercise_lessons_enabled"
+        render={({ field }) => (
+          <FormControlLabel
+            control={(
+              <Switch
+                checked={field.value ?? false}
+                onChange={event => field.onChange(event.target.checked)}
+                disabled={disabled}
+              />
+            )}
+            label={t('Enable lessons learned')}
+          />
+        )}
+      />
+      <Typography variant="body2" color="textSecondary">
+        {t('Adds a lessons learned tab to collect feedback with objectives and questionnaires.')}
+      </Typography>
 
       {!isChaining && (
         <Accordion

@@ -3098,6 +3098,7 @@ export interface CreateExerciseInput {
   exercise_default_kill_chain?: string | null;
   exercise_description?: string | null;
   exercise_is_chaining?: boolean;
+  exercise_lessons_enabled?: boolean;
   /**
    * @minLength 0
    * @maxLength 100
@@ -10612,6 +10613,7 @@ export interface ScenarioInput {
   scenario_external_reference?: string | null;
   scenario_external_url?: string | null;
   scenario_is_chaining?: boolean;
+  scenario_lessons_enabled?: boolean;
   /**
    * @minLength 0
    * @maxLength 100
@@ -12429,6 +12431,7 @@ export interface UpdateExerciseInput {
   exercise_default_kill_chain?: string | null;
   exercise_description?: string | null;
   exercise_is_chaining?: boolean;
+  exercise_lessons_enabled?: boolean;
   /**
    * @minLength 0
    * @maxLength 100
@@ -12484,6 +12487,7 @@ export interface UpdateScenarioInput {
   scenario_external_reference?: string | null;
   scenario_external_url?: string | null;
   scenario_is_chaining?: boolean;
+  scenario_lessons_enabled?: boolean;
   /**
    * @minLength 0
    * @maxLength 100

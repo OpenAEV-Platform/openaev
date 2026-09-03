@@ -289,6 +289,8 @@ class ScenarioServiceTest extends IntegrationTest {
     scenarioInjects.add(this.injectRepository.save(inject));
     Scenario scenario =
         this.scenarioRepository.save(ScenarioFixture.getScenario(scenarioTeams, scenarioInjects));
+    scenario.setLessonsEnabled(true);
+    scenario = this.scenarioRepository.saveAndFlush(scenario);
 
     entityManager.flush();
 
@@ -298,6 +300,7 @@ class ScenarioServiceTest extends IntegrationTest {
     // -- ASSERT --
     assertNotEquals(scenario.getId(), scenarioDuplicated.getId());
     assertEquals(scenario.getFrom(), scenarioDuplicated.getFrom());
+    assertTrue(scenarioDuplicated.isLessonsEnabled());
     assertEquals(2, scenarioDuplicated.getTeams().size());
     scenarioDuplicated
         .getTeams()

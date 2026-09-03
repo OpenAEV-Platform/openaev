@@ -227,7 +227,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
           label={t('Use the scenario assistant')}
         />
       )}
-      {editing && !isChaining && (
+      {(editing || isCreation) && (
         <div style={{ marginTop: theme.spacing(2) }}>
           <Typography variant="h2" gutterBottom>
             {t('Modules')}

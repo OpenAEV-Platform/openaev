@@ -7,7 +7,9 @@ import {
   Autocomplete,
   Button,
   Chip,
+  FormControlLabel,
   MenuItem,
+  Switch,
   TextField as MuiTextField,
   Typography,
 } from '@mui/material';
@@ -27,12 +29,14 @@ import { zodImplement } from '../../../utils/Zod';
 import DefaultKillChainSelectField from '../common/filters/DefaultKillChainSelectField';
 import { scenarioCategories } from './constants';
 
+export type ScenarioFormInput = ScenarioInput & { scenario_lessons_enabled?: boolean };
+
 interface Props {
-  onSubmit: (data: ScenarioInput, isScenarioAssistantChecked?: boolean) => void;
+  onSubmit: (data: ScenarioFormInput, isScenarioAssistantChecked?: boolean) => void;
   handleClose: () => void;
   editing?: boolean;
   disabled?: boolean;
-  initialValues: ScenarioInput;
+  initialValues: ScenarioFormInput;
   isChaining?: boolean;
   /** Full-width companion action rendered at the very end of the form, right above the Cancel /
    *  Create buttons (e.g. the "Generate with AI" or "Scenario assistant" post-creation toggle). */
@@ -60,10 +64,10 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
     handleSubmit,
     formState: { errors, isDirty, isSubmitting },
     setValue,
-  } = useForm<ScenarioInput>({
+  } = useForm<ScenarioFormInput>({
     mode: 'onTouched',
     resolver: zodResolver(
-      zodImplement<ScenarioInput>().with({
+      zodImplement<ScenarioFormInput>().with({
         scenario_name: z.string().min(1, { message: t('Should not be empty') }),
         scenario_category: z.string().optional().nullable(),
         scenario_main_focus: z.string().optional().nullable(),
@@ -80,6 +84,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
         scenario_message_footer: z.string().optional(),
         scenario_custom_dashboard: z.string().optional(),
         scenario_is_chaining: z.boolean().optional(),
+        scenario_lessons_enabled: z.boolean().optional(),
       }),
     ),
     defaultValues: initialValues,
@@ -226,6 +231,30 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
             )}
           />
         </>
+        <div style={{ marginTop: theme.spacing(2) }}>
+          <Typography variant="h2" gutterBottom>
+            {t('Modules')}
+          </Typography>
+          <Controller
+            control={control}
+            name="scenario_lessons_enabled"
+            render={({ field }) => (
+              <FormControlLabel
+                control={(
+                  <Switch
+                    checked={field.value ?? false}
+                    onChange={event => field.onChange(event.target.checked)}
+                    disabled={disabled}
+                  />
+                )}
+                label={t('Enable lessons learned')}
+              />
+            )}
+          />
+          <Typography variant="body2" color="textSecondary">
+            {t('Adds a lessons learned tab to collect feedback with objectives and questionnaires.')}
+          </Typography>
+        </div>
         {!isChaining && (
           <Accordion
             defaultExpanded

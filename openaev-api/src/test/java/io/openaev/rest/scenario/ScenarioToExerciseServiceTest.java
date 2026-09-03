@@ -96,6 +96,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
             add(tagSaved);
           }
         });
+    scenario.setLessonsEnabled(true);
 
     Scenario scenarioSaved = this.scenarioService.createScenario(scenario);
 
@@ -240,6 +241,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     // -- ASSERT --
     assertNotNull(exerciseSaved);
     assertEquals(name, exerciseSaved.getName());
+    assertTrue(exerciseSaved.isLessonsEnabled());
     // Telemetry
     verify(actionMetricCollector).addSimulationCreatedCount();
     // User & Teams

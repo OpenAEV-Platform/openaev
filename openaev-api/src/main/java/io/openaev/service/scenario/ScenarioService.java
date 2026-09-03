@@ -1100,6 +1100,7 @@ public class ScenarioService {
     scenarioDuplicate.setFrom(scenario.getFrom());
     scenarioDuplicate.setFromName(scenario.getFromName());
     scenarioDuplicate.setExternalUrl(scenario.getExternalUrl());
+    scenarioDuplicate.setLessonsEnabled(scenario.isLessonsEnabled());
     scenarioDuplicate.setTags(new HashSet<>(scenario.getTags()));
     scenarioDuplicate.setInjects(new HashSet<>(scenario.getInjects()));
     scenarioDuplicate.setExternalReference(scenario.getExternalReference());

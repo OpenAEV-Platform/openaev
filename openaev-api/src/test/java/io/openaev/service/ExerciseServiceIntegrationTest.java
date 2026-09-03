@@ -7,6 +7,7 @@ import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
 import io.openaev.api.url_access_token.UrlAccessTokenService;
@@ -174,6 +175,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     exerciseTeams.add(noContextualTeam);
     Exercise exercise = getExercise(exerciseTeams);
     exercise.setFrom("test@test.com");
+    exercise.setLessonsEnabled(true);
     this.exerciseRepository.save(exercise);
     entityManager.flush();
 
@@ -182,6 +184,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotEquals(exercise.getId(), exerciseDuplicated.getId());
+    assertTrue(exerciseDuplicated.isLessonsEnabled());
     assertEquals(2, exerciseDuplicated.getTeams().size());
     exerciseDuplicated
         .getTeams()
