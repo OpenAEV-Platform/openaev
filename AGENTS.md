@@ -132,6 +132,21 @@ These apply to **all agents**. Do not flag these — they are intentional patter
 - Test files using hardcoded credentials for mock setup → test-only context
 - Legacy `io.openaev.rest` controllers passing tenant to services → acceptable (legacy package)
 
+## Opening a Pull Request
+
+> **The PR description MUST follow [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md).**
+> Read the template before writing the body — never invent your own headings.
+
+Sections, verbatim and in this order: `### Proposed changes`, `### Testing Instructions`,
+`### Related issues`, `### Checklist`, `### Further comments`.
+
+- `Related issues` is mandatory (`* Related #1234`) — every PR is linked to an issue.
+- Keep all checklist lines; tick `[x]` only what is genuinely done.
+- Drop the template's HTML comments from the final body.
+- Title follows Conventional Commits and ends with the issue reference.
+
+Full rules: [copilot-instructions.md → PR description format](.github/copilot-instructions.md#pr-description-format).
+
 ## Agent Maintenance Rule
 
 > **When you modify a `.github/instructions/*.md` file, you must update the corresponding

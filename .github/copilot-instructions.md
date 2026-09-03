@@ -90,6 +90,7 @@ Before creating a pull request, validate locally:
 2. **PR title**: Must match `type(scope?): description (#issue)` — no `[context]` prefix. The `openaev-pr-checks` GitHub App validates this pattern; titles with extra prefixes (e.g. `[backend]`) will be rejected.
 3. **Compile**: `mvn compile -DskipTests` (or via Docker)
 4. **Frontend** (if changed): `cd openaev-front && yarn check-ts && yarn lint`
+5. **PR description**: Must follow [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) — see [PR description format](#pr-description-format).
 
 ## Code Conventions
 
@@ -122,6 +123,30 @@ Conventions are defined in dedicated instruction files that activate automatical
 | `test-specialist`        | Creates and maintains tests following project patterns                   |
 
 ## PR & Review Conventions
+
+### PR description format
+
+**Every pull request description MUST follow [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md).**
+When you open a PR (via `gh pr create`, the `create_pull_request` tool, or the UI), read that
+template first and reproduce its structure — do not invent your own headings.
+
+Required sections, in this order:
+
+| Section | Content |
+|---|---|
+| `### Proposed changes` | Bullet list of what changed, one bullet per file or logical group, with the *why* — not a diff paraphrase |
+| `### Testing Instructions` | Numbered, reproducible steps + environment/config notes (services to start, commands run) |
+| `### Related issues` | `* Related #ISSUE-NUMBER` — mandatory, every PR must be linked to an issue |
+| `### Checklist` | Keep every line; tick with `[x]` only what is genuinely done, leave `[ ]` otherwise (never delete a line) |
+| `### Further comments` | Design rationale, alternatives considered, explicit out-of-scope items. Omit only for trivial PRs |
+
+Rules:
+
+- Keep the section headings verbatim (`###` level, exact wording) — tooling and reviewers rely on them.
+- Drop the HTML comments from the template in the final description; keep the checklist items themselves.
+- Never mark a checklist item as done when it is not (e.g. don't tick "I wrote test cases" on a PR without tests).
+- State explicitly what is intentionally out of scope, so reviewers don't flag it as missing.
+- The PR title still follows Conventional Commits and ends with the issue reference: `type(scope?): description (#issue)`.
 
 ### Conventional Comments (for code reviews)
 
