@@ -81,7 +81,7 @@ const SecurityPlatforms = () => {
     {
       field: 'asset_tags',
       label: 'Tags',
-      isSortable: true,
+      isSortable: false,
     },
   ];
 

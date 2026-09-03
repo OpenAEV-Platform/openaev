@@ -320,7 +320,7 @@ public class Asset implements TenantBase {
   // -- TAG --
 
   @Schema(implementation = String[].class)
-  @Queryable(filterable = true, sortable = true, dynamicValues = true, path = "tags.id")
+  @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "assets_tags",

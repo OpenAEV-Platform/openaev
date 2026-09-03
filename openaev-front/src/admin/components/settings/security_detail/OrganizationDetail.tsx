@@ -119,7 +119,7 @@ const OrganizationDetailContent = () => {
     {
       field: 'user_tags',
       label: 'Tags',
-      isSortable: true,
+      isSortable: false,
       value: (user: UserOutput) => <ItemTags variant="list" tags={user.user_tags} />,
     },
   ], []);
