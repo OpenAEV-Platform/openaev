@@ -34,6 +34,15 @@ import org.springframework.stereotype.Component;
  * never reach the method. The integration test pins this down for the propagations the application
  * actually uses (REQUIRED, REQUIRES_NEW, read-only).
  *
+ * <p>It must equally run <em>before</em> the RBAC aspect, which is why the order is explicit rather
+ * than {@code LOWEST_PRECEDENCE}. {@code AccessControlAspect} resolves a resource's parent by
+ * loading the entity itself, inside this same transaction; tied on {@code LOWEST_PRECEDENCE} the
+ * two advices had an undefined relative order, and when RBAC won the tie its read ran with no
+ * scope. Rows of v2-scoped tables then failed {@code can_access_tenant} (fail-closed) and were
+ * hydrated as null into the persistence context, which the controller happily served afterwards -
+ * an authorized user silently reading a partial entity (e.g. {@code inject_type} coming back null
+ * on an atomic testing).
+ *
  * <p>Within one transaction the scope is set once. A nested {@code @Transactional} method that
  * would <em>change</em> an already-set scope is refused (a programming error), while one that
  * repeats the same set of tenants is tolerated. A nested method that needs a different scope must
@@ -42,8 +51,9 @@ import org.springframework.stereotype.Component;
 @Aspect
 @Component
 @RequiredArgsConstructor
-// Innermost of the chain: it runs as a @Before once the transaction advisor has opened the tx.
-@Order(Ordered.LOWEST_PRECEDENCE)
+// Inside the transaction advisor (LP-4) so it runs as a @Before once the tx is open, and outside
+// the RBAC aspect (LP) so the scope exists before the permission check reads anything.
+@Order(Ordered.LOWEST_PRECEDENCE - 2)
 public class TenantScopeTransactionAspect {
 
   private final EntityManager entityManager;
