@@ -157,16 +157,15 @@ public class UserService {
             referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
     // The user's id is generated on save (UUID generator), not before: evict only after
     // persisting, using the saved user's id, or evictForUser is called with a null key.
-    // A missing password uses a random placeholder; the real credential is set through reset.
     String password =
-        StringUtils.hasLength(input.plainPassword())
+        StringUtils.hasText(input.plainPassword())
             ? input.plainPassword()
             : randomUtils.getRandomAlphanumeric(64);
     User createdUser = createUser(user, password, UUID.randomUUID().toString(), scope);
     if (!CollectionUtils.isEmpty(tenantIds)) {
       tenantMembershipCacheManager.evictForUser(createdUser.getId(), tenantIds);
     }
-    if (!StringUtils.hasLength(input.plainPassword())) {
+    if (!StringUtils.hasText(input.plainPassword())) {
       eventPublisher.publishEvent(new UserPasswordSetupRequestedEvent(createdUser.getEmail()));
     }
     return createdUser;
