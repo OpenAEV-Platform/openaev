@@ -387,7 +387,8 @@ class TenantActiveTableAccessArchTest {
   //  - Executor + all 7 *ExecutorContextService (incl. SentinelOneExecutorContextService, which
   //    also reads InjectorContract directly): only reached from
   //    InjectsExecutionJob#executeInject, which runs inside
-  //    executeInTenant(tenantId, work) -> tenantTx.execute(TxCtx.forTenant(tenantId), work).
+  //    tenantScopedJobRunner.runInTenant(tenantId, work) ->
+  //    tenantTx.execute(TxCtx.forTenant(tenantId), work).
   //  - InjectorContractFullOutput#fromInjectorContract: dead code, zero callers anywhere in the
   //    codebase (main or test) — kept referenced here only for documentation, not a live path.
   //  - InjectImportService: every entrypoint (AtomicTestingApi#atomicTestingImport,
