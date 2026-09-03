@@ -88,7 +88,7 @@ describe('ExecutionRowStatusBadge', () => {
 
     renderWithTheme(<ExecutionRowStatusBadge simulationId="sim-1" executionRef="exec-ref-2" />);
 
-    expect(await screen.findByText('EXECUTED')).toBeDefined();
+    expect(await screen.findByText('Executed')).toBeDefined();
     expect(mocks.searchTargets).not.toHaveBeenCalled();
   });
 
@@ -104,7 +104,7 @@ describe('ExecutionRowStatusBadge', () => {
       />,
     );
 
-    expect(screen.getByText('EXECUTED')).toBeDefined();
+    expect(screen.getByText('Executed')).toBeDefined();
     await waitFor(() => {
       expect(mocks.fetchExecutionDetail).not.toHaveBeenCalled();
     });
@@ -177,7 +177,7 @@ describe('ExecutionRowStatusBadge', () => {
       />,
     );
 
-    expect(await screen.findByText('EXECUTED')).toBeDefined();
+    expect(await screen.findByText('Executed')).toBeDefined();
     expect(mocks.fetchInjectExecutionResult).toHaveBeenCalledWith('inject-7', 'target-7', 'ASSETS');
   });
 
@@ -204,7 +204,7 @@ describe('ExecutionRowStatusBadge', () => {
       />,
     );
 
-    expect(await screen.findByText('EXECUTED')).toBeDefined();
+    expect(await screen.findByText('Executed')).toBeDefined();
   });
 
   // A seeded/demo snapshot ships no live inject status: the historical empty render is kept rather
@@ -254,7 +254,7 @@ describe('ExecutionRowStatusBadge', () => {
       />,
     );
 
-    expect(await screen.findByText('EXECUTED')).toBeDefined();
+    expect(await screen.findByText('Executed')).toBeDefined();
     // The graph already named the inject: refining its status needs no detail fetch.
     expect(mocks.fetchExecutionDetail).not.toHaveBeenCalled();
     expect(mocks.getInjectStatusWithGlobalExecutionTraces).toHaveBeenCalledWith('inject-5');
@@ -272,7 +272,7 @@ describe('ExecutionRowStatusBadge', () => {
     const { rerender, container } = renderWithTheme(
       <ExecutionRowStatusBadge simulationId="sim-1" executionRef="exec-ref-6" />,
     );
-    expect(await screen.findByText('EXECUTED')).toBeDefined();
+    expect(await screen.findByText('Executed')).toBeDefined();
 
     rerender(
       <ThemeProvider theme={createTheme()}>
