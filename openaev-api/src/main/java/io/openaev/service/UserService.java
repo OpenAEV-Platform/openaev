@@ -514,8 +514,6 @@ public class UserService {
     if (!user.equals(token.getUser())) {
       throw new AccessDeniedException("You are not allowed to renew this token");
     }
-
-    tokenRepository.delete(token);
     deleteUserToken(token);
 
     return createUserToken(user, UUID.randomUUID().toString());
