@@ -1,7 +1,9 @@
 package io.openaev.rest.inject;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -189,7 +191,7 @@ class StructuredOutputUtilsTest extends IntegrationTest {
         ContractOutputType.PortsScan,
         "PortScan",
         "^\\s*(TCP|UDP)\\s+([\\d\\.]+|\\*)?:?(\\d+)\\s+\\S+\\s+(\\S+)",
-        "[{\"asset_id\":null,\"host\":\"192.168.1.10\",\"port\":135,\"service\":\"LISTENING\"},{\"asset_id\":null,\"host\":\"176.125.125.10\",\"port\":445,\"service\":\"LISTENING\"},{\"asset_id\":null,\"host\":\"192.168.12.12\",\"port\":902,\"service\":\"LISTENING\"}]");
+        "[{\"asset_id\":null,\"host\":\"192.168.1.10\",\"port\":\"135\",\"service\":\"LISTENING\"},{\"asset_id\":null,\"host\":\"176.125.125.10\",\"port\":\"445\",\"service\":\"LISTENING\"},{\"asset_id\":null,\"host\":\"192.168.12.12\",\"port\":\"902\",\"service\":\"LISTENING\"}]");
   }
 
   @Test
@@ -205,7 +207,46 @@ class StructuredOutputUtilsTest extends IntegrationTest {
         ContractOutputType.Port,
         "Port",
         "(?:TCP|UDP)\\s+[\\d\\.]+:(\\d+)",
-        "[135,445,902]");
+        "[\"135\",\"445\",\"902\"]");
+  }
+
+  @Test
+  @DisplayName("Should preserve leading zero for port in structured output")
+  void given_raw_output_netstat_should_preserve_leading_zero_for_port() {
+    String rawOutput =
+        "\n"
+            + "Active Connections\n"
+            + "\n"
+            + "  Proto  Local Address          Foreign Address        State\n"
+            + "  TCP    192.168.1.10:05            0.0.0.0:0              LISTENING\n";
+
+    RegexGroup regexGroup = new RegexGroup();
+    regexGroup.setField("port");
+    regexGroup.setIndexValues("$1");
+
+    ContractOutputElement contractOutputElement = new ContractOutputElement();
+    contractOutputElement.setType(ContractOutputType.Port);
+    contractOutputElement.setRule("(?:TCP|UDP)\\s+[\\d\\.]+:(\\d+)");
+    contractOutputElement.setKey("Port");
+    contractOutputElement.setRegexGroups(Set.of(regexGroup));
+
+    OutputParser outputParser = new OutputParser();
+    outputParser.setType(ParserType.REGEX);
+    outputParser.setMode(ParserMode.STDOUT);
+    outputParser.setContractOutputElements(Set.of(contractOutputElement));
+
+    ObjectMapper mapper = new ObjectMapper();
+    ObjectNode stdoutNode = mapper.createObjectNode();
+    stdoutNode.put("stdout", rawOutput);
+
+    Optional<ObjectNode> result =
+        structuredOutputUtils.computeStructuredOutputFromOutputParsers(
+            Set.of(outputParser), stdoutNode.toString());
+
+    assertTrue(result.isPresent());
+    String structuredPort = result.get().get("Port").toString();
+    assertTrue(structuredPort.contains("\"05\""));
+    assertFalse(structuredPort.contains("[5]"));
   }
 
   @Test

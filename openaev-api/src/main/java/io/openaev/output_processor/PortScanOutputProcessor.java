@@ -26,7 +26,7 @@ public class PortScanOutputProcessor extends FindingCapableOutputProcessor {
         List.of(
             new ContractOutputField(ASSET_ID, ContractOutputTechnicalType.Text, false),
             new ContractOutputField(HOST, ContractOutputTechnicalType.Text, true),
-            new ContractOutputField(PORT, ContractOutputTechnicalType.Number, true),
+            new ContractOutputField(PORT, ContractOutputTechnicalType.Text, true),
             new ContractOutputField(SERVICE, ContractOutputTechnicalType.Text, true)),
         findingService);
   }

@@ -37,6 +37,16 @@ class PortScanOutputProcessorTest {
   }
 
   @Test
+  @DisplayName("Should preserve leading zero in port field of PortsScan")
+  void shouldPreserveLeadingZeroInPortField() throws Exception {
+    JsonNode node =
+        objectMapper.readTree(
+            "{\"host\": \"192.168.1.1\", \"port\": \"05\", \"service\": \"ssh\"}");
+    String result = processor.toFindingValue(node);
+    assertEquals("192.168.1.1:05 (ssh)", result);
+  }
+
+  @Test
   @DisplayName("Should return single asset id when asset_id is present")
   void shouldReturnSingleAssetIdWhenAssetIdPresent() throws Exception {
     JsonNode node =

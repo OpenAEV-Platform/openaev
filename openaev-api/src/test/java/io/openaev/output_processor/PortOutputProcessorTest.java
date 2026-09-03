@@ -38,4 +38,12 @@ class PortOutputProcessorTest {
     String result = processor.toFindingValue(node);
     assertEquals("", result);
   }
+
+  @Test
+  @DisplayName("Should preserve leading zero for port value")
+  void shouldPreserveLeadingZeroForPortValue() throws Exception {
+    JsonNode node = objectMapper.readTree("\"05\"");
+    String result = processor.toFindingValue(node);
+    assertEquals("05", result);
+  }
 }
