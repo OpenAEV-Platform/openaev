@@ -17,6 +17,7 @@ import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.me.UpdateMePasswordInput;
@@ -78,7 +79,7 @@ public class MeApi extends RestBehavior {
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
     if (user.isExternal() && !input.getEmail().equals(user.getEmail())) {
-      throw new IllegalStateException(
+      throw new ForbiddenException(
           "The admin email cannot be changed using the API. Please change it in the configuration.");
     }
     user.setUpdateAttributes(input);
@@ -116,7 +117,7 @@ public class MeApi extends RestBehavior {
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
     if (user.isExternal()) {
-      throw new IllegalStateException(
+      throw new ForbiddenException(
           "The admin password cannot be changed using the API. Please change it in the configuration.");
     }
     if (userService.isUserPasswordValid(user, input.getCurrentPassword())) {
@@ -141,7 +142,7 @@ public class MeApi extends RestBehavior {
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
     if (user.isExternal()) {
-      throw new IllegalStateException(
+      throw new ForbiddenException(
           "The admin token cannot be renewed using the API. Please change it in the configuration.");
     }
     return userService.renewUserToken(user, input.getTokenId());

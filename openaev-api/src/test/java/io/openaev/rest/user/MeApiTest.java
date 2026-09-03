@@ -2,7 +2,6 @@ package io.openaev.rest.user;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -259,23 +258,19 @@ public class MeApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Given the admin, changing the email should be refused")
-    void given_platformAdmin_should_refuseEmailChange() {
+    void given_platformAdmin_should_refuseEmailChange() throws Exception {
       // -------- Arrange --------
       User admin = userRepository.findById(User.ADMIN_UUID).orElseThrow();
       String previousEmail = admin.getEmail();
       UpdateProfileInput input = profileInput("changed-" + UUID.randomUUID() + "@test.invalid");
 
       // -------- Act & Assert --------
-      assertThatThrownBy(
-              () ->
-                  mvc.perform(
-                      put(MeApi.ME_URI + "/profile")
-                          .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                          .contentType(MediaType.APPLICATION_JSON)
-                          .content(asJsonString(input))))
-          .rootCause()
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("The admin email cannot be changed using the API");
+      mvc.perform(
+              put(MeApi.ME_URI + "/profile")
+                  .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isForbidden());
 
       entityManager.clear();
       assertThat(userRepository.findById(User.ADMIN_UUID).orElseThrow().getEmail())
@@ -304,40 +299,32 @@ public class MeApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Given the admin, changing the password should be refused")
-    void given_platformAdmin_should_refusePasswordChange() {
+    void given_platformAdmin_should_refusePasswordChange() throws Exception {
       // -------- Arrange --------
       UpdateMePasswordInput input = passwordInput();
 
       // -------- Act & Assert --------
-      assertThatThrownBy(
-              () ->
-                  mvc.perform(
-                      put(MeApi.ME_URI + "/password")
-                          .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                          .contentType(MediaType.APPLICATION_JSON)
-                          .content(asJsonString(input))))
-          .rootCause()
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("The admin password cannot be changed using the API");
+      mvc.perform(
+              put(MeApi.ME_URI + "/password")
+                  .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)))
+          .andExpect(status().isForbidden());
     }
 
     @Test
     @DisplayName("Given the admin, renewing the token should be refused")
-    void given_platformAdmin_should_refuseTokenRenewal() {
+    void given_platformAdmin_should_refuseTokenRenewal() throws Exception {
       // -------- Arrange --------
       Token currentAdminToken = tokenRepository.findByValue(adminToken).orElseThrow();
 
       // -------- Act & Assert --------
-      assertThatThrownBy(
-              () ->
-                  mvc.perform(
-                      post(MeApi.ME_URI + "/token/refresh")
-                          .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                          .contentType(MediaType.APPLICATION_JSON)
-                          .content(renewTokenBody(currentAdminToken.getId()))))
-          .rootCause()
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("The admin token cannot be renewed using the API");
+      mvc.perform(
+              post(MeApi.ME_URI + "/token/refresh")
+                  .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(renewTokenBody(currentAdminToken.getId())))
+          .andExpect(status().isForbidden());
 
       // The bearer must stay usable: a refused renewal never destroys the token.
       entityManager.clear();
