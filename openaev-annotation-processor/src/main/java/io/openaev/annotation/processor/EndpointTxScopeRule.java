@@ -96,7 +96,11 @@ public class EndpointTxScopeRule extends AbstractTransactionalRule {
 
   private static boolean isMarked(Element element) {
     return element.getAnnotationMirrors().stream()
-        .map(mirror -> ((TypeElement) mirror.getAnnotationType().asElement()).getQualifiedName())
-        .anyMatch(name -> MARKERS.stream().anyMatch(name::contentEquals));
+        .map(
+            mirror ->
+                ((TypeElement) mirror.getAnnotationType().asElement())
+                    .getQualifiedName()
+                    .toString())
+        .anyMatch(MARKERS::contains);
   }
 }

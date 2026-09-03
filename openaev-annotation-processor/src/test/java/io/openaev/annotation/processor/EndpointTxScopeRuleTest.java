@@ -3,6 +3,8 @@ package io.openaev.annotation.processor;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -134,15 +136,21 @@ class EndpointTxScopeRuleTest {
 
   private static List<Diagnostic<? extends JavaFileObject>> compile(JavaFileObject... sources) {
     JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    if (compiler == null) {
+      throw new IllegalStateException("no system Java compiler available (a JDK is required)");
+    }
     DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
-    StandardJavaFileManager fileManager =
-        compiler.getStandardFileManager(diagnostics, Locale.ROOT, StandardCharsets.UTF_8);
-    List<String> options = List.of("-proc:only", "-A" + RULE + "=true");
-    JavaCompiler.CompilationTask task =
-        compiler.getTask(null, fileManager, diagnostics, options, null, List.of(sources));
-    task.setProcessors(List.of(new EndpointTxScopeRule()));
-    task.call();
-    return diagnostics.getDiagnostics();
+    try (StandardJavaFileManager fileManager =
+        compiler.getStandardFileManager(diagnostics, Locale.ROOT, StandardCharsets.UTF_8)) {
+      List<String> options = List.of("-proc:only", "-A" + RULE + "=true");
+      JavaCompiler.CompilationTask task =
+          compiler.getTask(null, fileManager, diagnostics, options, null, List.of(sources));
+      task.setProcessors(List.of(new EndpointTxScopeRule()));
+      task.call();
+      return diagnostics.getDiagnostics();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
   private static boolean hasError(List<Diagnostic<? extends JavaFileObject>> diagnostics) {
