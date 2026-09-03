@@ -10,12 +10,12 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Injector;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
@@ -27,7 +27,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -38,9 +37,9 @@ class AtomicTestingApiNonAdminTenantScopeTest extends IntegrationTest {
 
   private static final String DETAIL = "/api/tenants/{tenantId}/atomic-testings/{injectId}";
   private static final Set<Capability> ACCESS_ASSESSMENT = Set.of(Capability.ACCESS_ASSESSMENT);
+  private static final String INJECTOR_NAME = "at rbac scope injector";
 
   @Autowired private MockMvc mvc;
-  @Autowired private JdbcTemplate jdbc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private ExerciseComposer exerciseComposer;
@@ -49,9 +48,8 @@ class AtomicTestingApiNonAdminTenantScopeTest extends IntegrationTest {
 
   private String tenantA;
   private String injectId;
-  private String injectorId;
-  private String injectorContractId;
-  private String expectedInjectType;
+  private String injectorType;
+  private ExerciseComposer.Composer simulation;
 
   @BeforeEach
   void seedSimulationInjectInTenant() throws Exception {
@@ -61,39 +59,38 @@ class AtomicTestingApiNonAdminTenantScopeTest extends IntegrationTest {
     inTenant(
         tenantA,
         () -> {
-          InjectorContract contract = InjectorContractFixture.createDefaultInjectorContract();
-          injectorContractId = contract.getId();
-          injectorId = contract.getFirstInjector().getId();
-          expectedInjectType = contract.getFirstInjector().getType();
+          Injector injector = InjectorFixture.createDefaultInjector(INJECTOR_NAME);
+          injectorType = injector.getType();
 
-          Inject inject = InjectFixture.getInjectWithoutContract();
-          exerciseComposer
-              .forExercise(ExerciseFixture.createDefaultExercise())
-              .withInject(
-                  injectComposer
-                      .forInject(inject)
-                      .withInjectorContract(injectorContractComposer.forInjectorContract(contract)))
-              .persist();
-          injectId = inject.getId();
+          InjectComposer.Composer inject =
+              injectComposer
+                  .forInject(InjectFixture.getInjectWithoutContract())
+                  .withInjectorContract(
+                      injectorContractComposer
+                          .forInjectorContract(
+                              InjectorContractFixture.createDefaultInjectorContract())
+                          .withInjector(injector));
+          simulation =
+              exerciseComposer
+                  .forExercise(ExerciseFixture.createDefaultExercise())
+                  .withInject(inject)
+                  .persist();
+          injectId = inject.get().getId();
           return null;
         });
   }
 
   @AfterEach
   void cleanup() {
-    if (injectId != null) {
-      jdbc.update("DELETE FROM injects WHERE inject_id = ?", injectId);
+    if (simulation != null) {
+      inTenant(
+          tenantA,
+          () -> {
+            simulation.delete();
+            return null;
+          });
     }
-    if (tenantA != null) {
-      jdbc.update("DELETE FROM exercises WHERE tenant_id = ?", tenantA);
-      jdbc.update(
-          "DELETE FROM injectors_injector_contracts WHERE injector_contract_id = ?",
-          injectorContractId);
-      jdbc.update(
-          "DELETE FROM injectors_contracts WHERE injector_contract_id = ?", injectorContractId);
-      jdbc.update("DELETE FROM injectors WHERE injector_id = ?", injectorId);
-      tenantHelper.deleteCommittedTenants(tenantA);
-    }
+    tenantHelper.deleteCommittedTenants(tenantA);
     TenantContext.clearCurrentTenant();
   }
 
@@ -102,7 +99,7 @@ class AtomicTestingApiNonAdminTenantScopeTest extends IntegrationTest {
   void nonAdminSimulationInjectReadResolvesInjectType() throws Exception {
     mvc.perform(get(DETAIL, tenantA, injectId).with(csrf()))
         .andExpect(status().is2xxSuccessful())
-        .andExpect(jsonPath("$.inject_type").value(expectedInjectType));
+        .andExpect(jsonPath("$.inject_type").value(injectorType));
   }
 
   private <T> T inTenant(String tenantId, Supplier<T> work) {
