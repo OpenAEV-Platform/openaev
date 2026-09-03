@@ -2,6 +2,8 @@ import {
   ArrowDropDownOutlined,
   ArrowDropUpOutlined,
   AttachmentOutlined,
+  CheckCircleOutlined,
+  HighlightOffOutlined,
   PendingActionsOutlined,
 } from '@mui/icons-material';
 import {
@@ -124,6 +126,25 @@ const inlineStyles = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
+};
+
+const challengeStatus = (results) => {
+  if ((results ?? []).some(r => r.result === FAILED)) {
+    return {
+      color: 'error',
+      icon: <HighlightOffOutlined fontSize="large" />,
+    };
+  }
+  if ((results ?? []).length > 0) {
+    return {
+      color: 'success',
+      icon: <CheckCircleOutlined fontSize="large" />,
+    };
+  }
+  return {
+    color: 'inherit',
+    icon: <PendingActionsOutlined fontSize="large" />,
+  };
 };
 
 const ChallengesPlayer = () => {
@@ -303,25 +324,19 @@ const ChallengesPlayer = () => {
               >
                 {sortedChallenges[category].map((challengeEntry) => {
                   const challenge = challengeEntry.challenge_detail;
-                  const expectation = challengeEntry.challenge_expectation;
+                  const status = challengeStatus(challengeEntry.challenge_expectation?.inject_expectation_results);
                   return (
                     <ChallengeCard
                       key={challenge.challenge_id}
                       challenge={challenge}
+                      attempt={challengeEntry.challenge_attempt ?? 0}
                       onClick={() => {
                         setCurrentChallengeEntry(challengeEntry);
                       }}
                       clickable
                       actionHeader={(
-                        <IconButton
-                          size="large"
-                          color={
-                            (expectation?.inject_expectation_results?.length ?? 0) > 0
-                              ? 'success'
-                              : 'inherit'
-                          }
-                        >
-                          <PendingActionsOutlined fontSize="large" />
+                        <IconButton size="large" color={status.color}>
+                          {status.icon}
                         </IconButton>
                       )}
                     />
