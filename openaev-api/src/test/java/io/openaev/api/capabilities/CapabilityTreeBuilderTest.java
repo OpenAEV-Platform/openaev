@@ -9,9 +9,12 @@ import static org.assertj.core.api.Assertions.*;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CapabilityGroup;
 import io.openaev.database.model.CapabilityScope;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.account.Constants;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -223,6 +226,67 @@ class CapabilityTreeBuilderTest {
     assertThat(flattenValues(tree)).contains(ACCESS_FINDINGS.name());
     // STIX category should not appear (no visible children)
     assertThat(tree).noneMatch(n -> STIX.name().equals(n.value()));
+  }
+
+  @Test
+  @DisplayName("Tenant tree exposes the snapshot capability under the Findings category")
+  void given_tenant_scope_should_expose_snapshot_capability() {
+    // -- ACT --
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(TENANT);
+
+    // -- ASSERT --
+    // A regression test for §3.2/§2.3 of the story plan: if ACCESS_SNAPSHOT_OBSERVATION is ever
+    // marked hidden, it silently vanishes from the role screen and becomes unprovisionable.
+    CapabilityOutput findings =
+        tree.stream().filter(n -> FINDINGS.name().equals(n.value())).findFirst().orElseThrow();
+    assertThat(findings.children())
+        .anyMatch(n -> ACCESS_SNAPSHOT_OBSERVATION.name().equals(n.value()) && n.checkable());
+  }
+
+  @Test
+  @DisplayName("Snapshot capability is hidden when BULK_SNAPSHOT_EXPORT is off")
+  void given_bulk_snapshot_export_off_should_hide_snapshot_capability() {
+    // -- ARRANGE: every gate open except the snapshot one --
+    Set<PreviewFeature> enabled =
+        CapabilityTreeBuilder.featureGates().stream()
+            .filter(f -> f != PreviewFeature.BULK_SNAPSHOT_EXPORT)
+            .collect(Collectors.toUnmodifiableSet());
+
+    // -- ACT --
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(TENANT, enabled);
+
+    // -- ASSERT --
+    assertThat(flattenValues(tree)).doesNotContain(ACCESS_SNAPSHOT_OBSERVATION.name());
+    // The rest of the Findings category must survive the gate.
+    assertThat(flattenValues(tree)).contains(ACCESS_FINDINGS.name());
+  }
+
+  @Test
+  @DisplayName("Credentials capabilities are hidden when CREDENTIAL_ASSET is off")
+  void given_credential_asset_off_should_hide_credentials_capabilities() {
+    // -- ARRANGE --
+    Set<PreviewFeature> enabled =
+        CapabilityTreeBuilder.featureGates().stream()
+            .filter(f -> f != PreviewFeature.CREDENTIAL_ASSET)
+            .collect(Collectors.toUnmodifiableSet());
+
+    // -- ACT --
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(TENANT, enabled);
+
+    // -- ASSERT --
+    assertThat(flattenValues(tree))
+        .doesNotContain(
+            ACCESS_CREDENTIALS.name(), MANAGE_CREDENTIALS.name(), DELETE_CREDENTIALS.name());
+  }
+
+  @Test
+  @DisplayName("Platform tree does not expose the tenant-scoped snapshot capability")
+  void given_platform_scope_should_not_expose_snapshot_capability() {
+    // -- ACT --
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(PLATFORM);
+
+    // -- ASSERT --
+    assertThat(flattenValues(tree)).doesNotContain(ACCESS_SNAPSHOT_OBSERVATION.name());
   }
 
   /** Recursively collect all capability values from the tree. */

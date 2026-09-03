@@ -3,6 +3,7 @@ package io.openaev.api.capabilities;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CapabilityGroup;
 import io.openaev.database.model.CapabilityScope;
+import io.openaev.rest.settings.PreviewFeature;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -12,44 +13,59 @@ import java.util.stream.Collectors;
  */
 public final class CapabilityTreeBuilder {
 
-  /** Pre-computed trees keyed by scope ({@code null} key = all scopes). */
+  /**
+   * Capabilities that exist only while their preview feature is on. A capability left visible while
+   * its feature is off advertises the feature on the role screen and lets an admin grant a
+   * permission whose endpoints answer 404.
+   */
+  private static final Map<Capability, PreviewFeature> FEATURE_GATES =
+      Map.of(
+          Capability.ACCESS_CREDENTIALS, PreviewFeature.CREDENTIAL_ASSET,
+          Capability.MANAGE_CREDENTIALS, PreviewFeature.CREDENTIAL_ASSET,
+          Capability.DELETE_CREDENTIALS, PreviewFeature.CREDENTIAL_ASSET,
+          Capability.ACCESS_SNAPSHOT_OBSERVATION, PreviewFeature.BULK_SNAPSHOT_EXPORT);
+
+  private static final Set<PreviewFeature> ALL_GATES =
+      Collections.unmodifiableSet(EnumSet.copyOf(FEATURE_GATES.values()));
+
+  /** Pre-computed trees keyed by scope ({@code null} key = all scopes), every gate open. */
   private static final Map<CapabilityScope, List<CapabilityOutput>> CACHE;
 
   static {
     CACHE = new EnumMap<>(CapabilityScope.class);
     for (CapabilityScope s : CapabilityScope.values()) {
-      CACHE.put(s, Collections.unmodifiableList(computeTree(s, true)));
+      CACHE.put(s, Collections.unmodifiableList(computeTree(s, ALL_GATES)));
     }
   }
 
   private static final List<CapabilityOutput> ALL_SCOPES_CACHE =
-      Collections.unmodifiableList(computeTree(null, true));
+      Collections.unmodifiableList(computeTree(null, ALL_GATES));
 
   private CapabilityTreeBuilder() {}
 
-  /** Build the full capability tree (all scopes). */
+  /** The preview features that gate at least one capability. */
+  public static Set<PreviewFeature> featureGates() {
+    return ALL_GATES;
+  }
+
+  /** Build the full capability tree (all scopes), every gate open. */
   public static List<CapabilityOutput> buildTree() {
-    return buildTree(true);
+    return ALL_SCOPES_CACHE;
   }
 
-  /** Build the full capability tree (all scopes), optionally hiding credentials capabilities. */
-  public static List<CapabilityOutput> buildTree(boolean isCredentialAssetEnabled) {
-    if (isCredentialAssetEnabled) {
-      return ALL_SCOPES_CACHE;
-    }
-    return computeTree(null, false);
-  }
-
-  /** Build the capability tree filtered by scope — returns a cached, unmodifiable list. */
+  /** Build the capability tree filtered by scope, every gate open. */
   public static List<CapabilityOutput> buildTree(CapabilityScope scope) {
-    return buildTree(scope, true);
+    return buildTree(scope, ALL_GATES);
   }
 
-  /** Build the capability tree filtered by scope, optionally hiding credentials capabilities. */
+  /**
+   * Build the capability tree filtered by scope, hiding the capabilities whose preview feature is
+   * absent from {@code enabledFeatures}.
+   */
   public static List<CapabilityOutput> buildTree(
-      CapabilityScope scope, boolean isCredentialAssetEnabled) {
-    if (!isCredentialAssetEnabled) {
-      return computeTree(scope, false);
+      CapabilityScope scope, Set<PreviewFeature> enabledFeatures) {
+    if (!enabledFeatures.containsAll(ALL_GATES)) {
+      return computeTree(scope, enabledFeatures);
     }
     if (scope == null) {
       return ALL_SCOPES_CACHE;
@@ -57,15 +73,20 @@ public final class CapabilityTreeBuilder {
     return CACHE.get(scope);
   }
 
+  private static boolean isEnabled(Capability capability, Set<PreviewFeature> enabledFeatures) {
+    PreviewFeature gate = FEATURE_GATES.get(capability);
+    return gate == null || enabledFeatures.contains(gate);
+  }
+
   /** Computes the tree (called once per scope at class-loading time). */
   private static List<CapabilityOutput> computeTree(
-      CapabilityScope scope, boolean isCredentialAssetEnabled) {
+      CapabilityScope scope, Set<PreviewFeature> enabledFeatures) {
     // Group children by parent capability
     Map<Capability, List<Capability>> childrenByParent =
         Arrays.stream(Capability.values())
             .filter(c -> c.getParent() != null)
             .filter(c -> !c.isHidden())
-            .filter(c -> isCredentialAssetEnabled || !c.isCredentialCapability())
+            .filter(c -> isEnabled(c, enabledFeatures))
             .filter(c -> scope == null || c.getScopes().contains(scope))
             .collect(Collectors.groupingBy(Capability::getParent));
 
@@ -74,7 +95,7 @@ public final class CapabilityTreeBuilder {
         Arrays.stream(Capability.values())
             .filter(c -> c.getParent() == null)
             .filter(c -> !c.isHidden())
-            .filter(c -> isCredentialAssetEnabled || !c.isCredentialCapability())
+            .filter(c -> isEnabled(c, enabledFeatures))
             .filter(c -> scope == null || c.getScopes().contains(scope))
             // Stable sort on the group: keeps the CapabilityGroup declaration order between
             // groups, and the Capability declaration order inside a group.

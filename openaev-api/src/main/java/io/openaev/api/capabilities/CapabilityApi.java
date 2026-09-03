@@ -6,6 +6,8 @@ import io.openaev.service.PreviewFeatureService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -31,9 +33,11 @@ public class CapabilityApi {
   @GetMapping
   public ResponseEntity<List<CapabilityOutput>> getCapabilities(
       @RequestParam(required = false) CapabilityScope scope) {
-    boolean credentialAssetEnabled =
-        previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET);
-    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(scope, credentialAssetEnabled);
+    Set<PreviewFeature> enabledFeatures =
+        CapabilityTreeBuilder.featureGates().stream()
+            .filter(previewFeatureService::isFeatureEnabled)
+            .collect(Collectors.toUnmodifiableSet());
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(scope, enabledFeatures);
     return ResponseEntity.ok().cacheControl(CacheControl.maxAge(Duration.ofDays(1))).body(tree);
   }
 }

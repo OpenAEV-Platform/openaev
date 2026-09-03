@@ -179,6 +179,26 @@ public class PermissionServiceTest extends IntegrationTest {
   }
 
   @Test
+  public void test_hasPermission_snapshotObservation_WHEN_has_capa() {
+    User user = getUser(USER_ID, false);
+    user.setGroups(List.of(getGroup(Capability.ACCESS_SNAPSHOT_OBSERVATION)));
+    assertTrue(
+        permissionService.hasPermission(
+            user, Optional.empty(), "", ResourceType.SNAPSHOT_OBSERVATION, Action.SEARCH));
+  }
+
+  // Regression test for §3.2 of the story plan: SNAPSHOT_OBSERVATION must never be added to
+  // RESOURCES_MANAGED_BY_GRANTS or RESOURCES_USING_PARENT_PERMISSION, both of which unconditionally
+  // allow Action.SEARCH — that would make the capability check below unreachable.
+  @Test
+  public void test_hasPermission_snapshotObservation_WHEN_no_capa() {
+    User user = getUser(USER_ID, false);
+    assertFalse(
+        permissionService.hasPermission(
+            user, Optional.empty(), "", ResourceType.SNAPSHOT_OBSERVATION, Action.SEARCH));
+  }
+
+  @Test
   public void test_hasPermission_read_WHEN_has_bypass_capa() {
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.BYPASS)));

@@ -106,4 +106,42 @@ public final class EsIndexingUtils {
     Instant maxSafeCursor = now.minusSeconds(Math.max(0, graceWindowSeconds));
     return cursor.isAfter(maxSafeCursor) ? maxSafeCursor : cursor;
   }
+
+  /**
+   * Computes the next cursor for a keyset-paged handler.
+   *
+   * <p>Such a handler pages on the total order {@code (base_updated_at, base_id)}, so the last row
+   * of the batch is always a safe resume point: unlike {@link #computeNewCursor}, there is no
+   * boundary group to step back from, and the cursor advances by the full batch every round even
+   * when every row shares one timestamp.
+   *
+   * @param results the batch rows, ordered by ascending {@code (base_updated_at, base_id)}
+   * @return the last row's {@code (base_updated_at, base_id)}, or null when its timestamp is null
+   */
+  public static IndexingCursor computeKeysetCursor(List<? extends EsBase> results) {
+    EsBase last = results.getLast();
+    Instant boundary = last.getBase_updated_at();
+    if (boundary == null) {
+      return null;
+    }
+    return new IndexingCursor(boundary, last.getBase_id());
+  }
+
+  /**
+   * Applies {@link #capCursorToGraceWindow} to a keyset cursor.
+   *
+   * <p>When the cap moves the timestamp, the last id belongs to a later row and must be dropped:
+   * with a null id the fetch degrades to {@code updated_at > cappedTs} and idempotently re-upserts
+   * the whole boundary group, which is the safe behaviour. Keeping the id would resume after a row
+   * that sits beyond the capped instant and skip everything in between.
+   *
+   * <p>Dropping the id also suspends keyset progress: a group of rows sharing one timestamp still
+   * inside the window re-serves its first batch every round, and only advances once that timestamp
+   * ages past the window. That is a stall, not the permanent skip this cursor exists to fix.
+   */
+  public static IndexingCursor capToGraceWindow(
+      IndexingCursor cursor, Instant now, long graceWindowSeconds) {
+    Instant capped = capCursorToGraceWindow(cursor.timestamp(), now, graceWindowSeconds);
+    return capped.equals(cursor.timestamp()) ? cursor : new IndexingCursor(capped, null);
+  }
 }

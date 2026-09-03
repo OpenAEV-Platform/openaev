@@ -104,6 +104,36 @@ public class OpenSearchUtils {
   }
 
   /**
+   * Builds the exclusive "resume after (ts, id)" keyset predicate used by cursor-paged search:
+   * either strictly after {@code ts}, or equal to {@code ts} and strictly after {@code id}. The
+   * equality branch is written as a double-bounded range (not a term) so it parses {@code ts}
+   * through the same date path as the {@code gt} branch.
+   *
+   * @param tsField the date field to compare the timestamp on (must not be blank)
+   * @param idField the sortable id field, e.g. {@code base_id.keyword} (must not be blank)
+   * @param ts the resume timestamp, already truncated to milliseconds (must not be null)
+   * @param id the resume id (must not be blank)
+   */
+  public static Query buildKeysetPredicate(
+      @NotBlank final String tsField,
+      @NotBlank final String idField,
+      @NotNull final Instant ts,
+      @NotBlank final String id) {
+    Query strictlyAfterTs = RangeQuery.of(d -> d.field(tsField).gt(JsonData.of(ts))).toQuery();
+    Query sameTsAfterId =
+        BoolQuery.of(
+                b ->
+                    b.must(
+                        RangeQuery.of(
+                                d -> d.field(tsField).gte(JsonData.of(ts)).lte(JsonData.of(ts)))
+                            .toQuery(),
+                        RangeQuery.of(d -> d.field(idField).gt(JsonData.of(id))).toQuery()))
+            .toQuery();
+    return BoolQuery.of(b -> b.should(strictlyAfterTs, sameTsAfterId).minimumShouldMatch("1"))
+        .toQuery();
+  }
+
+  /**
    * Builds a date histogram aggregation on the specified field.
    *
    * @param aggregation the {@link Aggregation.Builder} to configure (must not be null)

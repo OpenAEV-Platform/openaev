@@ -124,6 +124,7 @@
   "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES": "Доступ к группам и ролям платформы",
   "ACCESS_REPORTINGS": "Доступ к отчётам",
   "ACCESS_SECURITY_PLATFORMS": "Доступ к платформам безопасности",
+  "ACCESS_SNAPSHOT_OBSERVATION": "Доступ к снимкам наблюдений",
   "ACCESS_TAGS": "Доступ к tags",
   "ACCESS_TEAMS_AND_PLAYERS": "Доступ к командам и игрокам",
   "ACCESS_TENANT_SETTINGS": "Доступ к настройкам tenant",

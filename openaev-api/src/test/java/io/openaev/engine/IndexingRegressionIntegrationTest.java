@@ -7,6 +7,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.IndexingStatus;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
+import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.api.ListConfiguration;
 import io.openaev.engine.api.ListRuntime;
 import io.openaev.engine.model.asset.EsAsset;
@@ -57,6 +58,7 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
 
   @Autowired private EngineService engineService;
   @Autowired private EngineContext engineContext;
+  @Autowired private IndexingStatusRepository indexingStatusRepository;
 
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private ExerciseComposer exerciseComposer;
@@ -65,8 +67,13 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private ScenarioComposer scenarioComposer;
 
-  /** One hour ago - used as the {@code lastIndexing} cursor for incremental tests. */
-  private static final Instant FROM = Instant.now().minus(1, ChronoUnit.HOURS);
+  /**
+   * One hour ago - used as the {@code lastIndexing} cursor for incremental tests. Truncated to the
+   * microsecond precision of a PostgreSQL {@code timestamp} so a round-trip through the column is
+   * exact.
+   */
+  private static final Instant FROM =
+      Instant.now().truncatedTo(ChronoUnit.MICROS).minus(1, ChronoUnit.HOURS);
 
   /** A point in time safely before {@code FROM} - used to push timestamps into the past. */
   private static final Instant PAST = FROM.minus(1, ChronoUnit.DAYS);
@@ -938,6 +945,71 @@ class IndexingRegressionIntegrationTest extends IntegrationTest {
 
       // -- ASSERT --
       assertThat(queryModel("vulnerable-endpoint").getTotal()).isZero();
+    }
+  }
+
+  @Nested
+  @DisplayName("Keyset paging - additive slice, no behaviour change (Story 1.1/1.2)")
+  class KeysetPagingRegression {
+
+    @Test
+    @DisplayName("Existing handler persists a null indexing_status_last_id")
+    void given_existingHandler_should_persistANullLastId() {
+      // -- ARRANGE --
+      endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
+
+      // -- ACT --
+      executeJobAndWait();
+
+      // -- ASSERT --
+      awaitEndpointIndexedAssertion(() -> assertThat(queryModel("asset").getTotal()).isEqualTo(1));
+      assertThat(indexingStatusRepository.findByType("asset"))
+          .as("none of the 13 existing handlers has opted into keyset paging yet")
+          .hasValueSatisfying(status -> assertThat(status.getLastId()).isNull());
+    }
+
+    @Test
+    @DisplayName("Existing handler keeps its historical cursor-advancement behaviour")
+    void given_existingHandler_should_keepUnchangedCursorBehaviour() {
+      // -- ARRANGE --
+      // Pinned to PAST (outside the grace window) so the persisted cursor equals the row's
+      // updated_at exactly, instead of being capped to now-graceWindow and clock-dependent.
+      EndpointComposer.Composer endpointWrapper =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist();
+      entityManager.flush();
+      pushEndpointToPast(endpointWrapper.get().getId());
+
+      // -- ACT --
+      executeJobAndWait();
+
+      // -- ASSERT --
+      awaitEndpointIndexedAssertion(() -> assertThat(queryModel("asset").getTotal()).isEqualTo(1));
+      assertThat(indexingStatusRepository.findByType("asset"))
+          .as("a timestamp-only handler must still land on the last row's updated_at, with no id")
+          .hasValueSatisfying(
+              status -> {
+                assertThat(status.getLastIndexing()).isEqualTo(PAST);
+                assertThat(status.getLastId()).isNull();
+              });
+    }
+
+    @Test
+    @DisplayName("Empty batch writes no indexing_status row")
+    void given_emptyBatch_should_writeNoIndexingStatusRow() {
+      // -- ARRANGE --
+      // No endpoint fixture is created: @BeforeEach resets the endpoint composer, so the asset
+      // handler's fetch is empty and the loop takes the untouched "up to date" branch (plan §2).
+      assertThat(queryModel("asset").getTotal())
+          .as("precondition: no seeded asset, otherwise the batch would not be empty")
+          .isZero();
+
+      // -- ACT --
+      executeJobAndWait();
+
+      // -- ASSERT --
+      assertThat(indexingStatusRepository.findByType("asset"))
+          .as("the empty-batch branch must write no row (locked as-is until the Epic 2 PR)")
+          .isEmpty();
     }
   }
 }

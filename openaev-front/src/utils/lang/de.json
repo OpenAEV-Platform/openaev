@@ -124,6 +124,7 @@
   "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES": "Zugriff auf Plattformbenutzer, -gruppen und -rollen",
   "ACCESS_REPORTINGS": "Zugriff auf Reportings",
   "ACCESS_SECURITY_PLATFORMS": "Zugriff auf Sicherheitsplattformen",
+  "ACCESS_SNAPSHOT_OBSERVATION": "Zugriff auf Beobachtungs-Snapshots",
   "ACCESS_TAGS": "Auf tags zugreifen",
   "ACCESS_TEAMS_AND_PLAYERS": "Zugriff auf Teams & Spieler",
   "ACCESS_TENANT_SETTINGS": "Zugang zu Tenant-Einstellungen",

@@ -228,6 +228,7 @@ nav:
       - XTM Hub: administration/hub.md # Warning: page is linked in XTM Hub documentation
   - Reference:
       - APIs:
+          - Bulk snapshot export: reference/apis/bulk-snapshot.md
           - Filters: reference/apis/filters.md
       - Deployment and stack:
           - Telemetry: reference/deployment/telemetry.md

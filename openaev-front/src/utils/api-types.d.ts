@@ -979,6 +979,72 @@ export interface AtomicTestingUpdateTagsInput {
   atomic_tags?: string[];
 }
 
+export interface AttackObservationOutput {
+  /** Asset id */
+  asset_id?: string;
+  /** Asset name */
+  asset_name?: string;
+  /** Attack pattern external id */
+  attack_pattern_external_id?: string;
+  /** Attack pattern name */
+  attack_pattern_name?: string;
+  /**
+   * Successful attempts
+   * @format int64
+   */
+  attempts_success?: number;
+  /**
+   * Total attempts
+   * @format int64
+   */
+  attempts_total?: number;
+  /**
+   * Coverage ratio
+   * @format double
+   */
+  coverage_ratio?: number;
+  /** Endpoint hostname */
+  endpoint_hostname?: string;
+  /** Endpoint platform */
+  endpoint_platform?: string;
+  /** Expectation status */
+  expectation_status?: string;
+  /** Expectation type */
+  expectation_type?: string;
+  /** Observation id */
+  id?: string;
+  /** Id of the last simulation that produced this observation */
+  last_simulation_id?: string;
+  /** Name of the last simulation that produced this observation */
+  last_simulation_name?: string;
+  /**
+   * Last verification timestamp
+   * @format date-time
+   */
+  last_verified_at?: string;
+  /**
+   * Security platforms that reported on this technique
+   * @uniqueItems true
+   */
+  platforms_reporting?: string[];
+  /**
+   * Security platforms that succeeded
+   * @uniqueItems true
+   */
+  platforms_succeeded?: string[];
+  /** Scenario id */
+  scenario_id?: string;
+  /** Scenario name */
+  scenario_name?: string;
+  /** Tenant name */
+  tenant_name?: string;
+  /**
+   * Last update timestamp
+   * @format date-time
+   */
+  updated_at?: string;
+}
+
 export interface AttackPathAlertDTO {
   date?: string;
   id?: string;
@@ -4721,6 +4787,46 @@ export interface EsAssetGroup {
   name?: string;
 }
 
+export interface EsAttackObservation {
+  asset_hostname?: string;
+  asset_name?: string;
+  attack_observation_attack_pattern_external_id?: string;
+  attack_observation_attack_pattern_name?: string;
+  /** @format int64 */
+  attack_observation_attempts_success?: number;
+  /** @format int64 */
+  attack_observation_attempts_total?: number;
+  /** @format double */
+  attack_observation_coverage_ratio?: number;
+  attack_observation_expectation_type?: string;
+  /** @format date-time */
+  attack_observation_last_verified_at?: string;
+  /** @uniqueItems true */
+  attack_observation_platforms_succeeded?: string[];
+  attack_observation_scenario_name?: string;
+  attack_observation_simulation_name?: string;
+  attack_observation_status?: string;
+  attack_observation_tenant_name?: string;
+  base_asset_side?: string;
+  /** @uniqueItems true */
+  base_attack_patterns_side?: string[];
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  base_id?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  base_scenario_side?: string;
+  /** @uniqueItems true */
+  base_security_platforms_side?: string[];
+  base_simulation_side?: string;
+  base_tenant_side?: string;
+  /** @format date-time */
+  base_updated_at?: string;
+  endpoint_platform?: string;
+}
+
 export interface EsAttackPath {
   /** @uniqueItems true */
   attackPatternChildrenIds?: string[];
@@ -4777,6 +4883,14 @@ export type EsBase = BaseEsBase &
     | BaseEsBaseBaseEntityMapping<"security-platform", EsSecurityPlatform>
     | BaseEsBaseBaseEntityMapping<"security-domain", EsSecurityDomain>
     | BaseEsBaseBaseEntityMapping<"asset-group", EsAssetGroup>
+    | BaseEsBaseBaseEntityMapping<
+        "snapshot-attack-observation",
+        EsAttackObservation
+      >
+    | BaseEsBaseBaseEntityMapping<
+        "snapshot-vulnerability-observation",
+        EsVulnerabilityObservation
+      >
   );
 
 export interface EsCountInterval {
@@ -5052,6 +5166,35 @@ export interface EsTeam {
   /** @format date-time */
   base_updated_at?: string;
   name?: string;
+}
+
+export interface EsVulnerabilityObservation {
+  asset_hostname?: string;
+  asset_name?: string;
+  base_asset_side?: string;
+  /** @format date-time */
+  base_created_at?: string;
+  base_dependencies?: string[];
+  base_entity?: string;
+  /** @uniqueItems true */
+  base_findings_side?: string[];
+  base_id?: string;
+  base_representative?: string;
+  base_restrictions?: string[];
+  base_scenario_side?: string;
+  base_simulation_side?: string;
+  base_tenant_side?: string;
+  /** @format date-time */
+  base_updated_at?: string;
+  endpoint_platform?: string;
+  finding_type?: string;
+  finding_value?: string;
+  vulnerability_observation_external_id?: string;
+  /** @format date-time */
+  vulnerability_observation_last_verified_at?: string;
+  vulnerability_observation_scenario_name?: string;
+  vulnerability_observation_simulation_name?: string;
+  vulnerability_observation_tenant_name?: string;
 }
 
 export interface EsVulnerableEndpoint {
@@ -7887,6 +8030,7 @@ export interface NotificationTriggerInput {
     | "PLATFORM_GROUP"
     | "PLATFORM_USER"
     | "XTM_HUB_REGISTRATION"
+    | "SNAPSHOT_OBSERVATION"
     | "UNKNOWN"
     | "SIMULATION_OR_SCENARIO"
     | "WORKFLOW"
@@ -7992,6 +8136,7 @@ export interface NotificationTriggerOutput {
     | "PLATFORM_GROUP"
     | "PLATFORM_USER"
     | "XTM_HUB_REGISTRATION"
+    | "SNAPSHOT_OBSERVATION"
     | "UNKNOWN"
     | "SIMULATION_OR_SCENARIO"
     | "WORKFLOW"
@@ -9586,6 +9731,7 @@ export interface PlatformRoleInput {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "ACCESS_SNAPSHOT_OBSERVATION"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -9669,6 +9815,7 @@ export interface PlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
+    | "BULK_SNAPSHOT_EXPORT"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -9964,6 +10111,7 @@ export interface PublicPlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
+    | "BULK_SNAPSHOT_EXPORT"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -10416,6 +10564,7 @@ export interface RoleInput {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "ACCESS_SNAPSHOT_OBSERVATION"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -11385,6 +11534,82 @@ export interface SimulationsResultsLatest {
     string,
     GlobalScoreBySimulationEndDate[]
   >;
+}
+
+export interface SnapshotSearchInput {
+  /** Opaque resume cursor from a previous page */
+  cursor?: string;
+  /**
+   * Page size, default 500, capped at 1000
+   * @format int32
+   */
+  page_size?: number;
+  /**
+   * Safety lag in seconds, default 120, clamped to [max(60, grace), 3600]
+   * @format int32
+   */
+  safety_lag_seconds?: number;
+  /**
+   * Full reconciliation lower bound; mutually exclusive with cursor
+   * @format date-time
+   */
+  since?: string;
+}
+
+export interface SnapshotSearchOutputAttackObservationOutput {
+  /** Always "eventual" */
+  consistency_mode?: string;
+  /** Whether another page is expected to follow */
+  has_more?: boolean;
+  /**
+   * Approximate indexing horizon of this stream; a readiness signal, not the exact indexing cursor
+   * @format date-time
+   */
+  indexed_through?: string;
+  /** Opaque resume cursor; an empty page echoes back the cursor it was given, so it is always safe to store */
+  next_cursor?: string;
+  /** Page of observations */
+  observations?: AttackObservationOutput[];
+  /**
+   * Server time at which this response was computed
+   * @format date-time
+   */
+  server_time?: string;
+  /** Whether the window is current with the indexing horizon */
+  snapshot_ready?: boolean;
+  /**
+   * Inclusive upper bound of this page's window
+   * @format date-time
+   */
+  snapshot_window_end?: string;
+}
+
+export interface SnapshotSearchOutputVulnerabilityObservationOutput {
+  /** Always "eventual" */
+  consistency_mode?: string;
+  /** Whether another page is expected to follow */
+  has_more?: boolean;
+  /**
+   * Approximate indexing horizon of this stream; a readiness signal, not the exact indexing cursor
+   * @format date-time
+   */
+  indexed_through?: string;
+  /** Opaque resume cursor; an empty page echoes back the cursor it was given, so it is always safe to store */
+  next_cursor?: string;
+  /** Page of observations */
+  observations?: VulnerabilityObservationOutput[];
+  /**
+   * Server time at which this response was computed
+   * @format date-time
+   */
+  server_time?: string;
+  /** Whether the window is current with the indexing horizon */
+  snapshot_ready?: boolean;
+  /**
+   * Inclusive upper bound of this page's window
+   * @format date-time
+   */
+  snapshot_window_end?: string;
 }
 
 export interface SortField {
@@ -12554,6 +12779,7 @@ export interface User {
     | "ACCESS_FINDINGS"
     | "MANAGE_FINDINGS"
     | "DELETE_FINDINGS"
+    | "ACCESS_SNAPSHOT_OBSERVATION"
     | "ACCESS_DOCUMENTS"
     | "MANAGE_DOCUMENTS"
     | "DELETE_DOCUMENTS"
@@ -12823,6 +13049,47 @@ export interface VulnerabilityCreateInput {
    * @example "ANALYZED"
    */
   vulnerability_vuln_status?: "ANALYZED" | "DEFERRED" | "MODIFIED";
+}
+
+export interface VulnerabilityObservationOutput {
+  /** Asset id */
+  asset_id?: string;
+  /** Asset name */
+  asset_name?: string;
+  /** Endpoint hostname */
+  endpoint_hostname?: string;
+  /** Endpoint platform */
+  endpoint_platform?: string;
+  /** Finding type */
+  finding_type?: string;
+  /** Finding value */
+  finding_value?: string;
+  /** Observation id */
+  id?: string;
+  /** Id of the finding that defines the current state of this grain */
+  last_finding_id?: string;
+  /** Id of the last scenario that produced this observation */
+  last_scenario_id?: string;
+  /** Name of the last scenario that produced this observation */
+  last_scenario_name?: string;
+  /** Id of the last simulation that produced this observation */
+  last_simulation_id?: string;
+  /** Name of the last simulation that produced this observation */
+  last_simulation_name?: string;
+  /**
+   * Last verification timestamp
+   * @format date-time
+   */
+  last_verified_at?: string;
+  /** Tenant name */
+  tenant_name?: string;
+  /**
+   * Last update timestamp
+   * @format date-time
+   */
+  updated_at?: string;
+  /** Vulnerability external id */
+  vulnerability_external_id?: string;
 }
 
 /** Full vulnerability output including references and CWEs */
