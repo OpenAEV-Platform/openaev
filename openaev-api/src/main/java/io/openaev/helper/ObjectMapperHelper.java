@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
 import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
-import com.fasterxml.jackson.datatype.hibernate6.Hibernate6Module;
+import com.fasterxml.jackson.datatype.hibernate7.Hibernate7Module;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.openaev.database.audit.AuditStateCapturable;
@@ -41,7 +41,7 @@ public final class ObjectMapperHelper {
     ObjectMapper mapper = new ObjectMapper();
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     mapper.setDateFormat(new StdDateFormat().withColonInTimeZone(true));
-    mapper.registerModule(new Hibernate6Module());
+    mapper.registerModule(new Hibernate7Module());
     mapper.registerModule(new Jdk8Module());
     mapper.registerModule(new JavaTimeModule());
     // Register a passthrough filter for the audit state filter declared on Base via @JsonFilter.

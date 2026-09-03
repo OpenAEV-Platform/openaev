@@ -43,6 +43,27 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 @DisplayName("RestBehavior exception mapping")
 class RestBehaviorTest {
 
+  /**
+   * Spring Framework 7 dropped the short {@code ParameterValidationResult} constructors and only
+   * keeps the seven-argument one. This mirrors what the removed three-argument constructor did: no
+   * container, no index, no key, and a source lookup that refuses every type.
+   */
+  private static ParameterValidationResult validationResult(
+      MethodParameter parameter,
+      Object argument,
+      List<? extends MessageSourceResolvable> resolvableErrors) {
+    return new ParameterValidationResult(
+        parameter,
+        argument,
+        resolvableErrors,
+        null,
+        null,
+        null,
+        (error, sourceType) -> {
+          throw new IllegalArgumentException("No source object of the given type");
+        });
+  }
+
   @Test
   @DisplayName("a tenant-filtering refusal maps to 500 with a clear code")
   void tenantFilteringRefusalMapsToClear500() {
@@ -577,8 +598,7 @@ class RestBehaviorTest {
       Method method = updateActionLikeMethod();
       MethodParameter bodyParameter = new MethodParameter(method, 1);
       ParameterValidationResult result =
-          new ParameterValidationResult(
-              bodyParameter, new SampleValidationInput(), List.of(fieldErrors));
+          validationResult(bodyParameter, new SampleValidationInput(), List.of(fieldErrors));
       MethodValidationResult validation =
           MethodValidationResult.create(this, method, List.of(result));
       return new HandlerMethodValidationException(validation);
@@ -642,8 +662,7 @@ class RestBehaviorTest {
       pathParameter.initParameterNameDiscovery(new DefaultParameterNameDiscoverer());
       MessageSourceResolvable resolvable =
           new DefaultMessageSourceResolvable(new String[] {"NotBlank"}, "must not be blank");
-      ParameterValidationResult result =
-          new ParameterValidationResult(pathParameter, "", List.of(resolvable));
+      ParameterValidationResult result = validationResult(pathParameter, "", List.of(resolvable));
       HandlerMethodValidationException ex =
           new HandlerMethodValidationException(
               MethodValidationResult.create(this, method, List.of(result)));
@@ -691,14 +710,14 @@ class RestBehaviorTest {
           HandlerMethodValidationHandling.class.getDeclaredMethod(
               "linkActionsLike", String.class, String.class);
       ParameterValidationResult first =
-          new ParameterValidationResult(
+          validationResult(
               new MethodParameter(method, 0),
               "",
               List.of(
                   new DefaultMessageSourceResolvable(
                       new String[] {"NotBlank"}, "must not be blank")));
       ParameterValidationResult second =
-          new ParameterValidationResult(
+          validationResult(
               new MethodParameter(method, 1),
               "x",
               List.of(
@@ -779,7 +798,7 @@ class RestBehaviorTest {
       // broken response contract is a server bug, not a client mistake
       Method method = HandlerMethodValidationHandling.class.getDeclaredMethod("renderActionLike");
       ParameterValidationResult result =
-          new ParameterValidationResult(
+          validationResult(
               new MethodParameter(method, -1),
               "",
               List.of(

@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.16</version>
+        <version>4.0.8</version>
     </parent>
 
     <groupId>io.openaev</groupId>
@@ -32,11 +32,10 @@
         <postgresql.version>42.7.13</postgresql.version>
         <pyroscope.version>2.9.1</pyroscope.version>
         <bouncycastle.version>1.85.2</bouncycastle.version>
-        <jackson-bom.version>2.22.2</jackson-bom.version>
+        <jackson-2-bom.version>2.22.2</jackson-2-bom.version>
         <netty.version>4.2.17.Final</netty.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <tools-jackson-core.version>3.2.2</tools-jackson-core.version>
-        <tomcat.version>10.1.59</tomcat.version>
         <!-- Override Spring Boot BOM: httpcore5-h2 HTTP/2 HPACK DoS CVE-2026-54428 -->
         <httpcore5.version>5.4.3</httpcore5.version>
         <velocity-engine-core.version>2.4.1</velocity-engine-core.version>

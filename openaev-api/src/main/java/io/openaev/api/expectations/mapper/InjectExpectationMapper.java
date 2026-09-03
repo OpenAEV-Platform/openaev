@@ -26,7 +26,7 @@ public final class InjectExpectationMapper {
         expectation.getCreatedAt(),
         expectation.getUpdatedAt(),
         // Signatures are a LAZY collection since they moved to a dedicated table: copy it while
-        // the session is still open, otherwise Hibernate6Module serializes the uninitialized
+        // the session is still open, otherwise Hibernate7Module serializes the uninitialized
         // PersistentBag as null and collectors can never match any expectation.
         List.copyOf(expectation.getSignatures()),
         // The results JSONB column can be SQL NULL on legacy rows: normalize to an empty list.

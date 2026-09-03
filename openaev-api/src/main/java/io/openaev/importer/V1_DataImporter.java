@@ -1559,13 +1559,17 @@ public class V1_DataImporter implements Importer {
             if (assetGroup != null
                 && injectorContractContentUtils.hasField(
                     inject.getInjectorContract().get(), "asset_groups")) {
-              inject.getAssetGroups().add(assetGroup);
+              // Native insert (not inject.getAssetGroups().add(...)) to avoid Hibernate 7's
+              // "cannot recreate collection while filter is enabled" on this
+              // @Filter(tenantFilter)'d, EAGER, FetchMode.SUBSELECT many-to-many. See
+              // InjectRepository#addAssetGroup for details.
+              injectRepository.addAssetGroup(injectId, assetGroup.getId());
             } else if (asset != null
                 && injectorContractContentUtils.hasField(
                     inject.getInjectorContract().get(), "assets")) {
-              inject.getAssets().add(asset);
+              // Native insert (not inject.getAssets().add(...)) for the same reason as above.
+              injectRepository.addAsset(injectId, asset.getId());
             }
-            injectRepository.save(inject);
           }
         });
     // Looking for children of created injects

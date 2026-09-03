@@ -15,7 +15,10 @@
     <properties>
         <commons-collections4.version>4.6.0</commons-collections4.version>
         <commons-email.version>1.5</commons-email.version>
-        <springdoc.version>2.9.0</springdoc.version>
+        <!-- springdoc 3.x targets Spring Boot 4; 2.x (Boot 3) throws
+             TypeNotPresentException/ClassNotFoundException for org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties,
+             a class Boot 4 relocated. -->
+        <springdoc.version>3.0.3</springdoc.version>
         <springdoc-plugin.version>1.5</springdoc-plugin.version>
         <cron-utils.version>9.2.1</cron-utils.version>
         <apache-poi.version>5.5.1</apache-poi.version>
@@ -111,6 +114,13 @@
             <groupId>org.springframework.session</groupId>
             <artifactId>spring-session-jdbc</artifactId>
         </dependency>
+        <!-- Boot 4 moved the Spring Session auto-configuration out of spring-boot-autoconfigure into
+             dedicated modules. Without it the JDBC session store is never wired and sessions
+             silently fall back to in-memory. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-session-jdbc</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
@@ -168,7 +178,7 @@
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-hibernate6</artifactId>
+            <artifactId>jackson-datatype-hibernate7</artifactId>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
@@ -193,6 +203,13 @@
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
         </dependency>
+        <!-- Boot 4 moved FlywayAutoConfiguration out of spring-boot-autoconfigure into a dedicated
+             spring-boot-flyway module. Without it Flyway is silently never run and the schema is
+             never migrated. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-flyway</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-database-postgresql</artifactId>
@@ -204,6 +221,12 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-saml2-service-provider</artifactId>
+        </dependency>
+        <!-- Boot 4 split SAML2 auto-configuration into its own module; it is no longer
+             part of spring-boot-autoconfigure and is not pulled in transitively. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-security-saml2</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
@@ -272,6 +295,14 @@
                     <artifactId>junit-vintage-engine</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <!-- Boot 4 moved @AutoConfigureMockMvc / MockMvcPrint out of spring-boot-test-autoconfigure
+             into a dedicated spring-boot-webmvc-test module, which is not pulled in by
+             spring-boot-starter-test. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.mock-server</groupId>
@@ -346,6 +377,13 @@
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-tracing-bridge-brave</artifactId>
+        </dependency>
+        <!-- Boot 4 extracted the tracing auto-configuration out of spring-boot-actuator-autoconfigure
+             into dedicated modules that starter-actuator no longer pulls in. Without them the
+             Micrometer Tracing / Brave auto-configuration never runs and correlation ids disappear. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-micrometer-tracing-brave</artifactId>
         </dependency>
         <!-- Debug mode: SQL statement logging with timing and masked parameters. Apache-2.0. -->
         <dependency>
