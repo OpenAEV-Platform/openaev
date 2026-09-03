@@ -3,6 +3,7 @@ package io.openaev.injectors.phishing;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -102,7 +103,8 @@ class PhishingExecutorTest {
 
     PhishingResult result = new PhishingResult();
     result.setToken("token-1");
-    when(phishingTrackingService.createResult(any(), any(), any(), any())).thenReturn(result);
+    when(phishingTrackingService.createResult(any(), any(), any(), any(), any()))
+        .thenReturn(result);
 
     Execution execution = mock(Execution.class);
 
@@ -110,7 +112,7 @@ class PhishingExecutorTest {
 
     ArgumentCaptor<String> teamCaptor = ArgumentCaptor.forClass(String.class);
     verify(phishingTrackingService)
-        .createResult(eq(inject), eq(landingPage), eq("user-1"), teamCaptor.capture());
+        .createResult(eq(inject), eq(landingPage), eq("user-1"), teamCaptor.capture(), isNull());
     // The bug wrote the team NAME ("CEO") into phishing_result_team (an FK to teams.team_id),
     // failing phishing_results_team_fk. The fix resolves it to the real team id.
     assertEquals("team-ceo-id", teamCaptor.getValue());
