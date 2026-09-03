@@ -3614,6 +3614,7 @@
   "The expectations of this atomic testing no longer match the validation requirements defined by its action.": "此原子测试的期望不再符合其动作定义的验证要求。",
   "The expectations of this atomic testing no longer match the validation requirements defined by its threat arsenal item.": "此自动测试的期望不再符合其武器库条目定义的验证要求。",
   "The generation is still running - check the report page for the result.": "The generation is still running - check the report page for the result.",
+  "The generation is taking longer than expected - its result will appear in the generations list.": "生成耗时比预期更长 - 其结果将显示在生成列表中。",
   "The host this finding was found on, shown as its IP address and platform (operating system family). \"Unknown\" means the platform could not be determined from the data collected during the run.": "The host this finding was found on, shown as its IP address and platform (operating system family). \"Unknown\" means the platform could not be determined from the data collected during the run.",
   "The hostname your recipients will see, e.g. security.acme.com": "The hostname your recipients will see, e.g. security.acme.com",
   "The import is partial, the following actions could not be created:": "导入不完整，无法创建以下操作：",

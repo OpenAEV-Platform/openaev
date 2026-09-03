@@ -115,6 +115,7 @@ const ReportingPage = () => {
       if (polls > MAX_POLLS) {
         stopPolling();
         setGenerating(false);
+        MESSAGING$.notifyError(t('The generation is taking longer than expected - its result will appear in the generations list.'));
         loadGenerations();
         return;
       }
