@@ -1,8 +1,11 @@
 package io.openaev.service;
 
 import static io.openaev.database.model.ChallengeFlag.FLAG_TYPE.*;
+import static io.openaev.utils.challenge.ChallengeAttemptUtils.buildChallengeAttempt;
+import static io.openaev.utils.challenge.ChallengeAttemptUtils.buildChallengeAttemptID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
@@ -24,11 +27,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class ChallengeServiceTest extends IntegrationTest {
+
+  private static final String TEST_ID = "test";
 
   @Mock private ExerciseRepository exerciseRepository;
   @Mock private ChallengeRepository challengeRepository;
@@ -358,5 +364,145 @@ public class ChallengeServiceTest extends IntegrationTest {
     assertNotNull(reader.getExerciseChallenges().getFirst().getChallenge());
     assertEquals(
         challenge.getName(), reader.getExerciseChallenges().getFirst().getChallenge().getName());
+  }
+
+  // -- MAX ATTEMPTS (player mode) --
+
+  @Test
+  @DisplayName("Should award the expected score when the player solves within the attempt cap")
+  void shouldAwardTheScoreWhenSolvedWithinTheAttemptCap() {
+    // PREPARE
+    Exercise exercise = ExerciseFixture.createDefaultExercise();
+    User user = playerUser();
+    Challenge challenge = challengeWithMaxAttempts(3);
+    List<ChallengeInjectExpectation> expectations =
+        new ArrayList<>(List.of(challengeExpectation(challenge, user)));
+
+    ChallengeTryInput input = new ChallengeTryInput();
+    input.setValue("flag value");
+
+    // MOCK
+    mockPlayerChallenge(exercise, challenge, expectations);
+    when(challengeAttemptService.getChallengeAttempt(any())).thenReturn(Optional.of(attemptOf(1)));
+
+    // EXECUTE
+    challengeService.validateChallenge(TEST_ID, TEST_ID, input, user);
+
+    // VERIFY
+    ArgumentCaptor<ExpectationUpdateInput> captor =
+        ArgumentCaptor.forClass(ExpectationUpdateInput.class);
+    verify(injectExpectationService).updateInjectExpectation(any(), captor.capture());
+    assertEquals(100.0, captor.getValue().getScore());
+  }
+
+  @Test
+  @DisplayName("Should score zero when the player solves the challenge past the attempt cap")
+  void shouldZeroTheScoreWhenSolvedPastTheAttemptCap() {
+    // PREPARE
+    Exercise exercise = ExerciseFixture.createDefaultExercise();
+    User user = playerUser();
+    Challenge challenge = challengeWithMaxAttempts(3);
+    List<ChallengeInjectExpectation> expectations =
+        new ArrayList<>(List.of(challengeExpectation(challenge, user)));
+
+    ChallengeTryInput input = new ChallengeTryInput();
+    input.setValue("flag value");
+
+    // MOCK
+    mockPlayerChallenge(exercise, challenge, expectations);
+    when(challengeAttemptService.getChallengeAttempt(any())).thenReturn(Optional.of(attemptOf(3)));
+
+    // EXECUTE
+    challengeService.validateChallenge(TEST_ID, TEST_ID, input, user);
+
+    // VERIFY
+    ArgumentCaptor<ExpectationUpdateInput> captor =
+        ArgumentCaptor.forClass(ExpectationUpdateInput.class);
+    verify(injectExpectationService).updateInjectExpectation(any(), captor.capture());
+    assertEquals(0D, captor.getValue().getScore());
+  }
+
+  @Test
+  @DisplayName("Should count the wrong answer and fail the expectation once the cap is reached")
+  void shouldFailTheExpectationWhenTheAttemptCapIsReached() {
+    // PREPARE
+    Exercise exercise = ExerciseFixture.createDefaultExercise();
+    User user = playerUser();
+    Challenge challenge = challengeWithMaxAttempts(3);
+    List<ChallengeInjectExpectation> expectations =
+        new ArrayList<>(List.of(challengeExpectation(challenge, user)));
+
+    ChallengeTryInput input = new ChallengeTryInput();
+    input.setValue("wrong flag");
+
+    ChallengeAttempt lastAttempt = attemptOf(2);
+
+    // MOCK
+    mockPlayerChallenge(exercise, challenge, expectations);
+    when(challengeAttemptService.getChallengeAttempts(any())).thenReturn(List.of(lastAttempt));
+    when(challengeAttemptService.getChallengeAttempt(any())).thenReturn(Optional.of(lastAttempt));
+
+    // EXECUTE
+    challengeService.validateChallenge(TEST_ID, TEST_ID, input, user);
+
+    // VERIFY
+    ArgumentCaptor<List<ChallengeAttempt>> attemptsCaptor = ArgumentCaptor.captor();
+    verify(challengeAttemptService).saveChallengeAttempts(attemptsCaptor.capture());
+    assertEquals(3, attemptsCaptor.getValue().getFirst().getAttempt());
+
+    ArgumentCaptor<ExpectationUpdateInput> expectationCaptor =
+        ArgumentCaptor.forClass(ExpectationUpdateInput.class);
+    verify(injectExpectationService).updateInjectExpectation(any(), expectationCaptor.capture());
+    assertEquals(0D, expectationCaptor.getValue().getScore());
+  }
+
+  // -- PRIVATE --
+
+  private User playerUser() {
+    User user = UserFixture.getUser();
+    user.setId(TEST_ID);
+    return user;
+  }
+
+  private Challenge challengeWithMaxAttempts(int maxAttempts) {
+    Challenge challenge = ChallengeFixture.createDefaultChallenge();
+    ChallengeFlag flag = ChallengeFixture.createDefaultChallengeFlag();
+    flag.setChallenge(challenge);
+    challenge.setFlags(new ArrayList<>(List.of(flag)));
+    challenge.setMaxAttempts(maxAttempts);
+    return challenge;
+  }
+
+  private ChallengeInjectExpectation challengeExpectation(Challenge challenge, User user) {
+    InjectStatus status = new InjectStatus();
+    status.setId(TEST_ID);
+    Inject inject = InjectFixture.getDefaultInject();
+    inject.setStatus(status);
+    ChallengeInjectExpectation expectation =
+        (ChallengeInjectExpectation)
+            InjectExpectationFixture.createExpectationWithTypeAndStatus(
+                BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE,
+                BaseInjectExpectation.EXPECTATION_STATUS.PENDING);
+    expectation.setInject(inject);
+    expectation.setChallenge(challenge);
+    expectation.setUser(user);
+    return expectation;
+  }
+
+  private ChallengeAttempt attemptOf(int count) {
+    ChallengeAttempt attempt =
+        buildChallengeAttempt(buildChallengeAttemptID(TEST_ID, TEST_ID, TEST_ID));
+    attempt.setAttempt(count);
+    return attempt;
+  }
+
+  private void mockPlayerChallenge(
+      Exercise exercise, Challenge challenge, List<ChallengeInjectExpectation> expectations) {
+    when(exerciseRepository.findById(TEST_ID)).thenReturn(Optional.of(exercise));
+    when(challengeRepository.findById(TEST_ID)).thenReturn(Optional.of(challenge));
+    when(injectExpectationRepository.findByUserAndExerciseAndChallenge(TEST_ID, TEST_ID, TEST_ID))
+        .thenReturn(expectations);
+    when(injectExpectationRepository.findChallengeExpectationsByExerciseAndUser(TEST_ID, TEST_ID))
+        .thenReturn(expectations);
   }
 }
