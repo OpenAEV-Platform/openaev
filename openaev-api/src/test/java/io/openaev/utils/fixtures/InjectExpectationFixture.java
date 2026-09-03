@@ -28,6 +28,26 @@ public class InjectExpectationFixture {
     return expectation;
   }
 
+  /**
+   * A challenge expectation carried by an inject whose status holds the given id: that id is half
+   * of the key a challenge attempt is stored under.
+   */
+  public static ChallengeInjectExpectation createChallengeInjectExpectation(
+      Challenge challenge, User user, String injectStatusId) {
+    InjectStatus injectStatus = new InjectStatus();
+    injectStatus.setId(injectStatusId);
+    Inject inject = InjectFixture.getDefaultInject();
+    inject.setStatus(injectStatus);
+
+    ChallengeInjectExpectation expectation = new ChallengeInjectExpectation();
+    expectation.setChallenge(challenge);
+    expectation.setInject(inject);
+    expectation.setUser(user);
+    expectation.setExpectedScore(EXPECTED_SCORE);
+    expectation.setExpirationTime(EXPIRATION_TIME_SIX_HOURS);
+    return expectation;
+  }
+
   public static PreventionInjectExpectation createPreventionInjectExpectation(
       Inject inject, @Nullable Agent agent) {
     PreventionInjectExpectation expectation = new PreventionInjectExpectation();

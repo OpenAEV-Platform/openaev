@@ -1,8 +1,6 @@
 package io.openaev.service;
 
 import static io.openaev.database.model.ChallengeFlag.FLAG_TYPE.*;
-import static io.openaev.utils.challenge.ChallengeAttemptUtils.buildChallengeAttempt;
-import static io.openaev.utils.challenge.ChallengeAttemptUtils.buildChallengeAttemptID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -373,16 +371,23 @@ public class ChallengeServiceTest extends IntegrationTest {
   void given_solvedWithinTheAttemptCap_then_awardTheExpectedScore() {
     // -- ARRANGE --
     Exercise exercise = ExerciseFixture.createDefaultExercise();
-    User user = playerUser();
-    Challenge challenge = challengeWithMaxAttempts(3);
+    User user = UserFixture.getUser();
+    user.setId(TEST_ID);
+    Challenge challenge = ChallengeFixture.createChallengeWithMaxAttempts(3);
     List<ChallengeInjectExpectation> expectations =
-        new ArrayList<>(List.of(challengeExpectation(challenge, user)));
+        new ArrayList<>(
+            List.of(
+                InjectExpectationFixture.createChallengeInjectExpectation(
+                    challenge, user, TEST_ID)));
 
     ChallengeTryInput input = new ChallengeTryInput();
     input.setValue("flag value");
 
     mockPlayerChallenge(exercise, challenge, expectations);
-    when(challengeAttemptService.getChallengeAttempt(any())).thenReturn(Optional.of(attemptOf(1)));
+    when(challengeAttemptService.getChallengeAttempt(any()))
+        .thenReturn(
+            Optional.of(
+                ChallengeAttemptFixture.createChallengeAttempt(TEST_ID, TEST_ID, TEST_ID, 1)));
 
     // -- ACT --
     challengeService.validateChallenge(TEST_ID, TEST_ID, input, user);
@@ -399,16 +404,23 @@ public class ChallengeServiceTest extends IntegrationTest {
   void given_solvedPastTheAttemptCap_then_scoreZero() {
     // -- ARRANGE --
     Exercise exercise = ExerciseFixture.createDefaultExercise();
-    User user = playerUser();
-    Challenge challenge = challengeWithMaxAttempts(3);
+    User user = UserFixture.getUser();
+    user.setId(TEST_ID);
+    Challenge challenge = ChallengeFixture.createChallengeWithMaxAttempts(3);
     List<ChallengeInjectExpectation> expectations =
-        new ArrayList<>(List.of(challengeExpectation(challenge, user)));
+        new ArrayList<>(
+            List.of(
+                InjectExpectationFixture.createChallengeInjectExpectation(
+                    challenge, user, TEST_ID)));
 
     ChallengeTryInput input = new ChallengeTryInput();
     input.setValue("flag value");
 
     mockPlayerChallenge(exercise, challenge, expectations);
-    when(challengeAttemptService.getChallengeAttempt(any())).thenReturn(Optional.of(attemptOf(3)));
+    when(challengeAttemptService.getChallengeAttempt(any()))
+        .thenReturn(
+            Optional.of(
+                ChallengeAttemptFixture.createChallengeAttempt(TEST_ID, TEST_ID, TEST_ID, 3)));
 
     // -- ACT --
     challengeService.validateChallenge(TEST_ID, TEST_ID, input, user);
@@ -425,15 +437,20 @@ public class ChallengeServiceTest extends IntegrationTest {
   void given_aWrongAnswerAtTheAttemptCap_then_countItAndFailTheExpectation() {
     // -- ARRANGE --
     Exercise exercise = ExerciseFixture.createDefaultExercise();
-    User user = playerUser();
-    Challenge challenge = challengeWithMaxAttempts(3);
+    User user = UserFixture.getUser();
+    user.setId(TEST_ID);
+    Challenge challenge = ChallengeFixture.createChallengeWithMaxAttempts(3);
     List<ChallengeInjectExpectation> expectations =
-        new ArrayList<>(List.of(challengeExpectation(challenge, user)));
+        new ArrayList<>(
+            List.of(
+                InjectExpectationFixture.createChallengeInjectExpectation(
+                    challenge, user, TEST_ID)));
 
     ChallengeTryInput input = new ChallengeTryInput();
     input.setValue("wrong flag");
 
-    ChallengeAttempt lastAttempt = attemptOf(2);
+    ChallengeAttempt lastAttempt =
+        ChallengeAttemptFixture.createChallengeAttempt(TEST_ID, TEST_ID, TEST_ID, 2);
 
     mockPlayerChallenge(exercise, challenge, expectations);
     when(challengeAttemptService.getChallengeAttempts(any())).thenReturn(List.of(lastAttempt));
@@ -454,44 +471,6 @@ public class ChallengeServiceTest extends IntegrationTest {
   }
 
   // -- PRIVATE --
-
-  private User playerUser() {
-    User user = UserFixture.getUser();
-    user.setId(TEST_ID);
-    return user;
-  }
-
-  private Challenge challengeWithMaxAttempts(int maxAttempts) {
-    Challenge challenge = ChallengeFixture.createDefaultChallenge();
-    ChallengeFlag flag = ChallengeFixture.createDefaultChallengeFlag();
-    flag.setChallenge(challenge);
-    challenge.setFlags(new ArrayList<>(List.of(flag)));
-    challenge.setMaxAttempts(maxAttempts);
-    return challenge;
-  }
-
-  private ChallengeInjectExpectation challengeExpectation(Challenge challenge, User user) {
-    InjectStatus status = new InjectStatus();
-    status.setId(TEST_ID);
-    Inject inject = InjectFixture.getDefaultInject();
-    inject.setStatus(status);
-    ChallengeInjectExpectation expectation =
-        (ChallengeInjectExpectation)
-            InjectExpectationFixture.createExpectationWithTypeAndStatus(
-                BaseInjectExpectation.EXPECTATION_TYPE.CHALLENGE,
-                BaseInjectExpectation.EXPECTATION_STATUS.PENDING);
-    expectation.setInject(inject);
-    expectation.setChallenge(challenge);
-    expectation.setUser(user);
-    return expectation;
-  }
-
-  private ChallengeAttempt attemptOf(int count) {
-    ChallengeAttempt attempt =
-        buildChallengeAttempt(buildChallengeAttemptID(TEST_ID, TEST_ID, TEST_ID));
-    attempt.setAttempt(count);
-    return attempt;
-  }
 
   private void mockPlayerChallenge(
       Exercise exercise, Challenge challenge, List<ChallengeInjectExpectation> expectations) {
