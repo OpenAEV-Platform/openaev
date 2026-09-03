@@ -38,7 +38,7 @@ export const tryChallenge = (challengeId: string, data: ChallengeTryInput) => {
   return simplePostCall(`/api/challenges/${challengeId}/try`, data);
 };
 
-export const validateChallenge = (exerciseId: string, challengeId: string, userId: string, data: ChallengeTryInput) => (dispatch: Dispatch) => postReferential(
+export const validateChallenge = (exerciseId: string, challengeId: string, userId: string | null, data: ChallengeTryInput) => (dispatch: Dispatch) => postReferential(
   simulationChallengesReaders,
   `/api/player/challenges/${exerciseId}/${challengeId}/validate?userId=${userId}`,
   data,
@@ -49,7 +49,7 @@ export const deleteChallenge = (channelId: string) => (dispatch: Dispatch) => {
   return delReferential(uri, 'challenges', channelId)(dispatch);
 };
 
-export const fetchSimulationPlayerChallenges = (simulationId: string, userId: string) => (dispatch: Dispatch) => {
+export const fetchSimulationPlayerChallenges = (simulationId: string, userId: string | null) => (dispatch: Dispatch) => {
   const uri = `/api/player/simulations/${simulationId}/challenges?userId=${userId}`;
   return getReferential(simulationChallengesReaders, uri)(dispatch);
 };

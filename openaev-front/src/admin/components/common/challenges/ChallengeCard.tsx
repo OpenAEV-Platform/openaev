@@ -12,7 +12,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import ExpandableMarkdown from '../../../../components/ExpandableMarkdown';
 import ItemTags from '../../../../components/ItemTags';
-import type { Challenge } from '../../../../utils/api-types';
+import type { Challenge, PublicChallenge } from '../../../../utils/api-types';
 
 const useStyles = makeStyles()(theme => ({
   cardContainer: {
@@ -32,7 +32,7 @@ const useStyles = makeStyles()(theme => ({
 }));
 
 interface Props {
-  challenge: Challenge;
+  challenge: Challenge | PublicChallenge;
   showTags?: boolean;
   clickable?: boolean;
   onClick?: () => void;

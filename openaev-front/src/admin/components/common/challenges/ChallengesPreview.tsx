@@ -70,11 +70,13 @@ const ChallengesPreview: FunctionComponent<Props> = ({
 
   if (value.scenarioOrExercise) {
     const sortedChallenges = challenges?.reduce<Record<string, ChallengeInformation[]>>((acc, challenge) => {
-      const category = challenge.challenge_detail?.challenge_category || '-';
+      const category = challenge.challenge_detail?.challenge_category || 'null';
       acc[category] = acc[category] || [];
       acc[category].push(challenge);
       return acc;
     }, {});
+
+		console.log("sortedChallenges", sortedChallenges);
 
     return (
       <div className={classes.root}>
