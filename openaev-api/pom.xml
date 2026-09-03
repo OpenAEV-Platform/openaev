@@ -29,7 +29,7 @@
         <!-- Azure credential status validation. Aligned with openaev-model's azure-core-management. MIT. -->
         <azure-identity.version>1.18.5</azure-identity.version>
         <!-- AWS STS client for temporary credential handling. Apache-2.0. -->
-        <aws-sts.version>2.54.4</aws-sts.version>
+        <aws-sts.version>2.54.7</aws-sts.version>
     </properties>
 
     <profiles>
