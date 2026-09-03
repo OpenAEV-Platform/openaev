@@ -122,10 +122,6 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
       }
       """;
 
-  /**
-   * Longest a single generation can legitimately take: one full page load per attempt, each bounded
-   * by the render timeout, plus a minute for the render slot, the browser launch and the storage.
-   */
   static Duration renderBudget(final long renderTimeoutSeconds) {
     return Duration.ofSeconds(Math.max(1, renderTimeoutSeconds) * MAX_PAGE_ATTEMPTS + 60);
   }
