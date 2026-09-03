@@ -42,7 +42,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  * execution must reference the already-persisted {@link Step} instead of the not-yet-committed
  * {@link Inject}, then get its {@code inject} backfilled once a tracking hit resolves the token -
  * see {@link PhishingTrackingService#createResult} and {@link
- * PhishingTrackingService#resolveByToken}.
+ * PhishingTrackingService#resolveAndBackfillByToken}.
  *
  * <p>Deliberately NOT {@code @Transactional}: {@code createResult} runs in its own {@code
  * REQUIRES_NEW} transaction (load-bearing, see its Javadoc), so every entity it references must be
@@ -207,7 +207,7 @@ class PhishingTrackingServiceIntegrationTest extends IntegrationTest {
           phishingTrackingService.createResult(
               InjectFixture.getDefaultInject(), landingPage, user.getId(), null, step.getId());
 
-      var resolved = phishingTrackingService.resolveByToken(created.getToken());
+      var resolved = phishingTrackingService.resolveAndBackfillByToken(created.getToken());
 
       assertThat(resolved).isPresent();
       assertThat(resolved.get().getInject()).isNotNull();

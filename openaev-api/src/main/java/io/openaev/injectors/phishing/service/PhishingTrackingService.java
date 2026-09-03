@@ -277,7 +277,7 @@ public class PhishingTrackingService {
    * inject was just created in the still-uncommitted, suspended ambient transaction, so referencing
    * it here (in this own {@code REQUIRES_NEW} transaction) would fail the FK check. The step,
    * unlike the inject, is already persisted, so it is used as the stable reference until {@link
-   * #resolveByToken} backfills the real inject once it is committed.
+   * #resolveAndBackfillByToken} backfills the real inject once it is committed.
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public PhishingResult createResult(
@@ -338,7 +338,7 @@ public class PhishingTrackingService {
    * backfilled, {@code inject} is kept as the queryable reference going forward; {@code step} is
    * left untouched (still useful to correlate the producing step attempt).
    */
-  public Optional<PhishingResult> resolveByToken(@NotBlank final String token) {
+  public Optional<PhishingResult> resolveAndBackfillByToken(@NotBlank final String token) {
     Optional<PhishingResult> result = phishingResultRepository.findByToken(token);
     result.ifPresent(this::backfillInjectFromStep);
     return result;
@@ -417,7 +417,7 @@ public class PhishingTrackingService {
    */
   public Optional<PhishingResult> markOpened(
       @NotBlank final String token, final String ip, final String userAgent) {
-    Optional<PhishingResult> optResult = resolveByToken(token);
+    Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
     return optResult.map(
         result -> {
           if (isAutomatedProbe(result, userAgent)) {
@@ -444,7 +444,7 @@ public class PhishingTrackingService {
    */
   public Optional<PhishingResult> markClicked(
       @NotBlank final String token, final String ip, final String userAgent) {
-    Optional<PhishingResult> optResult = resolveByToken(token);
+    Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
     return optResult.map(
         result -> {
           if (isAutomatedProbe(result, userAgent)) {
@@ -485,7 +485,7 @@ public class PhishingTrackingService {
       final Map<String, String> fields,
       final String ip,
       final String userAgent) {
-    Optional<PhishingResult> optResult = resolveByToken(token);
+    Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
     return optResult.map(
         result -> {
           // A sandbox detonator auto-submitting the form with synthetic data must not score
