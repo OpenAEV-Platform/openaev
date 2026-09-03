@@ -149,7 +149,17 @@
         <dependency>
             <groupId>io.swagger.core.v3</groupId>
             <artifactId>swagger-annotations-jakarta</artifactId>
-            <version>2.2.54</version>
+            <!-- Pinned deliberately to match springdoc-openapi 3.0.3's own transitive
+                 swagger-core-jakarta/swagger-models-jakarta version (2.2.47). openaev-model
+                 has no BOM to inherit this from (springdoc isn't on its classpath), so
+                 Renovate bumps this pin independently of springdoc - it had drifted to
+                 2.2.54 while springdoc still pulled 2.2.47. That version skew is a known
+                 trigger for a swagger-core regression (2.2.44+, still unresolved upstream
+                 as of 2.2.55: swagger-api/swagger-core#4838, #5090) that stamps a spurious
+                 "default": "" onto nearly every generated OpenAPI schema property, which
+                 then leaks into api-types.d.ts. Keep this in lockstep with springdoc's
+                 resolved swagger-core-jakarta version on every springdoc bump. -->
+            <version>2.2.47</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>
