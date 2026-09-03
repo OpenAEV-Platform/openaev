@@ -12,6 +12,7 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.expectation.ExpectationSignature;
 import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.ExpectationUtils;
 import jakarta.annotation.Nullable;
@@ -67,49 +68,50 @@ public abstract class AbstractTechnicalBehavior
     Inject inject = executableInject.getInjection().getInject();
     List<TechnicalInjectExpectation> allExpectations = new ArrayList<>();
 
-    executableInject
-        .getAssetsToExecute()
-        .forEach(
-            assetToExecute -> {
-              List<Agent> activeAgents = getActiveAgents(assetToExecute.asset(), inject);
+    // Executors pre-cache the resolved assets; direct callers (e.g. atomic testing, chaining)
+    // may not, so fall back to resolving them from the inject.
+    List<AssetToExecute> assetsToExecute = executableInject.getAssetsToExecute();
+    if (assetsToExecute == null) {
+      assetsToExecute = injectService.resolveAllAssetsToExecute(inject);
+    }
 
-              if (activeAgents.isEmpty()
-                  && !isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject)) {
-                return;
-              }
+    assetsToExecute.forEach(
+        assetToExecute -> {
+          List<Agent> activeAgents = getActiveAgents(assetToExecute.asset(), inject);
 
-              if (assetToExecute.isDirectlyLinkedToInject()) {
-                activeAgents.forEach(
-                    agent -> {
-                      allExpectations.add(
-                          buildExpectationForTarget(
-                              expectationTemplate, null, assetToExecute.asset(), agent));
-                    });
-                allExpectations.add(
-                    buildExpectationForTarget(
-                        expectationTemplate, null, assetToExecute.asset(), null));
-              }
+          if (activeAgents.isEmpty()
+              && !isAgentlessAssetExpectationNecessary(assetToExecute.asset(), inject)) {
+            return;
+          }
 
-              assetToExecute
-                  .assetGroups()
-                  .forEach(
-                      assetGroup -> {
-                        activeAgents.forEach(
-                            agent -> {
-                              allExpectations.add(
-                                  buildExpectationForTarget(
-                                      expectationTemplate,
-                                      assetGroup,
-                                      assetToExecute.asset(),
-                                      agent));
-                            });
-                        allExpectations.add(
-                            buildExpectationForTarget(
-                                expectationTemplate, assetGroup, assetToExecute.asset(), null));
-                        allExpectations.add(
-                            buildExpectationForTarget(expectationTemplate, assetGroup, null, null));
-                      });
-            });
+          if (assetToExecute.isDirectlyLinkedToInject()) {
+            activeAgents.forEach(
+                agent -> {
+                  allExpectations.add(
+                      buildExpectationForTarget(
+                          expectationTemplate, null, assetToExecute.asset(), agent));
+                });
+            allExpectations.add(
+                buildExpectationForTarget(expectationTemplate, null, assetToExecute.asset(), null));
+          }
+
+          assetToExecute
+              .assetGroups()
+              .forEach(
+                  assetGroup -> {
+                    activeAgents.forEach(
+                        agent -> {
+                          allExpectations.add(
+                              buildExpectationForTarget(
+                                  expectationTemplate, assetGroup, assetToExecute.asset(), agent));
+                        });
+                    allExpectations.add(
+                        buildExpectationForTarget(
+                            expectationTemplate, assetGroup, assetToExecute.asset(), null));
+                    allExpectations.add(
+                        buildExpectationForTarget(expectationTemplate, assetGroup, null, null));
+                  });
+        });
 
     List<Collector> tenantCollectors =
         collectorService.securityPlatformCollectors(inject.getTenant().getId());

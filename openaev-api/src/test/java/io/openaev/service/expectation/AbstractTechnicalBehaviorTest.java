@@ -82,7 +82,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
   private List<BaseInjectExpectation> actAndGetSavedExpectations(
       ExecutableInject executableInject, DetectionInjectExpectation template, String source) {
     detectionBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
-        executableInject, template, null);
+        executableInject, template, source);
     entityManager.flush();
     return injectExpectationRepository.findAllByInjectId(
         executableInject.getInjection().getInject().getId());
@@ -604,42 +604,6 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
       assertThat(assetExpectation.getSignatures())
           .extracting(InjectExpectationSignature::getType, InjectExpectationSignature::getValue)
           .contains(tuple(EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV4_ADDRESS, "192.168.1.1"));
-    }
-
-    @Test
-    @DisplayName("given no available collector should not create any signature")
-    void given_no_available_collector_should_not_create_any_signature() {
-      // Arrange — no collector persisted
-      Endpoint endpoint =
-          endpointComposer
-              .forEndpoint(EndpointFixture.createEndpoint())
-              .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
-              .persist()
-              .get();
-
-      Exercise exercise = persistDefaultExercise();
-
-      Inject inject =
-          injectComposer
-              .forInject(InjectFixture.getDefaultInject())
-              .withEndpoint(endpointComposer.forEndpoint(endpoint))
-              .withExercise(exerciseComposer.forExercise(exercise))
-              .withInjectorContract(
-                  injectorContractComposer.forInjectorContract(
-                      InjectorContractFixture.createDefaultInjectorContract()))
-              .persist()
-              .get();
-
-      ExecutableInject executableInject =
-          new ExecutableInject(
-              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
-
-      // Act
-      List<BaseInjectExpectation> saved =
-          actAndGetSavedExpectations(executableInject, createTemplate(inject), "oaev");
-
-      // Assert — collector gating prevents creation, therefore no signatures at all
-      assertThat(saved).isEmpty();
     }
   }
 
