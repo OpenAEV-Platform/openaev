@@ -164,6 +164,10 @@ public class SecurityCoverageService {
                 () ->
                     new ConnectorError(
                         "No active OpenCTI connector found for tenant %s".formatted(tenantId)));
+
+    if (openCtiUrl.endsWith("/")) {
+      openCtiUrl = openCtiUrl.substring(0, openCtiUrl.length() - 1);
+    }
     securityCoverage.setExternalUrl(openCtiUrl + "/dashboard/id/" + coveredRef);
 
     // Optional fields
