@@ -42,6 +42,43 @@ const ScenarioStatistics = lazy(() => import('./analysis/ScenarioAnalysis'));
 const ScenarioAttackPath = lazy(() => import('./attack_path/ScenarioAttackPath'));
 const ScenarioExecution = lazy(() => import('./execution/ScenarioExecution'));
 
+export const buildScenarioTabs = (params: {
+  isChained: boolean;
+  hasInjectTests: boolean;
+  lessonsEnabled: boolean;
+  t: (value: string) => string;
+}): [string, string][] => {
+  const {
+    isChained,
+    hasInjectTests,
+    lessonsEnabled,
+    t,
+  } = params;
+
+  if (isChained) {
+    return [
+      ['', t('Overview')],
+      ['/scope', t('Scope')],
+      ['/logic', t('Logic')],
+      ['/attack-path', t('Attack Path')],
+      ['/execution', t('Execution')],
+      ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
+      ['/findings', t('Findings')],
+      ['/statistics', t('Statistics')],
+    ];
+  }
+
+  return [
+    ['', t('Overview')],
+    ['/injects', t('Injects')],
+    ...(hasInjectTests ? [['/tests', t('Tests')] as [string, string]] : []),
+    ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
+    ['/execution', t('Execution')],
+    ['/findings', t('Findings')],
+    ['/statistics', t('Statistics')],
+  ];
+};
+
 const IndexScenarioComponent: FunctionComponent<{
   scenario: ScenarioOutput;
   /** The autonomous run currently owning this scenario (plan-mode design session or a live
@@ -128,105 +165,22 @@ const IndexScenarioComponent: FunctionComponent<{
   // keep the classic Injects / Tests / Lessons tab set. Autonomy is a launch-time mode now, so the
   // AI cockpit lives on the resulting simulation's detail page, never on the reusable scenario.
   const renderTabs = () => {
-    if (isChained) {
-      return (
-        <Tabs value={tabValue} variant="scrollable" scrollButtons="auto">
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}`}
-            value={`/admin/scenarios/${scenario.scenario_id}`}
-            label={t('Overview')}
-          />
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/scope`}
-            value={`/admin/scenarios/${scenario.scenario_id}/scope`}
-            label={t('Scope')}
-          />
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/logic`}
-            value={`/admin/scenarios/${scenario.scenario_id}/logic`}
-            label={t('Logic')}
-          />
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
-            value={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
-            label={t('Attack Path')}
-          />
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/execution`}
-            value={`/admin/scenarios/${scenario.scenario_id}/execution`}
-            label={t('Execution')}
-          />
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/findings`}
-            value={`/admin/scenarios/${scenario.scenario_id}/findings`}
-            label={t('Findings')}
-          />
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/statistics`}
-            value={`/admin/scenarios/${scenario.scenario_id}/statistics`}
-            label={t('Statistics')}
-          />
-        </Tabs>
-      );
-    }
     return (
       <Tabs value={tabValue} variant="scrollable" scrollButtons="auto">
-        <Tab
-          component={Link}
-          to={`/admin/scenarios/${scenario.scenario_id}`}
-          value={`/admin/scenarios/${scenario.scenario_id}`}
-          label={t('Overview')}
-        />
-        <Tab
-          component={Link}
-          to={`/admin/scenarios/${scenario.scenario_id}/injects`}
-          value={`/admin/scenarios/${scenario.scenario_id}/injects`}
-          label={t('Injects')}
-        />
-        {hasInjectTests && (
+        {        buildScenarioTabs({
+          isChained,
+          hasInjectTests,
+          lessonsEnabled: scenario.scenario_lessons_enabled,
+          t,
+        }).map(([suffix, label]) => (
           <Tab
+            key={suffix}
             component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/tests`}
-            value={`/admin/scenarios/${scenario.scenario_id}/tests`}
-            label={t('Tests')}
+            to={`/admin/scenarios/${scenario.scenario_id}${suffix}`}
+            value={`/admin/scenarios/${scenario.scenario_id}${suffix}`}
+            label={label}
           />
-        )}
-        {/* The lessons learned module is opt-in (scenario configuration). */}
-        {scenario.scenario_lessons_enabled && (
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/lessons`}
-            value={`/admin/scenarios/${scenario.scenario_id}/lessons`}
-            label={t('Lessons learned')}
-          />
-        )}
-        <Tab
-          component={Link}
-          to={`/admin/scenarios/${scenario.scenario_id}/execution`}
-          value={`/admin/scenarios/${scenario.scenario_id}/execution`}
-          label={t('Execution')}
-        />
-        <Tab
-          component={Link}
-          to={`/admin/scenarios/${scenario.scenario_id}/findings`}
-          value={`/admin/scenarios/${scenario.scenario_id}/findings`}
-          label={t('Findings')}
-        />
-        {/* Attack path is a chained-scenario concept (workflow logic):
-            time-based scenarios never get the tab. */}
-        <Tab
-          component={Link}
-          to={`/admin/scenarios/${scenario.scenario_id}/statistics`}
-          value={`/admin/scenarios/${scenario.scenario_id}/statistics`}
-          label={t('Statistics')}
-        />
+        ))}
       </Tabs>
     );
   };
