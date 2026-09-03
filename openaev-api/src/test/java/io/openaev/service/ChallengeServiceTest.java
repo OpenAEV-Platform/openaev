@@ -370,8 +370,8 @@ public class ChallengeServiceTest extends IntegrationTest {
 
   @Test
   @DisplayName("Should award the expected score when the player solves within the attempt cap")
-  void shouldAwardTheScoreWhenSolvedWithinTheAttemptCap() {
-    // PREPARE
+  void given_solvedWithinTheAttemptCap_then_awardTheExpectedScore() {
+    // -- ARRANGE --
     Exercise exercise = ExerciseFixture.createDefaultExercise();
     User user = playerUser();
     Challenge challenge = challengeWithMaxAttempts(3);
@@ -381,14 +381,13 @@ public class ChallengeServiceTest extends IntegrationTest {
     ChallengeTryInput input = new ChallengeTryInput();
     input.setValue("flag value");
 
-    // MOCK
     mockPlayerChallenge(exercise, challenge, expectations);
     when(challengeAttemptService.getChallengeAttempt(any())).thenReturn(Optional.of(attemptOf(1)));
 
-    // EXECUTE
+    // -- ACT --
     challengeService.validateChallenge(TEST_ID, TEST_ID, input, user);
 
-    // VERIFY
+    // -- ASSERT --
     ArgumentCaptor<ExpectationUpdateInput> captor =
         ArgumentCaptor.forClass(ExpectationUpdateInput.class);
     verify(injectExpectationService).updateInjectExpectation(any(), captor.capture());
@@ -397,8 +396,8 @@ public class ChallengeServiceTest extends IntegrationTest {
 
   @Test
   @DisplayName("Should score zero when the player solves the challenge past the attempt cap")
-  void shouldZeroTheScoreWhenSolvedPastTheAttemptCap() {
-    // PREPARE
+  void given_solvedPastTheAttemptCap_then_scoreZero() {
+    // -- ARRANGE --
     Exercise exercise = ExerciseFixture.createDefaultExercise();
     User user = playerUser();
     Challenge challenge = challengeWithMaxAttempts(3);
@@ -408,14 +407,13 @@ public class ChallengeServiceTest extends IntegrationTest {
     ChallengeTryInput input = new ChallengeTryInput();
     input.setValue("flag value");
 
-    // MOCK
     mockPlayerChallenge(exercise, challenge, expectations);
     when(challengeAttemptService.getChallengeAttempt(any())).thenReturn(Optional.of(attemptOf(3)));
 
-    // EXECUTE
+    // -- ACT --
     challengeService.validateChallenge(TEST_ID, TEST_ID, input, user);
 
-    // VERIFY
+    // -- ASSERT --
     ArgumentCaptor<ExpectationUpdateInput> captor =
         ArgumentCaptor.forClass(ExpectationUpdateInput.class);
     verify(injectExpectationService).updateInjectExpectation(any(), captor.capture());
@@ -424,8 +422,8 @@ public class ChallengeServiceTest extends IntegrationTest {
 
   @Test
   @DisplayName("Should count the wrong answer and fail the expectation once the cap is reached")
-  void shouldFailTheExpectationWhenTheAttemptCapIsReached() {
-    // PREPARE
+  void given_aWrongAnswerAtTheAttemptCap_then_countItAndFailTheExpectation() {
+    // -- ARRANGE --
     Exercise exercise = ExerciseFixture.createDefaultExercise();
     User user = playerUser();
     Challenge challenge = challengeWithMaxAttempts(3);
@@ -437,15 +435,14 @@ public class ChallengeServiceTest extends IntegrationTest {
 
     ChallengeAttempt lastAttempt = attemptOf(2);
 
-    // MOCK
     mockPlayerChallenge(exercise, challenge, expectations);
     when(challengeAttemptService.getChallengeAttempts(any())).thenReturn(List.of(lastAttempt));
     when(challengeAttemptService.getChallengeAttempt(any())).thenReturn(Optional.of(lastAttempt));
 
-    // EXECUTE
+    // -- ACT --
     challengeService.validateChallenge(TEST_ID, TEST_ID, input, user);
 
-    // VERIFY
+    // -- ASSERT --
     ArgumentCaptor<List<ChallengeAttempt>> attemptsCaptor = ArgumentCaptor.captor();
     verify(challengeAttemptService).saveChallengeAttempts(attemptsCaptor.capture());
     assertEquals(3, attemptsCaptor.getValue().getFirst().getAttempt());
