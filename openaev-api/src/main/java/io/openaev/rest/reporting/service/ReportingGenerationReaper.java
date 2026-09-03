@@ -49,11 +49,7 @@ public class ReportingGenerationReaper {
       @Value("${openaev.reporting.render-timeout-seconds:90}") final long renderTimeoutSeconds) {
     this.reportingGenerationRepository = reportingGenerationRepository;
     this.entityManager = entityManager;
-    // A render is allowed one full page load per attempt, each bounded by the render timeout; the
-    // extra minute absorbs the wait for a render slot, the browser launch and the file storage.
-    this.stuckAfter =
-        Duration.ofSeconds(
-            Math.max(1, renderTimeoutSeconds) * PlaywrightReportingRenderer.MAX_PAGE_ATTEMPTS + 60);
+    this.stuckAfter = PlaywrightReportingRenderer.renderBudget(renderTimeoutSeconds);
   }
 
   /**

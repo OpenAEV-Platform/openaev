@@ -22,6 +22,7 @@ import io.openaev.service.FileService;
 import jakarta.annotation.PreDestroy;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -120,6 +121,14 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
         return '<!DOCTYPE html>\\n' + clone.outerHTML;
       }
       """;
+
+  /**
+   * Longest a single generation can legitimately take: one full page load per attempt, each bounded
+   * by the render timeout, plus a minute for the render slot, the browser launch and the storage.
+   */
+  static Duration renderBudget(final long renderTimeoutSeconds) {
+    return Duration.ofSeconds(Math.max(1, renderTimeoutSeconds) * MAX_PAGE_ATTEMPTS + 60);
+  }
 
   private final ReportingGenerationRepository reportingGenerationRepository;
   private final TokenRepository tokenRepository;

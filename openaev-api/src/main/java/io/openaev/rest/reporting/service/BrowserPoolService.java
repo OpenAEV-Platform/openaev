@@ -5,9 +5,11 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
 import jakarta.annotation.PreDestroy;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -60,6 +62,8 @@ public class BrowserPoolService {
 
   private final Semaphore renderPermits;
 
+  private final Duration permitWait;
+
   private final ThreadLocal<BrowserSession> threadSession = new ThreadLocal<>();
 
   /** All sessions ever created, for best-effort cleanup at shutdown. */
@@ -68,8 +72,10 @@ public class BrowserPoolService {
   private volatile boolean shutdown = false;
 
   public BrowserPoolService(
-      @Value("${openaev.reporting.max-concurrent-renders:2}") final int maxConcurrentRenders) {
+      @Value("${openaev.reporting.max-concurrent-renders:2}") final int maxConcurrentRenders,
+      @Value("${openaev.reporting.render-timeout-seconds:90}") final long renderTimeoutSeconds) {
     this.renderPermits = new Semaphore(Math.max(1, maxConcurrentRenders));
+    this.permitWait = PlaywrightReportingRenderer.renderBudget(renderTimeoutSeconds);
   }
 
   /**
@@ -83,7 +89,15 @@ public class BrowserPoolService {
   public <T> T withContext(
       final Browser.NewContextOptions options, final Function<BrowserContext, T> action)
       throws InterruptedException {
-    this.renderPermits.acquire();
+    // Bounded on purpose: a render parked with a permit must not queue every later generation
+    // behind it forever. Failing here surfaces as the generation's error message.
+    if (!this.renderPermits.tryAcquire(this.permitWait.toSeconds(), TimeUnit.SECONDS)) {
+      throw new IllegalStateException(
+          "No render slot freed after "
+              + this.permitWait.toSeconds()
+              + "s: a previous report render is still holding it. Check the rendering engine, then"
+              + " generate the report again.");
+    }
     try {
       Browser liveBrowser = acquireBrowser();
       try (BrowserContext context = liveBrowser.newContext(options)) {
