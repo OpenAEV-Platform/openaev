@@ -34,8 +34,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ImapService extends ExternalServiceBase {
 
-  private static final Pattern INJECT_ID_PATTERN = Pattern.compile("\\[inject_id=(.*)\\]");
-  private static final String PROVIDER = "imap";
+ private static final Pattern INJECT_ID_PATTERN = Pattern.compile("\\[inject_id=([^\\]]*)\\]");
+ private static final String PROVIDER = "imap";
   private static final String IMAP_SETTINGS_KEY = "imap_service_available";
 
   private Store imapStore;
