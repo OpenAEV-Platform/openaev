@@ -62,7 +62,7 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     User adminUser = adminUserOptional.map(this::updateUser).orElseGet(this::createUser);
 
     // Handle admin token
-    Optional<Token> adminToken = this.tokenRepository.findById(ADMIN_TOKEN_UUID);
+    Optional<Token> adminToken = this.tokenRepository.findByIdIncludingDeleted(ADMIN_TOKEN_UUID);
     adminToken.ifPresentOrElse(this::updateToken, () -> this.createToken(adminUser));
 
     // Ensure the admin user holds full administrative privileges through well-known groups: a
@@ -143,6 +143,11 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
         throw new IllegalArgumentException(
             "Config properties 'openaev.admin.token' should be a valid UUID");
       }
+      if (token.getDeletedAt() != null && token.getValue().equals(this.adminToken)) {
+        throw new IllegalStateException(
+            "The admin token has been revoked. Change the value of 'openaev.admin.token' to restore it.");
+      }
+      token.setDeletedAt(null);
       token.setValue(this.adminToken);
     }
 

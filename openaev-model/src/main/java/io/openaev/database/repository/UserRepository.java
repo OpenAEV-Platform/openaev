@@ -213,13 +213,16 @@ public interface UserRepository
               + "JOIN tokens t ON us.user_id = t.token_user "
               + "JOIN users_tenants ut ON us.user_id = ut.user_id "
               + "WHERE t.token_value = :token "
+              + "AND t.token_deleted_at IS NULL "
               + "AND ut.tenant_id = :tenantId "
               + "LIMIT 1",
       nativeQuery = true)
   Optional<User> findByTokenAndTenantId(
       @Param("token") String token, @Param("tenantId") String tenantId);
 
-  @Query("SELECT u FROM User u JOIN Token t ON u.id = t.user.id WHERE t.value = :token")
+  @Query(
+      "SELECT u FROM User u JOIN Token t ON u.id = t.user.id "
+          + "WHERE t.value = :token AND t.deletedAt IS NULL")
   Optional<User> findByToken(@Param("token") String token);
 
   // -- DELETE --

@@ -26,7 +26,9 @@ const Index = () => {
     user: helper.getMe(),
     tokens: helper.getMeTokens(),
   }));
-  const onRenew = tokenId => dispatch(renewToken(tokenId));
+  const onRenew = async (tokenId) => {
+    await dispatch(renewToken(tokenId));
+  };
   const onUpdate = (data) => {
     const inputValues = R.pipe(
       R.assoc(
@@ -61,7 +63,11 @@ const Index = () => {
     user_organization: user.user_organization ?? '',
     user_country: countryOption(user.user_country)?.id ?? '',
   };
-  const userToken = tokens.length > 0 ? R.head(tokens) : undefined;
+  const userToken = tokens.length > 0
+    ? R.head(
+        R.sort((a, b) => new Date(b.token_created_at).getTime() - new Date(a.token_created_at).getTime(), tokens),
+      )
+    : undefined;
   return (
     <div style={{
       width: 800,
