@@ -145,7 +145,6 @@ Rules:
 - Keep the section headings verbatim (`###` level, exact wording) — tooling and reviewers rely on them.
 - Drop the HTML comments from the template in the final description; keep the checklist items themselves.
 - **Never tick a checklist item.** Leave every box as `[ ]` — ticking them is the human author's responsibility, after their own review.
-- State explicitly what is intentionally out of scope, so reviewers don't flag it as missing.
 - The PR title still follows Conventional Commits and ends with the issue reference: `type(scope?): description (#issue)`.
 
 ### Conventional Comments (for code reviews)
