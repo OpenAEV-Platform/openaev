@@ -1,5 +1,7 @@
+import { Translate } from '../../../../components/i18n';
+
 export default function buildSimulationTabs(params: {
-  lessonsEnabled: boolean;
+  lessonsEnabled: boolean | undefined;
   isAutonomous: boolean;
   hasWorkflow: boolean;
   hasInjectTests: boolean;

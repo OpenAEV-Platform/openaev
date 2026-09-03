@@ -1,7 +1,7 @@
 export default function buildScenarioTabs(params: {
   isChained: boolean;
   hasInjectTests: boolean;
-  lessonsEnabled: boolean;
+  lessonsEnabled: boolean | undefined;
   t: (value: string) => string;
 }): [string, string][] {
   const {
