@@ -74,16 +74,16 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   private static final String PAUSE_REFUSAL_MESSAGE =
       "Pausing a chained simulation is not allowed yet, please contact support";
 
-  static Exercise SCHEDULED_EXERCISE;
-  static Exercise RUNNING_EXERCISE;
-  static Exercise PAUSED_EXERCISE;
-  static Exercise FINISHED_EXERCISE;
-  static Exercise CANCELED_EXERCISE;
-  static Inject SAVED_INJECT5;
-  static LessonsAnswer LESSON_ANSWER;
-  static Instant REFERENCE_TIME;
-  static Team TEAM;
-  static User USER;
+  private Exercise SCHEDULED_EXERCISE;
+  private Exercise RUNNING_EXERCISE;
+  private Exercise PAUSED_EXERCISE;
+  private Exercise FINISHED_EXERCISE;
+  private Exercise CANCELED_EXERCISE;
+  private Inject SAVED_INJECT5;
+  private LessonsAnswer LESSON_ANSWER;
+  private Instant REFERENCE_TIME;
+  private Team TEAM;
+  private User USER;
 
   @Autowired private MockMvc mvc;
 
@@ -228,11 +228,22 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   }
 
   private void cleanupSharedFixtures() {
-    exerciseRepository.deleteById(SCHEDULED_EXERCISE.getId());
-    exerciseRepository.deleteById(RUNNING_EXERCISE.getId());
-    exerciseRepository.deleteById(PAUSED_EXERCISE.getId());
-    exerciseRepository.deleteById(CANCELED_EXERCISE.getId());
-    exerciseRepository.deleteById(FINISHED_EXERCISE.getId());
+    List<String> exerciseIds =
+        List.of(
+            SCHEDULED_EXERCISE.getId(),
+            RUNNING_EXERCISE.getId(),
+            PAUSED_EXERCISE.getId(),
+            CANCELED_EXERCISE.getId(),
+            FINISHED_EXERCISE.getId());
+
+    for (String exerciseId : exerciseIds) {
+      List<Inject> injects = injectRepository.findByExerciseId(exerciseId);
+      if (!injects.isEmpty()) {
+        injectRepository.deleteAll(injects);
+      }
+      exerciseRepository.deleteById(exerciseId);
+    }
+
     teamRepository.deleteById(TEAM.getId());
     userRepository.deleteById(USER.getId());
   }
@@ -292,7 +303,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
         }
       }
     } finally {
-      cleanupSharedFixtures();
+      inTransaction(this::cleanupSharedFixtures);
     }
   }
 
@@ -450,7 +461,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
         }
       }
     } finally {
-      cleanupSharedFixtures();
+      inTransaction(this::cleanupSharedFixtures);
     }
   }
 
@@ -511,7 +522,7 @@ public class ExerciseApiStatusTest extends IntegrationTest {
         }
       }
     } finally {
-      cleanupSharedFixtures();
+      inTransaction(this::cleanupSharedFixtures);
     }
   }
 
