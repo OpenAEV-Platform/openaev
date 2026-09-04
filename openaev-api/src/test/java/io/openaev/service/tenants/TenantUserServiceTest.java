@@ -1,7 +1,9 @@
 package io.openaev.service.tenants;
 
+import static io.openaev.utils.fixtures.UserFixture.RAW_PASSWORD;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static io.openaev.utils.fixtures.UserFixture.getUserInput;
+import static io.openaev.utils.fixtures.UserFixture.getUserInputWithPasswordAndPhone;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.getTenant;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -18,6 +20,7 @@ import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.UserService;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
@@ -51,6 +54,7 @@ class TenantUserServiceTest extends IntegrationTest {
   @Autowired private PlatformGroupComposer platformGroupComposer;
   @Autowired private GroupRepository groupRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private UserService userService;
   @Autowired private EntityManager entityManager;
 
   private Tenant tenant;
@@ -278,6 +282,37 @@ class TenantUserServiceTest extends IntegrationTest {
       entityManager.clear();
       Group reloaded = groupRepository.findById(autoGroup.getId()).orElseThrow();
       assertThat(reloaded.getUsers()).extracting(User::getId).doesNotContain(created.id());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a user still attached to another tenant should keep the same account and password")
+    void given_userStillAttachedToAnotherTenant_should_keepExistingAccountAndPassword() {
+      // -- ARRANGE --
+      Tenant otherTenant = tenantComposer.forTenant(getTenant("Other tenant")).persist().get();
+      User user = persistedUserInTenant("Shared", "Tenant", "shared-tenant@test.invalid");
+      tenantRepository.addUserToTenant(user.getId(), otherTenant.getId());
+      entityManager.flush();
+      entityManager.clear();
+      UserInput reAttachInput =
+          getUserInputWithPasswordAndPhone(
+              "shared-tenant@test.invalid", "Shared", "Tenant", "BrandNewP@ssword!", null);
+
+      // -- ACT --
+      tenantUserService.detach(user.getId());
+      UserOutput reattached = tenantUserService.createOrAttach(reAttachInput);
+
+      // -- ASSERT --
+      entityManager.flush();
+      entityManager.clear();
+      User reloaded = userRepository.findById(user.getId()).orElseThrow();
+      assertThat(reattached.id()).isEqualTo(user.getId());
+      assertThat(reloaded.getTenants())
+          .extracting(Tenant::getId)
+          .contains(tenant.getId(), otherTenant.getId());
+      assertThat(userService.isUserPasswordValid(reloaded, RAW_PASSWORD)).isTrue();
+      assertThat(userService.isUserPasswordValid(reloaded, reAttachInput.plainPassword()))
+          .isFalse();
     }
   }
 

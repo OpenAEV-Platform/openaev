@@ -3,6 +3,9 @@ package io.openaev.api.platform.users;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -17,21 +20,25 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.service.MailingService;
 import io.openaev.service.UserService;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
@@ -44,9 +51,9 @@ class PlatformUserApiTest extends IntegrationTest {
   @Autowired private TenantComposer tenantComposer;
   @Autowired private GroupRepository groupRepository;
   @Autowired private UserService userService;
-  @PersistenceContext private EntityManager entityManager;
 
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
+  @MockitoBean private MailingService mailingService;
 
   @BeforeEach
   void setup() {
@@ -56,6 +63,7 @@ class PlatformUserApiTest extends IntegrationTest {
   @Test
   @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
   @DisplayName("given_creationWithTenants_should_assignPlatformAndTenantAutoAssignGroups")
+  @Transactional(propagation = Propagation.NEVER)
   void given_creationWithTenants_should_assignAutoAssignGroups() throws Exception {
     // -- ARRANGE --
     Tenant tenant =
@@ -67,7 +75,7 @@ class PlatformUserApiTest extends IntegrationTest {
             "api-auto-assign-" + UUID.randomUUID() + "@filigran.io",
             "Auto",
             "Assign",
-            "secureP@ss1",
+            null,
             null,
             null,
             null,
@@ -91,12 +99,23 @@ class PlatformUserApiTest extends IntegrationTest {
 
     // -- ASSERT --
     String userId = JsonPath.read(response, "$.user_id");
-    entityManager.flush();
-    entityManager.clear();
     User created = userService.user(userId);
     assertThat(created.getUnscopedGroups())
         .extracting(Group::getId)
         .contains(platformGroup.getId(), tenantGroup.getId());
+
+    ArgumentCaptor<List<User>> userCaptor = ArgumentCaptor.forClass(List.class);
+    Awaitility.await()
+        .atMost(10, TimeUnit.SECONDS)
+        .untilAsserted(
+            () ->
+                verify(mailingService, atLeastOnce())
+                    .sendEmail(anyString(), anyString(), userCaptor.capture()));
+    List<String> notifiedEmails = new ArrayList<>();
+    for (List<User> users : userCaptor.getAllValues()) {
+      notifiedEmails.addAll(users.stream().map(User::getEmail).toList());
+    }
+    assertThat(notifiedEmails).contains(input.email());
   }
 
   private Group autoAssignGroup(String name, Tenant tenant) {
