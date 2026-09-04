@@ -77,7 +77,7 @@ public class PhishingPublicApi extends RestBehavior {
   public PhishingLandingPageReader page(
       @PathVariable String tenantId, @PathVariable String token, HttpServletRequest request) {
     TenantContext.setCurrentTenant(tenantId);
-    PhishingResult result = phishingTrackingService.resolveByToken(token).orElse(null);
+    PhishingResult result = phishingTrackingService.resolveAndBackfillByToken(token).orElse(null);
     if (result == null || result.getLandingPage() == null) {
       return null;
     }

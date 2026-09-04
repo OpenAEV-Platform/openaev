@@ -7,12 +7,16 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.TokenRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utils.mockUser.TestUserHolder;
+import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
@@ -21,6 +25,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
@@ -31,6 +36,8 @@ class UserServiceTest extends IntegrationTest {
   @Autowired private UserComposer userComposer;
   @Autowired private TenantComposer tenantComposer;
   @Autowired private GroupRepository groupRepository;
+  @Autowired private TokenRepository tokenRepository;
+  @Autowired private TestUserHolder testUserHolder;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -361,6 +368,61 @@ class UserServiceTest extends IntegrationTest {
 
     // -- ASSERT --
     assertThatThrownBy(() -> userService.user(persisted.getId()))
+        .isInstanceOf(ElementNotFoundException.class);
+  }
+
+  // -- TOKENS --
+
+  @Test
+  @WithMockUser
+  @DisplayName("given_ownToken_should_hardDeleteItAndIssueANewOne")
+  void given_ownToken_should_hardDeleteItAndIssueANewOne() {
+    // -- ARRANGE --
+    User currentUser = testUserHolder.get();
+    Token previousToken = userService.createUserToken(currentUser, UUID.randomUUID().toString());
+    String previousTokenId = previousToken.getId();
+    String previousTokenValue = previousToken.getValue();
+
+    // -- ACT --
+    Token renewedToken = userService.renewUserToken(previousTokenId);
+    entityManager.flush();
+    entityManager.clear();
+
+    // -- ASSERT --
+    assertThat(renewedToken.getId()).isNotNull().isNotEqualTo(previousTokenId);
+    assertThat(renewedToken.getValue()).isNotBlank().isNotEqualTo(previousTokenValue);
+    assertThat(renewedToken.getUser().getId()).isEqualTo(currentUser.getId());
+
+    // The row is deleted, not updated: neither the old id nor the old value resolve anymore.
+    assertThat(tokenRepository.findById(previousTokenId)).isEmpty();
+    assertThat(tokenRepository.findByValue(previousTokenValue)).isEmpty();
+    assertThat(tokenRepository.findByValue(renewedToken.getValue())).isPresent();
+  }
+
+  @Test
+  @WithMockUser
+  @DisplayName("given_tokenOwnedByAnotherUser_should_throwAccessDenied")
+  void given_tokenOwnedByAnotherUser_should_throwAccessDenied() {
+    // -- ARRANGE --
+    User otherUser =
+        userComposer
+            .forUser(getUser("Other", "Owner", UUID.randomUUID() + "@test.invalid"))
+            .persist()
+            .get();
+    Token foreignToken = userService.createUserToken(otherUser, UUID.randomUUID().toString());
+
+    // -- ACT & ASSERT --
+    assertThatThrownBy(() -> userService.renewUserToken(foreignToken.getId()))
+        .isInstanceOf(AccessDeniedException.class);
+    assertThat(tokenRepository.findById(foreignToken.getId())).isPresent();
+  }
+
+  @Test
+  @WithMockUser
+  @DisplayName("given_unknownTokenId_should_throwElementNotFound")
+  void given_unknownTokenId_should_throwElementNotFound() {
+    // -- ACT & ASSERT --
+    assertThatThrownBy(() -> userService.renewUserToken(UUID.randomUUID().toString()))
         .isInstanceOf(ElementNotFoundException.class);
   }
 }

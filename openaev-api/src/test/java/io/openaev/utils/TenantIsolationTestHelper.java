@@ -67,6 +67,8 @@ public class TenantIsolationTestHelper {
     String userId = testUserHolder.get().getId();
     tenantRepository.addUserToTenant(userId, tenant.getId());
     tenantMembershipCacheManager.evict(userId, tenant.getId());
+    entityManager.flush();
+    entityManager.clear();
     return tenant;
   }
 

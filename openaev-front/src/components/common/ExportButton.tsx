@@ -49,7 +49,7 @@ const ExportButton = <T extends object>({ totalElements, exportProps, exportCsvM
 
   const exportBtn = (enableOnClick: boolean) => (
     <Tooltip title={t('Export this list')}>
-      <span>
+      <span style={{ display: 'inline-flex' }}>
         <ToggleButton value="export" aria-label="export" size="small" disabled={totalElements === 0} onClick={enableOnClick ? exportCsvMapperAction : undefined}>
           <FileDownloadOutlined
             color={totalElements === 0 ? 'disabled' : 'primary'}

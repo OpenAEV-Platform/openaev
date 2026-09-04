@@ -107,7 +107,7 @@ const Documents = () => {
     {
       field: 'document_tags',
       label: 'Tags',
-      isSortable: true,
+      isSortable: false,
     },
   ];
 

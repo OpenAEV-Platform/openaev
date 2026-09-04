@@ -1,5 +1,6 @@
 package io.openaev.rest.scenario;
 
+import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
@@ -40,7 +41,10 @@ public class ScenarioChallengesApi extends RestBehavior {
     return documentService.getPlayerDocuments(articles, injects);
   }
 
-  @GetMapping("/api/player/scenarios/{scenarioId}/documents")
+  @GetMapping({
+    "/api/player/scenarios/{scenarioId}/documents",
+    TENANT_PREFIX + "/player/scenarios/{scenarioId}/documents"
+  })
   @Transactional
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
@@ -61,7 +65,10 @@ public class ScenarioChallengesApi extends RestBehavior {
     }
   }
 
-  @GetMapping("/api/observer/scenarios/{scenarioId}/challenges")
+  @GetMapping({
+    "/api/observer/scenarios/{scenarioId}/challenges",
+    TENANT_PREFIX + "/observer/scenarios/{scenarioId}/challenges"
+  })
   @Transactional
   @AccessControl(
       resourceId = "#scenarioId",

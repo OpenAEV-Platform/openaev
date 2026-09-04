@@ -218,6 +218,12 @@ export const LabelColorDict = {
 
 export const FONT_FAMILY_CODE = 'Consolas, monaco, monospace';
 
+// Shared height of the small inline controls that sit side by side in list
+// headers: toggle button groups and the create button. MUI gives a small
+// ToggleButton and a small contained Button different metrics, so the two only
+// line up if they are pinned to the same value.
+export const INLINE_CONTROL_HEIGHT = 36;
+
 // === Design System Palette Types ===
 
 type MainPalette = {

@@ -77,7 +77,7 @@ public class HostedPublicApi extends RestBehavior {
     if (!bindTenant(token)) {
       return null;
     }
-    PhishingResult result = phishingTrackingService.resolveByToken(token).orElse(null);
+    PhishingResult result = phishingTrackingService.resolveAndBackfillByToken(token).orElse(null);
     if (result == null || result.getLandingPage() == null) {
       return null;
     }

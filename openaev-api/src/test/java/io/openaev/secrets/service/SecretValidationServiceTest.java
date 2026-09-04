@@ -3,10 +3,6 @@ package io.openaev.secrets.service;
 import static io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD.*;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.*;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
-import static io.openaev.secrets.provider.SecretConnectionDetails.PROVIDER_NOT_FOUND;
-import static io.openaev.secrets.provider.SecretConnectionDetails.SECRET_NOT_FOUND;
-import static io.openaev.secrets.provider.SecretConnectionDetails.UNREACHABLE;
-import static io.openaev.secrets.provider.SecretConnectionDetails.VALIDATOR_ERROR;
 import static io.openaev.secrets.service.SecretValidationService.VALIDATABLE_AUTH_METHODS;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -18,7 +14,6 @@ import io.openaev.database.model.SecretReference.SECRET_STATUS;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.SecretReferenceRepository;
 import io.openaev.database.repository.TenantRepository;
-import io.openaev.secrets.provider.SecretConnectionProbe;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import java.time.Duration;
 import java.time.Instant;
@@ -108,20 +103,12 @@ class SecretValidationServiceTest extends IntegrationTest {
     };
   }
 
-  private List<SecretValidationCandidate> dueCandidates(int maxPerRun) {
-    return secretValidationService.findDueForValidation(
-        tenant.getId(), maxPerRun, REVALIDATE_AFTER);
+  private List<CredentialSecretReference> dueCandidates(int maxPerRun) {
+    return secretValidationService.findDueForValidation(maxPerRun, REVALIDATE_AFTER);
   }
 
   private List<String> dueReferenceIds(int maxPerRun) {
-    return dueCandidates(maxPerRun).stream().map(SecretValidationCandidate::referenceId).toList();
-  }
-
-  private SecretValidationCandidate candidateFor(CredentialSecretReference reference) {
-    return dueCandidates(LARGE_BUDGET).stream()
-        .filter(candidate -> candidate.referenceId().equals(reference.getId()))
-        .findFirst()
-        .orElseThrow();
+    return dueCandidates(maxPerRun).stream().map(CredentialSecretReference::getId).toList();
   }
 
   @Nested
@@ -214,93 +201,68 @@ class SecretValidationServiceTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Preparing the probes")
-  class PrepareProbes {
+  @DisplayName("Running connectivity validation")
+  class ValidateConnectivity {
 
     @Test
     @DisplayName("A reference whose secret cannot be loaded still travels through the run")
-    void given_referenceWithoutLocation_should_beReturnedWithAConcludedProbe() {
+    void given_referenceWithoutLocation_should_returnNotChecked() {
       // Arrange — the reference seeded here has no location at all.
       CredentialSecretReference reference = seedReference(AZURE_SERVICE_PRINCIPAL, ACTIVE, null);
 
-      // Act — present in the batch, so it gets an outcome rather than vanishing.
-      SecretConnectionResult result = secretValidationService.validate(candidateFor(reference));
+      // Act
+      SecretConnectionResult result =
+          secretValidationService.validateConnectivity(tenant.getId(), reference);
 
-      // Assert — the local provider concluded at preparation time, no validator ever ran.
-      assertThat(result.detail()).isEqualTo(SECRET_NOT_FOUND);
+      // Assert — preparation fails before any provider-specific validator can run.
+      assertThat(result.status()).isEqualTo(UNSET);
       assertThat(result.wasChecked()).isFalse();
+      assertThat(result.statusToPersist()).isEmpty();
     }
 
     @Test
     @DisplayName("A reference pointing at an unknown provider is reported, not dropped")
-    void given_unresolvableProvider_should_yieldProviderNotFound() {
+    void given_unresolvableProvider_should_returnNotChecked() {
       // Arrange — a connector instance no integration is spawned for.
       CredentialSecretReference reference =
           seedReference(AZURE_SERVICE_PRINCIPAL, ACTIVE, null, "unknown-connector-instance");
 
       // Act
-      SecretConnectionResult result = secretValidationService.validate(candidateFor(reference));
+      SecretConnectionResult result =
+          secretValidationService.validateConnectivity(tenant.getId(), reference);
 
-      // Assert — one unresolvable provider must cost that credential an outcome, not the batch.
-      assertThat(result.detail()).isEqualTo(PROVIDER_NOT_FOUND);
+      // Assert — one unresolvable provider must not fail the whole run.
+      assertThat(result.status()).isEqualTo(UNSET);
       assertThat(result.wasChecked()).isFalse();
       assertThat(result.statusToPersist()).isEmpty();
     }
-  }
-
-  @Nested
-  @DisplayName("Running one probe")
-  class Validate {
 
     @Test
-    @DisplayName("The prepared probe's outcome is returned as-is")
-    void given_concludingProbe_should_returnItsOutcome() {
+    @DisplayName("A blank tenant id is treated as not checked")
+    void given_blankTenantId_should_returnNotChecked() {
       // Arrange
-      SecretValidationCandidate candidate =
-          new SecretValidationCandidate(
-              UUID.randomUUID().toString(),
-              SecretConnectionProbe.of(SecretConnectionResult.active()));
+      CredentialSecretReference reference = seedReference(AZURE_SERVICE_PRINCIPAL, ACTIVE, null);
 
       // Act
-      SecretConnectionResult result = secretValidationService.validate(candidate);
+      SecretConnectionResult result =
+          secretValidationService.validateConnectivity("   ", reference);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(SecretConnectionResult.OUTCOME.ACTIVE);
+      assertThat(result.status()).isEqualTo(UNSET);
+      assertThat(result.wasChecked()).isFalse();
     }
 
     @Test
-    @DisplayName("A probe that blows up is inconclusive, never a rejection")
-    void given_throwingProbe_should_returnUnknown() {
-      // Arrange — an unexpected validator failure says nothing about the credential itself.
-      SecretValidationCandidate candidate =
-          new SecretValidationCandidate(
-              UUID.randomUUID().toString(),
-              () -> {
-                throw new IllegalStateException("provider exploded");
-              });
-
-      // Act
-      SecretConnectionResult result = secretValidationService.validate(candidate);
+    @DisplayName("A null reference is treated as not checked")
+    void given_nullReference_should_returnNotChecked() {
+      // Arrange & Act
+      SecretConnectionResult result =
+          secretValidationService.validateConnectivity(tenant.getId(), null);
 
       // Assert
-      assertThat(result.outcome()).isEqualTo(SecretConnectionResult.OUTCOME.UNKNOWN);
-      assertThat(result.detail()).isEqualTo(VALIDATOR_ERROR);
+      assertThat(result.status()).isEqualTo(UNSET);
+      assertThat(result.wasChecked()).isFalse();
       assertThat(result.statusToPersist()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("A probe returning nothing is inconclusive")
-    void given_probeReturningNull_should_returnUnknown() {
-      // Arrange
-      SecretValidationCandidate candidate =
-          new SecretValidationCandidate(UUID.randomUUID().toString(), () -> null);
-
-      // Act
-      SecretConnectionResult result = secretValidationService.validate(candidate);
-
-      // Assert
-      assertThat(result.outcome()).isEqualTo(SecretConnectionResult.OUTCOME.UNKNOWN);
-      assertThat(result.detail()).isEqualTo(VALIDATOR_ERROR);
     }
   }
 
@@ -328,39 +290,37 @@ class SecretValidationServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("A rejection flips the status to inactive")
-    void given_inactiveOutcome_should_writeInactive() {
+    @DisplayName("An auth failure writes AUTH_FAILED")
+    void given_authFailure_should_writeAuthFailed() {
       // Arrange
       CredentialSecretReference reference = seedReference(AZURE_SERVICE_PRINCIPAL, ACTIVE, null);
 
       // Act
       secretValidationService.persistResults(
-          Map.of(reference.getId(), SecretConnectionResult.inactive("AUTH_REJECTED")));
+          Map.of(reference.getId(), SecretConnectionResult.authFailed()));
 
       // Assert
       SecretReference reloaded =
           secretReferenceRepository.findById(reference.getId()).orElseThrow();
-      assertThat(reloaded.getStatus()).isEqualTo(INACTIVE);
+      assertThat(reloaded.getStatus()).isEqualTo(AUTH_FAILED);
     }
 
     @Test
-    @DisplayName("An inconclusive check keeps the previous status but still stamps the attempt")
-    void given_unknownOutcome_should_keepStatusAndStampAttempt() {
-      // Arrange — this is the transient-outage case: a valid credential must NOT be flipped.
+    @DisplayName("An unknown check result writes UNKNOWN and stamps the attempt")
+    void given_unknownOutcome_should_writeUnknownAndStampAttempt() {
+      // Arrange
       CredentialSecretReference reference = seedReference(AZURE_MANAGED_IDENTITY, ACTIVE, null);
 
       // Act
       int updated =
           secretValidationService.persistResults(
-              Map.of(reference.getId(), SecretConnectionResult.unknown(UNREACHABLE)));
+              Map.of(reference.getId(), SecretConnectionResult.unknown()));
 
       // Assert
       assertThat(updated).isEqualTo(1);
       SecretReference reloaded =
           secretReferenceRepository.findById(reference.getId()).orElseThrow();
-      assertThat(reloaded.getStatus()).isEqualTo(ACTIVE);
-      // Stamped anyway, otherwise a permanently unreachable provider would pin the same rows at
-      // the head of every single run.
+      assertThat(reloaded.getStatus()).isEqualTo(UNKNOWN);
       assertThat(reloaded.getLastVerifiedAt()).isNotNull();
     }
 
@@ -373,7 +333,7 @@ class SecretValidationServiceTest extends IntegrationTest {
       // Act
       int updated =
           secretValidationService.persistResults(
-              Map.of(reference.getId(), SecretConnectionResult.notChecked(SECRET_NOT_FOUND)));
+              Map.of(reference.getId(), SecretConnectionResult.notChecked()));
 
       // Assert — no status, and no verification stamp either.
       assertThat(updated).isZero();
@@ -384,7 +344,7 @@ class SecretValidationServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("An unsupported credential type is left completely untouched")
+    @DisplayName("An unsupported check result writes nothing")
     void given_unsupportedOutcome_should_writeNothing() { // Arrange
       CredentialSecretReference reference = seedReference(AZURE_SERVICE_PRINCIPAL, UNSET, null);
 
@@ -393,7 +353,7 @@ class SecretValidationServiceTest extends IntegrationTest {
           secretValidationService.persistResults(
               Map.of(reference.getId(), SecretConnectionResult.unsupported()));
 
-      // Assert — never checked, so never stamped as verified.
+      // Assert
       assertThat(updated).isZero();
       SecretReference reloaded =
           secretReferenceRepository.findById(reference.getId()).orElseThrow();

@@ -14,11 +14,14 @@ import io.openaev.database.model.PhishingResult;
 import io.openaev.database.model.TableTopInjectExpectation;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.PhishingResultRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.service.InjectExpectationUtils;
+import io.openaev.service.chaining.StepService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.security.SecureRandom;
@@ -236,8 +239,10 @@ public class PhishingTrackingService {
 
   private final PhishingResultRepository phishingResultRepository;
   private final InjectExpectationRepository injectExpectationRepository;
+  private final InjectRepository injectRepository;
   private final UserRepository userRepository;
   private final TeamRepository teamRepository;
+  private final StepRepository stepRepository;
   private final FindingService findingService;
 
   /** Generates a URL-safe, unguessable per-recipient tracking token. */
@@ -267,16 +272,27 @@ public class PhishingTrackingService {
    * <p>The {@code inject} / {@code landingPage} associations are set from the passed entities and
    * {@code user} / {@code team} from reference proxies: this row is a fresh insert with no cascade,
    * so Hibernate only needs their FK ids and never touches the suspended outer persistence context.
+   *
+   * <p>{@code stepId} is set instead of {@code inject} for a chaining execution: at this point the
+   * inject was just created in the still-uncommitted, suspended ambient transaction, so referencing
+   * it here (in this own {@code REQUIRES_NEW} transaction) would fail the FK check. The step,
+   * unlike the inject, is already persisted, so it is used as the stable reference until {@link
+   * #resolveAndBackfillByToken} backfills the real inject once it is committed.
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public PhishingResult createResult(
       @NotNull final Inject inject,
       @NotNull final PhishingLandingPage landingPage,
       @NotBlank final String userId,
-      final String teamId) {
+      final String teamId,
+      final String stepId) {
     PhishingResult result = new PhishingResult();
     result.setToken(generateToken());
-    result.setInject(inject);
+    if (stepId != null) {
+      result.setStep(stepRepository.getReferenceById(stepId));
+    } else {
+      result.setInject(inject);
+    }
     result.setLandingPage(landingPage);
     // FK-only association: a reference proxy avoids an N+1 SELECT per recipient at send time.
     result.setUser(userRepository.getReferenceById(userId));
@@ -314,8 +330,72 @@ public class PhishingTrackingService {
             });
   }
 
-  public Optional<PhishingResult> resolveByToken(@NotBlank final String token) {
-    return phishingResultRepository.findByToken(token);
+  /**
+   * Resolves a tracking token, backfilling {@link PhishingResult#getInject} from {@link
+   * PhishingResult#getStep} when the row was created before its inject was committed (chaining
+   * execution, see {@code createResult}). The step's {@code data} JSON carries the inject id once
+   * {@code InjectExecutionStep#run} commits it - see {@code InjectExecutionStep#setInjectId}. Once
+   * backfilled, {@code inject} is kept as the queryable reference going forward; {@code step} is
+   * left untouched (still useful to correlate the producing step attempt).
+   */
+  public Optional<PhishingResult> resolveAndBackfillByToken(@NotBlank final String token) {
+    Optional<PhishingResult> result = phishingResultRepository.findByToken(token);
+    result.ifPresent(this::backfillInjectFromStep);
+    return result;
+  }
+
+  private void backfillInjectFromStep(final PhishingResult result) {
+    if (result.getInject() != null || result.getStep() == null) {
+      return;
+    }
+    String data = result.getStep().getData();
+    if (data == null) {
+      return;
+    }
+    String injectId = StepService.getField(data, "inject_id");
+    if (injectId == null) {
+      return;
+    }
+    // Existence check first: without it, a stale/invalid inject_id from the step data would end
+    // up wiping this PhishingResult row entirely (ON DELETE CASCADE on phishing_results_inject_fk
+    // is triggered instead of failing safely). Checking first lets us leave the column null
+    // instead, so the rest of the tracking update still persists.
+    if (injectRepository.existsById(injectId)) {
+      result.setInject(injectRepository.getReferenceById(injectId));
+    } else {
+      log.warn(
+          "Inject {} not found yet for step {}, result kept without inject link for now"
+              + " (will be retried on next resolveByToken call)",
+          injectId,
+          result.getStep().getId());
+    }
+
+    PhishingResult saved = phishingResultRepository.save(result);
+
+    // If tracking events were recorded before the inject existed, reconcile expectation scoring
+    // now.
+    if (saved.getSubmittedAt() != null) {
+      compromiseSteps(
+          saved,
+          Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED),
+          "Submitted data on the phishing page",
+          saved.getIp(),
+          saved.getUserAgent());
+    } else if (saved.getClickedAt() != null) {
+      compromiseSteps(
+          saved,
+          Set.of(STEP_OPENED, STEP_CLICKED),
+          "Opened the phishing landing page",
+          saved.getIp(),
+          saved.getUserAgent());
+    } else if (saved.getOpenedAt() != null) {
+      compromiseSteps(
+          saved,
+          Set.of(STEP_OPENED),
+          "Opened the phishing email",
+          saved.getIp(),
+          saved.getUserAgent());
+    }
   }
 
   /**
@@ -337,23 +417,21 @@ public class PhishingTrackingService {
    */
   public Optional<PhishingResult> markOpened(
       @NotBlank final String token, final String ip, final String userAgent) {
-    return phishingResultRepository
-        .findByToken(token)
-        .map(
-            result -> {
-              if (isAutomatedProbe(result, userAgent)) {
-                annotateResistedSteps(result, Set.of(STEP_OPENED), ip, userAgent);
-                return result;
-              }
-              if (result.getOpenedAt() == null) {
-                result.setOpenedAt(now());
-              }
-              applyRequestMetadata(result, ip, userAgent);
-              PhishingResult saved = phishingResultRepository.save(result);
-              compromiseSteps(
-                  saved, Set.of(STEP_OPENED), "Opened the phishing email", ip, userAgent);
-              return saved;
-            });
+    Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
+    return optResult.map(
+        result -> {
+          if (isAutomatedProbe(result, userAgent)) {
+            annotateResistedSteps(result, Set.of(STEP_OPENED), ip, userAgent);
+            return result;
+          }
+          if (result.getOpenedAt() == null) {
+            result.setOpenedAt(now());
+          }
+          applyRequestMetadata(result, ip, userAgent);
+          PhishingResult saved = phishingResultRepository.save(result);
+          compromiseSteps(saved, Set.of(STEP_OPENED), "Opened the phishing email", ip, userAgent);
+          return saved;
+        });
   }
 
   /**
@@ -366,30 +444,29 @@ public class PhishingTrackingService {
    */
   public Optional<PhishingResult> markClicked(
       @NotBlank final String token, final String ip, final String userAgent) {
-    return phishingResultRepository
-        .findByToken(token)
-        .map(
-            result -> {
-              if (isAutomatedProbe(result, userAgent)) {
-                annotateResistedSteps(result, Set.of(STEP_OPENED, STEP_CLICKED), ip, userAgent);
-                return result;
-              }
-              if (result.getOpenedAt() == null) {
-                result.setOpenedAt(now());
-              }
-              if (result.getClickedAt() == null) {
-                result.setClickedAt(now());
-              }
-              applyRequestMetadata(result, ip, userAgent);
-              PhishingResult saved = phishingResultRepository.save(result);
-              compromiseSteps(
-                  saved,
-                  Set.of(STEP_OPENED, STEP_CLICKED),
-                  "Opened the phishing landing page",
-                  ip,
-                  userAgent);
-              return saved;
-            });
+    Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
+    return optResult.map(
+        result -> {
+          if (isAutomatedProbe(result, userAgent)) {
+            annotateResistedSteps(result, Set.of(STEP_OPENED, STEP_CLICKED), ip, userAgent);
+            return result;
+          }
+          if (result.getOpenedAt() == null) {
+            result.setOpenedAt(now());
+          }
+          if (result.getClickedAt() == null) {
+            result.setClickedAt(now());
+          }
+          applyRequestMetadata(result, ip, userAgent);
+          PhishingResult saved = phishingResultRepository.save(result);
+          compromiseSteps(
+              saved,
+              Set.of(STEP_OPENED, STEP_CLICKED),
+              "Opened the phishing landing page",
+              ip,
+              userAgent);
+          return saved;
+        });
   }
 
   /**
@@ -408,45 +485,44 @@ public class PhishingTrackingService {
       final Map<String, String> fields,
       final String ip,
       final String userAgent) {
-    return phishingResultRepository
-        .findByToken(token)
-        .map(
-            result -> {
-              // A sandbox detonator auto-submitting the form with synthetic data must not score
-              // the recipient nor pollute findings with fake credentials. A real submit later
-              // still wins the first-submit transition and is captured normally.
-              if (isAutomatedProbe(result, userAgent)) {
-                annotateResistedSteps(
-                    result, Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED), ip, userAgent);
-                return result;
-              }
-              Instant timestamp = now();
-              if (result.getOpenedAt() == null) {
-                result.setOpenedAt(timestamp);
-              }
-              if (result.getClickedAt() == null) {
-                result.setClickedAt(timestamp);
-              }
-              // Capture only on the request that wins the submit transition. A repeat or concurrent
-              // POST (a victim double-submitting) would otherwise re-insert the same Credentials
-              // finding, break its unique constraint at flush and roll back the tracking write.
-              boolean firstSubmit = result.getSubmittedAt() == null;
-              if (firstSubmit) {
-                result.setSubmittedAt(timestamp);
-              }
-              applyRequestMetadata(result, ip, userAgent);
-              if (firstSubmit) {
-                captureCredentials(result, fields);
-              }
-              PhishingResult saved = phishingResultRepository.save(result);
-              compromiseSteps(
-                  saved,
-                  Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED),
-                  "Submitted data on the phishing page",
-                  ip,
-                  userAgent);
-              return saved;
-            });
+    Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
+    return optResult.map(
+        result -> {
+          // A sandbox detonator auto-submitting the form with synthetic data must not score
+          // the recipient nor pollute findings with fake credentials. A real submit later
+          // still wins the first-submit transition and is captured normally.
+          if (isAutomatedProbe(result, userAgent)) {
+            annotateResistedSteps(
+                result, Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED), ip, userAgent);
+            return result;
+          }
+          Instant timestamp = now();
+          if (result.getOpenedAt() == null) {
+            result.setOpenedAt(timestamp);
+          }
+          if (result.getClickedAt() == null) {
+            result.setClickedAt(timestamp);
+          }
+          // Capture only on the request that wins the submit transition. A repeat or concurrent
+          // POST (a victim double-submitting) would otherwise re-insert the same Credentials
+          // finding, break its unique constraint at flush and roll back the tracking write.
+          boolean firstSubmit = result.getSubmittedAt() == null;
+          if (firstSubmit) {
+            result.setSubmittedAt(timestamp);
+          }
+          applyRequestMetadata(result, ip, userAgent);
+          if (firstSubmit) {
+            captureCredentials(result, fields);
+          }
+          PhishingResult saved = phishingResultRepository.save(result);
+          compromiseSteps(
+              saved,
+              Set.of(STEP_OPENED, STEP_CLICKED, STEP_SUBMITTED),
+              "Submitted data on the phishing page",
+              ip,
+              userAgent);
+          return saved;
+        });
   }
 
   /**

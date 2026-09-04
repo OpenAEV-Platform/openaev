@@ -4,7 +4,7 @@ import LogoCollapsed from '../static/images/logo_light.png';
 import LogoText from '../static/images/logo_text_light.png';
 import { hexToRGB } from '../utils/Colors';
 import { fileUri } from '../utils/Environment';
-import { FONT_FAMILY_CODE, type LabelColor, LabelColorDict } from './Theme';
+import { FONT_FAMILY_CODE, INLINE_CONTROL_HEIGHT, type LabelColor, LabelColorDict } from './Theme';
 
 // Aligned with OpenCTI's light theme (opencti-front/src/components/ThemeLight.ts):
 // same default palette, typography, and component overrides, so both platforms
@@ -445,7 +445,7 @@ const ThemeLight = (
       defaultProps: { size: 'small' },
       styleOverrides: {
         root: {
-          'height': 36,
+          'height': INLINE_CONTROL_HEIGHT,
           '& .MuiTouchRipple-root': { display: 'none' },
           '& .MuiToggleButton-root': {
             'border': '1px solid #D2D2D2',

@@ -3,6 +3,7 @@ import { Button, Tooltip } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../i18n';
+import { INLINE_CONTROL_HEIGHT } from '../Theme';
 
 interface Props {
   onClick: () => void;
@@ -33,6 +34,7 @@ const ButtonCreate: FunctionComponent<Props> = ({ onClick, style, label, disable
       sx={{
         whiteSpace: 'nowrap',
         flexShrink: 0,
+        minHeight: INLINE_CONTROL_HEIGHT,
       }}
     >
       {label ?? t('Create')}

@@ -3177,6 +3177,8 @@ export interface CredentialFullOutput {
     | "us-gov-west-1";
   /** AWS role ARN */
   credential_aws_role_arn?: string;
+  /** AWS session token present */
+  credential_aws_session_token_present?: boolean;
   /** AWS source identity type */
   credential_aws_source_identity_type?:
     | "STATIC_ACCESS_KEY"
@@ -3212,7 +3214,16 @@ export interface CredentialFullOutput {
   /** Credential name */
   credential_name: string;
   /** Credential status */
-  credential_status?: "ACTIVE" | "INACTIVE" | "UNSET";
+  credential_status?:
+    | "ACTIVE"
+    | "AUTH_FAILED"
+    | "PERMISSION_DENIED"
+    | "TIMEOUT"
+    | "NETWORK_ERROR"
+    | "UNSUPPORTED"
+    | "FORMAT_ERROR"
+    | "UNKNOWN"
+    | "UNSET";
   /**
    * Tag IDs linked to the credential
    * @uniqueItems true
@@ -3319,7 +3330,16 @@ export interface CredentialOutput {
   /** Credential name */
   credential_name?: string;
   /** Credential status */
-  credential_status?: "ACTIVE" | "INACTIVE" | "UNSET";
+  credential_status?:
+    | "ACTIVE"
+    | "AUTH_FAILED"
+    | "PERMISSION_DENIED"
+    | "TIMEOUT"
+    | "NETWORK_ERROR"
+    | "UNSUPPORTED"
+    | "FORMAT_ERROR"
+    | "UNKNOWN"
+    | "UNSET";
   /**
    * Tag IDs linked to the credential
    * @uniqueItems true
@@ -7873,6 +7893,7 @@ export interface NotificationTriggerInput {
     | "STEP"
     | "CONDITION"
     | "SESSION"
+    | "TOKEN"
     | "PLATFORM_SESSION"
     | "SKIP_RBAC";
   /** Digest firing time (UTC): DAY=HH:mm, WEEK=<1-7>-HH:mm, MONTH=<1-31>-HH:mm */
@@ -7978,6 +7999,7 @@ export interface NotificationTriggerOutput {
     | "STEP"
     | "CONDITION"
     | "SESSION"
+    | "TOKEN"
     | "PLATFORM_SESSION"
     | "SKIP_RBAC";
   /** Digest firing time (UTC) */

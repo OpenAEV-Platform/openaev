@@ -22,6 +22,10 @@ To delete a user:
 
 ![User manage](assets/user-delete.png)
 
+The platform administrator account cannot be deleted, and neither can your own account. In both
+cases the delete action stays visible but disabled, and hovering it explains why. Administrator
+accounts are also flagged in the list so the restriction is visible without opening the menu.
+
 
 # User permissions
 

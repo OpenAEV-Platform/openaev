@@ -62,7 +62,8 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     User adminUser = adminUserOptional.map(this::updateUser).orElseGet(this::createUser);
 
     // Handle admin token
-    Optional<Token> adminToken = this.tokenRepository.findById(ADMIN_TOKEN_UUID);
+    Optional<Token> adminToken =
+        this.tokenRepository.findFirstByUserIdOrderByCreatedAsc(adminUser.getId());
     adminToken.ifPresentOrElse(this::updateToken, () -> this.createToken(adminUser));
 
     // Ensure the admin user holds full administrative privileges through well-known groups: a

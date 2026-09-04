@@ -19,6 +19,12 @@ public class ChallengeFixture {
     return challenge;
   }
 
+  public static Challenge createChallengeWithMaxAttempts(int maxAttempts) {
+    Challenge challenge = createDefaultChallenge();
+    challenge.setMaxAttempts(maxAttempts);
+    return challenge;
+  }
+
   public static ChallengeFlag createDefaultChallengeFlag() {
     ChallengeFlag challengeFlag = new ChallengeFlag();
     challengeFlag.setType(VALUE);

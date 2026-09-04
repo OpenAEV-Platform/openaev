@@ -763,14 +763,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@formatjs/intl@npm:4.1.19":
-  version: 4.1.19
-  resolution: "@formatjs/intl@npm:4.1.19"
+"@formatjs/intl@npm:4.1.20":
+  version: 4.1.20
+  resolution: "@formatjs/intl@npm:4.1.20"
   dependencies:
     "@formatjs/fast-memoize": "npm:3.1.7"
     "@formatjs/icu-messageformat-parser": "npm:3.5.17"
     intl-messageformat: "npm:11.2.14"
-  checksum: 10c0/4312a245b1fcdfb7b07ad26f142cb6f928ced948f97669fbaf99624c0a82d43184fc0733266fd747e4b57b4438c8d5e78587fb267ea597ebabaf8c24d9b24dca
+  checksum: 10c0/bd0dadd4990cb671ec54adf188bde104bc1868efe5de371f720cf2c9e72a65946502c964a0e1dec4245360ddcae43ad894e7b0e162987833cc7345518913045b
   languageName: node
   linkType: hard
 
@@ -8765,7 +8765,7 @@ __metadata:
     monocart-reporter: "npm:2.12.6"
     normalizr: "npm:3.6.2"
     prop-types: "npm:15.8.1"
-    qs: "npm:6.15.3"
+    qs: "npm:6.16.0"
     ramda: "npm:0.32.0"
     react: "npm:19.2.8"
     react-apexcharts: "npm:1.7.0"
@@ -8775,8 +8775,8 @@ __metadata:
     react-final-form: "npm:6.5.9"
     react-final-form-arrays: "npm:4.0.0"
     react-grid-layout: "npm:2.2.4"
-    react-hook-form: "npm:7.86.0"
-    react-intl: "npm:10.1.24"
+    react-hook-form: "npm:7.87.0"
+    react-intl: "npm:10.1.25"
     react-markdown: "npm:10.1.0"
     react-redux: "npm:9.3.0"
     react-router: "npm:8.3.1"
@@ -8796,7 +8796,7 @@ __metadata:
     uuid: "npm:14.0.2"
     vite: "npm:8.2.2"
     vitest: "npm:4.1.11"
-    zod: "npm:4.5.2"
+    zod: "npm:4.5.4"
     zustand: "npm:5.0.15"
   languageName: unknown
   linkType: soft
@@ -9389,7 +9389,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"qs@npm:6.15.3, qs@npm:^6.14.0, qs@npm:^6.15.2":
+"qs@npm:6.16.0":
+  version: 6.16.0
+  resolution: "qs@npm:6.16.0"
+  dependencies:
+    es-define-property: "npm:^1.0.1"
+    side-channel: "npm:^1.1.1"
+  checksum: 10c0/eb3e31992fbd70e31a1791e571ed817d70975de7d3bfcbbbec93d77d1dd305877e9e8fdbcc62303c228ee5c3606685622cd6231c042dbc4790bb4e7c65fcbe18
+  languageName: node
+  linkType: hard
+
+"qs@npm:^6.14.0, qs@npm:^6.15.2":
   version: 6.15.3
   resolution: "qs@npm:6.15.3"
   dependencies:
@@ -9557,26 +9567,26 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-hook-form@npm:7.86.0":
-  version: 7.86.0
-  resolution: "react-hook-form@npm:7.86.0"
+"react-hook-form@npm:7.87.0":
+  version: 7.87.0
+  resolution: "react-hook-form@npm:7.87.0"
   peerDependencies:
     react: ^16.8.0 || ^17 || ^18 || ^19
-  checksum: 10c0/90cfaf2bbe18061f71d2a8e3e546ab4d9aa861aeab210f2ee3c2009d20e477aa98e290571bd2a2a593e7d412738f178abbea60b81df0b9a5c1b57f8a87b789df
+  checksum: 10c0/da095c160c216f0db19c8568b35faa27835f0faa56bd487c32dfafd3d6c45f0c5fcabd627f4d7edc03b0bf05273e93bed6959112b384f01b1ae124450e68ba33
   languageName: node
   linkType: hard
 
-"react-intl@npm:10.1.24":
-  version: 10.1.24
-  resolution: "react-intl@npm:10.1.24"
+"react-intl@npm:10.1.25":
+  version: 10.1.25
+  resolution: "react-intl@npm:10.1.25"
   dependencies:
     "@formatjs/icu-messageformat-parser": "npm:3.5.17"
-    "@formatjs/intl": "npm:4.1.19"
+    "@formatjs/intl": "npm:4.1.20"
     intl-messageformat: "npm:11.2.14"
   peerDependencies:
     "@types/react": ">=18.0.0"
     react: ">=18.0.0"
-  checksum: 10c0/59b6f8a7ddfb8fa056bb0145f064a45dbfe06c62c6b29debc87dff299611b97b2805b980acdb8eaf7ef02b79b578c66ce1d3066d900c36ec69f3211acc40052d
+  checksum: 10c0/8c53275d145d9ac6ff70eb33dded2c693529008cbb06ab96ed5de46169c9e43cef405f1cf0bafab51b4d7fdf04b44dabfaf538aab825375ef93902270b30f0f7
   languageName: node
   linkType: hard
 
@@ -12210,10 +12220,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zod@npm:4.5.2":
-  version: 4.5.2
-  resolution: "zod@npm:4.5.2"
-  checksum: 10c0/e54a27401dc7993f96232b5a4e889017bb6a00d8d23a2258f40704076243ed9659d09ea3ae074538fb548e960c4d6380301f879fca6bd31547b7b69745abf0f5
+"zod@npm:4.5.4":
+  version: 4.5.4
+  resolution: "zod@npm:4.5.4"
+  checksum: 10c0/511a2a4d1a6f875dfdd70a1586989a8b14ef126776cd6218a2c760b9f65f14ef389ec20d92ee1aa4fcb4566d4ff3fa012956044f9dc503510d82e4c756a8ba92
   languageName: node
   linkType: hard
 

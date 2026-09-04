@@ -28,6 +28,8 @@
         <playwright.version>1.62.0</playwright.version>
         <!-- Azure credential status validation. Aligned with openaev-model's azure-core-management. MIT. -->
         <azure-identity.version>1.18.5</azure-identity.version>
+        <!-- AWS STS client for temporary credential handling. Apache-2.0. -->
+        <aws-sts.version>2.54.9</aws-sts.version>
     </properties>
 
     <profiles>
@@ -79,6 +81,11 @@
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
             <version>${azure-identity.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
+            <version>${aws-sts.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -6,6 +6,10 @@ import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static java.time.Instant.now;
 
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditEventOrigin;
+import io.openaev.aop.audit_log.AuditEventScope;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.DefaultOpenAEVPrincipal;
@@ -39,14 +43,11 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
@@ -104,6 +105,7 @@ public class UserService {
   private final RandomUtils randomUtils;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
   private final TenantScopedTransaction tenantTx;
+  private final ObjectProvider<AuditLogger> auditLoggerProvider;
 
   /** Cache for admin users to improve lookup performance. */
   private Cache adminCache;
@@ -492,7 +494,91 @@ public class UserService {
     token.setUser(user);
     token.setCreated(now());
     token.setValue(discreteToken);
-    return tokenRepository.save(token);
+    Token createdToken = tokenRepository.save(token);
+    logTokenCreated(createdToken);
+    return createdToken;
+  }
+
+  /** Delete an existing API token */
+  public void deleteUserToken(Token token) {
+    tokenRepository.delete(token);
+    logTokenDeleted(token);
+  }
+
+  public Token renewUserToken(String tokenId) {
+    User user =
+        userRepository
+            .findById(currentUser().getId())
+            .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    Token token = tokenRepository.findById(tokenId).orElseThrow(ElementNotFoundException::new);
+    if (!user.equals(token.getUser())) {
+      throw new AccessDeniedException("You are not allowed to renew this token");
+    }
+    deleteUserToken(token);
+
+    return createUserToken(user, UUID.randomUUID().toString());
+  }
+
+  /**
+   * Emits an audit event for a token creation.
+   *
+   * @param createdToken the token that was created
+   */
+  private void logTokenCreated(Token createdToken) {
+    AuditLogger auditLogger = auditLoggerProvider.getIfAvailable();
+    if (auditLogger == null) {
+      return;
+    }
+    User actor = currentUserOrNull();
+    String tokenUserId = createdToken.getUser() != null ? createdToken.getUser().getId() : null;
+    Map<String, Object> contextData = new LinkedHashMap<>();
+    contextData.put("token_id", createdToken.getId());
+    contextData.put("token_user_id", tokenUserId);
+    contextData.put("actor_user_id", actor != null ? actor.getId() : null);
+    contextData.put("token_created_at", createdToken.getCreated());
+
+    auditLogger.logEvent(
+        AuditEvent.builder()
+            .eventType(EventType.MUTATION)
+            .eventScope(AuditEventScope.CREATE)
+            .eventStatus(EventStatus.SUCCESS)
+            .resourceType(ResourceType.TOKEN)
+            .resourceId(createdToken.getId())
+            .contextData(contextData)
+            .message("User token created")
+            .origin(actor != null ? AuditEventOrigin.REQUEST : AuditEventOrigin.SYSTEM)
+            .build());
+  }
+
+  /**
+   * Emits an audit event for a token deleted.
+   *
+   * @param token the token that was deleted
+   */
+  private void logTokenDeleted(Token token) {
+    AuditLogger auditLogger = auditLoggerProvider.getIfAvailable();
+    if (auditLogger == null) {
+      return;
+    }
+    User actor = currentUserOrNull();
+    String tokenUserId = token.getUser() != null ? token.getUser().getId() : null;
+    Map<String, Object> contextData = new LinkedHashMap<>();
+    contextData.put("token_id", token.getId());
+    contextData.put("token_user_id", tokenUserId);
+    contextData.put("actor_user_id", actor != null ? actor.getId() : null);
+    contextData.put("token_deleted_at", Instant.now());
+
+    auditLogger.logEvent(
+        AuditEvent.builder()
+            .eventType(EventType.MUTATION)
+            .eventScope(AuditEventScope.DELETE)
+            .eventStatus(EventStatus.SUCCESS)
+            .resourceType(ResourceType.TOKEN)
+            .resourceId(token.getId())
+            .contextData(contextData)
+            .message("User token deleted")
+            .origin(actor != null ? AuditEventOrigin.REQUEST : AuditEventOrigin.SYSTEM)
+            .build());
   }
 
   public Optional<User> findByTokenAndTenantId(

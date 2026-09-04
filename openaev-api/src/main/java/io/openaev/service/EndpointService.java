@@ -11,7 +11,6 @@ import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCorte
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
-import static io.openaev.utils.pagination.PaginationUtils.buildPageable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
@@ -332,46 +331,23 @@ public class EndpointService implements AuditLoggedService {
             .findById(assetGroupId)
             .orElseThrow(() -> new IllegalArgumentException("Asset group not found"));
 
-    Specification<Endpoint> specificationStatic =
-        findEndpointsForAssetGroup(assetGroupId)
-            .and(findEndpointsForInjectionOrAgentlessEndpoints());
+    Specification<Endpoint> membership = findEndpointsForAssetGroup(assetGroupId);
 
     if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
-      Specification<Endpoint> specificationDynamic =
-          computeFilterGroupJpa(assetGroup.getDynamicFilter());
-      Specification<Endpoint> specificationDynamicWithInjection =
-          specificationDynamic.and(findEndpointsForInjectionOrAgentlessEndpoints());
-
-      Page<Endpoint> dynamicResult =
-          buildPaginationJPA(
-              (Specification<Endpoint> specification, Pageable pageable) ->
-                  this.endpointRepository.findAll(
-                      specificationDynamicWithInjection.and(specification), pageable),
-              handleEndpointFilter(searchPaginationInput),
-              Endpoint.class);
-      Page<Endpoint> staticResult =
-          buildPaginationJPA(
-              (Specification<Endpoint> specification, Pageable pageable) ->
-                  this.endpointRepository.findAll(specificationStatic.and(specification), pageable),
-              handleEndpointFilter(searchPaginationInput),
-              Endpoint.class);
-      List<Endpoint> mergedContent =
-          Stream.concat(dynamicResult.getContent().stream(), staticResult.getContent().stream())
-              .distinct()
-              .limit(searchPaginationInput.getSize())
-              .collect(toList());
-
-      long total = dynamicResult.getTotalElements() + staticResult.getTotalElements();
-
-      Pageable pageable = buildPageable(searchPaginationInput, Endpoint.class);
-      return new PageImpl<>(mergedContent, pageable, total);
-    } else {
-      return buildPaginationJPA(
-          (Specification<Endpoint> specification, Pageable pageable) ->
-              this.endpointRepository.findAll(specificationStatic.and(specification), pageable),
-          handleEndpointFilter(searchPaginationInput),
-          Endpoint.class);
+      // Static members OR dynamic members, resolved in a SINGLE paginated query. Running two
+      // separate queries and concatenating their pages double-counted the endpoints belonging to
+      // both sets (the total was a plain sum) and broke sorting/pagination past the first page.
+      membership = membership.or(computeFilterGroupJpa(assetGroup.getDynamicFilter()));
     }
+
+    Specification<Endpoint> finalSpec =
+        membership.and(findEndpointsForInjectionOrAgentlessEndpoints());
+
+    return buildPaginationJPA(
+        (Specification<Endpoint> specification, Pageable pageable) ->
+            this.endpointRepository.findAll(finalSpec.and(specification), pageable),
+        handleEndpointFilter(searchPaginationInput),
+        Endpoint.class);
   }
 
   public Endpoint updateEndpoint(
