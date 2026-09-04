@@ -76,7 +76,7 @@ class ImapServiceTenantScopeTest {
         throws Exception {
       // Arrange
       String tenantId = "tenant-a";
-      String injectId = "inject-a";
+      String injectId = "83075dd4-60a4-4307-aa3a-19ee673125f1";
       String messageId = "message-a";
 
       Inject inject = new Inject();
@@ -103,7 +103,7 @@ class ImapServiceTenantScopeTest {
     void given_messageForInject_should_lookupAndPersistUsersOnlyInInjectTenant() throws Exception {
       // Arrange
       String tenantId = "tenant-a";
-      String injectId = "inject-a";
+      String injectId = "9f1c2a3b-4d5e-4f60-8a71-1234567890ab";
       String messageId = "message-b";
 
       Inject inject = new Inject();
@@ -132,7 +132,9 @@ class ImapServiceTenantScopeTest {
     void given_footerBuiltByEmailContent_should_extractInjectIdOnly() throws Exception {
       // Arrange
       String tenantId = "tenant-a";
-      String injectId = "inject-a";
+      // Inject ids are real UUIDs in production (see Inject#id); use one here so the test exercises
+      // the actual anchored UUID regex in ImapService.INJECT_ID_PATTERN, not a fake id format.
+      String injectId = "83075dd4-60a4-4307-aa3a-19ee673125f1";
       String messageId = "message-d";
 
       Inject inject = new Inject();
@@ -174,8 +176,8 @@ class ImapServiceTenantScopeTest {
       // Arrange
       String tenantA = "tenant-a";
       String tenantB = "tenant-b";
-      String injectIdA = "inject-a";
-      String injectIdB = "inject-b";
+      String injectIdA = "83075dd4-60a4-4307-aa3a-19ee673125f1";
+      String injectIdB = "9f1c2a3b-4d5e-4f60-8a71-1234567890ab";
       String messageIdA = "message-a";
       String messageIdB = "message-b";
 
