@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
 
-import { searchRoles } from '../../../../../../actions/roles/roles-actions';
-import { type RoleOutput, type SearchPaginationInput } from '../../../../../../utils/api-types';
+import type { RoleOutput, SearchPaginationInput } from '../../../../../utils/api-types';
+import { useRoleScope } from '../RoleScopeContext';
 
-const useTenantRoles = () => {
+const useRoles = () => {
+  const { search } = useRoleScope();
   const [roles, setRoles] = useState<RoleOutput[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -15,12 +16,12 @@ const useTenantRoles = () => {
     async (input: SearchPaginationInput) => {
       setLoading(true);
       try {
-        return await searchRoles(input);
+        return await search(input);
       } finally {
         setLoading(false);
       }
     },
-    [],
+    [search],
   );
 
   const addRole = useCallback((role: RoleOutput) => {
@@ -46,4 +47,4 @@ const useTenantRoles = () => {
   };
 };
 
-export default useTenantRoles;
+export default useRoles;

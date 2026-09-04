@@ -6,10 +6,12 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
@@ -20,7 +22,6 @@ import io.openaev.rest.kill_chain_phase.service.KillChainPhaseService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.Valid;
-import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,7 @@ public class KillChainPhaseApi extends RestBehavior {
 
   private final KillChainPhaseRepository killChainPhaseRepository;
   private final KillChainPhaseService killChainPhaseService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping
   @Transactional
@@ -70,7 +72,7 @@ public class KillChainPhaseApi extends RestBehavior {
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.KILL_CHAIN_PHASE)
-  public KillChainPhase killChainPhase(@PathVariable String killChainPhaseId) {
+  public KillChainPhase killChainPhase(TxCtx ctx, @PathVariable String killChainPhaseId) {
     return killChainPhaseRepository
         .findById(killChainPhaseId)
         .orElseThrow(ElementNotFoundException::new);
@@ -83,13 +85,14 @@ public class KillChainPhaseApi extends RestBehavior {
       resourceType = ResourceType.KILL_CHAIN_PHASE)
   @Transactional(rollbackFor = Exception.class)
   public KillChainPhase updateKillChainPhase(
-      @PathVariable String killChainPhaseId, @Valid @RequestBody KillChainPhaseUpdateInput input) {
+      TxCtx ctx,
+      @PathVariable String killChainPhaseId,
+      @Valid @RequestBody KillChainPhaseUpdateInput input) {
     KillChainPhase killchainPhase =
         killChainPhaseRepository
             .findById(killChainPhaseId)
             .orElseThrow(ElementNotFoundException::new);
     killchainPhase.setUpdateAttributes(input);
-    killchainPhase.setUpdatedAt(Instant.now());
     return killChainPhaseRepository.save(killchainPhase);
   }
 
@@ -98,8 +101,10 @@ public class KillChainPhaseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public KillChainPhase createKillChainPhase(
       TxCtx ctx, @Valid @RequestBody KillChainPhaseCreateInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     KillChainPhase killChainPhase = new KillChainPhase();
     killChainPhase.setUpdateAttributes(input);
+    killChainPhase.setTenant(new Tenant(tenantId));
     return killChainPhaseRepository.save(killChainPhase);
   }
 
@@ -118,7 +123,7 @@ public class KillChainPhaseApi extends RestBehavior {
   public Iterable<KillChainPhase> upsertKillChainPhases(
       TxCtx ctx, @Valid @RequestBody KillChainPhaseUpsertInput input) {
     try {
-      return killChainPhaseService.upsertKillChainPhases(input.getKillChainPhases());
+      return killChainPhaseService.upsertKillChainPhases(ctx, input.getKillChainPhases());
     } catch (DataIntegrityViolationException e) {
       if (!isKillChainPhaseUniqueViolation(e)) {
         throw e;
@@ -126,7 +131,7 @@ public class KillChainPhaseApi extends RestBehavior {
       log.warn(
           "Kill chain phase upsert lost a concurrent-insert race, retrying once: {}",
           e.getMessage());
-      return killChainPhaseService.upsertKillChainPhases(input.getKillChainPhases());
+      return killChainPhaseService.upsertKillChainPhases(ctx, input.getKillChainPhases());
     }
   }
 
@@ -147,7 +152,7 @@ public class KillChainPhaseApi extends RestBehavior {
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.KILL_CHAIN_PHASE)
-  public void deleteKillChainPhase(@PathVariable String killChainPhaseId) {
+  public void deleteKillChainPhase(TxCtx ctx, @PathVariable String killChainPhaseId) {
     killChainPhaseRepository.deleteById(killChainPhaseId);
   }
 

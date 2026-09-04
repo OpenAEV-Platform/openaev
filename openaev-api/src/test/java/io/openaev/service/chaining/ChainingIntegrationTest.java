@@ -655,22 +655,6 @@ class ChainingIntegrationTest extends IntegrationTest {
     return input;
   }
 
-  private void assertWorkflowEqualsExceptId(Workflow expected, Workflow actual) {
-    assertNotNull(expected.getId());
-    assertNotNull(actual.getId());
-    assertNotEquals(expected.getId(), actual.getId(), "Workflow ids must differ");
-
-    assertEquals(expected.getStatus(), actual.getStatus());
-    assertEquals(expected.getVersion(), actual.getVersion());
-    assertEquals(expected.isEdited(), actual.isEdited());
-    assertEquals(expected.isRateLimitEnabled(), actual.isRateLimitEnabled());
-    assertEquals(expected.getMaxAttempts(), actual.getMaxAttempts());
-    assertEquals(expected.getMaxTemporalRateSeconds(), actual.getMaxTemporalRateSeconds());
-    assertEquals(expected.isTimeoutEnabled(), actual.isTimeoutEnabled());
-    assertEquals(expected.getTimeoutSeconds(), actual.getTimeoutSeconds());
-    assertEquals(expected.isSafeModeEnabled(), actual.isSafeModeEnabled());
-  }
-
   private ScenarioInput buildScenarioInput() {
     ScenarioInput input = new ScenarioInput();
     input.setName("Test Scenario Chaining");

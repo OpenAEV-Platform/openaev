@@ -342,6 +342,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput updateAtomicTestingTags(
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final AtomicTestingUpdateTagsInput input) {
     return atomicTestingService.updateAtomicTestingTags(injectId, input);
@@ -381,6 +382,6 @@ public class AtomicTestingApi extends RestBehavior {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }
 
-    this.injectImportService.importInjectsForAtomicTestings(file);
+    this.injectImportService.importInjectsForAtomicTestings(ctx, file);
   }
 }

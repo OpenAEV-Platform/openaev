@@ -102,6 +102,7 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public List<EsAttackPath> attackPaths(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {

@@ -129,11 +129,12 @@ export const cancelAutonomousRun = (runId: string): Promise<{ data: AutonomousRu
 // Turn an autonomous scenario into a manual chained scenario. DUPLICATE clones it into a brand-new
 // manual scenario and leaves the AI run untouched; IN_PLACE flips this scenario to manual for good
 // (halts the run, drops the autonomous_runs row + timeline, unlocks the simulation for edit/delete)
-// and is irreversible. Returns the resulting manual chained scenario to navigate to.
+// and is irreversible. Returns only the resulting scenario's id: read it back through the scenario
+// endpoint rather than from this response.
 export const convertAutonomousRunToManual = (
   runId: string,
   mode: 'DUPLICATE' | 'IN_PLACE',
-): Promise<{ data: Scenario }> =>
+): Promise<{ data: { scenario_id: Scenario['scenario_id'] } }> =>
   simplePostCall(`${AUTONOMOUS_URI}/${runId}/convert-to-manual`, { mode });
 
 // -- live view: decision timeline + steering --

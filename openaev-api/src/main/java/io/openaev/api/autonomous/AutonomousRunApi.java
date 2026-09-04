@@ -7,6 +7,7 @@ import io.openaev.api.autonomous.dto.AutonomousAttackPathStepInput;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepResult;
 import io.openaev.api.autonomous.dto.AutonomousAttackPathStepState;
 import io.openaev.api.autonomous.dto.AutonomousConvertToManualInput;
+import io.openaev.api.autonomous.dto.AutonomousConvertToManualOutput;
 import io.openaev.api.autonomous.dto.AutonomousDefaultAgentsInput;
 import io.openaev.api.autonomous.dto.AutonomousDefaultAgentsOutput;
 import io.openaev.api.autonomous.dto.AutonomousDirectiveInput;
@@ -345,16 +346,17 @@ public class AutonomousRunApi extends RestBehavior {
               + " manual for good: it halts the orchestration, drops the autonomous run and its"
               + " timeline, and keeps the scenario + its simulation as a normal chained"
               + " scenario/simulation the operator can edit and delete. IN_PLACE is irreversible."
-              + " Works whether the run is a built plan or has already executed. Returns the"
-              + " resulting manual scenario.")
+              + " Works whether the run is a built plan or has already executed. Returns the id of"
+              + " the resulting manual scenario; read it back through the scenario endpoint.")
   @PostMapping("/{runId}/convert-to-manual")
   @Transactional
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
-  public Scenario convertToManual(
+  public AutonomousConvertToManualOutput convertToManual(
       TxCtx ctx,
       @PathVariable String runId,
       @Valid @RequestBody AutonomousConvertToManualInput input) {
-    return autonomousRunService.convertToManual(runId, input.getMode());
+    Scenario scenario = autonomousRunService.convertToManual(runId, input.getMode());
+    return new AutonomousConvertToManualOutput(scenario.getId());
   }
 
   @Operation(summary = "Run decision timeline, optionally since a sequence cursor")

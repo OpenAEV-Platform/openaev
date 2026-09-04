@@ -192,7 +192,9 @@ public class StarterPackTest extends IntegrationTest {
     // DataPack#enableV1TenantFilter needs, which @PersistenceContext would normally provide.
     ReflectionTestUtils.setField(datapack, "entityManager", entityManager);
     ReflectionTestUtils.setField(datapack, "isStarterPackEnabled", true);
-    doThrow(new Exception()).when(mockImportService).handleFileImport(any(), isNull(), isNull());
+    doThrow(new Exception())
+        .when(mockImportService)
+        .handleFileImport(any(), any(), isNull(), isNull());
 
     // EXECUTE
     datapack.process(new Tenant(TenantContext.getCurrentTenant()));

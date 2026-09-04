@@ -45,6 +45,7 @@ import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
@@ -384,6 +385,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public Exercise enableExerciseTeamPlayers(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
@@ -391,7 +393,8 @@ public class ExerciseApi extends RestBehavior {
         teamRepository
             .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
-    return exerciseService.enablePlayers(exerciseId, team, input.getPlayersIds());
+    return hydrateKillChainPhases(
+        exerciseService.enablePlayers(exerciseId, team, input.getPlayersIds()));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -404,6 +407,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public Exercise disableExerciseTeamPlayers(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
@@ -417,7 +421,7 @@ public class ExerciseApi extends RestBehavior {
               exerciseTeamUserId.setUserId(playerId);
               exerciseTeamUserRepository.deleteById(exerciseTeamUserId);
             });
-    return exerciseService.exercise(exerciseId);
+    return hydrateKillChainPhases(exerciseService.exercise(exerciseId));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -430,6 +434,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public Exercise addExerciseTeamPlayers(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
@@ -443,8 +448,9 @@ public class ExerciseApi extends RestBehavior {
     List<User> playersToAdd = ReservedKeyValidator.excludeReservedUsers(teamUsers);
     team.getUsers().addAll(playersToAdd);
     teamRepository.save(team);
-    return exerciseService.enablePlayers(
-        exerciseId, team, playersToAdd.stream().map(User::getId).toList());
+    return hydrateKillChainPhases(
+        exerciseService.enablePlayers(
+            exerciseId, team, playersToAdd.stream().map(User::getId).toList()));
   }
 
   @PutMapping({
@@ -457,6 +463,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Exercise removeExerciseTeamPlayers(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String teamId,
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
@@ -477,7 +484,7 @@ public class ExerciseApi extends RestBehavior {
               exerciseTeamUserId.setUserId(playerId);
               exerciseTeamUserRepository.deleteById(exerciseTeamUserId);
             });
-    return exerciseService.exercise(exerciseId);
+    return hydrateKillChainPhases(exerciseService.exercise(exerciseId));
   }
 
   // endregion
@@ -529,8 +536,8 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
-  public Exercise duplicateExercise(@PathVariable @NotBlank final String exerciseId) {
-    return exerciseService.getDuplicateExercise(exerciseId);
+  public Exercise duplicateExercise(TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
+    return hydrateKillChainPhases(exerciseService.getDuplicateExercise(exerciseId));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
@@ -540,7 +547,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseInformation(
-      @PathVariable String exerciseId, @Valid @RequestBody UpdateExerciseInput input) {
+      TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody UpdateExerciseInput input) {
     Exercise exercise = exerciseService.exercise(exerciseId);
     Set<Tag> currentTagList = exercise.getTags();
     exercise.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
@@ -551,7 +558,8 @@ public class ExerciseApi extends RestBehavior {
     } else {
       exercise.setCustomDashboard(null);
     }
-    return exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule());
+    return hydrateKillChainPhases(
+        exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule()));
   }
 
   @PutMapping({
@@ -617,11 +625,14 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseTags(
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateTagsInput input) {
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ExerciseUpdateTagsInput input) {
     Exercise exercise = exerciseService.exercise(exerciseId);
     Set<Tag> currentTagList = exercise.getTags();
     exercise.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    return exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule());
+    return hydrateKillChainPhases(
+        exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule()));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}/logos", TENANT_EXERCISE_URI + "/{exerciseId}/logos"})
@@ -631,11 +642,13 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseLogos(
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateLogoInput input) {
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ExerciseUpdateLogoInput input) {
     Exercise exercise = exerciseService.exercise(exerciseId);
     exercise.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
     exercise.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
-    return exerciseRepository.save(exercise);
+    return hydrateKillChainPhases(exerciseRepository.save(exercise));
   }
 
   // -- OPTION --
@@ -671,7 +684,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseLessons(
-      @PathVariable String exerciseId, @Valid @RequestBody LessonsInput input) {
+      TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody LessonsInput input) {
     Exercise exercise = exerciseService.exercise(exerciseId);
     // Partial update: absent fields keep their current value (older API consumers
     // only send lessons_anonymized and must not reset the enabled flag).
@@ -681,7 +694,7 @@ public class ExerciseApi extends RestBehavior {
     if (input.getLessonsEnabled() != null) {
       exercise.setLessonsEnabled(input.getLessonsEnabled());
     }
-    return exerciseRepository.save(exercise);
+    return hydrateKillChainPhases(exerciseRepository.save(exercise));
   }
 
   @DeleteMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
@@ -715,7 +728,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   @Transactional(readOnly = true)
-  public SimulationDetails exercise(@PathVariable String exerciseId) {
+  public SimulationDetails exercise(TxCtx ctx, @PathVariable String exerciseId) {
     // We get the raw exercise
     RawSimulationIndexing rawSimulation = exerciseService.rawSimulation(exerciseId);
     // We get aggregated inject metadata: platforms, comms count, kill chain phases
@@ -840,7 +853,8 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
-  public Exercise deleteDocument(@PathVariable String exerciseId, @PathVariable String documentId) {
+  public Exercise deleteDocument(
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String documentId) {
     Exercise exercise = exerciseService.exercise(exerciseId);
     exercise.setUpdatedAt(now());
     Document doc =
@@ -860,7 +874,7 @@ public class ExerciseApi extends RestBehavior {
       // Delete document from all exercise injects
       injectService.cleanInjectsDocExercise(exerciseId, documentId);
     }
-    return exerciseRepository.save(exercise);
+    return hydrateKillChainPhases(exerciseRepository.save(exercise));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}/status", TENANT_EXERCISE_URI + "/{exerciseId}/status"})
@@ -982,6 +996,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public void exerciseExport(
+      TxCtx ctx,
       @NotBlank @PathVariable final String exerciseId,
       @RequestParam(required = false) final boolean isWithTeams,
       @RequestParam(required = false) final boolean isWithPlayers,
@@ -1010,13 +1025,9 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping({EXERCISE_URI + "/import", TENANT_EXERCISE_URI + "/import"})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public ImportResult exerciseImport(
-      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for the transaction (the V1_DataImporter resolves InjectorContract#getFirstInjector() and
-      // InjectorService#injectorTypeExists(...), both v2 tenant-scoped through the injectors
-      // table; without a scope, imported injects silently lose their injector).
-      TxCtx ctx, @RequestPart("file") MultipartFile file) throws Exception {
-    return importService.handleFileImport(file, null, null);
+  public ImportResult exerciseImport(TxCtx ctx, @RequestPart("file") MultipartFile file)
+      throws Exception {
+    return importService.handleFileImport(ctx, file, null, null);
   }
 
   @PostMapping({
@@ -1173,9 +1184,17 @@ public class ExerciseApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Simulation or Scenario not found")
       })
   public Scenario scenarioFromSimulation(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the simulation")
           final String simulationId) {
-    return scenarioService.scenarioFromSimulationId(simulationId);
+    Scenario scenario = scenarioService.scenarioFromSimulationId(simulationId);
+    KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
+    return scenario;
+  }
+
+  private static Exercise hydrateKillChainPhases(Exercise exercise) {
+    KillChainPhaseInitializer.initializeFromInjects(exercise.getInjects());
+    return exercise;
   }
 
   // end region
