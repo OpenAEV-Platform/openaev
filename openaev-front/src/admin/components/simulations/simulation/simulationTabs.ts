@@ -1,4 +1,3 @@
-
 export default function buildSimulationTabs(params: {
   lessonsEnabled: boolean | undefined;
   isAutonomous: boolean;
