@@ -8772,7 +8772,7 @@ __metadata:
     react-color: "npm:2.19.3"
     react-csv: "npm:2.2.2"
     react-dom: "npm:19.2.8"
-    react-final-form: "npm:6.5.9"
+    react-final-form: "npm:7.0.1"
     react-final-form-arrays: "npm:4.0.0"
     react-grid-layout: "npm:2.2.4"
     react-hook-form: "npm:7.87.0"
@@ -9538,15 +9538,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-final-form@npm:6.5.9":
-  version: 6.5.9
-  resolution: "react-final-form@npm:6.5.9"
+"react-final-form@npm:7.0.1":
+  version: 7.0.1
+  resolution: "react-final-form@npm:7.0.1"
   dependencies:
     "@babel/runtime": "npm:^7.15.4"
   peerDependencies:
-    final-form: ^4.20.4
-    react: ^16.8.0 || ^17.0.0 || ^18.0.0
-  checksum: 10c0/b572645d88cb4fee95e9201ce00b623d6e3d8b19484dd844ddc63fb494d43d2e6fcd0c59b1cbad72c2c9ae5d39066bd450debc9cacfbd9a46e2c8195a09fa4eb
+    final-form: ^5.0.0
+    react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 10c0/ed4e58454cb2e4600cbb9ec5111d08341852bf802704f9baeb7f9a78fbdb27ee65e400c13a6bbb5f289e524a6919fbfea89e1a04bf04490c1d04151c89232170
   languageName: node
   linkType: hard
 
