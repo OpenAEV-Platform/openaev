@@ -813,7 +813,20 @@ class ReportingApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_REPORTINGS));
 
-      createReportingInTenant(tenantX, "CrossTenantReportingSearch");
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the search call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String reportingId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO reportings (reporting_id, reporting_name, reporting_context_type, tenant_id)"
+                  + " VALUES (CAST(:id AS uuid), :name, :contextType, CAST(:tenant AS uuid))")
+          .setParameter("id", reportingId)
+          .setParameter("name", "CrossTenantReportingSearch")
+          .setParameter("contextType", ReportingContextType.PLATFORM.name())
+          .setParameter("tenant", tenantX.getId())
+          .executeUpdate();
 
       entityManager.flush();
       entityManager.clear();

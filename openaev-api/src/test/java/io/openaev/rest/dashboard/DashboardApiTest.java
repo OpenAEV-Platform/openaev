@@ -1507,16 +1507,19 @@ class DashboardApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
 
-      CustomDashboardInput input = new CustomDashboardInput();
-      input.setName("CrossTenantSearchDashboard");
-
-      mvc.perform(
-              post("/api/tenants/" + tenantX.getId() + "/custom-dashboards")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the search call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String dashboardId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO custom_dashboards (custom_dashboard_id, custom_dashboard_name, tenant_id)"
+                  + " VALUES (CAST(:id AS uuid), :name, CAST(:tenant AS uuid))")
+          .setParameter("id", dashboardId)
+          .setParameter("name", "CrossTenantSearchDashboard")
+          .setParameter("tenant", tenantX.getId())
+          .executeUpdate();
 
       entityManager.flush();
       entityManager.clear();
