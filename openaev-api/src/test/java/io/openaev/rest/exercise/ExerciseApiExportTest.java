@@ -203,6 +203,7 @@ class ExerciseApiExportTest extends IntegrationTest {
     JsonNode exportedExercise = mapper.readTree(actualJson);
     assertFalse(
         exportedExercise.get("exercise_information").get("exercise_lessons_enabled").asBoolean());
+    assertFalse(exportedExercise.has("exercise_objectives"));
     assertFalse(exportedExercise.has("exercise_lessons_categories"));
     assertFalse(exportedExercise.has("exercise_lessons_questions"));
 
@@ -244,6 +245,7 @@ class ExerciseApiExportTest extends IntegrationTest {
     assertTrue(exerciseInfo.get("exercise_lessons_enabled").asBoolean());
     assertTrue(exerciseInfo.get("exercise_lessons_anonymized").asBoolean());
     JsonNode exportedExercise = mapper.readTree(actualJson);
+    assertTrue(exportedExercise.has("exercise_objectives"));
     assertTrue(exportedExercise.has("exercise_lessons_categories"));
     assertTrue(exportedExercise.has("exercise_lessons_questions"));
   }

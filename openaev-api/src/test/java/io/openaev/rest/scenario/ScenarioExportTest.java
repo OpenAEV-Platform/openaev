@@ -146,6 +146,7 @@ public class ScenarioExportTest extends IntegrationTest {
       assertTrue(scenarioInfo.get("scenario_lessons_enabled").asBoolean());
       assertTrue(scenarioInfo.get("scenario_lessons_anonymized").asBoolean());
       JsonNode exportedScenario = mapper.readTree(actualJson);
+      assertTrue(exportedScenario.has("scenario_objectives"));
       assertTrue(exportedScenario.has("scenario_lessons_categories"));
       assertTrue(exportedScenario.has("scenario_lessons_questions"));
     }
@@ -175,6 +176,7 @@ public class ScenarioExportTest extends IntegrationTest {
           mapper.readTree(getJsonExportFromZip(response, scenario.getName()));
       assertFalse(
           exportedScenario.get("scenario_information").get("scenario_lessons_enabled").asBoolean());
+      assertFalse(exportedScenario.has("scenario_objectives"));
       assertFalse(exportedScenario.has("scenario_lessons_categories"));
       assertFalse(exportedScenario.has("scenario_lessons_questions"));
     }
