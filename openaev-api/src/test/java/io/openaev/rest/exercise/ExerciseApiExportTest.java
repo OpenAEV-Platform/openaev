@@ -4,6 +4,7 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.fixtures.FileFixture.WELL_KNOWN_FILES;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -199,6 +200,9 @@ class ExerciseApiExportTest extends IntegrationTest {
         exportMapper.writeValueAsString(
             ExerciseFileExport.fromExercise(ex, exportMapper, challengeService, articleService)
                 .withOptions(0));
+    JsonNode exportedExercise = mapper.readTree(actualJson);
+    assertFalse(exportedExercise.has("exercise_lessons_categories"));
+    assertFalse(exportedExercise.has("exercise_lessons_questions"));
 
     assertThatJson(expectedJson)
         .whenIgnoringPaths(
@@ -237,6 +241,9 @@ class ExerciseApiExportTest extends IntegrationTest {
     JsonNode exerciseInfo = mapper.readTree(actualJson).get("exercise_information");
     assertTrue(exerciseInfo.get("exercise_lessons_enabled").asBoolean());
     assertTrue(exerciseInfo.get("exercise_lessons_anonymized").asBoolean());
+    JsonNode exportedExercise = mapper.readTree(actualJson);
+    assertTrue(exportedExercise.has("exercise_lessons_categories"));
+    assertTrue(exportedExercise.has("exercise_lessons_questions"));
   }
 
   @DisplayName(
