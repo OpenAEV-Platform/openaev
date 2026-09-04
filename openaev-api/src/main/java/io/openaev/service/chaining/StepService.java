@@ -360,6 +360,21 @@ public class StepService {
   /**
    * Copies all step templates (and their conditions) from one workflow to another.
    *
+   * <p>The clone runs in three phases so that every reference the graph carries can be re-pointed
+   * at the <b>destination</b> workflow:
+   *
+   * <ol>
+   *   <li><b>steps</b> — every step template is copied first, building the {@code oldStepId ->
+   *       newStep} map. This must complete before any condition is copied: a {@code DEPEND_ON}
+   *       condition stores a step template id in {@code condition_value} and may reference a step
+   *       declared later in the list.
+   *   <li><b>conditions</b> — the condition trees linked to each step, consuming the step map to
+   *       rewrite {@code DEPEND_ON} values and {@code step_from} references.
+   *   <li><b>standalone conditions</b> — conditions authored on the source workflow but not linked
+   *       to any step (e.g. an event created before it was attached to an action). They belong to
+   *       the authored content and would otherwise be silently lost by the copy.
+   * </ol>
+   *
    * @param workflowTemplateFrom source workflow
    * @param workflowTemplateTo target workflow
    */
@@ -367,10 +382,30 @@ public class StepService {
   public void copyStepTemplate(Workflow workflowTemplateFrom, Workflow workflowTemplateTo) {
     List<Step> stepsTemplate = findAllStepTemplateByWorkflow(workflowTemplateFrom.getId());
 
-    // Copy steps template & Conditions
-    // Todo add condition not linked to a step
-    List<Step> stepsTemplateCopy = copyStepsTemplate(stepsTemplate, workflowTemplateTo);
-    saveSteps(stepsTemplateCopy);
+    Map<String, Step> copiedStepsByOriginalId = new LinkedHashMap<>();
+    for (Step step : stepsTemplate) {
+      copiedStepsByOriginalId.put(step.getId(), copyStepTemplate(step, workflowTemplateTo));
+    }
+
+    // Shared across every step copied in this call so that a single condition/event linked to
+    // several source steps (e.g. one "event" root shared by 3 actions) is copied exactly once
+    // and reused (re-linked) for the other steps, instead of being duplicated per step.
+    Map<String, Condition> copiedConditionsByOriginalId = new HashMap<>();
+    for (Step step : stepsTemplate) {
+      copyStepConditionTemplate(
+          step,
+          copiedStepsByOriginalId.get(step.getId()),
+          copiedConditionsByOriginalId,
+          copiedStepsByOriginalId);
+    }
+
+    copyStandaloneConditions(
+        workflowTemplateFrom,
+        workflowTemplateTo,
+        copiedConditionsByOriginalId,
+        copiedStepsByOriginalId);
+
+    saveSteps(new ArrayList<>(copiedStepsByOriginalId.values()));
   }
 
   /**
@@ -655,54 +690,161 @@ public class StepService {
    * @param stepsFrom source step templates
    * @param workflowTo target workflow
    * @return list of copied step templates
+   * @deprecated use {@link #copyStepTemplate(Workflow, Workflow)}, which copies the whole graph in
+   *     the phases required to re-point {@code DEPEND_ON} references. Kept for callers that already
+   *     hold an explicit step list.
    */
+  @Deprecated
   @Transactional(rollbackFor = Exception.class)
   List<Step> copyStepsTemplate(List<Step> stepsFrom, Workflow workflowTo) {
-    List<Step> stepsCopied = new ArrayList<>();
-    // Shared across every step copied in this call so that a single condition/event linked to
-    // several source steps (e.g. one "event" root shared by 3 actions) is copied exactly once
-    // and reused (re-linked) for the other steps, instead of being duplicated per step.
+    Map<String, Step> copiedStepsByOriginalId = new LinkedHashMap<>();
+    for (Step step : stepsFrom) {
+      copiedStepsByOriginalId.put(step.getId(), copyStepTemplate(step, workflowTo));
+    }
     Map<String, Condition> copiedConditionsByOriginalId = new HashMap<>();
     for (Step step : stepsFrom) {
-      String data = step.getData();
-      if (workflowTo.getSimulation() != null) {
-        data = StepService.setField(data, "inject_exercise", workflowTo.getSimulation().getId());
-      }
-
-      Step copy =
-          Step.builder()
-              .stepAction(step.getStepAction())
-              .output(step.getOutput())
-              .outputParser(step.getOutputParser())
-              .input(step.getInput())
-              .data(data)
-              .limitExecution(step.getLimitExecution())
-              .status(StepStatus.TEMPLATE)
-              .workflow(workflowTo)
-              .build();
-
-      copy = saveStep(copy);
-      copyStepConditionTemplate(step, copy, copiedConditionsByOriginalId);
-      stepsCopied.add(copy);
+      copyStepConditionTemplate(
+          step,
+          copiedStepsByOriginalId.get(step.getId()),
+          copiedConditionsByOriginalId,
+          copiedStepsByOriginalId);
     }
-    return stepsCopied;
+    return new ArrayList<>(copiedStepsByOriginalId.values());
+  }
+
+  /**
+   * Copies a single step template into {@code workflowTo} and persists it, re-pointing every
+   * owner-scoped id frozen in {@code step_data} and clearing every execution artefact it may carry.
+   *
+   * <p>{@code step_data} is a serialized {@link Inject}. Its id-bearing fields fall into three
+   * classes:
+   *
+   * <ul>
+   *   <li><b>re-point</b> — {@code inject_exercise} / {@code inject_scenario} name the owning
+   *       object, so they must follow the destination workflow (and the other one must be cleared,
+   *       or the copy claims to belong to both).
+   *   <li><b>clear</b> — {@code inject_id} and the other execution artefacts baked in at runtime
+   *       ({@code inject_status}, {@code inject_expectations}, {@code _chaining_target}, …). A
+   *       TEMPLATE must never carry them, and inheriting them is execution bleed.
+   *   <li><b>keep</b> — same-tenant shared references ({@code inject_injector_contract}, assets,
+   *       asset groups, teams, documents, tags, …). The copy stays in the same tenant, so they stay
+   *       valid; unlike the export path, nothing is re-resolved or lost.
+   * </ul>
+   *
+   * <p>{@code step_input} carries only condition-mapper descriptors (key / path / mapping type) and
+   * no identifier, so it is copied verbatim.
+   *
+   * @param step source step template
+   * @param workflowTo destination workflow
+   * @return the persisted copy
+   */
+  private Step copyStepTemplate(Step step, Workflow workflowTo) {
+    Step copy =
+        Step.builder()
+            .stepAction(step.getStepAction())
+            .output(step.getOutput())
+            .outputParser(step.getOutputParser())
+            .input(step.getInput())
+            .data(repointStepData(step.getData(), workflowTo))
+            .limitExecution(step.getLimitExecution())
+            .status(StepStatus.TEMPLATE)
+            .workflow(workflowTo)
+            .build();
+    return saveStep(copy);
+  }
+
+  /**
+   * {@code step_data} fields that are execution artefacts: baked in while the step ran, never part
+   * of the authored template. See {@link #copyStepTemplate(Step, Workflow)}.
+   */
+  private static final List<String> RUNTIME_STEP_DATA_FIELDS =
+      List.of(
+          "inject_id",
+          "inject_status",
+          "inject_collect_status",
+          "inject_expectations",
+          "inject_communications",
+          "inject_sent_at",
+          "inject_created_at",
+          "inject_updated_at",
+          "inject_trigger_now_date",
+          "inject_expectations_drift_dismissed",
+          "inject_depends_on",
+          "_chaining_target");
+
+  /**
+   * Rewrites the owning object of a {@code step_data} blob and strips its execution artefacts.
+   *
+   * @param data the source {@code step_data} JSON, may be null or blank
+   * @param workflowTo the destination workflow, whose scenario or simulation becomes the new owner
+   * @return the re-pointed JSON, or the input unchanged when it is not a JSON object
+   */
+  private static String repointStepData(String data, Workflow workflowTo) {
+    if (data == null || data.isBlank()) {
+      return data;
+    }
+    JsonObject json;
+    try {
+      json = JsonParser.parseString(data).getAsJsonObject();
+    } catch (RuntimeException e) {
+      log.warn("Step data is not a JSON object, copied verbatim", e);
+      return data;
+    }
+
+    // Exactly one owner: a step template belongs either to a scenario workflow or to a simulation
+    // one. Setting the new owner without clearing the other would leave the copy pointing at the
+    // source object.
+    json.remove("inject_exercise");
+    json.remove("inject_scenario");
+    if (workflowTo.getSimulation() != null) {
+      json.addProperty("inject_exercise", workflowTo.getSimulation().getId());
+    } else if (workflowTo.getScenario() != null) {
+      json.addProperty("inject_scenario", workflowTo.getScenario().getId());
+    }
+
+    RUNTIME_STEP_DATA_FIELDS.forEach(json::remove);
+
+    return json.toString();
   }
 
   /**
    * Copies the condition tree from a source step to a target step, preserving parent hierarchy.
    *
-   * <p>Root conditions already copied for a previous step in the same {@link #copyStepsTemplate}
-   * call (tracked via {@code copiedConditionsByOriginalId}) are reused instead of duplicated, so
-   * that a condition/event shared across multiple source steps stays shared in the copy too.
+   * <p>Root conditions already copied for a previous step in the same {@link
+   * #copyStepTemplate(Workflow, Workflow)} call (tracked via {@code copiedConditionsByOriginalId})
+   * are reused instead of duplicated, so that a condition/event shared across multiple source steps
+   * stays shared in the copy too.
    *
    * @param step source step with conditions
    * @param stepCopied target step to attach copied conditions to
    * @param copiedConditionsByOriginalId map of original condition id -> already-copied condition,
-   *     shared across all steps copied in the same {@link #copyStepsTemplate} call
+   *     shared across all steps copied in the same {@link #copyStepTemplate(Workflow, Workflow)}
+   *     call
    */
   @Transactional(rollbackFor = Exception.class)
   void copyStepConditionTemplate(
       Step step, Step stepCopied, Map<String, Condition> copiedConditionsByOriginalId) {
+    copyStepConditionTemplate(step, stepCopied, copiedConditionsByOriginalId, Map.of());
+  }
+
+  /**
+   * Copies the condition tree from a source step to a target step, preserving parent hierarchy and
+   * re-pointing every step reference the tree carries at the destination workflow.
+   *
+   * @param step source step with conditions
+   * @param stepCopied target step to attach copied conditions to
+   * @param copiedConditionsByOriginalId map of original condition id -> already-copied condition,
+   *     shared across all steps copied in the same {@link #copyStepTemplate(Workflow, Workflow)}
+   *     call
+   * @param copiedStepsByOriginalId map of original step template id -> its copy, used to rewrite
+   *     {@code DEPEND_ON} values and {@code step_from} references
+   */
+  @Transactional(rollbackFor = Exception.class)
+  void copyStepConditionTemplate(
+      Step step,
+      Step stepCopied,
+      Map<String, Condition> copiedConditionsByOriginalId,
+      Map<String, Step> copiedStepsByOriginalId) {
     // Roots linked to this step (source of truth for which trees to copy)
     List<Condition> linkedConditions = conditionService.findAllConditionsByStepId(step.getId());
     if (linkedConditions == null || linkedConditions.isEmpty()) {
@@ -754,17 +896,14 @@ public class StepService {
         continue;
       }
 
-      Step stepFrom =
-          firstCondition.getStepFrom() == null
-              ? null
-              : findStepFromCondition(firstCondition.getStepFrom().getId());
+      Step stepFrom = resolveCopiedStepFrom(firstCondition, copiedStepsByOriginalId);
 
       Condition first =
           Condition.builder()
               .type(firstCondition.getType())
               .key(firstCondition.getKey())
               .keyTypes(firstCondition.getKeyTypes())
-              .value(firstCondition.getValue())
+              .value(remapConditionValue(firstCondition, copiedStepsByOriginalId))
               .caseSensitive(firstCondition.isCaseSensitive())
               .mappingType(firstCondition.getMappingType())
               .name(firstCondition.getName())
@@ -790,17 +929,14 @@ public class StepService {
           temporaryConditions.getOrDefault(currentTemporaryId, new ArrayList<>());
 
       for (Condition condition : conditionsTemplate) {
-        Step stepFromCondition =
-            condition.getStepFrom() == null
-                ? null
-                : findStepFromCondition(condition.getStepFrom().getId());
+        Step stepFromCondition = resolveCopiedStepFrom(condition, copiedStepsByOriginalId);
 
         Condition current =
             Condition.builder()
                 .type(condition.getType())
                 .key(condition.getKey())
                 .keyTypes(condition.getKeyTypes())
-                .value(condition.getValue())
+                .value(remapConditionValue(condition, copiedStepsByOriginalId))
                 .caseSensitive(condition.isCaseSensitive())
                 .mappingType(condition.getMappingType())
                 .name(condition.getName())
@@ -823,6 +959,136 @@ public class StepService {
 
         currentId.add(condition.getId());
       }
+    }
+  }
+
+  /**
+   * Resolves the {@code step_from} reference of a copied condition.
+   *
+   * <p>{@code step_from} points at a step template of the <b>source</b> workflow. Copying it
+   * verbatim would leave the copy's condition tree reaching back into the object it was cloned
+   * from, so it is translated through the step id map. A reference that is not in the map (the map
+   * is empty when a caller copies a single step's conditions in isolation) falls back to the
+   * original step, preserving the previous behaviour.
+   *
+   * @param condition the source condition
+   * @param copiedStepsByOriginalId map of original step template id -> its copy
+   * @return the step the copied condition must point at, or {@code null} when the source carries
+   *     none
+   */
+  private Step resolveCopiedStepFrom(
+      Condition condition, Map<String, Step> copiedStepsByOriginalId) {
+    if (condition.getStepFrom() == null) {
+      return null;
+    }
+    String stepFromId = condition.getStepFrom().getId();
+    Step copied = copiedStepsByOriginalId.get(stepFromId);
+    return copied != null ? copied : findStepFromCondition(stepFromId);
+  }
+
+  /**
+   * Translates a condition value that holds a step template id.
+   *
+   * <p>A {@code DEPEND_ON} condition stores its prerequisite as a <b>step template id in {@code
+   * condition_value}</b>, not as a foreign key. At runtime {@code
+   * ConditionService.evaluateDependOnConditions} resolves it with {@code
+   * existsByStepTemplateIdAndWorkflowId(value, workflowRun)}, and the run steps it looks for carry
+   * the template ids of the <b>destination</b> workflow. Copying the value verbatim therefore
+   * leaves an id that can never match: the condition never becomes true, the dependent step is
+   * never promoted to READY, and the branch is silently blocked forever.
+   *
+   * <p>Every other condition type stores a plain comparison value and is copied unchanged.
+   *
+   * @param condition the source condition
+   * @param copiedStepsByOriginalId map of original step template id -> its copy
+   * @return the value the copied condition must carry
+   */
+  private static String remapConditionValue(
+      Condition condition, Map<String, Step> copiedStepsByOriginalId) {
+    String value = condition.getValue();
+    if (condition.getType() != ConditionType.DEPEND_ON || value == null || value.isBlank()) {
+      return value;
+    }
+    Step copiedTarget = copiedStepsByOriginalId.get(value);
+    if (copiedTarget == null) {
+      // The prerequisite is not part of this copy (e.g. a single-step copy). Keeping the source id
+      // would produce a permanently unsatisfiable dependency, so this is logged loudly.
+      log.warn(
+          "DEPEND_ON condition {} references step template {} which is not part of the copy; the dependency cannot be remapped",
+          condition.getId(),
+          value);
+      return value;
+    }
+    return copiedTarget.getId();
+  }
+
+  /**
+   * Copies the conditions of the source workflow that are not linked to any step.
+   *
+   * <p>An event authored in the Logic UI exists as a condition tree before it is attached to an
+   * action, and stays unlinked for as long as the author has not wired it. Those trees are authored
+   * content: a copy that skipped them would silently drop part of the user's work. The import path
+   * ({@code V1_DataImporter.importConditionNodes}) already handles them; the copy path did not.
+   *
+   * <p>Conditions already copied through a step (present in {@code copiedConditionsByOriginalId})
+   * are skipped, so nothing is duplicated.
+   *
+   * @param workflowFrom source workflow
+   * @param workflowTo destination workflow
+   * @param copiedConditionsByOriginalId conditions already copied via their step links; updated in
+   *     place
+   * @param copiedStepsByOriginalId map of original step template id -> its copy
+   */
+  private void copyStandaloneConditions(
+      Workflow workflowFrom,
+      Workflow workflowTo,
+      Map<String, Condition> copiedConditionsByOriginalId,
+      Map<String, Step> copiedStepsByOriginalId) {
+    List<Condition> allSourceConditions =
+        conditionService.findAllNonMapperConditionsByWorkflowId(workflowFrom.getId());
+    if (allSourceConditions.isEmpty()) {
+      return;
+    }
+
+    Map<String, List<Condition>> childrenByParentId =
+        allSourceConditions.stream()
+            .filter(condition -> condition.getConditionParent() != null)
+            .collect(Collectors.groupingBy(condition -> condition.getConditionParent().getId()));
+
+    List<Condition> standaloneRoots =
+        allSourceConditions.stream()
+            .filter(condition -> condition.getConditionParent() == null)
+            .filter(condition -> !copiedConditionsByOriginalId.containsKey(condition.getId()))
+            .toList();
+
+    // Breadth-first so a parent is always copied - and present in the map - before its children.
+    Queue<Condition> toCopy = new LinkedList<>(standaloneRoots);
+    while (!toCopy.isEmpty()) {
+      Condition source = toCopy.poll();
+      Condition parentCopy =
+          source.getConditionParent() == null
+              ? null
+              : copiedConditionsByOriginalId.get(source.getConditionParent().getId());
+
+      Condition copy =
+          Condition.builder()
+              .type(source.getType())
+              .key(source.getKey())
+              .keyTypes(source.getKeyTypes())
+              .value(remapConditionValue(source, copiedStepsByOriginalId))
+              .caseSensitive(source.isCaseSensitive())
+              .mappingType(source.getMappingType())
+              .name(source.getName())
+              .description(source.getDescription())
+              .workflowId(workflowTo.getId())
+              .conditionParent(parentCopy)
+              .stepFrom(resolveCopiedStepFrom(source, copiedStepsByOriginalId))
+              .build();
+
+      copy = conditionService.saveCondition(copy);
+      copiedConditionsByOriginalId.put(source.getId(), copy);
+
+      toCopy.addAll(childrenByParentId.getOrDefault(source.getId(), List.of()));
     }
   }
 

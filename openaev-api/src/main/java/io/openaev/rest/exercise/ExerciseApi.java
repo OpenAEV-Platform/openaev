@@ -529,8 +529,41 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
+  @Operation(
+      summary = "Duplicate a simulation",
+      description =
+          "Duplicates a simulation's authored content. A chained simulation also gets a copy of its logic map (workflow, steps and conditions); execution artefacts - including its runtime-generated injects - are never copied. Requires an Enterprise Edition license when the simulation is chained.")
   public Exercise duplicateExercise(@PathVariable @NotBlank final String exerciseId) {
-    return exerciseService.getDuplicateExercise(exerciseId);
+    Exercise duplicate = exerciseService.getDuplicateExercise(exerciseId);
+    duplicateChainingWorkflowIfAny(exerciseId, duplicate);
+    return duplicate;
+  }
+
+  /**
+   * Copies the logic map of a chained simulation onto its freshly created duplicate.
+   *
+   * <p>The chained branch is deliberately explicit rather than hidden inside {@link
+   * ExerciseService#getDuplicateExercise}, so that no other caller of that service silently gains a
+   * second workflow copy.
+   *
+   * <p>Chaining is an Enterprise Edition feature, but this endpoint also serves time-based
+   * simulations, so it cannot carry an unconditional {@code isEnterpriseEdition = true} on {@link
+   * AccessControl} - that flag is applied before anything else. The licence is therefore checked
+   * programmatically, and only on the chained branch: silently degrading to a metadata-only copy
+   * would make the user lose the logic map with no signal.
+   *
+   * @param exerciseId the source simulation
+   * @param duplicate the persisted duplicate to attach the copied workflow to
+   */
+  private void duplicateChainingWorkflowIfAny(final String exerciseId, final Exercise duplicate) {
+    if (!workflowService.isSimulationChaining(exerciseId)) {
+      return;
+    }
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
+      throw new EnterpriseEditionException("Enterprise Edition license required");
+    }
+    workflowService.duplicateSimulationWorkflow(exerciseId, duplicate);
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})

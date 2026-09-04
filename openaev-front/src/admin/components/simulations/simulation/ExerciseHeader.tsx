@@ -409,9 +409,8 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   if (isAutonomous) {
     // Observe-only: no manual edit / duplicate, and deletion (which tears down the run) is a
     // parent-scenario control, so the simulation overflow offers only a read-only Export.
+    // "Give me an editable copy of this AI run" is covered by convert-to-manual on the scenario.
     actions = ['Export'];
-  } else if (isSimulationChaining) {
-    actions = ['Update', 'Export', 'Delete'];
   }
   const canDisplaySimulationActions = permissions.canManage || permissions.canLaunch || permissions.canDelete;
 
