@@ -99,6 +99,15 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
     void should_return_paginated_results_when_inject_tests_exist() throws Exception {
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.PLANNER, simulation.getId());
+      // Real tenant membership for the current mock user, matching the ambient default tenant
+      // this test's @BeforeEach already scoped the transaction to (via
+      // managerFactory.getManager(TenantContext.getCurrentTenant())): without it, the mock user's
+      // caller-authorized tenant set is empty, so this endpoint's own TxCtx resolution collapses
+      // to the missing scope and conflicts with the scope already set by @BeforeEach within the
+      // same test transaction (see TenantScopeTransactionAspect).
+      String currentTenantId = TenantContext.getCurrentTenant();
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), currentTenantId);
+      tenantMembershipCacheManager.evict(testUserHolder.get().getId(), currentTenantId);
 
       SearchPaginationInput searchPaginationInput = new SearchPaginationInput();
       String response =
