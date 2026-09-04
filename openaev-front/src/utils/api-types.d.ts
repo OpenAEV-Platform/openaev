@@ -5638,7 +5638,7 @@ export interface FindingOutput {
    * Asset groups targeted by the inject that produced the finding
    * @uniqueItems true
    */
-  finding_asset_groups?: AssetGroup[];
+  finding_asset_groups?: AssetGroupSimple[];
   /** Asset ids linked to the finding */
   finding_assets?: string[];
   /**
@@ -5668,9 +5668,9 @@ export interface FindingOutput {
   /** Finding name */
   finding_name?: string;
   /** Scenario the finding was produced in */
-  finding_scenario?: Scenario;
+  finding_scenario?: ScenarioSimple;
   /** Simulation the finding was produced in */
-  finding_simulation?: Exercise;
+  finding_simulation?: ExerciseSimple;
   /**
    * Tag ids linked to the finding
    * @uniqueItems true

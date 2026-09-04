@@ -49,9 +49,18 @@ public class FindingMapper {
         .assets(finding.getAssets().stream().map(Asset::getId).toList())
         .teams(finding.getTeams().stream().map(Team::getId).toList())
         .users(finding.getUsers().stream().map(User::getId).toList())
-        .simulation(finding.getSimulation())
-        .scenario(finding.getScenario())
-        .assetGroups(finding.getAssetGroups())
+        .simulation(
+            Optional.ofNullable(finding.getSimulation())
+                .map(exerciseMapper::toExerciseSimple)
+                .orElse(null))
+        .scenario(
+            Optional.ofNullable(finding.getScenario())
+                .map(scenarioMapper::toScenarioSimple)
+                .orElse(null))
+        .assetGroups(
+            finding.getAssetGroups().stream()
+                .map(assetGroupMapper::toAssetGroupSimple)
+                .collect(Collectors.toSet()))
         .build();
   }
 

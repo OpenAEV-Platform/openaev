@@ -4,10 +4,10 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.ContractOutputType;
-import io.openaev.database.model.Exercise;
-import io.openaev.database.model.Scenario;
+import io.openaev.rest.asset_group.form.AssetGroupSimple;
+import io.openaev.rest.exercise.form.ExerciseSimple;
+import io.openaev.rest.scenario.form.ScenarioSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -97,13 +97,13 @@ public class FindingOutput {
 
   @Schema(description = "Simulation the finding was produced in")
   @JsonProperty("finding_simulation")
-  private Exercise simulation;
+  private ExerciseSimple simulation;
 
   @Schema(description = "Scenario the finding was produced in")
   @JsonProperty("finding_scenario")
-  private Scenario scenario;
+  private ScenarioSimple scenario;
 
   @Schema(description = "Asset groups targeted by the inject that produced the finding")
   @JsonProperty("finding_asset_groups")
-  private Set<AssetGroup> assetGroups;
+  private Set<AssetGroupSimple> assetGroups;
 }
