@@ -25,6 +25,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.autonomous.AutonomousRunService;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -91,6 +92,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private ScenarioMapper scenarioMapper;
 
   @Mock private WorkflowService workflowService;
+  @Mock private ScopeService scopeService;
   @Mock private WorkflowExportInitializer workflowExportInitializer;
 
   @Mock private LicenseCacheManager licenseCacheManager;
@@ -121,6 +123,7 @@ class ScenarioServiceTest extends IntegrationTest {
             variableService,
             challengeService,
             teamService,
+            scopeService,
             fileService,
             injectDuplicateService,
             tagRuleService,
