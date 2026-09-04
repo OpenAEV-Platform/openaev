@@ -3,7 +3,6 @@ package io.openaev.rest.expectation;
 import static io.openaev.expectation.ExpectationPropertiesConfig.DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME;
 import static io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegration.OPENAEV_INJECTOR_NAME;
 import static io.openaev.rest.expectation.ExpectationApi.INJECTS_EXPECTATIONS_URI;
-import static io.openaev.utils.fixtures.ExpectationFixture.createDetectionExpectations;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -11,16 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.database.model.AssetGroup;
-import io.openaev.database.model.Collector;
-import io.openaev.database.model.CollectorType;
-import io.openaev.database.model.Endpoint;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.Injector;
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.SecurityPlatform;
-import io.openaev.database.model.TechnicalInjectExpectation;
-import io.openaev.database.model.Tenant;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
@@ -31,14 +21,9 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.expectation.Expectation;
+import io.openaev.model.inject.form.Expectation;
 import io.openaev.service.InjectExpectationService;
-import io.openaev.utils.fixtures.AssetGroupFixture;
-import io.openaev.utils.fixtures.EndpointFixture;
-import io.openaev.utils.fixtures.InjectFixture;
-import io.openaev.utils.fixtures.InjectorContractFixture;
-import io.openaev.utils.fixtures.InjectorFixture;
-import io.openaev.utils.fixtures.SecurityPlatformFixture;
+import io.openaev.utils.fixtures.*;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -147,11 +132,13 @@ class AiDefenseFeedTenantScopeTest extends IntegrationTest {
             List.of(agentlessEndpoint),
             emptyList(),
             emptyList());
-    List<Expectation> detectionExpectations =
-        createDetectionExpectations(
-            emptyList(), agentlessEndpoint, null, DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-    injectExpectationService.buildAndSaveInjectExpectations(
-        executableInject, detectionExpectations);
+    Expectation templateDetectionExpectation =
+        ExpectationFixture.createExpectation(
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+    templateDetectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+
+    injectExpectationService.computeAndSaveExpectations(
+        executableInject, List.of(templateDetectionExpectation), "implantType");
 
     TechnicalInjectExpectation leaf =
         (TechnicalInjectExpectation)

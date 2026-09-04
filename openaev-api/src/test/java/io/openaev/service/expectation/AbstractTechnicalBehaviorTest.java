@@ -1,7 +1,10 @@
 package io.openaev.service.expectation;
 
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME;
+import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV4_ADDRESS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
@@ -500,6 +503,107 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
 
       // Signatures — set on asset level
       assertThat(assetExpectation.getSignatures()).isNotEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Expectation signatures")
+  class ExpectationSignatures {
+
+    @Test
+    @DisplayName(
+        "given one asset with one agent should set parent process and source ip signatures on agent level")
+    void
+        given_one_asset_with_one_agent_should_set_parent_process_and_source_ip_signatures_on_agent_level() {
+      // Arrange
+      Endpoint endpoint =
+          endpointComposer
+              .forEndpoint(EndpointFixture.createEndpoint())
+              .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
+              .persist()
+              .get();
+      Agent agent = endpoint.getAgents().getFirst();
+
+      persistTwoCollector("collector-edr", "EDR");
+      Exercise exercise = persistDefaultExercise();
+
+      Inject inject =
+          injectComposer
+              .forInject(InjectFixture.getDefaultInject())
+              .withEndpoint(endpointComposer.forEndpoint(endpoint))
+              .withExercise(exerciseComposer.forExercise(exercise))
+              .withInjectorContract(
+                  injectorContractComposer.forInjectorContract(
+                      InjectorContractFixture.createDefaultInjectorContract()))
+              .persist()
+              .get();
+
+      ExecutableInject executableInject =
+          new ExecutableInject(
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+
+      // Act
+      List<BaseInjectExpectation> saved =
+          actAndGetSavedExpectations(executableInject, createTemplate(inject), "oaev");
+
+      // Assert — agent-level signatures carry the parent process name and the source IP
+      TechnicalInjectExpectation agentExpectation =
+          saved.stream()
+              .map(TechnicalInjectExpectation.class::cast)
+              .filter(e -> e.getAgent() != null)
+              .findFirst()
+              .orElseThrow();
+
+      assertThat(agentExpectation.getSignatures())
+          .extracting(InjectExpectationSignature::getType, InjectExpectationSignature::getValue)
+          .containsExactlyInAnyOrder(
+              tuple(
+                  EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME,
+                  "oaev" + inject.getId() + "-agent-" + agent.getId()),
+              tuple(EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV4_ADDRESS, "192.168.1.1"));
+    }
+
+    @Test
+    @DisplayName("given one asset agentless should set source ip signature on asset level")
+    void given_one_asset_agentless_should_set_source_ip_signature_on_asset_level() {
+      // Arrange
+      Endpoint endpoint =
+          endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
+
+      persistTwoCollector("collector-edr", "EDR");
+      Exercise exercise = persistDefaultExercise();
+
+      Injector nonPayloadInjector = InjectorFixture.createDefaultInjector("nmap");
+      nonPayloadInjector.setPayloads(false);
+      Inject defaultInject = InjectFixture.getDefaultInject();
+      defaultInject.setInjector(nonPayloadInjector);
+
+      Inject inject =
+          injectComposer
+              .forInject(defaultInject)
+              .withEndpoint(endpointComposer.forEndpoint(endpoint))
+              .withExercise(exerciseComposer.forExercise(exercise))
+              .withInjectorContract(
+                  injectorContractComposer
+                      .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                      .withInjector(nonPayloadInjector))
+              .persist()
+              .get();
+
+      ExecutableInject executableInject =
+          new ExecutableInject(
+              false, false, inject, List.of(), List.of(endpoint), List.of(), List.of());
+
+      // Act
+      List<BaseInjectExpectation> saved =
+          actAndGetSavedExpectations(executableInject, createTemplate(inject), "nmap");
+
+      // Assert — asset-level signature carries the source IP (no agent, so no parent process name)
+      TechnicalInjectExpectation assetExpectation = (TechnicalInjectExpectation) saved.getFirst();
+
+      assertThat(assetExpectation.getSignatures())
+          .extracting(InjectExpectationSignature::getType, InjectExpectationSignature::getValue)
+          .contains(tuple(EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV4_ADDRESS, "192.168.1.1"));
     }
   }
 

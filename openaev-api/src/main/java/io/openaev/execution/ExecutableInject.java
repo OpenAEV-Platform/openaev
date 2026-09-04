@@ -4,6 +4,7 @@ import static java.util.Optional.ofNullable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.openaev.database.model.*;
+import io.openaev.rest.inject.service.AssetToExecute;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -27,6 +28,13 @@ public class ExecutableInject {
   private final String stepId;
 
   @JsonIgnore private final List<MultipartFile> directAttachments = new ArrayList<>();
+  @JsonIgnore private List<AssetToExecute> assetsToExecute;
+
+  /**
+   * Domain entities backing this inject's expectations (e.g. challenges or articles), pre-resolved
+   * by the executor so expectation behaviors don't reload them. {@code null} until cached.
+   */
+  @JsonIgnore private List<?> expectationContext;
 
   public ExecutableInject(
       boolean runtime,
@@ -91,5 +99,34 @@ public class ExecutableInject {
 
   public void addDirectAttachment(MultipartFile file) {
     this.directAttachments.add(file);
+  }
+
+  public void cacheAssetsToExecute(List<AssetToExecute> resolvedAssetsToExecute) {
+    this.assetsToExecute =
+        resolvedAssetsToExecute != null ? List.copyOf(resolvedAssetsToExecute) : null;
+  }
+
+  /**
+   * Caches the domain entities backing this inject's expectations so behaviors can reuse them
+   * instead of reloading from the database.
+   *
+   * @param entities the pre-resolved entities (e.g. challenges or articles)
+   */
+  public void cacheExpectationContext(List<?> entities) {
+    this.expectationContext = entities != null ? List.copyOf(entities) : null;
+  }
+
+  /**
+   * Returns the cached expectation-context entities of the given type, or an empty list if none
+   * were cached.
+   *
+   * @param type the expected entity type
+   * @param <T> the entity type
+   */
+  public <T> List<T> getExpectationContext(Class<T> type) {
+    if (this.expectationContext == null) {
+      return List.of();
+    }
+    return this.expectationContext.stream().filter(type::isInstance).map(type::cast).toList();
   }
 }

@@ -24,10 +24,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.expectation.Expectation;
-import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
-import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
-import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
+import io.openaev.model.inject.form.Expectation;
 import io.openaev.rest.exercise.form.ExpectationUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
@@ -67,9 +64,6 @@ class ExpectationApiTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectExpectationRepository injectExpectationRepository;
   @Autowired private InjectExpectationService injectExpectationService;
-  @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
-  @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
-  @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   // Saved entities for test setup
   private Injector savedInjector;
@@ -154,14 +148,13 @@ class ExpectationApiTest extends IntegrationTest {
     void addResultsOnOneAgentFromUI() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1),
-              savedEndpoint,
-              savedAssetGroup,
-              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 
@@ -260,15 +253,12 @@ class ExpectationApiTest extends IntegrationTest {
     void addResultsOnTwoAgentFromUI() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1, savedAgent2),
-              savedEndpoint,
-              savedAssetGroup,
-              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 
@@ -396,14 +386,12 @@ class ExpectationApiTest extends IntegrationTest {
     void deleteResultOnAssetWithAgentsFromUI() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1, savedAgent2),
-              savedEndpoint,
-              savedAssetGroup,
-              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 
@@ -476,15 +464,12 @@ class ExpectationApiTest extends IntegrationTest {
       // -- PREPARE --
       // Build and save expectations
       ExecutableInject executableInject = newExecutableInjectWithTargets(false);
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1),
-              savedEndpoint,
-              savedAssetGroup,
-              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 
@@ -534,14 +519,12 @@ class ExpectationApiTest extends IntegrationTest {
     void getInjectExpectationsForSourceReturnsSignatures() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(false);
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1),
-              savedEndpoint,
-              savedAssetGroup,
-              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 
@@ -614,15 +597,12 @@ class ExpectationApiTest extends IntegrationTest {
               List.of(savedEndpoint),
               emptyList(),
               emptyList());
-      List<Expectation> preventionExpectations =
-          createPreventionExpectations(
-              List.of(savedAgent1, savedAgent2),
-              savedEndpoint,
-              savedAssetGroup,
-              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, preventionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 
@@ -702,15 +682,12 @@ class ExpectationApiTest extends IntegrationTest {
               List.of(savedEndpoint),
               emptyList(),
               emptyList());
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1, savedAgent2),
-              savedEndpoint,
-              savedAssetGroup,
-              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 
@@ -783,15 +760,12 @@ class ExpectationApiTest extends IntegrationTest {
       // -- PREPARE --
       // Build and save expectations for an asset with 2 agents
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1, savedAgent2),
-              savedEndpoint,
-              savedAssetGroup,
-              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 
@@ -865,15 +839,12 @@ class ExpectationApiTest extends IntegrationTest {
       // -- PREPARE --
       // Inject with 1 Agent, 1 Asset & 1 Asset Group
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1),
-              savedEndpoint,
-              savedAssetGroup,
-              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 
@@ -924,15 +895,12 @@ class ExpectationApiTest extends IntegrationTest {
       // -- PREPARE --
       // Build and save expectations for an asset with 2 agents
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1, savedAgent2),
-              savedEndpoint,
-              savedAssetGroup,
-              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 
@@ -1005,14 +973,12 @@ class ExpectationApiTest extends IntegrationTest {
       // -- PREPARE --
       Collector llmCollector = createCollectorWithSecurityPlatform("LLM_FIREWALL");
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1),
-              savedEndpoint,
-              savedAssetGroup,
-              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 
@@ -1036,11 +1002,12 @@ class ExpectationApiTest extends IntegrationTest {
       Endpoint agentlessEndpoint =
           endpointRepository.save(EndpointFixture.createEndpoint("agentless-endpoint"));
       ExecutableInject executableInject = newExecutableInjectWithTargets(false);
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              emptyList(), agentlessEndpoint, null, DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 
@@ -1088,14 +1055,12 @@ class ExpectationApiTest extends IntegrationTest {
     void directFailureOnParentKeepsChildrenVerdict() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1),
-              savedEndpoint,
-              savedAssetGroup,
-              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 
@@ -1139,14 +1104,12 @@ class ExpectationApiTest extends IntegrationTest {
     void directFailureOnParentKeepsPendingChildren() throws Exception {
       // -- PREPARE --
       ExecutableInject executableInject = newExecutableInjectWithTargets(true);
-      List<Expectation> detectionExpectations =
-          createDetectionExpectations(
-              List.of(savedAgent1),
-              savedEndpoint,
-              savedAssetGroup,
-              DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
-      injectExpectationService.buildAndSaveInjectExpectations(
-          executableInject, detectionExpectations);
+      Expectation detectionExpectation =
+          createExpectation(
+              BaseInjectExpectation.EXPECTATION_TYPE.DETECTION, "Detection Expectation");
+      detectionExpectation.setExpirationTime(DEFAULT_TECHNICAL_EXPECTATION_EXPIRATION_TIME);
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject, List.of(detectionExpectation), "implantType");
       em.flush();
       em.clear();
 

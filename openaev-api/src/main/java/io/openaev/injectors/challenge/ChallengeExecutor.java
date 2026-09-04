@@ -12,9 +12,6 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
-import io.openaev.expectation.ChallengeExpectation;
-import io.openaev.expectation.Expectation;
-import io.openaev.expectation.ManualExpectation;
 import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.injectors.challenge.model.ChallengeVariable;
@@ -22,10 +19,8 @@ import io.openaev.injectors.email.service.EmailService;
 import io.openaev.model.ExecutionProcess;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ChallengeExecutor extends Injector {
 
@@ -73,6 +68,7 @@ public class ChallengeExecutor extends Injector {
       if (challenges.isEmpty()) {
         throw new UnsupportedOperationException("Inject needs at least one challenge");
       }
+      injection.cacheExpectationContext(challenges);
       String contract =
           injection
               .getInjection()
@@ -133,27 +129,9 @@ public class ChallengeExecutor extends Injector {
                 execution.addTrace(getNewErrorTrace(e.getMessage(), ExecutionTraceAction.COMPLETE));
               }
             });
-        // Return expectations
-        List<Expectation> expectations = new ArrayList<>();
-        if (!content.getExpectations().isEmpty()) {
-          expectations.addAll(
-              content.getExpectations().stream()
-                  .flatMap(
-                      (entry) ->
-                          switch (entry.getType()) {
-                            case MANUAL -> Stream.of((Expectation) new ManualExpectation(entry));
-                            case CHALLENGE ->
-                                challenges.stream()
-                                    .map(
-                                        challenge ->
-                                            (Expectation)
-                                                new ChallengeExpectation(entry, challenge));
-                            default -> Stream.of();
-                          })
-                  .toList());
-        }
 
-        injectExpectationService.buildAndSaveInjectExpectations(injection, expectations);
+        injectExpectationService.computeAndSaveExpectations(
+            injection, content.getExpectations(), null);
 
         return new ExecutionProcess(false);
       } else {

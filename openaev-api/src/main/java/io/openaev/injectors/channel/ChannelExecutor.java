@@ -11,9 +11,6 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
-import io.openaev.expectation.ChannelExpectation;
-import io.openaev.expectation.Expectation;
-import io.openaev.expectation.ManualExpectation;
 import io.openaev.injector_contract.variables.contract.UserContract;
 import io.openaev.injectors.channel.model.ArticleVariable;
 import io.openaev.injectors.channel.model.ChannelContent;
@@ -21,10 +18,8 @@ import io.openaev.injectors.email.service.EmailService;
 import io.openaev.model.ExecutionProcess;
 import io.openaev.service.InjectExpectationService;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ChannelExecutor extends Injector {
 
@@ -77,6 +72,7 @@ public class ChannelExecutor extends Injector {
       if (articles.isEmpty()) {
         throw new UnsupportedOperationException("Inject needs at least one article");
       }
+      injection.cacheExpectationContext(articles);
       String contract =
           injection
               .getInjection()
@@ -146,25 +142,9 @@ public class ChannelExecutor extends Injector {
           execution.addTrace(
               getNewInfoTrace("Email disabled for this inject", ExecutionTraceAction.EXECUTION));
         }
-        List<Expectation> expectations = new ArrayList<>();
-        if (!content.getExpectations().isEmpty()) {
-          expectations.addAll(
-              content.getExpectations().stream()
-                  .flatMap(
-                      (entry) ->
-                          switch (entry.getType()) {
-                            case MANUAL -> Stream.of((Expectation) new ManualExpectation(entry));
-                            case ARTICLE ->
-                                articles.stream()
-                                    .map(
-                                        article ->
-                                            (Expectation) new ChannelExpectation(entry, article));
-                            default -> Stream.of();
-                          })
-                  .toList());
-        }
 
-        injectExpectationService.buildAndSaveInjectExpectations(injection, expectations);
+        injectExpectationService.computeAndSaveExpectations(
+            injection, content.getExpectations(), null);
 
         return new ExecutionProcess(false);
       } else {

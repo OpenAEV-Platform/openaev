@@ -6,26 +6,26 @@ import static io.openaev.utils.ExpectationUtils.*;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.expectation.ExpectationPropertiesConfig;
 import jakarta.annotation.Nullable;
+import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 
-/**
- * Shared behavior for table-top style expectations (manual/challenge/article).
- *
- * <p>Dead code — not wired into any service yet. Part of the {@code InjectExpectation} refactoring
- * (Vertical 2).
- */
+/** Shared behavior for table-top style expectations (manual/challenge/article). */
 @RequiredArgsConstructor
-public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
+public abstract class AbstractTableTopBehavior
+    implements ExpectationBehavior<TableTopInjectExpectation> {
+
+  @Resource protected ExpectationPropertiesConfig expectationPropertiesConfig;
 
   protected final InjectExpectationRepository injectExpectationRepository;
 
   /** Returns the default result entry for player-level expectations. */
-  protected abstract InjectExpectationResult buildDefaultPlayerResult();
+  protected abstract InjectExpectationResult buildDefaultPlayerResult(Double expectedScore);
 
   // -- INITIALIZE AND SAVE --
 
@@ -36,27 +36,30 @@ public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
   @Override
   public void initializeAndSaveInjectExpectationsFromExecutableInject(
       ExecutableInject executableInject,
-      BaseInjectExpectation expectationTemplate,
+      TableTopInjectExpectation expectationTemplate,
       @Nullable String implantType) {
 
-    boolean isAtomicTesting = executableInject.getInjection().getInject().isAtomicTesting();
-    boolean isExerciseInject = !executableInject.isDirect();
-    if (!isExerciseInject && !isAtomicTesting) {
+    if (!shouldInitializeExpectation(executableInject)) {
       return;
     }
+    boolean isAtomicTesting = executableInject.getInjection().getInject().isAtomicTesting();
 
     List<Team> teams = executableInject.getTeams();
     if (teams.isEmpty()) {
       return;
     }
 
-    List<BaseInjectExpectation> allExpectations = new ArrayList<>();
+    List<TableTopInjectExpectation> templates =
+        expandTemplatesForContext(executableInject, expectationTemplate);
 
-    if (isAtomicTesting) {
-      buildExpectationsForAtomicTesting(expectationTemplate, teams, allExpectations);
-    } else {
-      buildExpectationsForExerciseInject(
-          executableInject, expectationTemplate, teams, allExpectations);
+    List<TableTopInjectExpectation> allExpectations = new ArrayList<>();
+
+    for (TableTopInjectExpectation template : templates) {
+      if (isAtomicTesting) {
+        buildExpectationsForAtomicTesting(template, teams, allExpectations);
+      } else {
+        buildExpectationsForExerciseInject(executableInject, template, teams, allExpectations);
+      }
     }
 
     allExpectations.forEach(this::initializeResults);
@@ -64,13 +67,30 @@ public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
   }
 
   /**
+   * Expands a single template into several context-specific templates before target multiplication.
+   *
+   * <p>Default behavior returns the template unchanged. Behaviors whose form expectation maps to
+   * several domain entities (e.g. one expectation per challenge or per article) override this to
+   * clone the template and attach each entity.
+   *
+   * @param executableInject the executable inject providing the content and resolved context
+   * @param template the untargeted template produced by {@link
+   *     #convertFormExpectationToBaseInjectExpectation}
+   * @return one template per context entity (at least one)
+   */
+  protected List<TableTopInjectExpectation> expandTemplatesForContext(
+      ExecutableInject executableInject, TableTopInjectExpectation template) {
+    return List.of(template);
+  }
+
+  /**
    * Builds expectations for atomic testing: one team-level and one player-level expectation per
    * team/user combination.
    */
   private void buildExpectationsForAtomicTesting(
-      BaseInjectExpectation template,
+      TableTopInjectExpectation template,
       List<Team> teams,
-      List<BaseInjectExpectation> allExpectations) {
+      List<TableTopInjectExpectation> allExpectations) {
     teams.forEach(
         team -> {
           allExpectations.add(buildExpectationForTarget(template, team, null));
@@ -89,12 +109,12 @@ public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
    */
   private void buildExpectationsForExerciseInject(
       ExecutableInject executableInject,
-      BaseInjectExpectation template,
+      TableTopInjectExpectation template,
       List<Team> teams,
-      List<BaseInjectExpectation> allExpectations) {
+      List<TableTopInjectExpectation> allExpectations) {
     String exerciseId = executableInject.getInjection().getExercise().getId();
 
-    List<BaseInjectExpectation> playerExpectations = new ArrayList<>();
+    List<TableTopInjectExpectation> playerExpectations = new ArrayList<>();
 
     // Create expectations for every enabled player in every team
     for (Team team : teams) {
@@ -108,7 +128,6 @@ public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
     // Create a set of teams that have at least one enabled player
     Set<Team> teamsWithPlayers =
         playerExpectations.stream()
-            .map(TableTopInjectExpectation.class::cast)
             .map(TableTopInjectExpectation::getTeam)
             .collect(Collectors.toSet());
 
@@ -129,8 +148,8 @@ public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
    * @return a new expectation ready to be persisted
    */
   private static TableTopInjectExpectation buildExpectationForTarget(
-      BaseInjectExpectation template, Team team, @Nullable User user) {
-    TableTopInjectExpectation expectation = (TableTopInjectExpectation) template.clone();
+      TableTopInjectExpectation template, Team team, @Nullable User user) {
+    TableTopInjectExpectation expectation = template.clone();
     expectation.setTeam(team);
     expectation.setUser(user);
     return expectation;
@@ -146,7 +165,8 @@ public abstract class AbstractTableTopBehavior implements ExpectationBehavior {
     }
 
     if (tableTop.getUser() != null) {
-      InjectExpectationResult defaultPlayerResult = buildDefaultPlayerResult();
+      InjectExpectationResult defaultPlayerResult =
+          buildDefaultPlayerResult(expectation.getExpectedScore());
       if (defaultPlayerResult != null) {
         expectation.setResults(new ArrayList<>(List.of(defaultPlayerResult)));
       }

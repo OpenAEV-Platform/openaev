@@ -197,7 +197,7 @@ public class PhishingTrackingService {
   private static final double COMPROMISED_SCORE = 0.0;
 
   /** Result message stamped on a step the recipient never triggered (GREEN). */
-  private static final String NO_INTERACTION_MESSAGE = "No phishing interaction detected";
+  public static final String NO_INTERACTION_MESSAGE = "No phishing interaction detected";
 
   /**
    * Result message stamped on a step that received an automated probe (mail security scanner /
