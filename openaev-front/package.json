@@ -71,7 +71,7 @@
     "immutable": "5.1.9",
     "ipaddr.js": "^2.2.0",
     "js-file-download": "0.4.12",
-    "mdi-material-ui": "7.9.4",
+    "mdi-material-ui": "8.0.0",
     "moment": "2.30.1",
     "moment-timezone": "0.6.3",
     "normalizr": "3.6.2",
