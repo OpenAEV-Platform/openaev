@@ -1,6 +1,5 @@
 package io.openaev.api.chaining;
 
-import static io.openaev.api.chaining.ChainingApi.CHAINING_URI;
 import static io.openaev.api.chaining.ConditionMapper.toOutput;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
@@ -32,7 +31,7 @@ import org.springframework.web.bind.annotation.*;
         "CRUD operations for chaining condition trees (frontend event payload maps to backend conditions)")
 public class ConditionApi extends RestBehavior {
 
-  public static final String TENANT_CONDITION_URI = TENANT_PREFIX + CHAINING_URI + "/conditions";
+  public static final String TENANT_CONDITION_URI = TENANT_PREFIX + "/conditions";
 
   private final ConditionService conditionService;
 
