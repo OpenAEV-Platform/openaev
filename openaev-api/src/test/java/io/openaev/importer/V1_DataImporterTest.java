@@ -183,7 +183,7 @@ class V1_DataImporterTest extends IntegrationTest {
     root.putArray("scenario_injects");
 
     this.importer.importData(
-        root, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(), root, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     Scenario imported =
         this.scenarioRepository.findAll().stream()
