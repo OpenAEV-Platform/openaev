@@ -1630,10 +1630,10 @@ class DashboardApiTest extends IntegrationTest {
     }
 
     /**
-     * Seeds a custom dashboard directly via native insert instead of the create endpoint:
-     * creating through the API sets the tenant scope (TxCtx) on this test's wrapping
-     * transaction, which conflicts with a subsequent call scoped to a different tenant within
-     * the same test (see TenantScopeTransactionAspect).
+     * Seeds a custom dashboard directly via native insert instead of the create endpoint: creating
+     * through the API sets the tenant scope (TxCtx) on this test's wrapping transaction, which
+     * conflicts with a subsequent call scoped to a different tenant within the same test (see
+     * TenantScopeTransactionAspect).
      */
     private String seedCustomDashboardInTenant(Tenant tenant, String name) {
       String dashboardId = UUID.randomUUID().toString();
