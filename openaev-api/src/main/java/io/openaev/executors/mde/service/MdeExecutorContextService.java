@@ -224,7 +224,12 @@ public class MdeExecutorContextService extends ExecutorContextService {
             + ExecutorHelper.IMPLANT_BASE_NAME
             + UUID.randomUUID()
             + ";mkdir -p $location;filename=";
-    String executorCommandKey = platform.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
+    // Executor-specific key: the detached Unix command returns the Live Response session as soon
+    // as the implant is launched, instead of holding it for the whole payload. The generic
+    // "Linux.x86_64" entry is deliberately left alone, the native OpenAEV agent and Caldera read
+    // it.
+    String executorCommandKey =
+        MDE_EXECUTOR_NAME + "." + platform.name() + "." + Endpoint.PLATFORM_ARCH.x86_64.name();
     String command = injector.getExecutorCommands().get(executorCommandKey);
     command = UNIX_ARCH + command.replace(Endpoint.PLATFORM_ARCH.x86_64.name(), ARCH_VARIABLE);
     command =
