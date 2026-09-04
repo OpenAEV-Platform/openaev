@@ -4,7 +4,6 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.fixtures.FileFixture.WELL_KNOWN_FILES;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static net.javacrumbs.jsonunit.core.Option.IGNORING_ARRAY_ORDER;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -101,79 +100,83 @@ class ExerciseApiExportTest extends IntegrationTest {
   }
 
   private Exercise getExercise() {
-    return exerciseComposer
-        .forExercise(ExerciseFixture.createDefaultCrisisExercise())
-        .withArticle(
-            articleComposer
-                .forArticle(ArticleFixture.getArticleNoChannel())
-                .withChannel(channelComposer.forChannel(ChannelFixture.getChannel())))
-        .withLessonCategory(
-            lessonsCategoryComposer
-                .forLessonsCategory(LessonsCategoryFixture.createLessonCategory())
-                .withLessonsQuestion(
-                    lessonsQuestionsComposer.forLessonsQuestion(
-                        LessonsQuestionFixture.createLessonsQuestion())))
-        .withTeam(
-            teamComposer
-                .forTeam(TeamFixture.getEmptyTeam())
-                .withOrganisation(
-                    organizationComposer.forOrganization(
-                        OrganizationFixture.createDefaultOrganisation()))
-                .withTag(tagComposer.forTag(TagFixture.getTagWithText("Team tag")))
-                .withUser(
-                    userComposer
-                        .forUser(UserFixture.getUser())
-                        .withTag(tagComposer.forTag(TagFixture.getTagWithText("User tag")))
-                        .withOrganization(
-                            organizationComposer
-                                .forOrganization(OrganizationFixture.createOrganization())
-                                .withTag(
-                                    tagComposer.forTag(
-                                        TagFixture.getTagWithText("Organization tag"))))))
-        .withTeamUsers()
-        .withInject(
-            injectComposer
-                .forInject(InjectFixture.getInjectWithoutContract())
-                .withTag(tagComposer.forTag(TagFixture.getTagWithText("Inject tag")))
-                .withInjectorContract(
-                    injectorContractComposer
-                        .forInjectorContract(
-                            InjectorContractFixture.createDefaultInjectorContract())
-                        .withChallenge(
-                            challengeComposer
-                                .forChallenge(ChallengeFixture.createDefaultChallenge())
-                                .withTag(
-                                    tagComposer.forTag(
-                                        TagFixture.getTagWithText("Challenge tag"))))))
-        .withInject(
-            injectComposer
-                .forInject(InjectFixture.getInjectWithoutContract())
-                .withInjectorContract(
-                    injectorContractComposer
-                        .forInjectorContract(
-                            InjectorContractFixture.createDefaultInjectorContract())
-                        .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
-                        .withDomain(
-                            domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
-                        .withPayload(
-                            payloadComposer
-                                .forPayload(PayloadFixture.createDefaultFileDrop())
-                                .withFileDrop(
-                                    documentComposer
-                                        .forDocument(
-                                            DocumentFixture.getDocument(
-                                                FileFixture.getBadCoffeeFileContent()))
-                                        .withInMemoryFile(FileFixture.getBadCoffeeFileContent())))))
-        .withDocument(
-            documentComposer
-                .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
-                .withTag(tagComposer.forTag(TagFixture.getTagWithText("Document tag")))
-                .withInMemoryFile(FileFixture.getPlainTextFileContent()))
-        .withObjective(objectiveComposer.forObjective(ObjectiveFixture.getObjective()))
-        .withTag(tagComposer.forTag(TagFixture.getTagWithText("Exercise tag")))
-        .withVariable(variableComposer.forVariable(VariableFixture.getVariable()))
-        .persist()
-        .get();
+    Exercise exercise =
+        exerciseComposer
+            .forExercise(ExerciseFixture.createDefaultCrisisExercise())
+            .withArticle(
+                articleComposer
+                    .forArticle(ArticleFixture.getArticleNoChannel())
+                    .withChannel(channelComposer.forChannel(ChannelFixture.getChannel())))
+            .withLessonCategory(
+                lessonsCategoryComposer
+                    .forLessonsCategory(LessonsCategoryFixture.createLessonCategory())
+                    .withLessonsQuestion(
+                        lessonsQuestionsComposer.forLessonsQuestion(
+                            LessonsQuestionFixture.createLessonsQuestion())))
+            .withTeam(
+                teamComposer
+                    .forTeam(TeamFixture.getEmptyTeam())
+                    .withOrganisation(
+                        organizationComposer.forOrganization(
+                            OrganizationFixture.createDefaultOrganisation()))
+                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("Team tag")))
+                    .withUser(
+                        userComposer
+                            .forUser(UserFixture.getUser())
+                            .withTag(tagComposer.forTag(TagFixture.getTagWithText("User tag")))
+                            .withOrganization(
+                                organizationComposer
+                                    .forOrganization(OrganizationFixture.createOrganization())
+                                    .withTag(
+                                        tagComposer.forTag(
+                                            TagFixture.getTagWithText("Organization tag"))))))
+            .withTeamUsers()
+            .withInject(
+                injectComposer
+                    .forInject(InjectFixture.getInjectWithoutContract())
+                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("Inject tag")))
+                    .withInjectorContract(
+                        injectorContractComposer
+                            .forInjectorContract(
+                                InjectorContractFixture.createDefaultInjectorContract())
+                            .withChallenge(
+                                challengeComposer
+                                    .forChallenge(ChallengeFixture.createDefaultChallenge())
+                                    .withTag(
+                                        tagComposer.forTag(
+                                            TagFixture.getTagWithText("Challenge tag"))))))
+            .withInject(
+                injectComposer
+                    .forInject(InjectFixture.getInjectWithoutContract())
+                    .withInjectorContract(
+                        injectorContractComposer
+                            .forInjectorContract(
+                                InjectorContractFixture.createDefaultInjectorContract())
+                            .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+                            .withDomain(
+                                domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+                            .withPayload(
+                                payloadComposer
+                                    .forPayload(PayloadFixture.createDefaultFileDrop())
+                                    .withFileDrop(
+                                        documentComposer
+                                            .forDocument(
+                                                DocumentFixture.getDocument(
+                                                    FileFixture.getBadCoffeeFileContent()))
+                                            .withInMemoryFile(
+                                                FileFixture.getBadCoffeeFileContent())))))
+            .withDocument(
+                documentComposer
+                    .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("Document tag")))
+                    .withInMemoryFile(FileFixture.getPlainTextFileContent()))
+            .withObjective(objectiveComposer.forObjective(ObjectiveFixture.getObjective()))
+            .withTag(tagComposer.forTag(TagFixture.getTagWithText("Exercise tag")))
+            .withVariable(variableComposer.forVariable(VariableFixture.getVariable()))
+            .get();
+    exercise.setLessonsEnabled(true);
+    exerciseComposer.persist();
+    return exercise;
   }
 
   private String getJsonExportFromZip(byte[] zipBytes, String entryName) throws IOException {
@@ -201,11 +204,11 @@ class ExerciseApiExportTest extends IntegrationTest {
             ExerciseFileExport.fromExercise(ex, exportMapper, challengeService, articleService)
                 .withOptions(0));
     JsonNode exportedExercise = mapper.readTree(actualJson);
-    assertFalse(
+    assertTrue(
         exportedExercise.get("exercise_information").get("exercise_lessons_enabled").asBoolean());
-    assertFalse(exportedExercise.has("exercise_objectives"));
-    assertFalse(exportedExercise.has("exercise_lessons_categories"));
-    assertFalse(exportedExercise.has("exercise_lessons_questions"));
+    assertTrue(exportedExercise.has("exercise_objectives"));
+    assertTrue(exportedExercise.has("exercise_lessons_categories"));
+    assertTrue(exportedExercise.has("exercise_lessons_questions"));
 
     assertThatJson(expectedJson)
         .whenIgnoringPaths(

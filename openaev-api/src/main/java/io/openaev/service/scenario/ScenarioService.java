@@ -688,11 +688,10 @@ public class ScenarioService {
     scenarioFileExport.setScenario(scenario);
     objectMapper.addMixIn(Scenario.class, Mixins.Scenario.class);
     List<Tag> scenarioTags = new ArrayList<>(scenario.getTags());
-    // Add Objectives
-    scenarioFileExport.setObjectives(scenario.getObjectives());
-    objectMapper.addMixIn(Objective.class, Mixins.Objective.class);
     if (scenario.isLessonsEnabled()) {
       // Add lesson content only when the lessons module is enabled.
+      scenarioFileExport.setObjectives(scenario.getObjectives());
+      objectMapper.addMixIn(Objective.class, Mixins.Objective.class);
       scenarioFileExport.setLessonsCategories(scenario.getLessonsCategories());
       objectMapper.addMixIn(LessonsCategory.class, Mixins.LessonsCategory.class);
       List<LessonsQuestion> lessonsQuestions =

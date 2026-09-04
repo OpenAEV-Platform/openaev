@@ -96,59 +96,64 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
   // it runs out most tests use this exact structure as test data, therefore it's in its own
   // function up here
   private ExerciseComposer.Composer getExercise() {
-    return exerciseComposer
-        .forExercise(ExerciseFixture.createDefaultExercise())
-        .withArticle(
-            articleComposer
-                .forArticle(ArticleFixture.getDefaultArticle())
-                .withChannel(channelComposer.forChannel(ChannelFixture.getDefaultChannel())))
-        .withLessonCategory(
-            lessonsCategoryComposer
-                .forLessonsCategory(LessonsCategoryFixture.createDefaultLessonsCategory())
-                .withLessonsQuestion(
-                    lessonsQuestionsComposer.forLessonsQuestion(
-                        LessonsQuestionFixture.createDefaultLessonsQuestion())))
-        .withTeam(
-            teamComposer
-                .forTeam(TeamFixture.getDefaultTeam())
-                .withOrganisation(
-                    organizationComposer.forOrganization(
-                        OrganizationFixture.createDefaultOrganisation()))
-                .withTag(tagComposer.forTag(TagFixture.getTagWithText("Team tag")))
-                .withUser(userComposer.forUser(UserFixture.getUserWithDefaultEmail()))
-                .withUser(
-                    userComposer
-                        .forUser(UserFixture.getUserWithDefaultEmail())
-                        .withTag(tagComposer.forTag(TagFixture.getTagWithText("User tag")))
-                        .withOrganization(
-                            organizationComposer
-                                .forOrganization(OrganizationFixture.createDefaultOrganisation())
-                                .withTag(
-                                    tagComposer.forTag(
-                                        TagFixture.getTagWithText("Organization tag"))))))
-        .withTeamUsers()
-        .withInject(
-            injectComposer
-                .forInject(InjectFixture.getDefaultInject())
-                .withTag(tagComposer.forTag(TagFixture.getTagWithText("Inject tag")))
-                .withInjectorContract(
-                    injectorContractComposer
-                        .forInjectorContract(
-                            InjectorContractFixture.createDefaultInjectorContract())
-                        .withChallenge(
-                            challengeComposer
-                                .forChallenge(ChallengeFixture.createDefaultChallenge())
-                                .withTag(
-                                    tagComposer.forTag(
-                                        TagFixture.getTagWithText("Challenge tag"))))))
-        .withDocument(
-            documentComposer
-                .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
-                .withTag(tagComposer.forTag(TagFixture.getTagWithText("Document tag")))
-                .withInMemoryFile(FileFixture.getPlainTextFileContent()))
-        .withObjective(objectiveComposer.forObjective(ObjectiveFixture.getDefaultObjective()))
-        .withTag(tagComposer.forTag(TagFixture.getTagWithText("Exercise tag")))
-        .withVariable(variableComposer.forVariable(VariableFixture.getDefaultVariable()));
+    Exercise exercise =
+        exerciseComposer
+            .forExercise(ExerciseFixture.createDefaultExercise())
+            .withArticle(
+                articleComposer
+                    .forArticle(ArticleFixture.getDefaultArticle())
+                    .withChannel(channelComposer.forChannel(ChannelFixture.getDefaultChannel())))
+            .withLessonCategory(
+                lessonsCategoryComposer
+                    .forLessonsCategory(LessonsCategoryFixture.createDefaultLessonsCategory())
+                    .withLessonsQuestion(
+                        lessonsQuestionsComposer.forLessonsQuestion(
+                            LessonsQuestionFixture.createDefaultLessonsQuestion())))
+            .withTeam(
+                teamComposer
+                    .forTeam(TeamFixture.getDefaultTeam())
+                    .withOrganisation(
+                        organizationComposer.forOrganization(
+                            OrganizationFixture.createDefaultOrganisation()))
+                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("Team tag")))
+                    .withUser(userComposer.forUser(UserFixture.getUserWithDefaultEmail()))
+                    .withUser(
+                        userComposer
+                            .forUser(UserFixture.getUserWithDefaultEmail())
+                            .withTag(tagComposer.forTag(TagFixture.getTagWithText("User tag")))
+                            .withOrganization(
+                                organizationComposer
+                                    .forOrganization(
+                                        OrganizationFixture.createDefaultOrganisation())
+                                    .withTag(
+                                        tagComposer.forTag(
+                                            TagFixture.getTagWithText("Organization tag"))))))
+            .withTeamUsers()
+            .withInject(
+                injectComposer
+                    .forInject(InjectFixture.getDefaultInject())
+                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("Inject tag")))
+                    .withInjectorContract(
+                        injectorContractComposer
+                            .forInjectorContract(
+                                InjectorContractFixture.createDefaultInjectorContract())
+                            .withChallenge(
+                                challengeComposer
+                                    .forChallenge(ChallengeFixture.createDefaultChallenge())
+                                    .withTag(
+                                        tagComposer.forTag(
+                                            TagFixture.getTagWithText("Challenge tag"))))))
+            .withDocument(
+                documentComposer
+                    .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+                    .withTag(tagComposer.forTag(TagFixture.getTagWithText("Document tag")))
+                    .withInMemoryFile(FileFixture.getPlainTextFileContent()))
+            .withObjective(objectiveComposer.forObjective(ObjectiveFixture.getDefaultObjective()))
+            .withTag(tagComposer.forTag(TagFixture.getTagWithText("Exercise tag")))
+            .withVariable(variableComposer.forVariable(VariableFixture.getDefaultVariable()));
+    exercise.setLessonsEnabled(true);
+    exerciseComposer.persist();
+    return exerciseComposer.get();
   }
 
   private Exercise findImportedExerciseFromDb(String baseName) {
