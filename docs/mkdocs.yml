@@ -170,6 +170,10 @@ nav:
         - Widgets: usage/evaluate/dashboards/widgets.md
       - Reporting: usage/evaluate/reporting/reporting.md
       - Security Coverage enrichment (XTM Suite): usage/evaluate/xtm-suite-connector.md
+      - Notifications & Triggers:
+        - Overview: usage/notifications/overview.md
+        - Triggers: usage/notifications/triggers.md
+        - Notification Center: usage/notifications/notification-center.md
     - Attack Chaining:
       - Overview: usage/attack-chaining/overview.md
       - Scope Definition: usage/attack-chaining/scope-definition.md
@@ -205,7 +209,6 @@ nav:
         - Action properties: usage/build/threat-arsenals/action-properties.md
         - Output parsers: usage/build/threat-arsenals/output-parsers.md
         - Domains: usage/build/threat-arsenals/domains.md
-    - Notifications: usage/notifications.md
     - Interact with your environment:
       - Injectors:
         - Overview: usage/environment/injectors.md
