@@ -1,5 +1,5 @@
-import { AccountTreeOutlined, ArrowBackOutlined, FilterAltOffOutlined, FullscreenExitOutlined, FullscreenOutlined, HelpOutline, LocalFireDepartment, MoreHorizOutlined, SearchOutlined, TableRowsOutlined } from '@mui/icons-material';
-import { Autocomplete, Box, Button, ButtonBase, ListItemButton, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { AccountTreeOutlined, ArrowBackOutlined, FilterAltOffOutlined, FullscreenExitOutlined, FullscreenOutlined, HelpOutline, ImageOutlined, LocalFireDepartment, MoreHorizOutlined, SearchOutlined, TableRowsOutlined } from '@mui/icons-material';
+import { Autocomplete, Box, Button, ButtonBase, CircularProgress, IconButton, ListItemButton, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, type ReactNode, useState } from 'react';
 
@@ -184,6 +184,9 @@ interface Props {
   // Fullscreen toggle.
   fullscreen: boolean;
   onToggleFullscreen: () => void;
+  // PNG export of the whole graph (graph view only; omitted when there is nothing to export).
+  onExportPng?: () => void;
+  exportingPng?: boolean;
   // Search (endpoint / injector / finding type).
   searchOptions: SearchOption[];
   searchInput: string;
@@ -218,6 +221,8 @@ const AttackPathHeader: FunctionComponent<Props> = ({
   onViewChange,
   fullscreen,
   onToggleFullscreen,
+  onExportPng,
+  exportingPng,
   searchOptions,
   searchInput,
   onSearchInputChange,
@@ -637,6 +642,28 @@ const AttackPathHeader: FunctionComponent<Props> = ({
           <Tooltip title={t('Table')}><TableRowsOutlined fontSize="small" /></Tooltip>
         </ToggleButton>
       </ToggleButtonGroup>
+      {/* Action, not a state: an IconButton with the segmented controls' outline so the band still
+          reads as one family. Only the graph can be rasterized — the table has its own CSV export. */}
+      {view === 'graph' && onExportPng && (
+        <Tooltip title={t('Export as PNG')}>
+          <span>
+            <IconButton
+              size="small"
+              aria-label={t('Export as PNG')}
+              onClick={onExportPng}
+              disabled={exportingPng}
+              sx={{
+                width: CONTROL_HEIGHT,
+                height: CONTROL_HEIGHT,
+                borderRadius: 1,
+                border: `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              {exportingPng ? <CircularProgress size={16} /> : <ImageOutlined fontSize="small" />}
+            </IconButton>
+          </span>
+        </Tooltip>
+      )}
       {/* Standalone ToggleButton so fullscreen reads as part of the same segmented family. */}
       <ToggleButton
         size="small"
