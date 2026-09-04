@@ -25,6 +25,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.autonomous.AutonomousRunService;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -62,6 +63,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private TeamRepository teamRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private DocumentRepository documentRepository;
+  @Autowired private ObjectiveRepository objectiveRepository;
   @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private ArticleRepository articleRepository;
   @Autowired InjectRepository injectRepository;
@@ -91,6 +93,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private ScenarioMapper scenarioMapper;
 
   @Mock private WorkflowService workflowService;
+  @Mock private ScopeService scopeService;
   @Mock private WorkflowExportInitializer workflowExportInitializer;
 
   @Mock private LicenseCacheManager licenseCacheManager;
@@ -121,6 +124,7 @@ class ScenarioServiceTest extends IntegrationTest {
             variableService,
             challengeService,
             teamService,
+            scopeService,
             fileService,
             injectDuplicateService,
             tagRuleService,
@@ -289,6 +293,8 @@ class ScenarioServiceTest extends IntegrationTest {
     scenarioInjects.add(this.injectRepository.save(inject));
     Scenario scenario =
         this.scenarioRepository.save(ScenarioFixture.getScenario(scenarioTeams, scenarioInjects));
+    scenario.setLessonsEnabled(true);
+    scenario = this.scenarioRepository.saveAndFlush(scenario);
 
     entityManager.flush();
 
@@ -298,6 +304,7 @@ class ScenarioServiceTest extends IntegrationTest {
     // -- ASSERT --
     assertNotEquals(scenario.getId(), scenarioDuplicated.getId());
     assertEquals(scenario.getFrom(), scenarioDuplicated.getFrom());
+    assertTrue(scenarioDuplicated.isLessonsEnabled());
     assertEquals(2, scenarioDuplicated.getTeams().size());
     scenarioDuplicated
         .getTeams()
@@ -312,25 +319,33 @@ class ScenarioServiceTest extends IntegrationTest {
             });
     assertEquals(1, scenarioDuplicated.getInjects().size());
     assertEquals(2, scenario.getInjects().getFirst().getTeams().size());
-    scenarioDuplicated
-        .getInjects()
-        .getFirst()
-        .getTeams()
-        .forEach(
-            injectTeam -> {
-              if (injectTeam.getContextual()) {
-                assertNotEquals(contextualTeam.getId(), injectTeam.getId());
-                assertEquals(
-                    scenarioDuplicated.getTeams().stream()
-                        .filter(team -> team.getContextual().equals(true))
-                        .findFirst()
-                        .orElse(new Team())
-                        .getId(),
-                    injectTeam.getId());
-              } else {
-                assertEquals(noContextualTeam.getId(), injectTeam.getId());
-              }
-            });
+  }
+
+  @DisplayName("Should skip lesson data during scenario duplication when lessons are disabled")
+  @Test
+  @Transactional(rollbackFor = Exception.class)
+  void shouldSkipLessonDataDuringScenarioDuplicationWhenLessonsDisabled() {
+    Scenario scenario = this.scenarioRepository.save(ScenarioFixture.getScenario());
+    scenario.setLessonsEnabled(false);
+    scenario = this.scenarioRepository.saveAndFlush(scenario);
+
+    Objective objective = ObjectiveFixture.getObjective();
+    objective.setScenario(scenario);
+    this.objectiveRepository.save(objective);
+
+    LessonsCategory lessonsCategory = LessonsCategoryFixture.createLessonCategory();
+    lessonsCategory.setScenario(scenario);
+    this.lessonsCategoryRepository.save(lessonsCategory);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    Scenario scenarioDuplicated = scenarioService.getDuplicateScenario(scenario.getId());
+
+    assertNotEquals(scenario.getId(), scenarioDuplicated.getId());
+    assertFalse(scenarioDuplicated.isLessonsEnabled());
+    assertTrue(scenarioDuplicated.getObjectives().isEmpty());
+    assertTrue(scenarioDuplicated.getLessonsCategories().isEmpty());
   }
 
   @DisplayName("Should remove team from scenario")

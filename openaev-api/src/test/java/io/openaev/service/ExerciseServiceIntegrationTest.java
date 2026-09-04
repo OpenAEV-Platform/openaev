@@ -6,7 +6,9 @@ import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
 import static io.openaev.utils.fixtures.TeamFixture.getTeam;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
 import io.openaev.api.url_access_token.UrlAccessTokenService;
@@ -30,6 +32,8 @@ import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.LessonsCategoryFixture;
+import io.openaev.utils.fixtures.ObjectiveFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
@@ -71,6 +75,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private ArticleRepository articleRepository;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private TeamRepository teamRepository;
+  @Autowired private ObjectiveRepository objectiveRepository;
 
   @Autowired private AssetRepository assetRepository;
   @Autowired private AssetGroupRepository assetGroupRepository;
@@ -174,6 +179,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     exerciseTeams.add(noContextualTeam);
     Exercise exercise = getExercise(exerciseTeams);
     exercise.setFrom("test@test.com");
+    exercise.setLessonsEnabled(true);
     this.exerciseRepository.save(exercise);
     entityManager.flush();
 
@@ -182,6 +188,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
 
     // -- ASSERT --
     assertNotEquals(exercise.getId(), exerciseDuplicated.getId());
+    assertTrue(exerciseDuplicated.isLessonsEnabled());
     assertEquals(2, exerciseDuplicated.getTeams().size());
     exerciseDuplicated
         .getTeams()
@@ -194,6 +201,33 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
                 assertEquals(noContextualTeam.getId(), team.getId());
               }
             });
+  }
+
+  @DisplayName("Should skip lesson data during exercise duplication when lessons are disabled")
+  @Test
+  @Transactional(rollbackFor = Exception.class)
+  void shouldSkipLessonDataDuringExerciseDuplicationWhenLessonsDisabled() {
+    Exercise exercise = getExercise();
+    exercise.setFrom("test@test.com");
+    exercise.setLessonsEnabled(false);
+    this.exerciseRepository.save(exercise);
+
+    Objective objective = ObjectiveFixture.getObjective();
+    objective.setExercise(exercise);
+    this.objectiveRepository.save(objective);
+
+    LessonsCategory lessonsCategory = LessonsCategoryFixture.createLessonCategory();
+    lessonsCategory.setExercise(exercise);
+    this.lessonsCategoryRepository.save(lessonsCategory);
+
+    entityManager.flush();
+
+    Exercise exerciseDuplicated = exerciseService.getDuplicateExercise(exercise.getId());
+
+    assertNotEquals(exercise.getId(), exerciseDuplicated.getId());
+    assertFalse(exerciseDuplicated.isLessonsEnabled());
+    assertTrue(exerciseDuplicated.getObjectives().isEmpty());
+    assertTrue(exerciseDuplicated.getLessonsCategories().isEmpty());
   }
 
   @DisplayName("Stopping a chained simulation keeps its injects")

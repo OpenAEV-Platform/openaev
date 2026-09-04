@@ -256,36 +256,34 @@ const ExerciseForm: FunctionComponent<Props> = ({
         )}
       />
 
-      {edit && !isChaining && (
-        <>
-          <Typography
-            variant="h2"
-            gutterBottom
-            style={{ marginTop: 40 }}
-          >
-            {t('Modules')}
-          </Typography>
-          <Controller
-            control={control}
-            name="exercise_lessons_enabled"
-            render={({ field }) => (
-              <FormControlLabel
-                control={(
-                  <Switch
-                    checked={field.value ?? false}
-                    onChange={event => field.onChange(event.target.checked)}
-                    disabled={disabled}
-                  />
-                )}
-                label={t('Enable lessons learned')}
-              />
-            )}
-          />
-          <Typography variant="body2" color="textSecondary">
-            {t('Adds a lessons learned tab to collect feedback with objectives and questionnaires.')}
-          </Typography>
-        </>
-      )}
+      <>
+        <Typography
+          variant="h2"
+          gutterBottom
+          style={{ marginTop: 40 }}
+        >
+          {t('Modules')}
+        </Typography>
+        <Controller
+          control={control}
+          name="exercise_lessons_enabled"
+          render={({ field }) => (
+            <FormControlLabel
+              control={(
+                <Switch
+                  checked={field.value ?? false}
+                  onChange={event => field.onChange(event.target.checked)}
+                  disabled={disabled}
+                />
+              )}
+              label={t('Enable lessons learned')}
+            />
+          )}
+        />
+        <Typography variant="body2" color="textSecondary">
+          {t('Adds a lessons learned tab to collect feedback with objectives and questionnaires.')}
+        </Typography>
+      </>
 
       {!isChaining && (
         <>

@@ -21,6 +21,7 @@ import SimulationInjectCreation from './SimulationInjectCreation';
 // injectId="create" and mount the inject detail view (which loads forever). This
 // wrapper reprovides the same contexts the simulation Index gives the create
 // flow and renders inside the shared SimulationShell (breadcrumbs + header +
+
 // tabs), so the experience matches the scenario inject-creation flow: the user
 // keeps the full simulation context on screen while picking a contract.
 const SimulationInjectCreationRoute: FunctionComponent = () => {

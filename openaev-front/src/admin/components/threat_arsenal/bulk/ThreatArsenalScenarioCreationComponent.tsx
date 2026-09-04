@@ -58,6 +58,7 @@ const ThreatArsenalScenarioCreationComponent = ({ isExclusionMode, selectedEleme
     scenario_external_reference: '',
     scenario_external_url: '',
     scenario_tags: [],
+    scenario_lessons_enabled: false,
     scenario_message_header: t('SIMULATION HEADER'),
     scenario_message_footer: t('SIMULATION FOOTER'),
     scenario_mail_from_name: settings.default_mailer ?? '',

@@ -50,6 +50,7 @@ const ExerciseCreation = () => {
     exercise_severity: 'high',
     exercise_default_kill_chain: '',
     exercise_tags: [],
+    exercise_lessons_enabled: false,
     exercise_start_date: null,
     exercise_mail_from_name: settings.default_mailer_name ?? '',
     exercise_mails_reply_to: [settings.default_reply_to ? settings.default_reply_to : ''],

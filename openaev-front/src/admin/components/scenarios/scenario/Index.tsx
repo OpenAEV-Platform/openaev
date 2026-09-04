@@ -28,6 +28,7 @@ import { DocumentContext, type DocumentContextType, InjectContext, PermissionsCo
 import useHasInjectTests from '../../injects/useHasInjectTests';
 import injectContextForScenario from './ScenarioContext';
 import ScenarioHeader from './ScenarioHeader';
+import buildScenarioTabs from './scenarioTabs';
 
 const ScenarioComponent = lazy(() => import('./Scenario'));
 const Injects = lazy(() => import('./injects/ScenarioInjects'));
@@ -125,108 +126,26 @@ const IndexScenarioComponent: FunctionComponent<{
   const [openInstantiateSimulationAndStart, setOpenInstantiateSimulationAndStart] = useState<boolean>(false);
 
   // Chained scenarios expose Scope / Logic / Attack path (workflow-backed); time-based scenarios
-  // keep the classic Injects / Tests / Lessons tab set. Autonomy is a launch-time mode now, so the
-  // AI cockpit lives on the resulting simulation's detail page, never on the reusable scenario.
+  // keep the classic Injects / Tests / Lessons tab set. The Lessons tab is available in both
+  // flows when the scenario has lessons enabled. Autonomy is a launch-time mode now, so the AI
+  // cockpit lives on the resulting simulation's detail page, never on the reusable scenario.
   const renderTabs = () => {
-    if (isChained) {
-      return (
-        <Tabs value={tabValue} variant="scrollable" scrollButtons="auto">
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}`}
-            value={`/admin/scenarios/${scenario.scenario_id}`}
-            label={t('Overview')}
-          />
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/scope`}
-            value={`/admin/scenarios/${scenario.scenario_id}/scope`}
-            label={t('Scope')}
-          />
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/logic`}
-            value={`/admin/scenarios/${scenario.scenario_id}/logic`}
-            label={t('Logic')}
-          />
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
-            value={`/admin/scenarios/${scenario.scenario_id}/attack-path`}
-            label={t('Attack Path')}
-          />
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/execution`}
-            value={`/admin/scenarios/${scenario.scenario_id}/execution`}
-            label={t('Execution')}
-          />
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/findings`}
-            value={`/admin/scenarios/${scenario.scenario_id}/findings`}
-            label={t('Findings')}
-          />
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/statistics`}
-            value={`/admin/scenarios/${scenario.scenario_id}/statistics`}
-            label={t('Statistics')}
-          />
-        </Tabs>
-      );
-    }
     return (
       <Tabs value={tabValue} variant="scrollable" scrollButtons="auto">
-        <Tab
-          component={Link}
-          to={`/admin/scenarios/${scenario.scenario_id}`}
-          value={`/admin/scenarios/${scenario.scenario_id}`}
-          label={t('Overview')}
-        />
-        <Tab
-          component={Link}
-          to={`/admin/scenarios/${scenario.scenario_id}/injects`}
-          value={`/admin/scenarios/${scenario.scenario_id}/injects`}
-          label={t('Injects')}
-        />
-        {hasInjectTests && (
+        {buildScenarioTabs({
+          isChained,
+          hasInjectTests,
+          lessonsEnabled: scenario.scenario_lessons_enabled,
+          t,
+        }).map(([suffix, label]) => (
           <Tab
+            key={suffix}
             component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/tests`}
-            value={`/admin/scenarios/${scenario.scenario_id}/tests`}
-            label={t('Tests')}
+            to={`/admin/scenarios/${scenario.scenario_id}${suffix}`}
+            value={`/admin/scenarios/${scenario.scenario_id}${suffix}`}
+            label={label}
           />
-        )}
-        {/* The lessons learned module is opt-in (scenario configuration). */}
-        {scenario.scenario_lessons_enabled && (
-          <Tab
-            component={Link}
-            to={`/admin/scenarios/${scenario.scenario_id}/lessons`}
-            value={`/admin/scenarios/${scenario.scenario_id}/lessons`}
-            label={t('Lessons learned')}
-          />
-        )}
-        <Tab
-          component={Link}
-          to={`/admin/scenarios/${scenario.scenario_id}/execution`}
-          value={`/admin/scenarios/${scenario.scenario_id}/execution`}
-          label={t('Execution')}
-        />
-        <Tab
-          component={Link}
-          to={`/admin/scenarios/${scenario.scenario_id}/findings`}
-          value={`/admin/scenarios/${scenario.scenario_id}/findings`}
-          label={t('Findings')}
-        />
-        {/* Attack path is a chained-scenario concept (workflow logic):
-            time-based scenarios never get the tab. */}
-        <Tab
-          component={Link}
-          to={`/admin/scenarios/${scenario.scenario_id}/statistics`}
-          value={`/admin/scenarios/${scenario.scenario_id}/statistics`}
-          label={t('Statistics')}
-        />
+        ))}
       </Tabs>
     );
   };

@@ -227,32 +227,30 @@ const ScenarioForm: FunctionComponent<Props> = ({
           label={t('Use the scenario assistant')}
         />
       )}
-      {editing && !isChaining && (
-        <div style={{ marginTop: theme.spacing(2) }}>
-          <Typography variant="h2" gutterBottom>
-            {t('Modules')}
-          </Typography>
-          <Controller
-            control={control}
-            name="scenario_lessons_enabled"
-            render={({ field }) => (
-              <FormControlLabel
-                control={(
-                  <Switch
-                    checked={field.value ?? false}
-                    onChange={event => field.onChange(event.target.checked)}
-                    disabled={disabled}
-                  />
-                )}
-                label={t('Enable lessons learned')}
-              />
-            )}
-          />
-          <Typography variant="body2" color="textSecondary">
-            {t('Adds a lessons learned tab to collect feedback with objectives and questionnaires.')}
-          </Typography>
-        </div>
-      )}
+      <div style={{ marginTop: theme.spacing(2) }}>
+        <Typography variant="h2" gutterBottom>
+          {t('Modules')}
+        </Typography>
+        <Controller
+          control={control}
+          name="scenario_lessons_enabled"
+          render={({ field }) => (
+            <FormControlLabel
+              control={(
+                <Switch
+                  checked={field.value ?? false}
+                  onChange={event => field.onChange(event.target.checked)}
+                  disabled={disabled}
+                />
+              )}
+              label={t('Enable lessons learned')}
+            />
+          )}
+        />
+        <Typography variant="body2" color="textSecondary">
+          {t('Adds a lessons learned tab to collect feedback with objectives and questionnaires.')}
+        </Typography>
+      </div>
       {!isChaining && (
         <>
           <Typography variant="h2" style={{ marginTop: theme.spacing(2) }}>

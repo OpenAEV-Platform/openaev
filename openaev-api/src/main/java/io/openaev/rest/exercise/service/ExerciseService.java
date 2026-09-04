@@ -266,8 +266,10 @@ public class ExerciseService {
     duplicateTeamUsers(exerciseDuplicate, exerciseOrigin, contextualTeams);
     getListOfArticles(exerciseDuplicate, exerciseOrigin);
     getListOfVariables(exerciseDuplicate, exerciseOrigin);
-    getObjectives(exerciseDuplicate, exerciseOrigin);
-    getLessonsCategories(exerciseDuplicate, exerciseOrigin);
+    if (exerciseOrigin.isLessonsEnabled()) {
+      getObjectives(exerciseDuplicate, exerciseOrigin);
+      getLessonsCategories(exerciseDuplicate, exerciseOrigin);
+    }
     return exerciseRepository.save(exerciseDuplicate);
   }
 
@@ -287,6 +289,7 @@ public class ExerciseService {
     exerciseDuplicate.setSubtitle(exerciseOrigin.getSubtitle());
     exerciseDuplicate.setLogoDark(exerciseOrigin.getLogoDark());
     exerciseDuplicate.setLogoLight(exerciseOrigin.getLogoLight());
+    exerciseDuplicate.setLessonsEnabled(exerciseOrigin.isLessonsEnabled());
     exerciseDuplicate.setTags(new HashSet<>(exerciseOrigin.getTags()));
     exerciseDuplicate.setReplyTos(new ArrayList<>(exerciseOrigin.getReplyTos()));
     exerciseDuplicate.setDocuments(new ArrayList<>(exerciseOrigin.getDocuments()));
