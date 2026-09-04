@@ -104,3 +104,4 @@ This starts:
 - [Platform development](platform.md) -- Build and run OpenAEV from source
 - [Build from source](build-from-source.md) -- Detailed build instructions
 - [Prerequisites Ubuntu](environment-ubuntu.md) -- Linux setup instructions
+- [Prerequisites macOS](environment-macos.md) -- macOS setup instructions

@@ -234,6 +234,7 @@ nav:
   - Development:
     - Prerequisites:
       - Ubuntu: development/environment-ubuntu.md
+      - macOS: development/environment-macos.md
       - Windows: development/environment-windows.md
     - Building and running from source: development/build-from-source.md
     - Database migrations: development/database-migrations.md
