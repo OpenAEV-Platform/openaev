@@ -20,8 +20,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
@@ -70,6 +72,15 @@ public class RabbitmqService {
   /** Connection timeout for health check probes, so a degraded broker fails fast. */
   private static final int HEALTH_CHECK_CONNECTION_TIMEOUT_MS = 5_000;
 
+  /** Used when the configured publish timeout is not a strictly positive duration. */
+  private static final long DEFAULT_PUBLISH_TIMEOUT_MS = 30_000;
+
+  /** Used when the database pool size is not a strictly positive count. */
+  private static final int DEFAULT_PUBLISH_THREADS = 20;
+
+  /** Idle publish threads are released rather than kept for the lifetime of the application. */
+  private static final long PUBLISH_THREAD_KEEP_ALIVE_SECONDS = 60;
+
   @Value("${openaev.rabbitmq.publish-timeout-ms:30000}")
   private long publishTimeoutMs;
 
@@ -83,6 +94,58 @@ public class RabbitmqService {
   private final ConnectionFactory connectionFactory;
   private final RabbitmqDriver rabbitmqDriver;
   private final RabbitmqManagementClient managementClient;
+
+  // -- LIFECYCLE --
+
+  /**
+   * Builds the publish executor, after checking the configured values: a non-positive timeout would
+   * make every publish expire on the spot, and a non-positive pool size cannot build an executor at
+   * all. Both fall back to their default rather than taking the platform down at startup.
+   *
+   * <p>The queue is a {@link SynchronousQueue}: a publish is only accepted if a thread can run it
+   * now. Callers therefore fail fast once every thread is stuck on a stalled broker, instead of
+   * piling up tasks that have already timed out on the caller side.
+   */
+  @PostConstruct
+  void initPublishExecutor() {
+    if (publishTimeoutMs <= 0) {
+      log.warn(
+          "openaev.rabbitmq.publish-timeout-ms must be strictly positive, got {}; falling back to"
+              + " {} ms",
+          publishTimeoutMs,
+          DEFAULT_PUBLISH_TIMEOUT_MS);
+      publishTimeoutMs = DEFAULT_PUBLISH_TIMEOUT_MS;
+    }
+    if (publishThreads <= 0) {
+      log.warn(
+          "spring.datasource.hikari.maximum-pool-size must be strictly positive, got {}; sizing the"
+              + " publish executor with {} threads",
+          publishThreads,
+          DEFAULT_PUBLISH_THREADS);
+      publishThreads = DEFAULT_PUBLISH_THREADS;
+    }
+    ThreadPoolExecutor executor =
+        new ThreadPoolExecutor(
+            publishThreads,
+            publishThreads,
+            PUBLISH_THREAD_KEEP_ALIVE_SECONDS,
+            TimeUnit.SECONDS,
+            new SynchronousQueue<>(),
+            runnable -> {
+              Thread thread = new Thread(runnable, "rabbitmq-publish");
+              thread.setDaemon(true);
+              return thread;
+            });
+    executor.allowCoreThreadTimeOut(true);
+    publishExecutor = executor;
+  }
+
+  @PreDestroy
+  void shutdownPublishExecutor() {
+    if (publishExecutor != null) {
+      publishExecutor.shutdownNow();
+    }
+  }
 
   // -- CONFIGURATION --
 
@@ -121,7 +184,8 @@ public class RabbitmqService {
    * @param injectType the type of inject, used to construct the routing key
    * @param publishedJson the JSON payload to publish
    * @throws IOException if an I/O error occurs during publishing
-   * @throws TimeoutException if the connection or publishing times out
+   * @throws TimeoutException if publishing exceeds {@code openaev.rabbitmq.publish-timeout-ms}, or
+   *     if no publish thread is available because the broker is stalling every one of them
    */
   public void publish(String injectType, String publishedJson)
       throws IOException, TimeoutException {
@@ -132,12 +196,24 @@ public class RabbitmqService {
       throw new IllegalArgumentException("publishedJson cannot be null or empty");
     }
 
-    Future<Void> pending =
-        publishExecutor.submit(
-            () -> {
-              doPublish(injectType, publishedJson);
-              return null;
-            });
+    Future<Void> pending;
+    try {
+      pending =
+          publishExecutor.submit(
+              () -> {
+                doPublish(injectType, publishedJson);
+                return null;
+              });
+    } catch (RejectedExecutionException ex) {
+      log.error(
+          "No publish thread available for inject type '{}'; every one of the {} threads is still"
+              + " waiting on RabbitMQ",
+          injectType,
+          publishThreads);
+      TimeoutException saturated = new TimeoutException("No RabbitMQ publish thread available");
+      saturated.initCause(ex);
+      throw saturated;
+    }
     try {
       pending.get(publishTimeoutMs, TimeUnit.MILLISECONDS);
     } catch (TimeoutException ex) {
@@ -186,25 +262,6 @@ public class RabbitmqService {
     } catch (TimeoutException ex) {
       log.error("Timeout while publishing to RabbitMQ for inject type '{}'", injectType, ex);
       throw ex;
-    }
-  }
-
-  @PostConstruct
-  void initPublishExecutor() {
-    publishExecutor =
-        Executors.newFixedThreadPool(
-            publishThreads,
-            runnable -> {
-              Thread thread = new Thread(runnable, "rabbitmq-publish");
-              thread.setDaemon(true);
-              return thread;
-            });
-  }
-
-  @PreDestroy
-  void shutdownPublishExecutor() {
-    if (publishExecutor != null) {
-      publishExecutor.shutdownNow();
     }
   }
 
