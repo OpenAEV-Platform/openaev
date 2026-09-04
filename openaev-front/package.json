@@ -143,7 +143,7 @@
     "monocart-coverage-reports": "2.13.0",
     "monocart-reporter": "2.12.6",
     "swagger-typescript-api": "13.12.6",
-    "typescript": "6.0.3",
+    "typescript": "7.0.2",
     "typescript-eslint": "8.68.0",
     "vite": "8.2.2",
     "vitest": "4.1.11"
