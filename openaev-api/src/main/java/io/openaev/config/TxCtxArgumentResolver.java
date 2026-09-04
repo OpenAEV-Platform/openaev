@@ -77,8 +77,14 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
    * The standard caller-authorized resolution: the caller's rights, not the request, decide the
    * scope. The selector (path tenant / {@code X-Tenant-Ids} / empty) is validated against the
    * caller's memberships by {@link TenantScopeResolver}.
+   *
+   * <p>An anonymous caller is resolved separately by {@link #anonymousScope}: there is no caller
+   * identity to check tenant membership against, so membership validation does not apply to it.
    */
   private TxCtx callerScope(MethodParameter parameter, NativeWebRequest webRequest) {
+    if (SessionHelper.currentUser() instanceof OpenAEVAnonymous) {
+      return anonymousScope(webRequest);
+    }
     Set<String> selector = extractSelector(webRequest);
     Set<String> authorized =
         new LinkedHashSet<>(
@@ -87,6 +93,32 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
       selector = fallbackSelector(authorized);
     }
     return scopeResolver.resolve(selector, authorized);
+  }
+
+  /**
+   * Anonymous-caller resolution for {@code permitAll()} routes (agent installer/package/executable
+   * downloads, phishing tracking, URL-access-token redirect, exercise/scenario player pages,
+   * lessons, challenges - see {@code AppSecurityConfig}). These are reached with no {@link
+   * org.springframework.security.core.Authentication} at all, so there is no principal to look up
+   * tenant memberships for: {@link SessionHelper#currentUser()} returns {@link OpenAEVAnonymous},
+   * whose id is the literal string {@code "anonymous"} and has zero rows in {@code users_tenants}.
+   * Running the caller-authorized path for it would always resolve an empty authorized set, so a
+   * path-addressed tenant (present on every one of these routes) would always be refused with
+   * {@link io.openaev.rest.exception.TenantAccessDeniedException} - a regression from folding
+   * {@link TxCtx} onto endpoints the v1 {@link TenantInterceptor} already made anonymous-safe by
+   * trusting the path tenant outright, without a membership check.
+   *
+   * <p>This mirrors that same, long-standing v1 posture instead of reinventing one: the path
+   * tenant (if the route names one) is trusted directly; deliberately does not consult the {@code
+   * X-Tenant-Ids} header here, since an anonymous caller has no memberships to select from and only
+   * a path-addressed tenant is a well-formed anonymous request. No path tenant resolves to {@link
+   * TxCtx#missing()}, same as a caller-authorized request with an empty authorized set.
+   */
+  private TxCtx anonymousScope(NativeWebRequest webRequest) {
+    String pathTenant = pathTenant(webRequest);
+    return (pathTenant == null || pathTenant.isBlank())
+        ? TxCtx.missing()
+        : TxCtx.forTenant(pathTenant.trim());
   }
 
   /**

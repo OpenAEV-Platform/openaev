@@ -102,7 +102,7 @@ public class ScenarioApi extends RestBehavior {
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
-  public Scenario createScenario(@Valid @RequestBody final ScenarioInput input) {
+  public Scenario createScenario(TxCtx ctx, @Valid @RequestBody final ScenarioInput input) {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
     }
@@ -193,7 +193,7 @@ public class ScenarioApi extends RestBehavior {
   @GetMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
-  public List<ScenarioSimple> scenarios() {
+  public List<ScenarioSimple> scenarios(TxCtx ctx) {
     return this.scenarioService.scenarios();
   }
 
@@ -202,7 +202,7 @@ public class ScenarioApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public Page<RawPaginationScenario> scenarios(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.scenarioService.scenarios(searchPaginationInput);
   }
 
@@ -214,7 +214,7 @@ public class ScenarioApi extends RestBehavior {
       summary = "Get scenarios by their id",
       description = "Get the scenarios with the specified ids if you have the right to see them")
   public List<ScenarioSimple> scenariosById(
-      @RequestBody final GetScenariosInput getScenariosInput) {
+      TxCtx ctx, @RequestBody final GetScenariosInput getScenariosInput) {
     return this.scenarioService.scenarios(getScenariosInput.getScenarioIds());
   }
 
@@ -259,7 +259,7 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public ExpectationsDriftOutput scenarioExpectationsDrift(
-      @PathVariable @NotBlank final String scenarioId) {
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     return expectationsDriftService.scenarioDrift(scenarioId);
   }
 
@@ -281,8 +281,8 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public ExpectationsRealignOutput realignScenarioExpectations(
-      @PathVariable @NotBlank final String scenarioId) {
-    return expectationsDriftService.realignScenario(scenarioId);
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
+    return expectationsDriftService.realignScenario(ctx, scenarioId);
   }
 
   @Operation(
@@ -301,6 +301,7 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public ExpectationsDriftOutput dismissScenarioExpectationsDrift(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ExpectationsDriftDismissInput input) {
     return expectationsDriftService.dismissScenarioDrift(scenarioId, input.dismissed());
@@ -431,7 +432,8 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public List<TeamOutput> scenarioTeams(@PathVariable @NotBlank final String scenarioId) {
+  public List<TeamOutput> scenarioTeams(
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     return this.teamService.find(fromScenario(scenarioId));
   }
 
@@ -445,6 +447,7 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public Iterable<TeamOutput> removeScenarioTeams(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioUpdateTeamsInput input) {
     return this.scenarioService.removeTeams(scenarioId, input.getTeamIds());
@@ -460,6 +463,7 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public List<TeamOutput> replaceScenarioTeams(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final ScenarioUpdateTeamsInput input) {
     return this.scenarioService.replaceTeams(scenarioId, input.getTeamIds());
@@ -474,7 +478,7 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public Iterable<RawPlayer> getPlayersByScenario(@PathVariable String scenarioId) {
+  public Iterable<RawPlayer> getPlayersByScenario(TxCtx ctx, @PathVariable String scenarioId) {
     return userRepository.rawPlayersByScenarioId(scenarioId);
   }
 
@@ -597,7 +601,7 @@ public class ScenarioApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return fromIterable(
             this.scenarioRepository.findAll(
                 byName(searchText), Sort.by(Sort.Direction.ASC, "name")))
@@ -609,7 +613,7 @@ public class ScenarioApi extends RestBehavior {
   @PostMapping({SCENARIO_URI + "/options", TENANT_SCENARIO_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.scenarioRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
@@ -619,7 +623,7 @@ public class ScenarioApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SCENARIO)
   public List<FilterUtilsJpa.Option> categoryOptionsByName(
-      @RequestParam(required = false) final String searchText) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return this.scenarioRepository
         .findDistinctCategoriesBySearchTerm(searchText, PageRequest.of(0, 10))
         .stream()
@@ -701,6 +705,7 @@ public class ScenarioApi extends RestBehavior {
       })
   @Operation(summary = "Check rules", description = "Check if the rules apply to a scenario update")
   public CheckScenarioRulesOutput checkIfRuleApplies(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody final CheckScenarioRulesInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
@@ -723,7 +728,7 @@ public class ScenarioApi extends RestBehavior {
           "Get asset groups. Can only be called if the user has access to the given scenario.",
       description = "Get all asset groups used by injects for a given scenario")
   @Transactional
-  public List<AssetGroup> assetGroups(@PathVariable String scenarioId) {
+  public List<AssetGroup> assetGroups(TxCtx ctx, @PathVariable String scenarioId) {
     return this.assetGroupService.assetGroupsForScenario(scenarioId);
   }
 
@@ -741,6 +746,7 @@ public class ScenarioApi extends RestBehavior {
           "Get asset groups by ids. Can only be called if the user has access to the given scenario.",
       description = "Get all asset groups by ids and used by injects for a given scenario")
   public List<AssetGroupOutput> assetGroupsByIds(
+      TxCtx ctx,
       @PathVariable String scenarioId,
       @RequestBody @Valid @NotNull final List<String> assetGroupIds) {
     return this.assetGroupService.assetGroupsByIdsForScenario(scenarioId, assetGroupIds);
@@ -758,7 +764,7 @@ public class ScenarioApi extends RestBehavior {
       summary = "Get channels. Can only be called if the user has access to the given scenario.",
       description = "Get all channels used by articles for a given scenario")
   @Transactional
-  public Iterable<Channel> channels(@PathVariable String scenarioId) {
+  public Iterable<Channel> channels(TxCtx ctx, @PathVariable String scenarioId) {
     return this.channelService.channelsForScenario(scenarioId);
   }
 
@@ -814,7 +820,7 @@ public class ScenarioApi extends RestBehavior {
       summary = "Get documents. Can only be called if the user has access to the given scenario.",
       description = "Get all documents used by injects for a given scenario")
   @Transactional
-  public List<Document> documents(@PathVariable String scenarioId) {
+  public List<Document> documents(TxCtx ctx, @PathVariable String scenarioId) {
     return this.documentService.documentsForScenario(scenarioId);
   }
 

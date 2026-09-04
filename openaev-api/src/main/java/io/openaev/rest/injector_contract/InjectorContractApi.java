@@ -103,7 +103,7 @@ public class InjectorContractApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public List<InjectorContractDomainCountOutput> getDomainCounts(
-      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+      TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
     return injectorContractService.getDomainCounts(filtered);
   }
@@ -141,7 +141,7 @@ public class InjectorContractApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(
-      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+      TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
     return injectorContractService.getAuthorCounts(filtered);
   }

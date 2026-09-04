@@ -210,7 +210,7 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public Iterable<Team> exerciseInjectTeams(
-      @PathVariable String exerciseId, @PathVariable String injectId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
     return simulationInjectService.findInjectTeamsForSimulation(exerciseId, injectId);
   }
 
@@ -224,7 +224,7 @@ public class SimulationInjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public Iterable<Communication> exerciseInjectCommunications(
-      @PathVariable String exerciseId, @PathVariable String injectId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
     return simulationInjectService.findAndAckCommunicationsForSimulation(exerciseId, injectId);
   }
 
@@ -465,10 +465,11 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @LogExecutionTime
   public List<Inject> bulkDeleteInjectsForSimulation(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @RequestBody @Valid final InjectBulkProcessingInput input) {
     input.setSimulationOrScenarioId(exerciseId);
-    return bulkInjectService.bulkDeleteWithMonitoring(input);
+    return bulkInjectService.bulkDeleteWithMonitoring(ctx, input);
   }
 
   // -- DELETE --
@@ -482,7 +483,8 @@ public class SimulationInjectApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  public void deleteInject(@PathVariable String exerciseId, @PathVariable String injectId) {
+  public void deleteInject(
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
     this.simulationInjectService.deleteInject(exerciseId, injectId);
   }
 

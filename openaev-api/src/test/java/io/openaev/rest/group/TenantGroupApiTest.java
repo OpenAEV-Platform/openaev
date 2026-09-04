@@ -854,19 +854,21 @@ public class TenantGroupApiTest extends IntegrationTest {
       TenantGroupCreateInput input = new TenantGroupCreateInput();
       input.setName("Isolated Group");
 
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/groups")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String groupId = JsonPath.read(createResponse, "$.group_id");
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the read call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String groupId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO groups (group_id, group_name, tenant_id)"
+                  + " VALUES (CAST(:id AS uuid), :name, CAST(:tenant AS uuid))")
+          .setParameter("id", groupId)
+          .setParameter("name", input.getName())
+          .setParameter("tenant", tenantX.getId())
+          .executeUpdate();
+      entityManager.flush();
+      entityManager.clear();
 
       // -------- Act — read from tenant Y (expect 403 or 404 — both mean isolation works) --------
       int status =

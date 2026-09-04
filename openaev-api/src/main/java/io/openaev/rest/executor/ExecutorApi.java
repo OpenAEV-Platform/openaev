@@ -266,6 +266,7 @@ public class ExecutorApi extends RestBehavior {
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevAgentExecutable(
+      TxCtx ctx,
       @Parameter(
               description =
                   "Target platform for the agent installation (e.g., windows, linux, mac). Case insensitive.",
@@ -335,6 +336,7 @@ public class ExecutorApi extends RestBehavior {
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevAgentPackage(
+      TxCtx ctx,
       @Parameter(
               description =
                   "Target platform for the agent package (e.g., windows, linux, mac). Case insensitive.",
@@ -415,6 +417,7 @@ public class ExecutorApi extends RestBehavior {
       })
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstaller(
+      TxCtx ctx,
       @Parameter(
               description =
                   "Target platform for the agent installation (e.g., windows, linux, mac). Case insensitive.",

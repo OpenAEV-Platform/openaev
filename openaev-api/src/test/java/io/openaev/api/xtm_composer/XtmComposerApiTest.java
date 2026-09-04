@@ -408,6 +408,23 @@ public class XtmComposerApiTest extends IntegrationTest {
         assertTrue(instanceDb.isPresent());
         assertEquals(
             instanceDb.get().getCurrentStatus(), ConnectorInstance.CURRENT_STATUS_TYPE.started);
+      }
+
+      @Test
+      @DisplayName("Given a running instance, stopped status should update instance")
+      void givenRunningInstance_should_updateInstanceToStopped() throws Exception {
+        // Arrange - instance already "started", set directly instead of through a first API call:
+        // a second mvc.perform call in this same test-wrapped transaction would otherwise ask the
+        // transaction-scope aspect to re-resolve the caller's TxCtx a second time within the same
+        // physical transaction (see TenantScopeTransactionAspect); one HTTP call per test keeps
+        // each test's tenant scope resolution single and deterministic.
+        ConnectorInstancePersisted instance = getConnectorInstance("Microsoft defender collector");
+        instance.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.started);
+        connectorInstanceRepository.save(instance);
+        Map<String, String> composerSettings = new HashMap<>();
+        composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
+        composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
+        platformSettingsService.saveSettings(composerSettings);
 
         XtmComposerUpdateStatusInput input2 = new XtmComposerUpdateStatusInput();
         input2.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);

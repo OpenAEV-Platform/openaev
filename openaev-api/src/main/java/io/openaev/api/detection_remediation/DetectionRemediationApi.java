@@ -6,6 +6,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.detection_remediation.dto.DetectionRemediationAIOutput;
 import io.openaev.api.detection_remediation.dto.PayloadInput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.payload.form.DetectionRemediationInput;
@@ -50,7 +51,7 @@ public class DetectionRemediationApi {
   @GetMapping({DETECTION_REMEDIATION_URI + "/health", TENANT_DETECTION_REMEDIATION_URI + "/health"})
   @LogExecutionTime
   @AccessControl(skipRBAC = true)
-  public ResponseEntity<DetectionRemediationHealthResponse> checkHealth() {
+  public ResponseEntity<DetectionRemediationHealthResponse> checkHealth(TxCtx ctx) {
     return ResponseEntity.ok(detectionRemediationService.checkHealthWebservice());
   }
 
@@ -81,6 +82,7 @@ public class DetectionRemediationApi {
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.THREAT_ARSENAL)
   public ResponseEntity<DetectionRemediationAIOutput> postRuleDetectionRemediation(
+      TxCtx ctx,
       @PathVariable @NotBlank final String securityPlatformId,
       @Valid @RequestBody PayloadInput input) {
     if (input.getType().equals(FileDrop.FILE_DROP_TYPE)
@@ -153,6 +155,7 @@ public class DetectionRemediationApi {
   @Transactional
   public ResponseEntity<DetectionRemediationOutput>
       postRuleDetectionRemediationByInjectIdAndSecurityPlatformId(
+          TxCtx ctx,
           @PathVariable @NotBlank String injectId,
           @PathVariable @NotBlank String securityPlatformId,
           @RequestParam(value = "agent_slug", required = false) String agentSlug) {

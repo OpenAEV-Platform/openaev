@@ -6,6 +6,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.UserRepository;
@@ -49,7 +50,7 @@ public class ScenarioChallengesApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public List<Document> playerDocuments(
-      @PathVariable String scenarioId, @RequestParam Optional<String> userId)
+      TxCtx ctx, @PathVariable String scenarioId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
     Optional<Scenario> scenarioOpt =
         this.scenarioRepository.findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant());
@@ -74,7 +75,7 @@ public class ScenarioChallengesApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public ScenarioChallengesReader observerChallenges(@PathVariable String scenarioId) {
+  public ScenarioChallengesReader observerChallenges(TxCtx ctx, @PathVariable String scenarioId) {
     Scenario scenario =
         scenarioRepository
             .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())

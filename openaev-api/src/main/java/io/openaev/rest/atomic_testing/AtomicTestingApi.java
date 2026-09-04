@@ -59,7 +59,7 @@ public class AtomicTestingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(readOnly = true)
   public Page<InjectResultOutput> findAllAtomicTestings(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return atomicTestingService.searchAtomicTestingsForCurrentUser(searchPaginationInput);
   }
 
@@ -129,7 +129,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.INJECT)
-  public void deleteAtomicTesting(@PathVariable @NotBlank final String injectId) {
+  public void deleteAtomicTesting(TxCtx ctx, @PathVariable @NotBlank final String injectId) {
     atomicTestingService.deleteAtomicTesting(injectId);
   }
 
@@ -143,8 +143,8 @@ public class AtomicTestingApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.ATOMIC_TESTING)
   public List<String> bulkDeleteAtomicTestings(
-      @RequestBody @Valid final InjectBulkProcessingInput input) {
-    return atomicTestingService.bulkDelete(input);
+      TxCtx ctx, @RequestBody @Valid final InjectBulkProcessingInput input) {
+    return atomicTestingService.bulkDelete(ctx, input);
   }
 
   @PostMapping("/{atomicTestingId}/duplicate")
@@ -173,7 +173,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public ExpectationsDriftOutput atomicTestingExpectationsDrift(
-      @PathVariable @NotBlank final String injectId) {
+      TxCtx ctx, @PathVariable @NotBlank final String injectId) {
     return expectationsDriftService.injectDrift(injectId);
   }
 
@@ -191,8 +191,8 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public ExpectationsRealignOutput realignAtomicTestingExpectations(
-      @PathVariable @NotBlank final String injectId) {
-    return expectationsDriftService.realignInject(injectId);
+      TxCtx ctx, @PathVariable @NotBlank final String injectId) {
+    return expectationsDriftService.realignInject(ctx, injectId);
   }
 
   @Operation(
@@ -208,6 +208,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public ExpectationsDriftOutput dismissAtomicTestingExpectationsDrift(
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final ExpectationsDriftDismissInput input) {
     return expectationsDriftService.dismissInjectDrift(injectId, input.dismissed());
@@ -268,6 +269,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<InjectExpectationOutput> findTargetResult(
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetId,
       @PathVariable String targetType,
@@ -292,6 +294,7 @@ public class AtomicTestingApi extends RestBehavior {
             description = "The list of the agents injects expectations")
       })
   public List<InjectExpectationAgentOutput> findTargetResultAssetWithAgents(
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetId,
       @RequestParam @NotBlank String expectationType) {
@@ -324,6 +327,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<InjectExpectationOutput> findTargetResultMerged(
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetId,
       @PathVariable String targetType) {
@@ -362,7 +366,7 @@ public class AtomicTestingApi extends RestBehavior {
             description = "The list of Security platforms used in an atomic testing remediation")
       })
   public List<SecurityPlatformSimpleOutput> securityPlatformsFromAtomicTesting(
-      @PathVariable String injectId) {
+      TxCtx ctx, @PathVariable String injectId) {
     return SecurityPlatformMapper.toSimpleOutputs(
         detectionRemediationService.securityPlatformsForInject(injectId));
   }

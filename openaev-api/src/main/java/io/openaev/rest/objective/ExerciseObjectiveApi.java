@@ -7,6 +7,7 @@ import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ExerciseRepository;
@@ -45,7 +46,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public Iterable<Objective> getMainObjectives(@PathVariable String exerciseId) {
+  public Iterable<Objective> getMainObjectives(TxCtx ctx, @PathVariable String exerciseId) {
     return objectiveRepository.findAll(ObjectiveSpecification.fromExercise(exerciseId));
   }
 
@@ -59,7 +60,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Objective createObjective(
-      @PathVariable String exerciseId, @Valid @RequestBody ObjectiveInput input) {
+      TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody ObjectiveInput input) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
@@ -80,6 +81,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public Objective updateObjective(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String objectiveId,
       @Valid @RequestBody ObjectiveInput input) {
@@ -98,7 +100,8 @@ public class ExerciseObjectiveApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  public void deleteObjective(@PathVariable String exerciseId, @PathVariable String objectiveId) {
+  public void deleteObjective(
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String objectiveId) {
     objectiveRepository.deleteById(objectiveId);
   }
 
@@ -115,7 +118,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Evaluation getEvaluation(
-      @PathVariable String exerciseId, @PathVariable String evaluationId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String evaluationId) {
     return evaluationRepository.findById(evaluationId).orElseThrow(ElementNotFoundException::new);
   }
 
@@ -129,7 +132,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Iterable<Evaluation> getEvaluations(
-      @PathVariable String exerciseId, @PathVariable String objectiveId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String objectiveId) {
     return evaluationRepository.findAll(EvaluationSpecification.fromObjective(objectiveId));
   }
 
@@ -143,6 +146,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Evaluation createEvaluation(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String objectiveId,
       @Valid @RequestBody EvaluationInput input) {
@@ -176,6 +180,7 @@ public class ExerciseObjectiveApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public Evaluation updateEvaluation(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String objectiveId,
       @PathVariable String evaluationId,
@@ -206,7 +211,8 @@ public class ExerciseObjectiveApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  public void deleteEvaluation(@PathVariable String exerciseId, @PathVariable String evaluationId) {
+  public void deleteEvaluation(
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String evaluationId) {
     evaluationRepository.deleteById(evaluationId);
   }
   // endregion

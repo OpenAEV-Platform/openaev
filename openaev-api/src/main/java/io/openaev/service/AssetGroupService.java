@@ -6,6 +6,7 @@ import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static java.time.Instant.now;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.specification.EndpointSpecification;
@@ -138,7 +139,8 @@ public class AssetGroupService {
    * @param input the bulk processing input (ids or search input, plus ids to ignore)
    * @return the ids of the deleted asset groups
    */
-  public List<String> bulkDeleteAssetGroups(@NotNull final AssetGroupBulkProcessingInput input) {
+  public List<String> bulkDeleteAssetGroups(
+      final TxCtx ctx, @NotNull final AssetGroupBulkProcessingInput input) {
     if ((CollectionUtils.isEmpty(input.getAssetGroupIdsToProcess())
             && input.getSearchPaginationInput() == null)
         || (!CollectionUtils.isEmpty(input.getAssetGroupIdsToProcess())
@@ -148,6 +150,7 @@ public class AssetGroupService {
     }
     List<String> assetGroupIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
+            ctx,
             () -> {
               Specification<AssetGroup> specification;
               if (input.getSearchPaginationInput() != null) {
@@ -170,6 +173,7 @@ public class AssetGroupService {
                   .toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
+        ctx,
         "asset groups",
         assetGroupIdsToDelete,
         chunk -> this.assetGroupRepository.deleteAll(this.assetGroupRepository.findAllById(chunk)));

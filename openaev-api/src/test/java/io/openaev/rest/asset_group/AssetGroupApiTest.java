@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.json.JSONArray;
 import org.junit.jupiter.api.*;
@@ -748,15 +749,18 @@ class AssetGroupApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_ASSETS));
 
-      AssetGroupInput input = createDefaultAssetGroupInput("CrossTenantSearchAssetGroup");
-
-      mvc.perform(
-              post("/api/tenants/" + tenantX.getId() + "/asset_groups")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the search call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO asset_groups (asset_group_id, asset_group_name, tenant_id)"
+                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
+          .setParameter("id", UUID.randomUUID().toString())
+          .setParameter("name", "CrossTenantSearchAssetGroup")
+          .setParameter("tenant", tenantX.getId())
+          .executeUpdate();
 
       // Evict L1 cache
       entityManager.flush();

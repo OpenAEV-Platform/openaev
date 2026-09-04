@@ -150,12 +150,14 @@ public class InjectApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExportFromSearch(
-      @RequestBody @Valid InjectExportFromSearchRequestInput input, HttpServletResponse response)
+      TxCtx ctx,
+      @RequestBody @Valid InjectExportFromSearchRequestInput input,
+      HttpServletResponse response)
       throws IOException {
 
     // Control and format inputs
     List<Inject> injects =
-        getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.OBSERVER);
+        getInjectsAndCheckInputForBulkProcessing(ctx, input, Grant.GRANT_TYPE.OBSERVER);
 
     if (injects.isEmpty()) {
       throw new ElementNotFoundException("No injects to export");
@@ -174,6 +176,7 @@ public class InjectApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
   public void injectsExport(
+      TxCtx ctx,
       @RequestBody @Valid final InjectExportRequestInput injectExportRequestInput,
       HttpServletResponse response)
       throws IOException {
@@ -221,6 +224,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public void injectsIndividualExport(
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @RequestBody @Valid
           final InjectIndividualExportRequestInput injectIndividualExportRequestInput,
@@ -323,6 +327,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> targetOptions(
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetType,
       @RequestParam(required = false) final String searchText) {
@@ -363,7 +368,7 @@ public class InjectApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> targetOptionsById(
-      @PathVariable String targetType, @RequestBody final List<String> ids) {
+      TxCtx ctx, @PathVariable String targetType, @RequestBody final List<String> ids) {
     TargetType injectTargetTypeEnum;
 
     try {
@@ -482,7 +487,9 @@ public class InjectApi extends RestBehavior {
           "This endpoint is invoked by implants to retrieve a payload command that's pre-configured and ready for execution.")
   @Transactional
   public Payload getExecutablePayloadInject(
-      @PathVariable @NotBlank final String injectId, @PathVariable @NotBlank final String agentId)
+      TxCtx ctx,
+      @PathVariable @NotBlank final String injectId,
+      @PathVariable @NotBlank final String agentId)
       throws Exception {
     return executableInjectService.getExecutablePayloadAndUpdateInjectStatus(injectId, agentId);
   }
@@ -571,6 +578,7 @@ public class InjectApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> optionsByTitleLinkedToFindings(
+      TxCtx ctx,
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId) {
     return injectService.getOptionsByNameLinkedToFindings(
@@ -580,7 +588,7 @@ public class InjectApi extends RestBehavior {
   @PostMapping({INJECT_URI + "/options", TENANT_INJECT_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.injectRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getTitle()))
         .toList();
@@ -595,7 +603,7 @@ public class InjectApi extends RestBehavior {
    * @throws BadRequestException If the input is not correctly formatted
    */
   private List<Inject> getInjectsAndCheckInputForBulkProcessing(
-      InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
+      TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     if ((CollectionUtils.isEmpty(input.getInjectIDsToProcess())
             && (input.getSearchPaginationInput() == null))
@@ -607,7 +615,7 @@ public class InjectApi extends RestBehavior {
 
     // Retrieve injects that match the search input and check that the user is allowed to bulk
     // process them
-    return this.injectService.getInjectsAndCheckPermission(input, requested_grant_level);
+    return this.injectService.getInjectsAndCheckPermission(ctx, input, requested_grant_level);
   }
 
   // -- Execution Traces
@@ -622,6 +630,7 @@ public class InjectApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @LogExecutionTime
   public List<ExecutionTraceOutput> getInjectTracesFromInjectAndTarget(
+      TxCtx ctx,
       @RequestParam String injectId,
       @RequestParam String targetId,
       @RequestParam TargetType targetType) {
@@ -638,7 +647,7 @@ public class InjectApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @LogExecutionTime
   public InjectStatusOutput getInjectStatusWithGlobalExecutionTraces(
-      @RequestParam String injectId) {
+      TxCtx ctx, @RequestParam String injectId) {
     return this.injectService.getInjectStatusWithGlobalExecutionTraces(injectId);
   }
 
@@ -653,7 +662,8 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   @LogExecutionTime
-  public InjectStatusOutput getInjectStatusWithAllExecutionTraces(@RequestParam String injectId) {
+  public InjectStatusOutput getInjectStatusWithAllExecutionTraces(
+      TxCtx ctx, @RequestParam String injectId) {
     return this.injectService.getInjectStatusWithAllExecutionTraces(injectId);
   }
 
@@ -668,7 +678,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<DetectionRemediationOutput> getPayloadDetectionRemediations(
-      @PathVariable String injectId) {
+      TxCtx ctx, @PathVariable String injectId) {
     return payloadMapper.toDetectionRemediationOutputs(
         injectService.fetchDetectionRemediationsByInjectId(injectId));
   }
@@ -684,7 +694,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<RawDocument> getPayloadDocumentsByInjectIdAndPayloadId(
-      @PathVariable String injectId, @PathVariable String payloadId) {
+      TxCtx ctx, @PathVariable String injectId, @PathVariable String payloadId) {
     Payload payload = injectService.getPayloadByInjectId(injectId);
 
     if (!payloadId.equals(payload.getId())) {

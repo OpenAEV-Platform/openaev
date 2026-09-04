@@ -57,7 +57,7 @@ public class SimulationChallengeApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(readOnly = true)
   public Iterable<ChallengeOutput> exerciseChallenges(
-      @PathVariable @NotBlank final String exerciseId) {
+      TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
     List<Inject> injects =
         this.injectRepository.findAll(
             InjectSpecification.fromSimulation(exerciseId)
@@ -100,7 +100,7 @@ public class SimulationChallengeApi extends RestBehavior {
   @UrlAccessControl(exerciseId = "#simulationId", userId = "#userId")
   @AccessControl(skipRBAC = true)
   public List<Document> playerDocuments(
-      @PathVariable String simulationId, @RequestParam Optional<String> userId)
+      TxCtx ctx, @PathVariable String simulationId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
     Optional<Exercise> exerciseOpt =
         this.exerciseRepository.findByIdAndTenantId(simulationId, TenantContext.getCurrentTenant());
@@ -125,7 +125,8 @@ public class SimulationChallengeApi extends RestBehavior {
       resourceId = "#simulationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public SimulationChallengesReader observerChallenges(@PathVariable String simulationId) {
+  public SimulationChallengesReader observerChallenges(
+      TxCtx ctx, @PathVariable String simulationId) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(simulationId, TenantContext.getCurrentTenant())
@@ -148,7 +149,7 @@ public class SimulationChallengeApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#simulationId", userId = "#userId")
   public SimulationChallengesReader playerChallenges(
-      @PathVariable String simulationId, @RequestParam Optional<String> userId)
+      TxCtx ctx, @PathVariable String simulationId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
     final User user = impersonateUser(userRepository, userId);
     return challengeService.playerChallenges(simulationId, user);

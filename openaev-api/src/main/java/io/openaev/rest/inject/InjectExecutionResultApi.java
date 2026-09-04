@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.inject_result.dto.InjectResultPayloadExecutionOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -38,6 +39,7 @@ public class InjectExecutionResultApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public InjectResultPayloadExecutionOutput injectExecutionResultPayload(
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @RequestParam @NotBlank final String targetId,
       @RequestParam @NotNull final TargetType targetType) {

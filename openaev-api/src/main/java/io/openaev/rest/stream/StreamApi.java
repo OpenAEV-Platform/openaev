@@ -405,6 +405,10 @@ public class StreamApi extends RestBehavior {
       produces = MediaType.TEXT_EVENT_STREAM_VALUE)
   @AccessControl(
       skipRBAC = true) // TODO RBAC check must be done manually for every event in this method
+  // No TxCtx here on purpose: propagation = NEVER guarantees no transaction is ever active for
+  // this method, so TenantScopeTransactionAspect's set_config(..., true) would have no
+  // transaction to scope (a silent no-op at best). The method also touches no v2-active table -
+  // it only merges in-memory event fluxes - so there is nothing here that needs scoping.
   @Transactional(
       propagation = Propagation.NEVER) // Don't start a transaction for the stream, it will be async
   public ResponseEntity<Flux<Object>> streamFlux() {

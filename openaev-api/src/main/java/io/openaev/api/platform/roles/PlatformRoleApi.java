@@ -3,6 +3,7 @@ package io.openaev.api.platform.roles;
 import static io.openaev.rest.role.form.RoleMapper.toOutput;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -38,7 +39,7 @@ public class PlatformRoleApi extends RestBehavior {
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Create a platform role")
-  public RoleOutput create(@Valid @RequestBody RoleInput input) {
+  public RoleOutput create(TxCtx ctx, @Valid @RequestBody RoleInput input) {
     return toOutput(
         platformRoleService.createPlatformRole(
             input.name(), input.description(), input.capabilities()));
@@ -54,8 +55,21 @@ public class PlatformRoleApi extends RestBehavior {
   @GetMapping("/{platformRoleId}")
   @Transactional
   @Operation(summary = "Get platform role by ID")
-  public RoleOutput findById(@PathVariable String platformRoleId) {
+  public RoleOutput findById(TxCtx ctx, @PathVariable String platformRoleId) {
     return toOutput(platformRoleService.findById(platformRoleId));
+  }
+
+  @Operation(summary = "Get capabilities of a platform role")
+  @Transactional
+  @AccessControl(
+      resourceId = "#platformRoleId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.PLATFORM_ROLE,
+      isEnterpriseEdition = true)
+  @GetMapping("/{platformRoleId}/capabilities")
+  public java.util.Set<io.openaev.database.model.Capability> findCapabilities(
+      TxCtx ctx, @PathVariable String platformRoleId) {
+    return platformRoleService.findById(platformRoleId).getCapabilities();
   }
 
   @AccessControl(
@@ -66,7 +80,7 @@ public class PlatformRoleApi extends RestBehavior {
   @Transactional
   @Operation(summary = "Search platform roles")
   public Page<RoleOutput> search(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return platformRoleService.search(searchPaginationInput).map(RoleMapper::toOutput);
   }
 
@@ -77,7 +91,7 @@ public class PlatformRoleApi extends RestBehavior {
   @PostMapping("/find")
   @Transactional
   @Operation(summary = "Find platform roles by IDs")
-  public List<RoleOutput> find(@RequestBody @Valid final List<String> ids) {
+  public List<RoleOutput> find(TxCtx ctx, @RequestBody @Valid final List<String> ids) {
     return platformRoleService.findByIds(ids).stream().map(RoleMapper::toOutput).toList();
   }
 
@@ -92,7 +106,7 @@ public class PlatformRoleApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Update a platform role")
   public RoleOutput update(
-      @PathVariable String platformRoleId, @Valid @RequestBody RoleInput input) {
+      TxCtx ctx, @PathVariable String platformRoleId, @Valid @RequestBody RoleInput input) {
     return toOutput(
         platformRoleService.updatePlatformRole(
             platformRoleId, input.name(), input.description(), input.capabilities()));
@@ -109,7 +123,7 @@ public class PlatformRoleApi extends RestBehavior {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Delete a platform role")
-  public void delete(@PathVariable String platformRoleId) {
+  public void delete(TxCtx ctx, @PathVariable String platformRoleId) {
     platformRoleService.delete(platformRoleId);
   }
 }

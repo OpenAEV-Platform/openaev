@@ -18,6 +18,9 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
+import io.openaev.database.repository.TenantRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -45,6 +48,8 @@ public class TenantUserApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private io.openaev.service.UserService userService;
+  @Autowired private UserRepository userRepository;
+  @Autowired private TenantRepository tenantRepository;
 
   private static UserInput userInput() {
     return new UserInput(
@@ -299,18 +304,17 @@ public class TenantUserApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", java.util.Set.of(Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES));
 
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/users")
-                      .content(asJsonString(userInput()))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String userId = JsonPath.read(createResponse, "$.user_id");
+      // Seeded directly (JPA save + tenant-join insert), not through the create endpoint:
+      // creating under tenant X's path would set the tenant scope (TxCtx) to X on this test's
+      // wrapping transaction, and the list call below sets it to Y - the aspect refuses a scope
+      // change within one transaction (see TenantScopeTransactionAspect). Seeding bypasses that
+      // entirely.
+      User user = userRepository.save(UserFixture.getUserWithDefaultEmail());
+      tenantRepository.addUserToTenant(user.getId(), tenantX.getId());
+      String userId = user.getId();
+
+      entityManager.flush();
+      entityManager.clear();
 
       String listResponse =
           mvc.perform(

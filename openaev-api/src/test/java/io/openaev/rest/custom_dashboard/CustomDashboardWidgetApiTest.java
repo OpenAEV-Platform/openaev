@@ -247,42 +247,14 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
 
-      CustomDashboardInput dashboardInput = new CustomDashboardInput();
-      dashboardInput.setName("Tenant X Dashboard Read Isolation");
-      String dashboardResponse =
-          mockMvc
-              .perform(
-                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId()))
-                      .content(asJsonString(dashboardInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String dashboardId = JsonPath.read(dashboardResponse, "$.custom_dashboard_id");
-
-      WidgetInput widgetInput = createDefaultWidgetInput("Tenant X widget");
-      String widgetResponse =
-          mockMvc
-              .perform(
-                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId())
-                          + "/"
-                          + dashboardId
-                          + "/widgets")
-                      .content(asJsonString(widgetInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String widgetId = JsonPath.read(widgetResponse, "$.widget_id");
-
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded via composer under tenant X's context, not through the create endpoints: creating
+      // via the API would set the tenant scope (TxCtx) to X on this test's wrapping transaction,
+      // and the read call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Composer persistence bypasses that
+      // entirely (no controller/TxCtx involved).
+      Widget widget = seedWidgetInTenant(tenantX);
+      String dashboardId = widget.getCustomDashboard().getId();
+      String widgetId = widget.getId();
 
       // Act
       int response =
@@ -367,37 +339,13 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
 
-      CustomDashboardInput dashboardInput = new CustomDashboardInput();
-      dashboardInput.setName("Tenant X Dashboard List Isolation");
-      String dashboardResponse =
-          mockMvc
-              .perform(
-                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId()))
-                      .content(asJsonString(dashboardInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String dashboardId = JsonPath.read(dashboardResponse, "$.custom_dashboard_id");
-
-      WidgetInput widgetInput = createDefaultWidgetInput("Widget hidden from tenant Y");
-      mockMvc
-          .perform(
-              post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId())
-                      + "/"
-                      + dashboardId
-                      + "/widgets")
-                  .content(asJsonString(widgetInput))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
-
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded via composer under tenant X's context, not through the create endpoints: creating
+      // via the API would set the tenant scope (TxCtx) to X on this test's wrapping transaction,
+      // and the list call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Composer persistence bypasses that
+      // entirely (no controller/TxCtx involved).
+      Widget widget = seedWidgetInTenant(tenantX);
+      String dashboardId = widget.getCustomDashboard().getId();
 
       // Act + Assert
       mockMvc
@@ -422,42 +370,14 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
 
-      CustomDashboardInput dashboardInput = new CustomDashboardInput();
-      dashboardInput.setName("Tenant X Dashboard Update Isolation");
-      String dashboardResponse =
-          mockMvc
-              .perform(
-                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId()))
-                      .content(asJsonString(dashboardInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String dashboardId = JsonPath.read(dashboardResponse, "$.custom_dashboard_id");
-
-      WidgetInput createWidgetInput = createDefaultWidgetInput("Update isolation widget");
-      String widgetResponse =
-          mockMvc
-              .perform(
-                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId())
-                          + "/"
-                          + dashboardId
-                          + "/widgets")
-                      .content(asJsonString(createWidgetInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String widgetId = JsonPath.read(widgetResponse, "$.widget_id");
-
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded via composer under tenant X's context, not through the create endpoints: creating
+      // via the API would set the tenant scope (TxCtx) to X on this test's wrapping transaction,
+      // and the update call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Composer persistence bypasses that
+      // entirely (no controller/TxCtx involved).
+      Widget widget = seedWidgetInTenant(tenantX);
+      String dashboardId = widget.getCustomDashboard().getId();
+      String widgetId = widget.getId();
 
       WidgetInput updateWidgetInput = createDefaultWidgetInput("Hijacked widget title");
 
@@ -493,42 +413,14 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.DELETE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
 
-      CustomDashboardInput dashboardInput = new CustomDashboardInput();
-      dashboardInput.setName("Tenant X Dashboard Delete Isolation");
-      String dashboardResponse =
-          mockMvc
-              .perform(
-                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId()))
-                      .content(asJsonString(dashboardInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String dashboardId = JsonPath.read(dashboardResponse, "$.custom_dashboard_id");
-
-      WidgetInput widgetInput = createDefaultWidgetInput("Delete isolation widget");
-      String widgetResponse =
-          mockMvc
-              .perform(
-                  post(TENANT_CUSTOM_DASHBOARDS_URI.replace("{tenantId}", tenantX.getId())
-                          + "/"
-                          + dashboardId
-                          + "/widgets")
-                      .content(asJsonString(widgetInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String widgetId = JsonPath.read(widgetResponse, "$.widget_id");
-
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded via composer under tenant X's context, not through the create endpoints: creating
+      // via the API would set the tenant scope (TxCtx) to X on this test's wrapping transaction,
+      // and the delete call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Composer persistence bypasses that
+      // entirely (no controller/TxCtx involved).
+      Widget widget = seedWidgetInTenant(tenantX);
+      String dashboardId = widget.getCustomDashboard().getId();
+      String widgetId = widget.getId();
 
       // Act
       int response =
@@ -547,6 +439,27 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
 
       // Assert
       assertThat(response).isEqualTo(0);
+    }
+
+    /**
+     * Seeds a widget (with its own custom dashboard) via composers under the given tenant's context
+     * instead of through the create endpoints: creating through the API sets the tenant scope
+     * (TxCtx) on this test's wrapping transaction, which conflicts with a subsequent call scoped to
+     * a different tenant within the same test (see TenantScopeTransactionAspect). Composer
+     * persistence goes straight to the repository, bypassing any controller/TxCtx.
+     */
+    private Widget seedWidgetInTenant(Tenant tenant) {
+      tenantIsolationHelper.switchToTenant(tenant.getId(), entityManager);
+      Widget widget =
+          widgetComposer
+              .forWidget(createDefaultWidget())
+              .withCustomDashboard(
+                  customDashboardComposer.forCustomDashboard(createDefaultCustomDashboard()))
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+      return widget;
     }
   }
 }

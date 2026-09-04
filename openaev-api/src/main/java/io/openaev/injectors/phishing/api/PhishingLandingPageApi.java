@@ -40,7 +40,7 @@ public class PhishingLandingPageApi extends RestBehavior {
   @GetMapping({PHISHING_LANDING_PAGE_URI, TENANT_PHISHING_LANDING_PAGE_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PHISHING_LANDING_PAGE)
-  public Iterable<PhishingLandingPage> landingPages() {
+  public Iterable<PhishingLandingPage> landingPages(TxCtx ctx) {
     return landingPageService.landingPages();
   }
 
@@ -51,7 +51,7 @@ public class PhishingLandingPageApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PHISHING_LANDING_PAGE)
   public Page<PhishingLandingPage> searchLandingPages(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return landingPageService.search(searchPaginationInput);
   }
 
@@ -61,7 +61,7 @@ public class PhishingLandingPageApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PHISHING_LANDING_PAGE)
-  public PhishingLandingPage landingPage(@PathVariable String id) {
+  public PhishingLandingPage landingPage(TxCtx ctx, @PathVariable String id) {
     return landingPageService.landingPage(id);
   }
 
@@ -148,7 +148,7 @@ public class PhishingLandingPageApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PHISHING_LANDING_PAGE)
-  public void deleteLandingPage(@PathVariable String id) {
+  public void deleteLandingPage(TxCtx ctx, @PathVariable String id) {
     landingPageService.delete(id);
   }
 
@@ -156,7 +156,7 @@ public class PhishingLandingPageApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PHISHING_LANDING_PAGE)
   public List<String> bulkDeleteLandingPages(
-      @RequestBody @Valid final PhishingLandingPageBulkProcessingInput input) {
+      TxCtx ctx, @RequestBody @Valid final PhishingLandingPageBulkProcessingInput input) {
     return landingPageService.bulkDelete(input);
   }
 

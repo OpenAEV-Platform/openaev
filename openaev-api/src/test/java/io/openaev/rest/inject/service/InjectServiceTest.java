@@ -576,7 +576,8 @@ class InjectServiceTest {
 
     // Act
     List<Inject> result =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission(
+            TxCtx.missing(), input, Grant.GRANT_TYPE.PLANNER);
 
     // Assert
     assertNotNull(result);
@@ -599,7 +600,8 @@ class InjectServiceTest {
 
     // Act
     List<Inject> result =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission(
+            TxCtx.missing(), input, Grant.GRANT_TYPE.PLANNER);
 
     // Assert
     assertNotNull(result);
@@ -623,7 +625,8 @@ class InjectServiceTest {
 
     // Act
     List<Inject> result =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission(
+            TxCtx.missing(), input, Grant.GRANT_TYPE.PLANNER);
 
     // Assert
     assertNotNull(result);
@@ -640,7 +643,9 @@ class InjectServiceTest {
     BadRequestException exception =
         assertThrows(
             BadRequestException.class,
-            () -> injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER));
+            () ->
+                injectService.getInjectsAndCheckPermission(
+                    TxCtx.missing(), input, Grant.GRANT_TYPE.PLANNER));
 
     // Assert
     assertEquals(
@@ -657,7 +662,7 @@ class InjectServiceTest {
     doNothing().when(injectRepository).deleteByAllIdsNative(injectIds);
 
     // Act
-    injectService.deleteAllByIds(injectIds);
+    injectService.deleteAllByIds(TxCtx.missing(), injectIds);
 
     // Assert
     verify(injectRepository, times(1)).deleteByAllIdsNative(injectIds);
@@ -670,7 +675,7 @@ class InjectServiceTest {
     List<String> injectIds = List.of();
 
     // Act
-    injectService.deleteAllByIds(injectIds);
+    injectService.deleteAllByIds(TxCtx.missing(), injectIds);
 
     // Assert
     verify(injectRepository, never()).deleteByAllIdsNative(any());
@@ -683,7 +688,7 @@ class InjectServiceTest {
     List<String> injectIds = null;
 
     // Act
-    injectService.deleteAllByIds(injectIds);
+    injectService.deleteAllByIds(TxCtx.missing(), injectIds);
 
     // Assert
     verify(injectRepository, never()).deleteByAllIdsNative(any());

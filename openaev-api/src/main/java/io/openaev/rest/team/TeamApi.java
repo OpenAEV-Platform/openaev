@@ -14,6 +14,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.*;
@@ -92,7 +93,7 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of teams")})
   @Operation(summary = "List teams", description = "Return the teams")
   @Transactional
-  public Iterable<TeamSimple> getTeams() {
+  public Iterable<TeamSimple> getTeams(TxCtx ctx) {
     List<RawTeamIndexing> teams;
     // We get all the teams as raw
     teams = fromIterable(teamRepository.rawTeams());
@@ -109,7 +110,7 @@ public class TeamApi extends RestBehavior {
       summary = "Search teams",
       description = "Search the teams corresponding to the criteria")
   public Page<TeamOutput> searchTeams(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     final Specification<Team> teamSpecification = contextual(false);
     return this.teamService.teamPagination(searchPaginationInput, teamSpecification);
   }
@@ -120,7 +121,8 @@ public class TeamApi extends RestBehavior {
   @Transactional(readOnly = true)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of teams")})
   @Operation(description = "Find a list of teams based on their ids", summary = "Find teams")
-  public List<TeamOutput> findTeams(@RequestBody @Valid @NotNull final List<String> teamIds) {
+  public List<TeamOutput> findTeams(
+      TxCtx ctx, @RequestBody @Valid @NotNull final List<String> teamIds) {
     return this.teamService.find(fromIds(teamIds));
   }
 
@@ -148,6 +150,7 @@ public class TeamApi extends RestBehavior {
       description =
           "Search every inject that concerns the team (direct targeting or execution evidence)")
   public Page<InjectResultOutput> searchInjectsForTeam(
+      TxCtx ctx,
       @PathVariable @NotBlank final String teamId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return injectSearchService.getPageOfInjectResultsForTeam(teamId, searchPaginationInput);
@@ -161,7 +164,8 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The team")})
   @Operation(description = "Get a team", summary = "Get team")
   @Transactional
-  public Team getTeam(@PathVariable @Schema(description = "ID of the team") String teamId) {
+  public Team getTeam(
+      TxCtx ctx, @PathVariable @Schema(description = "ID of the team") String teamId) {
     return teamRepository
         .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
         .orElseThrow(ElementNotFoundException::new);
@@ -177,7 +181,7 @@ public class TeamApi extends RestBehavior {
   @Operation(description = "Get the list of players of a team", summary = "Get team's players")
   @Transactional
   public Iterable<User> getTeamPlayers(
-      @PathVariable @Schema(description = "ID of the team") String teamId) {
+      TxCtx ctx, @PathVariable @Schema(description = "ID of the team") String teamId) {
     return teamRepository
         .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
         .orElseThrow(ElementNotFoundException::new)
@@ -189,7 +193,7 @@ public class TeamApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The created team")})
   @Operation(description = "Create a new team", summary = "Create team")
-  public Team createTeam(@Valid @RequestBody TeamCreateInput input) {
+  public Team createTeam(TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
     isTeamAlreadyExists(input);
     Team team = new Team();
     team.setUpdateAttributes(input);
@@ -207,7 +211,7 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The created/updated team")})
   @Operation(description = "Create a new team or update an existing team", summary = "Upsert team")
-  public Team upsertTeam(@Valid @RequestBody TeamCreateInput input) {
+  public Team upsertTeam(TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
     if (input.getContextual() && input.getExerciseIds().toArray().length > 1) {
       throw new UnsupportedOperationException(
           "Contextual team can only be associated to one exercise");
@@ -243,7 +247,8 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200")})
   @Operation(description = "Delete an existing team", summary = "Delete team")
   @Transactional
-  public void deleteTeam(@PathVariable @Schema(description = "ID of the team") String teamId)
+  public void deleteTeam(
+      TxCtx ctx, @PathVariable @Schema(description = "ID of the team") String teamId)
       throws ResourceInUseException {
     Team team =
         teamRepository
@@ -267,9 +272,10 @@ public class TeamApi extends RestBehavior {
   // SUPPORTS (not REQUIRED): the service deletes in small independent chunk transactions with
   // deadlock retry; a request-wide transaction would force everything back into one transaction.
   @Transactional(propagation = Propagation.SUPPORTS)
-  public List<String> bulkDeleteTeams(@RequestBody @Valid final TeamBulkProcessingInput input)
+  public List<String> bulkDeleteTeams(
+      TxCtx ctx, @RequestBody @Valid final TeamBulkProcessingInput input)
       throws ResourceInUseException {
-    return this.teamService.bulkDelete(input);
+    return this.teamService.bulkDelete(ctx, input);
   }
 
   @PutMapping({"/api/teams/{teamId}", TENANT_TEAM_URI + "/{teamId}"})
@@ -281,6 +287,7 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated team")})
   @Operation(description = "Update an existing team", summary = "Update team")
   public Team updateTeam(
+      TxCtx ctx,
       @PathVariable @Schema(description = "ID of the team") String teamId,
       @Valid @RequestBody TeamUpdateInput input) {
     Team team =
@@ -306,6 +313,7 @@ public class TeamApi extends RestBehavior {
       description = "Update the list of users of a team team",
       summary = "Update team players")
   public Team updateTeamUsers(
+      TxCtx ctx,
       @PathVariable @Schema(description = "ID of the team") String teamId,
       @Valid @RequestBody UpdateUsersTeamInput input) {
     Team team =
@@ -345,6 +353,7 @@ public class TeamApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TEAM)
   public List<FilterUtilsJpa.Option> optionsByName(
+      TxCtx ctx,
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId,
       @RequestParam(required = false) final String inputFilterOption) {
@@ -399,7 +408,7 @@ public class TeamApi extends RestBehavior {
   @PostMapping({TEAM_URI + "/options", TENANT_TEAM_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.TEAM)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.teamRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

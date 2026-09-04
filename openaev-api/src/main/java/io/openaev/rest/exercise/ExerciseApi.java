@@ -164,7 +164,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public ExpectationsDriftOutput exerciseExpectationsDrift(
-      @PathVariable @NotBlank final String exerciseId) {
+      TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
     return expectationsDriftService.exerciseDrift(exerciseId);
   }
 
@@ -186,8 +186,8 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public ExpectationsRealignOutput realignExerciseExpectations(
-      @PathVariable @NotBlank final String exerciseId) {
-    return expectationsDriftService.realignExercise(exerciseId);
+      TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
+    return expectationsDriftService.realignExercise(ctx, exerciseId);
   }
 
   @Operation(
@@ -206,6 +206,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public ExpectationsDriftOutput dismissExerciseExpectationsDrift(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @Valid @RequestBody final ExpectationsDriftDismissInput input) {
     return expectationsDriftService.dismissExerciseDrift(exerciseId, input.dismissed());
@@ -220,7 +221,7 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exercise",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public Iterable<Log> logs(@PathVariable String exercise) {
+  public Iterable<Log> logs(TxCtx ctx, @PathVariable String exercise) {
     return exerciseLogRepository.findAll(ExerciseLogSpecification.fromExercise(exercise));
   }
 
@@ -230,7 +231,8 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
-  public Log createLog(@PathVariable String exerciseId, @Valid @RequestBody LogCreateInput input) {
+  public Log createLog(
+      TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody LogCreateInput input) {
     Exercise exercise = exerciseService.exercise(exerciseId);
     Log log = new Log();
     log.setUpdateAttributes(input);
@@ -253,6 +255,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Log updateLog(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String logId,
       @Valid @RequestBody LogCreateInput input) {
@@ -271,7 +274,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteLog(@PathVariable String exerciseId, @PathVariable String logId) {
+  public void deleteLog(TxCtx ctx, @PathVariable String exerciseId, @PathVariable String logId) {
     logRepository.deleteById(logId);
   }
 
@@ -287,7 +290,7 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exercise",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public Iterable<Comcheck> comchecks(@PathVariable String exercise) {
+  public Iterable<Comcheck> comchecks(TxCtx ctx, @PathVariable String exercise) {
     return comcheckRepository.findAll(ComcheckSpecification.fromExercise(exercise));
   }
 
@@ -300,7 +303,8 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exercise",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public Comcheck comcheck(@PathVariable String exercise, @PathVariable String comcheck) {
+  public Comcheck comcheck(
+      TxCtx ctx, @PathVariable String exercise, @PathVariable String comcheck) {
     Specification<Comcheck> filters =
         ComcheckSpecification.fromExercise(exercise).and(ComcheckSpecification.id(comcheck));
     return comcheckRepository.findOne(filters).orElseThrow(ElementNotFoundException::new);
@@ -316,8 +320,8 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<ComcheckStatus> comcheckStatuses(
-      @PathVariable String exercise, @PathVariable String comcheck) {
-    return comcheck(exercise, comcheck).getComcheckStatus();
+      TxCtx ctx, @PathVariable String exercise, @PathVariable String comcheck) {
+    return comcheck(ctx, exercise, comcheck).getComcheckStatus();
   }
 
   // endregion
@@ -330,7 +334,7 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public List<TeamOutput> getExerciseTeams(@PathVariable String exerciseId) {
+  public List<TeamOutput> getExerciseTeams(TxCtx ctx, @PathVariable String exerciseId) {
     return this.teamService.find(fromExercise(exerciseId));
   }
 
@@ -344,7 +348,9 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public Iterable<TeamOutput> removeExerciseTeams(
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateTeamsInput input) {
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ExerciseUpdateTeamsInput input) {
     return this.exerciseService.removeTeams(exerciseId, input.getTeamIds());
   }
 
@@ -358,7 +364,9 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public Iterable<TeamOutput> replaceExerciseTeams(
-      @PathVariable String exerciseId, @Valid @RequestBody ExerciseUpdateTeamsInput input) {
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody ExerciseUpdateTeamsInput input) {
     return this.exerciseService.replaceTeams(exerciseId, input.getTeamIds());
   }
 
@@ -371,7 +379,7 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public Iterable<RawPlayer> getPlayersByExercise(@PathVariable String exerciseId) {
+  public Iterable<RawPlayer> getPlayersByExercise(TxCtx ctx, @PathVariable String exerciseId) {
     return userRepository.rawPlayersByExerciseId(exerciseId);
   }
 
@@ -493,7 +501,7 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public Exercise createExercise(@Valid @RequestBody CreateExerciseInput input) {
+  public Exercise createExercise(TxCtx ctx, @Valid @RequestBody CreateExerciseInput input) {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exercise input cannot be null");
     }
@@ -657,6 +665,7 @@ public class ExerciseApi extends RestBehavior {
   @GetMapping({EXERCISE_URI + "/findings/options", TENANT_EXERCISE_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
+      TxCtx ctx,
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String scenarioId) {
     return exerciseService.getOptionsByNameLinkedToFindings(
@@ -667,7 +676,7 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping({EXERCISE_URI + "/options", TENANT_EXERCISE_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.exerciseRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();
@@ -702,7 +711,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SIMULATION)
   @Transactional
-  public void deleteExercise(@PathVariable String exerciseId) {
+  public void deleteExercise(TxCtx ctx, @PathVariable String exerciseId) {
     exerciseService.deleteById(exerciseId);
   }
 
@@ -717,8 +726,8 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.SIMULATION)
   public List<String> bulkDeleteExercises(
-      @RequestBody @Valid final ExerciseBulkProcessingInput input) {
-    return exerciseService.bulkDelete(input);
+      TxCtx ctx, @RequestBody @Valid final ExerciseBulkProcessingInput input) {
+    return exerciseService.bulkDelete(ctx, input);
   }
 
   @GetMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
@@ -813,7 +822,8 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public List<ExpectationResultsByType> globalResults(@NotBlank @PathVariable String exerciseId) {
+  public List<ExpectationResultsByType> globalResults(
+      TxCtx ctx, @NotBlank @PathVariable String exerciseId) {
     // Validate tenant isolation before querying cross-tenant-safe repository method
     exerciseService.existsByIdAndTenantId(exerciseId);
     return exerciseService.getGlobalResults(exerciseId);
@@ -824,7 +834,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public ExercisesGlobalScoresOutput getExercisesGlobalScores(
-      @Valid @RequestBody ExercisesGlobalScoresInput input) {
+      TxCtx ctx, @Valid @RequestBody ExercisesGlobalScoresInput input) {
     return exerciseService.getExercisesGlobalScores(input);
   }
 
@@ -839,7 +849,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<InjectExpectationResultsByAttackPattern> injectResults(
-      @NotBlank final @PathVariable String exerciseId) {
+      TxCtx ctx, @NotBlank final @PathVariable String exerciseId) {
     return exerciseService.extractExpectationResultsByAttackPattern(exerciseId);
   }
 
@@ -898,7 +908,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional
   @GetMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
-  public List<ExerciseSimple> exercises() {
+  public List<ExerciseSimple> exercises(TxCtx ctx) {
     return exerciseService.exercises();
   }
 
@@ -910,7 +920,7 @@ public class ExerciseApi extends RestBehavior {
       summary = "Get simulations by their id",
       description = "Get the simulations with the specified ids if you have the right to see them")
   public List<ExerciseSimple> simulationsById(
-      @RequestBody final GetExercisesInput getExercisesInput) {
+      TxCtx ctx, @RequestBody final GetExercisesInput getExercisesInput) {
     return exerciseService.exercises(getExercisesInput.getExerciseIds());
   }
 
@@ -919,7 +929,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public Page<ExerciseSimple> exercises(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
     User currentUser = userService.currentUser();
     if (currentUser.isAdminOrBypass()
@@ -961,7 +971,8 @@ public class ExerciseApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public Iterable<Communication> exerciseCommunications(@PathVariable String exerciseId) {
+  public Iterable<Communication> exerciseCommunications(
+      TxCtx ctx, @PathVariable String exerciseId) {
     Exercise exercise = exerciseService.exercise(exerciseId);
     List<Communication> communications = new ArrayList<>();
     exercise
@@ -974,7 +985,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
   //
-  public void downloadAttachment(@RequestParam String file, HttpServletResponse response)
+  public void downloadAttachment(TxCtx ctx, @RequestParam String file, HttpServletResponse response)
       throws IOException {
     FileContainer fileContainer =
         fileService.getFileContainer(file).orElseThrow(ElementNotFoundException::new);
@@ -1046,6 +1057,7 @@ public class ExerciseApi extends RestBehavior {
       summary = "Check rules",
       description = "Check if the rules apply to a simulation update")
   public CheckExerciseRulesOutput checkIfRuleApplies(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @Valid @RequestBody final CheckExerciseRulesInput input) {
     Exercise exercise = this.exerciseService.exercise(exerciseId);
@@ -1070,7 +1082,7 @@ public class ExerciseApi extends RestBehavior {
           "Get asset groups. Can only be called if the user has access to the given simulation.",
       description = "Get all asset groups used by injects for a given simulation")
   @Transactional
-  public List<AssetGroup> assetGroups(@PathVariable String exerciseId) {
+  public List<AssetGroup> assetGroups(TxCtx ctx, @PathVariable String exerciseId) {
     return this.assetGroupService.assetGroupsForSimulation(exerciseId);
   }
 
@@ -1088,6 +1100,7 @@ public class ExerciseApi extends RestBehavior {
           "Get asset groups by ids. Can only be called if the user has access to the given simulation.",
       description = "Get all asset groups by ids used by injects for a given simulation")
   public List<AssetGroupOutput> assetGroupsByIds(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @RequestBody @Valid @NotNull final List<String> assetGroupIds) {
     return this.assetGroupService.assetGroupsByIdsForSimulation(exerciseId, assetGroupIds);
@@ -1105,7 +1118,7 @@ public class ExerciseApi extends RestBehavior {
       summary = "Get channels. Can only be called if the user has access to the given simulation.",
       description = "Get all channels used by articles for a given simulation")
   @Transactional
-  public Iterable<Channel> channels(@PathVariable String exerciseId) {
+  public Iterable<Channel> channels(TxCtx ctx, @PathVariable String exerciseId) {
     return this.channelService.channelsForSimulation(exerciseId);
   }
 
@@ -1161,7 +1174,7 @@ public class ExerciseApi extends RestBehavior {
       summary = "Get documents. Can only be called if the user has access to the given simulation.",
       description = "Get all documents used by injects for a given simulation")
   @Transactional
-  public List<Document> documents(@PathVariable String exerciseId) {
+  public List<Document> documents(TxCtx ctx, @PathVariable String exerciseId) {
     return this.documentService.documentsForSimulation(exerciseId);
   }
 

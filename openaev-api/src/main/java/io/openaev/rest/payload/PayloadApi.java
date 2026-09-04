@@ -48,7 +48,7 @@ public class PayloadApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
   public Page<Payload> payloads(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return this.payloadService.searchPayloads(searchPaginationInput);
   }
 
@@ -58,7 +58,7 @@ public class PayloadApi extends RestBehavior {
       resourceId = "#payloadId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PAYLOAD)
-  public PayloadOutput payload(@PathVariable String payloadId) {
+  public PayloadOutput payload(TxCtx ctx, @PathVariable String payloadId) {
     PayloadService.PayloadWithRelatedEntities payloadWithRelatedEntities =
         payloadService.findPayloadWithRelatedEntities(payloadId);
     return payloadMapper.toPayloadOutput(
@@ -130,7 +130,7 @@ public class PayloadApi extends RestBehavior {
       resourceId = "#payloadId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PAYLOAD)
-  public void deletePayload(@PathVariable String payloadId) {
+  public void deletePayload(TxCtx ctx, @PathVariable String payloadId) {
     payloadService.delete(payloadId);
   }
 
@@ -138,7 +138,7 @@ public class PayloadApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
   public void deprecateNonProcessedPayloadsByCollector(
-      @Valid @RequestBody PayloadsDeprecateInput input) {
+      TxCtx ctx, @Valid @RequestBody PayloadsDeprecateInput input) {
     this.payloadService.deprecateNonProcessedPayloadsByCollector(
         input.collectorId(), input.processedPayloadExternalIds());
   }
@@ -157,7 +157,7 @@ public class PayloadApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "The list of Documents used in a payload")
       })
-  public List<RawDocument> documentsFromPayload(@PathVariable String payloadId) {
+  public List<RawDocument> documentsFromPayload(TxCtx ctx, @PathVariable String payloadId) {
     return documentService.documentsForPayload(payloadId);
   }
 
@@ -178,7 +178,7 @@ public class PayloadApi extends RestBehavior {
             description = "The list of Security platforms used in a payload remediation")
       })
   public List<SecurityPlatformSimpleOutput> securityPlatformsFromPayload(
-      @PathVariable String payloadId) {
+      TxCtx ctx, @PathVariable String payloadId) {
     return SecurityPlatformMapper.toSimpleOutputs(
         detectionRemediationService.securityPlatformsForPayload(payloadId));
   }

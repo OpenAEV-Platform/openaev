@@ -6,6 +6,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.EventOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -51,7 +52,7 @@ public class ConditionApi extends RestBehavior {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
-  public EventOutput create(@Valid @RequestBody EventInput input) {
+  public EventOutput create(TxCtx ctx, @Valid @RequestBody EventInput input) {
     return toOutput(conditionService.createConditionTree(input));
   }
 
@@ -70,7 +71,7 @@ public class ConditionApi extends RestBehavior {
       resourceType = ResourceType.CONDITION,
       isEnterpriseEdition = true)
   @GetMapping("/{conditionId}")
-  public EventOutput findById(@PathVariable String conditionId) {
+  public EventOutput findById(TxCtx ctx, @PathVariable String conditionId) {
     return toOutput(conditionService.findConditionRootById(conditionId));
   }
 
@@ -85,7 +86,8 @@ public class ConditionApi extends RestBehavior {
       resourceType = ResourceType.WORKFLOW,
       isEnterpriseEdition = true)
   @GetMapping(params = "workflow_id")
-  public List<EventOutput> findAllByWorkflow(@RequestParam("workflow_id") String workflowId) {
+  public List<EventOutput> findAllByWorkflow(
+      TxCtx ctx, @RequestParam("workflow_id") String workflowId) {
     return conditionService.findEventsByWorkflowId(workflowId);
   }
 
@@ -107,7 +109,7 @@ public class ConditionApi extends RestBehavior {
   @PutMapping("/{conditionId}")
   @Transactional
   public EventOutput update(
-      @PathVariable String conditionId, @Valid @RequestBody EventInput input) {
+      TxCtx ctx, @PathVariable String conditionId, @Valid @RequestBody EventInput input) {
     return toOutput(conditionService.updateConditionTree(conditionId, input));
   }
 
@@ -128,7 +130,7 @@ public class ConditionApi extends RestBehavior {
   @DeleteMapping("/{conditionId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void delete(@PathVariable String conditionId) {
+  public void delete(TxCtx ctx, @PathVariable String conditionId) {
     conditionService.deleteConditionTree(conditionId);
   }
 }

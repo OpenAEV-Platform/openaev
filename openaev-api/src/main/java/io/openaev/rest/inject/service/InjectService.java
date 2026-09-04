@@ -323,7 +323,7 @@ public class InjectService {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public void deleteAllByIds(List<String> injectIds) {
+  public void deleteAllByIds(TxCtx ctx, List<String> injectIds) {
     if (!CollectionUtils.isEmpty(injectIds)) {
       injectRepository.deleteByAllIdsNative(injectIds);
       // Native delete: no JPA lifecycle event fires, notify the search engine explicitly so the
@@ -739,8 +739,9 @@ public class InjectService {
    * @return the injects to update/delete
    * @throws AccessDeniedException if the user is not allowed to update/delete the injects
    */
+  @Transactional(readOnly = true)
   public List<Inject> getInjectsAndCheckPermission(
-      InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
+      TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     // Specification building
     Specification<Inject> filterSpecifications =

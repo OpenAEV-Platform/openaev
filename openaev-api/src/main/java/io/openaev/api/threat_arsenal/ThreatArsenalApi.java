@@ -72,7 +72,7 @@ public class ThreatArsenalApi {
   })
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
-  public List<PrimitiveType> getArgumentTypes() {
+  public List<PrimitiveType> getArgumentTypes(TxCtx ctx) {
     return resolveAvailableTypes();
   }
 
@@ -81,6 +81,7 @@ public class ThreatArsenalApi {
   @Transactional
   @AccessControl(skipRBAC = true)
   public List<PropertySchemaDTO> schemas(
+      TxCtx ctx,
       @RequestParam final boolean filterableOnly,
       @RequestBody @Valid @NotNull List<String> filterNames)
       throws ClassNotFoundException {
@@ -94,7 +95,7 @@ public class ThreatArsenalApi {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public List<InjectorContractDomainCountOutput> getDomainCounts(
-      @RequestBody @Valid final SearchPaginationInput input) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput input) {
     return threatArsenalService.getDomainCounts(input);
   }
 
@@ -105,7 +106,7 @@ public class ThreatArsenalApi {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(
-      @RequestBody @Valid final SearchPaginationInput input) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput input) {
     return threatArsenalService.getAuthorCounts(input);
   }
 
@@ -114,7 +115,7 @@ public class ThreatArsenalApi {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
   public ThreatArsenalFacetCountsOutput getFacetCounts(
-      @RequestBody @Valid final SearchPaginationInput input) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput input) {
     return threatArsenalService.getFacetCounts(input);
   }
 
@@ -177,7 +178,7 @@ public class ThreatArsenalApi {
             description = "The list of Security platforms used in a action remediation")
       })
   public List<SecurityPlatformSimpleOutput> securityPlatformsFromAction(
-      @PathVariable String actionId) {
+      TxCtx ctx, @PathVariable String actionId) {
     return SecurityPlatformMapper.toSimpleOutputs(
         threatArsenalService.getSecurityPlatformsForActionRemediation(actionId));
   }

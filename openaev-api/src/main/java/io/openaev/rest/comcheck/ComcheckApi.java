@@ -6,6 +6,7 @@ import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
@@ -51,7 +52,7 @@ public class ComcheckApi extends RestBehavior {
   @GetMapping("/api/comcheck/{comcheckStatusId}")
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackFor = Exception.class)
-  public ComcheckStatus checkValidation(@PathVariable String comcheckStatusId) {
+  public ComcheckStatus checkValidation(TxCtx ctx, @PathVariable String comcheckStatusId) {
     ComcheckStatus comcheckStatus =
         comcheckStatusRepository
             .findById(comcheckStatusId)
@@ -81,7 +82,8 @@ public class ComcheckApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteComcheck(@PathVariable String exerciseId, @PathVariable String comcheckId) {
+  public void deleteComcheck(
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String comcheckId) {
     comcheckRepository.deleteById(comcheckId);
   }
 
@@ -95,7 +97,7 @@ public class ComcheckApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Comcheck communicationCheck(
-      @PathVariable String exerciseId, @Valid @RequestBody ComcheckInput comCheck) {
+      TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody ComcheckInput comCheck) {
     // 01. Create the comcheck and get the ID
     Comcheck check = new Comcheck();
     check.setUpdateAttributes(comCheck);

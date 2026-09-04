@@ -84,6 +84,7 @@ public class AttackPatternApi extends RestBehavior {
       summary = "Extract Attack Patterns from text or files using AI",
       description = "Get attack patterns ids extracted from a text or files using AI")
   public List<String> searchAttackPatternWithTTPAIWebservice(
+      TxCtx ctx,
       @RequestPart(value = "files", required = false) @Nullable List<MultipartFile> files,
       @RequestPart(value = "text", required = false) @Nullable final String text,
       @RequestPart(value = "agent_slug", required = false) @Nullable final String agentSlug) {
@@ -126,7 +127,8 @@ public class AttackPatternApi extends RestBehavior {
       resourceId = "#attackPatternId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ATTACK_PATTERN)
-  public Iterable<InjectorContract> injectorContracts(@PathVariable String attackPatternId) {
+  public Iterable<InjectorContract> injectorContracts(
+      TxCtx ctx, @PathVariable String attackPatternId) {
     attackPatternRepository.findById(attackPatternId).orElseThrow(ElementNotFoundException::new);
     return injectorContractRepository.findAll(
         InjectorContractSpecification.fromAttackPattern(attackPatternId));
@@ -179,7 +181,7 @@ public class AttackPatternApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ATTACK_PATTERN)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteAttackPattern(@PathVariable String attackPatternId) {
+  public void deleteAttackPattern(TxCtx ctx, @PathVariable String attackPatternId) {
     attackPatternRepository.deleteById(attackPatternId);
   }
 
@@ -189,7 +191,7 @@ public class AttackPatternApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
   public List<FilterUtilsJpa.Option> optionsByName(
-      @RequestParam(required = false) final String searchText) {
+      TxCtx ctx, @RequestParam(required = false) final String searchText) {
     return fromIterable(
             this.attackPatternRepository.findAll(
                 byName(searchText), Sort.by(Sort.Direction.ASC, "name")))
@@ -201,7 +203,7 @@ public class AttackPatternApi extends RestBehavior {
   @PostMapping("/options")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.attackPatternRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

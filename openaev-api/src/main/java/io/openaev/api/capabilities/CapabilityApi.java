@@ -1,5 +1,6 @@
 package io.openaev.api.capabilities;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CapabilityScope;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
@@ -30,7 +31,7 @@ public class CapabilityApi {
   @Transactional
   @GetMapping
   public ResponseEntity<List<CapabilityOutput>> getCapabilities(
-      @RequestParam(required = false) CapabilityScope scope) {
+      TxCtx ctx, @RequestParam(required = false) CapabilityScope scope) {
     boolean credentialAssetEnabled =
         previewFeatureService.isFeatureEnabled(PreviewFeature.CREDENTIAL_ASSET);
     List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(scope, credentialAssetEnabled);

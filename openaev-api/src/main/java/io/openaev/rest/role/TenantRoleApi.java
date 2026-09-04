@@ -5,6 +5,7 @@ import static io.openaev.rest.role.form.RoleMapper.toOutput;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -47,7 +48,7 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Role created"),
         @ApiResponse(responseCode = "409", description = "Role already exists")
       })
-  public RoleOutput create(@Valid @RequestBody final RoleInput input) {
+  public RoleOutput create(TxCtx ctx, @Valid @RequestBody final RoleInput input) {
     return toOutput(
         tenantRoleService.createRole(input.name(), input.description(), input.capabilities()));
   }
@@ -67,6 +68,7 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
   public RoleOutput findRole(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
     return toOutput(tenantRoleService.findByIdInTenant(roleId));
   }
@@ -76,7 +78,7 @@ public class TenantRoleApi extends RestBehavior {
   @Transactional
   @Operation(description = "Get All Roles", summary = "Get Roles")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of all Roles")})
-  public List<RoleOutput> roles() {
+  public List<RoleOutput> roles(TxCtx ctx) {
     return tenantRoleService.findAll(TenantContext.getCurrentTenant()).stream()
         .map(RoleMapper::toOutput)
         .toList();
@@ -94,7 +96,8 @@ public class TenantRoleApi extends RestBehavior {
             responseCode = "200",
             description = "The list of all Roles corresponding to the search criteria")
       })
-  public Page<RoleOutput> search(@RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+  public Page<RoleOutput> search(
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return tenantRoleService
         .search(searchPaginationInput, TenantContext.getCurrentTenant())
         .map(RoleMapper::toOutput);
@@ -115,6 +118,7 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
   public RoleOutput update(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId,
       @Valid @RequestBody final RoleInput input) {
     return toOutput(
@@ -137,6 +141,7 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
   public void delete(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
     tenantRoleService.delete(roleId);
   }

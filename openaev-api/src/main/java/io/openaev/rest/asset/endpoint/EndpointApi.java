@@ -358,8 +358,9 @@ public class EndpointApi extends RestBehavior {
   // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
   // (chunked, with deadlock retry) - a request-wide transaction would defeat that.
   @Transactional(propagation = Propagation.SUPPORTS)
-  public List<String> bulkDeleteAssets(@RequestBody @Valid final AssetBulkProcessingInput input) {
-    return this.assetService.bulkDeleteAssets(input);
+  public List<String> bulkDeleteAssets(
+      TxCtx ctx, @RequestBody @Valid final AssetBulkProcessingInput input) {
+    return this.assetService.bulkDeleteAssets(ctx, input);
   }
 
   @GetMapping({ENDPOINT_URI + "/resolve", TENANT_ENDPOINT_URI + "/resolve"})
@@ -367,7 +368,7 @@ public class EndpointApi extends RestBehavior {
   // requires the annotation, so NOT_SUPPORTED keeps it while suspending any DB transaction.
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
-  public List<String> resolveHostname(@RequestParam @NotBlank final String hostname) {
+  public List<String> resolveHostname(TxCtx ctx, @RequestParam @NotBlank final String hostname) {
     return this.endpointService.resolveHostnameToIps(hostname);
   }
 
@@ -377,6 +378,7 @@ public class EndpointApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsByName(
+      TxCtx ctx,
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId,
       @RequestParam(required = false) final String inputFilterOption) {
@@ -434,6 +436,7 @@ public class EndpointApi extends RestBehavior {
   @GetMapping({ENDPOINT_URI + "/findings/options", TENANT_ENDPOINT_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
+      TxCtx ctx,
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId) {
     return endpointService.getOptionsByNameLinkedToFindings(
@@ -443,7 +446,7 @@ public class EndpointApi extends RestBehavior {
   @PostMapping({ENDPOINT_URI + "/options", TENANT_ENDPOINT_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.endpointRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

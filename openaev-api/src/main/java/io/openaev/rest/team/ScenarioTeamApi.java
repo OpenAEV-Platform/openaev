@@ -5,6 +5,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Team;
@@ -37,6 +38,7 @@ public class ScenarioTeamApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(readOnly = true)
   public Page<TeamOutput> teams(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput,
       @RequestParam

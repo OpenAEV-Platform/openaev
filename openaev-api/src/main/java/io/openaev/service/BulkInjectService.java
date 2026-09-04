@@ -29,7 +29,7 @@ public class BulkInjectService {
   private final BulkOperationMonitor bulkOperationMonitor;
 
   public List<Inject> bulkUpdateWithMonitoring(TxCtx ctx, InjectBulkUpdateInputs input) {
-    List<Inject> injectsToUpdate = resolveTargets(input);
+    List<Inject> injectsToUpdate = resolveTargets(ctx, input);
     String operationId = bulkOperationMonitor.start("update", "injects", injectsToUpdate.size());
     try {
       List<Inject> updated =
@@ -45,14 +45,14 @@ public class BulkInjectService {
     }
   }
 
-  public List<Inject> bulkDeleteWithMonitoring(InjectBulkProcessingInput input) {
-    List<Inject> injectsToDelete = resolveTargets(input);
+  public List<Inject> bulkDeleteWithMonitoring(TxCtx ctx, InjectBulkProcessingInput input) {
+    List<Inject> injectsToDelete = resolveTargets(ctx, input);
     String operationId = bulkOperationMonitor.start("delete", "injects", injectsToDelete.size());
     try {
       List<String> injectIds = injectsToDelete.stream().map(Inject::getId).toList();
       BulkOperationContext.runSuppressed(
           () -> {
-            injectService.deleteAllByIds(injectIds);
+            injectService.deleteAllByIds(ctx, injectIds);
             return null;
           });
       bulkOperationMonitor.complete(operationId);
@@ -69,9 +69,9 @@ public class BulkInjectService {
    * operation is aborted with a not-found error before any entity is touched, so a mixed
    * valid/invalid request can never be partially applied.
    */
-  private List<Inject> resolveTargets(InjectBulkProcessingInput input) {
+  private List<Inject> resolveTargets(TxCtx ctx, InjectBulkProcessingInput input) {
     List<Inject> injects =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission(ctx, input, Grant.GRANT_TYPE.PLANNER);
     if (!CollectionUtils.isEmpty(input.getInjectIDsToProcess())) {
       Set<String> resolvedIds = injects.stream().map(Inject::getId).collect(Collectors.toSet());
       List<String> missingIds =

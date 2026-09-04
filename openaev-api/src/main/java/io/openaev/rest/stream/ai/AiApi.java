@@ -5,6 +5,7 @@ import static io.openaev.rest.stream.ai.AiPrompt.generatePrompt;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import jakarta.validation.Valid;
@@ -107,7 +108,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiFixSpelling(
-      @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
+      TxCtx ctx, @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -135,7 +136,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiMakeShorter(
-      @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
+      TxCtx ctx, @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -163,7 +164,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiMakeLonger(
-      @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
+      TxCtx ctx, @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -192,7 +193,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiChangeTone(
-      @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
+      TxCtx ctx, @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -222,7 +223,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiSummarize(
-      @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
+      TxCtx ctx, @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -249,7 +250,7 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiExplain(
-      @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
+      TxCtx ctx, @Valid @RequestBody final AiGenericTextInput aiGenericTextInput)
       throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
@@ -274,7 +275,8 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiGenerateMessage(
-      @Valid @RequestBody final AiMessageInput aiMessageInput) throws JsonProcessingException {
+      TxCtx ctx, @Valid @RequestBody final AiMessageInput aiMessageInput)
+      throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
           "AI is disabled in this platform, please ask your administrator.");
@@ -315,7 +317,8 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiGenerateSubject(
-      @Valid @RequestBody final AiMessageInput aiMessageInput) throws JsonProcessingException {
+      TxCtx ctx, @Valid @RequestBody final AiMessageInput aiMessageInput)
+      throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
           "AI is disabled in this platform, please ask your administrator.");
@@ -353,7 +356,8 @@ public class AiApi extends RestBehavior {
   @Transactional(propagation = Propagation.NEVER)
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Flux<AiResult>> aiGenerateMedia(
-      @Valid @RequestBody final AiMediaInput aiMediaInput) throws JsonProcessingException {
+      TxCtx ctx, @Valid @RequestBody final AiMediaInput aiMediaInput)
+      throws JsonProcessingException {
     if (!aiConfig.isEnabled()) {
       throw new UnsupportedOperationException(
           "AI is disabled in this platform, please ask your administrator.");
