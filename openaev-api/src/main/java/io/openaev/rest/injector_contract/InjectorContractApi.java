@@ -12,6 +12,7 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.raw.RawInjectorsContracts;
+import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.injector_contract.form.InjectorContractAddInput;
 import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
@@ -31,6 +32,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -81,11 +83,17 @@ public class InjectorContractApi extends RestBehavior {
   // InjectorContractService#mapFull), which resolves against the activated injectors table.
   public Page<? extends InjectorContractBaseOutput> injectorContracts(
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+    // The inject-creation picker must only offer contracts that can actually run: a contract with no
+    // injector registered in the current tenant would let the user build an inject that dies at
+    // execution with "Injector not found". This does not affect the Threat Arsenal catalog, which is
+    // served by ThreatArsenalService rather than this endpoint.
+    Specification<InjectorContract> hasInjector =
+        InjectorContractSpecification.hasRegisteredInjector();
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                spec,
-                specCount,
+                spec.and(hasInjector),
+                specCount.and(hasInjector),
                 pageable,
                 input.isIncludeFullDetails()
                     ? InjectorContractService.OutputMode.FULL

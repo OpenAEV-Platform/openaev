@@ -113,7 +113,12 @@ public class Executor {
               .orElseThrow(
                   () ->
                       new IllegalStateException(
-                          "Injector not found for type: " + inject.getType()));
+                          "No injector registered for contract "
+                              + injectorContract.getId()
+                              + " in tenant "
+                              + inject.getTenant().getId()
+                              + ". Register/deploy the injector for this tenant before running"
+                              + " the inject."));
     }
 
     // Telemetry - We shouldn't have multiple injector type per executable inject but if it happens,

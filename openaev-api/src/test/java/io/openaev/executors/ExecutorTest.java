@@ -146,7 +146,7 @@ class ExecutorTest {
       // -------- Act / Assert --------
       assertThatThrownBy(() -> executor.execute(executableInject))
           .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("Injector not found for type");
+          .hasMessageContaining("No injector registered for contract");
     }
 
     @Test
