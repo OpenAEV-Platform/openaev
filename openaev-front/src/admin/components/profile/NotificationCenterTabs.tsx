@@ -29,7 +29,14 @@ const NotificationCenterTabs = ({ current }: Props) => {
         label={t('Alerts')}
         icon={<NotificationsOutlined fontSize="small" />}
         iconPosition="start"
+        // The theme forces `display: inline-block` + lowercase on MuiTab for
+        // its `::first-letter` trick; restore the flex row so the icon and
+        // label align, and keep the already-capitalised label verbatim.
         sx={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          textTransform: 'none',
           minHeight: 48,
           fontSize: 13,
         }}
@@ -42,6 +49,10 @@ const NotificationCenterTabs = ({ current }: Props) => {
         icon={<AlarmOnOutlined fontSize="small" />}
         iconPosition="start"
         sx={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          textTransform: 'none',
           minHeight: 48,
           fontSize: 13,
         }}
