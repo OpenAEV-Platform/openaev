@@ -266,8 +266,10 @@ public class ExerciseService {
     duplicateTeamUsers(exerciseDuplicate, exerciseOrigin, contextualTeams);
     getListOfArticles(exerciseDuplicate, exerciseOrigin);
     getListOfVariables(exerciseDuplicate, exerciseOrigin);
-    getObjectives(exerciseDuplicate, exerciseOrigin);
-    getLessonsCategories(exerciseDuplicate, exerciseOrigin);
+    if (exerciseOrigin.isLessonsEnabled()) {
+      getObjectives(exerciseDuplicate, exerciseOrigin);
+      getLessonsCategories(exerciseDuplicate, exerciseOrigin);
+    }
     return exerciseRepository.save(exerciseDuplicate);
   }
 

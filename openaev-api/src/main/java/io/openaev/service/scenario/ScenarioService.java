@@ -1082,8 +1082,10 @@ public class ScenarioService {
       getListOfScenarioTeams(scenarioDuplicate, scenarioOrigin);
       getListOfArticles(scenarioDuplicate, scenarioOrigin);
       getListOfVariables(scenarioDuplicate, scenarioOrigin);
-      getObjectives(scenarioDuplicate, scenarioOrigin);
-      getLessonsCategories(scenarioDuplicate, scenarioOrigin);
+      if (scenarioOrigin.isLessonsEnabled()) {
+        getObjectives(scenarioDuplicate, scenarioOrigin);
+        getLessonsCategories(scenarioDuplicate, scenarioOrigin);
+      }
       this.actionMetricCollector.addScenarioCreatedCount();
       return scenarioRepository.save(scenario);
     }
