@@ -6,7 +6,7 @@ import { ROLE_SCHEMA_KEY } from '../../../../actions/roles/role-schema';
 import { createRole, deleteRole, findRoles, searchRoles, updateRole } from '../../../../actions/roles/roles-actions';
 import { ROLE_BASE_URL } from '../../../../constants/BaseUrls';
 import { type RoleOutput } from '../../../../utils/api-types';
-import { type CapabilityScope, SUBJECTS, type Subjects } from '../../../../utils/permissions/types';
+import { CAPABILITY_SCOPES, type CapabilityScope, SUBJECTS, type Subjects } from '../../../../utils/permissions/types';
 
 export interface RoleScope {
   scope: CapabilityScope;
@@ -25,7 +25,7 @@ export interface RoleScope {
 
 export const ROLE_SCOPES = {
   TENANT: {
-    scope: 'TENANT',
+    scope: CAPABILITY_SCOPES.TENANT,
     schemaKey: ROLE_SCHEMA_KEY,
     subject: SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES,
     create: createRole,
@@ -37,7 +37,7 @@ export const ROLE_SCOPES = {
     detailUrl: (roleId: string) => `${ROLE_BASE_URL}/${roleId}`,
   },
   PLATFORM: {
-    scope: 'PLATFORM',
+    scope: CAPABILITY_SCOPES.PLATFORM,
     schemaKey: PLATFORM_ROLE_SCHEMA_KEY,
     subject: SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES,
     create: createPlatformRole,

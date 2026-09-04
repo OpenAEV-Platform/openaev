@@ -2,6 +2,7 @@ import { type FC, useEffect, useState } from 'react';
 
 import { fetchPlatformGroupRoleIds, fetchPlatformGroupUserIds } from '../../../../../actions/platform/platform-group/platform-group-action';
 import { findPlatformUsers, searchPlatformUsers } from '../../../../../actions/platform/users/platform-user-action';
+import { CAPABILITY_SCOPES } from '../../../../../utils/permissions/types';
 import RoleScopeProvider from '../../roles/RoleScopeProvider';
 import GroupManageUsers from '../GroupManageUsers';
 
@@ -35,7 +36,7 @@ const PlatformGroupManageUsers: FC<Props> = ({
   }, [open, platformGroupId]);
 
   return (
-    <RoleScopeProvider scope="PLATFORM">
+    <RoleScopeProvider scope={CAPABILITY_SCOPES.PLATFORM}>
       <GroupManageUsers
         initialState={userIds}
         groupRoleIds={roleIds}

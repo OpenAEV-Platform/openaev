@@ -31,6 +31,7 @@ import { useHelper } from '../../../../store';
 import { type Group, type PlatformGroupOutput, type RoleOutput, type SearchPaginationInput, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { CAPABILITY_SCOPES } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import PlatformGroupPopover from '../groups/platform_groups/PlatformGroupPopover';
 import GroupPopover from '../groups/tenant_groups/GroupPopover';
@@ -67,7 +68,7 @@ const GroupDetail = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { groupId } = useParams() as { groupId: string };
   const { scope } = useSecurityScope();
-  const isPlatform = scope === 'PLATFORM';
+  const isPlatform = scope === CAPABILITY_SCOPES.PLATFORM;
 
   const [group, setGroup] = useState<Group | null>(null);
   const [platformGroup, setPlatformGroup] = useState<PlatformGroupOutput | null>(null);

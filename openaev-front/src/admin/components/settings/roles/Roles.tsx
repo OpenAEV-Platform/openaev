@@ -1,6 +1,7 @@
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
 import NoEnterpriseEdition from '../../../../utils/permissions/NoEnterpriseEdition';
+import { CAPABILITY_SCOPES } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
 import useSecurityScope from '../useSecurityScope';
@@ -10,7 +11,7 @@ import RolesTab from './RolesTab';
 const Roles = () => {
   const { t } = useFormatter();
   const { scope, canAccessTenantUsers, canAccessPlatformUsers, isEnterpriseEdition } = useSecurityScope();
-  const platformScope = scope === 'PLATFORM';
+  const platformScope = scope === CAPABILITY_SCOPES.PLATFORM;
   // Keyed on the scope: switching it starts over from that scope's own list and stored query.
   const rolesTab = (
     <RoleScopeProvider key={scope} scope={scope}>

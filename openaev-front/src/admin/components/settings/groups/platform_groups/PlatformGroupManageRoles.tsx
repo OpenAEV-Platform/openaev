@@ -2,6 +2,7 @@ import { type FC, useEffect, useState } from 'react';
 
 import { fetchPlatformGroupRoleIds } from '../../../../../actions/platform/platform-group/platform-group-action';
 import { useFormatter } from '../../../../../components/i18n';
+import { CAPABILITY_SCOPES } from '../../../../../utils/permissions/types';
 import RoleScopeProvider from '../../roles/RoleScopeProvider';
 import GroupManageRoles from '../GroupManageRoles';
 
@@ -31,7 +32,7 @@ const PlatformGroupManageRoles: FC<Props> = ({
   }, [open, platformGroupId]);
 
   return (
-    <RoleScopeProvider scope="PLATFORM">
+    <RoleScopeProvider scope={CAPABILITY_SCOPES.PLATFORM}>
       <GroupManageRoles
         initialState={roleIds}
         title={t('Manage the platform roles of this group')}

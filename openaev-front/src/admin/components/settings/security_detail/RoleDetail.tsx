@@ -18,6 +18,7 @@ import Loader from '../../../../components/Loader';
 import { GROUP_BASE_URL, ROLE_BASE_URL } from '../../../../constants/BaseUrls';
 import { type CapabilityOutput, type Group, type PlatformGroupOutput, type RoleOutput } from '../../../../utils/api-types';
 import useCapabilities from '../../../../utils/hooks/useCapabilities';
+import { CAPABILITY_SCOPES } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import RolePopover from '../roles/RolePopover';
 import RoleScopeProvider from '../roles/RoleScopeProvider';
@@ -73,7 +74,7 @@ const RoleDetail = () => {
   const navigate = useNavigate();
   const { roleId } = useParams() as { roleId: string };
   const { scope } = useSecurityScope();
-  const isPlatform = scope === 'PLATFORM';
+  const isPlatform = scope === CAPABILITY_SCOPES.PLATFORM;
   const { capabilities: capabilityTree } = useCapabilities(scope);
 
   const [role, setRole] = useState<RoleOutput | null>(null);
