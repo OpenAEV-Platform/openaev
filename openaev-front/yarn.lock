@@ -6136,6 +6136,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"html-to-image@npm:1.11.13":
+  version: 1.11.13
+  resolution: "html-to-image@npm:1.11.13"
+  checksum: 10c0/03bd7192d87b99499e37ff12a8e2b41ddce4cf8e33a93dfadff18df0f213434c7f1ba8328db2158f4805da07b7aec3c90aec3152908281153217e86784218b10
+  languageName: node
+  linkType: hard
+
 "html-url-attributes@npm:^3.0.0":
   version: 3.0.1
   resolution: "html-url-attributes@npm:3.0.1"
@@ -8752,6 +8759,7 @@ __metadata:
     globals: "npm:17.11.0"
     happy-dom: "npm:^20.8.9"
     html-react-parser: "npm:6.1.7"
+    html-to-image: "npm:1.11.13"
     http-proxy-middleware: "npm:4.2.0"
     i18n-auto-translation: "npm:2.2.3"
     immutable: "npm:5.1.9"

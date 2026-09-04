@@ -7,7 +7,7 @@ import {
   fetchPlatformGroupRoleIds,
   searchPlatformGroups,
 } from '../../../../actions/platform/platform-group/platform-group-action';
-import { fetchPlatformRoleById, fetchPlatformRoleCapabilities } from '../../../../actions/platform/platform-role/platform-role-action';
+import { fetchPlatformRoleById } from '../../../../actions/platform/platform-role/platform-role-action';
 import { fetchAllGroups, fetchRoleById } from '../../../../actions/security/securityDetail-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { DetailHero, DetailSections, Field, InformationGrid, Section } from '../../../../components/common/detail/EntityDetailCommon';
@@ -16,11 +16,12 @@ import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { GROUP_BASE_URL, ROLE_BASE_URL } from '../../../../constants/BaseUrls';
-import { type CapabilityOutput, type Group, type PlatformGroupOutput, type PlatformRoleOutput, type RoleOutput } from '../../../../utils/api-types';
+import { type CapabilityOutput, type Group, type PlatformGroupOutput, type RoleOutput } from '../../../../utils/api-types';
 import useCapabilities from '../../../../utils/hooks/useCapabilities';
+import { CAPABILITY_SCOPES } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
-import PlatformRolePopover from '../roles/platform_roles/PlatformRolePopover';
-import RolePopover from '../roles/tenant_roles/RolePopover';
+import RolePopover from '../roles/RolePopover';
+import RoleScopeProvider from '../roles/RoleScopeProvider';
 import SecurityMenu from '../SecurityMenu';
 import useSecurityScope from '../useSecurityScope';
 import { SecurityDetailNotFound } from './SecurityDetailNotFound';
@@ -69,16 +70,15 @@ const renderCapabilityNodes = (
 });
 
 const RoleDetail = () => {
-  const { t, fldt } = useFormatter();
+  const { t } = useFormatter();
   const navigate = useNavigate();
   const { roleId } = useParams() as { roleId: string };
   const { scope } = useSecurityScope();
-  const isPlatform = scope === 'PLATFORM';
+  const isPlatform = scope === CAPABILITY_SCOPES.PLATFORM;
   const { capabilities: capabilityTree } = useCapabilities(scope);
 
   const [role, setRole] = useState<RoleOutput | null>(null);
-  const [platformRole, setPlatformRole] = useState<PlatformRoleOutput | null>(null);
-  const [platformCapabilities, setPlatformCapabilities] = useState<string[]>([]);
+  const [platformRole, setPlatformRole] = useState<RoleOutput | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const [platformGroupsUsingRole, setPlatformGroupsUsingRole] = useState<PlatformGroupOutput[]>([]);
@@ -90,10 +90,8 @@ const RoleDetail = () => {
     setPlatformGroupsUsingRole([]);
     if (isPlatform) {
       fetchPlatformRoleById(roleId)
-        .then(response => setPlatformRole(response.data as PlatformRoleOutput))
+        .then(response => setPlatformRole(response.data as RoleOutput))
         .catch(() => setNotFound(true));
-      fetchPlatformRoleCapabilities(roleId)
-        .then(response => setPlatformCapabilities((response.data ?? []) as string[]));
       // Platform groups don't carry their role ids in the list output, so resolve
       // "groups using this role" by intersecting each group's roles with this role
       // (kept parallel to the tenant view for a consistent overview).
@@ -116,7 +114,7 @@ const RoleDetail = () => {
     }
   }, [roleId, isPlatform]);
 
-  const capabilities = isPlatform ? platformCapabilities : (role?.role_capabilities ?? []);
+  const capabilities = (isPlatform ? platformRole : role)?.role_capabilities ?? [];
   const grantedSet = useMemo(() => new Set(capabilities), [capabilities]);
   const groupsUsingRole = useMemo(
     () => (isPlatform
@@ -144,101 +142,88 @@ const RoleDetail = () => {
     return <Loader />;
   }
 
-  const title = isPlatform ? platformRole!.platform_role_name : role!.role_name;
-  const description = isPlatform ? platformRole!.platform_role_description : role!.role_description;
+  const title = isPlatform ? platformRole!.role_name : role!.role_name;
+  const description = isPlatform ? platformRole!.role_description : role!.role_description;
 
   return (
-    <div style={{ display: 'flex' }}>
-      <div style={{ flexGrow: 1 }}>
-        <Breadcrumbs
-          variant="object"
-          elements={[
-            { label: t(SETTINGS_LABEL) },
-            { label: t('Security') },
-            {
-              label: t('Roles'),
-              link: rolesLink,
-            },
-            {
-              label: title,
-              current: true,
-            },
-          ]}
-        />
-        <Box sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-        }}
-        >
-          <DetailHero
-            icon={SecurityOutlined}
-            title={title}
-            chips={(
-              <Chip
-                size="small"
-                variant="outlined"
-                label={t('{count} capabilities', { count: capabilities.length })}
-                sx={{ borderRadius: 1 }}
-              />
-            )}
-            action={isPlatform
-              ? (
-                  <PlatformRolePopover
-                    platformRole={platformRole!}
-                    actions={['Update', 'Delete']}
-                    onUpdate={(updated: PlatformRoleOutput) => setPlatformRole(updated)}
-                    onDelete={() => navigate(rolesLink)}
-                  />
-                )
-              : (
-                  <RolePopover
-                    role={role!}
-                    onUpdate={updated => setRole(updated)}
-                    onDelete={() => navigate(rolesLink)}
-                  />
-                )}
+    <RoleScopeProvider scope={scope}>
+      <div style={{ display: 'flex' }}>
+        <div style={{ flexGrow: 1 }}>
+          <Breadcrumbs
+            variant="object"
+            elements={[
+              { label: t(SETTINGS_LABEL) },
+              { label: t('Security') },
+              {
+                label: t('Roles'),
+                link: rolesLink,
+              },
+              {
+                label: title,
+                current: true,
+              },
+            ]}
           />
-
-          {/* All short sections share one adaptive grid so the overview stays
-              compact (they stack automatically on narrow viewports). */}
-          <DetailSections>
-            <InformationGrid title={t('Information')}>
-              <Field label={t('Description')}>{description || '-'}</Field>
-              {!isPlatform && (
-                <>
-                  <Field label={t('Creation date')}>{role!.role_created_at ? fldt(role!.role_created_at) : '-'}</Field>
-                  <Field label={t('Update date')}>{role!.role_updated_at ? fldt(role!.role_updated_at) : '-'}</Field>
-                </>
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+          }}
+          >
+            <DetailHero
+              icon={SecurityOutlined}
+              title={title}
+              chips={(
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={t('{count} capabilities', { count: capabilities.length })}
+                  sx={{ borderRadius: 1 }}
+                />
               )}
-            </InformationGrid>
-            <Section title={t('Capabilities')}>
-              {capabilities.length === 0
-                ? <Empty message={t('No capability granted by this role.')} />
-                : <div>{renderCapabilityNodes(capabilityTree, grantedSet, 0)}</div>}
-            </Section>
+              action={(
+                <RolePopover
+                  role={(isPlatform ? platformRole : role)!}
+                  onUpdate={updated => (isPlatform ? setPlatformRole(updated) : setRole(updated))}
+                  onDelete={() => navigate(rolesLink)}
+                />
+              )}
+            />
 
-            <Section title={t('Groups using this role')}>
-              {groupsUsingRole.length === 0
-                ? <Empty message={t('No group uses this role.')} />
-                : (
-                    <List disablePadding>
-                      {groupsUsingRole.map(group => (
-                        <ListItem key={group.id} divider disablePadding>
-                          <ListItemButton component={Link} to={`${GROUP_BASE_URL}/${group.id}${scopeSuffix}`}>
-                            <ListItemIcon sx={{ minWidth: 36 }}><GroupsOutlined color="primary" /></ListItemIcon>
-                            <ListItemText primary={group.name} />
-                          </ListItemButton>
-                        </ListItem>
-                      ))}
-                    </List>
-                  )}
-            </Section>
-          </DetailSections>
-        </Box>
+            {/* All short sections share one adaptive grid so the overview stays
+                compact (they stack automatically on narrow viewports). */}
+            <DetailSections>
+              <InformationGrid title={t('Information')}>
+                <Field label={t('Description')}>{description || '-'}</Field>
+              </InformationGrid>
+              <Section title={t('Capabilities')}>
+                {capabilities.length === 0
+                  ? <Empty message={t('No capability granted by this role.')} />
+                  : <div>{renderCapabilityNodes(capabilityTree, grantedSet, 0)}</div>}
+              </Section>
+
+              <Section title={t('Groups using this role')}>
+                {groupsUsingRole.length === 0
+                  ? <Empty message={t('No group uses this role.')} />
+                  : (
+                      <List disablePadding>
+                        {groupsUsingRole.map(group => (
+                          <ListItem key={group.id} divider disablePadding>
+                            <ListItemButton component={Link} to={`${GROUP_BASE_URL}/${group.id}${scopeSuffix}`}>
+                              <ListItemIcon sx={{ minWidth: 36 }}><GroupsOutlined color="primary" /></ListItemIcon>
+                              <ListItemText primary={group.name} />
+                            </ListItemButton>
+                          </ListItem>
+                        ))}
+                      </List>
+                    )}
+              </Section>
+            </DetailSections>
+          </Box>
+        </div>
+        <SecurityMenu />
       </div>
-      <SecurityMenu />
-    </div>
+    </RoleScopeProvider>
   );
 };
 

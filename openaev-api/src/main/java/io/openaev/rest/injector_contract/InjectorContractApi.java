@@ -121,7 +121,7 @@ public class InjectorContractApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   public InjectorContractFacetCountsOutput getFacetCounts(
-      @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
+      TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
     return new InjectorContractFacetCountsOutput(
         injectorContractService.getPlatformCounts(filtered),

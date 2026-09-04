@@ -1,6 +1,7 @@
 import { AddOutlined, CenterFocusStrongOutlined, RemoveOutlined } from '@mui/icons-material';
 import { Box, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { toBlob } from 'html-to-image';
 import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -14,7 +15,12 @@ import {
 
 import { useFormatter } from '../../../../../../components/i18n';
 import graphTooltipSlotProps from '../../../../chaining/logic/logic-graph/graphTooltipSlotProps';
-import { AP_FLOW_NODE_TYPE, type AttackPathFlowEdge, type AttackPathFlowNode, type AttackPathFlowNodeData } from '../attack-path-flow-helpers';
+import {
+  AP_FLOW_NODE_TYPE,
+  type AttackPathFlowEdge,
+  type AttackPathFlowNode,
+  type AttackPathFlowNodeData,
+} from '../attack-path-flow-helpers';
 import { AP_NODE_ENTER_CLASS } from '../attack-path-styles';
 import AttackPathConnectors from './AttackPathConnectors';
 import AttackPathMiniMap from './AttackPathMiniMap';
@@ -58,26 +64,33 @@ interface AttackPathCanvasProps {
   /** Fit the whole graph; nonce re-fires on repeat. */
   fitRequest?: number;
   /**
-   * Live pursuit: pan (at the CURRENT zoom) to center the nodes the latest delta introduced, instead
-   * of re-fitting the whole graph. Skipped while the user recently panned/zoomed/fitted manually.
-   */
+     * Live pursuit: pan (at the CURRENT zoom) to center the nodes the latest delta introduced, instead
+     * of re-fitting the whole graph. Skipped while the user recently panned/zoomed/fitted manually.
+     */
   pursuitRequest?: AttackPathPursuitRequest | null;
   /**
-   * While true the canvas never snap-fits itself when the world grows — the camera is driven only by
-   * pursuit and by explicit fit/focus requests, so a live run stays framed on the action.
-   */
+     * While true the canvas never snap-fits itself when the world grows — the camera is driven only by
+     * pursuit and by explicit fit/focus requests, so a live run stays framed on the action.
+     */
   pursuitActive?: boolean;
   /**
-   * Expanding a cluster: hold the view on the node that was clicked instead of re-fitting the whole
-   * graph. The growth-driven fit below cannot tell a user expansion from the graph changing shape on
-   * its own, and re-framing everything threw the user back to the graph's entrance. Pans at the
-   * CURRENT zoom, because the surrounding layout reflows around the newly revealed nodes, so holding
-   * the camera still would not hold the clicked node still.
-   */
+     * Expanding a cluster: hold the view on the node that was clicked instead of re-fitting the whole
+     * graph. The growth-driven fit below cannot tell a user expansion from the graph changing shape on
+     * its own, and re-framing everything threw the user back to the graph's entrance. Pans at the
+     * CURRENT zoom, because the surrounding layout reflows around the newly revealed nodes, so holding
+     * the camera still would not hold the clicked node still.
+     */
   anchorRequest?: AttackPathAnchorRequest | null;
   showMiniMap?: boolean;
   /** Overlay rendered in the bottom-right stack, under the minimap (the graph legend). */
   legend?: ReactNode;
+  /**
+     * Capture the WHOLE graph as a PNG; nonce re-fires on repeat. The capture is driven from here
+     * rather than from the parent because only the canvas knows the world geometry.
+     */
+  exportRequest?: number;
+  /** Result of an {@link AttackPathCanvasProps#exportRequest}: null when the capture failed. */
+  onExportDone?: (png: Blob | null) => void;
 }
 
 interface Camera {
@@ -96,6 +109,19 @@ const INITIAL_MAX_ZOOM = 1.1;
 const ZOOM_STEP = 1.15;
 const DRAG_THRESHOLD = 4;
 const CULL_MARGIN = 240;
+// Margin kept around the graph in an exported PNG, so no card touches the image edge.
+const EXPORT_PADDING = 48;
+// Browsers refuse canvases beyond ~16k on a side or ~2^28 pixels, and answer with a blank image
+// rather than an error: a huge graph is captured at a lower density instead.
+const MAX_EXPORT_SIDE = 8192;
+const MAX_EXPORT_PIXELS = 32_000_000;
+const exportPixelRatio = (width: number, height: number) => Math.min(
+  2,
+  window.devicePixelRatio || 1,
+  MAX_EXPORT_SIDE / width,
+  MAX_EXPORT_SIDE / height,
+  Math.sqrt(MAX_EXPORT_PIXELS / (width * height)),
+);
 // After a manual pan/zoom/fit, live pursuit stays hands-off for this long before following again,
 // so the user can inspect (or hold the full overview) without the camera being snatched away.
 const PURSUIT_MANUAL_PAUSE_MS = 6000;
@@ -130,10 +156,16 @@ const AttackPathCanvas = ({
   anchorRequest,
   showMiniMap = true,
   legend,
+  exportRequest,
+  onExportDone,
 }: AttackPathCanvasProps) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const containerRef = useRef<HTMLDivElement>(null);
+  const worldRef = useRef<HTMLDivElement>(null);
+  // While true the whole world is mounted (no culling) and entrance animations are off, so a PNG
+  // capture sees a complete, settled graph.
+  const [exporting, setExporting] = useState(false);
   const [camera, setCamera] = useState<Camera>({
     zoom: 1,
     x: 0,
@@ -367,17 +399,17 @@ const AttackPathCanvas = ({
   }, [animateTo, fitCamera]);
 
   /**
-   * Frame the highlighted path, anchored on the node that was just selected.
-   *
-   * <p>The zoom tries to contain the whole highlighted path (the nodes still lit, i.e. not dimmed)
-   * but never drops below the readable floor used by the initial fit, and the camera centres on the
-   * anchor rather than on the box centre — so the clicked finding is always the visual subject even
-   * when its chain is too long to fit and overflows.
-   *
-   * <p>Centring alone (the previous {@link centerOnNode}) kept the current zoom, which is what made
-   * a selection unreadable: zoomed out the finding was centred but tiny, zoomed in its connectors
-   * stretched off-screen.
-   */
+     * Frame the highlighted path, anchored on the node that was just selected.
+     *
+     * <p>The zoom tries to contain the whole highlighted path (the nodes still lit, i.e. not dimmed)
+     * but never drops below the readable floor used by the initial fit, and the camera centres on the
+     * anchor rather than on the box centre — so the clicked finding is always the visual subject even
+     * when its chain is too long to fit and overflows.
+     *
+     * <p>Centring alone (the previous {@link centerOnNode}) kept the current zoom, which is what made
+     * a selection unreadable: zoomed out the finding was centred but tiny, zoomed in its connectors
+     * stretched off-screen.
+     */
   const focusOnPath = useCallback((anchorNodeId: string) => {
     const el = containerRef.current;
     const anchor = effectiveRects.get(anchorNodeId);
@@ -691,7 +723,8 @@ const AttackPathCanvas = ({
   // Cull off-screen cards: with hundreds of nodes only mount those whose screen rect intersects the
   // viewport (expanded by a margin so cards just outside slide in without a pop).
   const visibleNodes = useMemo(() => {
-    if (size.w === 0) {
+    // A PNG export captures the DOM: everything must be mounted, culled or not.
+    if (size.w === 0 || exporting) {
       return nodes;
     }
     const left = -CULL_MARGIN;
@@ -709,7 +742,85 @@ const AttackPathCanvas = ({
       const sh = r.height * camera.zoom;
       return sx + sw >= left && sx <= right && sy + sh >= top && sy <= bottom;
     });
-  }, [nodes, effectiveRects, camera, size]);
+  }, [nodes, effectiveRects, camera, size, exporting]);
+
+  // Frame of an exported PNG: the auto-layout world, widened to also contain cards the user dragged
+  // outside of it, plus a margin — so nothing is cropped whatever the current pan/zoom is.
+  const exportFrame = useCallback(() => {
+    let minX = 0;
+    let minY = 0;
+    let maxX = worldWidth;
+    let maxY = worldHeight;
+    effectiveRects.forEach((r) => {
+      minX = Math.min(minX, r.x);
+      minY = Math.min(minY, r.y);
+      maxX = Math.max(maxX, r.x + r.width);
+      maxY = Math.max(maxY, r.y + r.height);
+    });
+    return {
+      width: maxX - minX + EXPORT_PADDING * 2,
+      height: maxY - minY + EXPORT_PADDING * 2,
+      offsetX: EXPORT_PADDING - minX,
+      offsetY: EXPORT_PADDING - minY,
+    };
+  }, [effectiveRects, worldWidth, worldHeight]);
+  const exportFrameRef = useRef(exportFrame);
+  exportFrameRef.current = exportFrame;
+  const onExportDoneRef = useRef(onExportDone);
+  onExportDoneRef.current = onExportDone;
+
+  const handledExportRef = useRef(exportRequest ?? 0);
+  useEffect(() => {
+    if (exportRequest && exportRequest !== handledExportRef.current) {
+      handledExportRef.current = exportRequest;
+      setExporting(true);
+    }
+  }, [exportRequest]);
+
+  // Effects run after the commit, so by now every card is in the DOM; one frame then lets the
+  // browser lay them out before their computed styles are read.
+  useEffect(() => {
+    if (!exporting) {
+      return undefined;
+    }
+    let settled = false;
+    const done = (png: Blob | null) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      onExportDoneRef.current?.(png);
+      setExporting(false);
+    };
+    const frame = requestAnimationFrame(() => {
+      const world = worldRef.current;
+      if (!world) {
+        done(null);
+        return;
+      }
+      const { width, height, offsetX, offsetY } = exportFrameRef.current();
+      toBlob(world, {
+        width,
+        height,
+        pixelRatio: exportPixelRatio(width, height),
+        backgroundColor: theme.palette.background.default,
+        // Applied to the clone only: it replaces the live camera transform, so the capture frames
+        // the whole world whatever the user's current pan/zoom is.
+        style: {
+          transform: `translate(${offsetX}px, ${offsetY}px)`,
+          transformOrigin: '0 0',
+        },
+      })
+        .then(png => done(png))
+        .catch(() => done(null));
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      // Torn down before the capture produced anything: answer, so the caller is not left waiting
+      // on a blob that will never come. A capture that already answered ignores this.
+      done(null);
+    };
+  }, [exporting, theme.palette.background.default]);
 
   const controlButtonSx = {
     'padding': 0.75,
@@ -778,6 +889,7 @@ const AttackPathCanvas = ({
       }}
     >
       <Box
+        ref={worldRef}
         sx={{
           position: 'absolute',
           top: 0,
@@ -794,7 +906,8 @@ const AttackPathCanvas = ({
           if (!r) {
             return null;
           }
-          const isEntering = enterNodeIds?.has(node.id) ?? false;
+          // A card mid-entrance is half faded: freeze the animation off while capturing a PNG.
+          const isEntering = !exporting && (enterNodeIds?.has(node.id) ?? false);
           return (
             <Box
               key={node.id}
@@ -847,12 +960,22 @@ const AttackPathCanvas = ({
         }}
       >
         <Tooltip title={t('Zoom in')} placement="right" slotProps={graphTooltipSlotProps}>
-          <IconButton size="small" aria-label={t('Zoom in')} sx={controlButtonSx} onClick={() => zoomByButton(ZOOM_STEP)}>
+          <IconButton
+            size="small"
+            aria-label={t('Zoom in')}
+            sx={controlButtonSx}
+            onClick={() => zoomByButton(ZOOM_STEP)}
+          >
             <AddOutlined fontSize="small" />
           </IconButton>
         </Tooltip>
         <Tooltip title={t('Zoom out')} placement="right" slotProps={graphTooltipSlotProps}>
-          <IconButton size="small" aria-label={t('Zoom out')} sx={controlButtonSx} onClick={() => zoomByButton(1 / ZOOM_STEP)}>
+          <IconButton
+            size="small"
+            aria-label={t('Zoom out')}
+            sx={controlButtonSx}
+            onClick={() => zoomByButton(1 / ZOOM_STEP)}
+          >
             <RemoveOutlined fontSize="small" />
           </IconButton>
         </Tooltip>
