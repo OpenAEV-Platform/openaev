@@ -155,7 +155,10 @@ public class ScenarioExportTest extends IntegrationTest {
     @DisplayName("given_lessonsDisabledScenario_should_not_exportLessonsContent")
     void given_lessonsDisabledScenario_should_not_exportLessonsContent() throws Exception {
       Scenario scenario =
-          scenarioComposer.forScenario(ScenarioFixture.createDefaultCrisisScenario()).persist().get();
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .persist()
+              .get();
       manager.flush();
       manager.clear();
 
@@ -168,7 +171,10 @@ public class ScenarioExportTest extends IntegrationTest {
               .getResponse()
               .getContentAsByteArray();
 
-      JsonNode exportedScenario = mapper.readTree(getJsonExportFromZip(response, scenario.getName()));
+      JsonNode exportedScenario =
+          mapper.readTree(getJsonExportFromZip(response, scenario.getName()));
+      assertFalse(
+          exportedScenario.get("scenario_information").get("scenario_lessons_enabled").asBoolean());
       assertFalse(exportedScenario.has("scenario_lessons_categories"));
       assertFalse(exportedScenario.has("scenario_lessons_questions"));
     }

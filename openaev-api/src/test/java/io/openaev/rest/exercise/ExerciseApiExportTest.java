@@ -201,6 +201,8 @@ class ExerciseApiExportTest extends IntegrationTest {
             ExerciseFileExport.fromExercise(ex, exportMapper, challengeService, articleService)
                 .withOptions(0));
     JsonNode exportedExercise = mapper.readTree(actualJson);
+    assertFalse(
+        exportedExercise.get("exercise_information").get("exercise_lessons_enabled").asBoolean());
     assertFalse(exportedExercise.has("exercise_lessons_categories"));
     assertFalse(exportedExercise.has("exercise_lessons_questions"));
 
