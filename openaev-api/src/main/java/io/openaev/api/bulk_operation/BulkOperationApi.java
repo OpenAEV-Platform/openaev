@@ -13,6 +13,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,6 +39,7 @@ public class BulkOperationApi {
               + " flow through the bulk-operation SSE events.")
   @LogExecutionTime
   @GetMapping({BULK_OPERATION_URI, TENANT_PREFIX + "/bulk-operations"})
+  @Transactional(propagation = Propagation.SUPPORTS)
   // Scoped to the caller's own operations and exposes only aggregate counts and entity labels,
   // never entity data: no per-resource RBAC applies.
   @AccessControl(skipRBAC = true)
