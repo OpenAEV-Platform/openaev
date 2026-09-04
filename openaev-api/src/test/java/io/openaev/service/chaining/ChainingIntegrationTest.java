@@ -14,7 +14,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
@@ -548,6 +550,94 @@ class ChainingIntegrationTest extends IntegrationTest {
           result.contains(injectId),
           "Workflow chaining inject must not be exposed as atomic testing");
     }
+
+    // -------------------------------------------------------------------------
+    // 6. DUPLICATE SCENARIO CHAINING → Scenario + Workflow TEMPLATE + Step TEMPLATE duplicated
+    // -------------------------------------------------------------------------
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    void should_duplicate_scenario_workflow_template_and_step_template_when_chaining_enabled()
+        throws Exception {
+      // Create scenario with chaining enabled
+      String scenarioResponse =
+          mvc.perform(
+                  post(tenantUri(TENANT_SCENARIO_URI))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(mapper.writeValueAsString(buildScenarioInput())))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      Scenario createdScenario = mapper.readValue(scenarioResponse, Scenario.class);
+
+      // Get the workflow template created
+      Workflow workflowTemplate =
+          workflowRepository.findAll().stream()
+              .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
+              .filter(
+                  w ->
+                      w.getScenario() != null
+                          && createdScenario.getId().equals(w.getScenario().getId()))
+              .findFirst()
+              .orElseThrow();
+
+      // Add a step with an inject to the workflow template
+      InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+      StepInput step = buildValidStepInput(workflowTemplate.getId());
+      step.setDataStep(injectInput);
+      createStepTemplate(step);
+
+      String result =
+          mvc.perform(
+                  post(tenantUri(TENANT_SCENARIO_URI + "/" + createdScenario.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      Scenario scenarioDuplicated = mapper.readValue(result, Scenario.class);
+
+      Workflow workflowTemplateDuplicated =
+          workflowRepository.findAll().stream()
+              .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
+              .filter(
+                  w ->
+                      w.getScenario() != null
+                          && scenarioDuplicated.getId().equals(w.getScenario().getId()))
+              .findFirst()
+              .orElseThrow();
+
+      assertWorkflowEqualsExceptId(workflowTemplate, workflowTemplateDuplicated);
+
+      List<Step> originalSteps =
+          stepRepository.findAll().stream()
+              .filter(
+                  s ->
+                      s.getWorkflow() != null
+                          && workflowTemplate.getId().equals(s.getWorkflow().getId()))
+              .toList();
+      List<Step> duplicatedSteps =
+          stepRepository.findAll().stream()
+              .filter(
+                  s ->
+                      s.getWorkflow() != null
+                          && workflowTemplateDuplicated.getId().equals(s.getWorkflow().getId()))
+              .toList();
+
+      assertEquals(originalSteps.size(), duplicatedSteps.size(), "Step TEMPLATE count must match");
+      assertFalse(duplicatedSteps.isEmpty(), "Duplicated workflow must contain step templates");
+
+      Step originalStep = originalSteps.getFirst();
+      Step duplicatedStep = duplicatedSteps.getFirst();
+      assertStepEqualsExceptId(originalStep, duplicatedStep);
+      // The engine builds the inject from this snapshot, so the copy must name the duplicate.
+      assertEquals(
+          scenarioDuplicated.getId(),
+          StepService.getField(duplicatedStep.getData(), "inject_scenario"));
+    }
   }
 
   @Nested
@@ -635,6 +725,75 @@ class ChainingIntegrationTest extends IntegrationTest {
       assertEquals(1, stepsCreated.size());
       assertEquals(StepStatus.TEMPLATE, stepsCreated.getFirst().getStatus());
     }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    void should_duplicate_simulation_workflow_template_and_step_template_when_chaining_enabled()
+        throws Exception {
+      String response =
+          mvc.perform(
+                  post(tenantUri(TENANT_EXERCISE_URI))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(mapper.writeValueAsString(buildSimulationInput())))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String simulationId = JsonPath.read(response, "$.exercise_id");
+      Exercise createdSimulation = exerciseRepository.findById(simulationId).orElseThrow();
+
+      Workflow workflowTemplate = findTemplateWorkflowBySimulationId(createdSimulation.getId());
+
+      InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+      StepInput step = buildValidStepInput(workflowTemplate.getId());
+      step.setDataStep(injectInput);
+      createStepTemplate(step);
+
+      String duplicatedResponse =
+          mvc.perform(
+                  post(tenantUri(TENANT_EXERCISE_URI + "/" + createdSimulation.getId()))
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      String duplicatedSimulationId = JsonPath.read(duplicatedResponse, "$.exercise_id");
+      Exercise duplicatedSimulation =
+          exerciseRepository.findById(duplicatedSimulationId).orElseThrow();
+      Workflow duplicatedWorkflowTemplate =
+          findTemplateWorkflowBySimulationId(duplicatedSimulation.getId());
+
+      assertWorkflowEqualsExceptId(workflowTemplate, duplicatedWorkflowTemplate);
+
+      List<Step> originalSteps =
+          stepRepository.findAll().stream()
+              .filter(
+                  s ->
+                      s.getWorkflow() != null
+                          && workflowTemplate.getId().equals(s.getWorkflow().getId()))
+              .toList();
+      List<Step> duplicatedSteps =
+          stepRepository.findAll().stream()
+              .filter(
+                  s ->
+                      s.getWorkflow() != null
+                          && duplicatedWorkflowTemplate.getId().equals(s.getWorkflow().getId()))
+              .toList();
+
+      assertEquals(originalSteps.size(), duplicatedSteps.size(), "Step TEMPLATE count must match");
+      assertFalse(
+          duplicatedSteps.isEmpty(), "Duplicated simulation workflow must contain step templates");
+
+      assertStepEqualsExceptId(originalSteps.getFirst(), duplicatedSteps.getFirst());
+      // The engine builds the inject from this snapshot, so the copy must name the duplicate.
+      assertEquals(
+          duplicatedSimulation.getId(),
+          StepService.getField(duplicatedSteps.getFirst().getData(), "inject_exercise"));
+    }
   }
 
   private Workflow findTemplateWorkflowBySimulationId(String simulationId) {
@@ -669,6 +828,59 @@ class ChainingIntegrationTest extends IntegrationTest {
     assertEquals(expected.isTimeoutEnabled(), actual.isTimeoutEnabled());
     assertEquals(expected.getTimeoutSeconds(), actual.getTimeoutSeconds());
     assertEquals(expected.isSafeModeEnabled(), actual.isSafeModeEnabled());
+  }
+
+  /**
+   * Fields of the step data snapshot that a copy is expected NOT to carry over verbatim: the owner
+   * reference is re-pointed at the destination object and the execution artefacts are cleared, so
+   * comparing them would pin the defect rather than the contract.
+   */
+  private static final List<String> NON_AUTHORED_STEP_DATA_FIELDS =
+      List.of(
+          "inject_exercise",
+          "inject_scenario",
+          "inject_id",
+          "inject_status",
+          "inject_collect_status",
+          "inject_expectations",
+          "inject_communications",
+          "inject_sent_at",
+          "inject_created_at",
+          "inject_updated_at",
+          "inject_trigger_now_date",
+          "inject_expectations_drift_dismissed",
+          "inject_depends_on");
+
+  /** The authored part of a step data snapshot: what a copy must reproduce byte for byte. */
+  private JsonNode authoredStepData(String stepData) {
+    try {
+      ObjectNode node = (ObjectNode) mapper.readTree(stepData);
+      NON_AUTHORED_STEP_DATA_FIELDS.forEach(node::remove);
+      return node;
+    } catch (Exception e) {
+      throw new AssertionError("Step data is not a JSON object: " + stepData, e);
+    }
+  }
+
+  private void assertStepEqualsExceptId(Step expected, Step actual) {
+    assertNotNull(expected.getId());
+    assertNotNull(actual.getId());
+    assertNotEquals(expected.getId(), actual.getId(), "Step ids must differ");
+
+    assertEquals(expected.getStatus(), actual.getStatus());
+    assertEquals(expected.getStepAction(), actual.getStepAction());
+    assertEquals(expected.getInput(), actual.getInput());
+    assertEquals(
+        authoredStepData(expected.getData()),
+        authoredStepData(actual.getData()),
+        "The authored inject payload must be reproduced by the copy");
+    assertNull(
+        StepService.getField(actual.getData(), "inject_id"),
+        "A copied step must carry no execution artefact");
+    assertEquals(expected.getOutput(), actual.getOutput());
+    assertEquals(expected.getOutputParser(), actual.getOutputParser());
+    assertEquals(expected.getConditionExecuted(), actual.getConditionExecuted());
+    assertEquals(expected.getLimitExecution(), actual.getLimitExecution());
   }
 
   private ScenarioInput buildScenarioInput() {

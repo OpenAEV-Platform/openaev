@@ -944,18 +944,65 @@ public class WorkflowService {
   @Transactional(rollbackFor = Exception.class)
   public Workflow copyScenarioChainingWorkflowAsManual(
       @NotBlank String scenarioIdFrom, @NotBlank Scenario scenarioTo) throws ChainingException {
+    return duplicateScenarioWorkflow(scenarioIdFrom, scenarioTo);
+  }
+
+  /**
+   * Duplicates a scenario's chaining workflow TEMPLATE - configuration, scope rules, scope
+   * variables, every step template and the full condition graph - onto {@code scenarioTo}.
+   *
+   * <p>Only the TEMPLATE workflow is ever read, never a RUN one, so no execution state can bleed
+   * into the copy by construction: the source may be duplicated in any status.
+   *
+   * @param scenarioIdFrom source scenario whose workflow is copied
+   * @param scenarioTo already-persisted destination scenario
+   * @return the new workflow template, or {@code null} if the source has no workflow
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Workflow duplicateScenarioWorkflow(
+      @NotBlank String scenarioIdFrom, @NotBlank Scenario scenarioTo) throws ChainingException {
     Optional<Workflow> sourceOpt = findWorkflowTemplateByScenarioId(scenarioIdFrom);
     if (sourceOpt.isEmpty()) {
       return null;
     }
     Workflow source = sourceOpt.get();
-    Workflow copy = copyWorkflowTemplateToScenario(source, scenarioTo);
-    // A duplicated autonomous workflow must never inherit the "park forever" contract
-    // (keepAlive on, timeout watchdog off) that a legacy autonomous scenario template may carry.
-    copy.setKeepAlive(false);
-    copy.setTimeoutEnabled(true);
+    Workflow copy = resetForDuplication(copyWorkflowTemplateToScenario(source, scenarioTo));
     copy = workflowRepository.save(copy);
     stepService.copyStepTemplate(source, copy);
+    return copy;
+  }
+
+  /**
+   * Duplicates a simulation's chaining workflow TEMPLATE onto {@code simulationTo}. Same contract
+   * as {@link #duplicateScenarioWorkflow(String, Scenario)}.
+   *
+   * @param simulationIdFrom source simulation whose workflow is copied
+   * @param simulationTo already-persisted destination simulation
+   * @return the new workflow template, or {@code null} if the source has no workflow
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public Workflow duplicateSimulationWorkflow(
+      @NotBlank String simulationIdFrom, @NotBlank Exercise simulationTo) {
+    Optional<Workflow> sourceOpt = findWorkflowTemplateBySimulationId(simulationIdFrom);
+    if (sourceOpt.isEmpty()) {
+      return null;
+    }
+    Workflow source = sourceOpt.get();
+    Workflow copy = resetForDuplication(copyWorkflowTemplateToSimulation(source, simulationTo));
+    copy = workflowRepository.save(copy);
+    stepService.copyStepTemplate(source, copy);
+    return copy;
+  }
+
+  /**
+   * Applies the duplication contract to a fresh TEMPLATE copy: the duplicate is a brand-new,
+   * never-run object.
+   */
+  private static Workflow resetForDuplication(Workflow copy) {
+    copy.setKeepAlive(false);
+    copy.setTimeoutEnabled(true);
+    copy.setEdited(false);
+    copy.setWorkflowTemplate(null);
     return copy;
   }
 
@@ -1314,48 +1361,6 @@ public class WorkflowService {
   /** Persists a list of workflows in batch. */
   public void saveAll(List<Workflow> workflows) {
     workflowRepository.saveAll(workflows);
-  }
-
-  /**
-   * Duplicates a scenario's workflow template to a new scenario.
-   *
-   * @param scenarioIdFrom source scenario ID
-   * @param scenarioTo target scenario entity
-   * @return the new workflow template, or null if the source has no workflow
-   */
-  public Workflow duplicateScenario(@NotBlank String scenarioIdFrom, @NotBlank Scenario scenarioTo)
-      throws ChainingException {
-
-    Optional<Workflow> oldWorkflowOpt = findWorkflowTemplateByScenarioId(scenarioIdFrom);
-    if (oldWorkflowOpt.isEmpty()) {
-      return null;
-    }
-    Workflow oldWorkflowTemplateScenario = oldWorkflowOpt.get();
-
-    Workflow newWorkflowTemplateScenario =
-        copyWorkflowTemplateToScenario(oldWorkflowTemplateScenario, scenarioTo);
-    return workflowRepository.save(newWorkflowTemplateScenario);
-  }
-
-  /**
-   * Duplicates a simulation's workflow template to a new simulation.
-   *
-   * @param simulationIdFrom source simulation ID
-   * @param simulationTo target simulation entity
-   * @return the new workflow template, or null if the source has no workflow
-   */
-  public Workflow duplicateSimulation(
-      @NotBlank String simulationIdFrom, @NotBlank Exercise simulationTo) {
-
-    Optional<Workflow> oldWorkflowOpt = findWorkflowTemplateBySimulationId(simulationIdFrom);
-    if (oldWorkflowOpt.isEmpty()) {
-      return null;
-    }
-    Workflow oldWorkflowTemplateSimulation = oldWorkflowOpt.get();
-
-    Workflow newWorkflowTemplateScenario =
-        copyWorkflowTemplateToSimulation(oldWorkflowTemplateSimulation, simulationTo);
-    return workflowRepository.save(newWorkflowTemplateScenario);
   }
 
   /**

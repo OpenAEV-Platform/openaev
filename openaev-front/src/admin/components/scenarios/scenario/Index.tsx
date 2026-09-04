@@ -343,7 +343,9 @@ const IndexScenarioComponent: FunctionComponent<{
 const Index = () => {
   // Standard hooks
   const dispatch = useAppDispatch();
-  const [pristine, setPristine] = useState(true);
+  // Navigating from one scenario to another keeps this component
+  // mounted and only changes the param.
+  const [loadedScenarioId, setLoadedScenarioId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const { t } = useFormatter();
   // Fetching data
@@ -373,15 +375,15 @@ const Index = () => {
   useDataLoader(() => {
     setLoading(true);
     dispatch(fetchScenario(scenarioId)).finally(() => {
-      setPristine(false);
+      setLoadedScenarioId(scenarioId);
       setLoading(false);
     });
-  });
+  }, [scenarioId]);
 
   const scenarioInjectContext = injectContextForScenario(scenario);
 
-  // avoid to show loader if something trigger useDataLoader
-  if ((pristine && loading) || !autonomousResolved) {
+  // Loader until the CURRENT scenario's fetch has completed
+  if (loadedScenarioId !== scenarioId || !autonomousResolved) {
     return <Loader />;
   }
   if (!loading && !scenario) {

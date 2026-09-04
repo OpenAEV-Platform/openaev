@@ -190,8 +190,44 @@ public class ScenarioApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.SCENARIO)
-  public Scenario duplicateScenario(@PathVariable @NotBlank final String scenarioId) {
-    return scenarioService.getDuplicateScenario(scenarioId);
+  @Operation(
+      summary = "Duplicate a scenario",
+      description =
+          "Duplicates a scenario's authored content. A chained scenario also gets a copy of its logic map (workflow, steps and conditions); execution artefacts are never copied. Requires an Enterprise Edition license when the scenario is chained.")
+  public Scenario duplicateScenario(@PathVariable @NotBlank final String scenarioId)
+      throws ChainingException {
+    Scenario duplicate = scenarioService.getDuplicateScenario(scenarioId);
+    duplicateChainingWorkflowIfAny(scenarioId, duplicate);
+    return duplicate;
+  }
+
+  /**
+   * Copies the logic map of a chained scenario onto its freshly created duplicate.
+   *
+   * <p>The chained branch is deliberately explicit rather than hidden inside {@link
+   * ScenarioService#getDuplicateScenario}: {@code AutonomousRunService.convertToManual} also calls
+   * that method and then copies the workflow itself, so an implicit copy would give its duplicate
+   * two TEMPLATE workflows.
+   *
+   * <p>Chaining is an Enterprise Edition feature, but this endpoint also serves time-based
+   * scenarios, so it cannot carry an unconditional {@code isEnterpriseEdition = true} on {@link
+   * AccessControl} - that flag is applied before anything else. The licence is therefore checked
+   * programmatically, and only on the chained branch. Degrading silently to a metadata-only copy is
+   * not an option: the user would lose the logic map with no signal.
+   *
+   * @param scenarioId the source scenario
+   * @param duplicate the persisted duplicate to attach the copied workflow to
+   */
+  private void duplicateChainingWorkflowIfAny(final String scenarioId, final Scenario duplicate)
+      throws ChainingException {
+    if (!workflowService.isScenarioChaining(scenarioId)) {
+      return;
+    }
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
+      throw new EnterpriseEditionException("Enterprise Edition license required");
+    }
+    workflowService.duplicateScenarioWorkflow(scenarioId, duplicate);
   }
 
   @GetMapping({SCENARIO_URI, TENANT_SCENARIO_URI})

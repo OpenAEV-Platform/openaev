@@ -261,7 +261,13 @@ public class ExerciseService {
     Exercise exerciseDuplicate = exerciseRepository.save(exercise);
     actionMetricCollector.addSimulationCreatedCount();
     duplicateGrants(exerciseDuplicate, exerciseOrigin);
-    getListOfDuplicatedInjects(exerciseDuplicate, exerciseOrigin);
+    // A chained simulation has no authored injects: every one of its injects is created at runtime
+    // by the chaining engine from the step templates. Cloning them would copy execution artefacts
+    // into a brand-new, never-run duplicate. Its authored content is the workflow, duplicated by
+    // the API layer.
+    if (!workflowService.isSimulationChaining(exerciseId)) {
+      getListOfDuplicatedInjects(exerciseDuplicate, exerciseOrigin);
+    }
     Map<String, Team> contextualTeams = getListOfExerciseTeams(exerciseDuplicate, exerciseOrigin);
     duplicateTeamUsers(exerciseDuplicate, exerciseOrigin, contextualTeams);
     getListOfArticles(exerciseDuplicate, exerciseOrigin);
