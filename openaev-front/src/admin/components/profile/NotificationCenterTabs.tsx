@@ -20,6 +20,7 @@ const NotificationCenterTabs = ({ current }: Props) => {
       sx={{
         borderBottom: 1,
         borderColor: 'divider',
+        marginBottom: 2,
       }}
     >
       <Tab
