@@ -36,7 +36,11 @@ public class CredentialSecretReference extends SecretReference {
               CREDENTIAL_TYPE.CLOUD_AZURE,
                   EnumSet.of(
                       CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL,
-                      CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY));
+                      CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY),
+              CREDENTIAL_TYPE.CLOUD_GCP,
+                  EnumSet.of(
+                      CREDENTIAL_AUTH_METHOD.GCP_SERVICE_ACCOUNT,
+                      CREDENTIAL_AUTH_METHOD.GCP_OAUTH2));
 
   public enum CREDENTIAL_AUTH_METHOD {
     USERNAME_PASSWORD,
@@ -44,13 +48,16 @@ public class CredentialSecretReference extends SecretReference {
     AWS_ACCESS_KEY,
     AWS_ASSUME_ROLE,
     AZURE_SERVICE_PRINCIPAL,
-    AZURE_MANAGED_IDENTITY
+    AZURE_MANAGED_IDENTITY,
+    GCP_SERVICE_ACCOUNT,
+    GCP_OAUTH2
   }
 
   public enum CREDENTIAL_TYPE {
     IDENTITY,
     CLOUD_AWS,
     CLOUD_AZURE,
+    CLOUD_GCP,
   }
 
   @Column(name = "secret_reference_credential_type")

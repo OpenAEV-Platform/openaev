@@ -10,19 +10,24 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.credential.CredentialService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @RestController
@@ -31,6 +36,15 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Credential API", description = "Operations related to credentials")
 public class CredentialApi extends RestBehavior {
   public static final String TENANT_CREDENTIALS_URI = TENANT_PREFIX + "/credentials";
+
+  /** Name of the multipart part carrying the GCP service account key file. */
+  public static final String GCP_PRIVATE_KEY_PART = "gcp_private_key_json";
+
+  /**
+   * Upper bound on the key file. A Google service account key weighs about 2.3 KB; 16 KB leaves
+   * room for formatting variations while keeping the endpoint useless as an upload DoS vector.
+   */
+  public static final long MAX_GCP_PRIVATE_KEY_SIZE_BYTES = 16L * 1024;
 
   private final CredentialService credentialService;
   private final CredentialMapper credentialMapper;
@@ -66,16 +80,19 @@ public class CredentialApi extends RestBehavior {
     return credentialService.getCredentialFullOutputInformation(credentialId);
   }
 
-  @PostMapping
+  @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @Transactional
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CREDENTIAL)
   @Operation(summary = "Create a credential")
-  public CredentialOutput createCredential(TxCtx ctx, @Valid @RequestBody CredentialInput input) {
+  public CredentialOutput createCredential(
+      TxCtx ctx,
+      @Valid @RequestPart("input") CredentialInput input,
+      @RequestPart(value = GCP_PRIVATE_KEY_PART) Optional<MultipartFile> gcpPrivateKeyJson) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    return credentialService.createCredential(input, tenantId);
+    return credentialService.createCredential(input, tenantId, readKeyFile(gcpPrivateKeyJson));
   }
 
-  @PutMapping("/{credentialId}")
+  @PutMapping(path = "/{credentialId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @Transactional
   @AccessControl(
       resourceId = "#credentialId",
@@ -83,9 +100,64 @@ public class CredentialApi extends RestBehavior {
       resourceType = ResourceType.CREDENTIAL)
   @Operation(summary = "Update a credential with explicit secret update mode")
   public CredentialFullOutput updateCredential(
-      TxCtx ctx, @PathVariable String credentialId, @Valid @RequestBody CredentialInput input) {
+      TxCtx ctx,
+      @PathVariable String credentialId,
+      @Valid @RequestPart("input") CredentialInput input,
+      @RequestPart(value = GCP_PRIVATE_KEY_PART) Optional<MultipartFile> gcpPrivateKeyJson) {
+
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    return credentialService.updateCredential(credentialId, input, tenantId);
+    return credentialService.updateCredential(
+        credentialId, input, tenantId, readKeyFile(gcpPrivateKeyJson));
+  }
+
+  /**
+   * Reads and validates the optional key file part.
+   *
+   * <p>Validation lives here rather than in the handler, which only ever sees {@code byte[]} and
+   * cannot tell an absent upload from a rejected one. The two outcomes are deliberately different:
+   *
+   * <ul>
+   *   <li>an ABSENT part yields {@code null}, which the handlers read as "left untouched by the
+   *       client" — exactly like a null text field, and what makes key rotation optional on PUT;
+   *   <li>a PRESENT but empty part is a client error, never a silent no-op: it would otherwise look
+   *       like a successful rotation while the old key is still in place.
+   * </ul>
+   *
+   * <p>The size is bounded before the payload is read into memory: a service account key file
+   * weighs about 2 KB, so anything past {@link #MAX_GCP_PRIVATE_KEY_SIZE_BYTES} is an abuse
+   * attempt, not a credential.
+   */
+  private byte[] readKeyFile(Optional<MultipartFile> keyFile) {
+    MultipartFile file = keyFile.orElse(null);
+    if (file == null) {
+      return null;
+    }
+    if (file.isEmpty()) {
+      throw new BadRequestException("The GCP service account key file must not be empty");
+    }
+    if (file.getSize() > MAX_GCP_PRIVATE_KEY_SIZE_BYTES) {
+      throw new BadRequestException(
+          "The GCP service account key file must not exceed "
+              + MAX_GCP_PRIVATE_KEY_SIZE_BYTES
+              + " bytes");
+    }
+    byte[] content;
+    try {
+      content = file.getBytes();
+    } catch (IOException e) {
+      throw new BadRequestException("Unable to read the GCP service account key file");
+    }
+    // Belt and braces: getSize() is reported by the client, the actual payload is what counts.
+    if (content.length == 0) {
+      throw new BadRequestException("The GCP service account key file must not be empty");
+    }
+    if (content.length > MAX_GCP_PRIVATE_KEY_SIZE_BYTES) {
+      throw new BadRequestException(
+          "The GCP service account key file must not exceed "
+              + MAX_GCP_PRIVATE_KEY_SIZE_BYTES
+              + " bytes");
+    }
+    return content;
   }
 
   @DeleteMapping("/{credentialId}")

@@ -43,6 +43,16 @@ public class CredentialSecretReferenceFixture {
         CREDENTIAL_TYPE.CLOUD_AZURE, CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY);
   }
 
+  public static CredentialSecretReference getGcpServiceAccountReference() {
+    return getCredentialSecretReference(
+        CREDENTIAL_TYPE.CLOUD_GCP, CREDENTIAL_AUTH_METHOD.GCP_SERVICE_ACCOUNT);
+  }
+
+  public static CredentialSecretReference getGcpOAuth2Reference() {
+    return getCredentialSecretReference(
+        CREDENTIAL_TYPE.CLOUD_GCP, CREDENTIAL_AUTH_METHOD.GCP_OAUTH2);
+  }
+
   public static CredentialSecretReference getUsernamePasswordReference() {
     return getCredentialSecretReference(
         CREDENTIAL_TYPE.IDENTITY, CREDENTIAL_AUTH_METHOD.USERNAME_PASSWORD);

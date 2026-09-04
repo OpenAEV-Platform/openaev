@@ -3098,8 +3098,9 @@ export interface CredentialBulkProcessingInput {
 
 export interface CredentialContractField {
   choices?: string[];
+  default_value?: string;
   field_name: string;
-  field_type?: "text" | "password" | "select" | "number" | "checkbox";
+  field_type?: "text" | "password" | "select" | "number" | "checkbox" | "file";
   mandatory_condition_field?: string;
   mandatory_condition_value?: string;
   required?: boolean;
@@ -3114,8 +3115,10 @@ export interface CredentialContractOutput {
     | "AWS_ACCESS_KEY"
     | "AWS_ASSUME_ROLE"
     | "AZURE_SERVICE_PRINCIPAL"
-    | "AZURE_MANAGED_IDENTITY";
-  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   fields?: CredentialContractField[];
 }
 
@@ -3134,7 +3137,9 @@ export interface CredentialFullOutput {
     | "AWS_ACCESS_KEY"
     | "AWS_ASSUME_ROLE"
     | "AZURE_SERVICE_PRINCIPAL"
-    | "AZURE_MANAGED_IDENTITY";
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
   /** AWS access key ID */
   credential_aws_access_key_id?: string;
   /** Secret AWS default region */
@@ -3202,6 +3207,18 @@ export interface CredentialFullOutput {
   credential_created_by: CredentialCreatedByOutput;
   /** Credential description */
   credential_description?: string;
+  /** GCP OAuth client id */
+  credential_gcp_oauth_client_id?: string;
+  /** Whether a GCP OAuth client secret is stored; the secret itself is never returned */
+  credential_gcp_oauth_client_secret_defined?: boolean;
+  /** Whether a GCP OAuth refresh token is stored; the token itself is never returned */
+  credential_gcp_oauth_refresh_token_defined?: boolean;
+  /** Whether a GCP service account key file is stored; the key itself is never returned */
+  credential_gcp_private_key_defined?: boolean;
+  /** GCP project id */
+  credential_gcp_project_id?: string;
+  /** GCP OAuth scope */
+  credential_gcp_scope?: string;
   /** Secret hash algorithm */
   credential_hash_algorithm?: "SHA" | "NTLM";
   /** Credential ID */
@@ -3230,7 +3247,7 @@ export interface CredentialFullOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   /** Secret username */
   credential_username?: string;
 }
@@ -3292,7 +3309,9 @@ export interface CredentialInput {
     | "AWS_ACCESS_KEY"
     | "AWS_ASSUME_ROLE"
     | "AZURE_SERVICE_PRINCIPAL"
-    | "AZURE_MANAGED_IDENTITY";
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
   credential_description?: string;
   credential_hash?: string;
   credential_hash_algorithm?: "SHA" | "NTLM";
@@ -3300,8 +3319,13 @@ export interface CredentialInput {
   credential_name: string;
   credential_password?: string;
   credential_tags?: string[];
-  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   credential_username?: string;
+  gcp_oauth_client_id?: string;
+  gcp_oauth_client_secret?: string;
+  gcp_oauth_refresh_token?: string;
+  gcp_project_id?: string;
+  gcp_scope?: string;
 }
 
 export interface CredentialOutput {
@@ -3312,7 +3336,9 @@ export interface CredentialOutput {
     | "AWS_ACCESS_KEY"
     | "AWS_ASSUME_ROLE"
     | "AZURE_SERVICE_PRINCIPAL"
-    | "AZURE_MANAGED_IDENTITY";
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
   /**
    * Credential creation timestamp
    * @format date-time
@@ -3346,7 +3372,7 @@ export interface CredentialOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type?: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
+  credential_type?: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
 }
 
 export interface CustomDashboard {

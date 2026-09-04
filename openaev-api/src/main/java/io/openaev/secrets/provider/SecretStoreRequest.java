@@ -25,6 +25,13 @@ import io.openaev.database.model.HashSecret;
  * @param azureClientSecret client secret for AZURE_SERVICE_PRINCIPAL
  * @param azureTenantId Entra ID tenant id for AZURE_SERVICE_PRINCIPAL
  * @param azureSubscriptionId optional subscription id for AZURE auth methods
+ * @param gcpScope mandatory OAuth scope for GCP auth methods
+ * @param gcpProjectId optional project id for GCP auth methods
+ * @param gcpPrivateKeyJson raw content of the uploaded service account key file, for
+ *     GCP_SERVICE_ACCOUNT; null means "left untouched by the client"
+ * @param gcpOauthClientId OAuth client id for GCP_OAUTH2
+ * @param gcpOauthClientSecret OAuth client secret for GCP_OAUTH2
+ * @param gcpOauthRefreshToken OAuth refresh token for GCP_OAUTH2
  */
 public record SecretStoreRequest(
     // IDENTITY CREDENTIALS
@@ -47,4 +54,11 @@ public record SecretStoreRequest(
     String azureClientId,
     String azureClientSecret,
     String azureTenantId,
-    String azureSubscriptionId) {}
+    String azureSubscriptionId,
+    // GCP CREDENTIALS
+    String gcpScope,
+    String gcpProjectId,
+    byte[] gcpPrivateKeyJson,
+    String gcpOauthClientId,
+    String gcpOauthClientSecret,
+    String gcpOauthRefreshToken) {}

@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.database.model.*;
 import io.openaev.database.model.AwsAccessKeySecret;
 import io.openaev.database.model.AwsAssumeRoleSecret;
 import io.openaev.database.model.AzureManagedIdentitySecret;
@@ -17,7 +18,9 @@ import io.openaev.database.model.UsernamePasswordSecret;
 import io.openaev.secrets.provider.SecretConnectionResult;
 import io.openaev.secrets.provider.impl.validators.AwsCredentialConnectivityCheck;
 import io.openaev.secrets.provider.impl.validators.AzureCredentialConnectivityCheck;
+import io.openaev.secrets.provider.impl.validators.GcpCredentialConnectivityCheck;
 import io.openaev.service.connector_instances.NativeEncryptionService;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -43,6 +46,8 @@ class SecretHandlerValidateConnectionTest {
   private static final String ENCRYPTED_AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY =
       "encrypted-awsSourceProfileSecretAccessKey";
   private static final String ENCRYPTED_CLIENT_SECRET = "encrypted-azureClientSecret";
+  private static final String ENCRYPTED_OAUTH_CLIENT_SECRET = "encrypted-gcpOauthClientSecret";
+  private static final String ENCRYPTED_OAUTH_REFRESH_TOKEN = "encrypted-gcpOauthRefreshToken";
 
   @Nested
   @DisplayName("AWS access key handler")
@@ -348,6 +353,119 @@ class SecretHandlerValidateConnectionTest {
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("AZURE_MANAGED_IDENTITY");
       verifyNoInteractions(azureCredentialConnectivityCheck);
+    }
+  }
+
+  @Nested
+  @DisplayName("GCP service account handler")
+  class GcpServiceAccount {
+
+    @Mock private GcpCredentialConnectivityCheck gcpCredentialConnectivityCheck;
+    @Mock private NativeEncryptionService nativeEncryptionService;
+
+    private GcpServiceAccountHandler handler;
+
+    @BeforeEach
+    void setUp() {
+      handler =
+          new GcpServiceAccountHandler(nativeEncryptionService, gcpCredentialConnectivityCheck);
+    }
+
+    @Test
+    @DisplayName("The stored key file is decrypted before it reaches the validator")
+    void given_serviceAccountSecret_should_decryptThenDelegate() {
+      // Arrange
+      byte[] encryptedKey = "encrypted-key".getBytes(StandardCharsets.UTF_8);
+      byte[] plaintextKey = GCP_PRIVATE_KEY_JSON.getBytes(StandardCharsets.UTF_8);
+      GcpServiceAccountSecret secret = new GcpServiceAccountSecret();
+      secret.setScope(GCP_SCOPE);
+      secret.setProjectId(GCP_PROJECT_ID);
+      secret.setPrivateKeyJson(encryptedKey);
+      when(nativeEncryptionService.decrypt(encryptedKey)).thenReturn(plaintextKey);
+      when(gcpCredentialConnectivityCheck.validateServiceAccount(any(), any(), any()))
+          .thenReturn(SecretConnectionResult.active());
+
+      // Act
+      SecretConnectionResult result = handler.validateConnection(secret);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      verify(gcpCredentialConnectivityCheck)
+          // The plaintext, never the stored ciphertext.
+          .validateServiceAccount(eq(plaintextKey), eq(GCP_SCOPE), eq(GCP_PROJECT_ID));
+    }
+
+    @Test
+    @DisplayName("A secret of another type is rejected instead of being probed")
+    void given_wrongSecretType_should_throw() {
+      // Arrange
+      GcpOAuth2Secret wrongType = new GcpOAuth2Secret();
+
+      // Act & Assert
+      assertThatThrownBy(() -> handler.validateConnection(wrongType))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("GCP_SERVICE_ACCOUNT");
+      verifyNoInteractions(gcpCredentialConnectivityCheck);
+    }
+  }
+
+  @Nested
+  @DisplayName("GCP OAuth2 handler")
+  class GcpOAuth2 {
+
+    @Mock private GcpCredentialConnectivityCheck gcpCredentialConnectivityCheck;
+    @Mock private NativeEncryptionService nativeEncryptionService;
+
+    private GcpOAuth2Handler handler;
+
+    @BeforeEach
+    void setUp() {
+      handler = new GcpOAuth2Handler(nativeEncryptionService, gcpCredentialConnectivityCheck);
+    }
+
+    @Test
+    @DisplayName("The client secret and the refresh token are decrypted before delegating")
+    void given_oauth2Secret_should_decryptThenDelegate() {
+      // Arrange
+      GcpOAuth2Secret secret = new GcpOAuth2Secret();
+      secret.setScope(GCP_SCOPE);
+      secret.setProjectId(GCP_PROJECT_ID);
+      secret.setOauthClientId(GCP_OAUTH_CLIENT_ID);
+      secret.setOauthClientSecret(ENCRYPTED_OAUTH_CLIENT_SECRET);
+      secret.setOauthRefreshToken(ENCRYPTED_OAUTH_REFRESH_TOKEN);
+      when(nativeEncryptionService.decrypt(ENCRYPTED_OAUTH_CLIENT_SECRET))
+          .thenReturn(GCP_OAUTH_CLIENT_SECRET);
+      when(nativeEncryptionService.decrypt(ENCRYPTED_OAUTH_REFRESH_TOKEN))
+          .thenReturn(GCP_OAUTH_REFRESH_TOKEN);
+      when(gcpCredentialConnectivityCheck.validateOAuth2(any(), any(), any(), any(), any()))
+          .thenReturn(SecretConnectionResult.active());
+
+      // Act
+      SecretConnectionResult result = handler.validateConnection(secret);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(ACTIVE);
+      verify(gcpCredentialConnectivityCheck)
+          .validateOAuth2(
+              eq(GCP_OAUTH_CLIENT_ID),
+              // The plaintexts, never the stored ciphertexts.
+              eq(GCP_OAUTH_CLIENT_SECRET),
+              eq(GCP_OAUTH_REFRESH_TOKEN),
+              eq(GCP_SCOPE),
+              eq(GCP_PROJECT_ID));
+    }
+
+    @Test
+    @DisplayName("A secret of another type is rejected instead of being probed")
+    void given_wrongSecretType_should_throw() {
+      // Arrange
+      GcpServiceAccountSecret wrongType = new GcpServiceAccountSecret();
+
+      // Act & Assert
+      assertThatThrownBy(() -> handler.validateConnection(wrongType))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("GCP_OAUTH2");
+      verifyNoInteractions(gcpCredentialConnectivityCheck);
     }
   }
 
