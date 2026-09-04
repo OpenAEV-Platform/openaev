@@ -1,9 +1,9 @@
 # ADR-007: Duplicating a chained scenario / simulation
 
-|         |                                                        |
-|---------|--------------------------------------------------------|
-| Status  | Accepted                                               |
-| Related | https://github.com/OpenAEV-Platform/openaev/issues/XXX |
+|         |                                                         |
+|---------|---------------------------------------------------------|
+| Status  | Accepted                                                |
+| Related | https://github.com/OpenAEV-Platform/openaev/issues/5775 |
 
 ## 1. Context
 
