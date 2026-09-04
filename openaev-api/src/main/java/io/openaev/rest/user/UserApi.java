@@ -5,7 +5,6 @@ import io.openaev.aop.UserRoleDescription;
 import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.config.SessionManager;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
@@ -70,8 +69,15 @@ public class UserApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   @UserRoleDescription(needAuthenticated = false)
-  public User login(
-      TxCtx ctx, @Valid @RequestBody LoginUserInput input, HttpServletRequest httpRequest) {
+  // No TxCtx parameter here, deliberately: this endpoint (and passwordReset/changePasswordReset
+  // below) is permitAll (AppSecurityConfig) and runs before authentication succeeds. TxCtx is
+  // resolved by TxCtxArgumentResolver, a HandlerMethodArgumentResolver that runs BEFORE the
+  // controller method (and any AOP advice) is invoked; it calls SessionHelper.currentUser(),
+  // which casts the Spring Security principal to OpenAEVPrincipal. Pre-auth, that principal is
+  // not an OpenAEVPrincipal yet, so adding TxCtx here throws ClassCastException on every call.
+  // User is also a dual-scope entity (nullable tenant_id, no v2 activation), so no v2 table read
+  // here ever needed tenant scoping in the first place - never re-add TxCtx to these handlers.
+  public User login(@Valid @RequestBody LoginUserInput input, HttpServletRequest httpRequest) {
     Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(input.getLogin());
     if (optionalUser.isPresent()) {
       User user = optionalUser.get();
@@ -120,7 +126,8 @@ public class UserApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
-  public ResponseEntity<?> passwordReset(TxCtx ctx, @Valid @RequestBody ResetUserInput input) {
+  // No TxCtx here either: permitAll, pre-auth, see the comment on login() above.
+  public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input) {
     // async execution; check method annotation
     userService.requestPasswordReset(input);
     // force a 200 OK response even if no user was found
@@ -140,8 +147,8 @@ public class UserApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  // No TxCtx here either: permitAll, pre-auth, see the comment on login() above.
   public User changePasswordReset(
-      TxCtx ctx,
       @PathVariable @Schema(description = "Token generated during reset") String token,
       @Valid @RequestBody ChangePasswordInput input)
       throws InputValidationException {
