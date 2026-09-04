@@ -10,9 +10,10 @@ import org.apache.commons.validator.routines.DomainValidator;
  *
  * <p>Validation is intentionally scope-driven: types that can be restricted by workflow scope rules
  * (IPs, subnets, domains, asset and asset-group IDs) get a format check plus an allowlist/denylist
- * check. Port and Number get a cheap format sanity check. Every other primitive type has no defined
- * rule yet and is accepted as-is - hence the "accepted" naming, to make explicit that this is not a
- * full semantic validation of every primitive type.
+ * check. Port and Number get a cheap format sanity check. Port validation is also reused by output
+ * processors before generating findings. Every other primitive type has no defined rule yet and is
+ * accepted as-is - hence the "accepted" naming, to make explicit that this is not a full semantic
+ * validation of every primitive type.
  */
 public final class PrimitiveValueValidator {
 
@@ -53,7 +54,7 @@ public final class PrimitiveValueValidator {
     };
   }
 
-  private static boolean isValidPort(String value) {
+  public static boolean isValidPort(String value) {
     try {
       int port = Integer.parseInt(value.trim());
       return port >= 0 && port <= MAX_PORT;

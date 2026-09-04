@@ -123,4 +123,31 @@ class PortScanOutputProcessorTest {
             "{\"host\": \"192.168.1.1\", \"port\": \"22\", \"service\": \"ssh\"}");
     assertTrue(processor.validate(node));
   }
+
+  @Test
+  @DisplayName("Should reject PortsScan finding with non numeric port")
+  void shouldRejectPortsScanWithNonNumericPort() throws Exception {
+    JsonNode node =
+        objectMapper.readTree(
+            "{\"host\": \"192.168.1.1\", \"port\": \"abc\", \"service\": \"ssh\"}");
+    assertFalse(processor.validate(node));
+  }
+
+  @Test
+  @DisplayName("Should reject PortsScan finding with out of range port")
+  void shouldRejectPortsScanWithOutOfRangePort() throws Exception {
+    JsonNode node =
+        objectMapper.readTree(
+            "{\"host\": \"192.168.1.1\", \"port\": \"70000\", \"service\": \"ssh\"}");
+    assertFalse(processor.validate(node));
+  }
+
+  @Test
+  @DisplayName("Should accept PortsScan finding with leading zero port")
+  void shouldAcceptPortsScanWithLeadingZeroPort() throws Exception {
+    JsonNode node =
+        objectMapper.readTree(
+            "{\"host\": \"192.168.1.1\", \"port\": \"05\", \"service\": \"ssh\"}");
+    assertTrue(processor.validate(node));
+  }
 }

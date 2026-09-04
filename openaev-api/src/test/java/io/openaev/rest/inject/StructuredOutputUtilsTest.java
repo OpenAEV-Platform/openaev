@@ -250,6 +250,46 @@ class StructuredOutputUtilsTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("Should filter invalid Port values from structured output")
+  void given_raw_output_with_invalid_port_should_filter_port_result() {
+    RegexGroup regexGroup = new RegexGroup();
+    regexGroup.setField("port");
+    regexGroup.setIndexValues("$1");
+
+    testRegexExtraction(
+        "TCP 192.168.1.10:abc 0.0.0.0:0 LISTENING\n",
+        Set.of(regexGroup),
+        ContractOutputType.Port,
+        "Port",
+        "(?:TCP|UDP)\\s+[\\d\\.]+:([A-Za-z0-9-]+)",
+        "[]");
+  }
+
+  @Test
+  @DisplayName("Should filter invalid PortsScan values from structured output")
+  void given_raw_output_with_invalid_portscan_port_should_filter_portscan_result() {
+    RegexGroup regexGroup1 = new RegexGroup();
+    regexGroup1.setField("host");
+    regexGroup1.setIndexValues("$2");
+
+    RegexGroup regexGroup2 = new RegexGroup();
+    regexGroup2.setField("port");
+    regexGroup2.setIndexValues("$3");
+
+    RegexGroup regexGroup3 = new RegexGroup();
+    regexGroup3.setField("service");
+    regexGroup3.setIndexValues("$4");
+
+    testRegexExtraction(
+        "TCP 192.168.1.10:70000 0.0.0.0:0 LISTENING\n",
+        Set.of(regexGroup1, regexGroup2, regexGroup3),
+        ContractOutputType.PortsScan,
+        "PortScan",
+        "^\\s*(TCP|UDP)\\s+([\\d\\.]+|\\*)?:?([A-Za-z0-9-]+)\\s+\\S+\\s+(\\S+)",
+        "[]");
+  }
+
+  @Test
   @DisplayName("Should return IPv4s from raw output of netstat -an command")
   void given_raw_output_netstat_should_return_ipv4() {
     RegexGroup regexGroup = new RegexGroup();

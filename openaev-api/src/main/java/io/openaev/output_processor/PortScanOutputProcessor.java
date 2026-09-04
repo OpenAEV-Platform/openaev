@@ -7,6 +7,7 @@ import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.rest.finding.FindingService;
+import io.openaev.service.chaining.PrimitiveValueValidator;
 import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -33,7 +34,11 @@ public class PortScanOutputProcessor extends FindingCapableOutputProcessor {
 
   @Override
   public boolean validate(JsonNode jsonNode) {
-    return jsonNode.hasNonNull(HOST) && jsonNode.hasNonNull(PORT) && jsonNode.hasNonNull(SERVICE);
+    return jsonNode != null
+        && jsonNode.hasNonNull(HOST)
+        && jsonNode.hasNonNull(PORT)
+        && PrimitiveValueValidator.isValidPort(jsonNode.get(PORT).asText())
+        && jsonNode.hasNonNull(SERVICE);
   }
 
   @Override

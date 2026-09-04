@@ -1,6 +1,8 @@
 package io.openaev.output_processor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -45,5 +47,28 @@ class PortOutputProcessorTest {
     JsonNode node = objectMapper.readTree("\"05\"");
     String result = processor.toFindingValue(node);
     assertEquals("05", result);
+  }
+
+  @Test
+  @DisplayName("Should reject non numeric port value")
+  void shouldRejectNonNumericPortValue() throws Exception {
+    JsonNode node = objectMapper.readTree("\"abc\"");
+    assertFalse(processor.validate(node));
+  }
+
+  @Test
+  @DisplayName("Should reject out of range port value")
+  void shouldRejectOutOfRangePortValue() throws Exception {
+    JsonNode tooLargeNode = objectMapper.readTree("\"99999\"");
+    JsonNode negativeNode = objectMapper.readTree("\"-1\"");
+    assertFalse(processor.validate(tooLargeNode));
+    assertFalse(processor.validate(negativeNode));
+  }
+
+  @Test
+  @DisplayName("Should accept port value with leading zero")
+  void shouldAcceptPortValueWithLeadingZero() throws Exception {
+    JsonNode node = objectMapper.readTree("\"05\"");
+    assertTrue(processor.validate(node));
   }
 }
