@@ -26,6 +26,7 @@ import { ArticleContext, ChallengeContext, InjectContext, TeamContext } from '..
 import InjectContractPicker from '../../../common/injects/create/InjectContractPicker';
 import InjectCreationConfig from '../../../common/injects/create/InjectCreationConfig';
 import articleContextForExercise from '../articles/articleContextForExercise';
+import { buildSimulationVariablesConfigurationUrl } from '../SimulationConfiguration';
 import teamContextForExercise from '../teams/teamContextForExercise';
 
 // Full-page inject creation for simulations: the Threat-Arsenal-style contract
@@ -114,7 +115,7 @@ const SimulationInjectCreation: FunctionComponent = () => {
                       onBack={closeConfig}
                       presetInjectDuration={presetInjectDuration}
                       articlesFromExerciseOrScenario={articles}
-                      uriVariable={listUrl}
+                      uriVariable={buildSimulationVariablesConfigurationUrl(exerciseId, pickerUrl)}
                       variablesFromExerciseOrScenario={variables}
                     />
                   )

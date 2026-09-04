@@ -10,16 +10,31 @@ import ExerciseArticles from './articles/ExerciseArticles';
 import SimulationTeams from './teams/SimulationTeams';
 import SimulationVariables from './variables/SimulationVariables';
 
+// Tab indices are surfaced as a named enum (rather than magic numbers) so deep-link callers
+// (e.g. the "manage custom variables" link in AvailableVariablesDialog) can target a specific
+// tab without duplicating/guessing its position, and stay correct if tabs are ever reordered.
+export enum SimulationConfigurationTab {
+  TEAMS = 0,
+  VARIABLES = 1,
+  MEDIA_PRESSURE = 2,
+}
+
+export const SIMULATION_CONFIGURATION_QUERY_PARAM = 'config';
+export const SIMULATION_CONFIGURATION_VARIABLES_QUERY_VALUE = 'variables';
+export const buildSimulationVariablesConfigurationUrl = (exerciseId: string, returnPath: string = `/admin/simulations/${exerciseId}/injects`) => (
+  `${returnPath}${returnPath.includes('?') ? '&' : '?'}${SIMULATION_CONFIGURATION_QUERY_PARAM}=${SIMULATION_CONFIGURATION_VARIABLES_QUERY_VALUE}`
+);
+
 // The simulation authoring context (teams, variables, media pressure) surfaced
 // from the hero "Configuration" action, one section per tab, so the Injects
 // tab stays focused on the inject list alone (mirrors the scenario).
 // Challenges are authored inside injects, so they are not configured here -
 // the hero exposes a "Preview challenges page" action instead.
-const SimulationConfiguration: FunctionComponent = () => {
+const SimulationConfiguration: FunctionComponent<{ initialTab?: SimulationConfigurationTab }> = ({ initialTab = SimulationConfigurationTab.TEAMS }) => {
   const { t } = useFormatter();
   const { exerciseId } = useParams() as { exerciseId: Exercise['exercise_id'] };
   const { exercise } = useHelper((helper: ExercisesHelper) => ({ exercise: helper.getExercise(exerciseId) }));
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState<SimulationConfigurationTab>(initialTab);
 
   return (
     <Box sx={{ paddingTop: 1 }}>
@@ -35,9 +50,9 @@ const SimulationConfiguration: FunctionComponent = () => {
           <Tab label={t('Media pressure')} />
         </Tabs>
       </Box>
-      {tab === 0 && <SimulationTeams exerciseTeamsUsers={exercise.exercise_teams_users ?? []} />}
-      {tab === 1 && <SimulationVariables />}
-      {tab === 2 && <ExerciseArticles />}
+      {tab === SimulationConfigurationTab.TEAMS && <SimulationTeams exerciseTeamsUsers={exercise.exercise_teams_users ?? []} />}
+      {tab === SimulationConfigurationTab.VARIABLES && <SimulationVariables />}
+      {tab === SimulationConfigurationTab.MEDIA_PRESSURE && <ExerciseArticles />}
     </Box>
   );
 };

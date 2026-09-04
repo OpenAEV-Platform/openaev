@@ -15,11 +15,23 @@ import ScenarioVariables from './variables/ScenarioVariables';
 // tab stays focused on the inject list alone.
 // Challenges are authored inside injects, so they are not configured here -
 // the hero exposes a "Preview challenges page" action instead.
-const ScenarioConfiguration: FunctionComponent = () => {
+export enum ScenarioConfigurationTab {
+  TEAMS = 0,
+  VARIABLES = 1,
+  MEDIA_PRESSURE = 2,
+}
+
+export const SCENARIO_CONFIGURATION_QUERY_PARAM = 'config';
+export const SCENARIO_CONFIGURATION_VARIABLES_QUERY_VALUE = 'variables';
+export const buildScenarioVariablesConfigurationUrl = (scenarioId: string, returnPath: string = `/admin/scenarios/${scenarioId}/injects`) => (
+  `${returnPath}${returnPath.includes('?') ? '&' : '?'}${SCENARIO_CONFIGURATION_QUERY_PARAM}=${SCENARIO_CONFIGURATION_VARIABLES_QUERY_VALUE}`
+);
+
+const ScenarioConfiguration: FunctionComponent<{ initialTab?: ScenarioConfigurationTab }> = ({ initialTab = ScenarioConfigurationTab.TEAMS }) => {
   const { t } = useFormatter();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(scenarioId) }));
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState<ScenarioConfigurationTab>(initialTab);
 
   return (
     <Box sx={{ paddingTop: 1 }}>
@@ -35,9 +47,9 @@ const ScenarioConfiguration: FunctionComponent = () => {
           <Tab label={t('Media pressure')} />
         </Tabs>
       </Box>
-      {tab === 0 && <ScenarioTeams scenarioTeamsUsers={scenario.scenario_teams_users} />}
-      {tab === 1 && <ScenarioVariables />}
-      {tab === 2 && <ScenarioArticles />}
+      {tab === ScenarioConfigurationTab.TEAMS && <ScenarioTeams scenarioTeamsUsers={scenario.scenario_teams_users} />}
+      {tab === ScenarioConfigurationTab.VARIABLES && <ScenarioVariables />}
+      {tab === ScenarioConfigurationTab.MEDIA_PRESSURE && <ScenarioArticles />}
     </Box>
   );
 };

@@ -39,6 +39,7 @@ import ExerciseDistributionScoreByTeamInPercentage from '../overview/ExerciseDis
 import ExerciseDistributionScoreOverTimeByInjectorContract from '../overview/ExerciseDistributionScoreOverTimeByInjectorContract';
 import ExerciseDistributionScoreOverTimeByTeam from '../overview/ExerciseDistributionScoreOverTimeByTeam';
 import ExerciseDistributionScoreOverTimeByTeamInPercentage from '../overview/ExerciseDistributionScoreOverTimeByTeamInPercentage';
+import { buildSimulationVariablesConfigurationUrl } from '../SimulationConfiguration';
 import teamContextForExercise from '../teams/teamContextForExercise';
 
 const ExerciseInjects: FunctionComponent = () => {
@@ -103,6 +104,7 @@ const ExerciseInjects: FunctionComponent = () => {
                     articles={articles}
                     variables={variables}
                     uriVariable={`/admin/simulations/${exerciseId}/injects`}
+                    variablesConfigurationUri={buildSimulationVariablesConfigurationUrl(exerciseId)}
                   />
                 </InjectTestContext.Provider>
               </ChallengeContext.Provider>

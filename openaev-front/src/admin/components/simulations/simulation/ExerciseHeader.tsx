@@ -28,7 +28,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { type AutonomousRun } from '../../../../actions/autonomous/autonomous-types';
@@ -89,7 +89,7 @@ import ExerciseDatePopover from './ExerciseDatePopover';
 import ExercisePopover, { type ExerciseActionPopover } from './ExercisePopover';
 import ExerciseStatus from './ExerciseStatus';
 import SecurityPlatformIndicator from './SecurityPlatformIndicator';
-import SimulationConfiguration from './SimulationConfiguration';
+import SimulationConfiguration, { SIMULATION_CONFIGURATION_QUERY_PARAM, SIMULATION_CONFIGURATION_VARIABLES_QUERY_VALUE, SimulationConfigurationTab } from './SimulationConfiguration';
 
 // Exported for testing: the lifecycle CTAs are pure props-driven UI, so they are covered on their
 // own rather than through the whole (store/router-bound) header.
@@ -365,9 +365,43 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
   const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
   const [openConfiguration, setOpenConfiguration] = useState(false);
+  const [configurationInitialTab, setConfigurationInitialTab] = useState<SimulationConfigurationTab>(SimulationConfigurationTab.TEAMS);
   const [openDateDialog, setOpenDateDialog] = useState(false);
 
   const isScopeMissing = isSimulationChaining && isScopeLaunchBlocked(healthchecks);
+
+  const canOpenConfiguration = permissions.canManage && !isSimulationChaining;
+
+  const clearConfigurationQueryParam = useCallback(() => {
+    const searchParams = new URLSearchParams(location.search);
+    if (!searchParams.has(SIMULATION_CONFIGURATION_QUERY_PARAM)) {
+      return;
+    }
+    searchParams.delete(SIMULATION_CONFIGURATION_QUERY_PARAM);
+    const targetSearch = searchParams.toString();
+    navigate(
+      {
+        pathname: location.pathname,
+        search: targetSearch ? `?${targetSearch}` : '',
+      },
+      { replace: true },
+    );
+  }, [location.pathname, location.search, navigate]);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const configTab = searchParams.get(SIMULATION_CONFIGURATION_QUERY_PARAM);
+    if (!configTab) {
+      return;
+    }
+    clearConfigurationQueryParam();
+    // Fail closed: without canManage (or on a chained simulation) the button itself is hidden, so
+    // the deep link must not be able to open the panel either.
+    if (configTab === SIMULATION_CONFIGURATION_VARIABLES_QUERY_VALUE && canOpenConfiguration) {
+      setConfigurationInitialTab(SimulationConfigurationTab.VARIABLES);
+      setOpenConfiguration(true);
+    }
+  }, [canOpenConfiguration, clearConfigurationQueryParam, location.search]);
 
   useEffect(() => {
     searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
@@ -527,7 +561,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
               {/* Configuration promoted to a first-class button (not buried in the
                   overflow) so teams/players setup is discoverable, with an
                   explicit tooltip describing what it configures. */}
-              {permissions.canManage && !isSimulationChaining && (
+              {canOpenConfiguration && (
                 <Tooltip
                   title={t('Configure the teams, players and audience involved in this simulation')}
                 >
@@ -536,7 +570,10 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                     color="primary"
                     size="small"
                     startIcon={<TuneOutlined />}
-                    onClick={() => setOpenConfiguration(true)}
+                    onClick={() => {
+                      setConfigurationInitialTab(SimulationConfigurationTab.TEAMS);
+                      setOpenConfiguration(true);
+                    }}
                   >
                     {t('Configuration')}
                   </Button>
@@ -723,7 +760,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
         handleClose={() => setOpenConfiguration(false)}
         title={t('Simulation configuration')}
       >
-        <SimulationConfiguration />
+        <SimulationConfiguration initialTab={configurationInitialTab} />
       </Drawer>
       <ExerciseDatePopover
         exercise={exercise}

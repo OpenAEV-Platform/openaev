@@ -19,7 +19,7 @@ import {
 } from '@mui/icons-material';
 import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type Dispatch, type ReactNode, type SetStateAction, useEffect, useMemo, useState } from 'react';
+import { type Dispatch, type ReactNode, type SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { fetchScenarioAutonomousConfig, launchAutonomousFromScenario, planAutonomousScenario, saveScenarioAutonomousConfig } from '../../../../actions/autonomous/autonomous-actions';
@@ -87,7 +87,7 @@ import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
 import TriggerSubscribeButton from '../../profile/triggers/TriggerSubscribeButton';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import { CONTEXTUAL_ENTITY_WIDGET_IDS, contextualResultsUrl } from '../../workspaces/custom_dashboards/results/contextualWidgets';
-import ScenarioConfiguration from './ScenarioConfiguration';
+import ScenarioConfiguration, { SCENARIO_CONFIGURATION_QUERY_PARAM, SCENARIO_CONFIGURATION_VARIABLES_QUERY_VALUE, ScenarioConfigurationTab } from './ScenarioConfiguration';
 import ScenarioPopover from './ScenarioPopover';
 
 interface ScenarioHeaderProps {
@@ -119,7 +119,7 @@ const ScenarioHeader = ({
   const location = useLocation();
   const theme = useTheme();
   const { scenarioId } = useParams() as { scenarioId: Scenario['scenario_id'] };
-  const [openScenarioAssistantQueryParam, openAiBuilderQueryParam, openAiLaunchQueryParam] = useQueryParameter(['openScenarioAssistant', 'openAiBuilder', 'openAiLaunch']);
+  const [openScenarioAssistantQueryParam, openAiBuilderQueryParam, openAiLaunchQueryParam, openConfigurationQueryParam] = useQueryParameter(['openScenarioAssistant', 'openAiBuilder', 'openAiLaunch', SCENARIO_CONFIGURATION_QUERY_PARAM]);
   const { canLaunch, canManage, canDelete } = useScenarioPermissions(scenarioId);
   const { settings } = useAuth();
   const {
@@ -129,6 +129,7 @@ const ScenarioHeader = ({
   } = useEnterpriseEdition();
 
   const [openConfiguration, setOpenConfiguration] = useState(false);
+  const [configurationInitialTab, setConfigurationInitialTab] = useState<ScenarioConfigurationTab>(ScenarioConfigurationTab.TEAMS);
   const [openScheduling, setOpenScheduling] = useState(false);
   const [healthchecks, setHealthchecks] = useState<HealthCheck[]>([]);
   const [expectationsDrift, setExpectationsDrift] = useState<ExpectationsDriftOutput | null>(null);
@@ -187,6 +188,29 @@ const ScenarioHeader = ({
 
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
   const isScenarioChaining = !!scenarioWorkflowId;
+  const canOpenConfiguration = canManage && !isScenarioChaining;
+
+  // "?config=variables" deep link (e.g. from the "manage custom variables" link in
+  // AvailableVariablesDialog): the query param is always stripped afterward - whether or not it
+  // was honored - so a bookmarked/shared URL never re-triggers on refresh/back. Only the `config`
+  // key is removed (not the whole search string) so it does not clobber unrelated params that may
+  // be present at the same time (e.g. openAiBuilder/openAiLaunch).
+  const clearConfigurationQueryParam = useCallback(() => {
+    const searchParams = new URLSearchParams(location.search);
+    if (!searchParams.has(SCENARIO_CONFIGURATION_QUERY_PARAM)) {
+      return;
+    }
+    searchParams.delete(SCENARIO_CONFIGURATION_QUERY_PARAM);
+    const targetSearch = searchParams.toString();
+    navigate(
+      {
+        pathname: location.pathname,
+        search: targetSearch ? `?${targetSearch}` : '',
+      },
+      { replace: true },
+    );
+  }, [location.pathname, location.search, navigate]);
+
   // Autonomy is a launch-time MODE now (not a scenario type) and no longer has a dedicated flag: any
   // chained scenario can be launched autonomously (orchestrator-driven) or planned by the
   // orchestrator, gated by the same chaining feature. Time-based scenarios only ever launch a normal
@@ -295,6 +319,17 @@ const ScenarioHeader = ({
       navigate(location.pathname, { replace: true });
     }
   }, [openAiLaunchQueryParam, canLaunch, isAutonomousModeEnabled, isRunActive, isXtmOneReady, isEnterpriseEdition, scenarioId]);
+
+  useEffect(() => {
+    if (!openConfigurationQueryParam) {
+      return;
+    }
+    clearConfigurationQueryParam();
+    if (openConfigurationQueryParam === SCENARIO_CONFIGURATION_VARIABLES_QUERY_VALUE && canOpenConfiguration) {
+      setConfigurationInitialTab(ScenarioConfigurationTab.VARIABLES);
+      setOpenConfiguration(true);
+    }
+  }, [openConfigurationQueryParam, canOpenConfiguration, clearConfigurationQueryParam]);
 
   const { workflowConfiguration } = useHelper((helper: WorkflowConfigurationHelper) => ({
     workflowConfiguration: scenarioWorkflowId
@@ -740,14 +775,17 @@ const ScenarioHeader = ({
               {/* Configuration promoted to a first-class button (not buried in the
                   overflow) so teams/players setup is discoverable, with an
                   explicit tooltip describing what it configures. */}
-              {canManage && !isScenarioChaining && (
+              {canOpenConfiguration && (
                 <Tooltip title={t('Configure the teams, players and audience targeted by this scenario')}>
                   <Button
                     variant="outlined"
                     color="primary"
                     size="small"
                     startIcon={<TuneOutlined />}
-                    onClick={() => setOpenConfiguration(true)}
+                    onClick={() => {
+                      setConfigurationInitialTab(ScenarioConfigurationTab.TEAMS);
+                      setOpenConfiguration(true);
+                    }}
                     data-testid="scenario-configuration-button"
                   >
                     {t('Configuration')}
@@ -1025,7 +1063,7 @@ const ScenarioHeader = ({
         handleClose={() => setOpenConfiguration(false)}
         title={t('Scenario configuration')}
       >
-        <ScenarioConfiguration />
+        <ScenarioConfiguration initialTab={configurationInitialTab} />
       </Drawer>
       {/* Shared AI-run configuration drawer, scoped to the action that opened it. "build" (AI
           builder) offers Save (persist the config, nothing runs) + Build (plan now, author the

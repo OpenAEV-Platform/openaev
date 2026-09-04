@@ -30,6 +30,7 @@ import UpdateInject from '../../../common/injects/UpdateInject';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import articleContextForExercise from '../articles/articleContextForExercise';
 import ExecutionMenu from '../ExecutionMenu';
+import { buildSimulationVariablesConfigurationUrl } from '../SimulationConfiguration';
 import teamContextForExercise from '../teams/teamContextForExercise';
 import AttackTimeline from './AttackTimeline';
 import ExecutionBoard from './ExecutionBoard';
@@ -266,7 +267,7 @@ const ExecutionOverview = ({ exerciseId: exerciseIdProp, showMenu = true }: Exec
                   isAtomic={false}
                   injects={injects}
                   articlesFromExerciseOrScenario={articles}
-                  uriVariable={`/admin/simulations/${exerciseId}/injects`}
+                  uriVariable={buildSimulationVariablesConfigurationUrl(exerciseId, `/admin/simulations/${exerciseId}/execution`)}
                   variablesFromExerciseOrScenario={variables}
                 />
               </ChallengeContext.Provider>
