@@ -41,7 +41,7 @@ const ChallengesPlayer = () => {
   const { challengesReader }: { challengesReader: SimulationChallengesReader } = useHelper(
     (helper: SimulationChallengesReaderHelper) => ({ challengesReader: helper.getSimulationChallengesReader(exerciseId) }),
   );
-	console.log('challengesReader', challengesReader);
+  console.log('challengesReader', challengesReader);
   const { exercise_information: exercise, exercise_challenges: challenges } = challengesReader ?? {};
   const {
     challenge_detail: currentChallenge,

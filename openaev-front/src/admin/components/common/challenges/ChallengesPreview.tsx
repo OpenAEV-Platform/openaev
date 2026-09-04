@@ -76,7 +76,7 @@ const ChallengesPreview: FunctionComponent<Props> = ({
       return acc;
     }, {});
 
-		console.log("sortedChallenges", sortedChallenges);
+    console.log('sortedChallenges', sortedChallenges);
 
     return (
       <div className={classes.root}>
