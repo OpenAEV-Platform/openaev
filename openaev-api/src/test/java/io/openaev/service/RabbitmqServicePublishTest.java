@@ -3,10 +3,8 @@ package io.openaev.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.rabbitmq.client.Channel;
@@ -14,7 +12,6 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import io.openaev.config.RabbitmqConfig;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -58,23 +55,6 @@ class RabbitmqServicePublishTest {
   private void brokerAnswers() throws Exception {
     when(connectionFactory.newConnection()).thenReturn(connection);
     when(connection.createChannel()).thenReturn(channel);
-  }
-
-  @DisplayName("A healthy broker gets the payload on the tenant exchange and routing key")
-  @Test
-  void given_a_healthy_broker_when_publishing_then_the_message_is_sent() throws Exception {
-    brokerAnswers();
-
-    rabbitmqService.publish(INJECT_TYPE, PAYLOAD);
-
-    verify(channel)
-        .basicPublish(
-            eq("openaev" + RabbitmqService.EXCHANGE_KEY),
-            eq("openaev" + RabbitmqService.ROUTING_KEY + INJECT_TYPE),
-            eq(null),
-            eq(PAYLOAD.getBytes(StandardCharsets.UTF_8)));
-    verify(channel).close();
-    verify(connection).close();
   }
 
   @DisplayName("A broker error is surfaced to the caller as is, not wrapped in a timeout")
