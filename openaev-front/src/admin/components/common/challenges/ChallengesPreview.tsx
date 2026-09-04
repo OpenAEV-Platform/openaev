@@ -199,6 +199,9 @@ const ChallengesPreview: FunctionComponent<Props> = ({
             <Typography variant="h2" style={{ marginTop: theme.spacing(3) }}>
               {t('Results')}
             </Typography>
+            <Alert severity="info" style={{ marginBottom: theme.spacing(2) }}>
+              {t('In preview mode, attempts are not counted and results are not recorded.')}
+            </Alert>
             {currentResult !== null && (
               <div>
                 {currentResult.result === true ? (
