@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.BadRequestException;
@@ -1229,23 +1230,25 @@ public class InjectImportService {
                                     - earliestInstant.getEpochSecond())));
   }
 
-  public void importInjectsForScenario(MultipartFile file, String scenarioId) throws Exception {
+  public void importInjectsForScenario(TxCtx ctx, MultipartFile file, String scenarioId)
+      throws Exception {
     Scenario targetScenario =
         scenarioRepository
             .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
 
-    this.importService.handleFileImport(file, null, targetScenario);
+    this.importService.handleFileImport(ctx, file, null, targetScenario);
   }
 
-  public void importInjectsForSimulation(MultipartFile file, String simulationId) throws Exception {
+  public void importInjectsForSimulation(TxCtx ctx, MultipartFile file, String simulationId)
+      throws Exception {
     Exercise targetSimulation =
         exerciseRepository.findById(simulationId).orElseThrow(ElementNotFoundException::new);
 
-    this.importService.handleFileImport(file, targetSimulation, null);
+    this.importService.handleFileImport(ctx, file, targetSimulation, null);
   }
 
-  public void importInjectsForAtomicTestings(MultipartFile file) throws Exception {
-    this.importService.handleFileImport(file, null, null);
+  public void importInjectsForAtomicTestings(TxCtx ctx, MultipartFile file) throws Exception {
+    this.importService.handleFileImport(ctx, file, null, null);
   }
 }

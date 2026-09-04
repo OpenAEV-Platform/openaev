@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import io.openaev.context.BulkOperationContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Inject;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -27,13 +28,15 @@ public class BulkInjectService {
   private final InjectService injectService;
   private final BulkOperationMonitor bulkOperationMonitor;
 
-  public List<Inject> bulkUpdateWithMonitoring(InjectBulkUpdateInputs input) {
+  public List<Inject> bulkUpdateWithMonitoring(TxCtx ctx, InjectBulkUpdateInputs input) {
     List<Inject> injectsToUpdate = resolveTargets(input);
     String operationId = bulkOperationMonitor.start("update", "injects", injectsToUpdate.size());
     try {
       List<Inject> updated =
           BulkOperationContext.runSuppressed(
-              () -> injectService.bulkUpdateInject(injectsToUpdate, input.getUpdateOperations()));
+              () ->
+                  injectService.bulkUpdateInject(
+                      ctx, injectsToUpdate, input.getUpdateOperations()));
       bulkOperationMonitor.complete(operationId);
       return updated;
     } catch (RuntimeException e) {

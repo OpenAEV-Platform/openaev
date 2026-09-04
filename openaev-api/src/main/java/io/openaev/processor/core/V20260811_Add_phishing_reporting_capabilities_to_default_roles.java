@@ -1,8 +1,8 @@
 package io.openaev.processor.core;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Role;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.service.DataPackService;
 import java.util.HashSet;
@@ -109,8 +109,8 @@ public class V20260811_Add_phishing_reporting_capabilities_to_default_roles
   }
 
   @Override
-  protected boolean doMigrate() {
-    String tenantId = TenantContext.getCurrentTenant();
+  protected boolean doMigrate(Tenant tenant) {
+    String tenantId = tenant.getId();
     Map<String, Set<Capability>> preFixByRole =
         Map.of(OBSERVER, PRE_FIX_OBSERVER, MANAGER, PRE_FIX_MANAGER);
     Map<String, Set<Capability>> additionsByRole =

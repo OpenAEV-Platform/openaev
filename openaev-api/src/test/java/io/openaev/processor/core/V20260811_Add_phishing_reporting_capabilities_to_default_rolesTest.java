@@ -3,8 +3,10 @@ package io.openaev.processor.core;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Role;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.service.TenantRoleService;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -95,7 +97,7 @@ public class V20260811_Add_phishing_reporting_capabilities_to_default_rolesTest
   void given_pristineManagerRole_should_addPhishingAndReportingCapabilities() {
     Role manager = roleService.createRole("Manager", "Manager", PRE_FIX_MANAGER);
 
-    migration.doMigrate();
+    migration.doMigrate(new Tenant(TenantContext.getCurrentTenant()));
 
     assertThat(reload(manager).getCapabilities())
         .contains(
@@ -113,7 +115,7 @@ public class V20260811_Add_phishing_reporting_capabilities_to_default_rolesTest
   void given_pristineObserverRole_should_addAccessCapabilities() {
     Role observer = roleService.createRole("Observer", "Observer", PRE_FIX_OBSERVER);
 
-    migration.doMigrate();
+    migration.doMigrate(new Tenant(TenantContext.getCurrentTenant()));
 
     Set<Capability> healed = reload(observer).getCapabilities();
     assertThat(healed)
@@ -131,7 +133,7 @@ public class V20260811_Add_phishing_reporting_capabilities_to_default_rolesTest
     Role manager = roleService.createRole("Manager", "Manager", customized);
     Set<Capability> before = Set.copyOf(reload(manager).getCapabilities());
 
-    migration.doMigrate();
+    migration.doMigrate(new Tenant(TenantContext.getCurrentTenant()));
 
     assertThat(reload(manager).getCapabilities())
         .containsExactlyInAnyOrderElementsOf(before)
@@ -153,7 +155,7 @@ public class V20260811_Add_phishing_reporting_capabilities_to_default_rolesTest
     Role manager = roleService.createRole("Manager", "Manager", fixed);
     Set<Capability> before = Set.copyOf(reload(manager).getCapabilities());
 
-    migration.doMigrate();
+    migration.doMigrate(new Tenant(TenantContext.getCurrentTenant()));
 
     assertThat(reload(manager).getCapabilities()).containsExactlyInAnyOrderElementsOf(before);
   }

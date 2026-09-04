@@ -2,6 +2,7 @@ package io.openaev.datapack.local_fixtures;
 
 import static io.openaev.utils.StringUtils.generateRandomColor;
 
+import io.openaev.database.model.Tenant;
 import io.openaev.processor.datapack.DataPack;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.tag.form.TagCreateInput;
@@ -20,7 +21,7 @@ public class TestDataPack extends DataPack {
   }
 
   @Override
-  protected boolean doProcess() {
+  protected boolean doProcess(Tenant tenant) {
     // insert a new tag with static name
     TagCreateInput input = new TagCreateInput();
     input.setName(tagName);

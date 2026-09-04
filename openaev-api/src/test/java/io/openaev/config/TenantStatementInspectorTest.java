@@ -792,4 +792,34 @@ class TenantStatementInspectorTest {
     assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
     assertTrue(out.contains("can_access_tenant(g.tenant_id, true)"), out);
   }
+
+  @Test
+  @DisplayName(
+      "the real scenario-detail native query keeps its CTE shape when kill_chain_phases is active")
+  void realScenarioDetailQueryIsRewrittenNotRefused() throws Exception {
+    // Activating kill_chain_phases pulls this query into the fail-closed rewrite because one of its
+    // CTEs JOINs the table (#7007 class of regression: the shape, not the isolation, is what
+    // breaks). The API test suite ships an EMPTY allowlist, so this is the only layer that
+    // exercises the rewriter for this table — assert on the REAL production SQL, read off the
+    // repository method, never a hand-simplified paraphrase.
+    String sql =
+        io.openaev.database.repository.ScenarioRepository.class
+            .getMethod("getScenarioByIdAndTenantId", String.class)
+            .getAnnotation(org.springframework.data.jpa.repository.Query.class)
+            .value();
+    // Spring resolves the SpEL selector into a bind parameter long before Hibernate sees the SQL;
+    // JSqlParser only ever parses the resolved form.
+    String resolved = sql.replaceAll(":#\\{#[^}]*}", "?");
+    TenantStatementInspector phasesActive =
+        new TenantStatementInspector(new TenantTables(Set.of("kill_chain_phases"), Set.of()));
+
+    String out = phasesActive.inspect(resolved).replaceAll("\\s+", " ").trim();
+
+    assertTrue(
+        out.contains("can_access_tenant(kcp.tenant_id)"),
+        "the kill_chain_phases join inside the kill_chain CTE must be filtered: " + out);
+    // The CTE structure and the json aggregation must survive the rewrite rather than be refused.
+    assertTrue(out.contains("json_agg"), out);
+    assertTrue(out.toUpperCase().contains("WITH"), out);
+  }
 }

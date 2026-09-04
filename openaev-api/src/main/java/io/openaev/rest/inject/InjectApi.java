@@ -36,6 +36,7 @@ import io.openaev.rest.inject.service.ExecutableInjectService;
 import io.openaev.rest.inject.service.InjectExecutionService;
 import io.openaev.rest.inject.service.InjectExportService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
@@ -137,8 +138,11 @@ public class InjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public Inject inject(@PathVariable @NotBlank final String injectId) {
-    return this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+  public Inject inject(TxCtx ctx, @PathVariable @NotBlank final String injectId) {
+    Inject inject =
+        this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    KillChainPhaseInitializer.initializeFromInjects(List.of(inject));
+    return inject;
   }
 
   @LogExecutionTime
@@ -380,11 +384,13 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject injectExecutionReception(
-      @PathVariable String injectId, @Valid @RequestBody InjectReceptionInput input) {
+      TxCtx ctx, @PathVariable String injectId, @Valid @RequestBody InjectReceptionInput input) {
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
     injectStatus.setName(ExecutionStatus.PENDING);
-    return injectRepository.save(inject);
+    Inject saved = injectRepository.save(inject);
+    KillChainPhaseInitializer.initializeFromInjects(List.of(saved));
+    return saved;
   }
 
   @PostMapping({
@@ -535,25 +541,28 @@ public class InjectApi extends RestBehavior {
   @GetMapping({INJECT_URI + "/next", TENANT_INJECT_URI + "/next"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECT)
-  public List<Inject> nextInjectsToExecute(@RequestParam Optional<Integer> size) {
-    return injectRepository.findAll(InjectSpecification.next()).stream()
-        // Keep only injects visible by the user
-        .filter(inject -> inject.getDate().isPresent())
-        .filter(
-            inject ->
-                inject
-                    .getExercise()
-                    .isUserHasAccess(
-                        userRepository
-                            .findById(currentUser().getId())
-                            .orElseThrow(
-                                () -> new ElementNotFoundException("Current user not found"))))
-        // Order by near execution
-        .sorted(Inject.executionComparator)
-        // Keep only the expected size
-        .limit(size.orElse(MAX_NEXT_INJECTS))
-        // Collect the result
-        .toList();
+  public List<Inject> nextInjectsToExecute(TxCtx ctx, @RequestParam Optional<Integer> size) {
+    List<Inject> next =
+        injectRepository.findAll(InjectSpecification.next()).stream()
+            // Keep only injects visible by the user
+            .filter(inject -> inject.getDate().isPresent())
+            .filter(
+                inject ->
+                    inject
+                        .getExercise()
+                        .isUserHasAccess(
+                            userRepository
+                                .findById(currentUser().getId())
+                                .orElseThrow(
+                                    () -> new ElementNotFoundException("Current user not found"))))
+            // Order by near execution
+            .sorted(Inject.executionComparator)
+            // Keep only the expected size
+            .limit(size.orElse(MAX_NEXT_INJECTS))
+            // Collect the result
+            .toList();
+    KillChainPhaseInitializer.initializeFromInjects(next);
+    return next;
   }
 
   // -- OPTION --

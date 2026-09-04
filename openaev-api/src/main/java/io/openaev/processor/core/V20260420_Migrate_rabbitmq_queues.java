@@ -2,7 +2,6 @@ package io.openaev.processor.core;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.QueueConfig;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectorRepository;
@@ -57,8 +56,8 @@ public class V20260420_Migrate_rabbitmq_queues extends RuntimeMigration {
   }
 
   @Override
-  protected boolean doMigrate() {
-    String tenantId = TenantContext.getCurrentTenant();
+  protected boolean doMigrate(Tenant tenant) {
+    String tenantId = tenant.getId();
 
     // Only migrate for the default tenant — old queues were not tenant-scoped
     if (!Tenant.DEFAULT_TENANT_UUID.equals(tenantId)) {
