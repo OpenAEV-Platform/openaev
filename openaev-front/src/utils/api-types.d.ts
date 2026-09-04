@@ -5633,6 +5633,91 @@ export interface FindingInput {
   finding_value: string;
 }
 
+export interface FindingOutput {
+  /**
+   * Asset groups targeted by the inject that produced the finding
+   * @uniqueItems true
+   */
+  finding_asset_groups?: AssetGroup[];
+  /** Asset ids linked to the finding */
+  finding_assets?: string[];
+  /**
+   * First time the finding was seen
+   * @format date-time
+   */
+  finding_created_at: string;
+  /**
+   * Contract output field the finding was extracted from
+   * @minLength 1
+   */
+  finding_field: string;
+  /**
+   * Finding Id
+   * @minLength 1
+   */
+  finding_id: string;
+  /** Inject that produced the finding */
+  finding_inject_id?: string;
+  /** Whether the finding holds sensitive material, hence a redacted value */
+  finding_is_sensitive?: boolean;
+  /**
+   * Deprecated, kept for backward compatibility
+   * @deprecated
+   */
+  finding_labels?: string[];
+  /** Finding name */
+  finding_name?: string;
+  /** Scenario the finding was produced in */
+  finding_scenario?: Scenario;
+  /** Simulation the finding was produced in */
+  finding_simulation?: Exercise;
+  /**
+   * Tag ids linked to the finding
+   * @uniqueItems true
+   */
+  finding_tags?: string[];
+  /** Team ids linked to the finding */
+  finding_teams?: string[];
+  /** Represents the data type being extracted. */
+  finding_type:
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature";
+  /**
+   * Last time the finding was seen
+   * @format date-time
+   */
+  finding_updated_at: string;
+  /** User ids linked to the finding */
+  finding_users?: string[];
+  /**
+   * Finding value. Redacted when the finding is sensitive: the API never discloses the cleartext value of a sensitive finding.
+   * @minLength 1
+   */
+  finding_value: string;
+}
+
 export interface FindingSummaryOutput {
   /**
    * Number of distinct impacted asset groups across all occurrences

@@ -87,18 +87,6 @@ public class FindingService {
     return part.substring(0, MASKING_VISIBLE_FRAGMENT_LENGTH) + MASK;
   }
 
-  /**
-   * Redacts in place the value of a finding entity before the API serializes it. The caller must
-   * run in a read only transaction, so the masked value is never flushed to the database: the row
-   * keeps the cleartext value.
-   */
-  public Finding redactValue(@NotNull final Finding finding) {
-    if (finding.isSensitive()) {
-      finding.setValue(redact(finding.getValue(), true));
-    }
-    return finding;
-  }
-
   // -- CRUD --
 
   public List<Finding> findings() {
