@@ -10681,6 +10681,8 @@ export interface ScenarioOutput {
   scenario_mail_from: string;
   /** Sender display name of the scenario */
   scenario_mail_from_name?: string;
+  /** @uniqueItems true */
+  scenario_mails_reply_to?: string[];
   /** Main focus value of the scenario */
   scenario_main_focus?: string;
   /** Footer of the scenario */

@@ -56,6 +56,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -321,7 +322,13 @@ public class ScenarioApi extends RestBehavior {
       @Valid @RequestBody final UpdateScenarioInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Set<Tag> currentTagList = scenario.getTags();
+    // Absent (null) reply-to means "not provided" and must not wipe the stored addresses: the
+    // update is a full-entity PUT, so an API consumer omitting the field would otherwise clear it.
+    List<String> currentReplyTos = new ArrayList<>(scenario.getReplyTos());
     scenario.setUpdateAttributes(input);
+    if (input.getReplyTos() == null) {
+      scenario.setReplyTos(currentReplyTos);
+    }
     scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     if (hasText(input.getCustomDashboard())) {
       scenario.setCustomDashboard(

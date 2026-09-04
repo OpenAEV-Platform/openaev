@@ -49,8 +49,23 @@ const ScenarioAnalysis = () => {
     if (!current) {
       return;
     }
+    // Explicit payload: PUT /scenarios/{id} is a full update, so spreading the whole scenario
+    // object would silently reset any field the read model does not expose (see #email fields).
     dispatch(updateScenario(current.scenario_id, {
-      ...current,
+      scenario_name: current.scenario_name,
+      scenario_subtitle: current.scenario_subtitle,
+      scenario_description: current.scenario_description,
+      scenario_category: current.scenario_category,
+      scenario_main_focus: current.scenario_main_focus,
+      scenario_severity: current.scenario_severity,
+      scenario_default_kill_chain: current.scenario_default_kill_chain,
+      scenario_external_reference: current.scenario_external_reference,
+      scenario_external_url: current.scenario_external_url,
+      scenario_tags: current.scenario_tags,
+      scenario_message_header: current.scenario_message_header,
+      scenario_message_footer: current.scenario_message_footer,
+      scenario_mail_from_name: current.scenario_mail_from_name,
+      scenario_mails_reply_to: current.scenario_mails_reply_to,
       scenario_custom_dashboard: dashboardId,
     }));
   }, [dispatch]);
