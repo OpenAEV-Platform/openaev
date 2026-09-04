@@ -91,7 +91,13 @@ The Execution tab is a live operations dashboard for monitoring and managing a r
 
 ### Lessons learned
 
-An opt-in module for post-Simulation debriefs. Enable it during Simulation creation or update. Organize customizable survey questions by category, distribute them to Players, and collect qualitative feedback. Responses can be anonymized for sharing. Apply pre-built lesson templates from [Components > Lessons](../../build/components/lessons.md).
+An opt-in module for post-Simulation debriefs. Enable it during Simulation creation or update. Organize
+customizable survey questions by category, distribute them to Players, and collect qualitative feedback. Responses can be anonymized for sharing. Apply pre-built lesson templates from [Components > Lessons](../../build/components/lessons.md).
+
+!!! note
+
+    For chained Simulations, the Lessons target team list comes from the run scope. For time-based
+    Simulations, it comes from the Simulation teams you configured.
 
 ### Findings
 

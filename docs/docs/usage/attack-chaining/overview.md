@@ -50,6 +50,9 @@ define (allowed targets, timeout, rate limit).
 
 Once created, the Scenario/Simulation opens with dedicated tabs.
 
+If you enable Lessons on the Scenario or Simulation details page, chained runs use the teams
+defined in the scope for the Lessons target picker.
+
 ### 2. Define the scope
 
 Before building your logic, restrict which Assets the chained run is allowed to touch.
