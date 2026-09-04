@@ -8773,7 +8773,7 @@ __metadata:
     react-csv: "npm:2.2.2"
     react-dom: "npm:19.2.8"
     react-final-form: "npm:6.5.9"
-    react-final-form-arrays: "npm:4.0.0"
+    react-final-form-arrays: "npm:5.0.0"
     react-grid-layout: "npm:2.2.4"
     react-hook-form: "npm:7.87.0"
     react-intl: "npm:10.1.25"
@@ -9524,17 +9524,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-final-form-arrays@npm:4.0.0":
-  version: 4.0.0
-  resolution: "react-final-form-arrays@npm:4.0.0"
+"react-final-form-arrays@npm:5.0.0":
+  version: 5.0.0
+  resolution: "react-final-form-arrays@npm:5.0.0"
   dependencies:
     "@babel/runtime": "npm:^7.19.4"
   peerDependencies:
-    final-form: ^5.0.0
-    final-form-arrays: ^4.0.0
+    final-form: ^5.0.1
+    final-form-arrays: ^4.0.1
     react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-    react-final-form: ^7.0.0
-  checksum: 10c0/ad9c947e45b37ebd39fd2937f7aa5b7211d7ae9dce427655769c297fb0d7f118c5fce2ffc47da92902f27212fb2c34acb0e940c8216af8ad84ab33691b3edbbf
+    react-final-form: ^7.0.1
+  checksum: 10c0/51cf80d3f7fb8d6bce4443486348f47a4309fe9b9fbda91f67ce17b7fc371bd15d3b1a6f27fc45f82ef1cbf3db27300b3bfe009b19f4a2fb6df0f28c0279a002
   languageName: node
   linkType: hard
 
