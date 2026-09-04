@@ -1,6 +1,5 @@
 package io.openaev.processor.datapack;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.processor.MigrationProcessingResult;
 import io.openaev.processor.Processable;
@@ -40,17 +39,17 @@ public abstract class DataPack implements Processable {
   protected abstract boolean doProcess(Tenant tenant);
 
   /**
-   * Enables the v1 Hibernate {@code tenantFilter} for the current tenant. Call this explicitly,
-   * when doing a datapack that touches v1 tables. Once the tables are migrated to v2, this call can
-   * be removed.
+   * Enables the v1 Hibernate {@code tenantFilter} for the tenant being processed. Call this
+   * explicitly, when doing a datapack that touches v1 tables. Once the tables are migrated to v2,
+   * this call can be removed.
    */
   // TODO v2: once tags, tags_rules get v2 activated, remove this method and all calls to it (and
   // the v1 filter itself)
-  protected void enableV1TenantFilter() {
+  protected void enableV1TenantFilter(Tenant tenant) {
     entityManager
         .unwrap(Session.class)
         .enableFilter("tenantFilter")
-        .setParameter("tenantId", TenantContext.getCurrentTenant());
+        .setParameter("tenantId", tenant.getId());
   }
 
   @Getter private final String packId = getProcessableId();

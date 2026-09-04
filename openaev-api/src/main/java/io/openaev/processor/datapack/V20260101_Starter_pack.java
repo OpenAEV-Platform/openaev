@@ -1,6 +1,5 @@
 package io.openaev.processor.datapack;
 
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
@@ -104,7 +103,7 @@ public class V20260101_Starter_pack extends DataPack {
     // https://github.com/OpenAEV-Platform/openaev/issues/6424, and tag_rules get v2 activated
     // https://github.com/OpenAEV-Platform/openaev/issues/6407, remove this call - the SQL
     // rewriter will scope both entities independently of the v1 filter
-    enableV1TenantFilter();
+    enableV1TenantFilter(tenant);
 
     // unconditionally run this code
     Set<Tag> tags = tagService.ensureWellKnownTags();
@@ -132,10 +131,10 @@ public class V20260101_Starter_pack extends DataPack {
           openCTITagRule.getId(),
           openCTITagRule.getTag().getName(),
           new ArrayList<>(List.of(allEndpointAssetGroup.getId())),
-          TenantContext.getCurrentTenant());
+          tenant.getId());
 
       this.importScenariosFromResources(tenant.getId(), honeyScanMeEndpoint, allEndpointAssetGroup);
-      this.importDashboardsFromResources();
+      this.importDashboardsFromResources(tenant);
       return true;
     } catch (Exception e) {
       log.error("Unexpected error during DataPack 20260101 initialization.", e);
@@ -197,7 +196,7 @@ public class V20260101_Starter_pack extends DataPack {
             });
   }
 
-  private void importDashboardsFromResources() {
+  private void importDashboardsFromResources(Tenant tenant) {
     listFilesInResourceFolder(Config.DASHBOARDS_FOLDER_NAME)
         .forEach(
             resourceToAdd -> {
@@ -211,7 +210,8 @@ public class V20260101_Starter_pack extends DataPack {
                             CustomDashboardService::sanityCheck,
                             "")
                         .jsonApiDocument();
-                this.setDefaultDashboard(resourceToAdd.getFilename(), dashboard.data().id());
+                this.setDefaultDashboard(
+                    tenant, resourceToAdd.getFilename(), dashboard.data().id());
                 log.info(
                     "Successfully imported StarterPack dashboard file : {}",
                     resourceToAdd.getFilename());
@@ -240,7 +240,7 @@ public class V20260101_Starter_pack extends DataPack {
     }
   }
 
-  private void setDefaultDashboard(String filename, String dashboardId) {
+  private void setDefaultDashboard(Tenant tenant, String filename, String dashboardId) {
     String settingKey =
         DASHBOARD_PREFIX_TO_SETTING_KEY.entrySet().stream()
             .filter(entry -> filename.startsWith(entry.getKey()))
@@ -249,15 +249,15 @@ public class V20260101_Starter_pack extends DataPack {
             .orElse(null);
 
     if (settingKey != null) {
-      String tenantId = TenantContext.getCurrentTenant();
-      Tenant tenant = new Tenant(tenantId);
+      String tenantId = tenant.getId();
       Setting defaultDashboardSetting =
           settingRepository
               .findByKeyAndTenantId(settingKey, tenantId)
               .orElseGet(
                   () -> {
                     Setting s = new Setting(settingKey, null);
-                    s.setTenant(tenant);
+                    // Id-only stub: the Tenant we were handed was loaded in another transaction.
+                    s.setTenant(new Tenant(tenantId));
                     return s;
                   });
       defaultDashboardSetting.setValue(dashboardId);

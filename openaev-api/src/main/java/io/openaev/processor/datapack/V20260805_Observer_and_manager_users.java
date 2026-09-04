@@ -1,6 +1,5 @@
 package io.openaev.processor.datapack;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.GroupRepository;
@@ -64,9 +63,9 @@ public class V20260805_Observer_and_manager_users extends DataPack {
   @Override
   protected boolean doProcess(Tenant tenant) {
     String password = resolveUserPassword();
-    ensureRolesAndGroups();
-    createUserInGroup(OBSERVER_EMAIL, "Test", "Observer", "Observer", password);
-    createUserInGroup(MANAGER_EMAIL, "Test", "Manager", "Manager", password);
+    ensureRolesAndGroups(tenant);
+    createUserInGroup(tenant, OBSERVER_EMAIL, "Test", "Observer", "Observer", password);
+    createUserInGroup(tenant, MANAGER_EMAIL, "Test", "Manager", "Manager", password);
     return true;
   }
 
@@ -81,8 +80,8 @@ public class V20260805_Observer_and_manager_users extends DataPack {
     return UUID.randomUUID().toString();
   }
 
-  private void ensureRolesAndGroups() {
-    String tenantId = TenantContext.getCurrentTenant();
+  private void ensureRolesAndGroups(Tenant tenant) {
+    String tenantId = tenant.getId();
     PresetTenantData.DEFAULT_ROLES.forEach(
         (roleName, capabilities) -> {
           if (groupRepository.findByNameAndTenantId(roleName, tenantId).isPresent()) {
@@ -106,7 +105,12 @@ public class V20260805_Observer_and_manager_users extends DataPack {
   }
 
   private void createUserInGroup(
-      String email, String firstname, String lastname, String groupName, String password) {
+      Tenant tenant,
+      String email,
+      String firstname,
+      String lastname,
+      String groupName,
+      String password) {
     if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
       log.info("User {} already exists, skipping", email);
       return;
@@ -116,10 +120,10 @@ public class V20260805_Observer_and_manager_users extends DataPack {
         userService.createInternalUser(
             email, firstname, lastname, false, UUID.randomUUID().toString());
     user.setPassword(userService.encodeUserPassword(password));
-    user.setTenants(new ArrayList<>(List.of(new Tenant(TenantContext.getCurrentTenant()))));
+    user.setTenants(new ArrayList<>(List.of(new Tenant(tenant.getId()))));
 
     groupRepository
-        .findByNameAndTenantId(groupName, TenantContext.getCurrentTenant())
+        .findByNameAndTenantId(groupName, tenant.getId())
         .ifPresent(group -> user.setGroups(new ArrayList<>(List.of(group))));
 
     userRepository.save(user);
