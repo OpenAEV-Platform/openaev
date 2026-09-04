@@ -174,7 +174,7 @@ always yields the same id (idempotent, collision-safe even when a value contains
 
 The rebuild above is the **full** mode. It materializes every node and edge and the per-execution feed.
 That is fine for a small or medium simulation, but a very large one has too many rows to send and render
-(a 500k-execution simulation is seconds of rebuild and gigabytes of heap — see §9). So there is a second
+(a 500k-execution simulation is seconds of rebuild and gigabytes of heap — see §10). So there is a second
 mode.
 
 - **Full** — the two reads + in-memory pass above. Every endpoint, every finding, every execution.
@@ -189,7 +189,7 @@ threshold** (`openaev.attackpath.collapse-threshold`, declared in `application.p
 `?mode=collapsed`).
 
 Collapsed is the answer to scale: it removes the JVM materialization cost and bounds the number of nodes
-the front renders (one per endpoint, not one per execution). It is measured in §9.
+the front renders (one per endpoint, not one per execution). It is measured in §10.
 
 ## 5. Severity colours (prevention + detection)
 
@@ -218,7 +218,7 @@ flowchart TB
     INS["TenantStatementInspector rewrites the SQL:<br/>… AND can_access_tenant(tenant_id)"]
     PG["PostgreSQL returns only this tenant's rows"]
     Q --> TX --> INS --> PG
-    SEED["Seed generator (raw JDBC INSERT)"] -.->|"bypasses the inspector on purpose;<br/>sets tenant_id explicitly on every row (see §8)"| PG
+    SEED["Seed generator (raw JDBC INSERT)"] -.->|"bypasses the inspector on purpose;<br/>sets tenant_id explicitly on every row (see §9)"| PG
 ```
 
 The crucial detail: each read endpoint declares a **`TxCtx` parameter**. That is what makes the
@@ -242,7 +242,7 @@ All endpoints live under `/api/attack-path` (and the tenant-prefixed
 | `GET /simulations/{id}/endpoint/relations?ref=&page=&size=` | one endpoint's executions (feed) and grouped edges. The **executions are paged** (default 50, clamped to 200 — an over-sized request is clamped, never rejected) and the response carries `totalExecutions`; the **edges come back whole**, since they are bounded by the endpoint's in-degree and reference execution ids across page boundaries |
 | `GET /simulations/{id}/findings?category=&page=&size=` | a page of a widget category's findings for the drawer (credentials masked) |
 | `GET /simulations/{id}/executions/{executionId}` | one execution's Result & Terminal detail: command + output (credentials masked), ATT&CK techniques, payload detection remediations, and `securityPlatforms` — the platforms that prevented/detected it, with their per-platform status and linked alerts, resolved live from the inject's expectations. **Enterprise-gated**: without an active license the list comes back empty, which the panel renders as "attribution requires Enterprise Edition", never as an evaluated-negative verdict (see [Enterprise Edition](../administration/enterprise.md)). The verdict labels themselves (`Prevented`, `Not Detected`, `Pending`…) are the platform's expectation statuses, and a pending one turns negative only when the expiration manager says so — see [expectation management](../usage/evaluate/expectations/expectations.md). 404 if not in the caller's simulation |
-| `POST /seed` | admin-only; generates synthetic data (see §8) |
+| `POST /seed` | admin-only; generates synthetic data (see §9) |
 
 `ref` is an endpoint's `target_key` (asset id or raw value); the front reads it off the asset node's
 `ref` field, since the node id is a non-reversible hash.
@@ -309,7 +309,82 @@ flowchart LR
     window**. The row-version columns themselves are `NOT NULL DEFAULT 0` and need no backfill:
     existing rows read as version 0, which any `since = 0` delta includes.
 
-## 8. Enable, seed, explore
+## 8. CSV export (findings, execution trace, chokepoints)
+
+Three CSV exports cover the Attack Chaining workflow end to end: the structured findings a chain
+produces, the full per-hop execution trace of a chain, and the chokepoint report used for remediation
+prioritization. All three stream a `text/csv` attachment synchronously (no background job), are UTF-8
+encoded and RFC 4180 compliant (opencsv-backed, the same library and quoting rules as the existing
+mapper and Threat Arsenal exports), and require the same read permission as the underlying screen —
+there is no separate export permission.
+
+!!! note "A chain is a Simulation"
+
+    Attack Chaining has no dedicated chain entity: a chain is a Simulation (an `Exercise`) whose
+    injects are chained together. The exports below use the Simulation id and name wherever the
+    column list below says "Chain ID" / "Chain name".
+
+### Findings export
+
+`Findings` (global, per-Simulation and per-Scenario screens) gained an **Export CSV** toolbar button
+next to the pagination bar. The export applies the exact filters and search text currently active on
+the screen, so the CSV always matches the visible list — never the full unfiltered table.
+
+| Method & path | Scope |
+| --- | --- |
+| `POST /api/findings/export/csv` | every finding the caller can read |
+| `POST /api/findings/exercises/{simulationId}/export/csv` | findings for one Simulation |
+| `POST /api/findings/scenarios/{scenarioId}/export/csv` | findings for one Scenario |
+
+Each endpoint takes the same `SearchPaginationInput` body as the matching `/search` endpoint (filters,
+free-text search, sort), and returns one row per finding: finding ID, type (credential, port, token,
+file, CVE…), value, the related inject/action id and name, the related Asset, creation timestamp,
+tags, and the chain (Simulation) id and name.
+
+### Execution trace export
+
+The **Attack path** view (Simulation and Scenario context) gained an **Export CSV** button in the
+toolbar, next to the graph/table view toggle. It exports the whole chain's execution history — every
+hop, in chronological order — extending the single-execution trace already available in the execution
+detail drawer.
+
+| Method & path | Returns |
+| --- | --- |
+| `GET /api/attack-path/simulations/{simulationId}/execution-trace/export/csv` | one row per `AttackPathExecution`, ordered by `executed_at` |
+
+Columns: chain id/name, hop order, action (contract) id and name, target Asset, command or payload,
+an output summary (the terminal output is truncated past 2000 characters — open the execution detail
+in the UI for the full log), result (the resolved inject status, falling back to the
+prevention/detection labels), an error message when the result looks like a failure, the executing
+agent (injector or endpoint agent, with its privilege level when known), and the start timestamp.
+`AttackPathExecution` carries no per-hop end time or duration, so those two columns are always `-`.
+
+### Chokepoint report export
+
+The same **Attack path** toolbar gained a second **Export CSV** button (disabled when the current
+Simulation has no chokepoint), exporting the chokepoint report: the single points of failure whose
+findings, weighted by Asset criticality, close the most attack paths.
+
+| Method & path | Returns |
+| --- | --- |
+| `GET /api/attack-path/simulations/{simulationId}/chokepoints/export/csv` | one row per chokepoint Asset in the Simulation |
+
+Columns: chokepoint action id and name, related Asset, the chain(s) the chokepoint also appears in
+(a chokepoint's endpoint key may recur across other Simulations), the downstream node count and a
+summary of the downstream nodes themselves, a remediation note (from `AttackPathExecutionRemediation`
+when one exists, blank otherwise), and the risk score. The score is computed with the exact
+`findings × criticality weight` formula already used by the Attack path graph's chokepoint stat card
+(`VERY_HIGH` = 4, `HIGH` = 3, `MEDIUM` = 2, `LOW` and unset = 1), so the CSV score always matches what
+the UI shows.
+
+!!! note "Large exports"
+
+    All three exports run synchronously on the request thread, matching every other CSV export in the
+    platform. There is no background job or download-link flow yet: a very large chain's execution
+    trace or finding list is exported in one request, same as the existing mapper and Threat Arsenal
+    exports.
+
+## 9. Enable, seed, explore
 
 ### Start the feature
 
@@ -372,8 +447,8 @@ the execution count), largest first. Pick one, then:
 
 - Toggle **Collapsed / Full / Auto**. On the 100k outlier (`ap-seed-7-sim-0`), collapsed renders ~450
   nodes vs full's ~2,800 nodes plus a 100k-row feed — the render-cost lever the POC is about. (The
-  backend rebuild for this outlier is ~0.3 s collapsed vs ~1.4 s full, §9; the front latency itself was
-  reasoned from node counts, not browser-measured — see §9 and results.md.)
+  backend rebuild for this outlier is ~0.3 s collapsed vs ~1.4 s full, §10; the front latency itself was
+  reasoned from node counts, not browser-measured — see §10 and results.md.)
 - **Click an endpoint** to lazy-load its findings (collapsed) and its executions (side panel), and to
   highlight its path.
 
@@ -391,7 +466,7 @@ yarn check-ts && yarn lint
 The scaling benchmark is not a unit test; it is env-gated and run explicitly:
 `ATTACKPATH_BENCHMARK=true ATTACKPATH_BENCHMARK_PRESET=medium mvn -pl openaev-api test -Dtest=AttackPathBenchmark`.
 
-## 9. Performance and results
+## 10. Performance and results
 
 ### Method
 
@@ -448,9 +523,9 @@ lab benchmark. Full detail and caveats are in the POC's `results.md`.
   wall** and the **render wall**, not the underlying database scan. It is not a free 300 ms.
 - **The front render ceiling is real.** React Flow stays interactive to roughly a couple thousand nodes;
   the collapsed 500k (~2,050 nodes) is at that band. The front lays nodes out in a grid and culls
-  off-screen elements to cope; past that, endpoint clustering is the lever (see §10).
+  off-screen elements to cope; past that, endpoint clustering is the lever (see §11).
 
-## 10. How to continue
+## 11. How to continue
 
 Ordered by importance:
 

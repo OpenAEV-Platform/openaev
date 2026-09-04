@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 
 import {
+  exportAttackPathCsv,
   fetchAttackPathSimulations,
   fetchEndpointFindings,
   fetchEndpointRelations,
@@ -40,6 +41,7 @@ import type {
 } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 import useRemainingViewportHeight from '../../../../../utils/hooks/useRemainingViewportHeight';
+import { download } from '../../../../../utils/utils';
 import ChainingUpdatedBanner from '../../../chaining/ChainingUpdatedBanner';
 import useSnapshotUpdated from '../../../chaining/useSnapshotUpdated';
 import attackPathStatusColor from './attack-path-colors';
@@ -2679,6 +2681,14 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
       });
   }, [scenarioId, navigate, t]);
 
+  // CSV exports (Attack Chaining): fetch and trigger a browser download, same download() helper as
+  // the findings/threat-arsenal CSV exports. simulationId is the current chain's id.
+  const handleExportCsv = useCallback(() => {
+    exportAttackPathCsv(simulationId).then((result) => {
+      download(result.data, result.filename, 'text/csv');
+    });
+  }, [simulationId]);
+
   return (
     <Box
       ref={rootRef}
@@ -2736,6 +2746,7 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         onSearchInputChange={setSearchInput}
         onSearchSelect={onSearchSelect}
         searchGroupLabel={searchGroupLabel}
+        onExportCsv={simulationId ? handleExportCsv : undefined}
       />
       {/* Chokepoint scoring explainer opened by the stats-bar chokepoint card. */}
       {!pathFinding && chokepoints.length > 0 && (

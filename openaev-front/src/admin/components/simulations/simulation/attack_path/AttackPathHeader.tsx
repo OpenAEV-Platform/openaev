@@ -1,4 +1,4 @@
-import { AccountTreeOutlined, ArrowBackOutlined, FilterAltOffOutlined, FullscreenExitOutlined, FullscreenOutlined, HelpOutline, LocalFireDepartment, MoreHorizOutlined, SearchOutlined, TableRowsOutlined } from '@mui/icons-material';
+import { AccountTreeOutlined, ArrowBackOutlined, FileDownloadOutlined, FilterAltOffOutlined, FullscreenExitOutlined, FullscreenOutlined, HelpOutline, LocalFireDepartment, MoreHorizOutlined, SearchOutlined, TableRowsOutlined } from '@mui/icons-material';
 import { Autocomplete, Box, Button, ButtonBase, ListItemButton, Paper, Popover, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, type ReactNode, useState } from 'react';
@@ -190,6 +190,8 @@ interface Props {
   onSearchInputChange: (value: string) => void;
   onSearchSelect: (option: SearchOption | null) => void;
   searchGroupLabel: (kind: SearchOption['kind']) => string;
+  // CSV export (Attack Chaining): one merged file for the selected simulation.
+  onExportCsv?: () => void;
 }
 
 // The single header band over the attack-path canvas: live beacon and clickable summary stats on
@@ -223,6 +225,7 @@ const AttackPathHeader: FunctionComponent<Props> = ({
   onSearchInputChange,
   onSearchSelect,
   searchGroupLabel,
+  onExportCsv,
 }) => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -650,6 +653,19 @@ const AttackPathHeader: FunctionComponent<Props> = ({
           {fullscreen ? <FullscreenExitOutlined fontSize="small" /> : <FullscreenOutlined fontSize="small" />}
         </Tooltip>
       </ToggleButton>
+      {onExportCsv && (
+        <ToggleButtonGroup size="small" sx={{ '& .MuiToggleButton-root': { height: CONTROL_HEIGHT } }}>
+          <ToggleButton
+            value="export-csv"
+            aria-label={t('Export CSV')}
+            onClick={onExportCsv}
+          >
+            <Tooltip title={t('Export CSV')}>
+              <FileDownloadOutlined fontSize="small" />
+            </Tooltip>
+          </ToggleButton>
+        </ToggleButtonGroup>
+      )}
     </Paper>
   );
 };

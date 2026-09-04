@@ -75,3 +75,15 @@ export const fetchExecutionDetail = (
   executionId: string,
 ): Promise<{ data: AttackPathExecutionDetailDTO }> =>
   simpleCall(`${simulationUri(simulationId)}/execution?ref=${encodeURIComponent(executionId)}`, undefined, false);
+
+// -- CSV EXPORT --
+// One merged Attack Chaining CSV for a simulation: chokepoint rows first, then the full execution
+// trace. The streamed attachment filename comes from Content-Disposition, same pattern as the other
+// CSV exports (findings, threat arsenal, mapper).
+export const exportAttackPathCsv = (simulationId: string) =>
+  simpleCall(`${simulationUri(simulationId)}/export/csv`).then((response) => {
+    return {
+      data: response.data,
+      filename: response.headers['content-disposition'].split('filename=')[1],
+    };
+  });

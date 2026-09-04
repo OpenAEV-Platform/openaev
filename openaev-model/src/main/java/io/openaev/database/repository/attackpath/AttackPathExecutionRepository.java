@@ -336,4 +336,11 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   @Query("SELECT e FROM AttackPathExecution e WHERE e.stepId = :stepId AND e.tenant.id = :tenantId")
   List<AttackPathExecution> findByStepIdAndTenantId(
       @Param("stepId") String stepId, @Param("tenantId") String tenantId);
+
+  /**
+   * Every execution (edge) of a simulation, in chronological order, with every column including
+   * {@code command}/{@code terminalOutput}. Used by the Execution Trace CSV export, which — unlike
+   * the graph reads above — needs the full per-hop detail rather than a collapsed/grouped view.
+   */
+  List<AttackPathExecution> findAllBySimulationIdOrderByExecutedAtAsc(String simulationId);
 }

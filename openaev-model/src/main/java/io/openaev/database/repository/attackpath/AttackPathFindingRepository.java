@@ -218,4 +218,16 @@ public interface AttackPathFindingRepository extends CrudRepository<AttackPathFi
    * Used by the attack-path cleanup on simulation reset and delete.
    */
   void deleteAllBySimulationId(String simulationId);
+
+  /**
+   * Every OTHER simulation that also has findings on the given endpoint — the chokepoint export's
+   * best-effort "chain(s) it repeats in" signal. Best-effort because it correlates by raw endpoint
+   * key rather than any dedicated cross-chain entity (none exists yet); a discovered (non-asset)
+   * endpoint's key can theoretically collide across simulations, which would over-report a repeat.
+   */
+  @Query(
+      "SELECT DISTINCT f.simulationId FROM AttackPathFinding f "
+          + "WHERE f.endpointKey = :endpointKey AND f.simulationId <> :simulationId")
+  List<String> findOtherSimulationIdsByEndpointKey(
+      @Param("endpointKey") String endpointKey, @Param("simulationId") String simulationId);
 }

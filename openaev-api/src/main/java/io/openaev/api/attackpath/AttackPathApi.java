@@ -22,8 +22,12 @@ import io.openaev.service.attackpath.dto.AttackPathFindingPageDTO;
 import io.openaev.service.attackpath.dto.AttackPathReplayStepDTO;
 import io.openaev.service.attackpath.dto.AttackPathSeedInput;
 import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
+import io.openaev.service.attackpath.export.AttackPathCombinedExportService;
+import io.openaev.service.attackpath.export.AttackPathCsvExportRow;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
+import io.openaev.utils.CsvExportUtils;
 import io.openaev.utils.TxCtxScopeUtils;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.Min;
 import java.util.Collection;
 import java.util.List;
@@ -65,6 +69,7 @@ public class AttackPathApi extends RestBehavior {
   private final AttackPathSeedService seedService;
   private final AttackPathCausalSeedService causalSeedService;
   private final AttackPathAccessControl attackPathAccessControl;
+  private final AttackPathCombinedExportService attackPathCombinedExportService;
 
   /**
    * The single tenant the seed writes under. Seeding is a one-tenant operation, so a scope that
@@ -307,5 +312,23 @@ public class AttackPathApi extends RestBehavior {
     }
     String tenantId = requireSingleTenant(ctx);
     return causalSeedService.replayRansomwareNextStage(simulationId, tenantId, footholds);
+  }
+
+  /**
+   * Attack Chaining CSV export: one merged file containing the ranked chokepoint rows first,
+   * followed by the full chronological execution trace, so the user can download the whole attack
+   * chain story in one CSV. Same access-control guard as every other per-simulation read on this
+   * controller ({@code assertCanReadSimulation}, which also lets synthetic seed simulations
+   * through).
+   */
+  @GetMapping("/simulations/{simulationId}/export/csv")
+  @Transactional(readOnly = true)
+  @AccessControl(skipRBAC = true)
+  public void exportCsv(TxCtx ctx, @PathVariable String simulationId, HttpServletResponse response)
+      throws Exception {
+    attackPathAccessControl.assertCanReadSimulation(simulationId);
+    var rows = attackPathCombinedExportService.exportRows(simulationId);
+    String filename = CsvExportUtils.buildFilename("attack-chain-" + simulationId, "export");
+    CsvExportUtils.writeCsv(response, filename, rows, AttackPathCsvExportRow.class);
   }
 }
