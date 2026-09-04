@@ -2,7 +2,6 @@ package io.openaev.rest.scenario;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.ScenarioSpecification.byName;
-import static io.openaev.database.specification.TeamSpecification.fromScenario;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static java.time.Instant.now;
@@ -86,7 +85,6 @@ public class ScenarioApi extends RestBehavior {
   private final ScenarioToExerciseService scenarioToExerciseService;
   private final ImportService importService;
   private final ScenarioService scenarioService;
-  private final TeamService teamService;
   private final AssetGroupService assetGroupService;
   private final EndpointService endpointService;
   private final ChannelService channelService;
@@ -432,7 +430,7 @@ public class ScenarioApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public List<TeamOutput> scenarioTeams(@PathVariable @NotBlank final String scenarioId) {
-    return this.teamService.find(fromScenario(scenarioId));
+    return this.scenarioService.getScenarioTeams(scenarioId);
   }
 
   @Transactional(rollbackFor = Exception.class)

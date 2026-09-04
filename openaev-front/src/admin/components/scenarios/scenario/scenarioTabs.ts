@@ -18,8 +18,8 @@ export default function buildScenarioTabs(params: {
       ['/logic', t('Logic')],
       ['/attack-path', t('Attack Path')],
       ['/execution', t('Execution')],
-      ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
       ['/findings', t('Findings')],
+      ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
       ['/statistics', t('Statistics')],
     ];
   }
@@ -29,8 +29,8 @@ export default function buildScenarioTabs(params: {
     ['/injects', t('Injects')],
     ...(hasInjectTests ? [['/tests', t('Tests')] as [string, string]] : []),
     ['/execution', t('Execution')],
-    ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
     ['/findings', t('Findings')],
+    ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
     ['/statistics', t('Statistics')],
   ];
 }

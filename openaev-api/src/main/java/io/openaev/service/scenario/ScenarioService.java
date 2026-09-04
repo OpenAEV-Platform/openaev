@@ -4,6 +4,7 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.specification.ScenarioSpecification.findGrantedFor;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
+import static io.openaev.database.specification.TeamSpecification.fromScenario;
 import static io.openaev.helper.MailHelper.resolveFromName;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
@@ -65,6 +66,7 @@ import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.service.utils.BulkDeleteExecutor;
@@ -141,6 +143,7 @@ public class ScenarioService {
   private final VariableService variableService;
   private final ChallengeService challengeService;
   private final TeamService teamService;
+  private final ScopeService scopeService;
   private final FileService fileService;
   private final InjectDuplicateService injectDuplicateService;
   private final TagRuleService tagRuleService;
@@ -463,6 +466,48 @@ public class ScenarioService {
     return scenarioMapper.toScenarioOutput(rawScenario, killChainPhases, scenarioTeamUsers);
   }
 
+  /**
+   * Returns the teams available to the lessons tab for a scenario.
+   *
+   * <p>Time-based scenarios keep their scenario-linked teams. Chained scenarios use the workflow
+   * scope teams so lessons see the same audience as the logic/scope authoring screens.
+   *
+   * @param scenarioId the scenario whose teams must be listed
+   * @return the available teams for lessons
+   */
+  @Transactional(readOnly = true)
+  public List<TeamOutput> getScenarioTeams(@NotBlank final String scenarioId) {
+    RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
+    if (rawScenario == null) {
+      throw new ElementNotFoundException("Scenario not found");
+    }
+    String workflowId = rawScenario.getScenario_workflow_id();
+    return hasText(workflowId)
+        ? getWorkflowScenarioTeams(scenarioId, workflowId)
+        : getTimeBasedScenarioTeams(scenarioId);
+  }
+
+  private List<TeamOutput> getWorkflowScenarioTeams(
+      final String scenarioId, final String workflowId) {
+    return this.teamService
+        .find(
+            fromIds(this.scopeService.getValidTeams(workflowId).stream().map(Team::getId).toList()))
+        .stream()
+        .map(team -> markScenarioVisibility(team, scenarioId))
+        .toList();
+  }
+
+  private TeamOutput markScenarioVisibility(final TeamOutput team, final String scenarioId) {
+    if (team.getScenarios() == null || !team.getScenarios().contains(scenarioId)) {
+      team.setScenarios(Set.of(scenarioId));
+    }
+    return team;
+  }
+
+  private List<TeamOutput> getTimeBasedScenarioTeams(final String scenarioId) {
+    return this.teamService.find(fromScenario(scenarioId));
+  }
+
   public Scenario scenarioFromSimulationId(@NotBlank final String simulationId) {
     return this.scenarioRepository
         .findByExercises_Id(simulationId)
@@ -645,16 +690,17 @@ public class ScenarioService {
     // Add Objectives
     scenarioFileExport.setObjectives(scenario.getObjectives());
     objectMapper.addMixIn(Objective.class, Mixins.Objective.class);
-    // Add Lesson Categories
-    scenarioFileExport.setLessonsCategories(scenario.getLessonsCategories());
-    objectMapper.addMixIn(LessonsCategory.class, Mixins.LessonsCategory.class);
-    // Add Lessons Questions
-    List<LessonsQuestion> lessonsQuestions =
-        scenario.getLessonsCategories().stream()
-            .flatMap(category -> category.getQuestions().stream())
-            .toList();
-    scenarioFileExport.setLessonsQuestions(lessonsQuestions);
-    objectMapper.addMixIn(LessonsQuestion.class, Mixins.LessonsQuestion.class);
+    if (scenario.isLessonsEnabled()) {
+      // Add lesson content only when the lessons module is enabled.
+      scenarioFileExport.setLessonsCategories(scenario.getLessonsCategories());
+      objectMapper.addMixIn(LessonsCategory.class, Mixins.LessonsCategory.class);
+      List<LessonsQuestion> lessonsQuestions =
+          scenario.getLessonsCategories().stream()
+              .flatMap(category -> category.getQuestions().stream())
+              .toList();
+      scenarioFileExport.setLessonsQuestions(lessonsQuestions);
+      objectMapper.addMixIn(LessonsQuestion.class, Mixins.LessonsQuestion.class);
+    }
     // Add Variables
     List<Variable> variables = this.variableService.variablesFromScenario(scenarioId);
     scenarioFileExport.setVariables(variables);

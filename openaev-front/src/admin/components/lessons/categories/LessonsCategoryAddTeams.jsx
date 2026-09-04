@@ -102,6 +102,9 @@ const LessonsCategoryAddTeams = ({
     <Box sx={{
       display: 'flex',
       gap: 1,
+      flexWrap: 'wrap',
+      alignItems: 'flex-start',
+      marginBottom: 1,
     }}
     >
       <SearchFilter

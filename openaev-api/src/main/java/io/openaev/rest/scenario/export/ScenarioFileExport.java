@@ -56,6 +56,14 @@ public class ScenarioFileExport {
   @JsonProperty("scenario_lessons_questions")
   private List<LessonsQuestion> lessonsQuestions = new ArrayList<>();
 
+  public List<LessonsCategory> getLessonsCategories() {
+    return isLessonsEnabled() ? lessonsCategories : null;
+  }
+
+  public List<LessonsQuestion> getLessonsQuestions() {
+    return isLessonsEnabled() ? lessonsQuestions : null;
+  }
+
   @JsonIgnore public static final String SCENARIO_VARIABLES = "scenario_variables";
 
   @JsonProperty(SCENARIO_VARIABLES)
@@ -63,4 +71,8 @@ public class ScenarioFileExport {
 
   @JsonProperty("scenario_workflow")
   private Workflow workflow;
+
+  private boolean isLessonsEnabled() {
+    return scenario != null && scenario.isLessonsEnabled();
+  }
 }

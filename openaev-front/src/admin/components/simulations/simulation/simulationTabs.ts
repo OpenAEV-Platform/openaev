@@ -33,9 +33,9 @@ export default function buildSimulationTabs(params: {
       ['/scope', t('Scope')],
       ['/logic', t('Logic')],
       ['/execution', t('Execution')],
-      ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
       ['/attack-path', t('Attack Path')],
       ['/findings', t('Findings')],
+      ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
       ['/statistics', t('Statistics')],
     ];
   }
