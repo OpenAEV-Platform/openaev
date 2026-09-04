@@ -1424,25 +1424,11 @@ class DashboardApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
 
-      CustomDashboardInput input = new CustomDashboardInput();
-      input.setName("Isolation Test Dashboard");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/custom-dashboards")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String dashboardId = JsonPath.read(createResponse, "$.custom_dashboard_id");
-
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded directly (native insert), not through the create endpoint: creating under tenant
+      // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
+      // the read call below sets it to Y - the aspect refuses a scope change within one
+      // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String dashboardId = seedCustomDashboardInTenant(tenantX, "Isolation Test Dashboard");
 
       // -------- Act — read from tenant Y (expect 404) --------
       int responseStatus =
@@ -1511,18 +1497,7 @@ class DashboardApiTest extends IntegrationTest {
       // X's path would set the tenant scope (TxCtx) to X on this test's wrapping transaction, and
       // the search call below sets it to Y - the aspect refuses a scope change within one
       // transaction (see TenantScopeTransactionAspect). Seeding bypasses that entirely.
-      String dashboardId = UUID.randomUUID().toString();
-      entityManager
-          .createNativeQuery(
-              "INSERT INTO custom_dashboards (custom_dashboard_id, custom_dashboard_name, tenant_id)"
-                  + " VALUES (CAST(:id AS uuid), :name, CAST(:tenant AS uuid))")
-          .setParameter("id", dashboardId)
-          .setParameter("name", "CrossTenantSearchDashboard")
-          .setParameter("tenant", tenantX.getId())
-          .executeUpdate();
-
-      entityManager.flush();
-      entityManager.clear();
+      seedCustomDashboardInTenant(tenantX, "CrossTenantSearchDashboard");
 
       // -------- Act — search from tenant Y --------
       SearchPaginationInput searchInput =
@@ -1555,25 +1530,11 @@ class DashboardApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.MANAGE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
 
-      CustomDashboardInput input = new CustomDashboardInput();
-      input.setName("Update Isolation Test Dashboard");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/custom-dashboards")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String dashboardId = JsonPath.read(createResponse, "$.custom_dashboard_id");
-
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded directly (native insert): creating under tenant X's path via the API would set the
+      // tenant scope (TxCtx) to X on this test's wrapping transaction, and the update call below
+      // sets it to Y - the aspect refuses a scope change within one transaction (see
+      // TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String dashboardId = seedCustomDashboardInTenant(tenantX, "Update Isolation Test Dashboard");
 
       // -------- Act — update from tenant Y (expect 404) --------
       CustomDashboardInput updateInput = new CustomDashboardInput();
@@ -1605,25 +1566,11 @@ class DashboardApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.DELETE_DASHBOARDS, Capability.ACCESS_DASHBOARDS));
 
-      CustomDashboardInput input = new CustomDashboardInput();
-      input.setName("Delete Isolation Test Dashboard");
-
-      String createResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantX.getId() + "/custom-dashboards")
-                      .content(asJsonString(input))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String dashboardId = JsonPath.read(createResponse, "$.custom_dashboard_id");
-
-      entityManager.flush();
-      entityManager.clear();
+      // Seeded directly (native insert): creating under tenant X's path via the API would set the
+      // tenant scope (TxCtx) to X on this test's wrapping transaction, and the delete call below
+      // sets it to Y - the aspect refuses a scope change within one transaction (see
+      // TenantScopeTransactionAspect). Seeding bypasses that entirely.
+      String dashboardId = seedCustomDashboardInTenant(tenantX, "Delete Isolation Test Dashboard");
 
       // -------- Act — delete from tenant Y (expect 404) --------
       int responseStatus =
@@ -1650,18 +1597,10 @@ class DashboardApiTest extends IntegrationTest {
           tenantIsolationHelper.createTenantWithCapabilities(
               "Tenant Y", Set.of(Capability.ACCESS_DASHBOARDS));
 
-      CustomDashboardInput dashboardInput = new CustomDashboardInput();
-      dashboardInput.setName("Widget Isolation Dashboard");
-
-      mvc.perform(
-              post("/api/tenants/" + tenantX.getId() + "/custom-dashboards")
-                  .content(asJsonString(dashboardInput))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().is2xxSuccessful());
-
-      // Create a widget via composers in tenant X context
+      // Create a widget via composers in tenant X context. Not created through the create
+      // endpoint: creating under tenant X's path would set the tenant scope (TxCtx) to X on this
+      // test's wrapping transaction, and the count call below sets it to Y - the aspect refuses a
+      // scope change within one transaction (see TenantScopeTransactionAspect).
       tenantIsolationHelper.switchToTenant(tenantX.getId(), entityManager);
       Widget widget =
           widgetComposer
@@ -1688,6 +1627,27 @@ class DashboardApiTest extends IntegrationTest {
 
       // -------- Assert --------
       assertThat(response).isEqualTo(0);
+    }
+
+    /**
+     * Seeds a custom dashboard directly via native insert instead of the create endpoint:
+     * creating through the API sets the tenant scope (TxCtx) on this test's wrapping
+     * transaction, which conflicts with a subsequent call scoped to a different tenant within
+     * the same test (see TenantScopeTransactionAspect).
+     */
+    private String seedCustomDashboardInTenant(Tenant tenant, String name) {
+      String dashboardId = UUID.randomUUID().toString();
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO custom_dashboards (custom_dashboard_id, custom_dashboard_name, tenant_id)"
+                  + " VALUES (CAST(:id AS uuid), :name, CAST(:tenant AS uuid))")
+          .setParameter("id", dashboardId)
+          .setParameter("name", name)
+          .setParameter("tenant", tenant.getId())
+          .executeUpdate();
+      entityManager.flush();
+      entityManager.clear();
+      return dashboardId;
     }
   }
 }
