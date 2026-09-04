@@ -72,13 +72,8 @@ public class RabbitmqService {
   /** Connection timeout for health check probes, so a degraded broker fails fast. */
   private static final int HEALTH_CHECK_CONNECTION_TIMEOUT_MS = 5_000;
 
-  /** Used when the configured publish timeout is not a strictly positive duration. */
   private static final long DEFAULT_PUBLISH_TIMEOUT_MS = 30_000;
-
-  /** Used when the database pool size is not a strictly positive count. */
   private static final int DEFAULT_PUBLISH_THREADS = 20;
-
-  /** Idle publish threads are released rather than kept for the lifetime of the application. */
   private static final long PUBLISH_THREAD_KEEP_ALIVE_SECONDS = 60;
 
   @Value("${openaev.rabbitmq.publish-timeout-ms:30000}")
@@ -98,13 +93,8 @@ public class RabbitmqService {
   // -- LIFECYCLE --
 
   /**
-   * Builds the publish executor, after checking the configured values: a non-positive timeout would
-   * make every publish expire on the spot, and a non-positive pool size cannot build an executor at
-   * all. Both fall back to their default rather than taking the platform down at startup.
-   *
-   * <p>The queue is a {@link SynchronousQueue}: a publish is only accepted if a thread can run it
-   * now. Callers therefore fail fast once every thread is stuck on a stalled broker, instead of
-   * piling up tasks that have already timed out on the caller side.
+   * A {@link SynchronousQueue} accepts a publish only if a thread can run it now, so nothing piles
+   * up behind a stalled broker.
    */
   @PostConstruct
   void initPublishExecutor() {

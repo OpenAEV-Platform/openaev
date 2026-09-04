@@ -24,10 +24,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
-/**
- * Covers the publish path end to end: a healthy broker, a broker that fails, a broker that accepts
- * the connection then stops answering, and the saturation that follows.
- */
 class RabbitmqServicePublishTest {
 
   private static final String INJECT_TYPE = "openaev_email";
@@ -38,7 +34,6 @@ class RabbitmqServicePublishTest {
   private Channel channel;
   private RabbitmqService rabbitmqService;
 
-  /** Counted down after every test, so a failure never leaves a worker parked forever. */
   private final CountDownLatch release = new CountDownLatch(1);
 
   @BeforeEach
@@ -116,7 +111,6 @@ class RabbitmqServicePublishTest {
         .isInstanceOf(TimeoutException.class);
     assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
 
-    // The single thread is still parked on the stalled broker: nothing is queued behind it.
     assertThatThrownBy(() -> rabbitmqService.publish(INJECT_TYPE, PAYLOAD))
         .isInstanceOf(TimeoutException.class)
         .hasMessage("No RabbitMQ publish thread available");
@@ -145,13 +139,7 @@ class RabbitmqServicePublishTest {
     assertThat(ReflectionTestUtils.getField(rabbitmqService, "publishThreads")).isEqualTo(20);
   }
 
-  /**
-   * Makes {@code basicPublish} behave like a broker under an alarm: the socket write never returns.
-   * Interrupts are swallowed on purpose — a real socket write is not interruptible, so honouring
-   * the cancellation would hide the very behaviour under test.
-   *
-   * @return a latch counted down once the worker is actually parked
-   */
+  /** Swallows interrupts, like the uninterruptible socket write of a broker under an alarm. */
   private CountDownLatch stallOnPublish() throws IOException {
     CountDownLatch entered = new CountDownLatch(1);
     doAnswer(
@@ -162,7 +150,6 @@ class RabbitmqServicePublishTest {
                 try {
                   released = release.await(10, TimeUnit.SECONDS);
                 } catch (InterruptedException ignored) {
-                  // Deliberately not restoring the flag: the point is to stay stuck.
                 }
               }
               return null;
