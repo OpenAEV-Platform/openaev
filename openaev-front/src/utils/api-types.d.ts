@@ -2319,6 +2319,11 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface ChainingOutput {
+  conditions?: EventOutput[];
+  steps?: StepOutput[];
+}
+
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
