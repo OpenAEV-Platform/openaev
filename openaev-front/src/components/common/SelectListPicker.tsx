@@ -74,6 +74,8 @@ interface Props<T> {
   selectedIds: string[];
   /** Ids that are checked but locked (already attached, add-only flows). */
   lockedIds?: string[];
+  /** Ids disabled but not forced as checked (unlike `lockedIds`, which also checks them). */
+  disabledIds?: string[];
   onToggle: (id: string, value: T) => void;
   getId: (element: T) => string;
   isLoading?: boolean;
@@ -106,6 +108,7 @@ const SelectListPicker = <T extends object>({
   sortHelpers,
   selectedIds,
   lockedIds = [],
+  disabledIds = [],
   onToggle,
   getId,
   isLoading = false,
@@ -252,13 +255,14 @@ const SelectListPicker = <T extends object>({
             {sortedValues.map((value) => {
               const id = getId(value);
               const locked = lockedIds.includes(id);
+              const disabled = locked || disabledIds.includes(id);
               const checked = locked || selectedIds.includes(id);
               return (
                 <ListItemButton
                   key={id}
                   dense
                   divider
-                  disabled={locked}
+                  disabled={disabled}
                   onClick={() => onToggle(id, value)}
                 >
                   <ListItemIcon sx={{ minWidth: 32 }}>
@@ -281,6 +285,7 @@ const SelectListPicker = <T extends object>({
                   <Checkbox
                     size="small"
                     checked={checked}
+                    disabled={disabled}
                     disableRipple
                     tabIndex={-1}
                     sx={{ padding: 0.5 }}

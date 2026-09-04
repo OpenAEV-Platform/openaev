@@ -1,17 +1,19 @@
 package io.openaev.api.platform.roles;
 
-import static io.openaev.api.platform.roles.PlatformRoleMapper.toOutput;
+import static io.openaev.rest.role.form.RoleMapper.toOutput;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
-import io.openaev.database.model.Capability;
 import io.openaev.database.model.ResourceType;
+import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.role.form.RoleInput;
+import io.openaev.rest.role.form.RoleMapper;
+import io.openaev.rest.role.form.RoleOutput;
 import io.openaev.service.platform.roles.PlatformRoleService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -21,22 +23,22 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping(PlatformRoleApi.PLATFORM_ROLES_URI)
 @RequiredArgsConstructor
-public class PlatformRoleApi {
+public class PlatformRoleApi extends RestBehavior {
 
   public static final String PLATFORM_ROLES_URI = "/api/platform-roles";
   private final PlatformRoleService platformRoleService;
 
   // -- CREATE --
 
-  @Operation(summary = "Create a platform role")
   @AccessControl(
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  @Transactional
-  public PlatformRoleOutput create(@Valid @RequestBody PlatformRoleInput input) {
+  @Transactional(rollbackFor = Exception.class)
+  @Operation(summary = "Create a platform role")
+  public RoleOutput create(@Valid @RequestBody RoleInput input) {
     return toOutput(
         platformRoleService.createPlatformRole(
             input.name(), input.description(), input.capabilities()));
@@ -44,65 +46,53 @@ public class PlatformRoleApi {
 
   // -- READ --
 
-  @Operation(summary = "Get platform role by ID")
-  @Transactional
   @AccessControl(
       resourceId = "#platformRoleId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
   @GetMapping("/{platformRoleId}")
-  public PlatformRoleOutput findById(@PathVariable String platformRoleId) {
+  @Transactional
+  @Operation(summary = "Get platform role by ID")
+  public RoleOutput findById(@PathVariable String platformRoleId) {
     return toOutput(platformRoleService.findById(platformRoleId));
   }
 
-  @Operation(summary = "Get capabilities of a platform role")
-  @Transactional
-  @AccessControl(
-      resourceId = "#platformRoleId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.PLATFORM_ROLE,
-      isEnterpriseEdition = true)
-  @GetMapping("/{platformRoleId}/capabilities")
-  public Set<Capability> findCapabilities(@PathVariable String platformRoleId) {
-    return platformRoleService.findById(platformRoleId).getCapabilities();
-  }
-
-  @Operation(summary = "Search platform roles")
   @AccessControl(
       actionPerformed = Action.SEARCH,
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
   @PostMapping("/search")
   @Transactional
-  public Page<PlatformRoleOutput> search(
+  @Operation(summary = "Search platform roles")
+  public Page<RoleOutput> search(
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return platformRoleService.search(searchPaginationInput).map(PlatformRoleMapper::toOutput);
+    return platformRoleService.search(searchPaginationInput).map(RoleMapper::toOutput);
   }
 
-  @Operation(summary = "Find platform roles by IDs")
   @AccessControl(
       actionPerformed = Action.SEARCH,
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
   @PostMapping("/find")
   @Transactional
-  public List<PlatformRoleOutput> find(@RequestBody @Valid final List<String> ids) {
-    return platformRoleService.findByIds(ids).stream().map(PlatformRoleMapper::toOutput).toList();
+  @Operation(summary = "Find platform roles by IDs")
+  public List<RoleOutput> find(@RequestBody @Valid final List<String> ids) {
+    return platformRoleService.findByIds(ids).stream().map(RoleMapper::toOutput).toList();
   }
 
   // -- UPDATE --
 
-  @Operation(summary = "Update a platform role")
   @AccessControl(
       resourceId = "#platformRoleId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
   @PutMapping("/{platformRoleId}")
-  @Transactional
-  public PlatformRoleOutput update(
-      @PathVariable String platformRoleId, @Valid @RequestBody PlatformRoleInput input) {
+  @Transactional(rollbackFor = Exception.class)
+  @Operation(summary = "Update a platform role")
+  public RoleOutput update(
+      @PathVariable String platformRoleId, @Valid @RequestBody RoleInput input) {
     return toOutput(
         platformRoleService.updatePlatformRole(
             platformRoleId, input.name(), input.description(), input.capabilities()));
@@ -110,7 +100,6 @@ public class PlatformRoleApi {
 
   // -- DELETE --
 
-  @Operation(summary = "Delete a platform role")
   @AccessControl(
       resourceId = "#platformRoleId",
       actionPerformed = Action.DELETE,
@@ -118,7 +107,8 @@ public class PlatformRoleApi {
       isEnterpriseEdition = true)
   @DeleteMapping("/{platformRoleId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  @Transactional
+  @Transactional(rollbackFor = Exception.class)
+  @Operation(summary = "Delete a platform role")
   public void delete(@PathVariable String platformRoleId) {
     platformRoleService.delete(platformRoleId);
   }

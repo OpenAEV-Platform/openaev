@@ -1,9 +1,9 @@
 package io.openaev.rest.role;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.rest.role.form.RoleMapper.toOutput;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -35,13 +35,11 @@ public class TenantRoleApi extends RestBehavior {
   private static final String TENANT_ROLE_URI = TENANT_PREFIX + "/roles";
 
   private final TenantRoleService tenantRoleService;
-  private final RoleMapper roleMapper;
 
   // -- CREATE --
 
-  @LogExecutionTime
-  @PostMapping({ROLE_URI, TENANT_ROLE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.GROUP_ROLE)
+  @PostMapping({ROLE_URI, TENANT_ROLE_URI})
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Create Role")
   @ApiResponses(
@@ -49,22 +47,20 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Role created"),
         @ApiResponse(responseCode = "409", description = "Role already exists")
       })
-  public RoleOutput createRole(@Valid @RequestBody final RoleInput input) {
-    return roleMapper.toRoleOutput(
-        tenantRoleService.createRole(
-            input.getName(), input.getDescription(), input.getCapabilities()));
+  public RoleOutput create(@Valid @RequestBody final RoleInput input) {
+    return toOutput(
+        tenantRoleService.createRole(input.name(), input.description(), input.capabilities()));
   }
 
   // -- READ --
 
-  @LogExecutionTime
-  @GetMapping({ROLE_URI + "/{roleId}", TENANT_ROLE_URI + "/{roleId}"})
   @AccessControl(
       resourceId = "#roleId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.GROUP_ROLE)
-  @Operation(description = "Get Role by Id", summary = "Get Role")
+  @GetMapping({ROLE_URI + "/{roleId}", TENANT_ROLE_URI + "/{roleId}"})
   @Transactional
+  @Operation(description = "Get Role by Id", summary = "Get Role")
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Role found"),
@@ -72,25 +68,23 @@ public class TenantRoleApi extends RestBehavior {
       })
   public RoleOutput findRole(
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
-    return roleMapper.toRoleOutput(tenantRoleService.findByIdInTenant(roleId));
+    return toOutput(tenantRoleService.findByIdInTenant(roleId));
   }
 
-  @LogExecutionTime
-  @GetMapping({ROLE_URI, TENANT_ROLE_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.GROUP_ROLE)
-  @Operation(description = "Get All Roles", summary = "Get Roles")
+  @GetMapping({ROLE_URI, TENANT_ROLE_URI})
   @Transactional
+  @Operation(description = "Get All Roles", summary = "Get Roles")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of all Roles")})
   public List<RoleOutput> roles() {
     return tenantRoleService.findAll(TenantContext.getCurrentTenant()).stream()
-        .map(roleMapper::toRoleOutput)
+        .map(RoleMapper::toOutput)
         .toList();
   }
 
-  @LogExecutionTime
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.GROUP_ROLE)
   @PostMapping({ROLE_URI + "/search", TENANT_ROLE_URI + "/search"})
   @Transactional
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.GROUP_ROLE)
   @Operation(
       description = "Search Roles corresponding to search criteria",
       summary = "Search Roles")
@@ -100,21 +94,19 @@ public class TenantRoleApi extends RestBehavior {
             responseCode = "200",
             description = "The list of all Roles corresponding to the search criteria")
       })
-  public Page<RoleOutput> searchRoles(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+  public Page<RoleOutput> search(@RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return tenantRoleService
         .search(searchPaginationInput, TenantContext.getCurrentTenant())
-        .map(roleMapper::toRoleOutput);
+        .map(RoleMapper::toOutput);
   }
 
   // -- UPDATE --
 
-  @LogExecutionTime
-  @PutMapping({ROLE_URI + "/{roleId}", TENANT_ROLE_URI + "/{roleId}"})
   @AccessControl(
       resourceId = "#roleId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.GROUP_ROLE)
+  @PutMapping({ROLE_URI + "/{roleId}", TENANT_ROLE_URI + "/{roleId}"})
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Update Role", description = "Role needs to exists")
   @ApiResponses(
@@ -122,22 +114,21 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Role updated"),
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
-  public RoleOutput updateRole(
+  public RoleOutput update(
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId,
       @Valid @RequestBody final RoleInput input) {
-    return roleMapper.toRoleOutput(
+    return toOutput(
         tenantRoleService.updateRole(
-            roleId, input.getName(), input.getDescription(), input.getCapabilities()));
+            roleId, input.name(), input.description(), input.capabilities()));
   }
 
   // -- DELETE --
 
-  @LogExecutionTime
-  @DeleteMapping({ROLE_URI + "/{roleId}", TENANT_ROLE_URI + "/{roleId}"})
   @AccessControl(
       resourceId = "#roleId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.GROUP_ROLE)
+  @DeleteMapping({ROLE_URI + "/{roleId}", TENANT_ROLE_URI + "/{roleId}"})
   @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Delete Role", description = "Role needs to exists")
   @ApiResponses(
@@ -145,7 +136,7 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Role deleted"),
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
-  public void deleteRole(
+  public void delete(
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
     tenantRoleService.delete(roleId);
   }

@@ -28,9 +28,10 @@ import Loader from '../../../../components/Loader';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { GROUP_BASE_URL, ROLE_BASE_URL, USER_BASE_URL } from '../../../../constants/BaseUrls';
 import { useHelper } from '../../../../store';
-import { type Group, type PlatformGroupOutput, type PlatformRoleOutput, type RoleOutput, type SearchPaginationInput, type UserOutput } from '../../../../utils/api-types';
+import { type Group, type PlatformGroupOutput, type RoleOutput, type SearchPaginationInput, type UserOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
+import { CAPABILITY_SCOPES } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import PlatformGroupPopover from '../groups/platform_groups/PlatformGroupPopover';
 import GroupPopover from '../groups/tenant_groups/GroupPopover';
@@ -67,14 +68,14 @@ const GroupDetail = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { groupId } = useParams() as { groupId: string };
   const { scope } = useSecurityScope();
-  const isPlatform = scope === 'PLATFORM';
+  const isPlatform = scope === CAPABILITY_SCOPES.PLATFORM;
 
   const [group, setGroup] = useState<Group | null>(null);
   const [platformGroup, setPlatformGroup] = useState<PlatformGroupOutput | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [roles, setRoles] = useState<RoleOutput[]>([]);
   const [platformMembers, setPlatformMembers] = useState<UserOutput[]>([]);
-  const [platformRoles, setPlatformRoles] = useState<PlatformRoleOutput[]>([]);
+  const [platformRoles, setPlatformRoles] = useState<RoleOutput[]>([]);
   // In platform scope the members and roles resolve through two chained calls
   // (ids first, details later): gate the empty states on these flags so the
   // lists show skeletons instead of flashing "No member/role" while loading.
@@ -116,7 +117,7 @@ const GroupDetail = () => {
             setPlatformRoles([]);
             return undefined;
           }
-          return findPlatformRoles(ids).then(rolesResponse => setPlatformRoles((rolesResponse.data ?? []) as PlatformRoleOutput[]));
+          return findPlatformRoles(ids).then(rolesResponse => setPlatformRoles((rolesResponse.data ?? []) as RoleOutput[]));
         })
         .catch(() => {})
         .finally(() => setPlatformRolesReady(true));
@@ -239,8 +240,8 @@ const GroupDetail = () => {
 
   const roleItems: RelatedItem[] = isPlatform
     ? platformRoles.map(role => ({
-        id: role.platform_role_id,
-        name: role.platform_role_name,
+        id: role.role_id,
+        name: role.role_name,
       }))
     : (group!.group_roles ?? []).map(roleId => ({
         id: roleId,
