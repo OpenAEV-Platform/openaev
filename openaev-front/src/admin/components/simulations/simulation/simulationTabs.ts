@@ -1,4 +1,3 @@
-import { Translate } from '../../../../components/i18n';
 
 export default function buildSimulationTabs(params: {
   lessonsEnabled: boolean | undefined;

@@ -498,9 +498,10 @@ public class ScenarioService {
   }
 
   private TeamOutput markScenarioVisibility(final TeamOutput team, final String scenarioId) {
-    if (team.getScenarios() == null || !team.getScenarios().contains(scenarioId)) {
-      team.setScenarios(Set.of(scenarioId));
-    }
+    Set<String> scenarios =
+        new HashSet<>(team.getScenarios() == null ? Set.of() : team.getScenarios());
+    scenarios.add(scenarioId);
+    team.setScenarios(scenarios);
     return team;
   }
 
