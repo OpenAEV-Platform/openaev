@@ -1,6 +1,7 @@
 package io.openaev.rest.finding;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static io.openaev.rest.finding.FindingService.MASK;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.FindingFixture.createDefaultTextFindingWithRandomValue;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
@@ -993,7 +994,9 @@ class FindingApiTest extends IntegrationTest {
               jsonPath("$.content.[0].finding_scenario.scenario_id").value(savedScenario.getId()))
           .andExpect(
               jsonPath("$.content.[0].finding_type").value(savedFinding.getType().getLabel()))
-          .andExpect(jsonPath("$.content.[0].finding_value").value("admin:admin"));
+          // Credentials are sensitive: the API never returns the cleartext value.
+          .andExpect(jsonPath("$.content.[0].finding_value").value("ad" + MASK + ":ad" + MASK))
+          .andExpect(jsonPath("$.content.[0].finding_is_sensitive").value(true));
     }
 
     @Test
@@ -1182,6 +1185,88 @@ class FindingApiTest extends IntegrationTest {
 
       assertThat(page.getContent()).hasSize(1);
       assertThat(page.getContent().getFirst().getId()).isEqualTo(olderA.getId());
+    }
+
+    @Nested
+    @DisplayName("When the finding is sensitive")
+    class WhenTheFindingIsSensitive {
+
+      private Finding persistSensitiveFinding() {
+        Finding finding =
+            findingComposer
+                .forFinding(FindingFixture.createDefaultFindingCredentials())
+                .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+                .withInject(injectWrapper)
+                .persist()
+                .get();
+        entityManager.flush();
+        entityManager.clear();
+        return finding;
+      }
+
+      @Test
+      @DisplayName("Should redact the value when reading the finding")
+      void given_aSensitiveFinding_should_redactTheValueOnRead() throws Exception {
+        // -------- Arrange --------
+        Finding finding = persistSensitiveFinding();
+
+        // -------- Act & Assert --------
+        mvc.perform(get(FINDING_URI + "/" + finding.getId()).with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.finding_value").value("ad" + MASK + ":ad" + MASK))
+            .andExpect(jsonPath("$.finding_is_sensitive").value(true));
+      }
+
+      @Test
+      @DisplayName("Should redact the value in the finding summary")
+      void given_aSensitiveFinding_should_redactTheValueInTheSummary() throws Exception {
+        // -------- Arrange --------
+        Finding finding = persistSensitiveFinding();
+
+        // -------- Act & Assert --------
+        mvc.perform(get(FINDING_URI + "/" + finding.getId() + "/summary").with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.finding_value").value("ad" + MASK + ":ad" + MASK))
+            .andExpect(jsonPath("$.finding_is_sensitive").value(true));
+      }
+
+      @Test
+      @DisplayName("Should keep the cleartext value in database")
+      void given_aSensitiveFinding_should_keepTheCleartextValueInDatabase() {
+        // -------- Arrange --------
+        Finding finding = persistSensitiveFinding();
+
+        // -------- Act --------
+        Object storedValue =
+            entityManager
+                .createNativeQuery("SELECT finding_value FROM findings WHERE finding_id = :id")
+                .setParameter("id", finding.getId())
+                .getSingleResult();
+
+        // -------- Assert --------
+        assertThat(storedValue).isEqualTo("admin:admin");
+      }
+
+      @Test
+      @DisplayName("Should leave the value of a non sensitive finding untouched")
+      void given_aNonSensitiveFinding_should_notRedactTheValue() throws Exception {
+        // -------- Arrange --------
+        Finding finding =
+            findingComposer
+                .forFinding(FindingFixture.createDefaultTextFinding())
+                .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))
+                .withInject(injectWrapper)
+                .persist()
+                .get();
+        entityManager.flush();
+        entityManager.clear();
+
+        // -------- Act & Assert --------
+        mvc.perform(get(FINDING_URI + "/" + finding.getId()).with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.finding_value").value("text_value"))
+            .andExpect(jsonPath("$.finding_is_sensitive").value(false));
+      }
     }
 
     private void setFindingDates(String findingId, Instant createdAt, Instant updatedAt) {

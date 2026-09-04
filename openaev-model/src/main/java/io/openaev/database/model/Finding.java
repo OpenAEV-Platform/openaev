@@ -52,11 +52,22 @@ public class Finding implements TenantBase {
   @NotNull
   protected ContractOutputType type;
 
+  /**
+   * Cleartext value as detected. It is persisted as-is (deduplication, correlation and attack paths
+   * rely on it), but a sensitive finding is never disclosed through the API: the API layer redacts
+   * it before returning the finding.
+   */
   @Queryable(searchable = true, filterable = true, sortable = true)
   @Column(name = "finding_value", nullable = false)
   @JsonProperty("finding_value")
   @NotBlank
   protected String value;
+
+  @Queryable(filterable = true, sortable = true, label = "sensitive")
+  @Column(name = "finding_is_sensitive", nullable = false)
+  @JsonProperty("finding_is_sensitive")
+  @Schema(description = "Whether the finding value holds sensitive material and is redacted by API")
+  private boolean sensitive = false;
 
   @Deprecated
   @Type(StringArrayType.class)

@@ -61,7 +61,7 @@ class FindingServiceTest extends IntegrationTest {
     injectTestHelper.forceSaveInject(inject);
     injectTestHelper.forceSaveFinding(existing);
 
-    findingService.saveAgentFinding(inject, asset2, contractOutputContext, value);
+    findingService.saveAgentFinding(inject, asset2, contractOutputContext, value, false);
 
     Finding result =
         findingRepository
@@ -98,7 +98,7 @@ class FindingServiceTest extends IntegrationTest {
     injectTestHelper.forceSaveInject(inject);
     injectTestHelper.forceSaveFinding(existing);
 
-    findingService.saveAgentFinding(inject, asset1, contractOutputContext, value);
+    findingService.saveAgentFinding(inject, asset1, contractOutputContext, value, false);
 
     Finding result =
         findingRepository
@@ -162,7 +162,8 @@ class FindingServiceTest extends IntegrationTest {
             node -> node.get("id").asText(),
             node -> Collections.emptyList(),
             node -> Collections.emptyList(),
-            node -> Collections.emptyList());
+            node -> Collections.emptyList(),
+            false);
 
     assertNotNull(findings);
     assertEquals(2, findings.size());
@@ -217,7 +218,8 @@ class FindingServiceTest extends IntegrationTest {
             node -> node.get("port").asText(),
             node -> Collections.emptyList(),
             node -> Collections.emptyList(),
-            node -> Collections.emptyList());
+            node -> Collections.emptyList(),
+            false);
 
     assertNotNull(findings);
     assertEquals(1, findings.size());
@@ -271,7 +273,8 @@ class FindingServiceTest extends IntegrationTest {
                 node -> node.get("port").asText(),
                 node -> Collections.emptyList(),
                 node -> Collections.emptyList(),
-                node -> Collections.emptyList()));
+                node -> Collections.emptyList(),
+                false));
   }
 
   @Nested

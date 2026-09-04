@@ -31,9 +31,13 @@ public class FindingSummaryOutput {
   @NotNull
   private ContractOutputType type;
 
-  @Schema(description = "Finding value")
+  @Schema(description = "Finding value, redacted when the finding is sensitive")
   @JsonProperty("finding_value")
   private String value;
+
+  @Schema(description = "Whether the finding holds sensitive material, hence a redacted value")
+  @JsonProperty("finding_is_sensitive")
+  private boolean sensitive;
 
   @Schema(description = "First time this finding was seen across all occurrences")
   @JsonProperty("finding_first_seen")

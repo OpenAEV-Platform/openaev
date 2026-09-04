@@ -9,6 +9,7 @@ import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import java.util.Collections;
 import java.util.List;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 /** Abstract base class for output processors that are capable of generating findings. */
@@ -17,13 +18,26 @@ public abstract class FindingCapableOutputProcessor extends AbstractOutputProces
 
   protected final FindingService findingService;
 
+  /** Whether the findings produced by this processor hold sensitive material. */
+  @Getter private final boolean sensitive;
+
   protected FindingCapableOutputProcessor(
       ContractOutputType type,
       ContractOutputTechnicalType technicalType,
       List<ContractOutputField> fields,
       FindingService findingService) {
+    this(type, technicalType, fields, findingService, false);
+  }
+
+  protected FindingCapableOutputProcessor(
+      ContractOutputType type,
+      ContractOutputTechnicalType technicalType,
+      List<ContractOutputField> fields,
+      FindingService findingService,
+      boolean sensitive) {
     super(type, technicalType, fields);
     this.findingService = findingService;
+    this.sensitive = sensitive;
   }
 
   /**
@@ -44,7 +58,8 @@ public abstract class FindingCapableOutputProcessor extends AbstractOutputProces
         this::toFindingValue,
         this::toFindingAssets,
         this::toFindingTeams,
-        this::toFindingUsers);
+        this::toFindingUsers,
+        this.sensitive);
     afterFindings(executionContext, structuredOutputNode);
   }
 

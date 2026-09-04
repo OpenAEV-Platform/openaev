@@ -145,12 +145,14 @@ public interface FindingRepository
           """
         INSERT INTO findings
           (finding_id, finding_field, finding_type, finding_value,
-           finding_labels, finding_inject_id, finding_name, tenant_id)
+           finding_labels, finding_inject_id, finding_name, finding_is_sensitive, tenant_id)
         VALUES
           (gen_random_uuid(), :findingField, :findingType, :findingValue,
-           :findingLabels, :findingInjectId, :findingName, :tenantId)
+           :findingLabels, :findingInjectId, :findingName, :findingIsSensitive, :tenantId)
         ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)
-        DO UPDATE SET finding_name = EXCLUDED.finding_name, finding_updated_at = now()
+        DO UPDATE SET finding_name = EXCLUDED.finding_name,
+                      finding_is_sensitive = EXCLUDED.finding_is_sensitive,
+                      finding_updated_at = now()
         RETURNING finding_id
         """,
       nativeQuery = true)
@@ -161,6 +163,7 @@ public interface FindingRepository
       @Param("findingLabels") String[] findingLabels,
       @Param("findingInjectId") String injectId,
       @Param("findingName") String name,
+      @Param("findingIsSensitive") boolean sensitive,
       @Param("tenantId") String tenantId);
 
   @Modifying

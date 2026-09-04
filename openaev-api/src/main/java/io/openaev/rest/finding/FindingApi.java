@@ -7,8 +7,10 @@ import io.openaev.database.model.Action;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.finding.form.FindingInput;
+import io.openaev.rest.finding.form.FindingOutput;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.utils.mapper.FindingMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -24,17 +26,18 @@ public class FindingApi extends RestBehavior {
   public static final String TENANT_FINDING_URI = TENANT_PREFIX + "/findings";
 
   private final FindingService findingService;
+  private final FindingMapper findingMapper;
 
   // -- CRUD --
 
   @GetMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
-  @Transactional
+  @Transactional(readOnly = true)
   @AccessControl(
       resourceId = "#id",
       actionPerformed = Action.READ,
       resourceType = ResourceType.FINDING)
-  public ResponseEntity<Finding> finding(@PathVariable @NotNull final String id) {
-    return ResponseEntity.ok(this.findingService.finding(id));
+  public ResponseEntity<FindingOutput> finding(@PathVariable @NotNull final String id) {
+    return ResponseEntity.ok(this.findingMapper.toFindingOutput(this.findingService.finding(id)));
   }
 
   @GetMapping({FINDING_URI + "/{id}/summary", TENANT_FINDING_URI + "/{id}/summary"})
@@ -51,10 +54,12 @@ public class FindingApi extends RestBehavior {
   @PostMapping({FINDING_URI, TENANT_FINDING_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.FINDING)
-  public ResponseEntity<Finding> createFinding(
+  public ResponseEntity<FindingOutput> createFinding(
       @RequestBody @Valid @NotNull final FindingInput input) {
     return ResponseEntity.ok(
-        this.findingService.createFinding(input.toFinding(new Finding()), input.getInjectId()));
+        this.findingMapper.toFindingOutput(
+            this.findingService.createFinding(
+                input.toFinding(new Finding()), input.getInjectId())));
   }
 
   @PutMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
@@ -63,13 +68,14 @@ public class FindingApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.FINDING)
-  public ResponseEntity<Finding> updateFinding(
+  public ResponseEntity<FindingOutput> updateFinding(
       @PathVariable @NotNull final String id,
       @RequestBody @Valid @NotNull final FindingInput input) {
     Finding existingFinding = this.findingService.finding(id);
     Finding updatedFinding = input.toFinding(existingFinding);
     return ResponseEntity.ok(
-        this.findingService.updateFinding(updatedFinding, input.getInjectId()));
+        this.findingMapper.toFindingOutput(
+            this.findingService.updateFinding(updatedFinding, input.getInjectId())));
   }
 
   @DeleteMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})

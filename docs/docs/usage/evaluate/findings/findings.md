@@ -33,6 +33,29 @@ Each Finding is deduplicated by its combination of value, type, and field. If th
 
 Additional types exist for Active Directory findings (SID, delegation, Kerberoastable accounts, ASREPRoastable accounts, etc.).
 
+## Sensitive Findings
+
+Some Finding types carry secret material and are flagged as **sensitive**: their value is redacted
+everywhere the platform returns it (list, detail, Simulation, Scenario, Endpoint and Inject views).
+
+| Sensitive type | Value shape | Redacted as |
+| --- | --- | --- |
+| Credentials | `admin:motdepasse` | `ad******:mo******` |
+
+Every part of the value - the parts being separated by `:` - is masked the same way: only a two
+character fragment is kept, so you can still tell which Finding is which when you already know the
+value, without the platform ever disclosing it. A part too short to keep a fragment safely is masked
+entirely.
+
+!!! warning "The secret is not deleted"
+
+    The full value is still stored in the database, because deduplication, correlation and attack
+    path computation rely on it. Only its API representation is redacted: it is not possible to
+    retrieve the cleartext value of a sensitive Finding through the REST API.
+
+Sensitivity is decided per Finding type, not per Finding. Findings created before the upgrade are
+flagged retroactively, so previously detected sensitive Findings are redacted as well.
+
 ## Findings list
 
 Navigate to **Findings** in the left menu to see all Findings in an aggregated view. The list groups Findings by unique value and type, merging Assets from all occurrences into a single row.
@@ -42,7 +65,7 @@ Each row displays:
 | Column | Description |
 |---|---|
 | Type | The Finding category (CVE, Port, Credentials, etc.) |
-| Value | The technical value (monospace display) |
+| Value | The technical value (monospace display), redacted for sensitive Findings |
 | Assets | Endpoints where the Finding was detected |
 | Asset groups | Asset groups containing affected endpoints |
 | First seen | When the Finding was first detected |
