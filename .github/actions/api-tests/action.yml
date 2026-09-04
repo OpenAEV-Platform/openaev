@@ -222,6 +222,22 @@ runs:
         mvn -B -ntp -pl openaev-api test
         -Dmaven.compiler.skip=true
         ${{ steps.suite.outputs.surefire_arg }}
+    - name: Diagnose surefire dump files (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
+      if: ${{ failure() && steps.run-tests.outcome == 'failure' }}
+      shell: bash
+      run: |
+        REPORTS_DIR=openaev-api/target/surefire-reports
+        shopt -s nullglob
+        DUMPS=("$REPORTS_DIR"/*.dump "$REPORTS_DIR"/*.dumpstream)
+        if [ ${#DUMPS[@]} -eq 0 ]; then
+          echo "ℹ️ No surefire dump files found in $REPORTS_DIR"
+        else
+          for f in "${DUMPS[@]}"; do
+            echo "::group::📄 $f"
+            cat "$f"
+            echo "::endgroup::"
+          done
+        fi
     - name: Verify JaCoCo exec data
       if: ${{ !cancelled() }}
       shell: bash
