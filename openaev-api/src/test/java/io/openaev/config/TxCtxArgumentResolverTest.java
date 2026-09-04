@@ -224,7 +224,8 @@ class TxCtxArgumentResolverTest {
   }
 
   @Test
-  @DisplayName("on the tenant-prefixed route a tenant outside the caller's rights stays refused")
+  @DisplayName(
+      "on the tenant-prefixed route a tenant outside the caller's rights stays refused")
   void runTenantScopeOnTenantPrefixedRouteRefusesForeignTenant() {
     // The annotated handler must not become a caller-independent door on the prefixed route: a
     // caller addressing a tenant it is not a member of is refused exactly like on any other
@@ -237,5 +238,51 @@ class TxCtxArgumentResolverTest {
 
     assertThatThrownBy(this::resolve).isInstanceOf(TenantAccessDeniedException.class);
     verifyNoInteractions(runTenantLocator);
+  }
+
+  private void anonymousCaller() {
+    SecurityContextHolder.clearContext();
+  }
+
+  @Test
+  @DisplayName(
+      "an anonymous caller on a tenant-prefixed permitAll() route trusts the path tenant, no"
+          + " membership check")
+  void anonymousCallerTrustsPathTenant() {
+    // Mirrors the long-standing v1 TenantInterceptor behavior for the same permitAll() routes
+    // (agent installer, phishing tracking, URL-access redirect, player pages...): there is no
+    // caller identity to check tenant membership against, so the path tenant is trusted outright.
+    // Before this carve-out, membershipCache.findTenantIdsByUserId("anonymous") always returned
+    // an empty authorized set, so this always threw TenantAccessDeniedException.
+    anonymousCaller();
+    pathVariables(Map.of("tenantId", "tenant-1"));
+
+    assertThat(resolve().toGuc()).isEqualTo("tenant-1");
+    verifyNoInteractions(membershipCache);
+  }
+
+  @Test
+  @DisplayName("an anonymous caller on a non-tenant-prefixed route resolves to the missing scope")
+  void anonymousCallerWithoutPathTenantIsMissing() {
+    anonymousCaller();
+    pathVariables(Map.of());
+
+    assertThat(resolve()).isInstanceOf(TxCtx.Missing.class);
+    verifyNoInteractions(membershipCache);
+  }
+
+  @Test
+  @DisplayName(
+      "an anonymous caller does not get to pick a tenant through the X-Tenant-Ids header - only"
+          + " the path is trusted")
+  void anonymousCallerIgnoresTenantIdsHeader() {
+    // An anonymous caller has no memberships to select from, so unlike an authenticated caller,
+    // the header is not a well-formed selector for it - only a path-addressed tenant is.
+    anonymousCaller();
+    pathVariables(Map.of());
+    lenient().when(webRequest.getHeader("X-Tenant-Ids")).thenReturn("tenant-1");
+
+    assertThat(resolve()).isInstanceOf(TxCtx.Missing.class);
+    verifyNoInteractions(membershipCache);
   }
 }
