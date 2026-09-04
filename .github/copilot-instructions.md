@@ -90,7 +90,7 @@ Before creating a pull request, validate locally:
 2. **PR title**: Must match `type(scope?): description (#issue)` — no `[context]` prefix. The `openaev-pr-checks` GitHub App validates this pattern; titles with extra prefixes (e.g. `[backend]`) will be rejected.
 3. **Compile**: `mvn compile -DskipTests` (or via Docker)
 4. **Frontend** (if changed): `cd openaev-front && yarn check-ts && yarn lint`
-5. **PR description**: Must follow [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) — see [PR description format](#pr-description-format).
+5. **PR description**: Must follow [`.github/PULL_REQUEST_TEMPLATE.md`](/.github/PULL_REQUEST_TEMPLATE.md) — see [PR description format](#pr-description-format).
 
 ## Code Conventions
 
