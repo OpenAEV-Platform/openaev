@@ -1,0 +1,23 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the metric.",
+      "requirement" : "required",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "value" : {
+      "type" : "string_t",
+      "description" : "The value of the metric.",
+      "requirement" : "required",
+      "caption" : "Value",
+      "type_name" : "String"
+    }
+  },
+  "name" : "metric",
+  "description" : "The Metric object defines a simple name/value pair entity for a metric.",
+  "extends" : "object",
+  "caption" : "Metric",
+  "_links" : [ ]
+}

@@ -1,0 +1,49 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the defensive technique. For example: <code>IO Port Restriction</code>.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the defensive technique. For example: <code>D3-IOPR</code>.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "src_url" : {
+      "type" : "url_t",
+      "description" : "The versioned permalink of the defensive technique. For example: <code>https://d3fend.mitre.org/technique/d3f:IOPortRestriction/</code>",
+      "source" : "https://d3fend.mitre.org/technique/d3f:IOPortRestriction/",
+      "references" : [ {
+        "description" : "Example: IOPortRestriction technique",
+        "url" : "https://d3fend.mitre.org/technique/d3f:IOPortRestriction/"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Source URL",
+      "type_name" : "URL String"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "d3f_technique",
+  "description" : "The Defensive Technique object describes the leaf defensive technique ID and/or name associated to a countermeasure.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Matrix",
+    "url" : "https://d3fend.mitre.org"
+  } ],
+  "caption" : "Defensive Technique",
+  "_links" : [ ]
+}

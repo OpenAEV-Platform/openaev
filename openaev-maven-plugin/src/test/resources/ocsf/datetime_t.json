@@ -1,0 +1,11 @@
+{
+  "type" : "string_t",
+  "description" : "The Internet Date/Time format as defined in RFC 3339. For example:<br><code>2024-09-10T23:20:50.520Z</code>,<br><code>2024-09-10 23:20:50.520789Z</code>.",
+  "regex" : "^\\d{4}-\\d{2}-\\d{2}[Tt]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?([Zz]|[\\+-]\\d{2}:\\d{2})?$",
+  "references" : [ {
+    "description" : "RFC 3339",
+    "url" : "https://www.rfc-editor.org/rfc/rfc3339.html"
+  } ],
+  "caption" : "Datetime",
+  "type_name" : "String"
+}

@@ -1,0 +1,19 @@
+package io.openaev.ocsf.parser.generator.emission;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.ocsf.parser.client.url.OcsfSchemaExtension;
+import io.openaev.ocsf.parser.schema.SchemaDimension;
+
+public record ClassMetadata(
+    String ocsfIdentifier,
+    String ocsfClassUid,
+    SchemaDimension dimension,
+    OcsfSchemaExtension extension,
+    String className,
+    String classPackage,
+    String schemaPackage,
+    JsonNode source) {
+  public String fullyQualifiedClassName() {
+    return String.join(".", classPackage(), className());
+  }
+}

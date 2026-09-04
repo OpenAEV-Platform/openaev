@@ -1,0 +1,35 @@
+{
+  "attributes" : {
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The Common Weakness Enumeration unique number assigned to a specific weakness. A CWE Identifier begins \"CWE\" followed by a sequence of digits that acts as a unique identifier. For example: <code>CWE-123</code>.",
+      "requirement" : "required",
+      "caption" : "CWE ID",
+      "type_name" : "String",
+      "observable" : 17
+    },
+    "caption" : {
+      "type" : "string_t",
+      "description" : "The caption assigned to the Common Weakness Enumeration unique identifier.",
+      "requirement" : "optional",
+      "caption" : "Caption",
+      "type_name" : "String"
+    },
+    "src_url" : {
+      "type" : "url_t",
+      "description" : "URL pointing to the CWE Specification. For more information see <a target='_blank' href='https://cwe.mitre.org/'>CWE.</a>",
+      "requirement" : "optional",
+      "caption" : "Source URL",
+      "type_name" : "URL String"
+    }
+  },
+  "name" : "cwe",
+  "description" : "The CWE object represents a weakness in a software system that can be exploited by a threat actor to perform an attack. The CWE object is based on the Common Weakness Enumeration (CWE) catalog.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "Common Weakness Enumeration (CWE)",
+    "url" : "https://cwe.mitre.org/"
+  } ],
+  "caption" : "CWE",
+  "_links" : [ ]
+}

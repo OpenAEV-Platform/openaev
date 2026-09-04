@@ -1,0 +1,170 @@
+{
+  "attributes" : {
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The description of the geographical location.",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "long" : {
+      "type" : "float_t",
+      "description" : "The geographical Longitude coordinate represented in Decimal Degrees (DD). For example: <code>-71.057083</code>.",
+      "requirement" : "optional",
+      "caption" : "Longitude",
+      "type_name" : "Float"
+    },
+    "city" : {
+      "type" : "string_t",
+      "description" : "The name of the city.",
+      "requirement" : "recommended",
+      "caption" : "City",
+      "type_name" : "String"
+    },
+    "country" : {
+      "type" : "string_t",
+      "description" : "The ISO 3166-1 Alpha-2 country code.<p><b>Note:</b> The two letter country code should be capitalized. For example: <code>US</code> or <code>CA</code>.</p>",
+      "references" : [ {
+        "description" : "ISO 3166-1 alpha-2 codes",
+        "url" : "https://www.iso.org/obp/ui/#iso:pub:PUB500001:en"
+      } ],
+      "requirement" : "recommended",
+      "caption" : "Country",
+      "type_name" : "String",
+      "observable" : 14
+    },
+    "coordinates" : {
+      "type" : "float_t",
+      "description" : "A two-element array, containing a longitude/latitude pair. The format conforms with GeoJSON. For example: <code>[-73.983, 40.719]</code>.",
+      "is_array" : true,
+      "references" : [ {
+        "description" : "GeoJSON",
+        "url" : "https://geojson.org"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Coordinates",
+      "@deprecated" : {
+        "message" : "Use the <code>lat</code> and <code>long</code> attributes instead.",
+        "since" : "1.2.0",
+        "superseded_by" : [ "lat", "long" ]
+      },
+      "type_name" : "Float"
+    },
+    "continent" : {
+      "type" : "string_t",
+      "description" : "The name of the continent.",
+      "requirement" : "recommended",
+      "caption" : "Continent",
+      "type_name" : "String"
+    },
+    "aerial_height" : {
+      "type" : "string_t",
+      "description" : "Expressed as either height above takeoff location or height above ground level (AGL) for a UAS current location. This value is provided in meters and must have a minimum resolution of 1 m. Special Values: <code>Invalid</code>, <code>No Value</code>, or <code>Unknown: -1000 m</code>.",
+      "requirement" : "optional",
+      "caption" : "Aerial Height",
+      "type_name" : "String"
+    },
+    "geodetic_altitude" : {
+      "type" : "string_t",
+      "description" : "The aircraft distance above or below the ellipsoid as measured along a line that passes through the aircraft and is normal to the surface of the WGS-84 ellipsoid. This value is provided in meters and must have a minimum resolution of 1 m. Special Values: <code>Invalid</code>, <code>No Value</code>, or <code>Unknown: -1000 m</code>.",
+      "requirement" : "optional",
+      "caption" : "Geodetic Altitude",
+      "type_name" : "String"
+    },
+    "geodetic_vertical_accuracy" : {
+      "type" : "string_t",
+      "description" : "Provides quality/containment on geodetic altitude. This is based on ADS-B Geodetic Vertical Accuracy (GVA). Measured in meters.",
+      "requirement" : "optional",
+      "caption" : "Geodetic Vertical Accuracy",
+      "type_name" : "String"
+    },
+    "geohash" : {
+      "type" : "string_t",
+      "description" : "<p>Geohash of the geo-coordinates (latitude and longitude).</p>Geohashing is a geocoding system used to encode geographic coordinates in decimal degrees, to a single string.",
+      "references" : [ {
+        "description" : "Geohash",
+        "url" : "https://en.wikipedia.org/wiki/Geohash"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Geohash",
+      "type_name" : "String"
+    },
+    "horizontal_accuracy" : {
+      "type" : "string_t",
+      "description" : "Provides quality/containment on horizontal position. This is based on ADS-B NACp. Measured in meters.",
+      "requirement" : "optional",
+      "caption" : "Horizontal Accuracy",
+      "type_name" : "String"
+    },
+    "is_on_premises" : {
+      "type" : "boolean_t",
+      "description" : "Indicates whether the location is on-premises.",
+      "requirement" : "optional",
+      "caption" : "On-Premises",
+      "type_name" : "Boolean"
+    },
+    "isp" : {
+      "type" : "string_t",
+      "description" : "The name of the Internet Service Provider (ISP).",
+      "requirement" : "optional",
+      "caption" : "ISP Name",
+      "@deprecated" : {
+        "message" : "Use the <code>network_endpoint.isp</code> or <code>whois.isp</code> attribute according to your use-case.",
+        "since" : "1.5.0",
+        "superseded_by" : [ "network_endpoint.isp", "whois.isp" ]
+      },
+      "type_name" : "String"
+    },
+    "lat" : {
+      "type" : "float_t",
+      "description" : "The geographical Latitude coordinate represented in Decimal Degrees (DD). For example: <code>42.361145</code>.",
+      "requirement" : "optional",
+      "caption" : "Latitude",
+      "type_name" : "Float"
+    },
+    "postal_code" : {
+      "type" : "string_t",
+      "description" : "The postal code of the location.",
+      "requirement" : "optional",
+      "caption" : "Postal Code",
+      "type_name" : "String"
+    },
+    "pressure_altitude" : {
+      "type" : "string_t",
+      "description" : "The uncorrected barometric pressure altitude (based on reference standard 29.92 inHg, 1013.25 mb) provides a reference for algorithms that utilize 'altitude deltas' between aircraft. This value is provided in meters and must have a minimum resolution of 1 m.. Special Values: <code>Invalid</code>, <code>No Value</code>, or <code>Unknown: -1000 m</code>.",
+      "requirement" : "optional",
+      "caption" : "Pressure Altitude",
+      "type_name" : "String"
+    },
+    "provider" : {
+      "type" : "string_t",
+      "description" : "The provider of the geographical location data.",
+      "requirement" : "optional",
+      "caption" : "Provider",
+      "type_name" : "String"
+    },
+    "region" : {
+      "type" : "string_t",
+      "description" : "The alphanumeric code that identifies the principal subdivision (e.g. province or state) of the country. For example, 'CH-VD' for the Canton of Vaud, Switzerland",
+      "references" : [ {
+        "description" : "ISO Region Codes",
+        "url" : "https://www.iso.org/iso-3166-country-codes.html"
+      }, {
+        "description" : "U.S. Region Codes",
+        "url" : "https://www.iso.org/obp/ui/#iso:code:3166:US"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Region",
+      "type_name" : "String"
+    }
+  },
+  "name" : "location",
+  "description" : "The Geo Location object describes a geographical location, usually associated with an IP address.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "city", "country", "postal_code", "region" ]
+  },
+  "caption" : "Geo Location",
+  "_links" : [ ],
+  "observable" : 26
+}

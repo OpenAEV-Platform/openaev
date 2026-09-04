@@ -1,0 +1,814 @@
+[{
+    "message": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-elasticsearch is not public.",
+    "metadata": {
+        "event_code": "s3_bucket_public_access",
+        "product": {
+            "name": "Prowler",
+            "uid": "prowler",
+            "vendor_name": "Prowler",
+            "version": "5.35.0"
+        },
+        "profiles": [
+            "cloud",
+            "datetime"
+        ],
+        "tenant_uid": "",
+        "version": "1.5.0"
+    },
+    "severity_id": 5,
+    "severity": "Critical",
+    "status": "New",
+    "status_code": "PASS",
+    "status_detail": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-elasticsearch is not public.",
+    "status_id": 1,
+
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+        "created_time": 1788199834,
+        "created_time_dt": "2026-08-31T20:10:34.984528",
+        "desc": "**Amazon S3 buckets** are evaluated for **public access** via ACLs and bucket policies. The check identifies account or bucket `PublicAccessBlock` protections (`IgnorePublicAcls`, `RestrictPublicBuckets`) and flags buckets granting group access to `AllUsers` or `AuthenticatedUsers`, or with a public bucket policy.",
+        "title": "S3 bucket is not publicly accessible to Everyone or Authenticated Users",
+        "types": [
+            "Software and Configuration Checks/AWS Security Best Practices/Network Reachability",
+            "Software and Configuration Checks/Industry and Regulatory Standards/AWS Foundational Security Best Practices",
+            "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark",
+            "Effects/Data Exposure"
+        ],
+        "uid": "prowler-aws-s3_bucket_public_access-006621354852-eu-central-1-eu-west-staging-main-ff-oaev-openaev-elasticsearch"
+    },
+    "resources": [
+        {
+            "cloud_partition": "aws",
+            "region": "eu-central-1",
+            "data": {
+                "details": "",
+                "metadata": {
+                    "arn": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-elasticsearch",
+                    "name": "eu-west-staging-main-ff-oaev-openaev-elasticsearch",
+                    "owner_id": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                    "owner": null,
+                    "versioning": false,
+                    "logging": false,
+                    "public_access_block": {
+                        "block_public_acls": true,
+                        "ignore_public_acls": true,
+                        "block_public_policy": false,
+                        "restrict_public_buckets": false
+                    },
+                    "acl_grantees": [
+                        {
+                            "display_name": null,
+                            "ID": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                            "type": "CanonicalUser",
+                            "URI": null,
+                            "permission": "FULL_CONTROL"
+                        }
+                    ],
+                    "policy": {},
+                    "encryption": "AES256",
+                    "region": "eu-central-1",
+                    "logging_target_bucket": null,
+                    "ownership": "BucketOwnerEnforced",
+                    "object_lock": false,
+                    "mfa_delete": false,
+                    "tags": [
+                        {
+                            "Key": "customer",
+                            "Value": "main-ff-oaev"
+                        }
+                    ],
+                    "lifecycle": [],
+                    "replication_rules": [],
+                    "notification_config": {},
+                    "object_sampling": null
+                }
+            },
+            "group": {
+                "name": "s3"
+            },
+            "labels": [
+                "customer:main-ff-oaev"
+            ],
+            "name": "eu-west-staging-main-ff-oaev-openaev-elasticsearch",
+            "type": "AwsS3Bucket",
+            "uid": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-elasticsearch"
+        }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+        "account": {
+            "name": "",
+            "type": "AWS Account",
+            "type_id": 10,
+            "uid": "006621354852",
+            "labels": []
+        },
+        "org": {
+            "name": "",
+            "ou_uid": "",
+            "ou_name": "",
+            "uid": ""
+        },
+        "provider": "aws",
+        "region": "eu-central-1"
+    },
+    "remediation": {
+        "desc": "Enforce defense in depth: enable **S3 Block Public Access** at org/account and bucket levels (`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, `RestrictPublicBuckets`). Apply **least privilege** with explicit principals; avoid ACLs via Object Ownership. Use private access patterns (e.g., CloudFront OAC or presigned URLs) and monitor with analyzers.",
+        "references": [
+            "https://hub.prowler.com/check/s3_bucket_public_access"
+        ]
+    },
+    "risk_details": "Publicly accessible buckets jeopardize **confidentiality** through unauthenticated reads, **integrity** through write or ACL changes, and **availability** via object deletion or overwrite. Attackers can mass-exfiltrate data, host malware, or pivot after discovering secrets stored in objects.",
+    "time": 1788199834,
+    "time_dt": "2026-08-31T20:10:34.984528",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+},{
+    "message": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-minio is not public.",
+    "metadata": {
+        "event_code": "s3_bucket_public_access",
+        "product": {
+            "name": "Prowler",
+            "uid": "prowler",
+            "vendor_name": "Prowler",
+            "version": "5.35.0"
+        },
+        "profiles": [
+            "cloud",
+            "datetime"
+        ],
+        "tenant_uid": "",
+        "version": "1.5.0"
+    },
+    "severity_id": 5,
+    "severity": "Critical",
+    "status": "New",
+    "status_code": "PASS",
+    "status_detail": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-minio is not public.",
+    "status_id": 1,
+    "unmapped": {
+        "related_url": "",
+        "categories": [
+            "internet-exposed"
+        ],
+        "depends_on": [],
+        "related_to": [],
+        "additional_urls": [
+            "https://docs.aws.amazon.com/id_id/kitchensink/latest/testguide/access-control-block-public-access.html",
+            "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html"
+        ],
+        "notes": "",
+        "compliance": {
+            "CCC-v2025.10": [
+                "CCC.Core.CN05.AR01",
+                "CCC.Core.CN05.AR04",
+                "CCC.Core.CN05.AR05",
+                "CCC.AuditLog.CN10.AR01",
+                "CCC.AuditLog.CN10.AR02",
+                "CCC.Logging.CN05.AR01",
+                "CCC.Logging.CN05.AR02"
+            ],
+            "NIST-CSF-2.0": [
+                "ra_1",
+                "ac_3",
+                "ds_5",
+                "ip_1"
+            ],
+            "GxP-21-CFR-Part-11": [
+                "11.10-c",
+                "11.10-d",
+                "11.10-g",
+                "11.10-k"
+            ],
+            "NIST-800-171-Revision-2": [
+                "3_1_1",
+                "3_1_2",
+                "3_1_3",
+                "3_3_8",
+                "3_4_6",
+                "3_13_2",
+                "3_13_5"
+            ],
+            "NIST-CSF-1.1": [
+                "ac_3",
+                "ac_5",
+                "ds_5",
+                "ip_8",
+                "pt_3"
+            ],
+            "AWS-Well-Architected-Framework-Security-Pillar": [
+                "SEC03-BP07"
+            ],
+            "MITRE-ATTACK": [
+                "T1530"
+            ],
+            "AWS-Audit-Manager-Control-Tower-Guardrails": [
+                "4.1.1"
+            ],
+            "AWS-Foundational-Technical-Review": [
+                "S3-001"
+            ],
+            "FedRAMP-Low-Revision-4": [
+                "ac-3",
+                "ac-17",
+                "cm-2",
+                "sc-7"
+            ],
+            "NIST-800-53-Revision-4": [
+                "ac_3",
+                "ac_4",
+                "ac_6",
+                "ac_21",
+                "sc_7_3",
+                "sc_7"
+            ],
+            "SecNumCloud-3.2": [
+                "9.7"
+            ],
+            "NIST-800-53-Revision-5": [
+                "ac_2_6",
+                "ac_3",
+                "ac_3_7",
+                "ac_4_21",
+                "ac_6",
+                "ac_17_b",
+                "ac_17_1",
+                "ac_17_4_a",
+                "ac_17_9",
+                "ac_17_10",
+                "cm_6_a",
+                "cm_9_b",
+                "mp_2",
+                "sc_7_2",
+                "sc_7_3",
+                "sc_7_7",
+                "sc_7_9_a",
+                "sc_7_11",
+                "sc_7_12",
+                "sc_7_16",
+                "sc_7_20",
+                "sc_7_21",
+                "sc_7_24_b",
+                "sc_7_25",
+                "sc_7_26",
+                "sc_7_27",
+                "sc_7_28",
+                "sc_7_a",
+                "sc_7_b",
+                "sc_7_c",
+                "sc_25"
+            ],
+            "CISA": [
+                "your-systems-3",
+                "your-data-2"
+            ],
+            "C5-2025": [
+                "PS-03.02B",
+                "IAM-10.01B",
+                "COS-02.01B"
+            ],
+            "AWS-AI-Security-Framework-1.0": [
+                "AISF-DATA-04"
+            ],
+            "RBI-Cyber-Security-Framework": [
+                "annex_i_1_3"
+            ],
+            "KISA-ISMS-P-2023-korean": [
+                "2.6.1",
+                "2.6.2",
+                "2.10.2"
+            ],
+            "SOC2": [
+                "cc_6_1"
+            ],
+            "HIPAA": [
+                "164_308_a_1_ii_b",
+                "164_308_a_3_i",
+                "164_312_a_1",
+                "164_312_a_2_i"
+            ],
+            "PCI-4.0": [
+                "1.2.8.33",
+                "1.2.8.34",
+                "1.3.1.37",
+                "1.3.1.38",
+                "1.3.2.37",
+                "1.3.2.38",
+                "1.4.2.35",
+                "1.4.2.36",
+                "1.5.1.33",
+                "1.5.1.34",
+                "10.3.2.21",
+                "10.3.2.23",
+                "10.3.3.23",
+                "10.3.4.8",
+                "3.5.1.3.26",
+                "3.5.1.3.28",
+                "A1.1.2.17",
+                "A1.1.2.19",
+                "A1.1.3.33",
+                "A1.1.3.34",
+                "A1.2.1.31",
+                "A3.4.1.19",
+                "A3.4.1.21"
+            ],
+            "KISA-ISMS-P-2023": [
+                "2.6.1",
+                "2.6.2",
+                "2.10.2"
+            ],
+            "AWS-Account-Security-Onboarding": [
+                "S3 Block Public Access"
+            ],
+            "FedRamp-Moderate-Revision-4": [
+                "ac-3",
+                "ac-4",
+                "ac-6",
+                "ac-17-1",
+                "ac-21-b",
+                "cm-2",
+                "sc-4",
+                "sc-7-3",
+                "sc-7"
+            ],
+            "ISO27001-2022": [
+                "A.8.1"
+            ],
+            "ENS-RD2022": [
+                "op.exp.8.r4.aws.ct.2"
+            ],
+            "FFIEC": [
+                "d3-pc-im-b-1"
+            ]
+        },
+        "scan_id": "01a05971-f268-7b39-9196-640902c918eb",
+        "provider_uid": "006621354852",
+        "provider": "aws"
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+        "created_time": 1788199834,
+        "created_time_dt": "2026-08-31T20:10:34.984528",
+        "desc": "**Amazon S3 buckets** are evaluated for **public access** via ACLs and bucket policies. The check identifies account or bucket `PublicAccessBlock` protections (`IgnorePublicAcls`, `RestrictPublicBuckets`) and flags buckets granting group access to `AllUsers` or `AuthenticatedUsers`, or with a public bucket policy.",
+        "title": "S3 bucket is not publicly accessible to Everyone or Authenticated Users",
+        "types": [
+            "Software and Configuration Checks/AWS Security Best Practices/Network Reachability",
+            "Software and Configuration Checks/Industry and Regulatory Standards/AWS Foundational Security Best Practices",
+            "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark",
+            "Effects/Data Exposure"
+        ],
+        "uid": "prowler-aws-s3_bucket_public_access-006621354852-eu-central-1-eu-west-staging-main-ff-oaev-openaev-minio"
+    },
+    "resources": [
+        {
+            "cloud_partition": "aws",
+            "region": "eu-central-1",
+            "data": {
+                "details": "",
+                "metadata": {
+                    "arn": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-minio",
+                    "name": "eu-west-staging-main-ff-oaev-openaev-minio",
+                    "owner_id": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                    "owner": null,
+                    "versioning": true,
+                    "logging": false,
+                    "public_access_block": {
+                        "block_public_acls": true,
+                        "ignore_public_acls": true,
+                        "block_public_policy": false,
+                        "restrict_public_buckets": false
+                    },
+                    "acl_grantees": [
+                        {
+                            "display_name": null,
+                            "ID": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                            "type": "CanonicalUser",
+                            "URI": null,
+                            "permission": "FULL_CONTROL"
+                        }
+                    ],
+                    "policy": {},
+                    "encryption": "AES256",
+                    "region": "eu-central-1",
+                    "logging_target_bucket": null,
+                    "ownership": "BucketOwnerEnforced",
+                    "object_lock": false,
+                    "mfa_delete": false,
+                    "tags": [
+                        {
+                            "Key": "20260826032605",
+                            "Value": "20260826033116"
+                        },
+                        {
+                            "Key": "20260827034223",
+                            "Value": "20260827034813"
+                        },
+                        {
+                            "Key": "20260829033803",
+                            "Value": "20260829035202"
+                        },
+                        {
+                            "Key": "20260830032804",
+                            "Value": "20260830034025"
+                        },
+                        {
+                            "Key": "20260831032051",
+                            "Value": "20260831033008"
+                        },
+                        {
+                            "Key": "20260828032804",
+                            "Value": "20260828033828"
+                        },
+                        {
+                            "Key": "20260825034738",
+                            "Value": "20260825035832"
+                        }
+                    ],
+                    "lifecycle": [],
+                    "replication_rules": [],
+                    "notification_config": {},
+                    "object_sampling": null
+                }
+            },
+            "group": {
+                "name": "s3"
+            },
+            "labels": [
+                "20260826032605:20260826033116",
+                "20260827034223:20260827034813",
+                "20260829033803:20260829035202",
+                "20260830032804:20260830034025",
+                "20260831032051:20260831033008",
+                "20260828032804:20260828033828",
+                "20260825034738:20260825035832"
+            ],
+            "name": "eu-west-staging-main-ff-oaev-openaev-minio",
+            "type": "AwsS3Bucket",
+            "uid": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-minio"
+        }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+        "account": {
+            "name": "",
+            "type": "AWS Account",
+            "type_id": 10,
+            "uid": "006621354852",
+            "labels": []
+        },
+        "org": {
+            "name": "",
+            "ou_uid": "",
+            "ou_name": "",
+            "uid": ""
+        },
+        "provider": "aws",
+        "region": "eu-central-1"
+    },
+    "remediation": {
+        "desc": "Enforce defense in depth: enable **S3 Block Public Access** at org/account and bucket levels (`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, `RestrictPublicBuckets`). Apply **least privilege** with explicit principals; avoid ACLs via Object Ownership. Use private access patterns (e.g., CloudFront OAC or presigned URLs) and monitor with analyzers.",
+        "references": [
+            "https://hub.prowler.com/check/s3_bucket_public_access"
+        ]
+    },
+    "risk_details": "Publicly accessible buckets jeopardize **confidentiality** through unauthenticated reads, **integrity** through write or ACL changes, and **availability** via object deletion or overwrite. Attackers can mass-exfiltrate data, host malware, or pivot after discovering secrets stored in objects.",
+    "time": 1788199834,
+    "time_dt": "2026-08-31T20:10:34.984528",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+},{
+    "message": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-postgres is not public.",
+    "metadata": {
+        "event_code": "s3_bucket_public_access",
+        "product": {
+            "name": "Prowler",
+            "uid": "prowler",
+            "vendor_name": "Prowler",
+            "version": "5.35.0"
+        },
+        "profiles": [
+            "cloud",
+            "datetime"
+        ],
+        "tenant_uid": "",
+        "version": "1.5.0"
+    },
+    "severity_id": 5,
+    "severity": "Critical",
+    "status": "New",
+    "status_code": "PASS",
+    "status_detail": "S3 Bucket eu-west-staging-main-ff-oaev-openaev-postgres is not public.",
+    "status_id": 1,
+    "unmapped": {
+        "related_url": "",
+        "categories": [
+            "internet-exposed"
+        ],
+        "depends_on": [],
+        "related_to": [],
+        "additional_urls": [
+            "https://docs.aws.amazon.com/id_id/kitchensink/latest/testguide/access-control-block-public-access.html",
+            "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html"
+        ],
+        "notes": "",
+        "compliance": {
+            "CCC-v2025.10": [
+                "CCC.Core.CN05.AR01",
+                "CCC.Core.CN05.AR04",
+                "CCC.Core.CN05.AR05",
+                "CCC.AuditLog.CN10.AR01",
+                "CCC.AuditLog.CN10.AR02",
+                "CCC.Logging.CN05.AR01",
+                "CCC.Logging.CN05.AR02"
+            ],
+            "NIST-CSF-2.0": [
+                "ra_1",
+                "ac_3",
+                "ds_5",
+                "ip_1"
+            ],
+            "GxP-21-CFR-Part-11": [
+                "11.10-c",
+                "11.10-d",
+                "11.10-g",
+                "11.10-k"
+            ],
+            "NIST-800-171-Revision-2": [
+                "3_1_1",
+                "3_1_2",
+                "3_1_3",
+                "3_3_8",
+                "3_4_6",
+                "3_13_2",
+                "3_13_5"
+            ],
+            "NIST-CSF-1.1": [
+                "ac_3",
+                "ac_5",
+                "ds_5",
+                "ip_8",
+                "pt_3"
+            ],
+            "AWS-Well-Architected-Framework-Security-Pillar": [
+                "SEC03-BP07"
+            ],
+            "MITRE-ATTACK": [
+                "T1530"
+            ],
+            "AWS-Audit-Manager-Control-Tower-Guardrails": [
+                "4.1.1"
+            ],
+            "AWS-Foundational-Technical-Review": [
+                "S3-001"
+            ],
+            "FedRAMP-Low-Revision-4": [
+                "ac-3",
+                "ac-17",
+                "cm-2",
+                "sc-7"
+            ],
+            "NIST-800-53-Revision-4": [
+                "ac_3",
+                "ac_4",
+                "ac_6",
+                "ac_21",
+                "sc_7_3",
+                "sc_7"
+            ],
+            "SecNumCloud-3.2": [
+                "9.7"
+            ],
+            "NIST-800-53-Revision-5": [
+                "ac_2_6",
+                "ac_3",
+                "ac_3_7",
+                "ac_4_21",
+                "ac_6",
+                "ac_17_b",
+                "ac_17_1",
+                "ac_17_4_a",
+                "ac_17_9",
+                "ac_17_10",
+                "cm_6_a",
+                "cm_9_b",
+                "mp_2",
+                "sc_7_2",
+                "sc_7_3",
+                "sc_7_7",
+                "sc_7_9_a",
+                "sc_7_11",
+                "sc_7_12",
+                "sc_7_16",
+                "sc_7_20",
+                "sc_7_21",
+                "sc_7_24_b",
+                "sc_7_25",
+                "sc_7_26",
+                "sc_7_27",
+                "sc_7_28",
+                "sc_7_a",
+                "sc_7_b",
+                "sc_7_c",
+                "sc_25"
+            ],
+            "CISA": [
+                "your-systems-3",
+                "your-data-2"
+            ],
+            "C5-2025": [
+                "PS-03.02B",
+                "IAM-10.01B",
+                "COS-02.01B"
+            ],
+            "AWS-AI-Security-Framework-1.0": [
+                "AISF-DATA-04"
+            ],
+            "RBI-Cyber-Security-Framework": [
+                "annex_i_1_3"
+            ],
+            "KISA-ISMS-P-2023-korean": [
+                "2.6.1",
+                "2.6.2",
+                "2.10.2"
+            ],
+            "SOC2": [
+                "cc_6_1"
+            ],
+            "HIPAA": [
+                "164_308_a_1_ii_b",
+                "164_308_a_3_i",
+                "164_312_a_1",
+                "164_312_a_2_i"
+            ],
+            "PCI-4.0": [
+                "1.2.8.33",
+                "1.2.8.34",
+                "1.3.1.37",
+                "1.3.1.38",
+                "1.3.2.37",
+                "1.3.2.38",
+                "1.4.2.35",
+                "1.4.2.36",
+                "1.5.1.33",
+                "1.5.1.34",
+                "10.3.2.21",
+                "10.3.2.23",
+                "10.3.3.23",
+                "10.3.4.8",
+                "3.5.1.3.26",
+                "3.5.1.3.28",
+                "A1.1.2.17",
+                "A1.1.2.19",
+                "A1.1.3.33",
+                "A1.1.3.34",
+                "A1.2.1.31",
+                "A3.4.1.19",
+                "A3.4.1.21"
+            ],
+            "KISA-ISMS-P-2023": [
+                "2.6.1",
+                "2.6.2",
+                "2.10.2"
+            ],
+            "AWS-Account-Security-Onboarding": [
+                "S3 Block Public Access"
+            ],
+            "FedRamp-Moderate-Revision-4": [
+                "ac-3",
+                "ac-4",
+                "ac-6",
+                "ac-17-1",
+                "ac-21-b",
+                "cm-2",
+                "sc-4",
+                "sc-7-3",
+                "sc-7"
+            ],
+            "ISO27001-2022": [
+                "A.8.1"
+            ],
+            "ENS-RD2022": [
+                "op.exp.8.r4.aws.ct.2"
+            ],
+            "FFIEC": [
+                "d3-pc-im-b-1"
+            ]
+        },
+        "scan_id": "01a05971-f268-7b39-9196-640902c918eb",
+        "provider_uid": "006621354852",
+        "provider": "aws"
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+        "created_time": 1788199834,
+        "created_time_dt": "2026-08-31T20:10:34.984528",
+        "desc": "**Amazon S3 buckets** are evaluated for **public access** via ACLs and bucket policies. The check identifies account or bucket `PublicAccessBlock` protections (`IgnorePublicAcls`, `RestrictPublicBuckets`) and flags buckets granting group access to `AllUsers` or `AuthenticatedUsers`, or with a public bucket policy.",
+        "title": "S3 bucket is not publicly accessible to Everyone or Authenticated Users",
+        "types": [
+            "Software and Configuration Checks/AWS Security Best Practices/Network Reachability",
+            "Software and Configuration Checks/Industry and Regulatory Standards/AWS Foundational Security Best Practices",
+            "Software and Configuration Checks/Industry and Regulatory Standards/CIS AWS Foundations Benchmark",
+            "Effects/Data Exposure"
+        ],
+        "uid": "prowler-aws-s3_bucket_public_access-006621354852-eu-central-1-eu-west-staging-main-ff-oaev-openaev-postgres"
+    },
+    "resources": [
+        {
+            "cloud_partition": "aws",
+            "region": "eu-central-1",
+            "data": {
+                "details": "",
+                "metadata": {
+                    "arn": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-postgres",
+                    "name": "eu-west-staging-main-ff-oaev-openaev-postgres",
+                    "owner_id": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                    "owner": null,
+                    "versioning": false,
+                    "logging": false,
+                    "public_access_block": {
+                        "block_public_acls": true,
+                        "ignore_public_acls": true,
+                        "block_public_policy": false,
+                        "restrict_public_buckets": false
+                    },
+                    "acl_grantees": [
+                        {
+                            "display_name": null,
+                            "ID": "5555b08a35bf5c3a054ef557dfbbd82844c169c9d42a1820c742097dc7b00995",
+                            "type": "CanonicalUser",
+                            "URI": null,
+                            "permission": "FULL_CONTROL"
+                        }
+                    ],
+                    "policy": {},
+                    "encryption": "AES256",
+                    "region": "eu-central-1",
+                    "logging_target_bucket": null,
+                    "ownership": "BucketOwnerEnforced",
+                    "object_lock": false,
+                    "mfa_delete": false,
+                    "tags": [
+                        {
+                            "Key": "customer",
+                            "Value": "main-ff-oaev"
+                        }
+                    ],
+                    "lifecycle": [],
+                    "replication_rules": [],
+                    "notification_config": {},
+                    "object_sampling": null
+                }
+            },
+            "group": {
+                "name": "s3"
+            },
+            "labels": [
+                "customer:main-ff-oaev"
+            ],
+            "name": "eu-west-staging-main-ff-oaev-openaev-postgres",
+            "type": "AwsS3Bucket",
+            "uid": "arn:aws:s3:::eu-west-staging-main-ff-oaev-openaev-postgres"
+        }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+        "account": {
+            "name": "",
+            "type": "AWS Account",
+            "type_id": 10,
+            "uid": "006621354852",
+            "labels": []
+        },
+        "org": {
+            "name": "",
+            "ou_uid": "",
+            "ou_name": "",
+            "uid": ""
+        },
+        "provider": "aws",
+        "region": "eu-central-1"
+    },
+    "remediation": {
+        "desc": "Enforce defense in depth: enable **S3 Block Public Access** at org/account and bucket levels (`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, `RestrictPublicBuckets`). Apply **least privilege** with explicit principals; avoid ACLs via Object Ownership. Use private access patterns (e.g., CloudFront OAC or presigned URLs) and monitor with analyzers.",
+        "references": [
+            "https://hub.prowler.com/check/s3_bucket_public_access"
+        ]
+    },
+    "risk_details": "Publicly accessible buckets jeopardize **confidentiality** through unauthenticated reads, **integrity** through write or ACL changes, and **availability** via object deletion or overwrite. Attackers can mass-exfiltrate data, host malware, or pivot after discovering secrets stored in objects.",
+    "time": 1788199834,
+    "time_dt": "2026-08-31T20:10:34.984528",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+}]

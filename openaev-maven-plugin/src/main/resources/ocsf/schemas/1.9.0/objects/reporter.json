@@ -1,0 +1,55 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the entity from which the event or finding was reported.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "ip" : {
+      "type" : "ip_t",
+      "description" : "The IP address of the entity from which the event or finding was reported.",
+      "requirement" : "recommended",
+      "caption" : "IP Address",
+      "type_name" : "IP Address"
+    },
+    "hostname" : {
+      "type" : "hostname_t",
+      "description" : "The hostname of the entity from which the event or finding was reported.",
+      "requirement" : "recommended",
+      "caption" : "Hostname",
+      "type_name" : "Hostname"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the entity from which the event or finding was reported.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "org" : {
+      "type" : "object_t",
+      "description" : "The organization properties of the entity that reported the event or finding.",
+      "requirement" : "optional",
+      "caption" : "Organization",
+      "object_type" : "organization",
+      "object_name" : "Organization"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "reporter",
+  "description" : "The entity from which an event or finding was reported.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "hostname", "ip", "name", "uid" ]
+  },
+  "caption" : "Reporter",
+  "_links" : [ ]
+}

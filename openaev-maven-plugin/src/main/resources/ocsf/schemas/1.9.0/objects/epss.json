@@ -1,0 +1,50 @@
+{
+  "attributes" : {
+    "version" : {
+      "type" : "string_t",
+      "description" : "The version of the EPSS model used to calculate the score.",
+      "requirement" : "recommended",
+      "caption" : "Version",
+      "type_name" : "String"
+    },
+    "created_time" : {
+      "type" : "timestamp_t",
+      "description" : "The timestamp indicating when the EPSS score was calculated.",
+      "requirement" : "recommended",
+      "caption" : "Created Time",
+      "type_name" : "Timestamp"
+    },
+    "percentile" : {
+      "type" : "float_t",
+      "description" : "The EPSS score's percentile representing relative importance and ranking of the score in the larger EPSS dataset.",
+      "requirement" : "optional",
+      "caption" : "EPSS Percentile",
+      "type_name" : "Float"
+    },
+    "score" : {
+      "type" : "string_t",
+      "description" : "The EPSS score representing the probability [0-1] of exploitation in the wild in the next 30 days (following score publication).",
+      "requirement" : "required",
+      "caption" : "EPPS Score",
+      "type_name" : "String"
+    },
+    "created_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The timestamp indicating when the EPSS score was calculated.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "epss",
+  "description" : "The Exploit Prediction Scoring System (EPSS) object describes the estimated probability a vulnerability will be exploited. EPSS is a community-driven effort to combine descriptive information about vulnerabilities (CVEs) with evidence of actual exploitation in-the-wild.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "Exploit Prediction Scoring System (EPSS)",
+    "url" : "https://www.first.org/epss/"
+  } ],
+  "caption" : "EPSS",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}

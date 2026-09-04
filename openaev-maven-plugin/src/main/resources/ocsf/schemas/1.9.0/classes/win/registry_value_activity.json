@@ -1,0 +1,891 @@
+{
+  "attributes" : {
+    "start_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time of the earliest event in an aggregate (<code>count</code> &gt; 1). Do not populate for discrete, point-in-time events - use <code>time</code> alone. Subclasses such as findings may redefine this for their own time-range semantics.",
+      "group" : "occurrence",
+      "requirement" : "optional",
+      "caption" : "Start Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "unmapped" : {
+      "type" : "object_t",
+      "description" : "A container for source-specific attributes that do not map to any defined OCSF attribute. Use this to preserve valuable source data that would otherwise be lost during normalization. The keys and values are specific to the event source. <p><b>Note: </b>Consumers should not rely on a stable structure within this field. The preferred approach to unmapped attributes is to create a custom extension with the desired structure.</p>",
+      "group" : "context",
+      "references" : [ {
+        "description" : "Schema FAQ: When should I use the unmapped attribute?",
+        "url" : "https://github.com/ocsf/ocsf-docs/blob/main/faqs/schema-faq.md#when-should-i-use-the-unmapped-attribute"
+      }, {
+        "description" : "OCSF Extensions",
+        "url" : "https://github.com/ocsf/ocsf-schema/blob/main/CONTRIBUTING.md#ocsf-extensions"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Unmapped Data",
+      "object_type" : "object",
+      "object_name" : "Object"
+    },
+    "status_detail" : {
+      "type" : "string_t",
+      "description" : "A human-readable description providing additional context about the event outcome. Use this to convey details that go beyond the normalized <code>status_id</code> and source-specific <code>status_code</code>, such as a failure reason or error message. For example: <code>\"Account locked after 5 failed attempts.\"</code>.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Status Detail",
+      "type_name" : "String"
+    },
+    "time" : {
+      "type" : "timestamp_t",
+      "description" : "The primary timestamp of the event - when the activity actually occurred at the source. This does not capture when the event record was created or serialized by the source system; for event lifecycle timestamps such as ingestion and processing, use <code>metadata.logged_time</code> and <code>metadata.processed_time</code> respectively, or the equivalent attributes in the <code>metadata.loggers</code> array when recording pipeline stages. For aggregate events (<code>count</code> &gt; 1), set this to <code>start_time</code> (the earliest OCSF <code>time</code> in the aggregate) to preserve causal ordering and consistent timeline alignment. Note: finding classes redefine <code>time</code> as the finding creation time rather than the activity occurrence time. This <b>must</b> be a UTC epoch value in milliseconds (e.g., <code>1776881335332</code>). Mappers should use the most precise and authoritative timestamp available from the source.",
+      "group" : "occurrence",
+      "requirement" : "required",
+      "caption" : "Event Time",
+      "type_name" : "Timestamp"
+    },
+    "type_uid" : {
+      "type" : "long_t",
+      "enum" : {
+        "20100200" : {
+          "caption" : "Registry Value Activity: Unknown"
+        },
+        "20100299" : {
+          "caption" : "Registry Value Activity: Other"
+        },
+        "20100201" : {
+          "caption" : "Registry Value Activity: Get"
+        },
+        "20100202" : {
+          "caption" : "Registry Value Activity: Set"
+        },
+        "20100203" : {
+          "caption" : "Registry Value Activity: Modify"
+        },
+        "20100204" : {
+          "caption" : "Registry Value Activity: Delete"
+        }
+      },
+      "description" : "The event/finding type ID. It identifies the event's semantics and structure. Producers and mappers <b>must</b> compute this as <code>class_uid * 100 + activity_id</code>. It uniquely identifies the combination of event class and activity across the entire schema. For example, <code>Detection Finding: Create</code> is <code>200401</code>.",
+      "group" : "classification",
+      "requirement" : "required",
+      "caption" : "Type ID",
+      "sibling" : "type_name",
+      "type_name" : "Long"
+    },
+    "activity_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "caption" : "Modify"
+        },
+        "0" : {
+          "description" : "The event activity is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "caption" : "Get"
+        },
+        "2" : {
+          "caption" : "Set"
+        },
+        "99" : {
+          "description" : "The event activity is not mapped. See the <code>activity_name</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "caption" : "Delete"
+        }
+      },
+      "description" : "The normalized identifier of the activity that triggered the event. Each event class defines its own set of activity values. Use <code>0</code> (Unknown) when the activity cannot be determined. Use <code>99</code> (Other) when the activity does not match any defined value, in which case <code>activity_name</code> must be populated with the source-specific label.",
+      "group" : "classification",
+      "requirement" : "required",
+      "caption" : "Activity ID",
+      "sibling" : "activity_name",
+      "type_name" : "Integer",
+      "suppress_checks" : [ "sibling_convention" ]
+    },
+    "prev_reg_value" : {
+      "type" : "object_t",
+      "description" : "The registry value before the mutation",
+      "extension" : "win",
+      "requirement" : "optional",
+      "extension_id" : 2,
+      "caption" : "Previous Registry Value",
+      "object_type" : "win/reg_value",
+      "object_name" : "Registry Value"
+    },
+    "risk_level" : {
+      "type" : "string_t",
+      "description" : "The risk level, normalized to the caption of the risk_level_id value.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Risk Level",
+      "profiles" : [ "security_control" ],
+      "type_name" : "String"
+    },
+    "malware" : {
+      "type" : "object_t",
+      "description" : "A list of Malware objects, describing details about the identified malware.",
+      "group" : "primary",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Malware",
+      "object_type" : "malware",
+      "profiles" : [ "security_control" ],
+      "object_name" : "Malware"
+    },
+    "type_name" : {
+      "type" : "string_t",
+      "description" : "The event/finding type name, combining the class and activity (e.g., <code>\"Detection Finding: Create\"</code>). The value must match the <code>class_name</code> and <code>activity_name</code> joined by <code>\": \"</code>.",
+      "group" : "classification",
+      "requirement" : "optional",
+      "caption" : "Type Name",
+      "type_name" : "String"
+    },
+    "class_name" : {
+      "type" : "string_t",
+      "description" : "The event class name, as defined by class_uid value: <code>Registry Value Activity</code>.",
+      "group" : "classification",
+      "requirement" : "optional",
+      "caption" : "Class",
+      "type_name" : "String"
+    },
+    "policy" : {
+      "type" : "object_t",
+      "description" : "The policy that pertains to the control that triggered the event, if applicable. For example the name of an anti-malware policy or an access control policy.",
+      "group" : "primary",
+      "requirement" : "optional",
+      "caption" : "Policy",
+      "object_type" : "policy",
+      "profiles" : [ "security_control" ],
+      "object_name" : "Policy"
+    },
+    "enrichments" : {
+      "type" : "object_t",
+      "description" : "The additional information from an external data source, which is associated with the event or a finding. For example add location information for the IP address in the DNS answers:</p><code>[{\"name\": \"answers.ip\", \"value\": \"92.24.47.250\", \"type\": \"location\", \"data\": {\"city\": \"Socotra\", \"continent\": \"Asia\", \"coordinates\": [-25.4153, 17.0743], \"country\": \"YE\", \"desc\": \"Yemen\"}}]</code>",
+      "group" : "context",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Enrichments",
+      "object_type" : "enrichment",
+      "object_name" : "Enrichment"
+    },
+    "time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The primary timestamp of the event - when the activity actually occurred at the source. This does not capture when the event record was created or serialized by the source system; for event lifecycle timestamps such as ingestion and processing, use <code>metadata.logged_time</code> and <code>metadata.processed_time</code> respectively, or the equivalent attributes in the <code>metadata.loggers</code> array when recording pipeline stages. For aggregate events (<code>count</code> &gt; 1), set this to <code>start_time</code> (the earliest OCSF <code>time</code> in the aggregate) to preserve causal ordering and consistent timeline alignment. Note: finding classes redefine <code>time</code> as the finding creation time rather than the activity occurrence time. This <b>must</b> be a UTC epoch value in milliseconds (e.g., <code>1776881335332</code>). Mappers should use the most precise and authoritative timestamp available from the source.",
+      "group" : "occurrence",
+      "requirement" : "optional",
+      "caption" : "Event Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "confidence_score" : {
+      "type" : "integer_t",
+      "description" : "The confidence score as reported by the event source. If <code>confidence_id</code> is 99 'Other', it should be the same as <code>confidence</code> if both are populated.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Confidence Score",
+      "profiles" : [ "security_control" ],
+      "type_name" : "Integer"
+    },
+    "metadata" : {
+      "type" : "object_t",
+      "description" : "The metadata object describes the event producer, schema version, and processing information. Producers and mappers <b>must</b> populate <code>metadata.product</code> to identify the data source, and <code>metadata.version</code> to indicate the OCSF schema version used. Consumers rely on this to interpret the event correctly.",
+      "group" : "context",
+      "requirement" : "required",
+      "caption" : "Metadata",
+      "object_type" : "metadata",
+      "object_name" : "Metadata"
+    },
+    "malware_scan_info" : {
+      "type" : "object_t",
+      "description" : "Describes details about the scan job that identified malware on the target system.",
+      "group" : "primary",
+      "requirement" : "optional",
+      "caption" : "Malware Scan Info",
+      "object_type" : "malware_scan_info",
+      "profiles" : [ "security_control" ],
+      "object_name" : "Malware Scan Info"
+    },
+    "disposition" : {
+      "type" : "string_t",
+      "description" : "The disposition name, normalized to the caption of the disposition_id value. In the case of 'Other', it is defined by the event source.",
+      "group" : "primary",
+      "requirement" : "optional",
+      "caption" : "Disposition",
+      "profiles" : [ "security_control" ],
+      "type_name" : "String"
+    },
+    "device" : {
+      "type" : "object_t",
+      "description" : "The host or device where the activity was observed. Populate with details such as hostname, IP address, OS, and hardware identifiers when available from the source.",
+      "group" : "primary",
+      "requirement" : "required",
+      "caption" : "Device",
+      "object_type" : "device",
+      "profiles" : null,
+      "object_name" : "Device"
+    },
+    "action" : {
+      "type" : "string_t",
+      "description" : "The normalized caption of <code>action_id</code>.",
+      "group" : "primary",
+      "requirement" : "optional",
+      "caption" : "Action",
+      "profiles" : [ "security_control" ],
+      "type_name" : "String"
+    },
+    "risk_details" : {
+      "type" : "string_t",
+      "description" : "Describes the risk associated with the finding.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Risk Details",
+      "profiles" : [ "security_control" ],
+      "type_name" : "String"
+    },
+    "message_context" : {
+      "type" : "object_t",
+      "description" : "Communication context for AI system interactions including protocols, roles, clients, and session information for MCP and other AI communication systems.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Message Context",
+      "object_type" : "message_context",
+      "profiles" : [ "ai_operation" ],
+      "object_name" : "Message Context"
+    },
+    "risk_score" : {
+      "type" : "integer_t",
+      "description" : "The risk score as reported by the event source.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Risk Score",
+      "profiles" : [ "security_control" ],
+      "type_name" : "Integer"
+    },
+    "authorizations" : {
+      "type" : "object_t",
+      "description" : "Provides details about an authorization, such as authorization outcome, and any associated policies related to the activity/event.",
+      "group" : "primary",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Authorization Information",
+      "object_type" : "authorization",
+      "profiles" : [ "security_control" ],
+      "object_name" : "Authorization Result"
+    },
+    "is_alert" : {
+      "type" : "boolean_t",
+      "description" : "Indicates that the event is considered to be an alertable signal. Should be set to <code>true</code> if <code>disposition_id = Alert</code> among other dispositions, and/or <code>risk_level_id</code> or <code>severity_id</code> of the event is elevated. Not all control events will be alertable, for example if <code>disposition_id = Exonerated</code> or <code>disposition_id = Allowed</code>.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Alert",
+      "profiles" : [ "security_control" ],
+      "type_name" : "Boolean"
+    },
+    "disposition_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "A suspicious file or other content was moved to a benign location.",
+          "caption" : "Quarantined"
+        },
+        "6" : {
+          "description" : "The request was detected as a threat and resulted in the connection being dropped.",
+          "caption" : "Dropped"
+        },
+        "0" : {
+          "description" : "The disposition is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "Granted access or allowed the action to the protected resource.",
+          "caption" : "Allowed"
+        },
+        "2" : {
+          "description" : "Denied access or blocked the action to the protected resource.",
+          "caption" : "Blocked"
+        },
+        "99" : {
+          "description" : "The disposition is not mapped. See the <code>disposition</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "A session was isolated on the network or within a browser.",
+          "caption" : "Isolated"
+        },
+        "5" : {
+          "description" : "A file or other content was deleted.",
+          "caption" : "Deleted"
+        },
+        "7" : {
+          "description" : "A custom action was executed such as running of a command script. Use the <code>message</code> attribute of the base class for details.",
+          "caption" : "Custom Action"
+        },
+        "8" : {
+          "description" : "A request or submission was approved. For example, when a form was properly filled out and submitted. This is distinct from <code>1</code> 'Allowed'.",
+          "caption" : "Approved"
+        },
+        "9" : {
+          "description" : "A quarantined file or other content was restored to its original location.",
+          "caption" : "Restored"
+        },
+        "10" : {
+          "description" : "A suspicious or risky entity was deemed to no longer be suspicious (re-scored).",
+          "caption" : "Exonerated"
+        },
+        "11" : {
+          "description" : "A corrupt file or configuration was corrected.",
+          "caption" : "Corrected"
+        },
+        "12" : {
+          "description" : "A corrupt file or configuration was partially corrected.",
+          "caption" : "Partially Corrected"
+        },
+        "14" : {
+          "description" : "An operation was delayed, for example if a restart was required to finish the operation.",
+          "caption" : "Delayed"
+        },
+        "15" : {
+          "description" : "Suspicious activity or a policy violation was detected without further action.",
+          "caption" : "Detected"
+        },
+        "16" : {
+          "description" : "The outcome of an operation had no action taken.",
+          "caption" : "No Action"
+        },
+        "17" : {
+          "description" : "The operation or action was logged without further action.",
+          "caption" : "Logged"
+        },
+        "18" : {
+          "description" : "A file or other entity was marked with extended attributes.",
+          "caption" : "Tagged"
+        },
+        "20" : {
+          "description" : "Counted the request or activity but did not determine whether to allow it or block it.",
+          "caption" : "Count"
+        },
+        "21" : {
+          "description" : "The request was detected as a threat and resulted in the connection being reset.",
+          "caption" : "Reset"
+        },
+        "22" : {
+          "description" : "Required the end user to solve a CAPTCHA puzzle to prove that a human being is sending the request.",
+          "caption" : "Captcha"
+        },
+        "23" : {
+          "description" : "Ran a silent challenge that required the client session to verify that it's a browser, and not a bot.",
+          "caption" : "Challenge"
+        },
+        "24" : {
+          "description" : "The requestor's access has been revoked due to security policy enforcements. Note: use the <code>Host</code> profile if the <code>User</code> or <code>Actor</code> requestor is not present in the event class.",
+          "caption" : "Access Revoked"
+        },
+        "25" : {
+          "description" : "A request or submission was rejected.  For example, when a form was improperly filled out and submitted. This is distinct from <code>2</code> 'Blocked'.",
+          "caption" : "Rejected"
+        },
+        "26" : {
+          "description" : "An attempt to access a resource was denied due to an authorization check that failed. This is a more specific disposition than <code>2</code> 'Blocked' and can be complemented with the <code>authorizations</code> attribute for more detail.",
+          "caption" : "Unauthorized"
+        },
+        "27" : {
+          "description" : "An error occurred during the processing of the activity or request. Use the <code>message</code> attribute of the base class for details.",
+          "caption" : "Error"
+        },
+        "13" : {
+          "description" : "A corrupt file or configuration was not corrected.",
+          "caption" : "Uncorrected"
+        },
+        "19" : {
+          "description" : "The request or activity was detected as a threat and resulted in a notification but request was not blocked.",
+          "caption" : "Alert"
+        }
+      },
+      "description" : "Describes the outcome or action taken by a security control, such as access control checks, malware detections or various types of policy violations.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Disposition ID",
+      "profiles" : [ "security_control" ],
+      "sibling" : "disposition",
+      "type_name" : "Integer"
+    },
+    "risk_level_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "caption" : "High"
+        },
+        "0" : {
+          "caption" : "Info"
+        },
+        "1" : {
+          "caption" : "Low"
+        },
+        "2" : {
+          "caption" : "Medium"
+        },
+        "99" : {
+          "description" : "The risk level is not mapped. See the <code>risk_level</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "caption" : "Critical"
+        }
+      },
+      "description" : "The normalized risk level id.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Risk Level ID",
+      "profiles" : [ "security_control" ],
+      "sibling" : "risk_level",
+      "type_name" : "Integer",
+      "suppress_checks" : [ "enum_convention" ]
+    },
+    "attacks" : {
+      "type" : "object_t",
+      "description" : "An array of MITRE ATT&CK® objects describing identified tactics, techniques & sub-techniques. The objects are compatible with MITRE ATLAS™ tactics, techniques & sub-techniques.",
+      "group" : "primary",
+      "is_array" : true,
+      "references" : [ {
+        "description" : "MITRE ATT&CK®",
+        "url" : "https://attack.mitre.org"
+      }, {
+        "description" : "MITRE ATLAS",
+        "url" : "https://atlas.mitre.org/matrices/ATLAS"
+      } ],
+      "requirement" : "optional",
+      "caption" : "MITRE ATT&CK® and ATLAS™ Details",
+      "object_type" : "attack",
+      "profiles" : [ "security_control" ],
+      "object_name" : "Attack Tactics & Techniques"
+    },
+    "reg_value" : {
+      "type" : "object_t",
+      "description" : "The registry value.",
+      "extension" : "win",
+      "requirement" : "required",
+      "extension_id" : 2,
+      "caption" : "Registry Value",
+      "object_type" : "win/reg_value",
+      "object_name" : "Registry Value"
+    },
+    "category_uid" : {
+      "type" : "integer_t",
+      "enum" : {
+        "1" : {
+          "description" : "System Activity events.",
+          "uid" : 1,
+          "caption" : "System Activity"
+        }
+      },
+      "description" : "The category unique identifier of the event. Each event class belongs to exactly one category. Producers and mappers must set this to the category defined by the event class being used.",
+      "group" : "classification",
+      "requirement" : "required",
+      "caption" : "Category ID",
+      "sibling" : "category_name",
+      "type_name" : "Integer"
+    },
+    "ai_agent" : {
+      "type" : "object_t",
+      "description" : "The autonomous AI agent that performed this operation. Carries model identity via <code>ai_agent.ai_model</code>. Populate when the action was performed by an agent rather than a direct model call.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "AI Agent",
+      "object_type" : "ai_agent",
+      "profiles" : [ "ai_operation" ],
+      "object_name" : "AI Agent"
+    },
+    "status_code" : {
+      "type" : "string_t",
+      "description" : "The source-specific status or error code as reported by the event source. For example, a Windows logon failure code (<code>0x18</code>), an HTTP response code (<code>403</code>), or an AWS API error code. This preserves the original code for detailed troubleshooting beyond what <code>status_id</code> conveys.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Status Code",
+      "type_name" : "String"
+    },
+    "end_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time of the most recent event in an aggregate (<code>count</code> &gt; 1). Do not populate for discrete, point-in-time events - use <code>time</code> alone. Subclasses such as findings may redefine this for their own time-range semantics.",
+      "group" : "occurrence",
+      "requirement" : "optional",
+      "caption" : "End Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "message" : {
+      "type" : "string_t",
+      "description" : "A human-readable description of the event, as defined by the source. This should be a concise, meaningful summary suitable for display in a UI or alert notification - not a raw log line. For example: <code>\"User john_doe logged in from 10.0.0.1.\"</code> rather than a raw syslog string.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Message",
+      "type_name" : "String"
+    },
+    "ai_model" : {
+      "type" : "object_t",
+      "description" : "The AI model involved in this operation. Use for direct model invocations where no autonomous agent is involved. For agent-mediated operations, model identity is carried within <code>ai_agent.ai_model</code> instead.",
+      "group" : "context",
+      "requirement" : "recommended",
+      "caption" : "AI Model",
+      "object_type" : "ai_model",
+      "profiles" : [ "ai_operation" ],
+      "object_name" : "AI Model"
+    },
+    "delegation" : {
+      "type" : "object_t",
+      "description" : "The delegation under whose authority this AI operation was performed. Links the event to a durable authorization context independent of traces and sessions, enabling correlation of all events executed under the same delegated authority.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Delegation",
+      "object_type" : "delegation",
+      "profiles" : [ "ai_operation" ],
+      "object_name" : "Delegation"
+    },
+    "severity_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Action is required but the situation is not serious at this time.",
+          "caption" : "Medium"
+        },
+        "6" : {
+          "description" : "An error occurred but it is too late to take remedial action.",
+          "caption" : "Fatal"
+        },
+        "0" : {
+          "description" : "The event/finding severity is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "Informational message. No action required.",
+          "caption" : "Informational"
+        },
+        "2" : {
+          "description" : "The user decides if action is needed.",
+          "caption" : "Low"
+        },
+        "99" : {
+          "description" : "The event/finding severity is not mapped. See the <code>severity</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Action is required immediately.",
+          "caption" : "High"
+        },
+        "5" : {
+          "description" : "Action is required immediately and the scope is broad.",
+          "caption" : "Critical"
+        }
+      },
+      "description" : "<p>The normalized identifier of the event/finding severity.</p>The normalized severity is a measurement the effort and expense required to manage and resolve an event or incident. Smaller numerical values represent lower impact events, and larger numerical values represent higher impact events.",
+      "group" : "classification",
+      "requirement" : "required",
+      "caption" : "Severity ID",
+      "sibling" : "severity",
+      "type_name" : "Integer"
+    },
+    "timezone_offset" : {
+      "type" : "integer_t",
+      "description" : "The number of minutes that the reported event <code>time</code> is ahead or behind UTC, in the range -1,080 to +1,080. This allows consumers to reconstruct the local time at the event source. For example, US Eastern Standard Time is <code>-300</code>. Populate this when the source provides local time zone information.",
+      "group" : "occurrence",
+      "requirement" : "recommended",
+      "caption" : "Timezone Offset",
+      "type_name" : "Integer"
+    },
+    "activity_name" : {
+      "type" : "string_t",
+      "description" : "The event activity name, as defined by the <code>activity_id</code>. When <code>activity_id</code> is <code>99</code> (Other), this attribute <b>must</b> contain the source-specific activity label. For all other <code>activity_id</code> values, this must match the caption defined for that <code>activity_id</code> enum value.",
+      "group" : "classification",
+      "requirement" : "optional",
+      "caption" : "Activity",
+      "type_name" : "String"
+    },
+    "count" : {
+      "type" : "integer_t",
+      "description" : "The number of events aggregated into this single record. Only populate for aggregate events. When set, <code>start_time</code> and <code>end_time</code> should also be provided to define the aggregation window.",
+      "group" : "occurrence",
+      "requirement" : "optional",
+      "caption" : "Count",
+      "type_name" : "Integer"
+    },
+    "duration" : {
+      "type" : "long_t",
+      "description" : "The elapsed time of the aggregation window in milliseconds, from <code>start_time</code> to <code>end_time</code>. Only populate for aggregate events (<code>count</code> &gt; 1). The value should equal <code>end_time - start_time</code>.",
+      "group" : "occurrence",
+      "requirement" : "optional",
+      "caption" : "Duration Milliseconds",
+      "type_name" : "Long"
+    },
+    "action_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The activity was observed, but neither explicitly allowed nor denied. This is common with IDS and EDR controls that report additional information on observed behavior such as TTPs. The <code>disposition_id</code> attribute should be set to a value that conforms to this action, for example 'Logged', 'Alert', 'Detected', 'Count', etc.",
+          "caption" : "Observed"
+        },
+        "0" : {
+          "description" : "The action was unknown. The <code>disposition_id</code> attribute may still be set to a non-unknown value, for example 'Custom Action', 'Challenge'.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The activity was allowed. The <code>disposition_id</code> attribute should be set to a value that conforms to this action, for example 'Allowed', 'Approved', 'Delayed', 'No Action', 'Count' etc.",
+          "caption" : "Allowed"
+        },
+        "2" : {
+          "description" : "The attempted activity was denied. The <code>disposition_id</code> attribute should be set to a value that conforms to this action, for example 'Blocked', 'Rejected', 'Quarantined', 'Isolated', 'Dropped', 'Access Revoked, etc.",
+          "caption" : "Denied"
+        },
+        "99" : {
+          "description" : "The action is not mapped. See the <code>action</code> attribute which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "The activity was modified, adjusted, or corrected. The <code>disposition_id</code> attribute should be set appropriately, for example 'Restored', 'Corrected', 'Delayed', 'Captcha', 'Tagged'.",
+          "caption" : "Modified"
+        }
+      },
+      "description" : "The action taken by a control or other policy-based system leading to an outcome or disposition. An unknown action may still correspond to a known disposition. Refer to <code>disposition_id</code> for the outcome of the action.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Action ID",
+      "profiles" : [ "security_control" ],
+      "sibling" : "action",
+      "type_name" : "Integer"
+    },
+    "confidence" : {
+      "type" : "string_t",
+      "description" : "The confidence, normalized to the caption of the confidence_id value. In the case of 'Other', it is defined by the event source.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Confidence",
+      "profiles" : [ "security_control" ],
+      "type_name" : "String"
+    },
+    "osint" : {
+      "type" : "object_t",
+      "description" : "The OSINT (Open Source Intelligence) object contains details related to an indicator such as the indicator itself, related indicators, geolocation, registrar information, subdomains, analyst commentary, and other contextual information. This information can be used to further enrich a detection or finding by providing decisioning support to other analysts and engineers.",
+      "group" : "primary",
+      "is_array" : true,
+      "requirement" : "required",
+      "caption" : "OSINT",
+      "object_type" : "osint",
+      "profiles" : [ "osint" ],
+      "object_name" : "OSINT"
+    },
+    "category_name" : {
+      "type" : "string_t",
+      "description" : "The event category name, as defined by category_uid value: <code>System Activity</code>.",
+      "group" : "classification",
+      "requirement" : "optional",
+      "caption" : "Category",
+      "type_name" : "String"
+    },
+    "start_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time of the earliest event in an aggregate (<code>count</code> &gt; 1). Do not populate for discrete, point-in-time events - use <code>time</code> alone. Subclasses such as findings may redefine this for their own time-range semantics.",
+      "group" : "occurrence",
+      "requirement" : "optional",
+      "caption" : "Start Time",
+      "type_name" : "Timestamp"
+    },
+    "attestation_list" : {
+      "type" : "object_t",
+      "description" : "One or more cryptographic <code>attestation</code> objects over an event, each providing integrity, authenticity, and non-repudiation. Independent attesters over the same event — for example a producer at write time and a downstream processor at ingest — each contribute a separate attestation, distinct from co-signers on a single attestation, which share its <code>signatures</code> array. Carried on the <code>record_integrity</code> profile; the object itself is domain-agnostic.",
+      "group" : "context",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Attestation List",
+      "object_type" : "attestation",
+      "profiles" : [ "record_integrity" ],
+      "object_name" : "Attestation"
+    },
+    "end_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time of the most recent event in an aggregate (<code>count</code> &gt; 1). Do not populate for discrete, point-in-time events - use <code>time</code> alone. Subclasses such as findings may redefine this for their own time-range semantics.",
+      "group" : "occurrence",
+      "requirement" : "optional",
+      "caption" : "End Time",
+      "type_name" : "Timestamp"
+    },
+    "raw_data_hash" : {
+      "type" : "object_t",
+      "description" : "A fingerprint (hash) of the <code>raw_data</code> content. Use this to verify the integrity of the original event data or to deduplicate events.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Raw Data Hash",
+      "object_type" : "fingerprint",
+      "object_name" : "Fingerprint"
+    },
+    "confidence_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "caption" : "High"
+        },
+        "0" : {
+          "description" : "The normalized confidence is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "caption" : "Low"
+        },
+        "2" : {
+          "caption" : "Medium"
+        },
+        "99" : {
+          "description" : "The confidence is not mapped to the defined enum values. See the <code>confidence</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized confidence refers to the accuracy of the security control or alert. An analytic with a low confidence means that the alerts may be noisy or may not be malicious in nature.",
+      "group" : "context",
+      "requirement" : "recommended",
+      "caption" : "Confidence ID",
+      "profiles" : [ "security_control" ],
+      "sibling" : "confidence",
+      "type_name" : "Integer"
+    },
+    "severity" : {
+      "type" : "string_t",
+      "description" : "The event/finding severity label, normalized to the caption of the <code>severity_id</code> value. When <code>severity_id</code> is <code>99</code> (Other), this attribute <b>must</b> contain the source-specific severity label. For all other values, this should match the caption defined for that <code>severity_id</code> enum value (e.g., <code>\"High\"</code> for <code>severity_id: 4</code>).",
+      "group" : "classification",
+      "requirement" : "optional",
+      "caption" : "Severity",
+      "type_name" : "String"
+    },
+    "cloud" : {
+      "type" : "object_t",
+      "description" : "Describes details about the Cloud environment where the event or finding was created.",
+      "group" : "primary",
+      "requirement" : "required",
+      "caption" : "Cloud",
+      "object_type" : "cloud",
+      "profiles" : [ "cloud" ],
+      "object_name" : "Cloud"
+    },
+    "observables" : {
+      "type" : "object_t",
+      "description" : "The observables array surfaces key indicators and entities from the event or finding in a single, consistent location for downstream correlation and detection. Each entry references an attribute path within the event (e.g., <code>src_endpoint.ip</code>) along with its type and value, enabling consumers to extract IOCs without parsing the full event structure.",
+      "group" : "primary",
+      "is_array" : true,
+      "references" : [ {
+        "description" : "OCSF Observables FAQ",
+        "url" : "https://github.com/ocsf/ocsf-docs/blob/main/articles/defining-and-using-observables.md"
+      } ],
+      "requirement" : "recommended",
+      "caption" : "Observables",
+      "object_type" : "observable",
+      "object_name" : "Observable"
+    },
+    "actor" : {
+      "type" : "object_t",
+      "description" : "The actor that performed the activity on the <code>reg_value</code> object.",
+      "group" : "primary",
+      "requirement" : "required",
+      "caption" : "Actor",
+      "object_type" : "actor",
+      "profiles" : null,
+      "object_name" : "Actor"
+    },
+    "status_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "0" : {
+          "description" : "The status is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The activity completed successfully.",
+          "caption" : "Success"
+        },
+        "2" : {
+          "description" : "The activity failed.",
+          "caption" : "Failure"
+        },
+        "99" : {
+          "description" : "The status is not mapped. See the <code>status</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized status of the event outcome. Use this family of attributes to convey the outcome of the activity described by the event. Producers should map their source outcome to <code>1</code> (Success) or <code>2</code> (Failure). Use <code>0</code> (Unknown) when the outcome cannot be determined, and <code>99</code> (Other) with a populated <code>status</code> string when the source value does not map cleanly.",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Status ID",
+      "sibling" : "status",
+      "type_name" : "Integer"
+    },
+    "api" : {
+      "type" : "object_t",
+      "description" : "Describes details about a typical API (Application Programming Interface) call.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "API Details",
+      "object_type" : "api",
+      "profiles" : [ "cloud" ],
+      "object_name" : "API"
+    },
+    "firewall_rule" : {
+      "type" : "object_t",
+      "description" : "The firewall rule that pertains to the control that triggered the event, if applicable.",
+      "group" : "primary",
+      "requirement" : "optional",
+      "caption" : "Firewall Rule",
+      "object_type" : "firewall_rule",
+      "profiles" : [ "security_control" ],
+      "object_name" : "Firewall Rule"
+    },
+    "raw_data_size" : {
+      "type" : "long_t",
+      "description" : "The size of the original event data (as captured in <code>raw_data</code>) in bytes, before OCSF normalization. Useful for metering and capacity planning.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Raw Data Size",
+      "type_name" : "Long"
+    },
+    "status" : {
+      "type" : "string_t",
+      "description" : "The event status label, normalized to the caption of the <code>status_id</code> value. When <code>status_id</code> is <code>99</code> (Other), this attribute <b>must</b> contain the source-specific status label. For all other values, this must match the caption defined for that <code>status_id</code> enum value (e.g., <code>\"Success\"</code> for <code>status_id: 1</code>).",
+      "group" : "primary",
+      "requirement" : "recommended",
+      "caption" : "Status",
+      "type_name" : "String"
+    },
+    "class_uid" : {
+      "type" : "integer_t",
+      "enum" : {
+        "201002" : {
+          "description" : "Registry Value Activity events reports when a process performs an action on a Windows registry value.",
+          "caption" : "Registry Value Activity"
+        }
+      },
+      "description" : "The unique identifier of a class. A class describes the attributes available in an event. Producers and mappers must set this to the <code>uid</code> defined in the event class definition. For example, <code>Detection Finding</code> is <code>2004</code>.",
+      "group" : "classification",
+      "requirement" : "required",
+      "caption" : "Class ID",
+      "sibling" : "class_name",
+      "type_name" : "Integer"
+    },
+    "raw_data" : {
+      "type" : "string_t",
+      "description" : "The original event/finding data as received from the source, before normalization into OCSF. Populate this with the verbatim log line, JSON payload, or other native format for forensic and debugging purposes. This field is not intended for structured querying - use the normalized OCSF attributes instead.",
+      "group" : "context",
+      "requirement" : "optional",
+      "caption" : "Raw Data",
+      "type_name" : "String"
+    }
+  },
+  "name" : "registry_value_activity",
+  "description" : "Registry Value Activity events reports when a process performs an action on a Windows registry value.",
+  "extension" : "win",
+  "uid" : 201002,
+  "extends" : "system",
+  "category" : "system",
+  "extension_id" : 2,
+  "caption" : "Registry Value Activity",
+  "associations" : {
+    "device" : [ "actor.user" ],
+    "actor.user" : [ "device" ]
+  },
+  "profiles" : [ "ai_operation", "cloud", "container", "data_classification", "datetime", "host", "linux/linux_users", "macos/macos_users", "osint", "record_integrity", "security_control" ],
+  "category_name" : "System Activity",
+  "category_uid" : 1
+}

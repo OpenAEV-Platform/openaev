@@ -1,0 +1,146 @@
+{
+  "attributes" : {
+    "data" : {
+      "type" : "json_t",
+      "description" : "Details of the web resource, e.g, <code>file</code> details, <code>search</code> results or application-defined resource.",
+      "requirement" : "optional",
+      "caption" : "Data",
+      "type_name" : "JSON"
+    },
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the web resource.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The web resource type as defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "Description of the web resource.",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "resource_uid_t",
+      "description" : "The unique identifier of the web resource.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "Resource UID"
+    },
+    "labels" : {
+      "type" : "string_t",
+      "description" : "The list of labels associated to the resource.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Labels",
+      "type_name" : "String"
+    },
+    "tags" : {
+      "type" : "object_t",
+      "description" : "The list of tags; <code>{key:value}</code> pairs associated to the resource.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Tags",
+      "object_type" : "key_value_object",
+      "object_name" : "Key:Value object"
+    },
+    "created_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the resource was created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "type_name" : "Timestamp"
+    },
+    "data_classification" : {
+      "type" : "object_t",
+      "description" : "The Data Classification object includes information about data classification levels and data category types.",
+      "group" : "context",
+      "requirement" : "recommended",
+      "caption" : "Data Classification",
+      "object_type" : "data_classification",
+      "profiles" : [ "data_classification" ],
+      "@deprecated" : {
+        "message" : "Use the attribute <code>data_classifications</code> instead",
+        "since" : "1.4.0",
+        "superseded_by" : [ "data_classifications" ]
+      },
+      "object_name" : "Data Classification"
+    },
+    "data_classifications" : {
+      "type" : "object_t",
+      "description" : "A list of Data Classification objects, that include information about data classification levels and data category types, identified by a classifier.",
+      "group" : "context",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "Data Classification",
+      "object_type" : "data_classification",
+      "profiles" : [ "data_classification" ],
+      "object_name" : "Data Classification"
+    },
+    "modified_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the resource was last modified.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "type_name" : "Timestamp"
+    },
+    "uid_alt" : {
+      "type" : "resource_uid_t",
+      "description" : "The alternative unique identifier of the resource.",
+      "requirement" : "optional",
+      "caption" : "Alternate ID",
+      "type_name" : "Resource UID"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    },
+    "url_string" : {
+      "type" : "url_t",
+      "description" : "The URL pointing towards the source of the web resource.",
+      "requirement" : "recommended",
+      "caption" : "URL String",
+      "type_name" : "URL String"
+    },
+    "created_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the resource was created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "modified_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the resource was last modified.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "web_resource",
+  "description" : "The Web Resource object describes characteristics of a web resource that was affected by the activity/event.",
+  "extends" : "_resource",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:WebResource.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:WebResource/"
+  } ],
+  "caption" : "Web Resource",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}

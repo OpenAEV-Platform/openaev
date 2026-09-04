@@ -1,0 +1,22 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The specific name or identifier of the analysis target, such as the username of a User Account, the name of a Kubernetes Cluster, the identifier of a Network Namespace, or the name of an Application Component.",
+      "requirement" : "required",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The category of the analysis target, such as User Account, Kubernetes Cluster, Network Namespace, or Application Component.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    }
+  },
+  "name" : "analysis_target",
+  "description" : "The analysis target defines the scope of monitored activities, specifying what entity, system or process is analyzed for activity patterns.",
+  "caption" : "Analysis Target",
+  "_links" : [ ]
+}

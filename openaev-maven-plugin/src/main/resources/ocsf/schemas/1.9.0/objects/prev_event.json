@@ -1,0 +1,32 @@
+{
+  "attributes" : {
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the previous event, as carried in that event's <code>metadata.uid</code>.",
+      "requirement" : "required",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "type_uid" : {
+      "type" : "long_t",
+      "description" : "The event type identifier of the previous event, as carried in that event's <code>type_uid</code>. It directs a consumer to the event class, and therefore the table or store, where the previous event resides.",
+      "requirement" : "recommended",
+      "caption" : "Type ID",
+      "sibling" : "type_name",
+      "type_name" : "Long"
+    },
+    "fingerprint" : {
+      "type" : "object_t",
+      "description" : "The fingerprint of the previous event, binding this reference to the previous event's content so that altering or substituting the previous event breaks the link. Refer to specific usage.",
+      "requirement" : "optional",
+      "caption" : "Fingerprint",
+      "object_type" : "fingerprint",
+      "object_name" : "Fingerprint"
+    }
+  },
+  "name" : "prev_event",
+  "description" : "The Previous Event object references the previous event in a chain of events. Refer to specific usage.",
+  "extends" : "object",
+  "caption" : "Previous Event",
+  "_links" : [ ]
+}

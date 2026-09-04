@@ -1,0 +1,89 @@
+{
+  "attributes" : {
+    "type" : {
+      "type" : "string_t",
+      "description" : "The job action type, normalized to the caption of the <code>type_id</code> value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "recommended",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "file" : {
+      "type" : "object_t",
+      "description" : "When known, describes the image file that is executed when <code>type_id</code> is <code>COM Handler</code> or <code>Execute</code>. Note that this attribute is intended to supplement the <code>com_class_uid</code> or <code>cmd_line</code> attributes, and is not an alternative to them.",
+      "requirement" : "optional",
+      "caption" : "File",
+      "object_type" : "file",
+      "object_name" : "File"
+    },
+    "properties" : {
+      "type" : "object_t",
+      "description" : "The list of properties associated with the performed action.<br>Can be populated with additional attributes of a program execution process, COM object attributes, fields of a message box or an email.",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "Properties",
+      "object_type" : "key_value_object",
+      "object_name" : "Key:Value object"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The action sends an email.",
+          "caption" : "E-mail"
+        },
+        "0" : {
+          "description" : "The performed action is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The action fires a COM handler. When this type is used, <code>com_class_uuid</code> and <code>file</code> attributes may be populated.",
+          "caption" : "COM Handler"
+        },
+        "2" : {
+          "description" : "The action executes a command-line operation. When this type is used, <code>cmd_line</code> and <code>file</code> attributes may be populated.",
+          "caption" : "Execute"
+        },
+        "99" : {
+          "description" : "The performed action is not mapped. See the <code>type</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "The action shows a message box with specified message and title.",
+          "caption" : "Show Message"
+        }
+      },
+      "description" : "The job action type.",
+      "requirement" : "required",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "cmd_line" : {
+      "type" : "string_t",
+      "description" : "When <code>type_id</code> is <code>Execute (2)</code>, this describes the command line that is executed.<br/><br/>When <code>type_id</code> is <code>COM Handler (1)</code>, this <em>may</em> describe the DLL path stored in the COM component's <code>InprocServer32</code> key or the command line stored in the COM component's <code>LocalServer32</code> key.",
+      "requirement" : "optional",
+      "caption" : "Command Line",
+      "type_name" : "String",
+      "observable" : 13
+    },
+    "com_class_uuid" : {
+      "type" : "uuid_t",
+      "description" : "When <code>type_id</code> is <code>COM Handler (1)</code>, this describes the COM Class Identifier (CLSID).",
+      "requirement" : "optional",
+      "caption" : "COM Class Identifier",
+      "type_name" : "UUID"
+    },
+    "working_directory" : {
+      "type" : "string_t",
+      "description" : "When <code>type_id</code> is <code>Execute (2)</code>, this describes the working directory of a program that is run by the job.",
+      "requirement" : "optional",
+      "caption" : "Working Directory",
+      "type_name" : "String"
+    }
+  },
+  "name" : "job_action",
+  "description" : "The action that will be performed by the job when certain conditions are met.",
+  "caption" : "Job Action",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ]
+}

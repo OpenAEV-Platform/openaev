@@ -1,0 +1,25 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the clipboard on systems with named clipboards. For example: <code>General</code> or <code>Drag</code>.",
+      "requirement" : "optional",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "contents" : {
+      "type" : "object_t",
+      "description" : "The data items written to, or read from, the clipboard.",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "Clipboard Contents",
+      "object_type" : "clipboard_item",
+      "object_name" : "Clipboard Item"
+    }
+  },
+  "name" : "clipboard",
+  "description" : "The Clipboard object represents an endpoint clipboard and its contents.",
+  "extends" : "object",
+  "caption" : "Clipboard",
+  "_links" : [ ]
+}

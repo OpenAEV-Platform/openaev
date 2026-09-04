@@ -1,0 +1,69 @@
+{
+  "attributes" : {
+    "owner" : {
+      "type" : "object_t",
+      "description" : "The user who created or last modified the note. Typically the same user that created the note can modify the note.",
+      "requirement" : "recommended",
+      "caption" : "Owner",
+      "object_type" : "user",
+      "object_name" : "User"
+    },
+    "title" : {
+      "type" : "string_t",
+      "description" : "A short description of the comment, if applicable.",
+      "requirement" : "optional",
+      "caption" : "Title",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the note, if applicable.",
+      "requirement" : "optional",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "comment" : {
+      "type" : "string_t",
+      "description" : "A user provided comment.",
+      "requirement" : "required",
+      "caption" : "Comment",
+      "type_name" : "String"
+    },
+    "created_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the note was created.",
+      "requirement" : "recommended",
+      "caption" : "Created Time",
+      "type_name" : "Timestamp"
+    },
+    "modified_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the note was last modified.",
+      "requirement" : "recommended",
+      "caption" : "Modified Time",
+      "type_name" : "Timestamp"
+    },
+    "created_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the note was created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "modified_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the note was last modified.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "note",
+  "description" : "Represents a note or a comment in the system. Notes can be used to provide additional context, explanations, or observations related to an event, object, or any other entity in the system. They can be created and modified by users to capture important information that may not be directly represented in the structured data.",
+  "extends" : "object",
+  "caption" : "Note",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}

@@ -1,0 +1,75 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The group name.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String",
+      "observable" : 32
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The type of the group.",
+      "requirement" : "optional",
+      "caption" : "Group Type",
+      "type_name" : "String"
+    },
+    "domain" : {
+      "type" : "string_t",
+      "description" : "The domain where the group is defined. For example: the LDAP or Active Directory domain.",
+      "requirement" : "optional",
+      "caption" : "Domain",
+      "type_name" : "String"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The group description.",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the group. For example, for Windows events this is the security identifier (SID) of the group. Another example, pool id or desktop id that the device belongs to.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String",
+      "observable" : 33
+    },
+    "privileges" : {
+      "type" : "string_t",
+      "description" : "The group privileges.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Privileges",
+      "type_name" : "String"
+    },
+    "uid_alt" : {
+      "type" : "string_t",
+      "description" : "The alternate unique identifier.",
+      "requirement" : "optional",
+      "caption" : "Alternate ID",
+      "type_name" : "String"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "group",
+  "description" : "The Group object represents a collection or association of entities, such as users, policies, or devices. It serves as a logical grouping mechanism to organize and manage entities with similar characteristics or permissions within a system or organization, including but not limited to purposes of access control.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:AccessControlGroup.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:AccessControlGroup/"
+  } ],
+  "caption" : "Group",
+  "_links" : [ ]
+}
