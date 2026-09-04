@@ -1,9 +1,10 @@
 # Notifications & Triggers
 
 OpenAEV keeps you informed about what happens on the platform without requiring you to constantly check every
-Scenario, Simulation, or Asset yourself. Two icons in the top navigation bar give you access to this system: the bell
-opens the **Notification Center**, where you review what happened, and the clock opens the **Triggers** page, where
-you define what you want to be notified about, and how.
+Scenario, Simulation, or Asset yourself. A single bell icon in the top navigation bar gives you access to this
+system: it opens the **Notification Center**, a two-tab page with an **Alerts** tab, where you review what happened,
+and a **Triggers** tab, where you define what you want to be notified about, and how. The bell stays highlighted
+while either tab is open.
 
 ## What Are Notifications & Triggers?
 
@@ -11,9 +12,9 @@ you define what you want to be notified about, and how.
   It watches one Resource type (Scenario, Simulation, Inject, Finding, Asset, and more), one or more Event types
   (creation, modification, deletion), and sends matching alerts through one or more **Notifiers** (in-app, Email, or
   Webhook).
-- A **Notification** is what a Trigger produces once its conditions are met. Every Notification lands in your
-  **Notification Center**, accessible from the bell icon, in addition to being pushed to whichever Notifier(s) the
-  Trigger uses.
+- A **Notification** is what a Trigger produces once its conditions are met. Every Notification lands in the
+  **Notification Center**'s **Alerts** tab, accessible from the bell icon, in addition to being pushed to whichever
+  Notifier(s) the Trigger uses.
 
 Triggers come in two flavors:
 
@@ -32,16 +33,15 @@ Triggers come in two flavors:
 - **Subscribe in one click**: use the quick-subscribe bell on a Scenario's page when you only care about that
   single Scenario, without configuring Resource type, Event types, or filters yourself.
 
-![Notification Center list: five Notifications with color-coded Operation chips (Creation, Modification, Score degradation, Multiple for a Digest), their Message, Original creation date, and the Trigger name that produced each one](assets/notification-center-list.png)
+![Notification Center Alerts tab: five Notifications with color-coded Operation chips (Creation, Modification, Score degradation, Multiple for a Digest), their Message, Original creation date, and the Trigger name that produced each one, with the Alerts and Triggers tabs shown below the Notification center header](assets/notification-center-list.png)
 
 ## How Do I Do It?
 
-1. Open the **Triggers** page (clock icon in the top navigation bar) and create a Live or Digest Trigger, or click
-   the subscribe bell in a Scenario's header for a one-click Trigger scoped to that Scenario. See
-   [Triggers](triggers.md) for the full walkthrough.
-2. Open the **Notification Center** (bell icon in the top navigation bar) to review incoming Notifications, jump to
-   the entity that triggered one, and manage them (mark as read, delete, bulk actions). See
-   [Notification Center](notification-center.md) for details.
+1. Open the **Notification Center** (bell icon in the top navigation bar) and select the **Triggers** tab to create
+   a Live or Digest Trigger, or click the subscribe bell in a Scenario's header for a one-click Trigger scoped to
+   that Scenario. See [Triggers](triggers.md) for the full walkthrough.
+2. Select the **Alerts** tab to review incoming Notifications, jump to the entity that triggered one, and manage
+   them (mark as read, delete, bulk actions). See [Notification Center](notification-center.md) for details.
 
 ## What's Next?
 

@@ -1,12 +1,15 @@
 # Notification Center
 
-The **Notification Center** is where every Notification produced by your Triggers lands. This page details how to
-read, filter, and manage it.
+The **Notification Center** is where every Notification produced by your Triggers lands. It is reachable from the
+bell icon in the top navigation bar and has two tabs: **Alerts**, covered by this page, and **Triggers**, where you
+configure what you're notified about (see [Triggers](triggers.md)). This page details how to read, filter, and
+manage the Alerts tab.
 
 ## What Is the Notification Center?
 
-The Notification Center is a personal, paginated list accessible from the bell icon in the top navigation bar. The
-bell shows a colored dot whenever you have at least one unread Notification.
+The **Alerts** tab is a personal, paginated list of every Notification you received. The bell shows a colored dot
+whenever you have at least one unread Notification, and stays highlighted while either tab of the Notification
+Center is open.
 
 Each row in the list shows:
 
@@ -20,7 +23,7 @@ Each row in the list shows:
 - **Trigger name**: the name of the Trigger that produced the Notification, shown as a chip. Clicking it filters the
   list down to that Trigger's Notifications only.
 
-![Notification Center list: a Multiple (Digest) row from Daily soc digest, a Creation row from New critical finding discovered describing a Finding on a host, a Creation row from New endpoint agent enrolled describing an Agent enrollment, a Score degradation row from Scenario detection score dropped, and a Modification row from Simulation status changes, with read/unread toggle and delete actions on the right](assets/notification-center-detail.png)
+![Notification Center Alerts tab: the Notification center header with Alerts and Triggers tabs, a Multiple (Digest) row from Daily soc digest, a Creation row from New critical finding discovered describing a Finding on a host, a Creation row from New endpoint agent enrolled describing an Agent enrollment, a Score degradation row from Scenario detection score dropped, and a Modification row from Simulation status changes, with read/unread toggle and delete actions on the right](assets/notification-center-detail.png)
 
 ## Why Use It?
 
@@ -35,7 +38,7 @@ Each row in the list shows:
 
 ### Review a Notification
 
-1. Click the bell icon in the top navigation bar to open the Notification Center.
+1. Click the bell icon in the top navigation bar to open the Notification Center's **Alerts** tab.
 2. Click a **Live** Notification's row to open the entity that produced it in a new context, for example, the
    Scenario whose score degraded, or the Asset that was created. A Notification is not navigable when its
    Operation is **Deletion** (the entity no longer exists) or when its Resource type has no dedicated detail page
@@ -55,7 +58,7 @@ Each row in the list shows:
 
 ## Example: Investigating a Score Degradation Alert
 
-1. The bell icon shows an unread dot. Open the **Notification Center**.
+1. The bell icon shows an unread dot. Open the **Notification Center**'s **Alerts** tab.
 2. The top row shows an orange **Score degradation** chip, with the message naming the Scenario and the drop in
    score.
 3. Click the row to open the Scenario directly, review the latest Simulation run, and start investigating the

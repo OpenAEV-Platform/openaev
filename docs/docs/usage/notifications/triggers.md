@@ -1,7 +1,7 @@
 # Triggers
 
-The **Triggers** page defines what you get notified about, and how. This page details how to create, configure, and
-manage Triggers, including the quick-subscribe shortcut available on a Scenario's page.
+The **Triggers** tab of the Notification Center defines what you get notified about, and how. This page details how
+to create, configure, and manage Triggers, including the quick-subscribe shortcut available on a Scenario's page.
 
 ## What Is a Trigger?
 
@@ -21,7 +21,7 @@ Both types share the same two remaining settings:
   Notifiers that already exist there appear in this list.
 - **Enabled**: a Trigger can be disabled without deleting it, to pause it temporarily.
 
-![Triggers list: four Live Triggers, New critical finding discovered (Finding, Create), Simulation status changes (Simulation, Update), Scenario detection score dropped (Scenario, Score degradation), New endpoint agent enrolled (Agent, Create), and one Digest Trigger, Daily SOC digest (08:00 UTC), composing 4 of them on a Day period, all shown as Enabled](assets/triggers-list.png)
+![Notification Center Triggers tab: four Live Triggers, New critical finding discovered (Finding, Create), Simulation status changes (Simulation, Update), Scenario detection score dropped (Scenario, Score degradation), New endpoint agent enrolled (Agent, Create), and one Digest Trigger, Daily SOC digest (08:00 UTC), composing 4 of them on a Day period, all shown as Enabled](assets/triggers-list.png)
 
 ## Why Use It?
 
@@ -38,7 +38,7 @@ Both types share the same two remaining settings:
 
 ### Create a Live Trigger
 
-1. Open the **Triggers** page (clock icon in the top navigation bar).
+1. Open the **Notification Center** (bell icon in the top navigation bar) and select the **Triggers** tab.
 2. Click **Create Live trigger**.
 3. Name the Trigger.
 4. Select a **Resource type**: Scenario, Simulation, Inject, Finding, Asset, Asset group, Team, Player, Payload,
@@ -51,11 +51,11 @@ Both types share the same two remaining settings:
 7. Select one or more **Notifiers**.
 8. Confirm.
 
-![Create a live trigger drawer: Name set to Scenario Trigger, Resource type set to Scenario, Create and Update checked, a Filter Severity = critical, and Notifiers set to User interface and Default mailer](assets/create-live-trigger-form.png)
+![Create a live trigger drawer: Name set to Scenario Score Degradation, Resource type set to Scenario, Create, Update, and Score degradation checked (Delete unchecked), empty Filters, and the Notifiers dropdown open with Soc slack channel (#soc-alerts) selected alongside User interface and Default mailer](assets/create-live-trigger-form.png)
 
 ### Create a Digest Trigger
 
-1. Open the **Triggers** page and click **Create Regular digest**.
+1. From the **Triggers** tab of the Notification Center, click **Create Regular digest**.
 2. Name the Trigger.
 3. Select the **Composed triggers**: one or more of your existing Live Triggers to roll up.
 4. Select a **Period**: **Hour**, **Day**, **Week**, or **Month**. Week and Month additionally ask for a day (day
@@ -63,7 +63,7 @@ Both types share the same two remaining settings:
 5. Select one or more **Notifiers**.
 6. Confirm.
 
-![Create a regular digest drawer: Name set to Daily Simulation Digest, Composed triggers set to Simulation status changes, Period set to Day, Time 09:00 UTC, and Notifiers set to Soc slack channel (#soc-alerts)](assets/create-digest-trigger-form.png)
+![Create a regular digest drawer: Name set to Daily Digest for Scenarios, Composed triggers set to Scenario detection score dropped, Period set to Day, Time 09:00 UTC, and the Notifiers dropdown open with Default mailer selected alongside User interface and SOC Slack channel (#soc-alerts)](assets/create-digest-trigger-form.png)
 
 !!! note
 
