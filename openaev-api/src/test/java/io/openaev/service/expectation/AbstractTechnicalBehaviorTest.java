@@ -82,7 +82,7 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
   private List<BaseInjectExpectation> actAndGetSavedExpectations(
       ExecutableInject executableInject, DetectionInjectExpectation template, String source) {
     detectionBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
-        executableInject, template, source, null);
+        executableInject, template, source);
     entityManager.flush();
     return injectExpectationRepository.findAllByInjectId(
         executableInject.getInjection().getInject().getId());

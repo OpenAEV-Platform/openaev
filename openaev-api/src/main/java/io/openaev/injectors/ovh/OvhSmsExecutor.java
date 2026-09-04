@@ -4,7 +4,6 @@ import static io.openaev.database.model.ExecutionTrace.getNewErrorTrace;
 import static io.openaev.database.model.ExecutionTrace.getNewSuccessTrace;
 import static org.springframework.util.StringUtils.hasText;
 
-import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Execution;
 import io.openaev.database.model.ExecutionTraceAction;
 import io.openaev.database.model.Inject;

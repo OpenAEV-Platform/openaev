@@ -80,7 +80,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
       template.setExpirationTime(21600L);
 
       articleBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
-          executableInject, template, null, null);
+          executableInject, template, null);
       entityManager.flush();
 
       List<BaseInjectExpectation> saved =
@@ -143,7 +143,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
       template.setExpirationTime(21600L);
 
       articleBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
-          executableInject, template, null, null);
+          executableInject, template, null);
       entityManager.flush();
 
       List<BaseInjectExpectation> saved =
@@ -189,7 +189,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
       template.setExpirationTime(21600L);
 
       articleBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
-          executableInject, template, null, null);
+          executableInject, template, null);
       entityManager.flush();
     }
 
@@ -223,7 +223,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
       template.setExpirationTime(21600L);
 
       articleBehavior.initializeAndSaveInjectExpectationsFromExecutableInject(
-          executableInject, template, null, null);
+          executableInject, template, null);
       entityManager.flush();
 
       List<BaseInjectExpectation> saved =
