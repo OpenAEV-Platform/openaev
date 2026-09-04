@@ -214,18 +214,32 @@ public class ScenarioService {
     return scenarios.stream().map(ScenarioSimple::fromScenario).toList();
   }
 
+  /**
+   * Fills in the platform email defaults for the fields the caller left empty.
+   *
+   * <p>Each field is defaulted independently: the creation input carries no {@code from}, so gating
+   * the whole block on it used to overwrite the sender display name and the reply-to addresses the
+   * user had just typed in the creation form.
+   */
   public void computeEmails(@NotNull Scenario scenario) {
+    // getFromName() derives the display name from `from` when unset, so it must be evaluated
+    // before `from` is defaulted, otherwise the derived value hides the missing display name.
+    boolean hasFromName = hasText(scenario.getFromName());
     if (!hasText(scenario.getFrom())) {
-      if (this.imapEnabled) {
-        scenario.setFrom(this.imapUsername);
-        scenario.setFromName(resolveFromName(null, this.imapUsername));
-        scenario.setReplyTos(new ArrayList<>(Arrays.asList(this.imapUsername)));
-      } else {
-        scenario.setFrom(this.openAEVConfig.getDefaultMailer());
-        scenario.setFromName(this.openAEVConfig.getDefaultMailerName());
-        scenario.setReplyTos(
-            new ArrayList<>(Arrays.asList(this.openAEVConfig.getDefaultReplyTo())));
-      }
+      scenario.setFrom(
+          this.imapEnabled ? this.imapUsername : this.openAEVConfig.getDefaultMailer());
+    }
+    if (!hasFromName) {
+      scenario.setFromName(
+          this.imapEnabled
+              ? resolveFromName(null, this.imapUsername)
+              : this.openAEVConfig.getDefaultMailerName());
+    }
+    if (scenario.getReplyTos() == null || scenario.getReplyTos().isEmpty()) {
+      String defaultReplyTo =
+          this.imapEnabled ? this.imapUsername : this.openAEVConfig.getDefaultReplyTo();
+      scenario.setReplyTos(
+          hasText(defaultReplyTo) ? new ArrayList<>(List.of(defaultReplyTo)) : new ArrayList<>());
     }
   }
 

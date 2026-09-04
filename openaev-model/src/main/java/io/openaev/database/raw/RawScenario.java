@@ -99,6 +99,13 @@ public interface RawScenario {
   String getScenario_mail_from_name();
 
   /**
+   * Returns the reply-to email addresses configured on the scenario.
+   *
+   * @return the reply-to addresses, or {@code null} when none is configured
+   */
+  Set<String> getScenario_reply_to();
+
+  /**
    * Returns the main focus area of the scenario.
    *
    * @return the main focus (e.g., "incident-response", "endpoint-protection")
