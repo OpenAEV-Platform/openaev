@@ -100,7 +100,7 @@ class ExerciseApiExportTest extends IntegrationTest {
   }
 
   private Exercise getExercise() {
-    Exercise exercise =
+    ExerciseComposer.Composer exercise =
         exerciseComposer
             .forExercise(ExerciseFixture.createDefaultCrisisExercise())
             .withArticle(
@@ -172,11 +172,10 @@ class ExerciseApiExportTest extends IntegrationTest {
                     .withInMemoryFile(FileFixture.getPlainTextFileContent()))
             .withObjective(objectiveComposer.forObjective(ObjectiveFixture.getObjective()))
             .withTag(tagComposer.forTag(TagFixture.getTagWithText("Exercise tag")))
-            .withVariable(variableComposer.forVariable(VariableFixture.getVariable()))
-            .get();
-    exercise.setLessonsEnabled(true);
-    exerciseComposer.persist();
-    return exercise;
+            .withVariable(variableComposer.forVariable(VariableFixture.getVariable()));
+    exercise.get().setLessonsEnabled(true);
+    exercise.persist();
+    return exercise.get();
   }
 
   private String getJsonExportFromZip(byte[] zipBytes, String entryName) throws IOException {

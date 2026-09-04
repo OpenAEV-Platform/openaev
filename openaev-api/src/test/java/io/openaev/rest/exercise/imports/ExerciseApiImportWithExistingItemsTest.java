@@ -101,7 +101,7 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
   // it runs out most tests use this exact structure as test data, therefore it's in its own
   // function up here
   private ExerciseComposer.Composer getExercise() {
-    Exercise exercise =
+    ExerciseComposer.Composer exercise =
         exerciseComposer
             .forExercise(ExerciseFixture.createDefaultExercise())
             .withArticle(
@@ -156,9 +156,9 @@ public class ExerciseApiImportWithExistingItemsTest extends IntegrationTest {
             .withObjective(objectiveComposer.forObjective(ObjectiveFixture.getDefaultObjective()))
             .withTag(tagComposer.forTag(TagFixture.getTagWithText("Exercise tag")))
             .withVariable(variableComposer.forVariable(VariableFixture.getDefaultVariable()));
-    exercise.setLessonsEnabled(true);
-    exerciseComposer.persist();
-    return exerciseComposer.get();
+    exercise.get().setLessonsEnabled(true);
+    exercise.persist();
+    return exercise;
   }
 
   private Exercise findImportedExerciseFromDb(String baseName) {

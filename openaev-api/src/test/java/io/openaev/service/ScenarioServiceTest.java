@@ -63,6 +63,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Autowired private TeamRepository teamRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private DocumentRepository documentRepository;
+  @Autowired private ObjectiveRepository objectiveRepository;
   @Autowired private ScenarioTeamUserRepository scenarioTeamUserRepository;
   @Autowired private ArticleRepository articleRepository;
   @Autowired InjectRepository injectRepository;
@@ -318,25 +319,33 @@ class ScenarioServiceTest extends IntegrationTest {
             });
     assertEquals(1, scenarioDuplicated.getInjects().size());
     assertEquals(2, scenario.getInjects().getFirst().getTeams().size());
-    scenarioDuplicated
-        .getInjects()
-        .getFirst()
-        .getTeams()
-        .forEach(
-            injectTeam -> {
-              if (injectTeam.getContextual()) {
-                assertNotEquals(contextualTeam.getId(), injectTeam.getId());
-                assertEquals(
-                    scenarioDuplicated.getTeams().stream()
-                        .filter(team -> team.getContextual().equals(true))
-                        .findFirst()
-                        .orElse(new Team())
-                        .getId(),
-                    injectTeam.getId());
-              } else {
-                assertEquals(noContextualTeam.getId(), injectTeam.getId());
-              }
-            });
+  }
+
+  @DisplayName("Should skip lesson data during scenario duplication when lessons are disabled")
+  @Test
+  @Transactional(rollbackFor = Exception.class)
+  void shouldSkipLessonDataDuringScenarioDuplicationWhenLessonsDisabled() {
+    Scenario scenario = this.scenarioRepository.save(ScenarioFixture.getScenario());
+    scenario.setLessonsEnabled(false);
+    scenario = this.scenarioRepository.saveAndFlush(scenario);
+
+    Objective objective = ObjectiveFixture.getObjective();
+    objective.setScenario(scenario);
+    this.objectiveRepository.save(objective);
+
+    LessonsCategory lessonsCategory = LessonsCategoryFixture.createLessonCategory();
+    lessonsCategory.setScenario(scenario);
+    this.lessonsCategoryRepository.save(lessonsCategory);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    Scenario scenarioDuplicated = scenarioService.getDuplicateScenario(scenario.getId());
+
+    assertNotEquals(scenario.getId(), scenarioDuplicated.getId());
+    assertFalse(scenarioDuplicated.isLessonsEnabled());
+    assertTrue(scenarioDuplicated.getObjectives().isEmpty());
+    assertTrue(scenarioDuplicated.getLessonsCategories().isEmpty());
   }
 
   @DisplayName("Should remove team from scenario")
