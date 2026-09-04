@@ -43,6 +43,9 @@ public class ExerciseFileExport extends FileExportBase {
   private List<Objective> objectives;
 
   public List<Objective> getObjectives() {
+    if (!isLessonsEnabled()) {
+      return null;
+    }
     if (objectives == null) {
       return this.exercise == null
           ? new ArrayList<>()

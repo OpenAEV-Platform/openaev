@@ -26,6 +26,10 @@ public class ScenarioFileExport {
   @JsonProperty("scenario_objectives")
   private List<Objective> objectives = new ArrayList<>();
 
+  public List<Objective> getObjectives() {
+    return isLessonsEnabled() ? objectives : null;
+  }
+
   @JsonProperty("scenario_users")
   private List<User> users = new ArrayList<>();
 
