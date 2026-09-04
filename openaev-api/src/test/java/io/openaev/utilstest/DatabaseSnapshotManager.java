@@ -6,6 +6,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -17,7 +18,7 @@ import org.springframework.stereotype.Component;
 public class DatabaseSnapshotManager {
 
   private final JdbcTemplate jdbcTemplate;
-  private final ElasticsearchClient esClient;
+  private final ObjectProvider<ElasticsearchClient> esClientProvider;
   private final EngineConfig config;
 
   private static final Map<String, List<Map<String, Object>>> startupData = new HashMap<>();
@@ -102,6 +103,7 @@ public class DatabaseSnapshotManager {
 
   /** Delete ES indices */
   private void cleanElasticsearchIndices() {
+    ElasticsearchClient esClient = esClientProvider.getIfAvailable();
     if (esClient == null) {
       return;
     }

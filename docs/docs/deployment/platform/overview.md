@@ -54,12 +54,15 @@ if an inject (execution, emails, etc.) has been detected or prevented and fill t
 | Component     | Recommended version             | CPU     | RAM     | Disk type | Disk space |
 |:--------------|:--------------------------------|:--------|:--------|:----------|:-----------|
 | PostgreSQL    | ≥ 17.0                          | 2 cores | ≥ 8GB   | SSD       | ≥ 16GB     |
-| ElasticSearch | ≥ 8.19                          | 2 cores | ≥ 8GB   | SSD       | ≥ 16GB     |
+| ElasticSearch | ≥ 9.0                           | 2 cores | ≥ 8GB   | SSD       | ≥ 16GB     |
 | RabbitMQ      | >= 4.1                          | 1 core  | ≥ 512MB | Standard  | ≥ 2GB      |
 | S3 / MinIO    | ≥ RELEASE.2025-06-13T11-33-47Z  | 1 core  | ≥ 128MB | SSD       | ≥ 16GB     |
 
 Please note that while the versions of these dependencies are the recommended ones, OpenAEV may still function with
 earlier versions. However, we will not provide support for versions prior to the recommended ones.
+
+Elasticsearch is the exception: the platform's client rejects 8.x servers outright, so 9.0 is a hard
+minimum. See [this migration guide](../breaking-changes/MigrationVersion-elasticsearch-9.md).
 
 ### Platform
 
