@@ -442,11 +442,11 @@ class CustomDashboardWidgetApiTest extends IntegrationTest {
     }
 
     /**
-     * Seeds a widget (with its own custom dashboard) via composers under the given tenant's
-     * context instead of through the create endpoints: creating through the API sets the tenant
-     * scope (TxCtx) on this test's wrapping transaction, which conflicts with a subsequent call
-     * scoped to a different tenant within the same test (see TenantScopeTransactionAspect).
-     * Composer persistence goes straight to the repository, bypassing any controller/TxCtx.
+     * Seeds a widget (with its own custom dashboard) via composers under the given tenant's context
+     * instead of through the create endpoints: creating through the API sets the tenant scope
+     * (TxCtx) on this test's wrapping transaction, which conflicts with a subsequent call scoped to
+     * a different tenant within the same test (see TenantScopeTransactionAspect). Composer
+     * persistence goes straight to the repository, bypassing any controller/TxCtx.
      */
     private Widget seedWidgetInTenant(Tenant tenant) {
       tenantIsolationHelper.switchToTenant(tenant.getId(), entityManager);
