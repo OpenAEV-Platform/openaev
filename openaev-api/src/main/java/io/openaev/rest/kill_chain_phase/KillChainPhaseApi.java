@@ -70,7 +70,7 @@ public class KillChainPhaseApi extends RestBehavior {
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.KILL_CHAIN_PHASE)
-  public KillChainPhase killChainPhase(@PathVariable String killChainPhaseId) {
+  public KillChainPhase killChainPhase(TxCtx ctx, @PathVariable String killChainPhaseId) {
     return killChainPhaseRepository
         .findById(killChainPhaseId)
         .orElseThrow(ElementNotFoundException::new);
@@ -83,7 +83,9 @@ public class KillChainPhaseApi extends RestBehavior {
       resourceType = ResourceType.KILL_CHAIN_PHASE)
   @Transactional(rollbackFor = Exception.class)
   public KillChainPhase updateKillChainPhase(
-      @PathVariable String killChainPhaseId, @Valid @RequestBody KillChainPhaseUpdateInput input) {
+      TxCtx ctx,
+      @PathVariable String killChainPhaseId,
+      @Valid @RequestBody KillChainPhaseUpdateInput input) {
     KillChainPhase killchainPhase =
         killChainPhaseRepository
             .findById(killChainPhaseId)
@@ -147,7 +149,7 @@ public class KillChainPhaseApi extends RestBehavior {
       resourceId = "#killChainPhaseId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.KILL_CHAIN_PHASE)
-  public void deleteKillChainPhase(@PathVariable String killChainPhaseId) {
+  public void deleteKillChainPhase(TxCtx ctx, @PathVariable String killChainPhaseId) {
     killChainPhaseRepository.deleteById(killChainPhaseId);
   }
 

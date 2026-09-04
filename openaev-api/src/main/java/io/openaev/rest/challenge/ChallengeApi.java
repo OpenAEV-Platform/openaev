@@ -71,7 +71,7 @@ public class ChallengeApi extends RestBehavior {
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
   public Challenge updateChallenge(
-      @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input)
+      TxCtx ctx, @PathVariable String challengeId, @Valid @RequestBody ChallengeInput input)
       throws InputValidationException {
     challengeService.validateFlags(input.flags());
     Challenge challenge =
@@ -131,7 +131,7 @@ public class ChallengeApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteChallenge(@PathVariable String challengeId) {
+  public void deleteChallenge(TxCtx ctx, @PathVariable String challengeId) {
     Challenge challenge =
         challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
     challengeRepository.delete(challenge);
@@ -168,7 +168,7 @@ public class ChallengeApi extends RestBehavior {
             responseCode = "200",
             description = "The list of Documents used in the Challenge")
       })
-  public List<RawDocument> documentsFromChallenge(@PathVariable String challengeId) {
+  public List<RawDocument> documentsFromChallenge(TxCtx ctx, @PathVariable String challengeId) {
     return documentService.documentsForChallenge(challengeId);
   }
 }

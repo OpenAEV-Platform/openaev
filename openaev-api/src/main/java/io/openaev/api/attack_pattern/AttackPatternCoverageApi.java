@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.attack_pattern.dto.AttackPatternCoverageOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
@@ -39,7 +40,7 @@ public class AttackPatternCoverageApi {
       description =
           "Tenant-wide ATT&CK matrix aggregating prevention and detection results across simulations (Elasticsearch, identical to the home security-coverage matrix)")
   public List<AttackPatternCoverageOutput> attackPatternsCoverage(
-      @RequestParam(required = false) final Integer latest) {
+      TxCtx ctx, @RequestParam(required = false) final Integer latest) {
     if (latest != null && latest < 1) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "The 'latest' parameter must be a positive integer");

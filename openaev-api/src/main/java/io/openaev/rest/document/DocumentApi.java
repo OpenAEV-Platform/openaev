@@ -197,7 +197,7 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
-  public Document document(@PathVariable String documentId) {
+  public Document document(TxCtx ctx, @PathVariable String documentId) {
     return documentRepository
         .findById(documentId)
         .orElseThrow(() -> new ElementNotFoundException("Document not found"));
@@ -209,7 +209,7 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
-  public Set<Tag> documentTags(@PathVariable String documentId) {
+  public Set<Tag> documentTags(TxCtx ctx, @PathVariable String documentId) {
     Document document =
         documentRepository
             .findById(documentId)
@@ -224,7 +224,7 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DOCUMENT)
   public Document documentTags(
-      @PathVariable String documentId, @RequestBody DocumentTagUpdateInput input) {
+      TxCtx ctx, @PathVariable String documentId, @RequestBody DocumentTagUpdateInput input) {
     // Report generation outputs are read-only here (owned by the Reporting module).
     documentService.assertNotReportingGenerationOutput(documentId);
     Document document =
@@ -242,7 +242,7 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DOCUMENT)
   public Document updateDocumentInformation(
-      @PathVariable String documentId, @Valid @RequestBody DocumentUpdateInput input) {
+      TxCtx ctx, @PathVariable String documentId, @Valid @RequestBody DocumentUpdateInput input) {
     // Report generation outputs are read-only here (owned by the Reporting module).
     documentService.assertNotReportingGenerationOutput(documentId);
     Document document =
@@ -306,7 +306,8 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
-  public ResponseEntity<InputStreamResource> downloadDocument(@PathVariable String documentId) {
+  public ResponseEntity<InputStreamResource> downloadDocument(
+      TxCtx ctx, @PathVariable String documentId) {
     Document document = documentService.document(documentId);
 
     String encodedFilename = DocumentService.encodeFileName(document.getName());
@@ -342,15 +343,15 @@ public class DocumentApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public ResponseEntity<InputStreamResource> getSecurityPlatformImageFromId(
-      @PathVariable String assetId, @PathVariable String theme) {
+      TxCtx ctx, @PathVariable String assetId, @PathVariable String theme) {
     SecurityPlatform securityPlatform =
         this.securityPlatformRepository
             .findById(assetId)
             .orElseThrow(() -> new ElementNotFoundException("Security platform not found"));
     if (theme.equals("dark") && securityPlatform.getLogoDark() != null) {
-      return downloadDocument(securityPlatform.getLogoDark().getId());
+      return downloadDocument(ctx, securityPlatform.getLogoDark().getId());
     } else if (securityPlatform.getLogoLight() != null) {
-      return downloadDocument(securityPlatform.getLogoLight().getId());
+      return downloadDocument(ctx, securityPlatform.getLogoLight().getId());
     } else {
       return downloadCollectorImage("openaev_fake_detector");
     }
@@ -373,13 +374,13 @@ public class DocumentApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Channel not found")
       })
   public ResponseEntity<InputStreamResource> getChannelImageFromId(
-      @PathVariable String channelId, @PathVariable String theme) {
+      TxCtx ctx, @PathVariable String channelId, @PathVariable String theme) {
     Channel channel = channelService.channel(channelId);
 
     if (theme.equals("dark") && channel.getLogoDark() != null) {
-      return downloadDocument(channel.getLogoDark().getId());
+      return downloadDocument(ctx, channel.getLogoDark().getId());
     } else if (channel.getLogoLight() != null) {
-      return downloadDocument(channel.getLogoLight().getId());
+      return downloadDocument(ctx, channel.getLogoLight().getId());
     } else {
       return downloadCollectorImage("openaev_fake_detector");
     }
@@ -394,7 +395,7 @@ public class DocumentApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<InputStreamResource> getExecutorIconImage(
-      @PathVariable String executorId) {
+      TxCtx ctx, @PathVariable String executorId) {
     return this.fileService.getConnectorImage(ConnectorType.EXECUTOR, executorId);
   }
 
@@ -407,7 +408,7 @@ public class DocumentApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public @ResponseBody ResponseEntity<InputStreamResource> getExecutorBannerImage(
-      @PathVariable String executorId) {
+      TxCtx ctx, @PathVariable String executorId) {
     return fileService
         .getExecutorBannerImage(executorId)
         .map(
@@ -441,7 +442,7 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
-  public DocumentRelationsOutput getDocumentRelations(@PathVariable String documentId) {
+  public DocumentRelationsOutput getDocumentRelations(TxCtx ctx, @PathVariable String documentId) {
     return toDocumentRelationsOutput(documentService.document(documentId));
   }
 
@@ -451,7 +452,7 @@ public class DocumentApi extends RestBehavior {
       resourceId = "#documentId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
-  public void deleteDocument(@PathVariable String documentId) {
+  public void deleteDocument(TxCtx ctx, @PathVariable String documentId) {
     documentService.deleteDocument(documentId);
   }
 
@@ -497,6 +498,7 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(userId = "#userId")
   public ResponseEntity<InputStreamResource> downloadPlayerDocument(
+      TxCtx ctx,
       @PathVariable String exerciseOrScenarioId,
       @PathVariable String documentId,
       @RequestParam Optional<String> userId)

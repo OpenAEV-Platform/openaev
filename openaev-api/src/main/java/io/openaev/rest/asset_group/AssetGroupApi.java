@@ -95,6 +95,7 @@ public class AssetGroupApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET_GROUP)
   public Page<AssetOutput> assetsFromAssetGroup(
+      TxCtx ctx,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput,
       @PathVariable @NotBlank final String assetGroupId) {
 
@@ -147,6 +148,7 @@ public class AssetGroupApi extends RestBehavior {
       resourceType = ResourceType.ASSET_GROUP)
   @Transactional(readOnly = true)
   public Page<InjectResultOutput> searchInjectsForAssetGroup(
+      TxCtx ctx,
       @PathVariable @NotBlank final String assetGroupId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return injectSearchService.getPageOfInjectResultsForAssetGroup(
@@ -167,7 +169,7 @@ public class AssetGroupApi extends RestBehavior {
       resourceId = "#assetGroupId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET_GROUP)
-  public AssetGroup assetGroup(@PathVariable @NotBlank final String assetGroupId) {
+  public AssetGroup assetGroup(TxCtx ctx, @PathVariable @NotBlank final String assetGroupId) {
     return this.assetGroupService.assetGroup(assetGroupId);
   }
 
@@ -178,6 +180,7 @@ public class AssetGroupApi extends RestBehavior {
       resourceType = ResourceType.ASSET_GROUP)
   @Transactional(rollbackFor = Exception.class)
   public AssetGroup updateAssetGroup(
+      TxCtx ctx,
       @PathVariable @NotBlank final String assetGroupId,
       @Valid @RequestBody final AssetGroupInput input) {
     AssetGroup assetGroup = this.assetGroupService.assetGroup(assetGroupId);
@@ -196,6 +199,7 @@ public class AssetGroupApi extends RestBehavior {
       resourceType = ResourceType.ASSET_GROUP)
   @Transactional(rollbackFor = Exception.class)
   public AssetGroup updateAssetsOnAssetGroup(
+      TxCtx ctx,
       @PathVariable @NotBlank final String assetGroupId,
       @Valid @RequestBody final UpdateAssetsOnAssetGroupInput input) {
     AssetGroup assetGroup = this.assetGroupService.assetGroup(assetGroupId);
@@ -208,7 +212,7 @@ public class AssetGroupApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ASSET_GROUP)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteAssetGroup(@PathVariable @NotBlank final String assetGroupId) {
+  public void deleteAssetGroup(TxCtx ctx, @PathVariable @NotBlank final String assetGroupId) {
     try {
       assetGroupService.assetGroup(assetGroupId);
     } catch (IllegalArgumentException ex) {

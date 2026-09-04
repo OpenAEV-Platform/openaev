@@ -82,6 +82,7 @@ public class TagApi extends RestBehavior {
       resourceType = ResourceType.TAG)
   @Transactional(rollbackFor = Exception.class)
   public Tag updateTag(
+      TxCtx ctx,
       @PathVariable @Schema(description = "ID of the tag") String tagId,
       @Valid @RequestBody TagUpdateInput input) {
     return tagService.updateTag(tagId, input);
@@ -96,7 +97,8 @@ public class TagApi extends RestBehavior {
       resourceId = "#tagId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.TAG)
-  public void deleteTag(@PathVariable @Schema(description = "ID of the tag") String tagId) {
+  public void deleteTag(
+      TxCtx ctx, @PathVariable @Schema(description = "ID of the tag") String tagId) {
     tagService.deleteTag(tagId);
   }
 

@@ -74,7 +74,7 @@ public class OrganizationApi extends RestBehavior {
       resourceId = "#organizationId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ORGANIZATION)
-  public Organization organization(@PathVariable String organizationId) {
+  public Organization organization(TxCtx ctx, @PathVariable String organizationId) {
     return organizationRepository
         .findById(organizationId)
         .orElseThrow(ElementNotFoundException::new);
@@ -97,6 +97,7 @@ public class OrganizationApi extends RestBehavior {
       resourceType = ResourceType.ORGANIZATION)
   @Transactional(readOnly = true)
   public Page<InjectResultOutput> searchInjectsForOrganization(
+      TxCtx ctx,
       @PathVariable @NotBlank final String organizationId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return injectSearchService.getPageOfInjectResultsForOrganization(
@@ -124,7 +125,9 @@ public class OrganizationApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.ORGANIZATION)
   public Organization updateOrganization(
-      @PathVariable String organizationId, @Valid @RequestBody OrganizationUpdateInput input) {
+      TxCtx ctx,
+      @PathVariable String organizationId,
+      @Valid @RequestBody OrganizationUpdateInput input) {
     Organization organization =
         organizationRepository.findById(organizationId).orElseThrow(ElementNotFoundException::new);
     organization.setUpdateAttributes(input);
@@ -142,7 +145,7 @@ public class OrganizationApi extends RestBehavior {
       resourceId = "#organizationId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ORGANIZATION)
-  public void deleteOrganization(@PathVariable String organizationId) {
+  public void deleteOrganization(TxCtx ctx, @PathVariable String organizationId) {
     organizationRepository.deleteById(organizationId);
   }
 

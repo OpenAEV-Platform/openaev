@@ -217,7 +217,7 @@ public class AtomicTestingService {
               return injectRepository.findAll(specification).stream().map(Inject::getId).toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
-        ctx, "atomic testings", injectIdsToDelete, injectService::deleteAllByIds);
+        ctx, "atomic testings", injectIdsToDelete, ids -> injectService.deleteAllByIds(ctx, ids));
   }
 
   // -- ACTIONS --

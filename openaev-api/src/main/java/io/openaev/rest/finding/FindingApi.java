@@ -34,7 +34,7 @@ public class FindingApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.READ,
       resourceType = ResourceType.FINDING)
-  public ResponseEntity<Finding> finding(@PathVariable @NotNull final String id) {
+  public ResponseEntity<Finding> finding(TxCtx ctx, @PathVariable @NotNull final String id) {
     return ResponseEntity.ok(this.findingService.finding(id));
   }
 
@@ -45,7 +45,7 @@ public class FindingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.FINDING)
   public ResponseEntity<FindingSummaryOutput> findingSummary(
-      @PathVariable @NotNull final String id) {
+      TxCtx ctx, @PathVariable @NotNull final String id) {
     return ResponseEntity.ok(this.findingService.findingSummary(id));
   }
 
@@ -65,6 +65,7 @@ public class FindingApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.FINDING)
   public ResponseEntity<Finding> updateFinding(
+      TxCtx ctx,
       @PathVariable @NotNull final String id,
       @RequestBody @Valid @NotNull final FindingInput input) {
     Finding existingFinding = this.findingService.finding(id);
@@ -79,7 +80,7 @@ public class FindingApi extends RestBehavior {
       resourceId = "#id",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.FINDING)
-  public ResponseEntity<Void> deleteFinding(@PathVariable @NotNull final String id) {
+  public ResponseEntity<Void> deleteFinding(TxCtx ctx, @PathVariable @NotNull final String id) {
     this.findingService.deleteFinding(id);
     return ResponseEntity.noContent().build();
   }

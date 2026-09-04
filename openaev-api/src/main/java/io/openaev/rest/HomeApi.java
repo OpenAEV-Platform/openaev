@@ -3,6 +3,7 @@ package io.openaev.rest;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -55,7 +56,7 @@ public class HomeApi {
       produces = MediaType.TEXT_HTML_VALUE)
   @Transactional
   @AccessControl(skipRBAC = true) // No RBAC check for home endpoint
-  public ResponseEntity<String> home() {
+  public ResponseEntity<String> home(TxCtx ctx) {
     ClassPathResource classPathResource = new ClassPathResource("/build/index.html");
     if (!classPathResource.exists()) {
       // Local development: the SPA bundle is not on the classpath because the frontend is served by

@@ -64,7 +64,7 @@ public class CustomDomainApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.TENANT_SETTING)
   @Operation(summary = "Get the DNS records to publish for a custom domain")
-  public CustomDomainInstructions instructions(@PathVariable String id) {
+  public CustomDomainInstructions instructions(TxCtx ctx, @PathVariable String id) {
     return customDomainService.instructions(id);
   }
 

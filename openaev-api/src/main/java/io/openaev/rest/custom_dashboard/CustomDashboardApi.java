@@ -72,7 +72,7 @@ public class CustomDashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<CustomDashboard> customDashboard(
-      @PathVariable @NotBlank final String customDashboardId) {
+      TxCtx ctx, @PathVariable @NotBlank final String customDashboardId) {
     return ResponseEntity.ok(this.customDashboardService.customDashboard(customDashboardId));
   }
 
@@ -83,6 +83,7 @@ public class CustomDashboardApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<CustomDashboard> updateCustomDashboard(
+      TxCtx ctx,
       @PathVariable @NotBlank final String customDashboardId,
       @RequestBody @Valid @NotNull final CustomDashboardInput input) {
     CustomDashboard existingCustomDashboard =
@@ -99,7 +100,7 @@ public class CustomDashboardApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DASHBOARD)
   public ResponseEntity<Void> deleteCustomDashboard(
-      @PathVariable @NotBlank final String customDashboardId) {
+      TxCtx ctx, @PathVariable @NotBlank final String customDashboardId) {
     String tenantId = TenantContext.getCurrentTenant();
     this.customDashboardService.deleteCustomDashboard(tenantId, customDashboardId);
     return ResponseEntity.noContent().build();
@@ -132,7 +133,7 @@ public class CustomDashboardApi extends RestBehavior {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "Dashboard used in the resource")})
   public List<FilterUtilsJpa.Option> optionsByResourceId(
-      @PathVariable @NotBlank final String resourceId) {
+      TxCtx ctx, @PathVariable @NotBlank final String resourceId) {
     return this.customDashboardService.findAllByResourceIdAsOptions(resourceId);
   }
 }

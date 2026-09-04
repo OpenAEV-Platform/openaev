@@ -2,6 +2,7 @@ package io.openaev.injectors.phishing.api;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
 import io.openaev.injectors.phishing.form.PhishingSubmitInput;
@@ -49,7 +50,10 @@ public class PhishingPublicApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public ResponseEntity<byte[]> open(
-      @PathVariable String tenantId, @PathVariable String token, HttpServletRequest request) {
+      TxCtx ctx,
+      @PathVariable String tenantId,
+      @PathVariable String token,
+      HttpServletRequest request) {
     TenantContext.setCurrentTenant(tenantId);
     phishingTrackingService.markOpened(token, clientIp(request), request.getHeader("User-Agent"));
     return ResponseEntity.ok()
@@ -62,7 +66,10 @@ public class PhishingPublicApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public ResponseEntity<Void> click(
-      @PathVariable String tenantId, @PathVariable String token, HttpServletRequest request) {
+      TxCtx ctx,
+      @PathVariable String tenantId,
+      @PathVariable String token,
+      HttpServletRequest request) {
     TenantContext.setCurrentTenant(tenantId);
     phishingTrackingService.markClicked(token, clientIp(request), request.getHeader("User-Agent"));
     // Hand off to the themed public SPA renderer, which fetches the page content and posts creds.
@@ -75,7 +82,10 @@ public class PhishingPublicApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public PhishingLandingPageReader page(
-      @PathVariable String tenantId, @PathVariable String token, HttpServletRequest request) {
+      TxCtx ctx,
+      @PathVariable String tenantId,
+      @PathVariable String token,
+      HttpServletRequest request) {
     TenantContext.setCurrentTenant(tenantId);
     PhishingResult result = phishingTrackingService.resolveAndBackfillByToken(token).orElse(null);
     if (result == null || result.getLandingPage() == null) {
@@ -91,6 +101,7 @@ public class PhishingPublicApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public Map<String, String> submit(
+      TxCtx ctx,
       @PathVariable String tenantId,
       @PathVariable String token,
       @RequestBody PhishingSubmitInput input,

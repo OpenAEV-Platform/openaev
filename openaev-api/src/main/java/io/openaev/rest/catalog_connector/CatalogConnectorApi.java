@@ -87,7 +87,7 @@ public class CatalogConnectorApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.CATALOG)
   public Set<CatalogConnectorConfiguration> getCatalogConnectorConfigurations(
-      @PathVariable String catalogConnectorId) {
+      TxCtx ctx, @PathVariable String catalogConnectorId) {
     return catalogConnectorService.getCatalogConnectorConfigurations(catalogConnectorId);
   }
 }

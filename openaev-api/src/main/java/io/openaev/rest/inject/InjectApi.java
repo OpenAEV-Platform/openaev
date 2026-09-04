@@ -137,7 +137,7 @@ public class InjectApi extends RestBehavior {
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public Inject inject(@PathVariable @NotBlank final String injectId) {
+  public Inject inject(TxCtx ctx, @PathVariable @NotBlank final String injectId) {
     return this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
   }
 
@@ -153,7 +153,7 @@ public class InjectApi extends RestBehavior {
 
     // Control and format inputs
     List<Inject> injects =
-        getInjectsAndCheckInputForBulkProcessing(input, Grant.GRANT_TYPE.OBSERVER);
+        getInjectsAndCheckInputForBulkProcessing(ctx, input, Grant.GRANT_TYPE.OBSERVER);
 
     if (injects.isEmpty()) {
       throw new ElementNotFoundException("No injects to export");
@@ -220,6 +220,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public void injectsIndividualExport(
+      TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @RequestBody @Valid
           final InjectIndividualExportRequestInput injectIndividualExportRequestInput,
@@ -322,6 +323,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> targetOptions(
+      TxCtx ctx,
       @PathVariable String injectId,
       @PathVariable String targetType,
       @RequestParam(required = false) final String searchText) {
@@ -362,7 +364,7 @@ public class InjectApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public List<FilterUtilsJpa.Option> targetOptionsById(
-      @PathVariable String targetType, @RequestBody final List<String> ids) {
+      TxCtx ctx, @PathVariable String targetType, @RequestBody final List<String> ids) {
     TargetType injectTargetTypeEnum;
 
     try {
@@ -383,7 +385,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject injectExecutionReception(
-      @PathVariable String injectId, @Valid @RequestBody InjectReceptionInput input) {
+      TxCtx ctx, @PathVariable String injectId, @Valid @RequestBody InjectReceptionInput input) {
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
     injectStatus.setName(ExecutionStatus.PENDING);
@@ -479,7 +481,9 @@ public class InjectApi extends RestBehavior {
           "This endpoint is invoked by implants to retrieve a payload command that's pre-configured and ready for execution.")
   @Transactional
   public Payload getExecutablePayloadInject(
-      @PathVariable @NotBlank final String injectId, @PathVariable @NotBlank final String agentId)
+      TxCtx ctx,
+      @PathVariable @NotBlank final String injectId,
+      @PathVariable @NotBlank final String agentId)
       throws Exception {
     return executableInjectService.getExecutablePayloadAndUpdateInjectStatus(injectId, agentId);
   }
@@ -590,7 +594,7 @@ public class InjectApi extends RestBehavior {
    * @throws BadRequestException If the input is not correctly formatted
    */
   private List<Inject> getInjectsAndCheckInputForBulkProcessing(
-      InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
+      TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     if ((CollectionUtils.isEmpty(input.getInjectIDsToProcess())
             && (input.getSearchPaginationInput() == null))
@@ -602,7 +606,7 @@ public class InjectApi extends RestBehavior {
 
     // Retrieve injects that match the search input and check that the user is allowed to bulk
     // process them
-    return this.injectService.getInjectsAndCheckPermission(input, requested_grant_level);
+    return this.injectService.getInjectsAndCheckPermission(ctx, input, requested_grant_level);
   }
 
   // -- Execution Traces
@@ -617,6 +621,7 @@ public class InjectApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @LogExecutionTime
   public List<ExecutionTraceOutput> getInjectTracesFromInjectAndTarget(
+      TxCtx ctx,
       @RequestParam String injectId,
       @RequestParam String targetId,
       @RequestParam TargetType targetType) {
@@ -633,7 +638,7 @@ public class InjectApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @LogExecutionTime
   public InjectStatusOutput getInjectStatusWithGlobalExecutionTraces(
-      @RequestParam String injectId) {
+      TxCtx ctx, @RequestParam String injectId) {
     return this.injectService.getInjectStatusWithGlobalExecutionTraces(injectId);
   }
 
@@ -648,7 +653,8 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   @LogExecutionTime
-  public InjectStatusOutput getInjectStatusWithAllExecutionTraces(@RequestParam String injectId) {
+  public InjectStatusOutput getInjectStatusWithAllExecutionTraces(
+      TxCtx ctx, @RequestParam String injectId) {
     return this.injectService.getInjectStatusWithAllExecutionTraces(injectId);
   }
 
@@ -663,7 +669,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<DetectionRemediationOutput> getPayloadDetectionRemediations(
-      @PathVariable String injectId) {
+      TxCtx ctx, @PathVariable String injectId) {
     return payloadMapper.toDetectionRemediationOutputs(
         injectService.fetchDetectionRemediationsByInjectId(injectId));
   }
@@ -679,7 +685,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public List<RawDocument> getPayloadDocumentsByInjectIdAndPayloadId(
-      @PathVariable String injectId, @PathVariable String payloadId) {
+      TxCtx ctx, @PathVariable String injectId, @PathVariable String payloadId) {
     Payload payload = injectService.getPayloadByInjectId(injectId);
 
     if (!payloadId.equals(payload.getId())) {

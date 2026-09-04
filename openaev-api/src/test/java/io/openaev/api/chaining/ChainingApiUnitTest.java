@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Workflow;
@@ -57,14 +58,16 @@ class ChainingApiUnitTest {
       when(workflowService.duplicateSimulation(simulationId, simulation))
           .thenReturn(duplicatedWorkflow);
 
-      chainingApi.duplicateExercise(simulationId);
+      chainingApi.duplicateExercise(TxCtx.missing(), simulationId);
 
       verify(stepService).copyStepTemplate(sourceWorkflow, duplicatedWorkflow);
     }
 
     @Test
     void shouldThrowWhenWorkflowTemplateMissing() throws ChainingException {
-      assertThrows(ChainingException.class, () -> chainingApi.duplicateExercise("simulation-id"));
+      assertThrows(
+          ChainingException.class,
+          () -> chainingApi.duplicateExercise(TxCtx.missing(), "simulation-id"));
 
       verify(exerciseService).getDuplicateExercise("simulation-id");
       verify(workflowService).findWorkflowTemplateBySimulationId("simulation-id");
@@ -78,7 +81,9 @@ class ChainingApiUnitTest {
       simulation.setId("simulation-dup-id");
       when(exerciseService.getDuplicateExercise(simulationId)).thenReturn(simulation);
 
-      assertThrows(ChainingException.class, () -> chainingApi.duplicateExercise(simulationId));
+      assertThrows(
+          ChainingException.class,
+          () -> chainingApi.duplicateExercise(TxCtx.missing(), simulationId));
 
       verify(workflowService, never()).duplicateSimulation(anyString(), any(Exercise.class));
       verify(stepService, never()).copyStepTemplate(any(Workflow.class), any(Workflow.class));
@@ -101,7 +106,7 @@ class ChainingApiUnitTest {
           .thenReturn(Optional.of(sourceWorkflow));
       when(workflowService.duplicateScenario(scenarioId, scenario)).thenReturn(duplicatedWorkflow);
 
-      chainingApi.duplicateScenarioChaining(scenarioId);
+      chainingApi.duplicateScenarioChaining(TxCtx.missing(), scenarioId);
 
       verify(stepService).copyStepTemplate(sourceWorkflow, duplicatedWorkflow);
     }
@@ -110,7 +115,8 @@ class ChainingApiUnitTest {
     void shouldThrowWhenWorkflowTemplateMissing() throws ChainingException {
 
       assertThrows(
-          ChainingException.class, () -> chainingApi.duplicateScenarioChaining("scenario-id"));
+          ChainingException.class,
+          () -> chainingApi.duplicateScenarioChaining(TxCtx.missing(), "scenario-id"));
 
       verify(scenarioService).getDuplicateScenario("scenario-id");
       verify(workflowService).findWorkflowTemplateByScenarioId("scenario-id");
@@ -126,7 +132,8 @@ class ChainingApiUnitTest {
           .thenReturn(Optional.empty());
 
       assertThrows(
-          ChainingException.class, () -> chainingApi.duplicateScenarioChaining(scenarioId));
+          ChainingException.class,
+          () -> chainingApi.duplicateScenarioChaining(TxCtx.missing(), scenarioId));
 
       verify(workflowService, never()).duplicateScenario(anyString(), any(Scenario.class));
       verify(stepService, never()).copyStepTemplate(any(Workflow.class), any(Workflow.class));

@@ -91,6 +91,7 @@ public class PlayerApi extends RestBehavior {
       resourceType = ResourceType.PLAYER)
   @Transactional(readOnly = true)
   public Page<InjectResultOutput> searchInjectsForPlayer(
+      TxCtx ctx,
       @PathVariable @NotBlank final String userId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return injectSearchService.getPageOfInjectResultsForPlayer(userId, searchPaginationInput);
@@ -116,7 +117,8 @@ public class PlayerApi extends RestBehavior {
       resourceId = "#userId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLAYER)
-  public User updatePlayer(@PathVariable String userId, @Valid @RequestBody PlayerInput input) {
+  public User updatePlayer(
+      TxCtx ctx, @PathVariable String userId, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
     ReservedKeyValidator.validateUserEmailPattern(user.getEmail());
@@ -145,7 +147,7 @@ public class PlayerApi extends RestBehavior {
       resourceId = "#userId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PLAYER)
-  public void deletePlayer(@PathVariable String userId) {
+  public void deletePlayer(TxCtx ctx, @PathVariable String userId) {
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
     // Mirror the bulk deletion guards: platform administrator accounts and the
     // current user can never be removed through the players API.

@@ -66,7 +66,7 @@ public class TenantUserApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.USER)
   @GetMapping("/{userId}")
-  public UserOutput findById(@PathVariable String userId) {
+  public UserOutput findById(TxCtx ctx, @PathVariable String userId) {
     return tenantUserService.user(userId);
   }
 

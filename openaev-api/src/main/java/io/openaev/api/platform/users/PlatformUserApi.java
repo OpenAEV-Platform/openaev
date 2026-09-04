@@ -53,7 +53,7 @@ public class PlatformUserApi {
       resourceType = ResourceType.PLATFORM_USER,
       isEnterpriseEdition = true)
   @GetMapping("/{userId}")
-  public UserOutput findById(@PathVariable String userId) {
+  public UserOutput findById(TxCtx ctx, @PathVariable String userId) {
     return toPlatformOutput(userService.user(userId));
   }
 

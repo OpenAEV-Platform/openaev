@@ -11,6 +11,7 @@ import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.repository.TagRepository;
@@ -76,7 +77,7 @@ public class ChainingApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION_OR_SCENARIO,
       isEnterpriseEdition = true)
   @GetMapping
-  public ChainingOutput findAll() {
+  public ChainingOutput findAll(TxCtx ctx) {
     List<EventOutput> conditions =
         conditionService.findAll().stream().map(ConditionMapper::toOutput).toList();
 
@@ -93,7 +94,7 @@ public class ChainingApi extends RestBehavior {
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.SIMULATION,
       isEnterpriseEdition = true)
-  public Exercise createSimulation(@Valid @RequestBody CreateExerciseInput input)
+  public Exercise createSimulation(TxCtx ctx, @Valid @RequestBody CreateExerciseInput input)
       throws ChainingException {
 
     if (input == null)
@@ -129,7 +130,7 @@ public class ChainingApi extends RestBehavior {
       isEnterpriseEdition = true)
   @Transactional(rollbackFor = Exception.class)
   public void createInjectForSimulationChaining(
-      @PathVariable String simulationId, @Valid @RequestBody InjectInput input)
+      TxCtx ctx, @PathVariable String simulationId, @Valid @RequestBody InjectInput input)
       throws ChainingException {
 
     if (workflowService.isSimulationChaining(simulationId)) {
@@ -159,7 +160,7 @@ public class ChainingApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION,
       isEnterpriseEdition = true)
   @Transactional(rollbackFor = Exception.class)
-  public Exercise duplicateExercise(@PathVariable @NotBlank final String simulationId)
+  public Exercise duplicateExercise(TxCtx ctx, @PathVariable @NotBlank final String simulationId)
       throws ChainingException {
 
     Exercise simulation = exerciseService.getDuplicateExercise(simulationId);
@@ -182,7 +183,7 @@ public class ChainingApi extends RestBehavior {
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.SCENARIO,
       isEnterpriseEdition = true)
-  public Scenario createScenarioChaining(@Valid @RequestBody final ScenarioInput input)
+  public Scenario createScenarioChaining(TxCtx ctx, @Valid @RequestBody final ScenarioInput input)
       throws ChainingException {
 
     if (input == null)
@@ -216,7 +217,9 @@ public class ChainingApi extends RestBehavior {
       isEnterpriseEdition = true)
   @Transactional(rollbackFor = Exception.class)
   public void createInjectForScenarioChaining(
-      @PathVariable @NotBlank final String scenarioId, @Valid @RequestBody InjectInput input)
+      TxCtx ctx,
+      @PathVariable @NotBlank final String scenarioId,
+      @Valid @RequestBody InjectInput input)
       throws ChainingException {
 
     if (workflowService.isScenarioChaining(scenarioId)) {
@@ -245,8 +248,8 @@ public class ChainingApi extends RestBehavior {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.SCENARIO,
       isEnterpriseEdition = true)
-  public Scenario duplicateScenarioChaining(@PathVariable @NotBlank final String scenarioId)
-      throws ChainingException {
+  public Scenario duplicateScenarioChaining(
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
 
     Scenario scenario = scenarioService.getDuplicateScenario(scenarioId);
     Optional<Workflow> workflowOpt = workflowService.findWorkflowTemplateByScenarioId(scenarioId);

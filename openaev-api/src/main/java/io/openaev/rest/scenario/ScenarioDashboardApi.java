@@ -4,6 +4,7 @@ import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.ResourceType;
@@ -45,7 +46,8 @@ public class ScenarioDashboardApi {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public ResponseEntity<CustomDashboard> dashboard(@PathVariable final String scenarioId) {
+  public ResponseEntity<CustomDashboard> dashboard(
+      TxCtx ctx, @PathVariable final String scenarioId) {
     return ResponseEntity.ok(
         this.customDashboardService.findCustomDashboardByResourceId(scenarioId));
   }
@@ -60,6 +62,7 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public EsCountInterval dashboardCount(
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
@@ -76,6 +79,7 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public EsAvgs dashboardAverage(
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
@@ -93,6 +97,7 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public List<EsSeries> dashboardSeries(
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
@@ -110,6 +115,7 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public EsEntities dashboardEntities(
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody EntitiesPaginationInput input) {
@@ -126,6 +132,7 @@ public class ScenarioDashboardApi {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public WidgetToEntitiesOutput widgetToEntitiesRuntime(
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @Valid @RequestBody(required = false) WidgetToEntitiesInput input) {
@@ -144,6 +151,7 @@ public class ScenarioDashboardApi {
       resourceType = ResourceType.SCENARIO)
   @Operation(summary = "Search TagRules")
   public List<EsAttackPath> dashboardAttackPaths(
+      TxCtx ctx,
       @PathVariable final String scenarioId,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)

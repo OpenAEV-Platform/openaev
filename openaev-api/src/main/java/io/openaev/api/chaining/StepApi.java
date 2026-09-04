@@ -82,7 +82,7 @@ public class StepApi {
       resourceType = ResourceType.STEP,
       isEnterpriseEdition = true)
   @GetMapping("/{stepId}")
-  public StepOutput findById(@PathVariable String stepId) {
+  public StepOutput findById(TxCtx ctx, @PathVariable String stepId) {
     return toOutput(stepService.findStepTemplateById(stepId));
   }
 
@@ -95,7 +95,8 @@ public class StepApi {
       resourceType = ResourceType.WORKFLOW,
       isEnterpriseEdition = true)
   @GetMapping(params = "workflow_id")
-  public List<StepOutput> findByWorkflowId(@RequestParam("workflow_id") String workflowId) {
+  public List<StepOutput> findByWorkflowId(
+      TxCtx ctx, @RequestParam("workflow_id") String workflowId) {
     return stepService.findAllStepTemplateByWorkflow(workflowId).stream()
         .map(StepMapper::toOutput)
         .toList();

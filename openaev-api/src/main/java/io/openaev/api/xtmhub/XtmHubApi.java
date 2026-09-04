@@ -3,6 +3,7 @@ package io.openaev.api.xtmhub;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
@@ -43,7 +44,7 @@ public class XtmHubApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(readOnly = true)
-  public ResponseEntity<XtmHubRegistrationOutput> getRegistration() {
+  public ResponseEntity<XtmHubRegistrationOutput> getRegistration(TxCtx ctx) {
     return this.xtmHubService
         .getRegistration()
         .map(xtmHubRegistrationMapper::toXtmHubRegistrationOutput)
@@ -61,7 +62,8 @@ public class XtmHubApi extends RestBehavior {
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful registration")})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(rollbackFor = Exception.class)
-  public XtmHubRegistrationOutput register(@Valid @RequestBody XtmHubRegisterInput input) {
+  public XtmHubRegistrationOutput register(
+      TxCtx ctx, @Valid @RequestBody XtmHubRegisterInput input) {
     return xtmHubRegistrationMapper.toXtmHubRegistrationOutput(
         this.xtmHubService.register(input.getToken()));
   }
@@ -76,7 +78,7 @@ public class XtmHubApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(rollbackFor = Exception.class)
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void unregister() {
+  public void unregister(TxCtx ctx) {
     this.xtmHubService.unregister();
   }
 
@@ -95,7 +97,7 @@ public class XtmHubApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(rollbackFor = Exception.class)
-  public ResponseEntity<XtmHubRegistrationOutput> refreshConnectivity() {
+  public ResponseEntity<XtmHubRegistrationOutput> refreshConnectivity(TxCtx ctx) {
     return Optional.ofNullable(this.xtmHubService.refreshConnectivity())
         .map(xtmHubRegistrationMapper::toXtmHubRegistrationOutput)
         .map(ResponseEntity::ok)
@@ -113,7 +115,7 @@ public class XtmHubApi extends RestBehavior {
   })
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.XTM_HUB_REGISTRATION)
   @Transactional(rollbackFor = Exception.class)
-  public void autoRegister(@Valid @RequestBody XtmHubRegisterInput input) {
+  public void autoRegister(TxCtx ctx, @Valid @RequestBody XtmHubRegisterInput input) {
     this.xtmHubService.autoRegister(input.getToken());
   }
 
@@ -125,7 +127,7 @@ public class XtmHubApi extends RestBehavior {
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful contact")})
   @AccessControl(skipRBAC = true)
   @Transactional(rollbackFor = Exception.class)
-  public Boolean contactUs(@Valid @RequestBody XtmHubContactUsInput request) {
+  public Boolean contactUs(TxCtx ctx, @Valid @RequestBody XtmHubContactUsInput request) {
     return this.xtmHubService.contactUs(request.getMessage());
   }
 }

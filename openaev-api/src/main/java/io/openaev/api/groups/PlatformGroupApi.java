@@ -56,7 +56,7 @@ public class PlatformGroupApi extends RestBehavior {
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
   @GetMapping("/{platformGroupId}")
-  public PlatformGroupOutput findById(@PathVariable String platformGroupId) {
+  public PlatformGroupOutput findById(TxCtx ctx, @PathVariable String platformGroupId) {
     return toOutput(platformGroupService.findById(platformGroupId));
   }
 
@@ -80,7 +80,7 @@ public class PlatformGroupApi extends RestBehavior {
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
   @GetMapping("/{platformGroupId}/users")
-  public List<String> findUsers(@PathVariable String platformGroupId) {
+  public List<String> findUsers(TxCtx ctx, @PathVariable String platformGroupId) {
     return platformGroupService.findUserIds(platformGroupId);
   }
 
@@ -92,7 +92,7 @@ public class PlatformGroupApi extends RestBehavior {
       resourceType = ResourceType.PLATFORM_GROUP,
       isEnterpriseEdition = true)
   @GetMapping("/{platformGroupId}/platform-roles")
-  public Set<String> findPlatformRoles(@PathVariable String platformGroupId) {
+  public Set<String> findPlatformRoles(TxCtx ctx, @PathVariable String platformGroupId) {
     return platformGroupService.findRoleIds(platformGroupId);
   }
 

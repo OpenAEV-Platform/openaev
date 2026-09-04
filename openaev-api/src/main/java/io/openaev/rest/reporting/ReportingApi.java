@@ -75,7 +75,8 @@ public class ReportingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.REPORT)
   @Operation(summary = "Get a reporting template by id")
-  public ResponseEntity<Reporting> reporting(@PathVariable @NotBlank final String reportingId) {
+  public ResponseEntity<Reporting> reporting(
+      TxCtx ctx, @PathVariable @NotBlank final String reportingId) {
     return ResponseEntity.ok(this.reportingService.reporting(reportingId));
   }
 
@@ -100,6 +101,7 @@ public class ReportingApi extends RestBehavior {
       resourceType = ResourceType.REPORT)
   @Operation(summary = "Update a reporting template")
   public ResponseEntity<Reporting> updateReporting(
+      TxCtx ctx,
       @PathVariable @NotBlank final String reportingId,
       @RequestBody @Valid @NotNull final ReportingInput input) {
     Reporting existing = this.reportingService.reporting(reportingId);
@@ -115,7 +117,8 @@ public class ReportingApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.REPORT)
   @Operation(summary = "Delete a reporting template")
-  public ResponseEntity<Void> deleteReporting(@PathVariable @NotBlank final String reportingId) {
+  public ResponseEntity<Void> deleteReporting(
+      TxCtx ctx, @PathVariable @NotBlank final String reportingId) {
     this.reportingService.deleteReporting(reportingId);
     return ResponseEntity.noContent().build();
   }
@@ -130,6 +133,7 @@ public class ReportingApi extends RestBehavior {
       resourceType = ResourceType.REPORT)
   @Operation(summary = "Request the generation of a reporting template")
   public ResponseEntity<ReportingGeneration> generateReporting(
+      TxCtx ctx,
       @PathVariable @NotBlank final String reportingId,
       @RequestBody @Valid @NotNull final ReportingGenerateInput input) {
     return ResponseEntity.ok(
@@ -145,7 +149,7 @@ public class ReportingApi extends RestBehavior {
       resourceType = ResourceType.REPORT)
   @Operation(summary = "List the generations of a reporting template")
   public ResponseEntity<List<ReportingGeneration>> reportingGenerations(
-      @PathVariable @NotBlank final String reportingId) {
+      TxCtx ctx, @PathVariable @NotBlank final String reportingId) {
     return ResponseEntity.ok(this.reportingService.generations(reportingId));
   }
 
@@ -196,6 +200,7 @@ public class ReportingApi extends RestBehavior {
       resourceType = ResourceType.REPORT)
   @Operation(summary = "Create a schedule on a reporting template")
   public ResponseEntity<ReportingSchedule> createReportingSchedule(
+      TxCtx ctx,
       @PathVariable @NotBlank final String reportingId,
       @RequestBody @Valid @NotNull final ReportingScheduleInput input) {
     return ResponseEntity.ok(this.reportingService.createSchedule(reportingId, input));
@@ -209,6 +214,7 @@ public class ReportingApi extends RestBehavior {
       resourceType = ResourceType.REPORT)
   @Operation(summary = "Update a schedule of a reporting template")
   public ResponseEntity<ReportingSchedule> updateReportingSchedule(
+      TxCtx ctx,
       @PathVariable @NotBlank final String reportingId,
       @PathVariable @NotBlank final String scheduleId,
       @RequestBody @Valid @NotNull final ReportingScheduleInput input) {
@@ -223,6 +229,7 @@ public class ReportingApi extends RestBehavior {
       resourceType = ResourceType.REPORT)
   @Operation(summary = "Delete a schedule of a reporting template")
   public ResponseEntity<Void> deleteReportingSchedule(
+      TxCtx ctx,
       @PathVariable @NotBlank final String reportingId,
       @PathVariable @NotBlank final String scheduleId) {
     this.reportingService.deleteSchedule(reportingId, scheduleId);

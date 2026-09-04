@@ -72,6 +72,7 @@ public class AttackPatternApi extends RestBehavior {
       summary = "Extract Attack Patterns from text or files using AI",
       description = "Get attack patterns ids extracted from a text or files using AI")
   public List<String> searchAttackPatternWithTTPAIWebservice(
+      TxCtx ctx,
       @RequestPart(value = "files", required = false) @Nullable List<MultipartFile> files,
       @RequestPart(value = "text", required = false) @Nullable final String text,
       @RequestPart(value = "agent_slug", required = false) @Nullable final String agentSlug) {
@@ -85,7 +86,7 @@ public class AttackPatternApi extends RestBehavior {
       resourceId = "#attackPatternId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ATTACK_PATTERN)
-  public AttackPattern attackPattern(@PathVariable String attackPatternId) {
+  public AttackPattern attackPattern(TxCtx ctx, @PathVariable String attackPatternId) {
     return attackPatternService.findById(attackPatternId);
   }
 
@@ -109,7 +110,8 @@ public class AttackPatternApi extends RestBehavior {
       resourceId = "#attackPatternId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ATTACK_PATTERN)
-  public Iterable<InjectorContract> injectorContracts(@PathVariable String attackPatternId) {
+  public Iterable<InjectorContract> injectorContracts(
+      TxCtx ctx, @PathVariable String attackPatternId) {
     attackPatternRepository.findById(attackPatternId).orElseThrow(ElementNotFoundException::new);
     return injectorContractRepository.findAll(
         InjectorContractSpecification.fromAttackPattern(attackPatternId));
@@ -122,6 +124,7 @@ public class AttackPatternApi extends RestBehavior {
       resourceType = ResourceType.ATTACK_PATTERN)
   @Transactional(rollbackFor = Exception.class)
   public AttackPattern updateAttackPattern(
+      TxCtx ctx,
       @NotBlank @PathVariable final String attackPatternId,
       @Valid @RequestBody AttackPatternUpdateInput input) {
     AttackPattern attackPattern =
@@ -161,7 +164,7 @@ public class AttackPatternApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.ATTACK_PATTERN)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteAttackPattern(@PathVariable String attackPatternId) {
+  public void deleteAttackPattern(TxCtx ctx, @PathVariable String attackPatternId) {
     attackPatternRepository.deleteById(attackPatternId);
   }
 

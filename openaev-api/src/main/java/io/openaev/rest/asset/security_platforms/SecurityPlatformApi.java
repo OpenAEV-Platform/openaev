@@ -243,7 +243,8 @@ public class SecurityPlatformApi {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.SECURITY_PLATFORM)
   @Transactional(rollbackFor = Exception.class)
-  public void deleteSecurityPlatform(@PathVariable @NotBlank final String securityPlatformId) {
+  public void deleteSecurityPlatform(
+      TxCtx ctx, @PathVariable @NotBlank final String securityPlatformId) {
     this.securityPlatformRepository.deleteById(securityPlatformId);
   }
 
@@ -263,7 +264,8 @@ public class SecurityPlatformApi {
             responseCode = "200",
             description = "The list of Documents used in the security platform")
       })
-  public List<RawDocument> documentsFromSecurityPlatform(@PathVariable String securityPlatformId) {
+  public List<RawDocument> documentsFromSecurityPlatform(
+      TxCtx ctx, @PathVariable String securityPlatformId) {
     return documentService.documentsForSecurityPlatform(securityPlatformId);
   }
 

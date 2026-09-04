@@ -40,6 +40,7 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public EsCountInterval count(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.dashboardService.count(widgetId, parameters);
@@ -52,6 +53,7 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public EsAvgs average(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.dashboardService.average(widgetId, parameters);
@@ -64,6 +66,7 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public List<EsSeries> series(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters) {
     return this.dashboardService.series(widgetId, parameters);
@@ -76,6 +79,7 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public EsEntities entities(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) EntitiesPaginationInput input) {
     return this.dashboardService.entities(
@@ -91,7 +95,9 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public WidgetToEntitiesOutput widgetToEntitiesRuntime(
-      @PathVariable final String widgetId, @Valid @RequestBody WidgetToEntitiesInput input) {
+      TxCtx ctx,
+      @PathVariable final String widgetId,
+      @Valid @RequestBody WidgetToEntitiesInput input) {
     return this.dashboardService.widgetToEntitiesRuntime(widgetId, input);
   }
 
@@ -102,6 +108,7 @@ public class DashboardApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DASHBOARD)
   public List<EsAttackPath> attackPaths(
+      TxCtx ctx,
       @PathVariable final String widgetId,
       @RequestBody(required = false) Map<String, String> parameters)
       throws ExecutionException, InterruptedException {

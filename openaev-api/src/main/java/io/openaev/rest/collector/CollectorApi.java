@@ -138,7 +138,8 @@ public class CollectorApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @Operation(summary = "Get collector image by type")
   @Transactional
-  public ResponseEntity<InputStreamResource> getCollectorImage(@PathVariable String collectorType) {
+  public ResponseEntity<InputStreamResource> getCollectorImage(
+      TxCtx ctx, @PathVariable String collectorType) {
     return this.fileService.getConnectorImage(ConnectorType.COLLECTOR, collectorType);
   }
 

@@ -52,7 +52,7 @@ public class TenantSettingsApi extends RestBehavior {
       description = "Return the tenant settings with optional platform fallback")
   @Transactional
   @ApiResponses(@ApiResponse(responseCode = "200", description = "The tenant settings"))
-  public TenantSettingsOutput findSettings(@PathVariable String tenantId) {
+  public TenantSettingsOutput findSettings(TxCtx ctx, @PathVariable String tenantId) {
     return tenantSettingsService.findSettings(tenantId);
   }
 
@@ -67,7 +67,9 @@ public class TenantSettingsApi extends RestBehavior {
       description = "Update the tenant settings (home dashboard)")
   @ApiResponses(@ApiResponse(responseCode = "200", description = "The updated tenant settings"))
   public TenantSettingsOutput updateSettings(
-      @PathVariable String tenantId, @Valid @RequestBody TenantSettingsUpdateInput input) {
+      TxCtx ctx,
+      @PathVariable String tenantId,
+      @Valid @RequestBody TenantSettingsUpdateInput input) {
     return tenantSettingsService.updateSettings(tenantId, input);
   }
 
@@ -81,7 +83,7 @@ public class TenantSettingsApi extends RestBehavior {
       description = "Update the light theme for this tenant")
   @ApiResponses(@ApiResponse(responseCode = "200", description = "The updated tenant settings"))
   public TenantSettingsOutput updateThemeLight(
-      @PathVariable String tenantId, @Valid @RequestBody ThemeInput input) {
+      TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody ThemeInput input) {
     tenantSettingsService.updateTheme(tenantId, TenantSettingsService.THEME_TYPE_LIGHT, input);
     return tenantSettingsService.findSettings(tenantId);
   }
@@ -94,7 +96,7 @@ public class TenantSettingsApi extends RestBehavior {
       description = "Update the dark theme for this tenant")
   @ApiResponses(@ApiResponse(responseCode = "200", description = "The updated tenant settings"))
   public TenantSettingsOutput updateThemeDark(
-      @PathVariable String tenantId, @Valid @RequestBody ThemeInput input) {
+      TxCtx ctx, @PathVariable String tenantId, @Valid @RequestBody ThemeInput input) {
     tenantSettingsService.updateTheme(tenantId, TenantSettingsService.THEME_TYPE_DARK, input);
     return tenantSettingsService.findSettings(tenantId);
   }
@@ -107,7 +109,7 @@ public class TenantSettingsApi extends RestBehavior {
       summary = "Get tenant home dashboard",
       description = "Return the home dashboard configured for this tenant")
   @Transactional
-  public ResponseEntity<CustomDashboard> homeDashboard(@PathVariable String tenantId) {
+  public ResponseEntity<CustomDashboard> homeDashboard(TxCtx ctx, @PathVariable String tenantId) {
     return ResponseEntity.ok(
         customDashboardTenantService.findTenantHomeDashboard(tenantId).orElse(null));
   }

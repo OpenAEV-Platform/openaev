@@ -55,6 +55,7 @@ public class NotificationTriggerApi {
         @ApiResponse(responseCode = "404", description = "Trigger not found")
       })
   public NotificationTriggerOutput notificationTrigger(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the trigger") final String triggerId) {
     return notificationTriggerService
         .findById(triggerId)
@@ -74,7 +75,7 @@ public class NotificationTriggerApi {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The paginated triggers")})
   public Page<NotificationTriggerOutput> searchNotificationTriggers(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return notificationTriggerService
         .search(searchPaginationInput)
         .map(notificationTriggerMapper::toNotificationTriggerOutput);
@@ -109,6 +110,7 @@ public class NotificationTriggerApi {
         @ApiResponse(responseCode = "404", description = "Trigger not found")
       })
   public NotificationTriggerOutput updateNotificationTrigger(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the trigger") final String triggerId,
       @Valid @RequestBody final NotificationTriggerInput input) {
     return notificationTriggerMapper.toNotificationTriggerOutput(
@@ -131,6 +133,7 @@ public class NotificationTriggerApi {
         @ApiResponse(responseCode = "404", description = "Trigger not found")
       })
   public void deleteNotificationTrigger(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the trigger") final String triggerId) {
     notificationTriggerService.delete(triggerId);
   }

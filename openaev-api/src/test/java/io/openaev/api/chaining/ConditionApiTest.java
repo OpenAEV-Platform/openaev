@@ -58,7 +58,7 @@ class ConditionApiTest {
     EventOutput expectedOutput = ConditionMapper.toOutput(root);
     when(conditionService.findEventsByWorkflowId("wf-9")).thenReturn(List.of(expectedOutput));
 
-    List<EventOutput> result = conditionApi.findAllByWorkflow("wf-9");
+    List<EventOutput> result = conditionApi.findAllByWorkflow(TxCtx.missing(), "wf-9");
 
     assertEquals(1, result.size());
     assertEquals("c-wf", result.getFirst().getId());
@@ -71,7 +71,7 @@ class ConditionApiTest {
     Condition root = conditionTree("c-42", "wf-42", "ev-42", "desc");
     when(conditionService.findConditionRootById("c-42")).thenReturn(root);
 
-    EventOutput result = conditionApi.findById("c-42");
+    EventOutput result = conditionApi.findById(TxCtx.missing(), "c-42");
 
     assertNotNull(result);
     assertEquals("c-42", result.getId());

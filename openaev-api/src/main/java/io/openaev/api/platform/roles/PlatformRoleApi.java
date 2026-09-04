@@ -53,7 +53,7 @@ public class PlatformRoleApi {
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
   @GetMapping("/{platformRoleId}")
-  public PlatformRoleOutput findById(@PathVariable String platformRoleId) {
+  public PlatformRoleOutput findById(TxCtx ctx, @PathVariable String platformRoleId) {
     return toOutput(platformRoleService.findById(platformRoleId));
   }
 
@@ -65,7 +65,7 @@ public class PlatformRoleApi {
       resourceType = ResourceType.PLATFORM_ROLE,
       isEnterpriseEdition = true)
   @GetMapping("/{platformRoleId}/capabilities")
-  public Set<Capability> findCapabilities(@PathVariable String platformRoleId) {
+  public Set<Capability> findCapabilities(TxCtx ctx, @PathVariable String platformRoleId) {
     return platformRoleService.findById(platformRoleId).getCapabilities();
   }
 

@@ -47,7 +47,7 @@ public class DomainApi extends RestBehavior {
       resourceId = "#domainId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOMAIN)
-  public Domain getDomain(@PathVariable String domainId) {
+  public Domain getDomain(TxCtx ctx, @PathVariable String domainId) {
     return domainService.findById(domainId);
   }
 

@@ -72,7 +72,7 @@ public class ConditionApi extends RestBehavior {
       resourceType = ResourceType.CONDITION,
       isEnterpriseEdition = true)
   @GetMapping("/{conditionId}")
-  public EventOutput findById(@PathVariable String conditionId) {
+  public EventOutput findById(TxCtx ctx, @PathVariable String conditionId) {
     return toOutput(conditionService.findConditionRootById(conditionId));
   }
 
@@ -87,7 +87,8 @@ public class ConditionApi extends RestBehavior {
       resourceType = ResourceType.WORKFLOW,
       isEnterpriseEdition = true)
   @GetMapping(params = "workflow_id")
-  public List<EventOutput> findAllByWorkflow(@RequestParam("workflow_id") String workflowId) {
+  public List<EventOutput> findAllByWorkflow(
+      TxCtx ctx, @RequestParam("workflow_id") String workflowId) {
     return conditionService.findEventsByWorkflowId(workflowId);
   }
 

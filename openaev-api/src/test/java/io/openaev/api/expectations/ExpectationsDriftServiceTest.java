@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Scenario;
@@ -148,8 +149,8 @@ class ExpectationsDriftServiceTest {
   }
 
   private void stubChunkRunnerPassthrough() {
-    when(chunkRunner.call(any()))
-        .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(0)).get());
+    when(chunkRunner.call(any(), any()))
+        .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
   }
 
   // -- DETECTION --
@@ -300,7 +301,7 @@ class ExpectationsDriftServiceTest {
     when(bulkOperationMonitor.start(anyString(), anyString(), anyInt())).thenReturn("op-1");
     when(injectRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-    ExpectationsRealignOutput output = service.realignScenario(SCENARIO_ID);
+    ExpectationsRealignOutput output = service.realignScenario(TxCtx.missing(), SCENARIO_ID);
 
     assertThat(output.realignedInjectCount()).isEqualTo(1);
     JsonNode expectations = drifted.getContent().get("expectations");
@@ -326,7 +327,7 @@ class ExpectationsDriftServiceTest {
     stubScenarioInjects(aligned);
     stubChunkRunnerPassthrough();
 
-    ExpectationsRealignOutput output = service.realignScenario(SCENARIO_ID);
+    ExpectationsRealignOutput output = service.realignScenario(TxCtx.missing(), SCENARIO_ID);
 
     assertThat(output.realignedInjectCount()).isZero();
     verifyNoInteractions(bulkOperationMonitor);
@@ -346,7 +347,7 @@ class ExpectationsDriftServiceTest {
     when(bulkOperationMonitor.start(anyString(), anyString(), anyInt())).thenReturn("op-1");
     when(injectRepository.saveAll(any())).thenThrow(new IllegalStateException("boom"));
 
-    assertThatThrownBy(() -> service.realignScenario(SCENARIO_ID))
+    assertThatThrownBy(() -> service.realignScenario(TxCtx.missing(), SCENARIO_ID))
         .isInstanceOf(IllegalStateException.class);
 
     verify(bulkOperationMonitor).fail("op-1");

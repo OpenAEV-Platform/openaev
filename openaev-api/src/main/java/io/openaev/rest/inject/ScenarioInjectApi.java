@@ -271,10 +271,11 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @LogExecutionTime
   public List<Inject> bulkUpdateInjectsForScenario(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestBody @Valid final InjectBulkUpdateInputs input) {
     input.setSimulationOrScenarioId(scenarioId);
-    return bulkInjectService.bulkUpdateWithMonitoring(input);
+    return bulkInjectService.bulkUpdateWithMonitoring(ctx, input);
   }
 
   // -- BULK DELETE --
@@ -296,10 +297,11 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @LogExecutionTime
   public List<Inject> bulkDeleteInjectsForScenario(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestBody @Valid final InjectBulkProcessingInput input) {
     input.setSimulationOrScenarioId(scenarioId);
-    return bulkInjectService.bulkDeleteWithMonitoring(input);
+    return bulkInjectService.bulkDeleteWithMonitoring(ctx, input);
   }
 
   // -- DELETE --
@@ -314,6 +316,7 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public void deleteInjectForScenario(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
     this.scenarioInjectService.deleteInject(scenarioId, injectId);

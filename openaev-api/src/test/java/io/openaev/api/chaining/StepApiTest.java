@@ -61,7 +61,7 @@ class StepApiTest {
         .thenReturn(step("step-42", 1, StepStatus.TEMPLATE, "{}"));
 
     // Act
-    StepOutput result = stepApi.findById("step-42");
+    StepOutput result = stepApi.findById(TxCtx.missing(), "step-42");
 
     // Assert
     assertNotNull(result);
@@ -76,7 +76,7 @@ class StepApiTest {
         .thenReturn(List.of(step("s-9", 5, StepStatus.TEMPLATE, "{}")));
 
     // Act
-    List<StepOutput> result = stepApi.findByWorkflowId("wf-9");
+    List<StepOutput> result = stepApi.findByWorkflowId(TxCtx.missing(), "wf-9");
 
     // Assert
     assertEquals(1, result.size());

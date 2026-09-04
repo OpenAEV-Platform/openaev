@@ -54,7 +54,7 @@ public class TenantApi extends RestBehavior {
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
   @GetMapping("/{tenantId}")
-  public TenantOutput getById(@PathVariable String tenantId) {
+  public TenantOutput getById(TxCtx ctx, @PathVariable String tenantId) {
     return toOutput(tenantService.findById(tenantId));
   }
 
@@ -121,7 +121,7 @@ public class TenantApi extends RestBehavior {
       resourceType = ResourceType.TENANT,
       isEnterpriseEdition = true)
   @DeleteMapping("/{tenantId}")
-  public TenantOutput softDelete(@PathVariable String tenantId) {
+  public TenantOutput softDelete(TxCtx ctx, @PathVariable String tenantId) {
     return toOutput(tenantService.softDelete(tenantId));
   }
 }

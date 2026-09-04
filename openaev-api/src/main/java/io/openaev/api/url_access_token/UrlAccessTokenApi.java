@@ -83,7 +83,8 @@ public class UrlAccessTokenApi {
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLATFORM_SETTING)
   @Operation(summary = "Revoke all URL access tokens for an exercise (admin only)")
   @Transactional
-  public ResponseEntity<Void> revokeByExerciseId(@PathVariable("exerciseId") String exerciseId) {
+  public ResponseEntity<Void> revokeByExerciseId(
+      TxCtx ctx, @PathVariable("exerciseId") String exerciseId) {
     ensureCurrentUserIsAdmin();
     urlAccessTokenService.revokeAllForExercise(exerciseId);
     return ResponseEntity.noContent().build();

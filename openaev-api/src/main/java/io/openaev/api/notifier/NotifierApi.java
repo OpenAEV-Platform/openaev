@@ -81,6 +81,7 @@ public class NotifierApi {
         @ApiResponse(responseCode = "404", description = "Notifier not found")
       })
   public NotifierOutput notifier(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the notifier") final String notifierId) {
     boolean includeConfiguration = canSeeConfiguration();
     return notifierService
@@ -97,7 +98,7 @@ public class NotifierApi {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The paginated notifiers")})
   public Page<NotifierOutput> searchNotifiers(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     boolean includeConfiguration = canSeeConfiguration();
     return notifierService
         .search(searchPaginationInput)
@@ -130,6 +131,7 @@ public class NotifierApi {
         @ApiResponse(responseCode = "404", description = "Notifier not found")
       })
   public NotifierOutput updateNotifier(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the notifier") final String notifierId,
       @Valid @RequestBody final NotifierInput input) {
     // caller passed the WRITE capability gate, so the configuration is safe to return
@@ -151,6 +153,7 @@ public class NotifierApi {
         @ApiResponse(responseCode = "404", description = "Notifier not found")
       })
   public void deleteNotifier(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the notifier") final String notifierId) {
     notifierService.delete(notifierId);
   }
@@ -167,6 +170,7 @@ public class NotifierApi {
   @Transactional
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Test dispatched")})
   public void testNotifier(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the notifier") final String notifierId) {
     notifierService.test(notifierId);
   }

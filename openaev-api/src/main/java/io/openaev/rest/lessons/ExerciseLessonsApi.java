@@ -50,7 +50,8 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public Iterable<LessonsCategory> exerciseLessonsCategories(@PathVariable String exerciseId) {
+  public Iterable<LessonsCategory> exerciseLessonsCategories(
+      TxCtx ctx, @PathVariable String exerciseId) {
     return lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromExercise(exerciseId));
   }
 
@@ -110,7 +111,9 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public LessonsCategory createExerciseLessonsCategory(
-      @PathVariable String exerciseId, @Valid @RequestBody LessonsCategoryCreateInput input) {
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @Valid @RequestBody LessonsCategoryCreateInput input) {
     Exercise exercise =
         exerciseRepository
             .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
@@ -130,7 +133,8 @@ public class ExerciseLessonsApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
-  public Iterable<LessonsCategory> resetExerciseLessonsAnswers(@PathVariable String exerciseId) {
+  public Iterable<LessonsCategory> resetExerciseLessonsAnswers(
+      TxCtx ctx, @PathVariable String exerciseId) {
     List<LessonsAnswer> lessonsAnswers =
         lessonsCategoryRepository
             .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
@@ -164,7 +168,8 @@ public class ExerciseLessonsApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
-  public Iterable<LessonsCategory> emptyExerciseLessons(@PathVariable String exerciseId) {
+  public Iterable<LessonsCategory> emptyExerciseLessons(
+      TxCtx ctx, @PathVariable String exerciseId) {
     List<LessonsCategory> lessonsCategories =
         lessonsCategoryRepository
             .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
@@ -189,6 +194,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public LessonsCategory updateExerciseLessonsCategory(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsCategoryUpdateInput input) {
@@ -211,7 +217,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void deleteExerciseLessonsCategory(
-      @PathVariable String exerciseId, @PathVariable String lessonsCategoryId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String lessonsCategoryId) {
     lessonsCategoryRepository.deleteById(lessonsCategoryId);
   }
 
@@ -225,6 +231,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public LessonsCategory updateExerciseLessonsCategoryTeams(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsCategoryTeamsInput input) {
@@ -246,7 +253,8 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
-  public Iterable<LessonsQuestion> exerciseLessonsQuestions(@PathVariable String exerciseId) {
+  public Iterable<LessonsQuestion> exerciseLessonsQuestions(
+      TxCtx ctx, @PathVariable String exerciseId) {
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
         .stream()
@@ -268,7 +276,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Iterable<LessonsQuestion> exerciseLessonsCategoryQuestions(
-      @PathVariable String exerciseId, @PathVariable String lessonsCategoryId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String lessonsCategoryId) {
     return lessonsQuestionRepository.findAll(
         LessonsQuestionSpecification.fromCategory(lessonsCategoryId));
   }
@@ -283,6 +291,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public LessonsQuestion createExerciseLessonsQuestion(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsQuestionCreateInput input) {
@@ -308,6 +317,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public LessonsQuestion updateExerciseLessonsQuestion(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String lessonsQuestionId,
       @Valid @RequestBody LessonsQuestionUpdateInput input) {
@@ -332,7 +342,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void deleteExerciseLessonsQuestion(
-      @PathVariable String exerciseId, @PathVariable String lessonsQuestionId) {
+      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String lessonsQuestionId) {
     lessonsQuestionRepository.deleteById(lessonsQuestionId);
   }
 
@@ -380,7 +390,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<LessonsAnswer> exerciseLessonsAnswers(
-      @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
+      TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
         .stream()
@@ -407,7 +417,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsCategory> playerLessonsCategories(
-      @PathVariable String exerciseId, @RequestParam Optional<String> userId)
+      TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
     impersonateUser(userRepository, userId); // Protection for ?
     return lessonsCategoryRepository
@@ -432,7 +442,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsQuestion> playerLessonsQuestions(
-      @PathVariable String exerciseId, @RequestParam Optional<String> userId)
+      TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
     impersonateUser(userRepository, userId); // Protection for ?
     return lessonsCategoryRepository
@@ -454,7 +464,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public List<LessonsAnswer> playerLessonsAnswers(
-      @PathVariable String exerciseId, @RequestParam Optional<String> userId)
+      TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
     impersonateUser(userRepository, userId); // Protection for ?
     return lessonsCategoryRepository
@@ -487,6 +497,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   @AccessControl(skipRBAC = true)
   @UrlAccessControl(exerciseId = "#exerciseId", userId = "#userId")
   public LessonsAnswer createExerciseLessonsQuestion(
+      TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String lessonsQuestionId,
       @Valid @RequestBody LessonsAnswerCreateInput input,

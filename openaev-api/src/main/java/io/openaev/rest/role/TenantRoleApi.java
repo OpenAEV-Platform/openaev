@@ -50,7 +50,7 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Role created"),
         @ApiResponse(responseCode = "409", description = "Role already exists")
       })
-  public RoleOutput createRole(@Valid @RequestBody final RoleInput input) {
+  public RoleOutput createRole(TxCtx ctx, @Valid @RequestBody final RoleInput input) {
     return roleMapper.toRoleOutput(
         tenantRoleService.createRole(
             input.getName(), input.getDescription(), input.getCapabilities()));
@@ -72,6 +72,7 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
   public RoleOutput findRole(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
     return roleMapper.toRoleOutput(tenantRoleService.findByIdInTenant(roleId));
   }
@@ -102,7 +103,7 @@ public class TenantRoleApi extends RestBehavior {
             description = "The list of all Roles corresponding to the search criteria")
       })
   public Page<RoleOutput> searchRoles(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return tenantRoleService
         .search(searchPaginationInput, TenantContext.getCurrentTenant())
         .map(roleMapper::toRoleOutput);
@@ -124,6 +125,7 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
   public RoleOutput updateRole(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId,
       @Valid @RequestBody final RoleInput input) {
     return roleMapper.toRoleOutput(
@@ -147,6 +149,7 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
   public void deleteRole(
+      TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
     tenantRoleService.delete(roleId);
   }
