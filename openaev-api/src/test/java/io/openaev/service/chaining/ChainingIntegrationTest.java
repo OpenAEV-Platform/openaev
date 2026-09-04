@@ -1,6 +1,7 @@
 package io.openaev.service.chaining;
 
-import static io.openaev.api.chaining.ChainingApi.TENANT_CHAINING_URI;
+import static io.openaev.api.chaining.StepApi.TENANT_STEP_URI;
+import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -17,7 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
-import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
@@ -68,6 +69,7 @@ class ChainingIntegrationTest extends IntegrationTest {
   @Autowired private StepService stepService;
   @Autowired private StepEventService stepEventService;
   @Autowired private WorkflowService workflowService;
+  @Autowired private jakarta.persistence.EntityManager entityManager;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
@@ -169,7 +171,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       ScenarioInput input = buildScenarioInput();
       String response =
           mvc.perform(
-                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios"))
+                  post(tenantUri(TENANT_SCENARIO_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(input)))
@@ -185,6 +187,8 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       // A Workflow TEMPLATE must have been created and linked to the scenario
       assertEquals(workflowCountBefore + 1, workflowRepository.count());
+      entityManager.flush();
+      entityManager.clear();
 
       Workflow workflowTemplate =
           workflowRepository.findAll().stream()
@@ -215,7 +219,7 @@ class ChainingIntegrationTest extends IntegrationTest {
     void should_associate_steps_to_workflow_template() throws Exception {
       String response =
           mvc.perform(
-                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios"))
+                  post(tenantUri(TENANT_SCENARIO_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
@@ -235,14 +239,14 @@ class ChainingIntegrationTest extends IntegrationTest {
               .orElseThrow();
 
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-      StepsCreateInput.StepInput step1 = buildValidStepInput();
+      StepInput step1 = buildValidStepInput(workflowTemplate.getId());
       step1.setDataStep(injectInput);
-      StepsCreateInput.StepInput step2 = buildValidStepInput();
+      StepInput step2 = buildValidStepInput(workflowTemplate.getId());
       step2.setDataStep(injectInput);
 
       long stepCountBefore = stepRepository.count();
 
-      stepService.createStepTemplates(workflowTemplate, List.of(step1, step2));
+      createStepTemplates(step1, step2);
 
       assertEquals(stepCountBefore + 2, stepRepository.count());
 
@@ -267,7 +271,7 @@ class ChainingIntegrationTest extends IntegrationTest {
     void should_create_workflow_run_and_simulation_on_launch() throws Exception {
       String response =
           mvc.perform(
-                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios"))
+                  post(tenantUri(TENANT_SCENARIO_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
@@ -349,7 +353,7 @@ class ChainingIntegrationTest extends IntegrationTest {
     void should_delete_scenario_and_cascade_to_simulation_steps_and_workflows() throws Exception {
       String response =
           mvc.perform(
-                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios"))
+                  post(tenantUri(TENANT_SCENARIO_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
@@ -370,9 +374,14 @@ class ChainingIntegrationTest extends IntegrationTest {
               .orElseThrow();
 
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-      StepsCreateInput.StepInput step = buildValidStepInput();
+      StepInput step = buildValidStepInput(workflowTemplate.getId());
       step.setDataStep(injectInput);
-      stepService.createStepTemplates(workflowTemplate, List.of(step));
+      mvc.perform(
+              post(tenantUri(TENANT_STEP_URI))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(mapper.writeValueAsString(step)))
+          .andExpect(status().isCreated());
 
       String simulationResult =
           mvc.perform(
@@ -437,7 +446,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       // Create scenario with chaining enabled
       String scenarioResponse =
           mvc.perform(
-                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios"))
+                  post(tenantUri(TENANT_SCENARIO_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildScenarioInput())))
@@ -448,6 +457,8 @@ class ChainingIntegrationTest extends IntegrationTest {
       Scenario createdScenario = mapper.readValue(scenarioResponse, Scenario.class);
 
       // Get the workflow template created
+      entityManager.flush();
+      entityManager.clear();
       Workflow workflowTemplate =
           workflowRepository.findAll().stream()
               .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
@@ -461,11 +472,12 @@ class ChainingIntegrationTest extends IntegrationTest {
       // Add a step with an inject to the workflow template (no conditions so the step
       // becomes READY immediately and gets executed during the workflow run).
       InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-      StepsCreateInput.StepInput step = new StepsCreateInput.StepInput();
+      StepInput step = new StepInput();
       step.setStepAction(StepActionClass.INJECT_EXECUTION);
       step.setDataStep(injectInput);
       step.setConditions(List.of());
-      stepService.createStepTemplates(workflowTemplate, List.of(step));
+      step.setWorkflowId(workflowTemplate.getId());
+      createStepTemplate(step);
 
       // Add an ASSET scope rule so that scopeService.getValidAssets() returns savedAsset
       // and hasAssetTargets becomes true, which triggers inject creation in the external-injector
@@ -536,90 +548,6 @@ class ChainingIntegrationTest extends IntegrationTest {
           result.contains(injectId),
           "Workflow chaining inject must not be exposed as atomic testing");
     }
-
-    // -------------------------------------------------------------------------
-    // 6. DUPLICATE SCENARIO CHAINING → Scenario + Workflow TEMPLATE + Step TEMPLATE duplicated
-    // -------------------------------------------------------------------------
-
-    @Test
-    @WithMockUser(isAdmin = true)
-    void should_duplicate_scenario_workflow_template_and_step_template_when_chaining_enabled()
-        throws Exception {
-      // Create scenario with chaining enabled
-      String scenarioResponse =
-          mvc.perform(
-                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios"))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(buildScenarioInput())))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      Scenario createdScenario = mapper.readValue(scenarioResponse, Scenario.class);
-
-      // Get the workflow template created
-      Workflow workflowTemplate =
-          workflowRepository.findAll().stream()
-              .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
-              .filter(
-                  w ->
-                      w.getScenario() != null
-                          && createdScenario.getId().equals(w.getScenario().getId()))
-              .findFirst()
-              .orElseThrow();
-
-      // Add a step with an inject to the workflow template
-      InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
-      StepsCreateInput.StepInput step = buildValidStepInput();
-      step.setDataStep(injectInput);
-      stepService.createStepTemplates(workflowTemplate, List.of(step));
-
-      String result =
-          mvc.perform(
-                  post(tenantUri(TENANT_CHAINING_URI + "/scenarios/" + createdScenario.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      Scenario scenarioDuplicated = mapper.readValue(result, Scenario.class);
-
-      Workflow workflowTemplateDuplicated =
-          workflowRepository.findAll().stream()
-              .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
-              .filter(
-                  w ->
-                      w.getScenario() != null
-                          && scenarioDuplicated.getId().equals(w.getScenario().getId()))
-              .findFirst()
-              .orElseThrow();
-
-      assertWorkflowEqualsExceptId(workflowTemplate, workflowTemplateDuplicated);
-
-      List<Step> originalSteps =
-          stepRepository.findAll().stream()
-              .filter(
-                  s ->
-                      s.getWorkflow() != null
-                          && workflowTemplate.getId().equals(s.getWorkflow().getId()))
-              .toList();
-      List<Step> duplicatedSteps =
-          stepRepository.findAll().stream()
-              .filter(
-                  s ->
-                      s.getWorkflow() != null
-                          && workflowTemplateDuplicated.getId().equals(s.getWorkflow().getId()))
-              .toList();
-
-      assertEquals(originalSteps.size(), duplicatedSteps.size(), "Step TEMPLATE count must match");
-      assertFalse(duplicatedSteps.isEmpty(), "Duplicated workflow must contain step templates");
-
-      Step originalStep = originalSteps.getFirst();
-      Step duplicatedStep = duplicatedSteps.getFirst();
-      assertStepEqualsExceptId(originalStep, duplicatedStep);
-    }
   }
 
   @Nested
@@ -636,7 +564,7 @@ class ChainingIntegrationTest extends IntegrationTest {
       CreateExerciseInput input = buildSimulationInput();
       String response =
           mvc.perform(
-                  post(tenantUri(TENANT_CHAINING_URI + "/simulations"))
+                  post(tenantUri(TENANT_EXERCISE_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(input)))
@@ -670,7 +598,7 @@ class ChainingIntegrationTest extends IntegrationTest {
     void should_create_step_template_when_add_inject_to_simulation_chaining() throws Exception {
       String response =
           mvc.perform(
-                  post(tenantUri(TENANT_CHAINING_URI + "/simulations"))
+                  post(tenantUri(TENANT_EXERCISE_URI))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(mapper.writeValueAsString(buildSimulationInput())))
@@ -685,16 +613,15 @@ class ChainingIntegrationTest extends IntegrationTest {
 
       long stepCountBefore = stepRepository.count();
 
+      InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+      StepInput step = buildValidStepInput(workflowTemplate.getId());
+      step.setDataStep(injectInput);
       mvc.perform(
-              post(tenantUri(
-                      TENANT_CHAINING_URI
-                          + "/simulations/"
-                          + createdSimulation.getId()
-                          + "/injects"))
+              post(tenantUri(TENANT_STEP_URI))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(injectInputJson))
-          .andExpect(status().is2xxSuccessful());
+                  .content(mapper.writeValueAsString(step)))
+          .andExpect(status().isCreated());
 
       assertEquals(stepCountBefore + 1, stepRepository.count());
 
@@ -708,80 +635,11 @@ class ChainingIntegrationTest extends IntegrationTest {
       assertEquals(1, stepsCreated.size());
       assertEquals(StepStatus.TEMPLATE, stepsCreated.getFirst().getStatus());
     }
-
-    @Test
-    @WithMockUser(isAdmin = true)
-    void should_duplicate_simulation_workflow_template_and_step_template_when_chaining_enabled()
-        throws Exception {
-      String response =
-          mvc.perform(
-                  post(tenantUri(TENANT_CHAINING_URI + "/simulations"))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(buildSimulationInput())))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String simulationId = JsonPath.read(response, "$.exercise_id");
-      Exercise createdSimulation = exerciseRepository.findById(simulationId).orElseThrow();
-
-      Workflow workflowTemplate = findTemplateWorkflowBySimulationId(createdSimulation.getId());
-
-      mvc.perform(
-              post(tenantUri(
-                      TENANT_CHAINING_URI
-                          + "/simulations/"
-                          + createdSimulation.getId()
-                          + "/injects"))
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(injectInputJson))
-          .andExpect(status().is2xxSuccessful());
-
-      String duplicatedResponse =
-          mvc.perform(
-                  post(tenantUri(TENANT_CHAINING_URI + "/simulations/" + createdSimulation.getId()))
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String duplicatedSimulationId = JsonPath.read(duplicatedResponse, "$.exercise_id");
-      Exercise duplicatedSimulation =
-          exerciseRepository.findById(duplicatedSimulationId).orElseThrow();
-      Workflow duplicatedWorkflowTemplate =
-          findTemplateWorkflowBySimulationId(duplicatedSimulation.getId());
-
-      assertWorkflowEqualsExceptId(workflowTemplate, duplicatedWorkflowTemplate);
-
-      List<Step> originalSteps =
-          stepRepository.findAll().stream()
-              .filter(
-                  s ->
-                      s.getWorkflow() != null
-                          && workflowTemplate.getId().equals(s.getWorkflow().getId()))
-              .toList();
-      List<Step> duplicatedSteps =
-          stepRepository.findAll().stream()
-              .filter(
-                  s ->
-                      s.getWorkflow() != null
-                          && duplicatedWorkflowTemplate.getId().equals(s.getWorkflow().getId()))
-              .toList();
-
-      assertEquals(originalSteps.size(), duplicatedSteps.size(), "Step TEMPLATE count must match");
-      assertFalse(
-          duplicatedSteps.isEmpty(), "Duplicated simulation workflow must contain step templates");
-
-      assertStepEqualsExceptId(originalSteps.getFirst(), duplicatedSteps.getFirst());
-    }
   }
 
   private Workflow findTemplateWorkflowBySimulationId(String simulationId) {
+    entityManager.flush();
+    entityManager.clear();
     return workflowRepository.findAll().stream()
         .filter(w -> WorkflowStatus.TEMPLATE.equals(w.getStatus()))
         .filter(w -> w.getSimulation() != null && simulationId.equals(w.getSimulation().getId()))
@@ -813,24 +671,6 @@ class ChainingIntegrationTest extends IntegrationTest {
     assertEquals(expected.isSafeModeEnabled(), actual.isSafeModeEnabled());
   }
 
-  private void assertStepEqualsExceptId(Step expected, Step actual) {
-    assertNotNull(expected.getId());
-    assertNotNull(actual.getId());
-    assertNotEquals(expected.getId(), actual.getId(), "Step ids must differ");
-
-    assertEquals(expected.getStatus(), actual.getStatus());
-    assertEquals(expected.getStepAction(), actual.getStepAction());
-    assertEquals(expected.getInput(), actual.getInput());
-    assertEquals(
-        StepService.setField(expected.getData(), "inject_exercise", ""),
-        StepService.setField(actual.getData(), "inject_exercise", ""),
-        "Step data must be the same expected for simulation id (inject_exercise)");
-    assertEquals(expected.getOutput(), actual.getOutput());
-    assertEquals(expected.getOutputParser(), actual.getOutputParser());
-    assertEquals(expected.getConditionExecuted(), actual.getConditionExecuted());
-    assertEquals(expected.getLimitExecution(), actual.getLimitExecution());
-  }
-
   private ScenarioInput buildScenarioInput() {
     ScenarioInput input = new ScenarioInput();
     input.setName("Test Scenario Chaining");
@@ -838,9 +678,25 @@ class ChainingIntegrationTest extends IntegrationTest {
     return input;
   }
 
-  private StepsCreateInput.StepInput buildValidStepInput() {
-    StepsCreateInput.StepInput stepInput = new StepsCreateInput.StepInput();
+  private void createStepTemplates(StepInput... steps) throws Exception {
+    for (StepInput step : steps) {
+      createStepTemplate(step);
+    }
+  }
+
+  private void createStepTemplate(StepInput step) throws Exception {
+    mvc.perform(
+            post(tenantUri(TENANT_STEP_URI))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(step)))
+        .andExpect(status().isCreated());
+  }
+
+  private StepInput buildValidStepInput(String workflowId) {
+    StepInput stepInput = new StepInput();
     stepInput.setStepAction(StepActionClass.INJECT_EXECUTION);
+    stepInput.setWorkflowId(workflowId);
 
     ConditionCreateInput root = new ConditionCreateInput();
     root.setTemporaryId("tmp-1");

@@ -21,8 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
-@DisplayName("Chaining APIs Enterprise Edition access tests")
-class ChainingApiEnterpriseEditionAccessTest extends IntegrationTest {
+@DisplayName("Chaining endpoints Enterprise Edition access tests")
+class ChainingEndpointEnterpriseEditionAccessTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
@@ -77,13 +77,6 @@ class ChainingApiEnterpriseEditionAccessTest extends IntegrationTest {
   void given_inactiveEnterpriseLicense_should_denyWorkflowValidAssetsRead() throws Exception {
     assertEnterpriseEditionDenied(
         get(tenantUri(WorkflowApi.TENANT_WORKFLOW_URI) + "/workflow-id/valid-assets"));
-  }
-
-  @Test
-  @WithMockUser(isAdmin = true)
-  @DisplayName("Given inactive enterprise license should deny Chaining API findAll")
-  void given_inactiveEnterpriseLicense_should_denyChainingFindAll() throws Exception {
-    assertEnterpriseEditionDenied(get(tenantUri(ChainingApi.TENANT_CHAINING_URI)));
   }
 
   private void assertEnterpriseEditionDenied(MockHttpServletRequestBuilder request)
