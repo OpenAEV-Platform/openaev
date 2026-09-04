@@ -64,7 +64,7 @@
     "dompurify": "3.4.14",
     "eslint-import-resolver-next": "0.6.0",
     "filigran-icon": "0.21.0",
-    "final-form": "4.20.10",
+    "final-form": "5.0.1",
     "final-form-arrays": "4.0.1",
     "html-react-parser": "6.1.7",
     "http-proxy-middleware": "4.2.0",
