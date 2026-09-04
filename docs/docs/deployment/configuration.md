@@ -202,6 +202,7 @@ reindex.
 | openaev.rabbitmq.management-insecure  | OPENAEV_RABBITMQ_MANAGEMENT-INSECURE  | `true`                            | Whether or not the calls to the management plugin of rabbitmq can be insecure                                                                                                     |
 | openaev.rabbitmq.trust.store          | OPENAEV_RABBITMQ_TRUST_STORE          | <file:/path/to/client-store.p12\> | Path to the p12 keystore file to use if ssl is activated and insecure management is deactivated. The keystore must contain the client side certificate and key generated for ssl. |
 | openaev.rabbitmq.trust-store-password | OPENAEV_RABBITMQ_TRUST-STORE-PASSWORD | <trust-store-password\>           | Password of the keystore                                                                                                                                                          |
+| openaev.rabbitmq.publish-timeout-ms   | OPENAEV_RABBITMQ_PUBLISH-TIMEOUT-MS   | 30000                             | Hard cap in milliseconds on a single publish, so a broker that stops answering cannot hold a database transaction open. Must be strictly positive, otherwise the default applies.  |
 
 #### S3 bucket
 
