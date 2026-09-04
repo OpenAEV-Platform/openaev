@@ -96,6 +96,7 @@ public class AttackPattern implements TenantBase {
 
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
+  @BatchSize(size = 1000)
   @JoinTable(
       name = "attack_patterns_kill_chain_phases",
       joinColumns = @JoinColumn(name = "attack_pattern_id"),

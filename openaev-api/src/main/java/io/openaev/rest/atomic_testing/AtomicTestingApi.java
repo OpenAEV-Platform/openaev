@@ -386,6 +386,6 @@ public class AtomicTestingApi extends RestBehavior {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }
 
-    this.injectImportService.importInjectsForAtomicTestings(file);
+    this.injectImportService.importInjectsForAtomicTestings(ctx, file);
   }
 }

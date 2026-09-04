@@ -365,7 +365,7 @@ class InjectServiceTest {
 
     // Act
     List<Inject> updatedInjects =
-        injectService.bulkUpdateInject(TxCtx.missing(), injectsToUpdate, operations);
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);
@@ -443,7 +443,7 @@ class InjectServiceTest {
 
     // Act
     List<Inject> updatedInjects =
-        injectService.bulkUpdateInject(TxCtx.missing(), injectsToUpdate, operations);
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);
@@ -509,7 +509,7 @@ class InjectServiceTest {
 
     // Act
     List<Inject> updatedInjects =
-        injectService.bulkUpdateInject(TxCtx.missing(), injectsToUpdate, operations);
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);
@@ -550,7 +550,7 @@ class InjectServiceTest {
 
     // Act
     List<Inject> updatedInjects =
-        injectService.bulkUpdateInject(TxCtx.missing(), injectsToUpdate, operations);
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);

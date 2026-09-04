@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionException;
@@ -89,6 +90,11 @@ class V1_DataImporterTest extends IntegrationTest {
   public static final String PAYLOAD_EXTERNAL_ID = "PAYLOAD_EXTERNAL_ID";
   public static final String NMAP_DUMMY_INJECTOR_TYPE = "openaev_nmap_dummy";
 
+  /** Same scope the HTTP import endpoints resolve: the tenant the test session runs in. */
+  private TxCtx txCtx() {
+    return TxCtx.forTenant(TenantContext.getCurrentTenant());
+  }
+
   @BeforeEach
   void cleanBefore() throws IOException {
     killChainPhaseRepository.deleteAll();
@@ -112,7 +118,14 @@ class V1_DataImporterTest extends IntegrationTest {
   void testImportData() {
     // -- EXECUTE --
     this.importer.importData(
-        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- ASSERT --
     Optional<Exercise> exercise = this.exerciseRepository.findOne(exerciseByName(EXERCISE_NAME));
@@ -152,7 +165,14 @@ class V1_DataImporterTest extends IntegrationTest {
                     "src/test/resources/importer-v1/import-scenario-with-attack-pattern.json")));
     this.importNode = mapper.readTree(jsonContent);
     this.importer.importData(
-        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     Payload payload = payloadRepository.findAll().iterator().next();
     InjectorContract injectorContract =
@@ -180,7 +200,14 @@ class V1_DataImporterTest extends IntegrationTest {
     openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
 
     this.importer.importData(
-        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     payload = payloadRepository.findAll().iterator().next();
     InjectorContract injectorContract2 =
         injectorContractRepository.findInjectorContractByPayload(payload).orElseThrow();
@@ -207,7 +234,14 @@ class V1_DataImporterTest extends IntegrationTest {
                     "src/test/resources/importer-v1/scenario_with_injects_from_injector.json")));
     this.importNode = mapper.readTree(jsonContent);
     this.importer.importData(
-        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // the contract should be created without any injector link (no placeholder injector):
     // the real injector adopts it by id when it registers
@@ -241,7 +275,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- EXECUTE --
     this.importer.importData(
-        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- ASSERT --
     InjectorContract importedContract =
@@ -281,7 +322,14 @@ class V1_DataImporterTest extends IntegrationTest {
       String jsonContent = Files.readString(xtmScenariosFilePath);
       JsonNode importNode = mapper.readTree(jsonContent);
       this.importer.importData(
-          importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+          txCtx(),
+          importNode,
+          Map.of(),
+          null,
+          null,
+          null,
+          null,
+          Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     }
   }
 
@@ -344,7 +392,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- EXECUTE --
     this.importer.importData(
-        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- ASSERT --
     List<Payload> payloads = new ArrayList<>();
@@ -381,7 +436,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- EXECUTE --
     this.importer.importData(
-        this.importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        this.importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- ASSERT --
     List<Payload> payloads = new ArrayList<>();
@@ -418,6 +480,7 @@ class V1_DataImporterTest extends IntegrationTest {
         EnterpriseEditionException.class,
         () ->
             importer.importData(
+                txCtx(),
                 workflowImport,
                 Map.of(),
                 null,
@@ -440,7 +503,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        workflowImport,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
@@ -524,7 +594,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        workflowImport,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
@@ -575,7 +652,13 @@ class V1_DataImporterTest extends IntegrationTest {
     // -- Act --
     V1_DataImporter.StepDataResolution resolution =
         ReflectionTestUtils.invokeMethod(
-            importer, "resolveStepData", stepNode, resolvedContracts, new HashMap<>(), workflow);
+            importer,
+            "resolveStepData",
+            txCtx(),
+            stepNode,
+            resolvedContracts,
+            new HashMap<>(),
+            workflow);
     String resolvedStepData = resolution.stepData();
     JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
 
@@ -611,7 +694,13 @@ class V1_DataImporterTest extends IntegrationTest {
     // -- Act --
     V1_DataImporter.StepDataResolution resolution =
         ReflectionTestUtils.invokeMethod(
-            importer, "resolveStepData", stepNode, resolvedContracts, new HashMap<>(), workflow);
+            importer,
+            "resolveStepData",
+            txCtx(),
+            stepNode,
+            resolvedContracts,
+            new HashMap<>(),
+            workflow);
     String resolvedStepData = resolution.stepData();
     JsonNode resolvedJson = assertDoesNotThrow(() -> objectMapper.readTree(resolvedStepData));
 
@@ -655,6 +744,7 @@ class V1_DataImporterTest extends IntegrationTest {
         ReflectionTestUtils.invokeMethod(
             importer,
             "resolveStepData",
+            txCtx(),
             stepNode,
             new HashMap<String, String>(),
             new HashMap<>(),
@@ -694,7 +784,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -738,7 +835,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        workflowImport,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
@@ -805,7 +909,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        workflowImport,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
@@ -879,7 +990,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // Act
     this.importer.importData(
-        importNode, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importNode,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // Assert — the injector contract should have been created with migrated expectations
     InjectorContract importedContract =
@@ -957,7 +1075,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        workflowImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        workflowImport,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     String expectedName =
@@ -1031,7 +1156,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     // No duplicate tag created: the source id was mapped to the existing tag found by name.
@@ -1076,7 +1208,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     List<Tag> created = tagRepository.findByNameIgnoreCase(tagName);
@@ -1136,7 +1275,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -1223,7 +1369,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, docReferences, null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        docReferences,
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -1330,7 +1483,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     assertEquals(
@@ -1368,7 +1528,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     assertEquals(
@@ -1413,7 +1580,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     List<Domain> created = domainRepository.findByNameIn(List.of(domainName));
@@ -1455,7 +1629,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     List<Domain> created = domainRepository.findByNameIn(List.of(domainName));
@@ -1506,7 +1687,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -1536,7 +1724,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     Workflow workflow = findImportedWorkflow(scenarioName);
@@ -1570,7 +1765,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     Workflow workflow = findImportedWorkflow(scenarioName);
@@ -1600,7 +1802,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     String expectedName = "test workflow import%s".formatted(Constants.IMPORTED_OBJECT_NAME_SUFFIX);
@@ -1652,7 +1861,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     assertEquals(
@@ -1696,7 +1912,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     List<AttackPattern> created =
@@ -1756,7 +1979,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -1801,6 +2031,7 @@ class V1_DataImporterTest extends IntegrationTest {
     ReflectionTestUtils.invokeMethod(
         importer,
         "rewriteInjectorContractAttackPatterns",
+        txCtx(),
         contractNode,
         new HashMap<String, Base>());
 
@@ -1848,6 +2079,7 @@ class V1_DataImporterTest extends IntegrationTest {
     ReflectionTestUtils.invokeMethod(
         importer,
         "rewriteInjectorContractAttackPatterns",
+        txCtx(),
         contractNode,
         new HashMap<String, Base>());
 
@@ -1876,6 +2108,7 @@ class V1_DataImporterTest extends IntegrationTest {
     ReflectionTestUtils.invokeMethod(
         importer,
         "rewriteInjectorContractAttackPatterns",
+        txCtx(),
         contractNode,
         new HashMap<String, Base>());
 
@@ -1912,7 +2145,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -1942,7 +2182,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     Workflow workflow = findImportedWorkflow(scenarioName);
@@ -1988,6 +2235,7 @@ class V1_DataImporterTest extends IntegrationTest {
         ReflectionTestUtils.invokeMethod(
             importer,
             "resolveStepData",
+            txCtx(),
             stepNode,
             new HashMap<String, String>(),
             new HashMap<String, Base>(),
@@ -2030,6 +2278,7 @@ class V1_DataImporterTest extends IntegrationTest {
         ReflectionTestUtils.invokeMethod(
             importer,
             "resolveStepData",
+            txCtx(),
             stepNode,
             new HashMap<String, String>(),
             new HashMap<String, Base>(),
@@ -2054,7 +2303,9 @@ class V1_DataImporterTest extends IntegrationTest {
     // so the import must recompute them from it, otherwise the imported action is displayed
     // TTP-less ("Other" tactic) by the chaining UI (#7577).
     KillChainPhase targetPhase =
-        killChainPhaseRepository.save(KillChainPhaseFixture.getKillChainPhase("execution", 2L));
+        killChainPhaseRepository.save(
+            KillChainPhaseFixture.getKillChainPhase(
+                "execution", 2L, TenantContext.getCurrentTenant()));
     AttackPattern targetAttackPattern =
         AttackPatternFixture.createAttackPatternsWithExternalId("T1059.001");
     targetAttackPattern.setKillChainPhases(new ArrayList<>(List.of(targetPhase)));
@@ -2088,7 +2339,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -2134,6 +2392,7 @@ class V1_DataImporterTest extends IntegrationTest {
         ReflectionTestUtils.invokeMethod(
             importer,
             "resolveStepData",
+            txCtx(),
             stepNode,
             new HashMap<String, String>(),
             new HashMap<String, Base>(),
@@ -2185,6 +2444,7 @@ class V1_DataImporterTest extends IntegrationTest {
         ReflectionTestUtils.invokeMethod(
             importer,
             "resolveStepData",
+            txCtx(),
             stepNode,
             new HashMap<String, String>(),
             new HashMap<String, Base>(),
@@ -2237,7 +2497,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -2270,7 +2537,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     JsonNode storedData = readStoredStepData(scenarioName, om);
@@ -2290,6 +2564,7 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
+        txCtx(),
         readMissingContractWithPayloadFixture(),
         Map.of(),
         null,
@@ -2346,7 +2621,14 @@ class V1_DataImporterTest extends IntegrationTest {
     // -- Act --
     ImportResult result =
         this.importer.importData(
-            importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+            txCtx(),
+            importData,
+            Map.of(),
+            null,
+            null,
+            null,
+            null,
+            Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     // The embedded payload is recreated and attached to a freshly created injector contract.
@@ -2414,6 +2696,7 @@ class V1_DataImporterTest extends IntegrationTest {
         assertDoesNotThrow(
             () ->
                 this.importer.importData(
+                    txCtx(),
                     importData,
                     Map.of(),
                     null,
@@ -2448,6 +2731,7 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // First import: creates the payload + its injector contract.
     this.importer.importData(
+        txCtx(),
         readMissingContractWithPayloadFixture(),
         Map.of(),
         null,
@@ -2471,6 +2755,7 @@ class V1_DataImporterTest extends IntegrationTest {
     // -- Act --
     // Second import of the SAME simulation.
     this.importer.importData(
+        txCtx(),
         readMissingContractWithPayloadFixture(),
         Map.of(),
         null,
@@ -2504,6 +2789,7 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // First import: creates the payload + contract, WITHOUT granting the user any read access.
     this.importer.importData(
+        txCtx(),
         readMissingContractWithPayloadFixture(),
         Map.of(),
         null,
@@ -2517,6 +2803,7 @@ class V1_DataImporterTest extends IntegrationTest {
     // -- Act --
     // Second import: the existing payload's contract is unreadable (no grant) -> RBAC denied.
     this.importer.importData(
+        txCtx(),
         readMissingContractWithPayloadFixture(),
         Map.of(),
         null,
@@ -2552,6 +2839,7 @@ class V1_DataImporterTest extends IntegrationTest {
     // First import: creates the payload (Linux) + its injector contract, readable by the user so
     // only the semantics check can block reuse.
     this.importer.importData(
+        txCtx(),
         readMissingContractWithPayloadFixture(),
         Map.of(),
         null,
@@ -2586,7 +2874,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     assertEquals(
@@ -2630,6 +2925,7 @@ class V1_DataImporterTest extends IntegrationTest {
         assertDoesNotThrow(
             () ->
                 this.importer.importData(
+                    txCtx(),
                     importData,
                     Map.of(),
                     null,
@@ -2666,6 +2962,7 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // First import: creates the payload WITHOUT parsers, readable by the user.
     this.importer.importData(
+        txCtx(),
         readMissingContractWithPayloadFixture(),
         Map.of(),
         null,
@@ -2692,7 +2989,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     assertEquals(
@@ -2718,7 +3022,14 @@ class V1_DataImporterTest extends IntegrationTest {
     firstParsers.add(fixtureOutputParserNode(om));
     fixtureEmbeddedPayloadNode(firstImport).set("payload_output_parsers", firstParsers);
     this.importer.importData(
-        firstImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        firstImport,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
     Payload created = findSinglePayloadByName("step missing contract payload");
     InjectorContract createdContract =
         injectorContractRepository.findInjectorContractByPayload(created).orElseThrow();
@@ -2735,7 +3046,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        secondImport, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        secondImport,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     assertEquals(
@@ -2786,6 +3104,7 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
+        txCtx(),
         readMissingContractWithPayloadFixture(),
         Map.of(),
         null,
@@ -2833,7 +3152,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     Payload recreated = findSinglePayloadByName("step missing contract payload");
@@ -2864,6 +3190,7 @@ class V1_DataImporterTest extends IntegrationTest {
     // behaviour).
     openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
     this.importer.importData(
+        txCtx(),
         readMissingContractWithPayloadFixture(),
         Map.of(),
         null,
@@ -2891,7 +3218,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     assertEquals(
@@ -2933,7 +3267,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     List<Inject> imported = new ArrayList<>();
@@ -3032,6 +3373,7 @@ class V1_DataImporterTest extends IntegrationTest {
         ReflectionTestUtils.invokeMethod(
             importer,
             "resolveStepData",
+            txCtx(),
             stepNode,
             new HashMap<String, String>(),
             new HashMap<String, Base>(),
@@ -3206,7 +3548,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     Payload recreated = findSinglePayloadByName("step missing contract payload");
@@ -3249,7 +3598,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     Payload recreated = findSinglePayloadByName("step missing contract payload");
@@ -3299,7 +3655,14 @@ class V1_DataImporterTest extends IntegrationTest {
     // -- Act --
     ImportResult result =
         this.importer.importData(
-            importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+            txCtx(),
+            importData,
+            Map.of(),
+            null,
+            null,
+            null,
+            null,
+            Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     assertEquals(
@@ -3373,6 +3736,7 @@ class V1_DataImporterTest extends IntegrationTest {
         ReflectionTestUtils.invokeMethod(
             importer,
             "resolveStepData",
+            txCtx(),
             stepNode,
             new HashMap<String, String>(),
             new HashMap<String, Base>(),
@@ -3427,7 +3791,14 @@ class V1_DataImporterTest extends IntegrationTest {
     // -- Act --
     ImportResult result =
         this.importer.importData(
-            importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+            txCtx(),
+            importData,
+            Map.of(),
+            null,
+            null,
+            null,
+            null,
+            Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     Workflow workflow = findImportedWorkflow(scenarioName);
@@ -3458,7 +3829,14 @@ class V1_DataImporterTest extends IntegrationTest {
     // -- Act --
     ImportResult result =
         this.importer.importData(
-            importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+            txCtx(),
+            importData,
+            Map.of(),
+            null,
+            null,
+            null,
+            null,
+            Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     Workflow workflow = findImportedWorkflow(scenarioName);
@@ -3501,6 +3879,7 @@ class V1_DataImporterTest extends IntegrationTest {
         ReflectionTestUtils.invokeMethod(
             importer,
             "sanitizateStepData",
+            txCtx(),
             dataObject,
             fallback,
             null,
@@ -3514,6 +3893,7 @@ class V1_DataImporterTest extends IntegrationTest {
         ReflectionTestUtils.invokeMethod(
             importer,
             "sanitizateStepData",
+            txCtx(),
             om.getNodeFactory().textNode("not-an-object"),
             fallback,
             workflow,
@@ -3588,7 +3968,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     Workflow workflow = findImportedWorkflow(scenarioName);
@@ -3622,6 +4009,7 @@ class V1_DataImporterTest extends IntegrationTest {
     ReflectionTestUtils.invokeMethod(
         importer,
         "importWorkflow",
+        txCtx(),
         importData,
         "exercise_",
         exercise,
@@ -3676,7 +4064,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     Workflow workflow = findImportedWorkflow(scenarioName);
@@ -3752,7 +4147,14 @@ class V1_DataImporterTest extends IntegrationTest {
 
     // -- Act --
     this.importer.importData(
-        importData, Map.of(), null, null, null, null, Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
 
     // -- Assert --
     Workflow workflow = findImportedWorkflow(scenarioName);

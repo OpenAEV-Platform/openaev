@@ -3,7 +3,7 @@ import { useLocation, useSearchParams } from 'react-router';
 
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { AbilityContext } from '../../../utils/permissions/permissionsContext';
-import { ACTIONS, type CapabilityScope, SUBJECTS } from '../../../utils/permissions/types';
+import { ACTIONS, CAPABILITY_SCOPES, type CapabilityScope, SUBJECTS, type Subjects } from '../../../utils/permissions/types';
 
 export type SecurityScope = CapabilityScope;
 
@@ -18,7 +18,7 @@ const PLATFORM_ONLY_PATHS = ['/admin/settings/security/tenants'];
 const SESSION_SUBJECT = {
   TENANT: SUBJECTS.SESSIONS,
   PLATFORM: SUBJECTS.PLATFORM_SESSIONS,
-} as const;
+} as const satisfies Record<CapabilityScope, Subjects>;
 
 interface UseSecurityScope {
   scope: SecurityScope;
@@ -47,13 +47,13 @@ const useSecurityScope = (): UseSecurityScope => {
   const canAccessTenantSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
   const canAccessTenantUsers = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
   const canAccessPlatformUsers = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_USERS_GROUPS_AND_ROLES);
-  const canAccessTenant = canAccessTenantSettings || canAccessTenantUsers || canAccessSession('TENANT');
-  const canAccessPlatform = canAccessPlatformUsers || canAccessSession('PLATFORM');
+  const canAccessTenant = canAccessTenantSettings || canAccessTenantUsers || canAccessSession(CAPABILITY_SCOPES.TENANT);
+  const canAccessPlatform = canAccessPlatformUsers || canAccessSession(CAPABILITY_SCOPES.PLATFORM);
 
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const requested = PLATFORM_ONLY_PATHS.some(path => location.pathname.startsWith(path))
-    ? 'PLATFORM'
+    ? CAPABILITY_SCOPES.PLATFORM
     : searchParams.get('scope')?.toUpperCase();
 
   // Honor the requested scope when the user has access to it, otherwise fall
@@ -61,12 +61,12 @@ const useSecurityScope = (): UseSecurityScope => {
   // an EE feature, so a `?scope=platform` request is ignored in Community
   // Edition (where the scope switcher is not displayed).
   let scope: SecurityScope;
-  if (requested === 'PLATFORM' && canAccessPlatform && isEnterpriseEdition) {
-    scope = 'PLATFORM';
-  } else if (requested === 'TENANT' && canAccessTenant) {
-    scope = 'TENANT';
+  if (requested === CAPABILITY_SCOPES.PLATFORM && canAccessPlatform && isEnterpriseEdition) {
+    scope = CAPABILITY_SCOPES.PLATFORM;
+  } else if (requested === CAPABILITY_SCOPES.TENANT && canAccessTenant) {
+    scope = CAPABILITY_SCOPES.TENANT;
   } else {
-    scope = canAccessTenant ? 'TENANT' : 'PLATFORM';
+    scope = canAccessTenant ? CAPABILITY_SCOPES.TENANT : CAPABILITY_SCOPES.PLATFORM;
   }
 
   return {

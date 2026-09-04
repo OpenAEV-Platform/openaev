@@ -53,6 +53,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
@@ -685,7 +686,7 @@ public class InjectService {
    */
   @Transactional(rollbackFor = Exception.class)
   public List<Inject> bulkUpdateInject(
-      TxCtx ctx,
+      final TxCtx ctx,
       final List<Inject> injectsToUpdate,
       final List<InjectBulkUpdateOperation> operations) {
     // We aggregate the different field values in distinct sets in order to avoid retrieving the
@@ -726,7 +727,9 @@ public class InjectService {
         });
 
     // Save updated injects and return them
-    return this.injectRepository.saveAll(injectsToUpdate);
+    List<Inject> updated = this.injectRepository.saveAll(injectsToUpdate);
+    KillChainPhaseInitializer.initializeFromInjects(updated);
+    return updated;
   }
 
   /**

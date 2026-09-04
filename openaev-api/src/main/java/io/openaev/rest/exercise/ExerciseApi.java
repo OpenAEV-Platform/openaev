@@ -45,6 +45,7 @@ import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
@@ -400,7 +401,8 @@ public class ExerciseApi extends RestBehavior {
         teamRepository
             .findByIdAndTenantId(teamId, TenantContext.getCurrentTenant())
             .orElseThrow(ElementNotFoundException::new);
-    return exerciseService.enablePlayers(exerciseId, team, input.getPlayersIds());
+    return hydrateKillChainPhases(
+        exerciseService.enablePlayers(exerciseId, team, input.getPlayersIds()));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -427,7 +429,7 @@ public class ExerciseApi extends RestBehavior {
               exerciseTeamUserId.setUserId(playerId);
               exerciseTeamUserRepository.deleteById(exerciseTeamUserId);
             });
-    return exerciseService.exercise(exerciseId);
+    return hydrateKillChainPhases(exerciseService.exercise(exerciseId));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -454,8 +456,9 @@ public class ExerciseApi extends RestBehavior {
     List<User> playersToAdd = ReservedKeyValidator.excludeReservedUsers(teamUsers);
     team.getUsers().addAll(playersToAdd);
     teamRepository.save(team);
-    return exerciseService.enablePlayers(
-        exerciseId, team, playersToAdd.stream().map(User::getId).toList());
+    return hydrateKillChainPhases(
+        exerciseService.enablePlayers(
+            exerciseId, team, playersToAdd.stream().map(User::getId).toList()));
   }
 
   @PutMapping({
@@ -489,7 +492,7 @@ public class ExerciseApi extends RestBehavior {
               exerciseTeamUserId.setUserId(playerId);
               exerciseTeamUserRepository.deleteById(exerciseTeamUserId);
             });
-    return exerciseService.exercise(exerciseId);
+    return hydrateKillChainPhases(exerciseService.exercise(exerciseId));
   }
 
   // endregion
@@ -542,7 +545,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Exercise duplicateExercise(TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
-    return exerciseService.getDuplicateExercise(exerciseId);
+    return hydrateKillChainPhases(exerciseService.getDuplicateExercise(exerciseId));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
@@ -563,7 +566,8 @@ public class ExerciseApi extends RestBehavior {
     } else {
       exercise.setCustomDashboard(null);
     }
-    return exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule());
+    return hydrateKillChainPhases(
+        exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule()));
   }
 
   @PutMapping({
@@ -635,7 +639,8 @@ public class ExerciseApi extends RestBehavior {
     Exercise exercise = exerciseService.exercise(exerciseId);
     Set<Tag> currentTagList = exercise.getTags();
     exercise.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    return exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule());
+    return hydrateKillChainPhases(
+        exerciseService.updateExercice(exercise, currentTagList, input.isApplyTagRule()));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}/logos", TENANT_EXERCISE_URI + "/{exerciseId}/logos"})
@@ -651,7 +656,7 @@ public class ExerciseApi extends RestBehavior {
     Exercise exercise = exerciseService.exercise(exerciseId);
     exercise.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
     exercise.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
-    return exerciseRepository.save(exercise);
+    return hydrateKillChainPhases(exerciseRepository.save(exercise));
   }
 
   // -- OPTION --
@@ -697,7 +702,7 @@ public class ExerciseApi extends RestBehavior {
     if (input.getLessonsEnabled() != null) {
       exercise.setLessonsEnabled(input.getLessonsEnabled());
     }
-    return exerciseRepository.save(exercise);
+    return hydrateKillChainPhases(exerciseRepository.save(exercise));
   }
 
   @DeleteMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
@@ -878,7 +883,7 @@ public class ExerciseApi extends RestBehavior {
       // Delete document from all exercise injects
       injectService.cleanInjectsDocExercise(exerciseId, documentId);
     }
-    return exerciseRepository.save(exercise);
+    return hydrateKillChainPhases(exerciseRepository.save(exercise));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}/status", TENANT_EXERCISE_URI + "/{exerciseId}/status"})
@@ -1030,13 +1035,9 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping({EXERCISE_URI + "/import", TENANT_EXERCISE_URI + "/import"})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public ImportResult exerciseImport(
-      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for the transaction (the V1_DataImporter resolves InjectorContract#getFirstInjector() and
-      // InjectorService#injectorTypeExists(...), both v2 tenant-scoped through the injectors
-      // table; without a scope, imported injects silently lose their injector).
-      TxCtx ctx, @RequestPart("file") MultipartFile file) throws Exception {
-    return importService.handleFileImport(file, null, null);
+  public ImportResult exerciseImport(TxCtx ctx, @RequestPart("file") MultipartFile file)
+      throws Exception {
+    return importService.handleFileImport(ctx, file, null, null);
   }
 
   @PostMapping({
@@ -1198,7 +1199,14 @@ public class ExerciseApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the simulation")
           final String simulationId) {
-    return scenarioService.scenarioFromSimulationId(simulationId);
+    Scenario scenario = scenarioService.scenarioFromSimulationId(simulationId);
+    KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
+    return scenario;
+  }
+
+  private static Exercise hydrateKillChainPhases(Exercise exercise) {
+    KillChainPhaseInitializer.initializeFromInjects(exercise.getInjects());
+    return exercise;
   }
 
   // end region

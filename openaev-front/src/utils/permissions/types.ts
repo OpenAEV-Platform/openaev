@@ -3,6 +3,12 @@ import { type CapabilityOutput, type RoleInput } from '../api-types';
 /** Scope vocabulary owned by the back end (CapabilityScope), read from the generated types. */
 export type CapabilityScope = CapabilityOutput['capability_scopes'][number];
 
+/** Value form of that vocabulary, so no component spells a scope by hand. */
+export const CAPABILITY_SCOPES = {
+  TENANT: 'TENANT',
+  PLATFORM: 'PLATFORM',
+} as const satisfies Record<CapabilityScope, CapabilityScope>;
+
 export const ACTIONS = {
   ACCESS: 'ACCESS',
   MANAGE: 'MANAGE',

@@ -51,10 +51,7 @@ public class TenantRoleApiTest extends IntegrationTest {
     void given_manageTenantUsersGroupsAndRoles_should_createRole() throws Exception {
       // -------- Arrange --------
       RoleInput input =
-          RoleInput.builder()
-              .name("Analyst")
-              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
-              .build();
+          new RoleInput("Analyst", null, Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES));
 
       // -------- Act --------
       String response =
@@ -81,11 +78,7 @@ public class TenantRoleApiTest extends IntegrationTest {
     @DisplayName("Given ACCESS_TENANT_USERS_GROUPS_AND_ROLES only, should be forbidden to create")
     void given_accessTenantUsersGroupsAndRoles_should_forbidCreate() throws Exception {
       // -------- Arrange --------
-      RoleInput input =
-          RoleInput.builder()
-              .name("Forbidden")
-              .capabilities(Set.of(Capability.ACCESS_ASSETS))
-              .build();
+      RoleInput input = new RoleInput("Forbidden", null, Set.of(Capability.ACCESS_ASSETS));
 
       // -------- Act & Assert --------
       mvc.perform(
@@ -104,11 +97,7 @@ public class TenantRoleApiTest extends IntegrationTest {
     void given_manageTenantUsersGroupsAndRoles_should_forbidCreateWithUnownedCapabilities()
         throws Exception {
       // -------- Arrange --------
-      RoleInput input =
-          RoleInput.builder()
-              .name("Forbidden")
-              .capabilities(Set.of(Capability.ACCESS_ASSETS))
-              .build();
+      RoleInput input = new RoleInput("Forbidden", null, Set.of(Capability.ACCESS_ASSETS));
 
       // -------- Act & Assert --------
       mvc.perform(
@@ -128,14 +117,13 @@ public class TenantRoleApiTest extends IntegrationTest {
         throws Exception {
       // -------- Arrange --------
       RoleInput input =
-          RoleInput.builder()
-              .name("Forbidden")
-              .capabilities(
-                  Set.of(
-                      Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
-                      Capability.ACCESS_ASSETS,
-                      Capability.ACCESS_CHALLENGES))
-              .build();
+          new RoleInput(
+              "Forbidden",
+              null,
+              Set.of(
+                  Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+                  Capability.ACCESS_ASSETS,
+                  Capability.ACCESS_CHALLENGES));
 
       // -------- Act --------
       String response =
@@ -165,11 +153,7 @@ public class TenantRoleApiTest extends IntegrationTest {
         "Given MANAGE_TENANT_USERS_GROUPS_AND_ROLES, no role should be persisted when the grant is refused")
     void given_manageTenantUsersGroupsAndRoles_should_notPersistRefusedRole() throws Exception {
       // -------- Arrange --------
-      RoleInput input =
-          RoleInput.builder()
-              .name("NeverPersisted")
-              .capabilities(Set.of(Capability.ACCESS_ASSETS))
-              .build();
+      RoleInput input = new RoleInput("NeverPersisted", null, Set.of(Capability.ACCESS_ASSETS));
 
       // -------- Act --------
       mvc.perform(
@@ -322,10 +306,7 @@ public class TenantRoleApiTest extends IntegrationTest {
               .get();
 
       RoleInput input =
-          RoleInput.builder()
-              .name("NewName")
-              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
-              .build();
+          new RoleInput("NewName", null, Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES));
 
       // -------- Act --------
       String response =
@@ -361,13 +342,12 @@ public class TenantRoleApiTest extends IntegrationTest {
               .get();
 
       RoleInput input =
-          RoleInput.builder()
-              .name("Healed")
-              .capabilities(
-                  Set.of(
-                      Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
-                      Capability.ACCESS_PLATFORM_SETTINGS))
-              .build();
+          new RoleInput(
+              "Healed",
+              null,
+              Set.of(
+                  Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+                  Capability.ACCESS_PLATFORM_SETTINGS));
 
       // -------- Act --------
       String response =
@@ -401,11 +381,7 @@ public class TenantRoleApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      RoleInput input =
-          RoleInput.builder()
-              .name("Forbidden")
-              .capabilities(Set.of(Capability.ACCESS_CHALLENGES))
-              .build();
+      RoleInput input = new RoleInput("Forbidden", null, Set.of(Capability.ACCESS_CHALLENGES));
 
       // -------- Act & Assert --------
       mvc.perform(
@@ -430,11 +406,7 @@ public class TenantRoleApiTest extends IntegrationTest {
               .persist()
               .get();
 
-      RoleInput input =
-          RoleInput.builder()
-              .name("Forbidden")
-              .capabilities(Set.of(Capability.ACCESS_ASSETS))
-              .build();
+      RoleInput input = new RoleInput("Forbidden", null, Set.of(Capability.ACCESS_ASSETS));
 
       // -------- Act & Assert --------
       mvc.perform(
@@ -582,10 +554,8 @@ public class TenantRoleApiTest extends IntegrationTest {
               "Tenant Y", Set.of(Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES));
 
       RoleInput input =
-          RoleInput.builder()
-              .name("Isolated Role")
-              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
-              .build();
+          new RoleInput(
+              "Isolated Role", null, Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES));
 
       String createResponse =
           mvc.perform(
@@ -636,10 +606,10 @@ public class TenantRoleApiTest extends IntegrationTest {
                   Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES));
 
       RoleInput input =
-          RoleInput.builder()
-              .name("Update Isolation Role")
-              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
-              .build();
+          new RoleInput(
+              "Update Isolation Role",
+              null,
+              Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES));
 
       String createResponse =
           mvc.perform(
@@ -657,10 +627,8 @@ public class TenantRoleApiTest extends IntegrationTest {
 
       // -------- Act — update from tenant Y --------
       RoleInput updateInput =
-          RoleInput.builder()
-              .name("Hijacked Role")
-              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
-              .build();
+          new RoleInput(
+              "Hijacked Role", null, Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES));
 
       int status =
           mvc.perform(
@@ -698,10 +666,10 @@ public class TenantRoleApiTest extends IntegrationTest {
                   Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES));
 
       RoleInput input =
-          RoleInput.builder()
-              .name("Delete Isolation Role")
-              .capabilities(Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
-              .build();
+          new RoleInput(
+              "Delete Isolation Role",
+              null,
+              Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES));
 
       String createResponse =
           mvc.perform(

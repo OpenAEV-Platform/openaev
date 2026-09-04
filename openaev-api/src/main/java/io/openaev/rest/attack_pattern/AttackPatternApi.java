@@ -17,9 +17,11 @@ import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.attack_pattern.form.AttackPatternUpdateInput;
 import io.openaev.rest.attack_pattern.form.AttackPatternUpsertInput;
+import io.openaev.rest.attack_pattern.response.AttackPatternOutput;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.kill_chain_phase.service.KillChainPhaseService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,6 +31,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
@@ -48,6 +51,7 @@ public class AttackPatternApi extends RestBehavior {
   private final AttackPatternRepository attackPatternRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final KillChainPhaseRepository killChainPhaseRepository;
+  private final KillChainPhaseService killChainPhaseService;
 
   @GetMapping
   @Transactional
@@ -59,10 +63,18 @@ public class AttackPatternApi extends RestBehavior {
   @PostMapping("/search")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ATTACK_PATTERN)
-  public Page<AttackPattern> attackPatterns(
+  public Page<AttackPatternOutput> attackPatterns(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return buildPaginationJPA(
-        this.attackPatternRepository::findAll, searchPaginationInput, AttackPattern.class);
+    Page<AttackPattern> page =
+        buildPaginationJPA(
+            this.attackPatternRepository::findAll, searchPaginationInput, AttackPattern.class);
+    Map<String, List<String>> phaseIds =
+        this.killChainPhaseService.phaseIdsByAttackPatternId(
+            page.getContent().stream().map(AttackPattern::getId).toList());
+    return page.map(
+        attackPattern ->
+            AttackPatternOutput.from(
+                attackPattern, phaseIds.getOrDefault(attackPattern.getId(), List.of())));
   }
 
   @PostMapping("/search-with-ai")
@@ -86,8 +98,13 @@ public class AttackPatternApi extends RestBehavior {
       resourceId = "#attackPatternId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.ATTACK_PATTERN)
-  public AttackPattern attackPattern(TxCtx ctx, @PathVariable String attackPatternId) {
-    return attackPatternService.findById(attackPatternId);
+  public AttackPatternOutput attackPattern(TxCtx ctx, @PathVariable String attackPatternId) {
+    AttackPattern attackPattern = attackPatternService.findById(attackPatternId);
+    return AttackPatternOutput.from(
+        attackPattern,
+        this.killChainPhaseService
+            .phaseIdsByAttackPatternId(List.of(attackPatternId))
+            .getOrDefault(attackPatternId, List.of()));
   }
 
   @PostMapping

@@ -132,6 +132,6 @@ public class ExerciseImportApi extends RestBehavior {
     if (file == null || file.isEmpty()) {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }
-    this.injectImportService.importInjectsForSimulation(file, simulationId);
+    this.injectImportService.importInjectsForSimulation(ctx, file, simulationId);
   }
 }
