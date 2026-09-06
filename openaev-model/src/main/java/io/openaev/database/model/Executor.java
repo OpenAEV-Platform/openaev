@@ -5,6 +5,8 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
+import io.openaev.database.audit.AuditStateCapturable;
+import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -27,7 +29,7 @@ import org.hibernate.annotations.Type;
  * inspector scopes every query, and write attribution is explicit via TenantWriteScopeResolver. Do
  * not re-add either.
  */
-public class Executor extends BaseConnectorEntity implements TenantIdBase {
+public class Executor extends BaseConnectorEntity implements TenantIdBase, AuditStateCapturable {
 
   @Id
   @Column(name = "executor_id")
@@ -70,11 +72,13 @@ public class Executor extends BaseConnectorEntity implements TenantIdBase {
   @Column(name = "executor_created_at")
   @JsonProperty("executor_created_at")
   @NotNull
+  @AuditStateIgnore
   private Instant createdAt = now();
 
   @Column(name = "executor_updated_at")
   @JsonProperty("executor_updated_at")
   @NotNull
+  @AuditStateIgnore
   private Instant updatedAt = now();
 
   @JsonIgnore

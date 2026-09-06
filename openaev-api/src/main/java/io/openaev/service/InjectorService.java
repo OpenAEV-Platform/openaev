@@ -3,7 +3,9 @@ package io.openaev.service;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.INJECTORS_IMAGES_BASE_PATH;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.TenantContext;
+import io.openaev.database.audit.AuditLoggedService;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -32,6 +34,7 @@ import io.openaev.service.exception.InjectorRegistrationException;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.InjectorMapper;
+import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotBlank;
 import java.io.InputStream;
@@ -49,7 +52,10 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 @Service("coreInjectorService")
 // TODO needs to be merged with integrations/InjectorService
-public class InjectorService extends AbstractConnectorService<Injector, InjectorOutput> {
+public class InjectorService extends AbstractConnectorService<Injector, InjectorOutput>
+    implements AuditLoggedService {
+
+  @Resource protected ObjectMapper mapper;
 
   // Built-in injectors (Email, Manual, HTTP query, ...) are shipped by the
   // platform, so their contracts are authored by Filigran.
@@ -254,6 +260,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       // We need to support upsert for registration
       Injector injector = injectorRepository.findByInjectorId(input.getId()).orElse(null);
       if (injector != null) {
+        // Capture significant state before mutation
+        Map<String, Object> before = injector.significantState(mapper);
         updateExistingExternalInjector(
             injector,
             input.getType(),
@@ -265,6 +273,8 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
             input.getExecutorClearCommands(),
             input.getPayloads(),
             authorOrganization);
+        // Suppress audit logging for heartbeat-only updates (no significant change)
+        suppressAuditIfUnchanged(before, injector.significantState(mapper));
       } else {
         // save the injector
         Injector newInjector = new Injector();
