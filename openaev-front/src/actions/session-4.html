@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Principes OOP — TypeScript vers Java/Spring</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css">
+    <style>
+        :root {
+            --filigran-blue: #001bda;
+            --filigran-cyan: #00f1bd;
+            --filigran-dark: #0a1929;
+            --filigran-paper: #09101e;
+            --filigran-text: #ffffff;
+            --filigran-muted: #8899aa;
+            --filigran-orange: #f19710;
+            --filigran-red: #f44336;
+            --filigran-green: #4caf50;
+        }
+        .reveal { font-family: 'IBM Plex Sans', sans-serif; color: var(--filigran-text); }
+        .reveal .slides { text-align: left; }
+        .reveal h1, .reveal h2, .reveal h3 { color: var(--filigran-cyan); text-transform: none; font-weight: 600; }
+        .reveal h1 { font-size: 2.2em; }
+        .reveal h2 { font-size: 1.6em; }
+        .reveal h3 { font-size: 1.2em; }
+        .reveal .slide-background { background: var(--filigran-dark); }
+        .reveal section { background: transparent; }
+        .reveal code { font-family: 'IBM Plex Mono', 'Fira Code', monospace; font-size: 0.75em; }
+        .reveal pre { width: 100%; box-shadow: none; }
+        .reveal pre code { padding: 16px; border-radius: 8px; background: var(--filigran-paper); max-height: 480px; }
+        .reveal table { font-size: 0.7em; border-collapse: collapse; width: 100%; margin: 12px 0; }
+        .reveal th { background: var(--filigran-blue); color: white; padding: 8px 12px; text-align: left; }
+        .reveal td { padding: 6px 12px; border-bottom: 1px solid #1e3a5f; }
+        .reveal tr:nth-child(even) td { background: rgba(255,255,255,0.03); }
+        .reveal .accent { color: var(--filigran-cyan); }
+        .reveal .warn { color: var(--filigran-orange); }
+        .reveal .dim { color: var(--filigran-muted); font-size: 0.85em; }
+        .reveal .tag { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 0.7em; font-weight: 600; margin: 2px; }
+        .reveal .tag-concept { background: var(--filigran-blue); color: white; }
+        .reveal .tag-code { background: #1b5e20; color: white; }
+        .reveal .tag-exercise { background: #e65100; color: white; }
+        .reveal ul { list-style: none; padding-left: 0; }
+        .reveal ul li::before { content: "▸ "; color: var(--filigran-cyan); font-weight: bold; }
+        .reveal .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+        .title-slide h1 { font-size: 2.5em; text-align: center; }
+        .title-slide p { text-align: center; color: var(--filigran-muted); font-size: 1.1em; }
+        .section-divider { text-align: center !important; }
+        .section-divider h2 { font-size: 2em; margin-bottom: 0.3em; }
+        .reveal .qa-block { background: rgba(0,241,189,0.06); border-left: 3px solid var(--filigran-cyan); padding: 12px 20px; margin: 10px 0; border-radius: 4px; }
+        .reveal .answer-block { background: rgba(76,175,80,0.08); border-left: 3px solid var(--filigran-green); padding: 12px 20px; margin: 10px 0; border-radius: 4px; }
+    </style>
+</head>
+<body>
+<div class="reveal">
+    <div class="slides">
+
+        <!-- ========== TITLE ========== -->
+        <section class="title-slide">
+            <p style="font-size: 0.9em; color: var(--filigran-muted);">Formation Backend — Fondamentaux OOP</p>
+            <h1>Principes de programmation orientée objet</h1>
+            <p class="dim" style="margin-top: 60px;">
+                <span class="tag tag-concept">Concepts</span>
+                <span class="tag tag-code">Code réel</span>
+                <span class="tag tag-exercise">Discussion</span>
+            </p>
+        </section>
+
+        <!-- ========== AGENDA ========== -->
+        <section>
+            <h2>🗺️ Agenda</h2>
+            <table>
+                <tr><th>Bloc</th><th>Contenu</th></tr>
+                <tr><td>Intro</td><td>Les 4 piliers de l'OOP, en un coup d'œil</td></tr>
+                <tr><td>Héritage</td><td>Analogie → TS → <code>ExecutorContextService</code></td></tr>
+                <tr><td>Abstraction</td><td>Le contrat, pas l'implémentation</td></tr>
+                <tr><td><strong>Encapsulation</strong> 🔎</td><td>Analogie → TS → <code>Inject.java</code></td></tr>
+                <tr><td><strong>Polymorphisme</strong> 🔎</td><td>Analogie → TS → <code>ExecutionExecutorService</code> + spécificités Spring</td></tr>
+                <tr><td>SOLID</td><td>Théorie + exemple concret</td></tr>
+                <tr><td>Q&A</td><td>—</td></tr>
+            </table>
+        </section>
+
+        <!-- ========== INTRO ========== -->
+        <section>
+            <h2>🧭 Introduction</h2>
+            <p>L'OOP en TypeScript, avec ses interfaces, classes et ses composition, est très similaire à ce qu'on fait en java. Mais avec une syntaxe plus stricte et une couche supplémentaire : Spring, qui <strong>possède et fabrique les objets à votre place</strong>.</p>
+            <p style="margin-top: 24px;">Les 4 piliers qu'on va parcourir aujourd'hui :</p>
+            <ul>
+                <li><strong>Héritage</strong> — partager un contrat et du code commun entre classes</li>
+                <li><strong>Abstraction</strong> — masquer le "comment", exposer le "quoi"</li>
+                <li><strong>Encapsulation</strong> — protéger l'état interne d'un objet</li>
+                <li><strong>Polymorphisme</strong> — un même appel, un comportement différent selon l'objet réel</li>
+            </ul>
+        </section>
+
+        <!-- ========== SECTION: HERITAGE ========== -->
+        <section class="section-divider">
+            <h2>🧬 Héritage</h2>
+        </section>
+
+        <!-- Héritage — mise en situation -->
+        <section>
+            <h2>Héritage — Mise en situation</h2>
+            <div class="qa-block">
+                <p>Vous développez un logiciel qui pilote des distributeurs de billets (ATM) de plusieurs fabricants.</p>
+            </div>
+            <p style="margin-top: 20px;"><strong>Questions :</strong></p>
+            <ul>
+                <li>Quelles opérations sont communes à tous les distributeurs, quel que soit le fabricant ?</li>
+                <li>Si vous écrivez une classe indépendante par fabricant sans rien partager, que se passe-t-il le jour où un nouveau fabricant arrive, ou qu'une règle commune change ?</li>
+                <li>Comment sépareriez-vous "ce que tout ATM sait faire" de "comment chacun le fait réellement" ?</li>
+            </ul>
+        </section>
+
+        <!-- Héritage — réponses attendues -->
+        <section>
+            <h2>Héritage — Réponses attendues</h2>
+            <div class="answer-block">
+                <ul>
+                    <li>Retrait, consultation solde, éjection carte = un <strong>contrat commun</strong> à toutes les implémentations.</li>
+                    <li>Sans partage : duplication de structure, et toute évolution du contrat commun oblige à modifier N classes indépendamment — risque d'incohérence.</li>
+                    <li>On sépare via une classe (ou interface) commune qui définit le contrat ; chaque fabricant fournit sa propre implémentation en héritant de cette base.</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Héritage — TS -->
+        <section>
+            <h2>Héritage — Rappel TypeScript</h2>
+            <pre><code class="language-typescript">abstract class Atm {
+  abstract withdraw(amount: number): void;
+  abstract checkBalance(): number;
+}
+class DieboldAtm extends Atm { /* ... */ }
+class NcrAtm extends Atm { /* ... */ }</code></pre>
+            <p class="dim" style="margin-top: 16px;">En TS, le typage structurel (duck typing) rend l'héritage de classe moins central qu'en Java — souvent une simple <code>interface</code> suffit, sans hiérarchie de classes.</p>
+        </section>
+
+        <!-- Héritage — Java/Spring -->
+        <section>
+            <h2>Héritage — Code réel OpenAEV</h2>
+            <p class="dim">📁 <code>openaev-api/.../executors/ExecutorContextService.java</code></p>
+            <pre><code class="language-java">public abstract class ExecutorContextService {
+
+  public abstract void launchExecutorSubprocess(
+      Inject inject, Endpoint assetEndpoint, Agent agent, String token)
+      throws AgentException;
+
+  public abstract List&lt;Agent&gt; launchBatchExecutorSubprocess(
+      Inject inject, Set&lt;Agent&gt; agents,
+      InjectStatus injectStatus, String token);
+}</code></pre>
+            <p style="margin-top: 16px;">Étendue par plusieurs implémentations concrètes :</p>
+            <pre><code class="language-java">@Service(CrowdStrikeExecutorContextService.SERVICE_NAME)
+public class CrowdStrikeExecutorContextService extends ExecutorContextService { ... }
+
+@Service(PaloAltoCortexExecutorContextService.SERVICE_NAME)
+public class PaloAltoCortexExecutorContextService extends ExecutorContextService { ... }</code></pre>
+            <p class="dim" style="margin-top: 12px;">Point clé Java vs TS : <code>extends</code> est <strong>unique et obligatoire</strong> (héritage simple), et une classe abstraite peut porter du <strong>code partagé</strong>, pas juste des signatures — contrairement à une <code>interface</code> TS pure.</p>
+        </section>
+
+        <!-- ========== SECTION: ABSTRACTION ========== -->
+        <section class="section-divider">
+            <h2>🎭 Abstraction</h2>
+        </section>
+
+        <!-- Abstraction -->
+        <section>
+            <h2>Abstraction — Masquer le "comment"</h2>
+            <div class="qa-block">
+                <p>Vous conduisez une voiture avec un volant et des pédales, sans connaître les détails du moteur (thermique ou électrique) qui se trouve dessous.</p>
+            </div>
+            <p style="margin-top: 20px;">L'abstraction, c'est <strong>montrer uniquement ce qu'il faut savoir pour utiliser</strong> un objet, jamais comment il est fabriqué en interne.</p>
+            <p style="margin-top: 16px;">On réutilise directement l'exemple précédent : <code>ExecutorContextService</code> <strong>est</strong> l'abstraction.</p>
+            <pre><code class="language-java">// Le code appelant raisonne sur "un ExecutorContextService"
+// sans jamais connaître la complexité de l'API CrowdStrike
+// ou PaloAlto Cortex derrière launchBatchExecutorSubprocess(...)
+executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus, token);</code></pre>
+        </section>
+
+        <!-- ========== SECTION: ENCAPSULATION ========== -->
+        <section class="section-divider">
+            <h2>🔒 Encapsulation</h2>
+        </section>
+
+        <!-- Encapsulation — mise en situation -->
+        <section>
+            <h2>Encapsulation — Mise en situation</h2>
+            <div class="qa-block">
+                <p>Un thermostat connecté : vous ne touchez jamais directement à la résistance ou au compresseur. Vous appuyez sur "+"/"-", et l'appareil refuse de descendre sous 5°C (hors gel) ou de dépasser 30°C, même si vous insistez.</p>
+            </div>
+            <p style="margin-top: 20px;"><strong>Questions :</strong></p>
+            <ul>
+                <li>Pourquoi le fabricant ne vous laisse-t-il pas agir directement sur la résistance ?</li>
+                <li>Que se passerait-il si n'importe quel autre appareil de la maison pouvait modifier la température cible sans passer par ce bouton ?</li>
+                <li>Si demain le thermostat doit aussi enregistrer "dernière modification par qui/quand", où cette règle doit-elle vivre ?</li>
+            </ul>
+        </section>
+
+        <!-- Encapsulation — réponses attendues -->
+        <section>
+            <h2>Encapsulation — Réponses attendues</h2>
+            <div class="answer-block">
+                <ul>
+                    <li>Protéger des <strong>invariants</strong> (sécurité/physique) via un point de passage unique.</li>
+                    <li>Un bug ailleurs dans la maison pourrait violer une règle métier critique sans que le thermostat "s'en rende compte" — perte de contrôle de l'état.</li>
+                    <li>La règle doit vivre <strong>dans l'objet qui possède l'état</strong>, pas dupliquée chez chaque appelant.</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Encapsulation — TS -->
+        <section>
+            <h2>Encapsulation — Rappel TypeScript</h2>
+            <pre><code class="language-typescript">class Thermostat {
+  #target = 20;
+
+  setTarget(v: number) {
+    if (v < 5 || v > 30) throw new Error("out of safe range");
+    this.#target = v;
+  }
+}</code></pre>
+            <p class="dim" style="margin-top: 16px;">Le champ privé <code>#target</code> ne peut être modifié que via <code>setTarget</code>, qui impose la règle métier.</p>
+        </section>
+
+        <!-- Encapsulation — Java 1 -->
+        <section>
+            <h2>Encapsulation — Code réel OpenAEV (1/2)</h2>
+            <p class="dim">📁 <code>openaev-model/.../database/model/Inject.java</code></p>
+            <pre><code class="language-java">// UpdatedAt now used to sync with linked object
+public void setStatus(InjectStatus status) {
+    this.updatedAt = now();
+    this.status = status;
+}</code></pre>
+            <p style="margin-top: 16px;">Même pattern répété pour <code>setDependsOn</code>, <code>setTags</code>, <code>setTeams</code>, <code>setAssets</code>, <code>setAssetGroups</code>.</p>
+        </section>
+
+        <!-- Encapsulation — Java 2 -->
+        <section>
+            <h2>Encapsulation — Code réel OpenAEV (2/2)</h2>
+            <p>Méthode <code>clean()</code> — remise à zéro cohérente :</p>
+            <pre><code class="language-java">@JsonIgnore
+public void clean() {
+    this.setStatus(null);
+    this.communications.clear();
+    this.expectations.clear();
+    this.findings.clear();
+    this.setCollectExecutionStatus(COLLECTING);
+}</code></pre>
+            <p style="margin-top: 16px;">Bonus — 📁 <code>InjectStatus.java</code> :</p>
+            <pre><code class="language-java">public void addErrorTrace(String message, ExecutionTraceAction action) {
+    ExecutionTrace newTrace = new ExecutionTrace(
+        this, ExecutionTraceStatus.ERROR, List.of(), message, action, null, null);
+    this.getTraces().add(newTrace);
+}</code></pre>
+            <p class="dim">La liste <code>traces</code> n'est <strong>jamais manipulée directement</strong> (<code>.add()</code>) depuis l'extérieur — on passe toujours par <code>addTrace</code>/<code>addErrorTrace</code>/<code>addInfoTrace</code>/<code>addWarningTrace</code>.</p>
+        </section>
+
+        <!-- ========== SECTION: POLYMORPHISME ========== -->
+        <section class="section-divider">
+            <h2>🎭 Polymorphisme</h2>
+        </section>
+
+        <!-- Polymorphisme — mise en situation -->
+        <section>
+            <h2>Polymorphisme — Mise en situation</h2>
+            <div class="qa-block">
+                <p>Une télécommande universelle : le bouton "Power" est toujours au même endroit et se presse pareil, quel que soit l'appareil branché (TV Samsung, LG, Sony).</p>
+            </div>
+            <p style="margin-top: 20px;"><strong>Questions :</strong></p>
+            <ul>
+                <li>Que doit "savoir" la télécommande sur l'appareil en face d'elle pour fonctionner ?</li>
+                <li>Si un nouveau modèle de TV sort demain, faut-il modifier la télécommande ?</li>
+                <li>Qui décide, et <strong>à quel moment</strong>, du comportement réel qui s'exécute derrière le bouton Power ?</li>
+            </ul>
+        </section>
+
+        <!-- Polymorphisme — réponses attendues -->
+        <section>
+            <h2>Polymorphisme — Réponses attendues</h2>
+            <div class="answer-block">
+                <ul>
+                    <li>Elle n'a besoin de connaître que le <strong>contrat</strong> (Power/Volume/Chaîne), jamais les détails internes de chaque TV.</li>
+                    <li>Non : chaque nouvelle TV s'adapte au même protocole, seul le comportement change, pas l'interface.</li>
+                    <li>La décision est prise <strong>à l'exécution</strong> (runtime), pas à l'écriture du code de la télécommande — c'est le <em>dynamic dispatch</em>.</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Polymorphisme — mise en situation -->
+        <section>
+            <h2>Polymorphisme — Mise en situation</h2>
+            <div class="qa-block">
+                <p>Vous réservez une course sur une application de VTC. Vous appuyez toujours sur le même bouton "Réserver une course". Mais le chauffeur qui accepte réellement la course — et donc la voiture, l'itinéraire, le style de conduite — est différent à chaque fois, et vous ne le savez qu'au moment où quelqu'un accepte.</p>
+            </div>
+            <p style="margin-top: 20px;"><strong>Questions :</strong></p>
+            <ul>
+                <li>Quand vous appuyez sur "Réserver", que savez-vous à l'avance du chauffeur qui va réellement prendre en charge la course ?</li>
+                <li>Qui décide quel chauffeur va traiter votre demande, et à quel moment cette décision est-elle prise ?</li>
+                <li>Si demain un nouveau chauffeur s'inscrit sur la plateforme, faut-il changer votre application ou votre façon de réserver ?</li>
+            </ul>
+        </section>
+
+        <!-- Polymorphisme — réponses attendues -->
+        <section>
+            <h2>Polymorphisme — Réponses attendues</h2>
+            <div class="answer-block">
+                <ul>
+                    <li>Rien : vous connaissez seulement le <strong>contrat</strong> ("réserver une course"), jamais l'identité ni les caractéristiques du chauffeur réel avant l'affectation.</li>
+                    <li>La <strong>plateforme</strong> (l'algorithme de dispatch) décide, <strong>au moment de la demande</strong> — à l'exécution, pas à l'écriture du code de votre appli.</li>
+                    <li>Non : le protocole de réservation reste identique, seul le chauffeur affecté change — sans jamais toucher à l'appli existante.</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Polymorphisme — TS -->
+        <section>
+            <h2>Polymorphisme — Rappel TypeScript</h2>
+            <pre><code class="language-typescript">interface Remote { power(): void; }
+class SamsungTv implements Remote { power() { /* ... */ } }
+class LgTv implements Remote { power() { /* ... */ } }
+
+function pressPower(tv: Remote) {
+  tv.power(); // ne sait pas laquelle
+}</code></pre>
+        </section>
+
+        <!-- Polymorphisme — explication technique -->
+        <section>
+            <h2>Polymorphisme — Le mécanisme technique</h2>
+            <p>Deux formes existent, souvent confondues. On ne s'intéresse ici qu'à la seconde :</p>
+            <table>
+                <tr><th></th><th>Surcharge <span class="dim">(overloading)</span></th><th>Redéfinition <span class="dim">(overriding)</span></th></tr>
+                <tr><td><strong>Résolution</strong></td><td>À la <strong>compilation</strong> (signature)</td><td>À l'<strong>exécution</strong> (type réel de l'objet)</td></tr>
+                <tr><td><strong>Aussi appelé</strong></td><td>"Static polymorphism"</td><td>"Dynamic polymorphism" / <em>dynamic dispatch</em></td></tr>
+                <tr><td><strong>Exemple</strong></td><td><code>process(String s)</code> vs <code>process(int i)</code></td><td><code>CrowdStrikeExecutorContextService</code> override de <code>launchBatchExecutorSubprocess</code></td></tr>
+                <tr><td><strong>C'est notre sujet ?</strong></td><td>❌ Non</td><td>✅ <strong>Oui</strong></td></tr>
+            </table>
+            <p style="margin-top: 16px;">Le vrai mécanisme du polymorphisme "orienté objet" repose sur une distinction fondamentale :</p>
+            <ul>
+                <li><strong>Type déclaré</strong> (compile-time) — ce que le compilateur voit dans la variable</li>
+                <li><strong>Type réel</strong> (runtime) — l'objet effectivement présent en mémoire</li>
+            </ul>
+            <p class="dim" style="margin-top: 12px;">Le compilateur vérifie seulement que le <strong>type déclaré</strong> possède la méthode. La JVM choisit <strong>quelle implémentation exécuter</strong> en regardant le <strong>type réel</strong>, à chaque appel — c'est le <em>dynamic dispatch</em>.</p>
+        </section>
+
+        <!-- Polymorphisme — le mécanisme appliqué au code -->
+        <section>
+            <h2>Polymorphisme — Le mécanisme, dans notre code</h2>
+            <pre><code class="language-java">ExecutorContextService executorContextService =
+    manager.request(new ComponentRequest(executor.getName()), ExecutorContextService.class);
+//  ↑ Type DÉCLARÉ (compile-time) : ExecutorContextService
+//    Le compilateur autorise l'appel car ExecutorContextService définit la méthode.
+
+executorContextService.launchBatchExecutorSubprocess(inject, agents, injectStatus, token);
+//  ↑ Type RÉEL (runtime) : CrowdStrikeExecutorContextService, PaloAltoCortexExecutorContextService...
+//    La JVM regarde l'objet EFFECTIF en mémoire pour choisir QUELLE implémentation exécuter.</code></pre>
+            <p style="margin-top: 16px;">C'est exactement le point de la mise en situation VTC :</p>
+            <ul>
+                <li>Le <strong>type déclaré</strong> = le bouton "Réserver une course" (le contrat, toujours identique)</li>
+                <li>Le <strong>type réel</strong> = le chauffeur effectivement assigné (connu seulement à l'exécution)</li>
+            </ul>
+            <p class="dim" style="margin-top: 12px;">💡 En Java, l'annotation <code>@Override</code> ne <em>déclenche</em> pas le dynamic dispatch — le compilateur vérifie juste que vous redéfinissez bien une méthode existante de la classe parente. Le dispatch dynamique, lui, se produit <strong>toujours</strong> pour les méthodes non-<code>static</code>/non-<code>private</code>/non-<code>final</code>, avec ou sans l'annotation.</p>
+        </section>
+
+        <!-- Polymorphisme — Spring specifics -->
+        <section>
+            <h2>Polymorphisme — Spécificités Spring</h2>
+            <ul>
+                <li><code>@Service(CrowdStrikeExecutorContextService.SERVICE_NAME)</code> : chaque implémentation s'enregistre comme <strong>bean Spring</strong> sous un nom métier.</li>
+                <li>Spring maintient ces beans en mémoire ; c'est le code appelant qui va <strong>chercher le bon bean par son nom à l'exécution</strong> — aucun <code>new CrowdStrikeExecutorContextService()</code> dans <code>ExecutionExecutorService</code>. C'est l'<strong>inversion de contrôle</strong>.</li>
+                <li><code>@Qualifier</code>/<code>@Primary</code> : mécanisme plus simple, pour choisir entre 2-3 beans candidats à l'injection directe (pas de lookup dynamique par nom).</li>
+            </ul>
+            <p class="warn" style="margin-top: 16px;">⚠️ Piège fréquent : les <strong>proxies AOP</strong>. Un bean annoté <code>@Transactional</code>/<code>@Async</code> est souvent un <strong>proxy dynamique</strong> (CGLIB/JDK) qui intercepte l'appel — encore du polymorphisme, mais fabriqué par le framework. Un appel <strong>interne</strong> (self-invocation, <code>this.methodeAnnotée()</code>) ne passe pas par le proxy et perd le comportement transactionnel/async.</p>
+        </section>
+
+        <!-- ========== SECTION: SOLID ========== -->
+        <section class="section-divider">
+            <h2>🧱 SOLID</h2>
+        </section>
+
+        <!-- SOLID — théorie -->
+        <section>
+            <h2>SOLID — Les 5 principes</h2>
+            <table>
+                <tr><th>Lettre</th><th>Principe</th><th>En une phrase</th></tr>
+                <tr><td><strong>S</strong></td><td>Single Responsibility</td><td>Une classe = une seule raison de changer</td></tr>
+                <tr><td><strong>O</strong></td><td>Open/Closed</td><td>Ouvert à l'extension, fermé à la modification</td></tr>
+                <tr><td><strong>L</strong></td><td>Liskov Substitution</td><td>Une sous-classe doit pouvoir remplacer sa classe parente sans rien casser</td></tr>
+                <tr><td><strong>I</strong></td><td>Interface Segregation</td><td>Préférer plusieurs interfaces spécifiques à une seule interface fourre-tout</td></tr>
+                <tr><td><strong>D</strong></td><td>Dependency Inversion</td><td>Dépendre d'abstractions, pas d'implémentations concrètes</td></tr>
+            </table>
+        </section>
+
+        <!-- SOLID — exemple concret -->
+        <section>
+            <h2>SOLID — Exemple concret OpenAEV</h2>
+            <p>Reprise du même fil (<code>ExecutorContextService</code>) pour 2 lettres :</p>
+            <ul>
+                <li><strong>Open/Closed</strong> : ajouter un 6ᵉ exécuteur (ex: un futur "Qualys") ne nécessite <strong>aucune modification</strong> de <code>ExecutionExecutorService</code> ni des implémentations existantes — il suffit d'ajouter une nouvelle classe <code>@Service</code> qui étend <code>ExecutorContextService</code>.</li>
+                <li><strong>Dependency Inversion</strong> : <code>ExecutionExecutorService</code> dépend du <strong>type abstrait</strong> <code>ExecutorContextService</code>, jamais de <code>CrowdStrikeExecutorContextService</code> ou <code>PaloAltoCortexExecutorContextService</code> directement.</li>
+            </ul>
+            <pre><code class="language-java">// La signature ne mentionne jamais une implémentation concrète
+ExecutorContextService executorContextService =
+    manager.request(new ComponentRequest(executor.getName()), ExecutorContextService.class);</code></pre>
+        </section>
+
+        <!-- ========== Q&A ========== -->
+        <section class="title-slide">
+            <h1>Questions ? 🤔</h1>
+        </section>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+<script>
+    Reveal.initialize({
+        hash: true,
+        slideNumber: 'c/t',
+        width: 1280,
+        height: 720,
+        margin: 0.08,
+        transition: 'slide',
+        plugins: [ RevealHighlight ]
+    });
+</script>
+</body>
+</html>

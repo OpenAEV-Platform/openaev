@@ -908,6 +908,38 @@ public class ConditionServiceTest {
     }
 
     @Test
+    void given_portMapperWithLeadingZeroScopeValue_should_preserveDistinctCandidatesAndDefault() {
+      // -------- Arrange --------
+      Step stepTemplate = mock(Step.class);
+      Workflow workflowRun = mock(Workflow.class);
+      when(workflowRun.getId()).thenReturn("wf-port-leading-zero-defined-value");
+
+      Condition portMapper = mapper(MappingType.LOCAL, PrimitiveType.Port, "22");
+      portMapper.setKey("portValue");
+      List<Condition> mappers = List.of(portMapper);
+
+      WorkflowStateEntries localEntries = entries(List.of(input("Port", "05", "445")), List.of());
+      WorkflowStateEntries globalEntries = entries(List.of(), List.of());
+
+      when(workflowStateService.getGlobalStateByWorkflowId("wf-port-leading-zero-defined-value"))
+          .thenReturn(stateFromEntries(globalEntries));
+      when(workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun))
+          .thenReturn(stateFromEntries(localEntries));
+
+      // -------- Act --------
+      List<ConditionService.ExecutionBatch> batches =
+          conditionService.prepareInputsForStepExecution(stepTemplate, workflowRun, mappers);
+
+      // -------- Assert --------
+      assertEquals(3, batches.size());
+      Set<String> values =
+          batches.stream()
+              .map(b -> b.usedMappers().getFirst().getValue())
+              .collect(java.util.stream.Collectors.toSet());
+      assertEquals(Set.of("05", "445", "22"), values);
+    }
+
+    @Test
     void given_defaultMapperAndMissingLinkedMapper_should_generateSingleBatchWithDefaultOnly() {
       // -------- Arrange --------
       Step stepTemplate = mock(Step.class);
