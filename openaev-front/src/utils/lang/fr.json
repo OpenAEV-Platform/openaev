@@ -227,6 +227,7 @@
   "Adds a lessons learned tab to collect feedback with objectives and questionnaires.": "Ajoute un onglet retours d’expérience pour recueillir des retours via des objectifs et des questionnaires.",
   "Adjust or clear the filters to widen the scope.": "Ajustez ou effacez les filtres pour élargir le périmètre.",
   "Admin": "Administrateur",
+  "Admin users cannot renew their token. Please change the token directly in the configuration.": "Les utilisateurs « Admin » ne peuvent pas renouveler leur jeton. Veuillez modifier le jeton directement dans la configuration.",
   "Admin_username": "Nom d'utilisateur administrateur",
   "Administrator": "Administrateur",
   "Adminusername": "Nom d'utilisateur de l'administrateur",

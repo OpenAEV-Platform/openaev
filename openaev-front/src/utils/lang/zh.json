@@ -227,6 +227,7 @@
   "Adds a lessons learned tab to collect feedback with objectives and questionnaires.": "添加经验教训选项卡，通过目标和问卷收集反馈。",
   "Adjust or clear the filters to widen the scope.": "调整或清除筛选条件以扩大范围。",
   "Admin": "管理",
+  "Admin users cannot renew their token. Please change the token directly in the configuration.": "管理员用户无法续期其令牌。请直接在配置中更改令牌。",
   "Admin_username": "管理员用户名",
   "Administrator": "管理员",
   "Adminusername": "管理员用户名",

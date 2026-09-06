@@ -227,6 +227,7 @@
   "Adds a lessons learned tab to collect feedback with objectives and questionnaires.": "Добавляет вкладку извлеченных уроков для сбора отзывов с помощью целей и анкет.",
   "Adjust or clear the filters to widen the scope.": "Настройте или очистите фильтры, чтобы расширить охват.",
   "Admin": "Admin",
+  "Admin users cannot renew their token. Please change the token directly in the configuration.": "Пользователи с правами администратора не могут продлить срок действия своего токена. Пожалуйста, измените токен непосредственно в настройках.",
   "Admin_username": "Имя пользователя администратора",
   "Administrator": "Администратор",
   "Adminusername": "Имя пользователя администратора",
