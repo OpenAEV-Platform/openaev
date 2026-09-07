@@ -178,7 +178,7 @@ public class SecretValidationService {
       SecretConnectionResult result = probe.run();
       return result != null ? result : SecretConnectionResult.notChecked();
     } catch (RuntimeException e) {
-      log.warn("Credential validation: validator failed: {}", e.getMessage());
+      log.warn("Credential validation: validator failed");
       return SecretConnectionResult.unknown();
     }
   }
