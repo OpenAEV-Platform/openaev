@@ -18,7 +18,9 @@ import io.openaev.secrets.provider.SecretConnectionResult;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Date;
+import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -371,6 +373,35 @@ class GcpCredentialConnectivityCheckTest {
       // Act & Assert
       SecretConnectionResult result = validate();
       assertThat(result.status()).isEqualTo(TIMEOUT);
+    }
+
+    @Test
+    @DisplayName("A token exchange that never answers is capped by the probe timeout")
+    void given_hangingTokenExchange_should_returnTimeout() throws IOException {
+      // Arrange: the Google SDK applies its own (much longer) timeouts and retries them, so the
+      // probe has to bound the wait itself or a dead token endpoint would hold it for minutes.
+      when(googleCredentialsFactory.forServiceAccount(any(), any())).thenReturn(googleCredentials);
+      CountDownLatch neverAnswers = new CountDownLatch(1);
+      when(googleCredentials.refreshAccessToken())
+          .thenAnswer(
+              invocation -> {
+                neverAnswers.await();
+                return null;
+              });
+
+      // Act
+      long startedAt = System.nanoTime();
+      SecretConnectionResult result;
+      try {
+        result = validate();
+      } finally {
+        neverAnswers.countDown();
+      }
+      Duration elapsed = Duration.ofNanos(System.nanoTime() - startedAt);
+
+      // Assert
+      assertThat(result.status()).isEqualTo(TIMEOUT);
+      assertThat(elapsed).isLessThan(Duration.ofSeconds(TIMEOUT_SECONDS + 10L));
     }
 
     @Test

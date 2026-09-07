@@ -11,6 +11,11 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +60,26 @@ public class GcpCredentialConnectivityCheck {
 
   /** Google answers an unknown or disabled OAuth client with HTTP 400 and this error code. */
   private static final String ERROR_INVALID_CLIENT = "invalid_client";
+
+  /**
+   * Carries the token exchange so it can be bounded by the probe budget. The Google Auth library
+   * exposes no timeout on {@code refreshAccessToken()}: it builds its own transport, applies its
+   * own defaults (20s connect + 20s read) and retries them with a backoff, so an unreachable token
+   * endpoint would hold the probe for minutes while the resource-manager call right after it is
+   * capped at a few seconds. Waiting on a future is the only way to give both calls the same
+   * budget.
+   *
+   * <p>The pool is unbounded and its threads are daemons on purpose: a run abandoned on timeout
+   * keeps its thread until the SDK gives up on its own, and that must never starve the next probe
+   * nor hold back a shutdown.
+   */
+  private static final ExecutorService TOKEN_REFRESH_EXECUTOR =
+      Executors.newCachedThreadPool(
+          runnable -> {
+            Thread thread = new Thread(runnable, "gcp-credential-probe");
+            thread.setDaemon(true);
+            return thread;
+          });
 
   private final GcpCredentialConnectivityCheckFactory googleCredentialsFactory;
 
@@ -115,19 +140,43 @@ public class GcpCredentialConnectivityCheck {
     Duration timeout = Duration.ofSeconds(Math.max(1, timeoutSeconds));
     String token;
     try {
-      AccessToken accessToken = credentials.refreshAccessToken();
-      if (accessToken == null || isBlank(accessToken.getTokenValue())) {
-        return SecretConnectionResult.networkError();
-      }
-      token = accessToken.getTokenValue();
-    } catch (IOException | RuntimeException e) {
+      token = refreshAccessToken(credentials, timeout);
+    } catch (TimeoutException e) {
+      return SecretConnectionResult.timeout();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return SecretConnectionResult.networkError();
+    } catch (ExecutionException e) {
+      return mapFailure(e.getCause() != null ? e.getCause() : e);
+    } catch (RuntimeException e) {
       return mapFailure(e);
     }
 
+    if (isBlank(token)) {
+      return SecretConnectionResult.networkError();
+    }
     if (isBlank(projectId)) {
       return SecretConnectionResult.active();
     }
     return probeProject(projectId, token, timeout);
+  }
+
+  /**
+   * Mints a token under the probe budget. The wait is bounded here rather than inside the SDK
+   * because the library offers no such knob; on expiry the call is cancelled so the SDK stops as
+   * soon as it observes the interrupt, and the outcome stays inconclusive — a token endpoint that
+   * did not answer says nothing about the credential.
+   */
+  private String refreshAccessToken(GoogleCredentials credentials, Duration timeout)
+      throws InterruptedException, ExecutionException, TimeoutException {
+    Future<AccessToken> refresh = TOKEN_REFRESH_EXECUTOR.submit(credentials::refreshAccessToken);
+    try {
+      AccessToken accessToken = refresh.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+      return accessToken == null ? null : accessToken.getTokenValue();
+    } catch (TimeoutException e) {
+      refresh.cancel(true);
+      throw e;
+    }
   }
 
   /**
@@ -181,7 +230,7 @@ public class GcpCredentialConnectivityCheck {
    * Turns a token-exchange failure into an outcome. Only an authentication rejection is conclusive;
    * the rest is treated as "could not check".
    */
-  private SecretConnectionResult mapFailure(Exception failure) {
+  private SecretConnectionResult mapFailure(Throwable failure) {
     // The OAuth2 error code is matched on the exception message rather than read from a typed
     // getter: the SDK's OAuthException is package-private, so its error code is only reachable
     // through the message it formats ("Error code invalid_grant: ...").
