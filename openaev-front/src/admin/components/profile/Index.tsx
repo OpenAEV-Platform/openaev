@@ -1,16 +1,17 @@
 import { Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
-import { useDispatch } from 'react-redux';
 
+import type { UserHelper } from '../../../actions/helper';
 import { meTokens, renewToken, updateMeInformation, updateMePassword, updateMeProfile } from '../../../actions/users/User';
 import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import Paper from '../../../components/common/Paper';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
+import { type UpdateProfileInput, type UpdateUserInfoInput, type User } from '../../../utils/api-types';
+import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { countryOption } from '../../../utils/Option';
-import PasswordForm from './PasswordForm';
+import PasswordForm, { type PasswordFormInput } from './PasswordForm';
 import ProfileForm from './ProfileForm';
 import UserForm from './UserForm';
 import XtmOneMcpAccess from './XtmOneMcpAccess';
@@ -18,50 +19,39 @@ import XtmOneMcpAccess from './XtmOneMcpAccess';
 const Index = () => {
   const { t } = useFormatter();
   const theme = useTheme();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   useDataLoader(() => {
     dispatch(meTokens());
   });
-  const { user, tokens } = useHelper(helper => ({
+  const { user, tokens } = useHelper((helper: UserHelper) => ({
     user: helper.getMe(),
     tokens: helper.getMeTokens(),
   }));
-  const onRenew = tokenId => dispatch(renewToken(tokenId));
-  const onUpdate = (data) => {
-    const inputValues = R.pipe(
-      R.assoc(
-        'user_organization',
-        data.user_organization && data.user_organization.id
-          ? data.user_organization.id
-          : data.user_organization,
-      ),
-      R.assoc(
-        'user_country',
-        data.user_country && data.user_country.id
-          ? data.user_country.id
-          : data.user_country,
-      ),
-    )(data);
-    return dispatch(updateMeProfile(inputValues));
-  };
-  const onUpdateInformation = data => dispatch(updateMeInformation(data));
-  const onUpdatePassword = data => dispatch(
+
+  const onRenew = (tokenId: string) => dispatch(renewToken(tokenId));
+  const onUpdateProfile = (data: UpdateProfileInput) => dispatch(updateMeProfile(data));
+  const onUpdateInformation = (data: UpdateUserInfoInput) => dispatch(updateMeInformation(data));
+  const onUpdatePassword = (data: PasswordFormInput) => dispatch(
     updateMePassword(data.user_current_password, data.user_plain_password),
   );
-  const initialValues = {
-    user_firstname: user.user_firstname,
-    user_lastname: user.user_lastname,
-    user_email: user.user_email,
-    user_phone: user.user_phone,
-    user_phone2: user.user_phone2,
-    user_pgp_key: user.user_pgp_key,
-    user_lang: user.user_lang,
-    user_theme: user.user_theme,
-    user_is_external: user.user_is_external,
+
+  const profileValues: User = {
+    ...user,
+    user_firstname: user.user_firstname ?? '',
+    user_lastname: user.user_lastname ?? '',
+    user_lang: user.user_lang ?? '',
+    user_theme: user.user_theme ?? '',
     user_organization: user.user_organization ?? '',
     user_country: countryOption(user.user_country)?.id ?? '',
+    user_home_dashboard: user.user_home_dashboard ?? '',
   };
-  const userToken = tokens.length > 0 ? R.head(tokens) : undefined;
+  const informationValues: UpdateUserInfoInput = {
+    user_phone: user.user_phone ?? '',
+    user_phone2: user.user_phone2 ?? '',
+    user_pgp_key: user.user_pgp_key ?? '',
+  };
+  const userToken = tokens.length > 0 ? tokens[0] : undefined;
+
   return (
     <div style={{
       width: 800,
@@ -74,7 +64,10 @@ const Index = () => {
         <Typography variant="h1" style={{ marginBottom: 20 }}>
           {t('Profile')}
         </Typography>
-        <UserForm onSubmit={onUpdate} initialValues={initialValues} />
+        <UserForm
+          onSubmit={onUpdateProfile}
+          initialValues={profileValues}
+        />
       </Paper>
       <Paper>
         <Typography variant="h1" style={{ marginBottom: 20 }}>
@@ -82,10 +75,10 @@ const Index = () => {
         </Typography>
         <ProfileForm
           onSubmit={onUpdateInformation}
-          initialValues={initialValues}
+          initialValues={informationValues}
         />
       </Paper>
-      {!initialValues.user_is_external && (
+      {!user.user_is_external && (
         <Paper>
           <Typography variant="h1" style={{ marginBottom: 20 }}>
             {t('Password')}
@@ -119,7 +112,7 @@ const Index = () => {
           variant="contained"
           color="primary"
           component="a"
-          onClick={() => onRenew(userToken?.token_id)}
+          onClick={() => userToken && onRenew(userToken.token_id)}
         >
           {t('RENEW')}
         </Button>
@@ -140,7 +133,7 @@ const Index = () => {
           Content-Type: application/json
           {/* eslint-disable-next-line i18next/no-literal-string */}
           <br />
-          Authorization: Bearer
+          Authorization: ******
           {' '}
           {userToken?.token_value}
         </pre>

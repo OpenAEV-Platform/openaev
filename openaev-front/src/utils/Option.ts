@@ -10,6 +10,7 @@ import {
 interface Country {
   code: string;
   name: string;
+  dialCode: string;
 }
 
 type Countries = Country[];
@@ -115,6 +116,49 @@ export const countryOption = (iso3: string | undefined) => {
     id: country.code,
     label: country.name,
   } as Option;
+};
+
+export interface DialCodeOption extends Option { dialCode: string }
+
+export const dialCodeOptions = (): DialCodeOption[] => countries.map(n => ({
+  id: n.code,
+  label: n.name,
+  dialCode: n.dialCode,
+}));
+
+export const dialCodeOption = (iso3: string | undefined): DialCodeOption | undefined => {
+  const country = countries.find(n => n.code === iso3);
+  return country
+    ? {
+        id: country.code,
+        label: country.name,
+        dialCode: country.dialCode,
+      }
+    : undefined;
+};
+
+/**
+ * Splits a phone number into its dial code country and its national part.
+ * Longest dial codes are matched first so "+1684" wins over "+1".
+ */
+export const splitPhoneNumber = (
+  phoneNumber: string | undefined,
+): {
+  country?: DialCodeOption;
+  nationalNumber: string;
+} => {
+  if (!phoneNumber) {
+    return { nationalNumber: '' };
+  }
+  const country = dialCodeOptions()
+    .sort((a, b) => b.dialCode.length - a.dialCode.length)
+    .find(o => phoneNumber.startsWith(o.dialCode));
+  return {
+    country,
+    nationalNumber: country
+      ? phoneNumber.slice(country.dialCode.length)
+      : phoneNumber,
+  };
 };
 
 export const tenantOptions = (
