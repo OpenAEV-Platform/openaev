@@ -327,51 +327,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       label: 'Last seen',
       isSortable: true,
       tooltip: 'finding_last_seen_tooltip',
-      // A finding whose first and last occurrence coincide has never been re-detected by a
-      // subsequent scan/run: surface it as "New" so a first-time-only detection is visually
-      // distinguishable from one that is still recurring (part of the finding lifecycle - see
-      // finding_created_at "First seen" above). @CreationTimestamp/@UpdateTimestamp each call
-      // Instant.now() independently at flush time, so real Hibernate-persisted rows can differ
-      // by a few microseconds/milliseconds even on first insert - a strict string equality check
-      // (reliable only for hand-seeded rows sharing one literal timestamp) misses these. A small
-      // tolerance window makes the check robust for real-world data too.
-      value: (finding: AggregatedFindingOutput) => {
-        const isNew = Math.abs(
-          new Date(finding.finding_updated_at).getTime() - new Date(finding.finding_created_at).getTime(),
-        ) < 1000;
-        if (!isNew) {
-          return <>{nsdt(finding.finding_updated_at)}</>;
-        }
-        const label = t('New');
-        const color = 'info.main';
-        return (
-          <Box sx={{ display: 'inline-block' }}>
-            <Typography
-              variant="caption"
-              sx={{
-                display: 'block',
-                color,
-                fontWeight: 700,
-                letterSpacing: 1,
-                lineHeight: 1.4,
-              }}
-            >
-              {label.toUpperCase()}
-            </Typography>
-            <Box sx={{
-              border: '1px solid',
-              borderColor: color,
-              borderRadius: 1,
-              px: 1,
-              py: 0.25,
-              display: 'inline-block',
-            }}
-            >
-              {nsdt(finding.finding_updated_at)}
-            </Box>
-          </Box>
-        );
-      },
+      value: (finding: AggregatedFindingOutput) => <>{nsdt(finding.finding_updated_at)}</>,
     },
     {
       field: 'finding_triage_status',

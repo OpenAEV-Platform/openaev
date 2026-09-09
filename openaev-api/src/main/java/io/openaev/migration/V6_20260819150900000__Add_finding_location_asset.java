@@ -7,12 +7,12 @@ import org.springframework.stereotype.Component;
 
 /**
  * Triforce identity, Phase 1: introduces the "Location" leg of the Type+Value+Location Finding
- * identity for asset-based finding types (network/host, credential, file, domain, share,
- * computer - see finding_triforce_design.md). Today a Finding's natural key is (finding_type,
- * finding_value, finding_inject_id), so the same check re-detected by a different inject - even
- * on the exact same asset - creates a disconnected duplicate row, while the global list's distinct
- * search (FindingSpecification#distinctTypeValueWithFilter) groups by (type, value) ONLY, silently
- * merging findings that are actually on different assets into a single representative row.
+ * identity for asset-based finding types (network/host, credential, file, domain, share, computer -
+ * see finding_triforce_design.md). Today a Finding's natural key is (finding_type, finding_value,
+ * finding_inject_id), so the same check re-detected by a different inject - even on the exact same
+ * asset - creates a disconnected duplicate row, while the global list's distinct search
+ * (FindingSpecification#distinctTypeValueWithFilter) groups by (type, value) ONLY, silently merging
+ * findings that are actually on different assets into a single representative row.
  *
  * <p>finding_location_asset_id is the stable anchor that both problems will be fixed against:
  * FindingRepository#upsertFinding will fold it into the natural key (so re-detection on the same
@@ -21,11 +21,11 @@ import org.springframework.stereotype.Component;
  *
  * <p>Backfill scope (Phase 1): only findings currently linked to EXACTLY ONE asset in
  * findings_assets are backfilled here - this covers the overwhelming majority of existing rows.
- * Findings linked to zero assets (no Location resolvable, e.g. manually-created/text findings)
- * or to more than one asset (today's many-to-many "one finding, N assets" shape, which Phase 1
- * does not yet split into N distinct findings - that is a separate, explicit data migration
- * decision, deferred to Phase 1b) are left with finding_location_asset_id = NULL and keep today's
- * (type, value)-only grouping behavior until then.
+ * Findings linked to zero assets (no Location resolvable, e.g. manually-created/text findings) or
+ * to more than one asset (today's many-to-many "one finding, N assets" shape, which Phase 1 does
+ * not yet split into N distinct findings - that is a separate, explicit data migration decision,
+ * deferred to Phase 1b) are left with finding_location_asset_id = NULL and keep today's (type,
+ * value)-only grouping behavior until then.
  *
  * <p>ON DELETE SET NULL (not CASCADE): deleting the underlying asset must never cascade-delete a
  * Finding and destroy its triage/comment/archive history - that would contradict the platform's
@@ -200,7 +200,8 @@ public class V6_20260819150900000__Add_finding_location_asset extends BaseJavaMi
       // uq_findings_location_key above for located findings; unlocated findings (Phase 1b) are
       // deliberately left with no uniqueness guarantee for now, matching their pre-Phase-1
       // behavior of never being deduplicated by this upsert path in the first place.
-      statement.execute("ALTER TABLE findings DROP CONSTRAINT IF EXISTS unique_finding_constraint;");
+      statement.execute(
+          "ALTER TABLE findings DROP CONSTRAINT IF EXISTS unique_finding_constraint;");
     }
   }
 }

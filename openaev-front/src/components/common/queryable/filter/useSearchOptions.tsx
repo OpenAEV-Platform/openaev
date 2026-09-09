@@ -247,11 +247,14 @@ const useSearchOptions = () => {
         });
         break;
       case 'finding_type': {
+        // OCSF/Prowler cloud misconfigurations are shown to users as "Cloud" (see
+        // FindingTypeLabel.ts), not the internal contract type name "OCSF".
+        const labelFor = (type: keyof typeof ContractOutputElementType) => (type === 'ocsf' ? 'Cloud' : ContractOutputElementType[type]);
         const typeOptions = CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS
-          .filter(type => !search || t(ContractOutputElementType[type]).toLowerCase().includes(search.toLowerCase()))
+          .filter(type => !search || t(labelFor(type)).toLowerCase().includes(search.toLowerCase()))
           .map(type => ({
             id: type,
-            label: ContractOutputElementType[type],
+            label: labelFor(type),
           }))
           .sort((a, b) => t(a.label).localeCompare(t(b.label)));
         setOptions(typeOptions);

@@ -6,20 +6,44 @@ import { useParams } from 'react-router';
 
 import { fetchFinding, fetchFindingSummary, searchFindings } from '../../../actions/findings/finding-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
-import { DetailHero, Field, HeroStat, InformationGrid } from '../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, Field, HeroStat, InformationGrid, SectionBlock, SectionLabel } from '../../../components/common/detail/EntityDetailCommon';
+import Tabs, { type TabsEntry } from '../../../components/common/tabs/Tabs';
+import useTabs from '../../../components/common/tabs/useTabs';
 import FindingIcon from '../../../components/FindingIcon';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import Loader from '../../../components/Loader';
 import type { FindingOutput, FindingSummaryOutput } from '../../../utils/api-types';
 import { emptyFilled } from '../../../utils/String';
+import AlsoDetectedOnPanel from './AlsoDetectedOnPanel';
+import FindingComments from './FindingComments';
 import FindingOccurrences from './FindingOccurrences';
+import FindingTriageHistory from './FindingTriageHistory';
 import getFindingTypeLabel from './FindingTypeLabel';
 import FindingVulnerabilityPanel from './FindingVulnerabilityPanel';
+import OCSFRemediationTab from './OCSFRemediationTab';
+
+// finding_raw_data is stored as a compact single-line JSON string (see
+// OCSFOutputProcessor#enrichFinding); pretty-print it for readability, falling back to the raw
+// text verbatim if it somehow isn't valid JSON rather than hiding it.
+const formatRawData = (rawData: string): string => {
+  try {
+    return JSON.stringify(JSON.parse(rawData), null, 2);
+  } catch {
+    return rawData;
+  }
+};
+
+const TAB_TIMELINE = 'Timeline';
+const TAB_ALSO_DETECTED_ON = 'Also Detected On';
+const TAB_RAW_RESPONSE = 'Raw response';
+const TAB_HISTORY = 'History';
 
 // Full-page finding overview: one deduplicated finding (type + value) with its
 // group-wide summary (true first/last seen, occurrences, impact spread), the
-// vulnerability context when it is a CVE, and the occurrence timeline.
+// vulnerability context when it is a CVE, and a tabbed lower section (occurrence
+// timeline, cross-asset relations, raw scanner payload, triage/comment history) -
+// mirroring the pre-rebuild FindingDetail.tsx tab organization users were used to.
 const FindingOverview = () => {
   const { t, fldt } = useFormatter();
   const theme = useTheme();
@@ -42,12 +66,107 @@ const FindingOverview = () => {
     [finding, t],
   );
 
+  const isOCSF = finding?.finding_type === 'ocsf';
+
+  // Raw response only exists for OCSF/Prowler findings (Finding#rawData is populated solely by
+  // OCSFOutputProcessor) - every other finding type never shows that tab at all.
+  const tabEntries: TabsEntry[] = useMemo(() => {
+    const entries: TabsEntry[] = [
+      {
+        key: TAB_TIMELINE,
+        label: t('Timeline'),
+      },
+      {
+        key: TAB_ALSO_DETECTED_ON,
+        label: t('Also Detected On'),
+      },
+    ];
+    if (isOCSF) {
+      entries.push({
+        key: TAB_RAW_RESPONSE,
+        label: t('Raw response'),
+      });
+    }
+    entries.push({
+      key: TAB_HISTORY,
+      label: t('History'),
+    });
+    return entries;
+  }, [isOCSF, t]);
+
+  const { currentTab, handleChangeTab } = useTabs(TAB_TIMELINE);
+
   if (!finding) {
     return <Loader />;
   }
 
   const isCVE = finding.finding_type === 'cve';
-  const isOCSF = finding.finding_type === 'ocsf';
+
+  const renderTabPanel = () => {
+    switch (currentTab) {
+      case TAB_TIMELINE:
+        return (
+          <FindingOccurrences
+            searchFindings={searchFindings}
+            finding={finding}
+            contextId={findingId}
+          />
+        );
+      case TAB_ALSO_DETECTED_ON:
+        return <AlsoDetectedOnPanel finding={finding} />;
+      case TAB_RAW_RESPONSE:
+        return finding.finding_raw_data
+          ? (
+              <Box
+                component="pre"
+                sx={{
+                  margin: 0,
+                  padding: theme.spacing(1, 1.5),
+                  borderRadius: 1,
+                  backgroundColor: theme.palette.background.accent,
+                  border: `1px solid ${theme.palette.divider}`,
+                  fontFamily: 'Consolas, monaco, monospace',
+                  fontSize: 12.5,
+                  lineHeight: 1.5,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  color: theme.palette.text.primary,
+                  maxHeight: 480,
+                  overflow: 'auto',
+                }}
+              >
+                {formatRawData(finding.finding_raw_data)}
+              </Box>
+            )
+          : (
+              <Box sx={{ color: 'text.secondary' }}>
+                {t('There is no raw response available for this finding.')}
+              </Box>
+            );
+      case TAB_HISTORY:
+        // Comments and triage history are two distinct read/write logs on the same finding -
+        // combined under one "History" tab rather than two separate tabs, per user request.
+        return (
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 3,
+          }}
+          >
+            <Box>
+              <SectionLabel>{t('Comments')}</SectionLabel>
+              <FindingComments findingId={findingId} />
+            </Box>
+            <Box>
+              <SectionLabel>{t('Triage History')}</SectionLabel>
+              <FindingTriageHistory findingId={findingId} />
+            </Box>
+          </Box>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <Box sx={{
@@ -132,17 +251,6 @@ const FindingOverview = () => {
         </Field>
       </InformationGrid>
 
-      {isOCSF && (
-        <InformationGrid title={t('Cloud details')}>
-          <Field label={t('Severity')}>{emptyFilled(finding.finding_severity)}</Field>
-          <Field label={t('Resource')}>{emptyFilled(finding.finding_resource)}</Field>
-          <Field label={t('Cloud account')}>{emptyFilled(finding.finding_cloud_account)}</Field>
-          <Field label={t('Region')}>{emptyFilled(finding.finding_cloud_region)}</Field>
-          <Field label={t('Compliance')}>{emptyFilled(finding.finding_compliance)}</Field>
-          <Field label={t('Remediation')}>{emptyFilled(finding.finding_remediation)}</Field>
-        </InformationGrid>
-      )}
-
       {/* CVE context: everything known about the vulnerability (identity,
           description, remediation, weaknesses, references) in ONE paper. */}
       {isCVE && (
@@ -152,15 +260,39 @@ const FindingOverview = () => {
         />
       )}
 
-      {/* Occurrence timeline: one entry per inject that produced this finding,
-          as a table or a horizontal time strip. */}
-      <div style={{ marginTop: theme.spacing(1) }}>
-        <FindingOccurrences
-          searchFindings={searchFindings}
-          finding={finding}
-          contextId={findingId}
+      {/* OCSF/Prowler cloud context: resource identifier, account/region/provider and
+          the violated compliance requirements, plus a dedicated remediation reading pane. */}
+      {isOCSF && (
+        <>
+          <InformationGrid title={t('Cloud details')}>
+            <Field label={t('Resource')}>{emptyFilled(finding.finding_resource)}</Field>
+            <Field label={t('Cloud provider')}>{emptyFilled(finding.finding_cloud_provider)}</Field>
+            <Field label={t('Cloud account')}>{emptyFilled(finding.finding_cloud_account)}</Field>
+            <Field label={t('Cloud region')}>{emptyFilled(finding.finding_cloud_region)}</Field>
+            <Field label={t('Compliance')}>{emptyFilled(finding.finding_compliance)}</Field>
+          </InformationGrid>
+          <div style={{ marginTop: theme.spacing(1) }}>
+            <SectionBlock title={t('Remediation')}>
+              <OCSFRemediationTab remediation={finding.finding_remediation} />
+            </SectionBlock>
+          </div>
+        </>
+      )}
+
+      {/* Lower section as tabs (mirrors the pre-rebuild FindingDetail.tsx organization):
+          Timeline (occurrences) is the default/first tab, followed by Also Detected On,
+          the raw scanner payload for OCSF findings only, and the combined comments +
+          triage history log. */}
+      <Box sx={{ marginTop: theme.spacing(1) }}>
+        <Tabs
+          entries={tabEntries}
+          currentTab={currentTab}
+          onChange={handleChangeTab}
         />
-      </div>
+        <Box sx={{ marginTop: 2 }}>
+          {renderTabPanel()}
+        </Box>
+      </Box>
     </Box>
   );
 };

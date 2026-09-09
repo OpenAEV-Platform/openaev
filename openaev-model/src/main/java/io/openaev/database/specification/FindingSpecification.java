@@ -97,6 +97,38 @@ public class FindingSpecification {
   }
 
   /**
+   * "Also Detected On" (finding_triforce_design.md, Task 1): restricts to OTHER Findings sharing
+   * the same (type, value) as {@code referenceFinding} but a DIFFERENT Location, excluding {@code
+   * referenceFinding} itself. Meant to be wrapped in {@link #distinctTypeValueWithFilter} so
+   * exactly one representative row (the most recently updated occurrence) comes back per sibling
+   * Location, exactly like the main list's own de-duplication. Archived siblings are deliberately
+   * NOT excluded here (Decision #10: always included, flagged instead) - callers still apply {@link
+   * #withoutSoftDeleted()} as usual.
+   *
+   * <p>Phase 1 scope: if {@code referenceFinding} itself has no Location (multi-asset or a finding
+   * type not yet covered by the backfill migration - see {@code Finding#locationAsset}), siblings
+   * are still restricted to only the OTHER, located Findings of the same (type, value); this is a
+   * best-effort fallback, not an exhaustive sibling list, and is an explicitly accepted Phase 1
+   * limitation rather than a Phase 1b feature.
+   */
+  public static Specification<Finding> sameTypeValueDifferentLocation(Finding referenceFinding) {
+    return (root, query, cb) -> {
+      Predicate sameType = cb.equal(root.get("type"), referenceFinding.getType());
+      Predicate sameValue = cb.equal(root.get("value"), referenceFinding.getValue());
+      Predicate excludeSelf = cb.notEqual(root.get("id"), referenceFinding.getId());
+      Predicate differentLocation =
+          referenceFinding.getLocationAsset() == null
+              ? cb.isNotNull(root.get("locationAsset"))
+              : cb.or(
+                  cb.isNull(root.get("locationAsset")),
+                  cb.notEqual(
+                      root.get("locationAsset").get("id"),
+                      referenceFinding.getLocationAsset().getId()));
+      return cb.and(sameType, sameValue, excludeSelf, differentLocation);
+    };
+  }
+
+  /**
    * Filters findings by their effective archived status: a finding is archived either because it
    * was manually archived ({@code finding_archived_at} set via the bulk "Archive" action) or
    * because it has not been re-detected for more than {@code archiveDays} (tenant-configurable, see
@@ -113,6 +145,20 @@ public class FindingSpecification {
       Predicate isArchived = cb.or(manuallyArchived, timedOut);
       return archived ? isArchived : cb.not(isArchived);
     };
+  }
+
+  /**
+   * Same "effective archived" computation as {@link #withArchived}, evaluated in plain Java against
+   * an already-fetched {@link Finding} instead of in SQL - for callers (like the "Also Detected On"
+   * panel) that need a per-row boolean flag on results that were not themselves filtered by
+   * archived status (Decision #10: archived siblings are included, not excluded).
+   */
+  public static boolean isArchived(Finding finding, int archiveDays) {
+    if (finding.getArchivedAt() != null) {
+      return true;
+    }
+    Instant cutoff = Instant.now().minus(archiveDays, ChronoUnit.DAYS);
+    return finding.getUpdateDate().isBefore(cutoff);
   }
 
   /**

@@ -137,6 +137,16 @@ public class Finding implements TenantBase {
   @JsonProperty("finding_compliance")
   private String compliance;
 
+  // The full, untouched OCSF Detection Finding JSON as emitted by Prowler (see
+  // OCSFOutputProcessor's class-level javadoc: the Prowler injector never transforms this
+  // payload). Kept verbatim, not re-derived from the structured fields above, so a user can always
+  // inspect exactly what the scanner reported - including data not otherwise surfaced (e.g. full
+  // resource metadata, OCSF activity/category ids). Free text, not filterable/sortable/searchable:
+  // this is a raw debugging/audit artifact, not a facet.
+  @Column(name = "finding_raw_data", columnDefinition = "text")
+  @JsonProperty("finding_raw_data")
+  private String rawData;
+
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(

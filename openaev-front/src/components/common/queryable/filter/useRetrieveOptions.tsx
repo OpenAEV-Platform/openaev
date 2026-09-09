@@ -195,9 +195,13 @@ const useRetrieveOptions = () => {
         });
         break;
       case 'finding_type':
+        // OCSF/Prowler cloud misconfigurations are shown to users as "Cloud" (see
+        // FindingTypeLabel.ts), not the internal contract type name "OCSF".
         setOptions(ids.map(id => ({
           id,
-          label: ContractOutputElementType[id as keyof typeof ContractOutputElementType] ?? id,
+          label: id === 'ocsf'
+            ? 'Cloud'
+            : (ContractOutputElementType[id as keyof typeof ContractOutputElementType] ?? id),
         })));
         break;
       case 'finding_triage_status':

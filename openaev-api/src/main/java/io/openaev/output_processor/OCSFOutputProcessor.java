@@ -149,6 +149,10 @@ public class OCSFOutputProcessor extends FindingCapableOutputProcessor {
     if (compliance != null) {
       finding.setCompliance(compliance);
     }
+
+    // Keep the untouched OCSF record verbatim, so it stays inspectable on the Finding detail
+    // page even for data this processor doesn't otherwise extract (see Finding#rawData javadoc).
+    finding.setRawData(jsonNode.toString());
   }
 
   /** First entry of {@code resources[]}, or {@code null} if absent/empty. */

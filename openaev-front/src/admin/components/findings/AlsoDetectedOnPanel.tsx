@@ -18,7 +18,7 @@ import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { FINDING_BASE_URL } from '../../../constants/BaseUrls';
-import type { Finding, FilterGroup, FindingSiblingOutput, SearchPaginationInput, TargetSimple } from '../../../utils/api-types';
+import type { FilterGroup, Finding, FindingSiblingOutput, SearchPaginationInput, TargetSimple } from '../../../utils/api-types';
 import ContractOutputElementType from './ContractOutputElementType';
 
 interface Props { finding: Pick<Finding, 'finding_id' | 'finding_type' | 'finding_value'> }

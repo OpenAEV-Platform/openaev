@@ -210,7 +210,8 @@ class FindingCommentApiTest extends IntegrationTest {
     String originalContent = "sensitive original content that must survive deletion";
     FindingComment comment = createCommentByOtherUser(finding, originalContent);
 
-    ArgumentCaptor<AuditEventScope> eventScopeCaptor = ArgumentCaptor.forClass(AuditEventScope.class);
+    ArgumentCaptor<AuditEventScope> eventScopeCaptor =
+        ArgumentCaptor.forClass(AuditEventScope.class);
     ArgumentCaptor<JsonNode> outputCaptor = ArgumentCaptor.forClass(JsonNode.class);
 
     mvc.perform(delete("/api/findings/comments/{commentId}", comment.getId()).with(csrf()))
