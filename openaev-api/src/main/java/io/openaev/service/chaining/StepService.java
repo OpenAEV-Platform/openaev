@@ -16,6 +16,8 @@ import io.openaev.rest.inject.service.InjectService;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -872,14 +874,59 @@ public class StepService {
    */
   @Transactional(rollbackFor = Exception.class)
   public int syncScopeAssetsOnStepTemplates(Workflow workflow, List<String> scopedAssetIds) {
+    return syncScopeTargetsOnStepTemplates(
+        workflow,
+        scopedAssetIds,
+        template -> !stepTargetingService.isAssetCentric(template),
+        template -> withScopeAssets(template, scopedAssetIds),
+        "asset");
+  }
+
+  /**
+   * Re-aligns the audience targets baked into every team-targeted INJECT_EXECUTION step template of
+   * a workflow with the workflow scope.
+   *
+   * <p>Team-targeted audience actions denormalize their team list into {@code
+   * step.data.inject_teams} when authored. Scope edits must keep that denormalized snapshot in sync
+   * so already-authored actions gain newly scoped teams and drop deleted ones.
+   *
+   * @param workflow the workflow whose step templates must be realigned
+   * @param scopedTeamIds the current in-scope team IDs (denylist already applied)
+   * @return the number of step templates actually rewritten
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public int syncScopeTeamsOnStepTemplates(Workflow workflow, List<String> scopedTeamIds) {
+    return syncScopeTargetsOnStepTemplates(
+        workflow,
+        scopedTeamIds,
+        template -> stepTargetingService.isAssetCentric(template),
+        template -> withScopeTeams(template, scopedTeamIds),
+        "team");
+  }
+
+  /**
+   * Re-aligns the scoped field baked into every INJECT_EXECUTION step template of a workflow.
+   *
+   * <p>Callers provide the axis-specific eligibility and rewrite function so asset- and
+   * audience-targeted sync stay consistent without duplicating the iteration/saving boilerplate.
+   * The helper keeps the public entry points small and keeps the field-specific rewrite logic close
+   * to the data shape that changes.
+   */
+  private int syncScopeTargetsOnStepTemplates(
+      Workflow workflow,
+      List<String> scopedIds,
+      Predicate<Step> shouldSkip,
+      Function<Step, String> rewriteStepData,
+      String targetLabel) {
+    List<String> safeScopedIds = scopedIds != null ? scopedIds : List.of();
     List<Step> updated = new ArrayList<>();
     for (Step template : findAllStepTemplateByWorkflow(workflow.getId())) {
       if (!StepActionClass.INJECT_EXECUTION.equals(template.getStepAction())
           || template.getData() == null
-          || !stepTargetingService.isAssetCentric(template)) {
+          || shouldSkip.test(template)) {
         continue;
       }
-      String newData = withScopeAssets(template, scopedAssetIds);
+      String newData = rewriteStepData.apply(template);
       if (newData != null) {
         template.setData(newData);
         updated.add(template);
@@ -888,10 +935,12 @@ public class StepService {
     if (!updated.isEmpty()) {
       saveSteps(updated);
       log.debug(
-          "[Chaining] Realigned {} step template(s) of workflow {} on the {} in-scope asset(s)",
+          "[Chaining] Realigned {} {}-targeted step template(s) of workflow {} on {} in-scope {}(s)",
           updated.size(),
+          targetLabel,
           workflow.getId(),
-          scopedAssetIds.size());
+          safeScopedIds.size(),
+          targetLabel);
     }
     return updated.size();
   }
@@ -903,11 +952,14 @@ public class StepService {
   private String withScopeAssets(Step template, List<String> scopedAssetIds) {
     try {
       JsonObject dataObject = JsonParser.parseString(template.getData()).getAsJsonObject();
-      JsonArray assets = new JsonArray();
-      scopedAssetIds.forEach(assets::add);
-      if (assets.equals(dataObject.get("inject_assets"))) {
+      List<String> safeScopedAssetIds = scopedAssetIds != null ? scopedAssetIds : List.of();
+      Set<String> existingAssetIds = toIdSet(dataObject.get("inject_assets"));
+      Set<String> scopedAssetIdSet = new LinkedHashSet<>(safeScopedAssetIds);
+      if (scopedAssetIdSet.equals(existingAssetIds)) {
         return null;
       }
+      JsonArray assets = new JsonArray();
+      safeScopedAssetIds.forEach(assets::add);
       dataObject.add("inject_assets", assets);
       return dataObject.toString();
     } catch (Exception e) {
@@ -917,6 +969,58 @@ public class StepService {
           e.getMessage());
       return null;
     }
+  }
+
+  /**
+   * Returns the step data with {@code inject_teams} replaced by the given team IDs, or seeded from
+   * them when the step had no explicit audience yet. Returns {@code null} when the data is already
+   * up to date (or cannot be parsed) so the caller skips the write.
+   */
+  private String withScopeTeams(Step template, List<String> scopedTeamIds) {
+    try {
+      JsonObject dataObject = JsonParser.parseString(template.getData()).getAsJsonObject();
+      List<String> safeScopedTeamIds = scopedTeamIds != null ? scopedTeamIds : List.of();
+      if (!dataObject.has("inject_teams") && !dataObject.has("inject_all_teams")) {
+        if (safeScopedTeamIds.isEmpty()) {
+          return null;
+        }
+        JsonArray teams = new JsonArray();
+        safeScopedTeamIds.forEach(teams::add);
+        dataObject.add("inject_teams", teams);
+        return dataObject.toString();
+      }
+      if (dataObject.has("inject_all_teams") && dataObject.get("inject_all_teams").getAsBoolean()) {
+        return null;
+      }
+      Set<String> existingTeamIds = toIdSet(dataObject.get("inject_teams"));
+      Set<String> scopedTeamIdSet = new LinkedHashSet<>(safeScopedTeamIds);
+      if (scopedTeamIdSet.equals(existingTeamIds)) {
+        return null;
+      }
+      JsonArray teams = new JsonArray();
+      safeScopedTeamIds.forEach(teams::add);
+      dataObject.add("inject_teams", teams);
+      return dataObject.toString();
+    } catch (Exception e) {
+      log.warn(
+          "[Chaining] Failed to realign scope teams on step template {}: {}",
+          template.getId(),
+          e.getMessage());
+      return null;
+    }
+  }
+
+  private Set<String> toIdSet(JsonElement element) {
+    if (element == null || !element.isJsonArray()) {
+      return Set.of();
+    }
+    Set<String> ids = new LinkedHashSet<>();
+    for (JsonElement teamElement : element.getAsJsonArray()) {
+      if (teamElement != null && !teamElement.isJsonNull()) {
+        ids.add(teamElement.getAsString());
+      }
+    }
+    return ids;
   }
 
   /**

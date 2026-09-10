@@ -53,7 +53,16 @@ Once created, the Scenario/Simulation opens with dedicated tabs.
 If you enable Lessons on the Scenario or Simulation details page, chained runs use the teams
 defined in the scope for the Lessons target picker.
 
-### 2. Define the scope
+### 2. Export or import a chained Scenario or Simulation
+
+1. Open the chained Scenario or Simulation.
+2. Use the export action to download the chained configuration.
+3. Keep **Scope Definition** enabled when you want to include workflow scope rules that define teams, domains, 
+IP addresses, and other elements of chained execution.
+
+See [Scope Definition](scope-definition.md) for the full reference on what the chained scope includes.
+
+### 3. Define the scope
 
 Before building your logic, restrict which Assets the chained run is allowed to touch.
 
@@ -67,7 +76,7 @@ Before building your logic, restrict which Assets the chained run is allowed to 
 See [Scope Definition](scope-definition.md) for the full reference (Asset groups, CSV import, Variables, timeout and
 rate limit details).
 
-### 3. Build the logic
+### 4. Build the logic
 
 1. Open the **Logic** tab and click **Add component**.
 2. Add an **Action**: pick a Threat Arsenal action and configure its arguments. This is your first step
@@ -83,7 +92,7 @@ shortcut to add a compatible Action.
 See [Logic Creation](logic-creation.md) for the full reference (Actions, Events, operators, and linking outputs
 between steps).
 
-### 4. Launch and follow the run
+### 5. Launch and follow the run
 
 1. Launch the Scenario/Simulation as you would any other.
 2. Use the **Execution** tab to follow Injects live as they fire, complete, and produce results.

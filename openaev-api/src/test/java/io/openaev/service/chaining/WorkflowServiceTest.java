@@ -871,10 +871,12 @@ class WorkflowServiceTest {
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
       when(scopeService.getValidTeams(workflowId)).thenReturn(List.of(team));
+      when(scopeService.getValidAssets(workflowId)).thenReturn(List.of());
 
       workflowService.updateWorkflowConfiguration(workflowId, input);
 
       verify(lessonsService).pruneTeamsForScenario(scenarioId, List.of("team-1"));
+      verify(stepService).syncScopeTeamsOnStepTemplates(workflow, List.of("team-1"));
     }
 
     @Test
@@ -888,11 +890,14 @@ class WorkflowServiceTest {
       input.setWorkflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList());
       Asset asset = new Asset();
       asset.setId("asset-123");
+      Team team = new Team();
+      team.setId("team-123");
 
       when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
       when(scopeService.getValidAssets(workflowId)).thenReturn(List.of(asset));
+      when(scopeService.getValidTeams(workflowId)).thenReturn(List.of(team));
 
       // Act
       workflowService.updateWorkflowConfiguration(workflowId, input);
@@ -900,6 +905,7 @@ class WorkflowServiceTest {
       // Assert - the scope is pushed onto the already-authored step templates
       verify(workflowRepository, times(2)).flush();
       verify(stepService).syncScopeAssetsOnStepTemplates(workflow, List.of("asset-123"));
+      verify(stepService).syncScopeTeamsOnStepTemplates(workflow, List.of("team-123"));
     }
 
     @Test
@@ -948,6 +954,7 @@ class WorkflowServiceTest {
           .thenReturn(List.of(template));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
       when(scopeService.getValidAssets("wf-template")).thenReturn(List.of(asset));
+      when(scopeService.getValidTeams("wf-template")).thenReturn(List.of());
 
       // Act
       workflowService.writeAllowlistScope("scenario-1", null, List.of(rule), false);
@@ -955,6 +962,7 @@ class WorkflowServiceTest {
       // Assert
       verify(workflowRepository).flush();
       verify(stepService).syncScopeAssetsOnStepTemplates(template, List.of("asset-1"));
+      verify(stepService).syncScopeTeamsOnStepTemplates(template, List.of());
     }
 
     @Test
@@ -1003,6 +1011,7 @@ class WorkflowServiceTest {
           .thenReturn(List.of(template));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
       when(scopeService.getValidAssets("wf-template")).thenReturn(List.of(asset));
+      when(scopeService.getValidTeams("wf-template")).thenReturn(List.of());
 
       // Act
       workflowService.writeScopeRules("scenario-1", null, List.of(rule));
@@ -1010,6 +1019,7 @@ class WorkflowServiceTest {
       // Assert
       verify(workflowRepository).flush();
       verify(stepService).syncScopeAssetsOnStepTemplates(template, List.of("asset-2"));
+      verify(stepService).syncScopeTeamsOnStepTemplates(template, List.of());
     }
 
     @Test

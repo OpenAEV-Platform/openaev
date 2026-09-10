@@ -442,7 +442,7 @@ public class WorkflowService {
   }
 
   /**
-   * Re-aligns all asset-centric step templates with the workflow's current scope assets.
+   * Re-aligns all asset- and team-targeted step templates with the workflow's current scope.
    *
    * <p>ScopeService resolves from persisted rules, so pending workflow updates must be flushed
    * first.
@@ -458,7 +458,30 @@ public class WorkflowService {
             .stream()
             .map(Asset::getId)
             .toList();
+    List<String> scopedTeamIds =
+        Optional.ofNullable(scopeService.getValidTeams(workflow.getId())).orElse(List.of()).stream()
+            .map(Team::getId)
+            .toList();
     stepService.syncScopeAssetsOnStepTemplates(workflow, scopedAssetIds);
+    stepService.syncScopeTeamsOnStepTemplates(workflow, scopedTeamIds);
+  }
+
+  /**
+   * Re-aligns the step templates of TEMPLATE workflows identified by id.
+   *
+   * <p>Used by scope-entity deletion cleanup after the matching scope rules have been removed so
+   * the denormalized step targets stay aligned with the current scope assets and teams.
+   *
+   * @param workflowIds the workflow ids to realign
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void realignTemplateActionTargetsByIds(Collection<String> workflowIds) {
+    if (CollectionUtils.isEmpty(workflowIds)) {
+      return;
+    }
+    workflowRepository
+        .findAllByIdWithScopeRules(new ArrayList<>(new LinkedHashSet<>(workflowIds)))
+        .forEach(this::realignTemplateActionTargets);
   }
 
   /**
