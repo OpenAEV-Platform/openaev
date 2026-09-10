@@ -5,37 +5,34 @@ import { type FunctionComponent, type SyntheticEvent, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import CountryFieldController from '../../../components/fields/CountryFieldController';
 import CustomDashboardAutocompleteFieldController from '../../../components/fields/CustomDashboardAutocompleteFieldController';
-import OrganizationFieldController from '../../../components/fields/OrganizationFieldController';
 import SelectFieldController from '../../../components/fields/SelectFieldController';
-import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
-import type { UpdateProfileInput, User } from '../../../utils/api-types';
+import { type UpdateProfileInput } from '../../../utils/api-types';
 import { zodImplement } from '../../../utils/Zod';
 import { langItems, themeItems } from '../utils/OptionItems';
 
-interface UserFormProps {
-  onSubmit: (data: UpdateProfileInput) => void;
-  initialValues: User;
+export type UserExperienceFormInput = Pick<
+  UpdateProfileInput,
+  'user_theme' | 'user_lang' | 'user_home_dashboard'
+>;
+
+interface UserExperienceFormProps {
+  onSubmit: (data: UserExperienceFormInput) => void;
+  initialValues: UserExperienceFormInput;
 }
 
-const UserForm: FunctionComponent<UserFormProps> = ({
+const UserExperienceForm: FunctionComponent<UserExperienceFormProps> = ({
   onSubmit,
   initialValues,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
-  const methods = useForm<UpdateProfileInput>({
+  const methods = useForm<UserExperienceFormInput>({
     mode: 'onTouched',
     resolver: zodResolver(
-      zodImplement<UpdateProfileInput>().with({
-        user_email: z.email(t('Should be a valid email address')),
-        user_firstname: z.string().min(1, { message: t('Should not be empty') }),
-        user_lastname: z.string().min(1, { message: t('Should not be empty') }),
-        user_organization: z.string().optional(),
-        user_country: z.string().optional(),
+      zodImplement<UserExperienceFormInput>().with({
         user_theme: z.string().min(1, { message: t('Should not be empty') }),
         user_lang: z.string().min(1, { message: t('Should not be empty') }),
         user_home_dashboard: z.string().optional(),
@@ -43,37 +40,39 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     ),
     defaultValues: initialValues,
   });
+
   const {
     handleSubmit,
-    formState: { isSubmitting, isDirty },
+    formState: {
+      isSubmitting,
+      isDirty,
+    },
     reset,
   } = methods;
+
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();
     handleSubmit(onSubmit)(e);
   };
+
+  // keepDirtyValues so that a refresh triggered by another form of the page does not discard
+  // the values currently being edited here.
   useEffect(() => {
-    reset(initialValues);
+    reset(initialValues, { keepDirtyValues: true });
   }, [initialValues, reset]);
 
   return (
     <FormProvider {...methods}>
       <form
-        id="userForm"
+        id="userExperienceForm"
         onSubmit={handleSubmitWithoutPropagation}
         style={{
           display: 'flex',
           flexDirection: 'column',
-          minHeight: '100%',
           gap: theme.spacing(2.5),
         }}
       >
-        <TextFieldController required name="user_email" label={t('Email address')} disabled={initialValues.user_is_external} />
-        <TextFieldController required name="user_firstname" label={t('Firstname')} />
-        <TextFieldController required name="user_lastname" label={t('Lastname')} />
-        <OrganizationFieldController name="user_organization" label={t('Organization')} />
-        <CountryFieldController name="user_country" label={t('Country')} />
         <SelectFieldController name="user_theme" label={t('Theme')} items={themeItems(t)} />
         <SelectFieldController name="user_lang" label={t('Language')} items={langItems(t)} />
         <CustomDashboardAutocompleteFieldController name="user_home_dashboard" label={t('Home dashboard')} disabled={false} withPlatformDefault />
@@ -92,4 +91,4 @@ const UserForm: FunctionComponent<UserFormProps> = ({
   );
 };
 
-export default UserForm;
+export default UserExperienceForm;
