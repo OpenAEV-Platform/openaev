@@ -120,22 +120,19 @@ export const countryOption = (iso3: string | undefined) => {
 
 export interface DialCodeOption extends Option { dialCode: string }
 
-export const dialCodeOptions = (): DialCodeOption[] => countries.map(n => ({
+const DIAL_CODE_OPTIONS: readonly DialCodeOption[] = countries.map(n => ({
   id: n.code,
   label: n.name,
   dialCode: n.dialCode,
 }));
 
-export const dialCodeOption = (iso3: string | undefined): DialCodeOption | undefined => {
-  const country = countries.find(n => n.code === iso3);
-  return country
-    ? {
-        id: country.code,
-        label: country.name,
-        dialCode: country.dialCode,
-      }
-    : undefined;
-};
+const DIAL_CODE_OPTIONS_BY_ID = new Map(DIAL_CODE_OPTIONS.map(option => [option.id, option]));
+
+const DIAL_CODE_OPTIONS_BY_LENGTH_DESC = [...DIAL_CODE_OPTIONS].sort((a, b) => b.dialCode.length - a.dialCode.length);
+
+export const dialCodeOptions = (): readonly DialCodeOption[] => DIAL_CODE_OPTIONS;
+
+export const dialCodeOption = (iso3: string | undefined): DialCodeOption | undefined => (iso3 ? DIAL_CODE_OPTIONS_BY_ID.get(iso3) : undefined);
 
 /**
  * Splits a phone number into its dial code country and its national part.
@@ -150,9 +147,7 @@ export const splitPhoneNumber = (
   if (!phoneNumber) {
     return { nationalNumber: '' };
   }
-  const country = dialCodeOptions()
-    .sort((a, b) => b.dialCode.length - a.dialCode.length)
-    .find(o => phoneNumber.startsWith(o.dialCode));
+  const country = DIAL_CODE_OPTIONS_BY_LENGTH_DESC.find(o => phoneNumber.startsWith(o.dialCode));
   return {
     country,
     nationalNumber: country
