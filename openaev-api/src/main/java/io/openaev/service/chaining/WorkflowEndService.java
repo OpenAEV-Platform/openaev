@@ -8,6 +8,7 @@ import io.openaev.database.repository.WorkflowRepository;
 import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.ExecutionTraceUtils;
 import java.time.Instant;
@@ -33,6 +34,7 @@ public class WorkflowEndService {
   private final ScopeSnapshotService scopeSnapshotService;
   private final AssetAgentJobRepository assetAgentJobRepository;
   private final WorkflowStateRepository workflowStateRepository;
+  private final AttackPathExecutionIngestionService attackPathExecutionIngestionService;
 
   private static final Set<ExecutionStatus> ACTIVE_INJECT_STATUSES =
       Set.of(ExecutionStatus.QUEUING, ExecutionStatus.EXECUTING, ExecutionStatus.PENDING);
@@ -40,9 +42,17 @@ public class WorkflowEndService {
   public enum WORKFLOW_END_CAUSE {
     TIMEOUT,
     CANCELED,
-    DELETED,
+    CANCELED_BY_SIMULATION_DELETION,
+    DELETED_BY_RESET_SIMULATION,
+    DELETED_BY_SIMULATION_DELETION,
     NO_MORE_PROGRESS
   }
+
+  public static final Set<WORKFLOW_END_CAUSE> WORKFLOW_END_CAUSE_BY_DELETION =
+      Set.of(
+          WORKFLOW_END_CAUSE.DELETED_BY_RESET_SIMULATION,
+          WORKFLOW_END_CAUSE.CANCELED_BY_SIMULATION_DELETION,
+          WORKFLOW_END_CAUSE.DELETED_BY_SIMULATION_DELETION);
 
   /**
    * Forces a workflow run to complete due to timeout expiration. Sets the workflow status to END,
@@ -67,10 +77,12 @@ public class WorkflowEndService {
    * their status to SUCCESS with a tracking end date.
    *
    * @param simulationId the simulation ID
-   * @param cause the reason the workflow is ending; skipped entirely for {@code DELETED}
+   * @param cause the reason the workflow is ending; skipped entirely for {@code
+   *     DELETED_SIMULATION_RESET} and {@code DELETED_SIMULATION}
    */
   public void stopActiveInjects(String simulationId, WORKFLOW_END_CAUSE cause) {
-    if (cause == WORKFLOW_END_CAUSE.DELETED) return;
+    if (cause == WORKFLOW_END_CAUSE.DELETED_BY_RESET_SIMULATION
+        || cause == WORKFLOW_END_CAUSE.DELETED_BY_SIMULATION_DELETION) return;
 
     List<Inject> injects = injectService.findBySimulationId(simulationId);
     int stoppedCount = 0;
@@ -80,7 +92,8 @@ public class WorkflowEndService {
         InjectStatus status = inject.getStatus().get();
         switch (cause) {
           case TIMEOUT -> ExecutionTraceUtils.addSimulationTimeoutTrace(status);
-          case CANCELED -> ExecutionTraceUtils.addSimulationInterruptedTrace(status);
+          case CANCELED, CANCELED_BY_SIMULATION_DELETION ->
+              ExecutionTraceUtils.addSimulationInterruptedTrace(status);
           /* NO_MORE_PROGRESS with active inject should never happen,
            *  NO_MORE_PROGRESS:
            *       - All Step with status END (All output that an inject can receive has been received)
@@ -117,7 +130,8 @@ public class WorkflowEndService {
    * @param cause the reason the workflow ended
    */
   public void stopSimulationByEndWorkflow(Workflow workflowRun, WORKFLOW_END_CAUSE cause) {
-    if (cause == WORKFLOW_END_CAUSE.CANCELED) return;
+    if (cause == WORKFLOW_END_CAUSE.CANCELED
+        || cause == WORKFLOW_END_CAUSE.CANCELED_BY_SIMULATION_DELETION) return;
     Exercise simulation = workflowRun.getSimulation();
     if (simulation != null && workflowRun.getStatus().equals(WorkflowStatus.END)) {
 
@@ -148,39 +162,91 @@ public class WorkflowEndService {
    * @param cause the reason the workflow is ending
    */
   void manageWorkflowEnd(Workflow workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
+    switch (cause) {
+      case TIMEOUT, CANCELED, NO_MORE_PROGRESS, CANCELED_BY_SIMULATION_DELETION ->
+          endActiveWorkflow(workflowRun, cause);
+
+      case DELETED_BY_RESET_SIMULATION -> {
+        ensureWorkflowEnded(workflowRun, cause);
+        deleteAttackPath(workflowRun, cause);
+        workflowRepository.delete(workflowRun);
+      }
+      case DELETED_BY_SIMULATION_DELETION -> {
+        ensureWorkflowEnded(workflowRun, cause);
+        deleteAttackPath(workflowRun, cause);
+        log.info(
+            "[Chaining] Workflow {} {} will be deleted due to {}",
+            workflowRun.getStatus(),
+            workflowRun.getId(),
+            cause.name());
+      }
+      default ->
+          log.error(
+              "[Chaining] Workflow {} reached END due to {}. No action defined for this cause.",
+              workflowRun.getId(),
+              cause.name());
+    }
+  }
+
+  private void ensureWorkflowEnded(Workflow workflowRun, WORKFLOW_END_CAUSE cause) {
+    if (!WorkflowStatus.END.equals(workflowRun.getStatus())) {
+      log.error(
+          "[Chaining] Workflow {} is not in END status when deleting it due to {}. Forcing END transition.",
+          workflowRun.getId(),
+          cause.name());
+      endActiveWorkflow(workflowRun, WORKFLOW_END_CAUSE.CANCELED_BY_SIMULATION_DELETION);
+    }
+  }
+
+  private void deleteAttackPath(Workflow workflowRun, WORKFLOW_END_CAUSE cause) {
+    // Attack-path rows have no FK to the simulation, so the native exercise delete does not cascade
+    // them: clear them explicitly under the caller's tenant (same primitive as the reset path),
+    // otherwise a deleted simulation leaves orphan attack-path executions and findings behind.
+    // Delete attack path execution
+    this.attackPathExecutionIngestionService.deleteAllBySimulationId(
+        workflowRun.getSimulation().getId(), workflowRun.getSimulation().getTenant().getId());
+    log.info(
+        "[Chaining] Attack path execution of simulation {} have been deleted due to workflow {}.",
+        workflowRun.getSimulation().getId(),
+        cause.name());
+  }
+
+  /**
+   * Runs the END-transition cleanup (status, scope snapshot, simulation, steps, delay queue,
+   * injects, asset agent jobs, workflow states) for {@code TIMEOUT}, {@code CANCELED} and {@code
+   * NO_MORE_PROGRESS}. Idempotent - no-op if the workflow is already {@code END}.
+   *
+   * @param workflowRun the RUN workflow reaching END/STOP
+   * @param cause the reason the workflow is ending
+   */
+  private void endActiveWorkflow(Workflow workflowRun, WORKFLOW_END_CAUSE cause) {
     if (WorkflowStatus.END.equals(workflowRun.getStatus())) {
       return;
     }
     workflowRun.setStatus(WorkflowStatus.END);
-    scopeSnapshotService.freezeEnd(workflowRun);
+    scopeSnapshotService.freezeEnd(workflowRun, cause);
 
-    switch (cause) {
-      case TIMEOUT, CANCELED, NO_MORE_PROGRESS -> {
-        // END SIMULATION
-        stopSimulationByEndWorkflow(workflowRun, cause);
-        // END ACTIVE STEP
-        stepService.endActiveStepsByWorkflowId(workflowRun.getId(), cause);
-        // DELETE STEP DELAY
-        stepDelayQueueService.deleteAllByWorkflowRun(workflowRun, cause);
+    // END SIMULATION - IF NOT MANUAL CANCEL
+    stopSimulationByEndWorkflow(workflowRun, cause);
+    // END ACTIVE STEP
+    stepService.endActiveStepsByWorkflowId(workflowRun.getId(), cause);
+    // DELETE STEP DELAY
+    stepDelayQueueService.deleteAllByWorkflowRun(workflowRun, cause);
 
-        if (workflowRun.getSimulation() == null) {
-          log.error(
-              "[Chaining] Workflow {} has no simulation associated. "
-                  + "Cannot stop active injects.",
-              workflowRun.getId());
-          break;
-        }
-        // END ACTIVE INJECT
-        stopActiveInjects(workflowRun.getSimulation().getId(), cause);
-        // DELETE ASSET AGENT JOBS
-        deleteAllAssetAgentJobsBySimulationIds(
-            workflowRun.getSimulation().getId(), TenantContext.getCurrentTenant(), cause);
-        // DELETE WORKFLOW STATE
-        deleteWorkflowStatesBySimulationId(workflowRun.getSimulation().getId(), cause);
-      }
-      case DELETED -> { // todo simulation (delete & reset) & scenario
-      }
+    if (workflowRun.getSimulation() == null) {
+      log.error(
+          "[Chaining] Workflow {} has no simulation associated. Cannot stop active injects, agent jobs and states.",
+          workflowRun.getId());
+      return;
     }
+
+    // END ACTIVE INJECT
+    stopActiveInjects(workflowRun.getSimulation().getId(), cause);
+    // DELETE ASSET AGENT JOBS
+    deleteAllAssetAgentJobsBySimulationIds(
+        workflowRun.getSimulation().getId(), TenantContext.getCurrentTenant(), cause);
+    // DELETE WORKFLOW STATE
+    deleteWorkflowStatesBySimulationId(workflowRun.getSimulation().getId(), cause);
   }
 
   /**

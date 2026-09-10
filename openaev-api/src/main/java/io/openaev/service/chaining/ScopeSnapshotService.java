@@ -1,5 +1,7 @@
 package io.openaev.service.chaining;
 
+import static io.openaev.service.chaining.WorkflowEndService.WORKFLOW_END_CAUSE_BY_DELETION;
+
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
@@ -71,7 +73,8 @@ public class ScopeSnapshotService {
    * @param workflowRun the RUN workflow whose execution just ended
    */
   @Transactional(readOnly = true)
-  public void freezeEnd(Workflow workflowRun) {
+  public void freezeEnd(Workflow workflowRun, WorkflowEndService.WORKFLOW_END_CAUSE cause) {
+    if (WORKFLOW_END_CAUSE_BY_DELETION.contains(cause)) return;
     for (WorkflowScopeRule rule : workflowRun.getWorkflowScopeRules()) {
       rule.setSnapshotEnd(buildEndSnapshot(rule));
     }
