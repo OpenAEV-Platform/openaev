@@ -99,6 +99,7 @@ class V1_DataImporterTest extends IntegrationTest {
 
   @BeforeEach
   void cleanBefore() throws IOException {
+    entityManager.clear();
     killChainPhaseRepository.deleteAll();
     attackPatternRepository.deleteAll();
     exerciseRepository.deleteAll();
