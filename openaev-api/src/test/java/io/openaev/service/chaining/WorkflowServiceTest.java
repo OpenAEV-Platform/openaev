@@ -871,7 +871,6 @@ class WorkflowServiceTest {
           .thenReturn(Optional.of(workflow));
       when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
       when(scopeService.getValidTeams(workflowId)).thenReturn(List.of(team));
-      when(scopeService.getValidAssets(workflowId)).thenReturn(List.of());
 
       workflowService.updateWorkflowConfiguration(workflowId, input);
 
