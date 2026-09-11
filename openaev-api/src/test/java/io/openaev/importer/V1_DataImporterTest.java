@@ -100,12 +100,18 @@ class V1_DataImporterTest extends IntegrationTest {
   @BeforeEach
   void cleanBefore() throws IOException {
     entityManager.clear();
-    killChainPhaseRepository.deleteAll();
-    attackPatternRepository.deleteAll();
-    exerciseRepository.deleteAll();
-    scenarioRepository.deleteAll();
     injectRepository.deleteAll();
+    entityManager.clear();
     injectorContractRepository.deleteAll();
+    entityManager.clear();
+    attackPatternRepository.deleteAll();
+    entityManager.clear();
+    killChainPhaseRepository.deleteAll();
+    entityManager.clear();
+    scenarioRepository.deleteAll();
+    entityManager.clear();
+    exerciseRepository.deleteAll();
+    entityManager.clear();
     injectorRepository.deleteAll();
     MockitoAnnotations.openMocks(this);
     when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
