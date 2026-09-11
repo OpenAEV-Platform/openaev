@@ -2,6 +2,7 @@ package io.openaev.export;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -375,6 +376,7 @@ class WorkflowExportInitializerTest {
 
   private static void assertContractMetadata(ObjectNode contractNode) {
     assertEquals("contract-id", contractNode.get("injector_contract_id").asText());
+    assertNotNull(contractNode.get("injector_contract_domains"));
     ArrayNode domains = (ArrayNode) contractNode.get("injector_contract_domains");
     assertEquals(2, domains.size());
     assertTrue(containsText(domains, "domain-id-1"));
