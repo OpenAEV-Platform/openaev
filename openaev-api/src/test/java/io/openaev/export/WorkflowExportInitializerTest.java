@@ -47,11 +47,15 @@ class WorkflowExportInitializerTest {
     InjectorContractRepository injectorContractRepository = mock(InjectorContractRepository.class);
     TeamRepository teamRepository = mock(TeamRepository.class);
     ConditionRepository conditionRepository = mock(ConditionRepository.class);
+    InjectorContractContentUtils injectorContractContentUtils =
+        mock(InjectorContractContentUtils.class);
     ReflectionTestUtils.setField(
         workflowExportInitializer, "injectorContractRepository", injectorContractRepository);
     ReflectionTestUtils.setField(workflowExportInitializer, "teamRepository", teamRepository);
     ReflectionTestUtils.setField(
         workflowExportInitializer, "conditionRepository", conditionRepository);
+    ReflectionTestUtils.setField(
+        workflowExportInitializer, "injectorContractContentUtils", injectorContractContentUtils);
 
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId("contract-id");
@@ -62,6 +66,7 @@ class WorkflowExportInitializerTest {
     when(conditionRepository.findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
             eq("workflow-id"), eq(ConditionType.MAPPER)))
         .thenReturn(java.util.List.of());
+    when(injectorContractContentUtils.hasField(injectorContract, "teams")).thenReturn(false);
 
     ObjectNode exportNode = objectMapper.createObjectNode();
     ObjectNode workflowNode = objectMapper.createObjectNode();
