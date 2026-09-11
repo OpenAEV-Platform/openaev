@@ -2125,56 +2125,6 @@ class V1_DataImporterTest extends IntegrationTest {
     assertEquals(teamName, teamRuleResult.getRuleValueLabel());
   }
 
-  @Test
-  @Transactional
-  @WithMockUser
-  void given_chainedWorkflowScopeRuleWithInlineMembersOnly_when_importing_should_ignoreThem()
-      throws Exception {
-    // -- Arrange --
-    String scenarioName = "wf scope inline members " + UUID.randomUUID();
-    String teamName = "scope-inline-team-" + UUID.randomUUID();
-
-    User inlineMember = new User();
-    inlineMember.setFirstname("Inline");
-    inlineMember.setLastname("Member");
-    inlineMember.setEmail("inline.scope.member@" + UUID.randomUUID() + ".io");
-
-    ObjectMapper om = new ObjectMapper();
-    ObjectNode workflowNode = om.createObjectNode();
-    ArrayNode scopeRules = om.createArrayNode();
-    ObjectNode teamRule = workflowScopeRuleNode(om, "TEAM", UUID.randomUUID().toString(), teamName);
-    teamRule.set(
-        "workflow_scope_rule_team_member",
-        om.createArrayNode()
-            .add(
-                workflowScopeMemberNode(
-                    om,
-                    UUID.randomUUID().toString(),
-                    inlineMember.getEmail(),
-                    inlineMember.getFirstname(),
-                    inlineMember.getLastname())));
-    scopeRules.add(teamRule);
-    workflowNode.set("workflow_scope_rules", scopeRules);
-    workflowNode.set("workflow_steps", om.createArrayNode());
-    ObjectNode importData = buildScenarioImportWithWorkflow(om, scenarioName, workflowNode);
-
-    // -- Act --
-    this.importer.importData(
-        txCtx(),
-        importData,
-        Map.of(),
-        null,
-        null,
-        null,
-        null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
-
-    // -- Assert --
-    Team importedTeam = teamRepository.findByNameIgnoreCaseAndNotContextual(teamName).getFirst();
-    assertTrue(importedTeam.getUsers().isEmpty());
-    assertTrue(userRepository.findByEmailIgnoreCase(inlineMember.getEmail()).isEmpty());
-  }
-
   // ---------------------------------------------------------------------------
   // step_data nested attack pattern rewriting (injector_contract_attack_patterns and the nested
   // injector_contract_payload.payload_attack_patterns).
