@@ -1,33 +1,11 @@
 package io.openaev.api.credentials;
 
-import static io.openaev.api.credentials.CredentialApi.GCP_PRIVATE_KEY_PART;
-import static io.openaev.api.credentials.CredentialApi.MAX_GCP_PRIVATE_KEY_SIZE_BYTES;
-import static io.openaev.api.credentials.CredentialApi.TENANT_CREDENTIALS_URI;
+import static io.openaev.api.credentials.CredentialApi.*;
 import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.ACTIVE;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.AUTH_FAILED;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.TIMEOUT;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.*;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_ACCESS_KEY_ID;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_DEFAULT_REGION;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_EXTERNAL_ID;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_ROLE_ARN;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_SECRET_ACCESS_KEY;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_SOURCE_PROFILE_ACCESS_KEY_ID;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_CLIENT_ID;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_CLIENT_SECRET;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_ENVIRONMENT;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_SUBSCRIPTION_ID;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AZURE_TENANT_ID;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_OAUTH_CLIENT_ID;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_OAUTH_CLIENT_SECRET;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_OAUTH_REFRESH_TOKEN;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_PRIVATE_KEY_JSON;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_PROJECT_ID;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.GCP_SCOPE;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.gcpPrivateKeyJsonBytes;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -43,6 +21,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.credentials.form.CredentialBulkProcessingInput;
 import io.openaev.api.credentials.form.CredentialInput;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tag;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.SecretsRepository;
 import io.openaev.database.repository.TagRepository;
@@ -62,11 +41,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -690,7 +665,7 @@ class CredentialApiTest extends IntegrationTest {
       Tenant tenant =
           tenantIsolationTestHelper.createTenantWithCurrentUser("credential-gcp-big-key");
       CredentialInput input = CredentialInputFixture.gcpServiceAccountInput("gcp-big-key");
-      byte[] oversizedKey = new byte[(int) MAX_GCP_PRIVATE_KEY_SIZE_BYTES + 1];
+      byte[] oversizedKey = new byte[(int) MAX_CREDENTIAL_FILE_SIZE_BYTES + 1];
 
       // Act: the size guard runs before the payload ever reaches a handler
       String errorResponse =
@@ -701,7 +676,7 @@ class CredentialApiTest extends IntegrationTest {
               .getContentAsString();
 
       // Assert
-      assertThat(errorResponse).containsIgnoringCase("key file");
+      assertThat(errorResponse).containsIgnoringCase("The provided file must not exceed");
     }
 
     @Test

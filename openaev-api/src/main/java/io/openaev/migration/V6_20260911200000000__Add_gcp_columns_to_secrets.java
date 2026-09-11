@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  * prefix marks the columns owned by the OAuth2 subtype only.
  */
 @Component
-public class V6_20260827200000000__Add_gcp_columns_to_secrets extends BaseJavaMigration {
+public class V6_20260911200000000__Add_gcp_columns_to_secrets extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
