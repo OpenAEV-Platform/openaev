@@ -168,6 +168,11 @@ public class WorkflowExportInitializer {
     return tags;
   }
 
+  // -- chained workflow export --
+  //
+  // The export helpers below keep chained workflows round-trippable by preserving scope
+  // definitions, team membership companions, and audience targets in the JSON payload.
+
   /**
    * Removes asset scope rules from the export payload so chained workflows only carry the scope
    * data that matters for the chained import/export flow.
@@ -234,6 +239,11 @@ public class WorkflowExportInitializer {
     }
   }
 
+  // -- export payload preservation --
+  //
+  // These helpers keep the serialized step shape compatible with legacy imports and ensure the
+  // exporter does not drop runtime-free fields that chained import still needs.
+
   /**
    * Restores fields omitted by mixins so the importer can round-trip the original step shape
    * instead of inferring missing values.
@@ -278,6 +288,11 @@ public class WorkflowExportInitializer {
     stepDataObject.putNull("inject_exercise");
     stepDataObject.putNull("inject_scenario");
   }
+
+  // -- export scope audience helpers --
+  //
+  // These helpers copy workflow-scope team ids into step data and export the team-member
+  // companion collection so imports can restore the exact same audience context.
 
   /**
    * Copies team ids from workflow scope into step_data when the contract supports audience
@@ -334,6 +349,11 @@ public class WorkflowExportInitializer {
     return teamIds;
   }
 
+  // -- export serialization helpers --
+  //
+  // These helpers keep the final JSON consistent with the original textual/object step shape and
+  // the serializer's injector-contract expectations.
+
   /** Writes the enriched step data back using the original textual or structured JSON shape. */
   private static void setStepData(
       ObjectNode stepObject,
@@ -372,6 +392,11 @@ public class WorkflowExportInitializer {
         .getAttackPatterns()
         .forEach(attackPattern -> Hibernate.initialize(attackPattern.getKillChainPhases()));
   }
+
+  // -- workflow-scope team membership export --
+  //
+  // TEAM scope rules export their member list as a companion collection so imports can rebuild the
+  // team membership snapshot even when the live team has changed later.
 
   /**
    * Serializes the users attached to each TEAM scope rule so chained imports can rebuild the same

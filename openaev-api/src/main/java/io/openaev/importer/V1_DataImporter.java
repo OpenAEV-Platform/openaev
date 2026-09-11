@@ -2575,7 +2575,10 @@ public class V1_DataImporter implements Importer {
         workflow.setSimulation(savedExercise);
       }
 
-      // Import scope rules
+      // -- chained scope import --
+      //
+      // Scope rules are imported before steps so the workflow can rebuild TEAM/PLAYER references
+      // and rehydrate the companion membership payload in the same pass.
       if (workflowNode.has("workflow_scope_rules")) {
         // Team scope rules need both the scoped team identity and the exported companion members,
         // so resolve the player lookup cache once and reuse it for all rules in this workflow.
@@ -2669,6 +2672,10 @@ public class V1_DataImporter implements Importer {
     }
   }
 
+  // -- workflow-scope rule resolution --
+  //
+  // These helpers turn exported chained scope rows back into persisted TEAM/PLAYER entities and
+  // preserve the rule labels that the export captured for round-tripping.
   private WorkflowScopeRule buildWorkflowScopeRule(
       JsonNode ruleNode,
       Workflow workflow,
@@ -2831,14 +2838,8 @@ public class V1_DataImporter implements Importer {
     return new WorkflowScopeTeamResolution(savedTeam, true);
   }
 
-  private User resolveWorkflowScopePlayer(
-      String rawValue, String label, Map<String, Base> baseIds) {
-    // Label-based resolution needs the same tenant-wide player projection on every lookup, so the
-    // caller can keep a single cache for the whole workflow import.
-    return resolveWorkflowScopePlayer(
-        rawValue, label, baseIds, null, loadWorkflowScopePlayersByLabel());
-  }
-
+  // -- workflow-scope player lookup --
+  //
   private User resolveWorkflowScopePlayer(
       String rawValue,
       String label,
