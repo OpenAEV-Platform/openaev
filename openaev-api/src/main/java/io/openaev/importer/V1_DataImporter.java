@@ -2577,7 +2577,11 @@ public class V1_DataImporter implements Importer {
 
       // Import scope rules
       if (workflowNode.has("workflow_scope_rules")) {
+        // Team scope rules need both the scoped team identity and the exported companion members,
+        // so resolve the player lookup cache once and reuse it for all rules in this workflow.
         Map<String, List<String>> workflowScopePlayersByLabel = loadWorkflowScopePlayersByLabel();
+        // The companion payload is exported separately from the rule itself; index it by the rule
+        // value so each TEAM rule can restore its users without a second pass over the JSON.
         Map<String, JsonNode> teamMembersByRuleValue =
             extractWorkflowScopeRuleTeamMembers(workflowNode);
         List<WorkflowScopeRule> scopeRules = new ArrayList<>();
@@ -2678,6 +2682,8 @@ public class V1_DataImporter implements Importer {
     String importedLabel = getTextValue(ruleNode, "workflow_scope_rule_value_label");
 
     if (ScopeRuleSource.TEAM.equals(ruleSource)) {
+      // TEAM rules preserve the team identity and, when available, the reconstructed membership
+      // list so chained imports round-trip the same audience context as the export.
       WorkflowScopeTeamResolution teamResolution =
           resolveWorkflowScopeTeam(rawValue, importedLabel, baseIds);
       List<User> teamUsers =
@@ -2722,6 +2728,8 @@ public class V1_DataImporter implements Importer {
   }
 
   private Map<String, JsonNode> extractWorkflowScopeRuleTeamMembers(JsonNode workflowNode) {
+    // Scope-rule companions are exported as a separate collection to keep the rule payload small
+    // while still preserving team membership details for import.
     Map<String, JsonNode> teamMembersByRuleValue = new HashMap<>();
     JsonNode membersNode = workflowNode.get(WORKFLOW_SCOPE_RULE_TEAM_MEMBERS);
     if (membersNode == null || !membersNode.isArray()) {
@@ -2825,6 +2833,8 @@ public class V1_DataImporter implements Importer {
 
   private User resolveWorkflowScopePlayer(
       String rawValue, String label, Map<String, Base> baseIds) {
+    // Label-based resolution needs the same tenant-wide player projection on every lookup, so the
+    // caller can keep a single cache for the whole workflow import.
     return resolveWorkflowScopePlayer(
         rawValue, label, baseIds, null, loadWorkflowScopePlayersByLabel());
   }
@@ -2888,6 +2898,8 @@ public class V1_DataImporter implements Importer {
   }
 
   private Map<String, List<String>> loadWorkflowScopePlayersByLabel() {
+    // Build one tenant-wide label index up front so chained imports can resolve repeated team
+    // member labels without repeating the same projection query for every unresolved rule.
     Map<String, List<String>> playersByLabel = new HashMap<>();
     for (RawPlayer player : userRepository.rawAllPlayers()) {
       String userId = player.getUser_id();
