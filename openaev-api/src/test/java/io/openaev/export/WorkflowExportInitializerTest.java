@@ -310,10 +310,6 @@ class WorkflowExportInitializerTest {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId("contract-id");
     injectorContract.setAttackPatterns(new ArrayList<>());
-    injectorContract.setContent(
-        """
-        {"fields":[{"key":"teams","type":"team"}]}
-        """);
     when(injectorContractRepository.findById("contract-id"))
         .thenReturn(Optional.of(injectorContract));
     when(injectorContractContentUtils.hasField(injectorContract, "teams")).thenReturn(true);
