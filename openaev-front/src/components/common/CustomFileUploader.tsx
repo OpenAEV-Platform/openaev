@@ -14,6 +14,9 @@ interface CustomFileUploadProps {
   errors: FieldErrors;
   acceptMimeTypes?: string; // html input "accept" with MIME types only
   sizeLimit?: number; // in bytes
+  required?: boolean;
+  initialFileName?: string;
+  errorMessage?: string;
 }
 
 const useStyles = makeStyles()(theme => ({
@@ -49,19 +52,22 @@ const CustomFileUploader: FunctionComponent<CustomFileUploadProps> = ({
   acceptMimeTypes,
   sizeLimit = 0, // defaults to 0 = no limit
   errors,
+  required = false,
+  initialFileName,
+  errorMessage,
 }) => {
   const { t } = useFormatter();
   const { classes, cx } = useStyles();
-  const [fileNameForDisplay, setFileNameForDisplay] = useState('');
+  const [fileNameForDisplay, setFileNameForDisplay] = useState(truncate(initialFileName ?? '', 60) ?? '');
   const [errorText, setErrorText] = useState<string>('');
 
   useEffect(() => {
     if (errors[name]) {
-      setErrorText('Should be a valid XLS file');
+      setErrorText(errorMessage ?? 'Should be a valid XLS file');
     } else {
       setErrorText('');
     }
-  }, [errors[name]]);
+  }, [errors[name], errorMessage]);
 
   const onChange = async (event: FormEvent) => {
     const inputElement = event.target as HTMLInputElement;
@@ -99,7 +105,7 @@ const CustomFileUploader: FunctionComponent<CustomFileUploadProps> = ({
   return (
     (
       <div className={classes.div}>
-        <InputLabel shrink={true} variant="standard">
+        <InputLabel shrink={true} variant="standard" required={required} error={!!errorText}>
           {label ? t(label) : t('Associated file')}
         </InputLabel>
         <Box

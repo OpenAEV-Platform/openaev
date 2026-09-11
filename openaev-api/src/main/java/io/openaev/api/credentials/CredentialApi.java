@@ -44,7 +44,7 @@ public class CredentialApi extends RestBehavior {
    * Upper bound on the key file. A Google service account key weighs about 2.3 KB; 16 KB leaves
    * room for formatting variations while keeping the endpoint useless as an upload DoS vector.
    */
-  public static final long MAX_GCP_PRIVATE_KEY_SIZE_BYTES = 16L * 1024;
+  public static final long MAX_CREDENTIAL_FILE_SIZE_BYTES = 16L * 1024;
 
   private final CredentialService credentialService;
   private final CredentialMapper credentialMapper;
@@ -124,7 +124,7 @@ public class CredentialApi extends RestBehavior {
    * </ul>
    *
    * <p>The size is bounded before the payload is read into memory: a service account key file
-   * weighs about 2 KB, so anything past {@link #MAX_GCP_PRIVATE_KEY_SIZE_BYTES} is an abuse
+   * weighs about 2 KB, so anything past {@link #MAX_CREDENTIAL_FILE_SIZE_BYTES} is an abuse
    * attempt, not a credential.
    */
   private byte[] readKeyFile(Optional<MultipartFile> keyFile) {
@@ -133,29 +133,25 @@ public class CredentialApi extends RestBehavior {
       return null;
     }
     if (file.isEmpty()) {
-      throw new BadRequestException("The GCP service account key file must not be empty");
+      throw new BadRequestException("The provided file must not be empty");
     }
-    if (file.getSize() > MAX_GCP_PRIVATE_KEY_SIZE_BYTES) {
+    if (file.getSize() > MAX_CREDENTIAL_FILE_SIZE_BYTES) {
       throw new BadRequestException(
-          "The GCP service account key file must not exceed "
-              + MAX_GCP_PRIVATE_KEY_SIZE_BYTES
-              + " bytes");
+          "The provided file must not exceed " + MAX_CREDENTIAL_FILE_SIZE_BYTES + " bytes");
     }
     byte[] content;
     try {
       content = file.getBytes();
     } catch (IOException e) {
-      throw new BadRequestException("Unable to read the GCP service account key file");
+      throw new BadRequestException("Unable to read the provided file");
     }
     // Belt and braces: getSize() is reported by the client, the actual payload is what counts.
     if (content.length == 0) {
-      throw new BadRequestException("The GCP service account key file must not be empty");
+      throw new BadRequestException("The provided file must not be empty");
     }
-    if (content.length > MAX_GCP_PRIVATE_KEY_SIZE_BYTES) {
+    if (content.length > MAX_CREDENTIAL_FILE_SIZE_BYTES) {
       throw new BadRequestException(
-          "The GCP service account key file must not exceed "
-              + MAX_GCP_PRIVATE_KEY_SIZE_BYTES
-              + " bytes");
+          "The provided file must not exceed " + MAX_CREDENTIAL_FILE_SIZE_BYTES + " bytes");
     }
     return content;
   }

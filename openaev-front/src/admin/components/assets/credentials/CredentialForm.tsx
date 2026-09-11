@@ -1,17 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, CircularProgress, FormHelperText, InputLabel } from '@mui/material';
+import { Button, CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type BaseSyntheticEvent, type FunctionComponent, type SyntheticEvent, useEffect, useMemo, useState } from 'react';
 import {
-  Controller,
   FormProvider,
   useForm,
-  useFormContext,
   useWatch,
 } from 'react-hook-form';
 import { z } from 'zod/v4';
 
 import { fetchCredentialContracts } from '../../../../actions/assets/credential-actions';
+import FileFieldController from '../../../../components/fields/FileFieldController';
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
 import TagFieldController from '../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
@@ -32,62 +31,6 @@ interface Props {
   editing?: boolean;
   initialValues?: Partial<CredentialInput>;
 }
-
-interface FileFieldProps {
-  name: string;
-  label: string;
-  required?: boolean;
-}
-
-/**
- * Upload control for a contract field of type `file`.
- *
- * <p>The form value is either a freshly picked `File` — the only case producing a multipart part —
- * or the write-only placeholder set in edit mode, which means "keep the stored file".
- */
-const FileFieldController: FunctionComponent<FileFieldProps> = ({
-  name,
-  label,
-  required = false,
-}) => {
-  const { t } = useFormatter();
-  const theme = useTheme();
-  const { control } = useFormContext();
-
-  return (
-    <Controller
-      name={name}
-      control={control}
-      render={({ field: { onChange, value }, fieldState: { error } }) => {
-        const storedPlaceholder = typeof value === 'string' && value.length > 0 ? value : '';
-        const selectedName = value instanceof File ? value.name : storedPlaceholder;
-        return (
-          <div>
-            <InputLabel required={required} error={!!error}>{label}</InputLabel>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: theme.spacing(1),
-            }}
-            >
-              <Button variant="outlined" component="label" size="small">
-                {t('Select a file')}
-                <input
-                  type="file"
-                  accept="application/json,.json"
-                  hidden
-                  onChange={event => onChange(event.target.files?.[0] ?? null)}
-                />
-              </Button>
-              <span>{selectedName || t('No file selected')}</span>
-            </div>
-            {error?.message && <FormHelperText error>{error.message}</FormHelperText>}
-          </div>
-        );
-      }}
-    />
-  );
-};
 
 const CredentialForm: FunctionComponent<Props> = ({
   onSubmit,
@@ -459,7 +402,8 @@ const CredentialForm: FunctionComponent<Props> = ({
                 <FileFieldController
                   key={field.field_name}
                   name={field.field_name}
-                  label={t(`${field.field_name}`)}
+                  label={field.field_name}
+                  acceptMimeTypes="application/json"
                   required={!!field.required}
                 />
               )

@@ -1,86 +1,50 @@
-import { Button, FormHelperText } from '@mui/material';
-import { type ChangeEvent, type CSSProperties, type FunctionComponent, useRef, useState } from 'react';
+import { type FunctionComponent } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
-import { bytesFormat } from '../../utils/number';
-import { useFormatter } from '../i18n';
+import CustomFileUploader from '../common/CustomFileUploader';
 
 interface Props {
   name: string;
   label?: string;
-  /** Accepted mime type fragments, e.g. ['image/', 'application/pdf'] */
-  filters?: string[];
-  style?: CSSProperties;
-  disabled?: boolean;
+  required?: boolean;
+  /** html input "accept", MIME types only. */
+  acceptMimeTypes?: string;
+  /** Maximum accepted size in bytes, 0 means no limit. */
+  sizeLimit?: number;
 }
 
-const isAccepted = (file: File, filters?: string[]) => !filters || filters.length === 0
-  || filters.some(filter => file.type.includes(filter));
-
+/**
+ * Upload control bound to a react-hook-form field.
+ *
+ * <p>The form value is either a freshly picked `File` — the only case producing a multipart part —
+ * or a write-only placeholder string set in edit mode, which means "keep the stored file".
+ */
 const FileFieldController: FunctionComponent<Props> = ({
   name,
   label,
-  filters,
-  style,
-  disabled = false,
+  required = false,
+  acceptMimeTypes,
+  sizeLimit,
 }) => {
-  const { t } = useFormatter();
-  const { control } = useFormContext();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [rejectedFile, setRejectedFile] = useState(false);
+  const { control, formState: { errors } } = useFormContext();
 
   return (
     <Controller
       name={name}
       control={control}
-      render={({ field: { value, onChange }, fieldState: { error } }) => {
-        const files: File[] = (value as File[]) ?? [];
-
-        const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-          const selectedFiles = [...(event.target.files ?? [])];
-          if (selectedFiles.length === 0) {
-            return;
-          }
-          // Reset value so selecting the same file again triggers onChange.
-          event.target.value = '';
-          const acceptedFiles = selectedFiles.filter(file => isAccepted(file, filters));
-          setRejectedFile(acceptedFiles.length === 0);
-          if (acceptedFiles.length > 0) {
-            onChange(acceptedFiles);
-          }
-        };
-
-        return (
-          <div style={style}>
-            <input
-              ref={inputRef}
-              style={{ display: 'none' }}
-              type="file"
-              disabled={disabled}
-              onChange={handleChange}
-            />
-            <Button
-              variant="outlined"
-              color="primary"
-              disabled={disabled}
-              onClick={() => inputRef.current?.click()}
-            >
-              {label ?? t('Select a file')}
-            </Button>
-            {rejectedFile && (
-              <FormHelperText error focused>
-                {t('This file type is not accepted here.')}
-              </FormHelperText>
-            )}
-            {!rejectedFile && files.map(file => (
-              <FormHelperText key={file.name} focused>
-                {`${file.name} - ${bytesFormat(file.size).number}${bytesFormat(file.size).symbol}`}
-              </FormHelperText>
-            ))}
-            {error && <FormHelperText error>{error.message}</FormHelperText>}
-          </div>
-        );
-      }}
+      render={({ field: { onChange, value }, fieldState: { error } }) => (
+        <CustomFileUploader
+          name={name}
+          label={label}
+          required={required}
+          fieldOnChange={onChange}
+          acceptMimeTypes={acceptMimeTypes}
+          sizeLimit={sizeLimit}
+          errors={errors}
+          errorMessage={error?.message}
+          initialFileName={typeof value === 'string' ? value : undefined}
+        />
+      )}
     />
   );
 };
