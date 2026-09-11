@@ -23,7 +23,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Scenario.SEVERITY;
-import io.openaev.database.raw.RawPlayer;
+import io.openaev.database.raw.RawUserIdentity;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
@@ -2851,6 +2851,18 @@ public class V1_DataImporter implements Importer {
     }
 
     String tenantId = TenantContext.getCurrentTenant();
+    String sourceEmail = sourceNode == null ? null : getTextValue(sourceNode, "user_email");
+    if (hasText(sourceEmail)) {
+      Optional<User> bySourceEmail = userRepository.findByEmailIgnoreCase(sourceEmail);
+      if (bySourceEmail.isPresent()) {
+        attachUserToTenant(bySourceEmail.get(), tenantId);
+        if (hasText(rawValue)) {
+          baseIds.put(rawValue, bySourceEmail.get());
+        }
+        return bySourceEmail.get();
+      }
+    }
+
     String email = resolveWorkflowScopePlayerEmail(label, rawValue);
     Optional<User> globalUser = userRepository.findByEmailIgnoreCase(email);
     if (globalUser.isPresent()) {
@@ -2865,8 +2877,15 @@ public class V1_DataImporter implements Importer {
       Optional<User> existingUser =
           userRepository.findAllByIdInAndTenantId(List.of(rawValue), tenantId).stream().findFirst();
       if (existingUser.isPresent()) {
+        attachUserToTenant(existingUser.get(), tenantId);
         baseIds.put(rawValue, existingUser.get());
         return existingUser.get();
+      }
+      Optional<User> globalById = userRepository.findById(rawValue);
+      if (globalById.isPresent()) {
+        attachUserToTenant(globalById.get(), tenantId);
+        baseIds.put(rawValue, globalById.get());
+        return globalById.get();
       }
     }
 
@@ -2874,6 +2893,7 @@ public class V1_DataImporter implements Importer {
       Optional<User> existingUser =
           resolveWorkflowScopePlayerByLabel(label, tenantId, workflowScopePlayersByLabel);
       if (existingUser.isPresent()) {
+        attachUserToTenant(existingUser.get(), tenantId);
         if (hasText(rawValue)) {
           baseIds.put(rawValue, existingUser.get());
         }
@@ -2895,14 +2915,19 @@ public class V1_DataImporter implements Importer {
     if (matchingIds.isEmpty()) {
       return Optional.empty();
     }
-    return userRepository.findAllByIdInAndTenantId(matchingIds, tenantId).stream().findFirst();
+    Optional<User> tenantScoped =
+        userRepository.findAllByIdInAndTenantId(matchingIds, tenantId).stream().findFirst();
+    if (tenantScoped.isPresent()) {
+      return tenantScoped;
+    }
+    return userRepository.findById(matchingIds.getFirst());
   }
 
   private Map<String, List<String>> loadWorkflowScopePlayersByLabel() {
-    // Build one tenant-wide label index up front so chained imports can resolve repeated team
-    // member labels without repeating the same projection query for every unresolved rule.
+    // Build one global label index up front so chained imports can resolve repeated team member
+    // labels without repeating the same projection query for every unresolved rule.
     Map<String, List<String>> playersByLabel = new HashMap<>();
-    for (RawPlayer player : userRepository.rawAllPlayers()) {
+    for (RawUserIdentity player : userRepository.rawAllIdentities()) {
       String userId = player.getUser_id();
       String email = player.getUser_email();
       if (hasText(email)) {
@@ -2920,7 +2945,7 @@ public class V1_DataImporter implements Importer {
     return playersByLabel;
   }
 
-  private static String resolvePlayerDisplayName(RawPlayer player) {
+  private static String resolvePlayerDisplayName(RawUserIdentity player) {
     if (hasText(player.getUser_firstname()) && hasText(player.getUser_lastname())) {
       return player.getUser_firstname() + " " + player.getUser_lastname();
     }
@@ -3727,6 +3752,7 @@ public class V1_DataImporter implements Importer {
     // step_data must keep its team targets. Like tags and documents, team ids are rewritten
     // through baseIds when possible and dropped only when they resolve to nothing on the target.
     rewriteImportedTeamIds(dataObject, baseIds);
+    seedWorkflowScopeTeamTargets(dataObject, workflow);
     // Rewrite the inject_documents attachment references: documents are recreated with a NEW UUID
     // on the target instance, so the source ids serialized in step_data must be mapped to the
     // resolved target documents or the imported step silently loses valid attachments at run time.
@@ -3850,7 +3876,41 @@ public class V1_DataImporter implements Importer {
         log.debug("Dropped unresolved team id {} while rewriting step_data teams", rawId);
       }
     }
-    dataObject.set("inject_teams", rewritten);
+    if (rewritten.isEmpty()) {
+      dataObject.remove("inject_teams");
+    } else {
+      dataObject.set("inject_teams", rewritten);
+    }
+  }
+
+  /**
+   * Seeds audience steps from workflow TEAM scope rules when the step itself does not already carry
+   * explicit team targets.
+   */
+  private void seedWorkflowScopeTeamTargets(ObjectNode dataObject, Workflow workflow) {
+    if (workflow == null || workflow.getWorkflowScopeRules() == null) {
+      return;
+    }
+    JsonNode teamsNode = dataObject.get("inject_teams");
+    if (teamsNode != null && teamsNode.isArray() && !teamsNode.isEmpty()) {
+      return;
+    }
+
+    ArrayNode seededTeams = mapper.createArrayNode();
+    for (WorkflowScopeRule rule : workflow.getWorkflowScopeRules()) {
+      if (rule == null
+          || !ScopeRuleSource.TEAM.equals(rule.getRuleSource())
+          || !hasText(rule.getRuleValue())) {
+        continue;
+      }
+      seededTeams.add(rule.getRuleValue());
+    }
+
+    if (seededTeams.isEmpty()) {
+      dataObject.remove("inject_teams");
+    } else {
+      dataObject.set("inject_teams", seededTeams);
+    }
   }
 
   /**
