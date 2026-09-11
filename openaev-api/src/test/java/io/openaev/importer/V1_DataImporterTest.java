@@ -829,7 +829,7 @@ class V1_DataImporterTest extends IntegrationTest {
     ObjectNode importData =
         buildScenarioWorkflowWithStepTags(
             om, scenarioName, om.createArrayNode(), om.createArrayNode(), om.createArrayNode());
-    importData.get("scenario_teams").add(sourceTeam);
+    ((ArrayNode) importData.get("scenario_teams")).add(sourceTeam);
     ObjectNode stepData =
         (ObjectNode)
             importData.get("scenario_workflow").get("workflow_steps").get(0).get("step_data");
@@ -889,7 +889,7 @@ class V1_DataImporterTest extends IntegrationTest {
     workflowNode.set("workflow_steps", steps);
 
     ObjectNode importData = buildScenarioImportWithWorkflow(om, scenarioName, workflowNode);
-    importData.get("scenario_teams").add(sourceTeam);
+    ((ArrayNode) importData.get("scenario_teams")).add(sourceTeam);
 
     // -- Act --
     this.importer.importData(
@@ -2064,6 +2064,7 @@ class V1_DataImporterTest extends IntegrationTest {
     existingMember.setLastname("Member");
     existingMember.setEmail("existing.scope.member@" + UUID.randomUUID() + ".io");
     existingMember = userRepository.save(existingMember);
+    String existingMemberEmail = existingMember.getEmail();
 
     String createdMemberEmail = "new.scope.member@" + UUID.randomUUID() + ".io";
 
@@ -2111,7 +2112,7 @@ class V1_DataImporterTest extends IntegrationTest {
     assertEquals(2, createdTeam.getUsers().size());
     assertTrue(
         createdTeam.getUsers().stream()
-            .anyMatch(user -> existingMember.getEmail().equalsIgnoreCase(user.getEmail())));
+            .anyMatch(user -> existingMemberEmail.equalsIgnoreCase(user.getEmail())));
     User createdMember = userRepository.findByEmailIgnoreCase(createdMemberEmail).orElseThrow();
     assertEquals(1, createdMember.getTenants().size());
     assertEquals(TenantContext.getCurrentTenant(), createdMember.getTenants().getFirst().getId());
