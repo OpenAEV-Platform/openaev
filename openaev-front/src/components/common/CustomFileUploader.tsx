@@ -17,6 +17,7 @@ interface CustomFileUploadProps {
   required?: boolean;
   initialFileName?: string;
   errorMessage?: string;
+  disabled?: boolean;
 }
 
 const useStyles = makeStyles()(theme => ({
@@ -45,6 +46,16 @@ const useStyles = makeStyles()(theme => ({
   },
 }));
 
+const isAccepted = (fileType: string, acceptMimeTypes?: string) => {
+  const acceptedList = acceptMimeTypes?.split(',').map(a => a.trim()).filter(a => a.length > 0) ?? [];
+  if (acceptedList.length === 0 || !fileType) {
+    return true;
+  }
+  return acceptedList.some(accepted => accepted.endsWith('/*')
+    ? fileType.startsWith(accepted.slice(0, -1))
+    : accepted === fileType);
+};
+
 const CustomFileUploader: FunctionComponent<CustomFileUploadProps> = ({
   name,
   fieldOnChange,
@@ -55,6 +66,7 @@ const CustomFileUploader: FunctionComponent<CustomFileUploadProps> = ({
   required = false,
   initialFileName,
   errorMessage,
+  disabled = false,
 }) => {
   const { t } = useFormatter();
   const { classes, cx } = useStyles();
@@ -78,28 +90,25 @@ const CustomFileUploader: FunctionComponent<CustomFileUploadProps> = ({
     const newFileName = eventTargetValue.substring(
       eventTargetValue.lastIndexOf('\\') + 1,
     );
-    setFileNameForDisplay(truncate(newFileName, 60) ?? '');
     setErrorText('');
 
     // check the file type; user might still provide something bypassing 'accept'
-    // this will work only if accept is using MIME types only
-    const acceptedList = acceptMimeTypes?.split(',').map(a => a.trim()) || [];
-    if (
-      acceptedList.length > 0
-      && !!file?.type
-      && !acceptedList.includes(file?.type)
-    ) {
+    // this will work only if accept is using MIME types or wildcards such as "image/*"
+    if (!isAccepted(file?.type ?? '', acceptMimeTypes)) {
+      setFileNameForDisplay('');
       setErrorText(t('This file is not in the specified format'));
       return;
     }
 
     // check the size limit if any set; if file is too big it is not set as value
     if (fileSize > 0 && sizeLimit > 0 && fileSize > sizeLimit) {
+      setFileNameForDisplay('');
       setErrorText(t('This file is too large'));
       return;
     }
 
-    fieldOnChange(inputElement.files?.[0]);
+    setFileNameForDisplay(truncate(newFileName, 60) ?? '');
+    fieldOnChange(file);
   };
 
   return (
@@ -117,11 +126,12 @@ const CustomFileUploader: FunctionComponent<CustomFileUploadProps> = ({
           <Button
             component="label"
             variant="contained"
+            disabled={disabled}
             onChange={onChange}
             className={classes.button}
           >
             {t('Select your file')}
-            <VisuallyHiddenInput type="file" accept={acceptMimeTypes} />
+            <VisuallyHiddenInput type="file" accept={acceptMimeTypes} disabled={disabled} />
           </Button>
           <span
             title={fileNameForDisplay || t('No file selected.')}

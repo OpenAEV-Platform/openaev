@@ -1,4 +1,4 @@
-import { type FunctionComponent } from 'react';
+import { type CSSProperties, type FunctionComponent } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import CustomFileUploader from '../common/CustomFileUploader';
@@ -9,9 +9,18 @@ interface Props {
   required?: boolean;
   /** html input "accept", MIME types only. */
   acceptMimeTypes?: string;
+  /** Accepted mime type fragments, e.g. ['image/', 'application/pdf'] */
+  filters?: string[];
   /** Maximum accepted size in bytes, 0 means no limit. */
   sizeLimit?: number;
+  style?: CSSProperties;
+  disabled?: boolean;
 }
+
+/** Turns a mime fragment such as `image/` into the html "accept" wildcard `image/*`. */
+const toAcceptMimeTypes = (filters?: string[]) => (filters && filters.length > 0)
+  ? filters.map(filter => filter.endsWith('/') ? `${filter}*` : filter).join(',')
+  : undefined;
 
 /**
  * Upload control bound to a react-hook-form field.
@@ -24,7 +33,10 @@ const FileFieldController: FunctionComponent<Props> = ({
   label,
   required = false,
   acceptMimeTypes,
+  filters,
   sizeLimit,
+  style,
+  disabled = false,
 }) => {
   const { control, formState: { errors } } = useFormContext();
 
@@ -33,17 +45,20 @@ const FileFieldController: FunctionComponent<Props> = ({
       name={name}
       control={control}
       render={({ field: { onChange, value }, fieldState: { error } }) => (
-        <CustomFileUploader
-          name={name}
-          label={label}
-          required={required}
-          fieldOnChange={onChange}
-          acceptMimeTypes={acceptMimeTypes}
-          sizeLimit={sizeLimit}
-          errors={errors}
-          errorMessage={error?.message}
-          initialFileName={typeof value === 'string' ? value : undefined}
-        />
+        <div style={style}>
+          <CustomFileUploader
+            name={name}
+            label={label}
+            required={required}
+            disabled={disabled}
+            fieldOnChange={onChange}
+            acceptMimeTypes={acceptMimeTypes ?? toAcceptMimeTypes(filters)}
+            sizeLimit={sizeLimit}
+            errors={errors}
+            errorMessage={error?.message}
+            initialFileName={typeof value === 'string' ? value : undefined}
+          />
+        </div>
       )}
     />
   );
