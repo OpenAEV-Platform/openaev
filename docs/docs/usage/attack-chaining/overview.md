@@ -60,7 +60,7 @@ defined in the scope for the Lessons target picker.
 3. Keep **Scope Definition** enabled when you want to include workflow scope rules that define teams, domains, 
 IP addresses, and other elements of chained execution.
 
-![Scenario export](assets/chained-scenario-export.png)
+![Scenario export](assets/scenario-export.png)
 
 See [Scope Definition](scope-definition.md) for the full reference on what the chained scope includes.
 
