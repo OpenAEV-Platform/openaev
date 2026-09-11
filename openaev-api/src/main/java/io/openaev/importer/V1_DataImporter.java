@@ -2648,14 +2648,6 @@ public class V1_DataImporter implements Importer {
             "Chaining import left {} workflow step(s) unresolved and skipped", skippedSteps.size());
       }
 
-      // Scope-driven audience steps need their denormalized team targets aligned after the steps
-      // exist, otherwise imported workflows keep only the scope rule rows and the steps stay
-      // detached from their target teams. This must stay conditional: exports without scope
-      // definition still carry explicit inject_teams values that should be preserved as-is.
-      if (workflowNode.get("workflow_scope_rules") instanceof ArrayNode) {
-        workflowService.realignTemplateActionTargetsByIds(List.of(workflow.getId()));
-      }
-
       // Import standalone events (root conditions not linked to any step)
       if (workflowNode.has("workflow_standalone_conditions")) {
         // Standalone conditions are never shared with a step: use a fresh per-call map.
