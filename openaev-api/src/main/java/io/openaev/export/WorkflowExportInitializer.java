@@ -223,6 +223,8 @@ public class WorkflowExportInitializer {
         if (injectorContract != null) {
           initializeInjectorContractForExport(injectorContract);
           ObjectNode enrichedContractNode = objectMapper.valueToTree(injectorContract);
+          enrichedContractNode.set(
+              "injector_contract_domains", objectMapper.valueToTree(injectorContract.getDomains()));
           JsonNode existingContractNode = stepDataObject.get(INJECT_INJECTOR_CONTRACT);
           if (existingContractNode instanceof ObjectNode existingContractObject) {
             preserveAbsentFieldsRecursively(enrichedContractNode, existingContractObject);
