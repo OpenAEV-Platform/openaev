@@ -2305,6 +2305,16 @@ explain why the sweep looked like a gap:
   categorical ramp may be reused across taxonomies — not an equivalence the
   library asserts.
 
+**The bridge's lag, measured and closed (2026-09-12).** The generated file's
+hash matches neither pin, so it predates both — but the divergence is inert.
+`ThemeDark.ts` and `ThemeLight.ts` read exactly **26** of the bridge's tokens,
+and **none of those 26 changed** between `bd076e8` and `3426fc3`. The four
+light-mode hover values that did change (`--bg-elevation-hover-layer-0/2/3`,
+gray-50/gray-150 → gray-200) have **no MUI consumer at all**: neither theme
+file references `--bg-elevation-hover-*`. Regenerating the bridge would
+therefore change no rendered value today. It is hygiene, not a defect, and it
+stays out of this wave.
+
 **Explicitly NOT erosion.** Thirty-three of the fifty-nine literals the sweep
 found live in simulated external surfaces: the `srcdoc` of a previewed phishing
 email or landing page, the chrome of that preview, and the channel post preview.
