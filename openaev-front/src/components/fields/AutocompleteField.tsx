@@ -10,7 +10,7 @@ import {
   ComboboxLabel,
   ComboboxTrigger,
 } from '@filigran/design-system';
-import { Checkbox, Tooltip } from '@mui/material';
+import { Tooltip } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, type ReactNode, useMemo } from 'react';
 
 import { type GroupOption, type Option } from '../../utils/Option';
@@ -92,7 +92,6 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
   } = props;
 
   const multiple = props.multiple === true;
-  const value = props.value;
   const { t } = useFormatter();
 
   // Hiding is done on the list itself rather than through `filterOptions`, so
@@ -128,25 +127,12 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
 
   const renderRow = (option: AutocompleteOption) => {
     const custom = renderOption?.(option);
-    const checked = multiple
-      ? (value as string[] | undefined)?.includes(option.id)
-      : value === option.id;
 
     const body = (
       <>
-        {/* The row already carries `aria-selected`, so the box is a visual echo
-            and is taken out of the accessibility tree rather than named twice. */}
-        {multiple && (
-          <Checkbox
-            checked={!!checked}
-            size="small"
-            sx={{ padding: 0 }}
-            inputProps={{
-              'aria-hidden': true,
-              'tabIndex': -1,
-            }}
-          />
-        )}
+        {/* No box drawn here: in `multiple` the library's own option row already
+            renders one, presentational, before this content (Combobox.tsx). Ours
+            was a second box on every row — measured, 2 per row. */}
         <span
           style={{
             flexGrow: 1,

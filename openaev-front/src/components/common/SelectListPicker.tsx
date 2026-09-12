@@ -1,19 +1,5 @@
-import {
-  Box,
-  Button,
-  Checkbox,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Skeleton,
-} from '@mui/material';
+import { Checkbox } from '@filigran/design-system';
+import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { type Breakpoint } from '@mui/material/styles';
 import { type CSSProperties, type ReactElement, type ReactNode, useMemo, useState } from 'react';
 
@@ -282,14 +268,9 @@ const SelectListPicker = <T extends object>({
                       </Box>
                     )}
                   />
-                  <Checkbox
-                    size="small"
-                    checked={checked}
-                    disabled={disabled}
-                    disableRipple
-                    tabIndex={-1}
-                    sx={{ padding: 0.5 }}
-                  />
+                  {/* The row (a ListItemButton) owns the selection, so the box
+                      is presentational and must not announce a second state. */}
+                  <Checkbox presentational checked={checked} disabled={disabled} />
                 </ListItemButton>
               );
             })}

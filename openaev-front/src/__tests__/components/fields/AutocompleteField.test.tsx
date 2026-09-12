@@ -64,7 +64,8 @@ describe('AutocompleteField', () => {
       // Assert
       const options = screen.getAllByRole('option');
       expect(options).toHaveLength(OPTIONS.length);
-      options.forEach(option => expect(option.querySelector('input[type="checkbox"]')).not.toBeNull());
+      // The box is the library's own: a presentational <span>, not an <input>.
+      options.forEach(option => expect(option.querySelector('span.box-border')).not.toBeNull());
       const keyWarnings = consoleError.mock.calls.filter(call => String(call[0]).includes('key'));
       expect(keyWarnings).toHaveLength(0);
     });

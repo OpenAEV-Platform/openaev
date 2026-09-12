@@ -2325,39 +2325,41 @@ mistake them for erosion.
 
 ---
 
-## 48. `Checkbox` has no presentational mode, so a decorative echo cannot use it
+## 48 — rewritten. `presentational` exists; what is broken is its name warning
 
-**Measured at pin `3426fc3`**, on the product's own test run.
+**First draft was wrong and is withdrawn.** It asked for a way to say "this box
+is a picture, the row is the control". That way already exists: `Checkbox` takes
+a `presentational` prop, and its own doc comment gives exactly the reason this
+entry was going to argue — a `role="option"` already owns selection and
+keyboard, and a nested checkbox there is an axe `nested-interactive` failure
+that neither `aria-hidden` nor a negative tabindex clears.
 
-**What the product needed.** Two checkboxes that are not controls at all. In
-`AutocompleteField` the option row already carries `aria-selected`, so the box
-beside the label is a visual echo, taken out of the accessibility tree and the
-tab order on purpose. In `SelectListPicker` the row is a `ListItemButton` and
-the box mirrors its state, again at `tabIndex={-1}`.
+Two real findings came out of re-reading it.
 
-**What the library offers today.** `Checkbox` warns on every render when it has
-neither `label`, `aria-label` nor `aria-labelledby`:
+### 48.1 — the name warning does not honour `presentational`
+
+`Checkbox.tsx` guards the missing-name warning on `!label && !aria-label &&
+!aria-labelledby`, with no `presentational` term. A presentational box has no
+accessible name **by design**, so the library trips its own warning on itself:
+`Combobox` renders `<Checkbox checked={selected} presentational />` in every
+multi-select option row, and each row prints
 
 > [Checkbox] rendered without a `label` prop, an `aria-label`, or an
-> `aria-labelledby`. The control will still render and function, but has no
-> accessible name (WCAG 1.3.1, 4.1.2).
+> `aria-labelledby` … has no accessible name (WCAG 1.3.1, 4.1.2)
 
-The warning is right for a control and wrong for a decoration — an
-`aria-hidden` element has no accessible name BY DESIGN. Adopting it printed six
-warnings for a single six-option list, and would print them for every multi
--select option row in the product, forever. Naming the box instead would
-announce the same state twice, once on the row and once on the box.
+Measured: two option rows, two warnings, from the library's own markup.
 
-It also changes the DOM contract: the MUI control renders a real
-`input[type=checkbox]`, which an existing product test asserts on
-(`AutocompleteField.test.tsx`). The library's renders a `button[role=checkbox]`.
+**The request.** Add `!presentational` to the guard. A one-term fix, and until
+it lands every consumer of a multi-select `Combobox` sees the warning for
+markup it does not own.
 
-**What the product did instead.** Both sites were converted, measured, and
-reverted. They stay on MUI, and this entry is the reason.
+### 48.2 — the product was drawing a second box (fixed here)
 
-**The request.** A way to say "this box is a picture, the row is the control" —
-a `presentational` (or `decorative`) prop that suppresses the name warning and
-lets the component render `aria-hidden` without claiming a defect. The
-alternative — a library that refuses decorative use outright — is a fine answer
-too, as long as it is stated, since the product then knows to keep drawing
-these echoes itself.
+Because `Combobox` draws the selection box itself in `multiple`, a consumer's
+`renderOption` must not draw one. `AutocompleteField` did: measured on the
+rendered row, `{"muiInput":1,"libBox":1,"total":2}` — two boxes on every option
+of every multi-select in the product. Ours is removed; the library's stays.
+
+This is a product defect, not a library one, and it is recorded here because
+the library gap in 48.1 is what hid it: the warnings the product read as "our
+box has no name" were in fact the library's own box complaining.
