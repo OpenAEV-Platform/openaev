@@ -5,7 +5,6 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
@@ -107,8 +106,7 @@ public class MitigationApi extends RestBehavior {
           true) // TODO: Mitigation API is not called anywhere yet (by us or opencti), so no RBAC
   // yet
   @Transactional(rollbackFor = Exception.class)
-  public Mitigation createMitigation(
-      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody MitigationCreateInput input) {
+  public Mitigation createMitigation(TxCtx ctx, @Valid @RequestBody MitigationCreateInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Mitigation mitigation = new Mitigation();
     mitigation.setUpdateAttributes(input);

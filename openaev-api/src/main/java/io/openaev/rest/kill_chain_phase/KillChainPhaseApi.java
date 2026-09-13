@@ -6,7 +6,6 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -101,7 +100,7 @@ public class KillChainPhaseApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.KILL_CHAIN_PHASE)
   @Transactional(rollbackFor = Exception.class)
   public KillChainPhase createKillChainPhase(
-      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody KillChainPhaseCreateInput input) {
+      TxCtx ctx, @Valid @RequestBody KillChainPhaseCreateInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     KillChainPhase killChainPhase = new KillChainPhase();
     killChainPhase.setUpdateAttributes(input);

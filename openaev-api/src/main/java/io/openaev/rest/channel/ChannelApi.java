@@ -8,7 +8,6 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
-import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -117,8 +116,7 @@ public class ChannelApi extends RestBehavior {
   @PostMapping({CHANNEL_URI, TENANT_CHANNEL_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHANNEL)
   @Transactional(rollbackFor = Exception.class)
-  public Channel createChannel(
-      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody ChannelCreateInput input) {
+  public Channel createChannel(TxCtx ctx, @Valid @RequestBody ChannelCreateInput input) {
     Channel channel = new Channel();
     channel.setUpdateAttributes(input);
     channel.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));

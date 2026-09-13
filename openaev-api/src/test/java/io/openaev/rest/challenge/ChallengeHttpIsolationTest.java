@@ -148,33 +148,18 @@ class ChallengeHttpIsolationTest extends IntegrationTest {
 
   @Test
   @DisplayName(
-      "a create with no tenant selector by a caller of the default tenant is attributed to it (fallback)")
-  void createWithoutSelectorFallsBackToDefaultTenant() throws Exception {
-    // createChallenge carries @RequireTenantSelector: a multi-tenant caller with access to the
-    // default tenant falls back to it when no selector is supplied, so tenant-unaware clients keep
-    // working (#6331, #6332).
+      "a create with no tenant selector is refused even for a caller of the default tenant (strict)")
+  void createWithoutSelectorIsRejectedEvenWithDefaultAccess() throws Exception {
+    // createChallenge is UI-driven and stays strict: it carries no @RequireTenantSelector fallback,
+    // so a multi-tenant caller must name a single tenant even when it has access to the default
+    // one.
     tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
-    String response =
-        mvc.perform(
-                post(CHALLENGES)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(createInput("fallback-to-default"))
-                    .with(csrf()))
-            .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    String createdId = JsonPath.read(response, "$.challenge_id");
-    String storedTenant =
-        (String)
-            entityManager
-                .createNativeQuery("SELECT tenant_id FROM challenges WHERE challenge_id = ?1")
-                .setParameter(1, createdId)
-                .getSingleResult();
-    assertEquals(
-        Tenant.DEFAULT_TENANT_UUID,
-        storedTenant,
-        "a tenant-unaware create by a caller of the default tenant lands in the default tenant");
+    mvc.perform(
+            post(CHALLENGES)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createInput("no-selector-default-access"))
+                .with(csrf()))
+        .andExpect(status().isBadRequest());
   }
 
   @Test

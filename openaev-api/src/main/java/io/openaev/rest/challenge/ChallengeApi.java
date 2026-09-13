@@ -7,7 +7,6 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -105,8 +104,7 @@ public class ChallengeApi extends RestBehavior {
   @PostMapping({CHALLENGE_URI, TENANT_CHALLENGE_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CHALLENGE)
   @Transactional(rollbackFor = Exception.class)
-  public Challenge createChallenge(
-      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody ChallengeInput input)
+  public Challenge createChallenge(TxCtx ctx, @Valid @RequestBody ChallengeInput input)
       throws InputValidationException {
     challengeService.validateFlags(input.flags());
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
