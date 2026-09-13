@@ -8,11 +8,17 @@
 # TenantScopedTransaction (the primitive carries the scope) or be listed here with a reason.
 #
 # Format, one class per line: <fully.qualified.ClassName>  # <reason>
-# The reason is one of three, spelled out, never assumed:
+# The reason must BEGIN with one of these four classifications, spelled out, never assumed. Any other
+# text (e.g. "temporary") is rejected: an entry must carry real evidence, and an until-active waiver
+# must be spelled as one so it has a tag to expire.
 #   touches-no-tenant-table : reads and writes nothing with a tenant_id column (i.e. no entity that
 #                             implements io.openaev.database.model.TenantBase). Say what it touches.
 #   delegates-to-<Class>#<m> : the scope is set by a service/method it calls (name it).
 #   platform-global         : it operates on platform rows or across tenants by design; say why.
+#   cross-tenant-resolve    : it resolves a row in another tenant by a globally-unique id, honest
+#                             only while its table stays v1 (must carry an until-active:<table> tag).
+# A classification may be followed by an until-active:<table> tag and free text, separated by a
+# colon or a space.
 #
 # A waiver that is honest only while some table is still v1 (the path resolves cross-tenant, or runs
 # an unscoped read/write that a v2 activation would turn into a wrong-tenant access) must carry an
@@ -60,7 +66,7 @@ io.openaev.service.queue.BatchQueueService  # delegates-to-QueueExecution#perfor
 # --- External clients / connectors: HTTP and config, no tenant entity -----------------------------
 io.openaev.opencti.connectors.service.OpenCTIConnectorService  # touches-no-tenant-table: seeds and pings the OpenCTI connector registry from the per-tenant config map, platform/config only, no TenantBase entity
 io.openaev.injectors.email.service.SmtpService  # platform-global: SMTP health probe writes only the platform Setting (tenant IS NULL) via saveServiceState, no tenant-scoped entity
-io.openaev.injectors.email.service.ImapService  # until-active:injects cross-tenant IMAP router on a @Scheduled poller (connectionListener, ImapService.java:338): resolves an inbound email to any tenant's inject by globally-unique id (injectRepository.findById), then runs an UNSCOPED UPDATE on injects (injectRepository.save, ImapService.java:247) on the scheduled thread with no TxCtx. Harmless only while injects is v1; the communication save is harmless because Communication implements Base (no tenant column), not because it is scoped. Convert to the primitive with the resolved inject's tenant when injects activates
+io.openaev.injectors.email.service.ImapService  # cross-tenant-resolve until-active:injects: cross-tenant IMAP router on a @Scheduled poller (connectionListener, ImapService.java:338): resolves an inbound email to any tenant's inject by globally-unique id (injectRepository.findById), then runs an UNSCOPED UPDATE on injects (injectRepository.save, ImapService.java:247) on the scheduled thread with no TxCtx. Harmless only while injects is v1; the communication save is harmless because Communication implements Base (no tenant column), not because it is scoped. Convert to the primitive with the resolved inject's tenant when injects activates
 io.openaev.runner.CatalogConnectorIngestionRunner  # delegates-to-CatalogConnectorIngestionService#extractCatalog: the startup runner parses the bundled catalog JSON and hands it to the ingestion service, no direct entity access
 
 # --- Executor context services + vendor clients: caller-supplied objects + HTTP; ExecutionTrace is

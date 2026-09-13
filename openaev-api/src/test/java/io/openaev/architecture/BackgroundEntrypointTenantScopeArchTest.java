@@ -19,7 +19,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -145,7 +145,8 @@ class BackgroundEntrypointTenantScopeArchTest {
                   + " background entry point(s) neither reference TenantScopedTransaction nor are"
                   + " listed in background-guard-baseline.txt with a reason.\n"
                   + "Scope the path through the primitive, or classify it in the baseline"
-                  + " (touches-no-tenant-table / delegates-to-<Class> / platform-global):\n");
+                  + " (touches-no-tenant-table / delegates-to-<Class> / platform-global /"
+                  + " cross-tenant-resolve):\n");
       unclassified.forEach(
           (fqcn, families) ->
               message
@@ -170,6 +171,24 @@ class BackgroundEntrypointTenantScopeArchTest {
     assertTrue(
         malformed.isEmpty(),
         "Every background-guard-baseline.txt entry must carry a reason (\"<fqcn>  # <reason>\"):\n  "
+            + String.join("\n  ", malformed));
+  }
+
+  @Test
+  @DisplayName("every baseline reason follows the documented grammar")
+  void every_baseline_reason_follows_the_grammar() {
+    List<String> malformed = new ArrayList<>();
+    for (RawLine line : rawBaselineEntries()) {
+      if (!line.reason.isBlank() && !isWellFormedReason(line.reason)) {
+        malformed.add("line " + line.number + ": '" + line.fqcn + "' -> " + line.reason);
+      }
+    }
+    assertTrue(
+        malformed.isEmpty(),
+        "every reason must begin with a documented classification (touches-no-tenant-table,"
+            + " delegates-to-<Class>#<method>, platform-global, cross-tenant-resolve), optionally"
+            + " followed by an until-active:<table> tag and free text. Arbitrary text is not"
+            + " evidence and would let a waiver live forever with no tag to expire:\n  "
             + String.join("\n  ", malformed));
   }
 
@@ -203,7 +222,8 @@ class BackgroundEntrypointTenantScopeArchTest {
   @Test
   @DisplayName("no waiver outlives the v1 table it was granted against (until-active:<table>)")
   void no_baseline_waiver_outlives_its_table() {
-    List<String> expired = expiredWaivers(loadBaseline(), productionActiveTables());
+    List<String> expired =
+        expiredWaivers(loadBaseline(), productionActiveTables(), wildcardActivatedTables());
     assertTrue(
         expired.isEmpty(),
         "an until-active waiver was granted only while its table stayed v1, and that table is now"
@@ -215,22 +235,57 @@ class BackgroundEntrypointTenantScopeArchTest {
   @Test
   @DisplayName("every until-active tag names a real tenant table (a typo would never expire)")
   void every_until_active_tag_names_a_real_tenant_table() {
-    Set<String> known = knownTenantTables();
-    List<String> unknown = new ArrayList<>();
-    loadBaseline()
-        .forEach(
-            (fqcn, reason) -> {
-              for (String table : untilActiveTables(reason)) {
-                if (!known.contains(table)) {
-                  unknown.add(fqcn + "  ->  until-active:" + table);
-                }
-              }
-            });
+    List<String> unknown = unknownUntilActiveTables(loadBaseline(), knownTenantTables());
     assertTrue(
         unknown.isEmpty(),
-        "an until-active:<table> tag must name a tenant-aware table, or it can never expire and the"
-            + " waiver is permanent by accident:\n  "
+        "an until-active:<table> tag must name a table the terminal '*' activation turns v2 (a"
+            + " strict, non-outside-v2 table), or it can never expire and the waiver is permanent by"
+            + " accident:\n  "
             + String.join("\n  ", unknown));
+  }
+
+  /**
+   * The waivers whose until-active tag names a table not in {@code known}. Pulled out of the test
+   * so the same validation can be exercised over an injected baseline: a test that only inspects
+   * {@code knownTenantTables()} would still pass if this rejection were deleted.
+   */
+  static List<String> unknownUntilActiveTables(Map<String, String> baseline, Set<String> known) {
+    List<String> unknown = new ArrayList<>();
+    baseline.forEach(
+        (fqcn, reason) -> {
+          for (String table : untilActiveTables(reason)) {
+            if (!known.contains(table)) {
+              unknown.add(fqcn + "  ->  until-active:" + table);
+            }
+          }
+        });
+    return unknown;
+  }
+
+  // --- reason grammar ----------------------------------------------------------------------------
+
+  /**
+   * A reason must begin with one of the documented classifications, so an entry carries real
+   * evidence and an until-active waiver is spelled as such. Anything else (e.g. {@code temporary})
+   * is rejected. After the classification an until-active tag and free text may follow, separated
+   * by a colon or a space.
+   *
+   * <ul>
+   *   <li>{@code touches-no-tenant-table} : reads and writes nothing with a tenant_id column;
+   *   <li>{@code delegates-to-<Class>#<method>} : the scope is set by a service/method it calls;
+   *   <li>{@code platform-global} : operates on platform rows or across tenants by design;
+   *   <li>{@code cross-tenant-resolve} : resolves a row in another tenant by a globally-unique id,
+   *       honest only while its table stays v1 (must carry an until-active tag).
+   * </ul>
+   */
+  private static final Pattern REASON_GRAMMAR =
+      Pattern.compile(
+          "^(?:touches-no-tenant-table|platform-global|cross-tenant-resolve|delegates-to-\\S+?)"
+              + "(?:[:\\s].*)?$",
+          Pattern.DOTALL);
+
+  static boolean isWellFormedReason(String reason) {
+    return REASON_GRAMMAR.matcher(reason.strip()).matches();
   }
 
   // --- until-active waivers ----------------------------------------------------------------------
@@ -249,39 +304,49 @@ class BackgroundEntrypointTenantScopeArchTest {
   }
 
   /**
-   * The waivers whose table is no longer v1. A table counts as active when it is named in the
-   * allowlist, or when the allowlist is the wildcard {@link TenantTables#ALL_STRICT}: {@code *} is
-   * the rollout's terminal state, where it activates every strict table, so no background path may
-   * still be waiting on one to stay v1. (This check reads the production {@code
-   * application.properties} file, so it sees {@code *} only once that file carries it; the nightly
-   * shadow run arms {@code *} through a JVM property that never reaches this file read.) A table
-   * that is permanently outside v2 must not carry an until-active tag in the first place ({@code
-   * touches-no-tenant-table} or {@code platform-global} is its reason), so failing such a mis-tag
-   * under the wildcard is correct too.
+   * The waivers whose table is no longer v1. Under an explicit allowlist a table counts as active
+   * when it is named. Under the wildcard {@link TenantTables#ALL_STRICT} the terminal state does
+   * not activate <em>every</em> table: {@code *} activates strict tables only, minus those
+   * permanently outside v2 ({@link TenantTables#restrictTo}). So a tag expires under {@code *} only
+   * when its table is in {@code wildcardActivates} (the {@code *}-expansion). A dual-scope or
+   * outside-v2 table is never in that set, so a mis-tagged waiver on one does not spuriously expire
+   * here; it is rejected upstream by {@code every_until_active_tag_names_a_real_tenant_table},
+   * which restricts legal until-active tables to the same {@code *}-activated set.
+   *
+   * <p>(This check reads the production {@code application.properties} file, so it sees {@code *}
+   * only once that file carries it; the nightly shadow run arms {@code *} through a JVM property
+   * that never reaches this file read.)
    */
-  static List<String> expiredWaivers(Map<String, String> baseline, Set<String> activeTables) {
+  static List<String> expiredWaivers(
+      Map<String, String> baseline, Set<String> activeTables, Set<String> wildcardActivates) {
     boolean wildcard =
         activeTables.stream().anyMatch(t -> TenantTables.ALL_STRICT.equals(t.strip()));
-    Set<String> active =
-        activeTables.stream()
-            .map(t -> t.strip().toLowerCase(Locale.ROOT))
-            .collect(Collectors.toSet());
+    Set<String> nowActive =
+        (wildcard ? wildcardActivates : activeTables)
+            .stream().map(t -> t.strip().toLowerCase(Locale.ROOT)).collect(Collectors.toSet());
     List<String> expired = new ArrayList<>();
     baseline.forEach(
         (fqcn, reason) -> {
           for (String table : untilActiveTables(reason)) {
-            if (wildcard || active.contains(table)) {
+            if (nowActive.contains(table)) {
               expired.add(
                   fqcn
                       + " is waived until '"
                       + table
                       + "' activates, but that table is now active"
-                      + (wildcard ? " ('*' activates every strict table)" : "")
+                      + (wildcard
+                          ? " ('*' activates every strict table except those outside v2)"
+                          : "")
                       + "; scope the path through TenantScopedTransaction and remove the waiver");
             }
           }
         });
     return expired;
+  }
+
+  /** The tables the terminal {@code *} activation turns v2: strict, minus those outside v2. */
+  static Set<String> wildcardActivatedTables() {
+    return productionTenantTables().restrictTo(List.of(TenantTables.ALL_STRICT)).strict();
   }
 
   private static Set<String> productionActiveTables() {
@@ -297,12 +362,8 @@ class BackgroundEntrypointTenantScopeArchTest {
         .collect(Collectors.toSet());
   }
 
-  /**
-   * Every tenant-aware table name known to the entity model (strict and dual-scope), derived the
-   * same way production does ({@link TenantTables#fromEntities}). Used to reject an until-active
-   * tag that names no real table: such a waiver could never expire.
-   */
-  static Set<String> knownTenantTables() {
+  /** The tenant tables of the entity model, derived the same way production does. */
+  static TenantTables productionTenantTables() {
     List<Class<?>> entities = new ArrayList<>();
     for (JavaClass clazz : PRODUCTION_CLASSES) {
       if (clazz.isInterface() || clazz.getModifiers().contains(JavaModifier.ABSTRACT)) {
@@ -312,10 +373,18 @@ class BackgroundEntrypointTenantScopeArchTest {
         entities.add(clazz.reflect());
       }
     }
-    TenantTables tables = TenantTables.fromEntities(entities);
-    Set<String> names = new HashSet<>(tables.strict());
-    names.addAll(tables.dualScope());
-    return names;
+    return TenantTables.fromEntities(entities);
+  }
+
+  /**
+   * The tables an until-active tag may legally name: exactly those the terminal {@code *}
+   * activation turns v2 (strict, minus those permanently outside v2), computed through {@link
+   * TenantTables#restrictTo}. A dual-scope table ({@code *} never activates one) or an outside-v2
+   * strict table would give a waiver whose expiry the terminal state never enforces, so it is
+   * permanent by accident and rejected here, together with a typo that names no table at all.
+   */
+  static Set<String> knownTenantTables() {
+    return wildcardActivatedTables();
   }
 
   // --- family recognition ------------------------------------------------------------------------
@@ -383,7 +452,7 @@ class BackgroundEntrypointTenantScopeArchTest {
 
   private static boolean isDetachedHandoff(JavaClass clazz) {
     boolean executorField =
-        clazz.getFields().stream()
+        clazz.getAllFields().stream()
             .anyMatch(
                 f ->
                     f.getRawType().isAssignableTo("java.util.concurrent.Executor")
@@ -467,14 +536,36 @@ class BackgroundEntrypointTenantScopeArchTest {
   // --- baseline ---------------------------------------------------------------------------------
 
   private static Map<String, String> loadBaseline() {
+    return baselineFrom(rawBaselineEntries());
+  }
+
+  /**
+   * Builds the class-keyed baseline, rejecting duplicate FQCNs. A duplicate is not benign: a later
+   * line silently overwrites the earlier reason, so a permissive second entry can bury an {@code
+   * until-active} tag while every stale-entry check still passes. Both offending line numbers are
+   * named so the duplicate is easy to remove.
+   */
+  static Map<String, String> baselineFrom(List<RawLine> entries) {
     Map<String, String> baseline = new LinkedHashMap<>();
-    for (RawLine line : rawBaselineEntries()) {
-      baseline.put(line.fqcn, line.reason);
+    Map<String, Integer> firstSeen = new HashMap<>();
+    for (RawLine line : entries) {
+      Integer previous = firstSeen.putIfAbsent(line.fqcn(), line.number());
+      if (previous != null) {
+        throw new IllegalStateException(
+            "background-guard-baseline.txt has a duplicate entry for '"
+                + line.fqcn()
+                + "' at lines "
+                + previous
+                + " and "
+                + line.number()
+                + "; a duplicate silently overwrites the earlier reason, remove one");
+      }
+      baseline.put(line.fqcn(), line.reason());
     }
     return baseline;
   }
 
-  private record RawLine(int number, String fqcn, String reason) {}
+  record RawLine(int number, String fqcn, String reason) {}
 
   private static List<RawLine> rawBaselineEntries() {
     List<RawLine> entries = new ArrayList<>();
