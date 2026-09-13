@@ -8,6 +8,7 @@ import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawOrganization;
@@ -47,6 +48,7 @@ public class OrganizationApi extends RestBehavior {
   private final TagRepository tagRepository;
   private final OrganizationService organizationService;
   private final InjectSearchService injectSearchService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping({ORGANIZATION_URI, TENANT_ORGANIZATION_URI})
   @Transactional
@@ -109,7 +111,9 @@ public class OrganizationApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Organization createOrganization(
       TxCtx ctx, @Valid @RequestBody OrganizationCreateInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Organization organization = new Organization();
+    organization.setTenant(new Tenant(tenantId));
     organization.setUpdateAttributes(input);
     organization.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     return organizationRepository.save(organization);

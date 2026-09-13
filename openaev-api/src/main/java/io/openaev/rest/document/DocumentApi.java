@@ -10,6 +10,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UrlAccessControl;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -84,6 +85,7 @@ public class DocumentApi extends RestBehavior {
   private final FileService fileService;
   private final InjectService injectService;
   private final ChannelService channelService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @PostMapping({DOCUMENT_API, TENANT_DOCUMENT_API})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
@@ -123,7 +125,9 @@ public class DocumentApi extends RestBehavior {
       return documentService.save(document);
     } else {
       fileService.uploadFile(fileTarget, file);
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       Document document = new Document();
+      document.setTenant(new Tenant(tenantId));
       document.setTarget(fileTarget);
       document.setName(file.getOriginalFilename());
       document.setDescription(input.getDescription());

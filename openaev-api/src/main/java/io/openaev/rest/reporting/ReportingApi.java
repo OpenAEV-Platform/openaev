@@ -3,6 +3,7 @@ package io.openaev.rest.reporting;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Document;
@@ -12,6 +13,7 @@ import io.openaev.database.model.ReportingGeneration;
 import io.openaev.database.model.ReportingGenerationTrigger;
 import io.openaev.database.model.ReportingSchedule;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Tenant;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
@@ -44,6 +46,7 @@ public class ReportingApi extends RestBehavior {
 
   private final ReportingService reportingService;
   private final FileService fileService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- CREATE --
 
@@ -53,8 +56,10 @@ public class ReportingApi extends RestBehavior {
   @Operation(summary = "Create a reporting template")
   public ResponseEntity<Reporting> createReporting(
       TxCtx ctx, @RequestBody @Valid @NotNull final ReportingInput input) {
-    return ResponseEntity.ok(
-        this.reportingService.createReporting(input.toReporting(new Reporting())));
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    Reporting reporting = input.toReporting(new Reporting());
+    reporting.setTenant(new Tenant(tenantId));
+    return ResponseEntity.ok(this.reportingService.createReporting(reporting));
   }
 
   // -- READ --

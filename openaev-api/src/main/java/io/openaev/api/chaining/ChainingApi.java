@@ -101,7 +101,9 @@ public class ChainingApi extends RestBehavior {
     if (input == null)
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Simulation input cannot be null");
 
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Exercise simulation = new Exercise();
+    simulation.setTenant(new Tenant(tenantId));
     simulation.setUpdateAttributes(input);
     simulation.setTags(
         StreamHelper.iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
@@ -110,7 +112,6 @@ public class ChainingApi extends RestBehavior {
       simulation.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
-      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       simulation.setCustomDashboard(
           this.tenantSettingsService
               .findSetting(tenantId, TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
@@ -189,14 +190,15 @@ public class ChainingApi extends RestBehavior {
     if (input == null)
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
 
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Scenario scenario = new Scenario();
+    scenario.setTenant(new Tenant(tenantId));
     scenario.setUpdateAttributes(input);
     scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     if (hasText(input.getCustomDashboard())) {
       scenario.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
-      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       scenario.setCustomDashboard(
           this.tenantSettingsService
               .findSetting(tenantId, TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())

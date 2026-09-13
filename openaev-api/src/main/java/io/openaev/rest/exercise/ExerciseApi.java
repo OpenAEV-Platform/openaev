@@ -511,14 +511,15 @@ public class ExerciseApi extends RestBehavior {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exercise input cannot be null");
     }
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Exercise exercise = new Exercise();
+    exercise.setTenant(new Tenant(tenantId));
     exercise.setUpdateAttributes(input);
     exercise.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     if (hasText(input.getCustomDashboard())) {
       exercise.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
-      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       exercise.setCustomDashboard(
           this.tenantSettingsService
               .findSetting(tenantId, TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())

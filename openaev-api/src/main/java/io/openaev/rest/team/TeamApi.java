@@ -13,6 +13,7 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -86,6 +87,7 @@ public class TeamApi extends RestBehavior {
   private final TeamService teamService;
   private final UserService userService;
   private final InjectSearchService injectSearchService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @LogExecutionTime
   @GetMapping({TEAM_URI, TENANT_TEAM_URI})
@@ -195,7 +197,9 @@ public class TeamApi extends RestBehavior {
   @Operation(description = "Create a new team", summary = "Create team")
   public Team createTeam(TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
     isTeamAlreadyExists(input);
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Team team = new Team();
+    team.setTenant(new Tenant(tenantId));
     team.setUpdateAttributes(input);
     team.setOrganization(
         updateRelation(input.getOrganizationId(), team.getOrganization(), organizationRepository));
@@ -227,7 +231,9 @@ public class TeamApi extends RestBehavior {
               input.getOrganizationId(), existingTeam.getOrganization(), organizationRepository));
       return teamRepository.save(existingTeam);
     } else {
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       Team newTeam = new Team();
+      newTeam.setTenant(new Tenant(tenantId));
       newTeam.setUpdateAttributes(input);
       newTeam.setOrganization(
           updateRelation(
