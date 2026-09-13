@@ -76,7 +76,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid team input, should create a team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validTeamInput_should_createTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
@@ -131,7 +131,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid contextual team input, should create a contextual team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validContextualTeamInput_should_createContextualTeamSuccessfully() throws Exception {
     // -- PREPARE --
     Exercise exercise = ExerciseFixture.getExercise();
@@ -301,7 +301,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given valid team ID and input, should upsert team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validTeamIdAndInput_should_upsertTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();
@@ -333,7 +333,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given non existing and team input, should upsert team successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_nonExistingTeamInput_should_upsertTeamSuccessfully() throws Exception {
     // --PREPARE--
     TeamCreateInput teamInput = createTeam();

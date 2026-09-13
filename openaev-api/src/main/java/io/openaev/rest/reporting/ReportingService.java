@@ -3,7 +3,9 @@ package io.openaev.rest.reporting;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Reporting;
@@ -14,6 +16,7 @@ import io.openaev.database.model.ReportingGenerationStatus;
 import io.openaev.database.model.ReportingGenerationTrigger;
 import io.openaev.database.model.ReportingSchedule;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.database.repository.ReportingRepository;
@@ -81,6 +84,7 @@ public class ReportingService {
   private final ReportingRenderer reportingRenderer;
   private final PermissionService permissionService;
   private final GrantService grantService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- SEARCH --
 
@@ -126,15 +130,22 @@ public class ReportingService {
   // -- CREATE --
 
   /**
-   * Creates a new {@link Reporting} template; the tenant is set automatically by the tenant
-   * listener.
+   * Creates a new {@link Reporting} template, attributed to the request's write tenant.
+   *
+   * <p>The subject-access check runs before the tenant is attributed: a caller without read access
+   * to the reporting's subject must get a masked 404, not a 400 write-scope error that would betray
+   * the request cleared access control. Attribution ({@link
+   * TenantWriteScopeResolver#tenantForWrite}) therefore happens only once the subject is confirmed
+   * readable.
    *
    * @param reporting the {@link Reporting} to save
+   * @param ctx the request write scope used to attribute the row's tenant
    * @return the saved {@link Reporting}
    */
   @Transactional
-  public Reporting createReporting(@NotNull final Reporting reporting) {
+  public Reporting createReporting(@NotNull final Reporting reporting, @NotNull final TxCtx ctx) {
     checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
+    reporting.setTenant(new Tenant(this.writeScopeResolver.tenantForWrite(ctx, null)));
     return this.reportingRepository.save(reporting);
   }
 

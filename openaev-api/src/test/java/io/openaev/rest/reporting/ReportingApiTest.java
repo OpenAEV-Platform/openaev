@@ -87,7 +87,9 @@ class ReportingApiTest extends IntegrationTest {
   class CrudLifecycle {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_REPORTINGS})
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_REPORTINGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given a valid input, should create a reporting template")
     void given_validInput_should_createReporting() throws Exception {
       // -- Arrange --
