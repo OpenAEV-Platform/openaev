@@ -1,7 +1,9 @@
 # Background-guard baseline (T1.6, #6398).
 #
-# The five background entry-point families (Quartz jobs, @Async methods, event listeners,
-# seeding/startup, detached thread hand-offs) are enumerated by
+# The six background entry-point families (Quartz jobs, @Async methods, @Scheduled methods, event
+# listeners, seeding/startup, detached thread hand-offs including inline
+# CompletableFuture.supplyAsync/runAsync, new Thread, and an executor obtained and used inline such
+# as Executors.new*().execute(...) or ForkJoinPool.commonPool().submit(...)) are enumerated by
 # BackgroundEntrypointTenantScopeArchTest. Every entry point must either reference
 # TenantScopedTransaction (the primitive carries the scope) or be listed here with a reason.
 #
@@ -12,10 +14,19 @@
 #   delegates-to-<Class>#<m> : the scope is set by a service/method it calls (name it).
 #   platform-global         : it operates on platform rows or across tenants by design; say why.
 #
-# This file is hand-authored and reviewed. It may only shrink: once a path is scoped through the
-# primitive, remove its line (the stale-entry check fails the build until you do). A run never
-# rewrites it. Lines starting with # and blank lines are ignored. The first '#' on an entry line is
-# the reason delimiter; a '#' inside a reason (a method name) is kept verbatim.
+# A waiver that is honest only while some table is still v1 (the path resolves cross-tenant, or runs
+# an unscoped read/write that a v2 activation would turn into a wrong-tenant access) must carry an
+# 'until-active:<table>' tag in its reason, naming that table. The build fails the day <table> is in
+# openaev.tenant.active-tables (or the allowlist is the '*' wildcard, which activates every strict
+# table), so the waiver cannot outlive the reason it was granted. The named table must be a real
+# tenant-aware table, or the tag can never expire and the guard rejects it.
+#
+# This file is hand-authored and reviewed. New entries are stopped only by review (the checks below
+# enforce that every entry carries a reason and that no entry is stale, not that the list only ever
+# shrinks). Once a path is scoped through the primitive, remove its line (the stale-entry check
+# fails the build until you do). A run never rewrites it. Lines starting with # and blank lines are
+# ignored. The first '#' on an entry line is the reason delimiter; a '#' inside a reason (a method
+# name) is kept verbatim.
 
 # --- Seeding and startup: platform singletons and infrastructure, no per-tenant business rows -----
 io.openaev.App  # platform-global: seeds the platform_instance / platform_instance_creation Setting singletons via findByKeyAndTenantIsNull, correct to run once globally at startup
@@ -33,6 +44,13 @@ io.openaev.debug.JfrRecordingManager  # touches-no-tenant-table: manages a JDK J
 io.openaev.service.xtm_auth.XtmAuthKeyService  # touches-no-tenant-table: @PostConstruct only derives Ed25519 keys from config via HKDF, no DB access
 io.openaev.search.FullTextSearchService  # touches-no-tenant-table: @PostConstruct only wires in-memory class-to-repository maps; the seeding path does no DB access (runtime search pins TenantSpecification on the request thread)
 
+# --- @Scheduled pollers, lifecycle threads and framework-table cleanup: no TenantBase entity -------
+io.openaev.diagnostics.PoolExhaustionWatchdog  # touches-no-tenant-table: @Scheduled sampler reads the Hikari pool MXBean and logs a thread dump on sustained saturation, no entity access
+io.openaev.config.CachingConfig  # touches-no-tenant-table: @Scheduled @CacheEvict clears the in-memory adminUsers cache and only logs, no DB access
+io.openaev.config.SessionManager  # touches-no-tenant-table: @Scheduled raw-JDBC cleanup of the framework spring_session / spring_session_attributes tables (no tenant_id, not TenantBase) and a session_expired audit event, no tenant-scoped entity
+io.openaev.config.ShutdownService  # touches-no-tenant-table: initiateShutdown spawns a daemon thread (new Thread) that closes the Spring context and exits the JVM, no entity access
+io.openaev.service.EsAttackPathService  # touches-no-tenant-table: the detached CompletableFuture.supplyAsync tasks issue Elasticsearch queries via EngineService scoped by the explicit RawUserAuth argument (no thread-local tenant scope is lost on the pool thread); its only JPA read (attackPatternRepository.findAllById on attack_patterns, TenantBase) runs on the calling request thread, not in the detached task
+
 # --- Messaging / queue infrastructure: brokers and thread pools, no entity access -----------------
 io.openaev.service.RabbitmqService  # touches-no-tenant-table: @PostConstruct only sizes the publish thread pool; the class talks to the RabbitMQ broker, not the DB
 io.openaev.service.chaining.QueueChainingService  # touches-no-tenant-table: @PostConstruct only declares broker batch queues; no TenantBase access
@@ -42,7 +60,7 @@ io.openaev.service.queue.BatchQueueService  # delegates-to-QueueExecution#perfor
 # --- External clients / connectors: HTTP and config, no tenant entity -----------------------------
 io.openaev.opencti.connectors.service.OpenCTIConnectorService  # touches-no-tenant-table: seeds and pings the OpenCTI connector registry from the per-tenant config map, platform/config only, no TenantBase entity
 io.openaev.injectors.email.service.SmtpService  # platform-global: SMTP health probe writes only the platform Setting (tenant IS NULL) via saveServiceState, no tenant-scoped entity
-io.openaev.injectors.email.service.ImapService  # platform-global: intentionally cross-tenant IMAP router; resolves an inbound email to any tenant's inject by globally-unique id (injectRepository.findById), then derives that inject's tenant and applies it explicitly (injectTenantId/tenantId) to every dependent read/write; injects is still v1, revisit on #6394-class activation
+io.openaev.injectors.email.service.ImapService  # until-active:injects cross-tenant IMAP router on a @Scheduled poller (connectionListener, ImapService.java:338): resolves an inbound email to any tenant's inject by globally-unique id (injectRepository.findById), then runs an UNSCOPED UPDATE on injects (injectRepository.save, ImapService.java:247) on the scheduled thread with no TxCtx. Harmless only while injects is v1; the communication save is harmless because Communication implements Base (no tenant column), not because it is scoped. Convert to the primitive with the resolved inject's tenant when injects activates
 io.openaev.runner.CatalogConnectorIngestionRunner  # delegates-to-CatalogConnectorIngestionService#extractCatalog: the startup runner parses the bundled catalog JSON and hands it to the ingestion service, no direct entity access
 
 # --- Executor context services + vendor clients: caller-supplied objects + HTTP; ExecutionTrace is
@@ -80,7 +98,7 @@ io.openaev.scheduler.jobs.TenantPurgeJob  # platform-global: operates on the ten
 io.openaev.scheduler.jobs.WorkflowTimeoutJob  # delegates-to-TenantScopedJobRunner#runInTenant: force-complete runs per-tenant under TxCtx.forTenant (tenant taken from the owning simulation/scenario; Workflow has no tenant column)
 io.openaev.scheduler.jobs.notification.NotificationDigestJob  # delegates-to-NotificationDigestService#runDigests: reads under TxCtx.allTenants(), dispatches under TxCtx.forTenant() through TenantScopedTransaction
 io.openaev.scheduler.jobs.notification.NotificationEventRetentionJob  # delegates-to-NotificationEventRetentionService#deleteOldEvents: single cross-tenant DELETE carries allTenants() scope so the inspector rewrites it platform-wide
-io.openaev.scheduler.jobs.reporting.ReportingScheduleJob  # delegates-to-ReportingScheduleService#runDueSchedules: scope is per-schedule via TenantContext(tenant) and the v1 tenantFilter, NOT the v2 primitive; safe while reporting_schedules stays v1, revisit on its activation
+io.openaev.scheduler.jobs.reporting.ReportingScheduleJob  # delegates-to-ReportingScheduleService#runDueSchedules until-active:reporting_schedules: scope is per-schedule via TenantContext(tenant) and the v1 tenantFilter, NOT the v2 primitive; safe only while reporting_schedules stays v1
 io.openaev.scheduler.jobs.user_event.UserEventRetentionJob  # touches-no-tenant-table: user_events (UserEvent implements Base, no tenant_id); retention deletes by type and age, no tenant dimension
 
 # --- Telemetry / metric collectors: in-memory counters, or deliberate platform-wide aggregates ----
@@ -102,3 +120,8 @@ io.openaev.xtmhub.XtmHubConnectivityService  # platform-global: @PostConstruct p
 io.openaev.xtmhub.collector.XtmHubCollector  # delegates-to-XtmHubService#refreshConnectivityAllTenants: reads tenant_xtmhub_registrations (TenantBase) under tenantTx.execute(TxCtx.allTenants()) and writes each row back per-tenant under tenantTx.forEachTenant
 io.openaev.xtmone.XtmOneConfig  # touches-no-tenant-table: config bean; @PostConstruct only normalizes the URL, no DB access
 io.openaev.xtmone.XtmOneConnectivityService  # delegates-to-XtmOneService#autoRegister: platform-wide XTM One registration; reads only platform settings resolved against DEFAULT_TENANT_UUID, touches no TenantBase entity
+
+# --- Inline executor hand-offs (no executor field): filesystem or transport plumbing, no entity ----
+io.openaev.config.MvcConfig  # touches-no-tenant-table: @Bean factory building the Spring MVC async-request executor (Executors.newFixedThreadPool(20)); the config bean itself does no DB access, and the async controller work that runs on the pool carries its own request-thread scope
+io.openaev.driver.RabbitmqDriver  # touches-no-tenant-table: createBatchConnectionFactory sizes the RabbitMQ connection's shared I/O thread pool (Executors.newFixedThreadPool); AMQP transport plumbing, no DB access
+io.openaev.service.InjectImportService  # touches-no-tenant-table: the only inline hand-off is a CompletableFuture.delayedExecutor(...).execute(...) that deletes the uploaded xls temp dir after FILE_STORAGE_DURATION minutes (filesystem only); the inject-import DB work runs synchronously on the request thread, not in the detached task
