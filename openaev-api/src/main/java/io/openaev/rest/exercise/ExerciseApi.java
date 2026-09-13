@@ -507,7 +507,8 @@ public class ExerciseApi extends RestBehavior {
   @PostMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SIMULATION)
-  public Exercise createExercise(TxCtx ctx, @Valid @RequestBody CreateExerciseInput input) {
+  public Exercise createExercise(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody CreateExerciseInput input) {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exercise input cannot be null");
     }

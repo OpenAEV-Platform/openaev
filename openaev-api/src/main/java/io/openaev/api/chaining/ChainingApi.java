@@ -10,6 +10,7 @@ import io.openaev.api.chaining.dto.ChainingOutput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -95,7 +96,8 @@ public class ChainingApi extends RestBehavior {
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.SIMULATION,
       isEnterpriseEdition = true)
-  public Exercise createSimulation(TxCtx ctx, @Valid @RequestBody CreateExerciseInput input)
+  public Exercise createSimulation(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody CreateExerciseInput input)
       throws ChainingException {
 
     if (input == null)
@@ -184,7 +186,8 @@ public class ChainingApi extends RestBehavior {
       actionPerformed = Action.CREATE,
       resourceType = ResourceType.SCENARIO,
       isEnterpriseEdition = true)
-  public Scenario createScenarioChaining(TxCtx ctx, @Valid @RequestBody final ScenarioInput input)
+  public Scenario createScenarioChaining(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody final ScenarioInput input)
       throws ChainingException {
 
     if (input == null)

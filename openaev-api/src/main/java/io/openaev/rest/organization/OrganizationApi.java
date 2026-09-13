@@ -8,6 +8,7 @@ import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -110,7 +111,7 @@ public class OrganizationApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ORGANIZATION)
   @Transactional(rollbackFor = Exception.class)
   public Organization createOrganization(
-      TxCtx ctx, @Valid @RequestBody OrganizationCreateInput input) {
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody OrganizationCreateInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Organization organization = new Organization();
     organization.setTenant(new Tenant(tenantId));

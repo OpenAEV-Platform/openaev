@@ -30,24 +30,26 @@ import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequ
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * T0.10, verification only: does a create land in the right tenant on both the tenant-prefixed
- * route ({@code /api/tenants/{id}/...}) and the non-prefixed route with {@code X-Tenant-Ids}?
- *
- * <p>{@code TenantInterceptor} sets {@code TenantContext} only from the {@code {tenantId}} path
- * variable; on the header route it stays unset and {@code TenantContext.getCurrentTenant()} returns
- * the default tenant. {@code TenantBaseListener} stamps a new {@code TenantBase} row's tenant from
- * {@code TenantContext} when the entity carries none. So an endpoint that resolves its read scope
- * from the request ({@code TxCtx}) but saves the entity without setting its tenant writes to the
- * default tenant on the header route while reading in the selected tenant: a cross-tenant write.
+ * A create handler that receives a {@code TxCtx} attributes the new row from the request's write
+ * scope ({@code TenantWriteScopeResolver.tenantForWrite}), set on the entity, so the row lands in
+ * the same tenant on the tenant-prefixed route ({@code /api/tenants/{id}/...}) and on the
+ * non-prefixed route carrying {@code X-Tenant-Ids}. This class pins that rule per site on both
+ * routes.
  *
  * <p>Ground truth is read with a native query: {@code scenarios} and {@code exercises} are still on
- * the v1 {@code @Filter}, native SQL never reaches that filter nor the v2 statement inspector, so
- * it sees every tenant's rows regardless of the scope in effect. The test transaction rolls back,
- * so a misattributed row never survives the method.
+ * the v1 {@code @Filter}, and native SQL reaches neither that filter nor the v2 statement
+ * inspector, so it reads the row's {@code tenant_id} regardless of the scope in effect. The test
+ * transaction rolls back, so nothing it writes survives the method.
+ *
+ * <p>The create handlers carry {@code @RequireTenantSelector}, so a request with no selector still
+ * resolves a single-tenant write scope for a single-tenant caller and for a multi-tenant caller
+ * with access to the default tenant (which falls back to it), keeping tenant-unaware clients
+ * working (#6331, #6332); only a genuinely ambiguous request (several ids in {@code X-Tenant-Ids},
+ * or a multi-tenant caller without access to the default tenant) is refused with 400.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-@DisplayName("Write attribution on the prefixed and header routes (T0.10, verification only)")
+@DisplayName("Write attribution and selector fallback on the prefixed and header routes")
 class WriteAttributionRouteTest extends IntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
@@ -98,12 +100,40 @@ class WriteAttributionRouteTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "no selector, user of B and the default tenant: characterisation, the request is refused")
-    void noSelectorIsRefusedForAMultiTenantUser() throws Exception {
+        "no selector, caller of B and the default tenant: attributed to the default tenant (fallback)")
+    void noSelectorMultiTenantWithDefaultAccessAttributesToDefault() throws Exception {
       tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
-      // Empty selector resolves to the caller's full authorized set (B + default); createScenario
-      // has no @RequireTenantSelector, so fallbackSelector never runs and the write-scope resolver
-      // rejects the 2-tenant scope for the dashboard lookup (400), rather than defaulting.
+      // Empty selector, createScenario is @RequireTenantSelector: a multi-tenant caller with access
+      // to the default tenant falls back to it, so tenant-unaware clients keep working (#6331,
+      // #6332).
+      String id = postScenario(post("/api/scenarios").with(csrf()), null);
+      assertEquals(
+          DEFAULT_TENANT,
+          scenarioTenant(id),
+          "a tenant-unaware create by a caller of the default tenant lands in the default tenant");
+    }
+
+    @Test
+    @DisplayName("several ids in X-Tenant-Ids: the create is refused (ambiguous write scope)")
+    void severalHeaderIdsAreRefused() throws Exception {
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      // A non-empty selector never triggers the fallback; two tenants cannot attribute one row.
+      mvc.perform(
+              post("/api/scenarios")
+                  .header("X-Tenant-Ids", tenantB + "," + DEFAULT_TENANT)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(scenarioBody(null))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName(
+        "no selector, caller of two non-default tenants: the create is refused (no safe fallback)")
+    void noSelectorMultiTenantWithoutDefaultAccessIsRefused() throws Exception {
+      // The caller belongs to B and a second non-default tenant, with no access to the default
+      // tenant, so the fallback has no single tenant to pick and the request is refused.
+      tenantHelper.createTenantWithCurrentUser("t014b-c");
       mvc.perform(
               post("/api/scenarios")
                   .contentType(MediaType.APPLICATION_JSON)
@@ -274,6 +304,48 @@ class WriteAttributionRouteTest extends IntegrationTest {
           tenantB,
           rowTenant("teams", "team_id", id),
           "the upserted new team created with X-Tenant-Ids: B must belong to B, not the default tenant");
+    }
+
+    @Test
+    @DisplayName(
+        "no selector, caller of B and the default tenant: the team is attributed to the default tenant")
+    void teamNoSelectorMultiTenantWithDefaultAccessAttributesToDefault() throws Exception {
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String id =
+          postJson(
+              post("/api/teams").with(csrf()),
+              "{\"team_name\":\"t014b-team-" + UUID.randomUUID() + "\"}",
+              "$.team_id");
+      assertEquals(
+          DEFAULT_TENANT,
+          rowTenant("teams", "team_id", id),
+          "a tenant-unaware team create by a caller of the default tenant lands in the default tenant");
+    }
+
+    @Test
+    @DisplayName("several ids in X-Tenant-Ids: the team create is refused (ambiguous write scope)")
+    void teamSeveralHeaderIdsAreRefused() throws Exception {
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      mvc.perform(
+              post("/api/teams")
+                  .header("X-Tenant-Ids", tenantB + "," + DEFAULT_TENANT)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"team_name\":\"t014b-team-" + UUID.randomUUID() + "\"}")
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName(
+        "no selector, caller of two non-default tenants: the team create is refused (no safe fallback)")
+    void teamNoSelectorMultiTenantWithoutDefaultAccessIsRefused() throws Exception {
+      tenantHelper.createTenantWithCurrentUser("t014b-team-c");
+      mvc.perform(
+              post("/api/teams")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"team_name\":\"t014b-team-" + UUID.randomUUID() + "\"}")
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
     }
   }
 

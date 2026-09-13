@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
@@ -135,12 +136,45 @@ class ChallengeHttpIsolationTest extends IntegrationTest {
   @Test
   @DisplayName("a create with no tenant selector is refused (a single-tenant scope is required)")
   void createWithoutSelectorIsRejected() throws Exception {
+    // The caller belongs to tenant A and tenant B, neither the default tenant, so a no-selector
+    // create has no single tenant to fall back to and is refused.
     mvc.perform(
             post(CHALLENGES)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createInput("no-selector"))
                 .with(csrf()))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @DisplayName(
+      "a create with no tenant selector by a caller of the default tenant is attributed to it (fallback)")
+  void createWithoutSelectorFallsBackToDefaultTenant() throws Exception {
+    // createChallenge carries @RequireTenantSelector: a multi-tenant caller with access to the
+    // default tenant falls back to it when no selector is supplied, so tenant-unaware clients keep
+    // working (#6331, #6332).
+    tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
+    String response =
+        mvc.perform(
+                post(CHALLENGES)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(createInput("fallback-to-default"))
+                    .with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String createdId = JsonPath.read(response, "$.challenge_id");
+    String storedTenant =
+        (String)
+            entityManager
+                .createNativeQuery("SELECT tenant_id FROM challenges WHERE challenge_id = ?1")
+                .setParameter(1, createdId)
+                .getSingleResult();
+    assertEquals(
+        Tenant.DEFAULT_TENANT_UUID,
+        storedTenant,
+        "a tenant-unaware create by a caller of the default tenant lands in the default tenant");
   }
 
   @Test

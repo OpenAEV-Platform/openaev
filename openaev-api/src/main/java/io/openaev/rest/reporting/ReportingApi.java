@@ -3,6 +3,7 @@ package io.openaev.rest.reporting;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -55,7 +56,7 @@ public class ReportingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.REPORT)
   @Operation(summary = "Create a reporting template")
   public ResponseEntity<Reporting> createReporting(
-      TxCtx ctx, @RequestBody @Valid @NotNull final ReportingInput input) {
+      @RequireTenantSelector TxCtx ctx, @RequestBody @Valid @NotNull final ReportingInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Reporting reporting = input.toReporting(new Reporting());
     reporting.setTenant(new Tenant(tenantId));

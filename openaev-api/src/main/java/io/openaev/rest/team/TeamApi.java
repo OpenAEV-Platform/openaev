@@ -13,6 +13,7 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -195,7 +196,8 @@ public class TeamApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The created team")})
   @Operation(description = "Create a new team", summary = "Create team")
-  public Team createTeam(TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
+  public Team createTeam(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
     isTeamAlreadyExists(input);
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Team team = new Team();
@@ -215,7 +217,8 @@ public class TeamApi extends RestBehavior {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The created/updated team")})
   @Operation(description = "Create a new team or update an existing team", summary = "Upsert team")
-  public Team upsertTeam(TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
+  public Team upsertTeam(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
     if (input.getContextual() && input.getExerciseIds().toArray().length > 1) {
       throw new UnsupportedOperationException(
           "Contextual team can only be associated to one exercise");

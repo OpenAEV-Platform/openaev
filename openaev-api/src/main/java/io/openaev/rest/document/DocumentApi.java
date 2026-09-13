@@ -10,6 +10,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.UrlAccessControl;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -91,7 +92,7 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackFor = Exception.class)
   public Document uploadDocument(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {

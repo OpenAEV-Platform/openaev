@@ -14,6 +14,7 @@ import io.openaev.api.expectations.ExpectationsDriftService;
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
 import io.openaev.api.expectations.dto.ExpectationsRealignOutput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.BulkOperationContext;
@@ -102,7 +103,8 @@ public class ScenarioApi extends RestBehavior {
   @PostMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
-  public Scenario createScenario(TxCtx ctx, @Valid @RequestBody final ScenarioInput input) {
+  public Scenario createScenario(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody final ScenarioInput input) {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Scenario input cannot be null");
     }
