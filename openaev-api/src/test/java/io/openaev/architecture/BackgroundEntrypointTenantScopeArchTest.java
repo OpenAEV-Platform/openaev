@@ -91,6 +91,22 @@ import org.junit.jupiter.api.Test;
  * report records which exempted beans were read in depth. A bean that references the primitive for
  * one method while running another background method unscoped is the residual risk this check does
  * not close.
+ *
+ * <p><b>Known limit, a baseline waiver covers the whole class.</b> The baseline is keyed by class,
+ * so a new background method added to a class already listed inherits that class's waiver: a second
+ * {@code @Scheduled} method added to a bean waived {@code touches-no-tenant-table} is never
+ * re-examined, because {@code no_baseline_entry_is_stale} only re-checks that the class is still a
+ * background entry point and still off the primitive, not that the reason still fits every method
+ * it now carries. Closing this at method level runs into the same delegation problem as the
+ * on-primitive limit above. The mitigation is review: a change to a baselined class must re-read
+ * its waiver reason against the method that was added.
+ *
+ * <p><b>Known limit, startup and message-listener mechanisms are out of scope.</b> The six families
+ * do not recognise {@code InitializingBean.afterPropertiesSet}, {@code SmartLifecycle},
+ * {@code @Bean(initMethod = ...)}, or message listeners ({@code @RabbitListener},
+ * {@code @KafkaListener}, {@code @JmsListener}). None exists in production code (verified by grep
+ * over all {@code src/main/java}, 2026-09-13); the day one is introduced it escapes this guard
+ * until a family is added for it.
  */
 class BackgroundEntrypointTenantScopeArchTest {
 
