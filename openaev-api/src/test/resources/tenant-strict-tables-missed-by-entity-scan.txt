@@ -1,0 +1,25 @@
+# Strict tenant tables the background guard's entity-model scan cannot see (T1.6, #6398).
+#
+# Production (TenantFilteringConfig.deriveFromSchema) derives tenant tables from information_schema:
+# every table with a tenant_id column, strict when the column is NOT NULL. The background guard has
+# no database, so it derives its tables from the entity model, recognizing the three tenant-marker
+# interfaces (TenantBase, DualScopeBase, TenantIdBase). The strict tables below carry a tenant_id
+# NOT NULL column but are marked by none of those interfaces, so the entity scan misses them:
+#   - link tables with no entity class at all
+#     (users_tenants, injectors_contracts_attack_patterns, injectors_contracts_domains,
+#      injectors_contracts_vulnerabilities, injector_contract_tags)
+#   - an entity that maps the table but implements no tenant-marker interface
+#     (injectors_injector_contracts -> InjectorInjectorContract)
+#
+# Without this inventory an until-active:<table> waiver on one of these would be rejected as unknown
+# and the '*' expiry would never fire on it. Kept honest by the DB-backed
+# TenantFilteringConfigTest#backgroundGuardWildcardMatchesProductionSchema, which fails the build if
+# this set drifts from what the live schema activates under '*'. Only STRICT tables belong here;
+# tables permanently outside v2 (TenantTables.OUTSIDE_V2, e.g. the tenants registry) do not, because
+# '*' does not activate them. One table name per line, lowercase; # and blank lines are ignored.
+users_tenants
+injectors_contracts_attack_patterns
+injectors_contracts_domains
+injectors_contracts_vulnerabilities
+injector_contract_tags
+injectors_injector_contracts

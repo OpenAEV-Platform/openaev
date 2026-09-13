@@ -4,12 +4,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaConstructorCall;
+import com.tngtech.archunit.core.domain.JavaMethod;
+import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import io.openaev.config.TenantTables;
 import io.openaev.database.model.DualScopeBase;
 import io.openaev.database.model.TenantBase;
+import io.openaev.database.model.TenantIdBase;
+import jakarta.persistence.Table;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -108,10 +113,12 @@ import org.junit.jupiter.api.Test;
  * over all {@code src/main/java}, 2026-09-13); the day one is introduced it escapes this guard
  * until a family is added for it.
  */
-class BackgroundEntrypointTenantScopeArchTest {
+public class BackgroundEntrypointTenantScopeArchTest {
 
   private static final String PRIMITIVE = "io.openaev.context.TenantScopedTransaction";
   private static final String BASELINE_RESOURCE = "/background-guard-baseline.txt";
+  private static final String MISSED_TABLES_RESOURCE =
+      "/tenant-strict-tables-missed-by-entity-scan.txt";
 
   private static final JavaClasses PRODUCTION_CLASSES =
       new ClassFileImporter()
@@ -268,30 +275,59 @@ class BackgroundEntrypointTenantScopeArchTest {
    * A reason must begin with one of the documented classifications, so an entry carries real
    * evidence and an until-active waiver is spelled as such. Anything else (e.g. {@code temporary})
    * is rejected. After the classification an until-active tag and free text may follow, separated
-   * by a colon or a space.
+   * by a colon or a space. The four classifications carry the until-active tag differently:
    *
    * <ul>
-   *   <li>{@code touches-no-tenant-table} : reads and writes nothing with a tenant_id column;
-   *   <li>{@code delegates-to-<Class>#<method>} : the scope is set by a service/method it calls;
-   *   <li>{@code platform-global} : operates on platform rows or across tenants by design;
+   *   <li>{@code touches-no-tenant-table} : reads and writes nothing with a tenant_id column. A
+   *       permanent classification, so an until-active tag is a contradiction (nothing activates to
+   *       make it wrong) and is rejected: a temporary waiver must not hide behind a permanent
+   *       label.
+   *   <li>{@code delegates-to-<Class>#<method>} : the scope is set by the named service/method it
+   *       calls; the {@code #method} separator is required so the delegate is actually named, and
+   *       an until-active tag is allowed (e.g. a v1-scoped delegate) but not required.
+   *   <li>{@code platform-global} : operates on platform rows or across tenants by design.
+   *       Permanent like {@code touches-no-tenant-table}, so an until-active tag is rejected.
    *   <li>{@code cross-tenant-resolve} : resolves a row in another tenant by a globally-unique id,
-   *       honest only while its table stays v1 (must carry an until-active tag).
+   *       honest only while its table stays v1. It MUST carry an until-active tag, or nothing
+   *       expires the waiver and a real unscoped cross-tenant access lives forever under a label
+   *       that admits it is temporary.
    * </ul>
    */
-  private static final Pattern REASON_GRAMMAR =
-      Pattern.compile(
-          "^(?:touches-no-tenant-table|platform-global|cross-tenant-resolve|delegates-to-\\S+?)"
-              + "(?:[:\\s].*)?$",
-          Pattern.DOTALL);
+  private static final Pattern TOUCHES_NO_TENANT_TABLE =
+      Pattern.compile("touches-no-tenant-table(?:[:\\s].*)?", Pattern.DOTALL);
+
+  private static final Pattern PLATFORM_GLOBAL =
+      Pattern.compile("platform-global(?:[:\\s].*)?", Pattern.DOTALL);
+
+  private static final Pattern CROSS_TENANT_RESOLVE =
+      Pattern.compile("cross-tenant-resolve(?:[:\\s].*)?", Pattern.DOTALL);
+
+  private static final Pattern DELEGATES_TO =
+      Pattern.compile("delegates-to-[A-Za-z0-9_.]+#[A-Za-z0-9_]+(?:[:\\s].*)?", Pattern.DOTALL);
 
   static boolean isWellFormedReason(String reason) {
-    return REASON_GRAMMAR.matcher(reason.strip()).matches();
+    String r = reason.strip();
+    boolean carriesUntilActive = !untilActiveTables(r).isEmpty();
+    if (TOUCHES_NO_TENANT_TABLE.matcher(r).matches() || PLATFORM_GLOBAL.matcher(r).matches()) {
+      return !carriesUntilActive;
+    }
+    if (CROSS_TENANT_RESOLVE.matcher(r).matches()) {
+      return carriesUntilActive;
+    }
+    return DELEGATES_TO.matcher(r).matches();
   }
 
   // --- until-active waivers ----------------------------------------------------------------------
 
+  /**
+   * The tag is token-bounded: the table name ends at the first character that is neither a name
+   * char nor a hyphen, so {@code until-active:injects-typo} matches nothing (the trailing {@code
+   * -typo} is not a legal continuation and a bare {@code injects} prefix would swallow a typo). A
+   * {@code cross-tenant-resolve} whose only tag is malformed then carries no tag at all and the
+   * grammar rejects it, rather than silently expiring against the wrong table.
+   */
   private static final Pattern UNTIL_ACTIVE =
-      Pattern.compile("until-active:([a-z0-9_]+)", Pattern.CASE_INSENSITIVE);
+      Pattern.compile("until-active:([a-z0-9_]+)(?![a-z0-9_-])", Pattern.CASE_INSENSITIVE);
 
   /** Tables a reason declares the waiver depends on staying v1 ({@code until-active:<table>}). */
   static Set<String> untilActiveTables(String reason) {
@@ -344,9 +380,52 @@ class BackgroundEntrypointTenantScopeArchTest {
     return expired;
   }
 
-  /** The tables the terminal {@code *} activation turns v2: strict, minus those outside v2. */
-  static Set<String> wildcardActivatedTables() {
-    return productionTenantTables().restrictTo(List.of(TenantTables.ALL_STRICT)).strict();
+  /**
+   * The tables the terminal {@code *} activation turns v2: the strict entity tables minus those
+   * outside v2, plus the strict tables that carry a {@code tenant_id} but no tenant-marker entity
+   * ({@link #strictTablesMissedByEntityScan()}). Production derives its set from {@code
+   * information_schema} and so covers those; this guard has no database, so it unions the
+   * checked-in inventory to stay identical to production. {@code
+   * TenantFilteringConfigTest#backgroundGuardWildcardMatchesProductionSchema} fails the build if
+   * the two ever diverge.
+   */
+  public static Set<String> wildcardActivatedTables() {
+    Set<String> activated =
+        new TreeSet<>(
+            productionTenantTables().restrictTo(List.of(TenantTables.ALL_STRICT)).strict());
+    activated.addAll(strictTablesMissedByEntityScan());
+    return activated;
+  }
+
+  /**
+   * Strict tenant tables (a {@code tenant_id NOT NULL} column) that the entity-model derivation
+   * cannot see: link tables with no entity, or an entity that maps a tenant_id table without any of
+   * the {@code TenantBase}/{@code DualScopeBase}/{@code TenantIdBase} markers. Read from {@code
+   * tenant-strict-tables-missed-by-entity-scan.txt}; kept honest against the live schema by the
+   * DB-backed {@code TenantFilteringConfigTest}.
+   */
+  static Set<String> strictTablesMissedByEntityScan() {
+    Set<String> tables = new TreeSet<>();
+    try (InputStream in =
+        BackgroundEntrypointTenantScopeArchTest.class.getResourceAsStream(MISSED_TABLES_RESOURCE)) {
+      if (in == null) {
+        throw new IllegalStateException(MISSED_TABLES_RESOURCE + " is missing from the classpath");
+      }
+      try (BufferedReader reader =
+          new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+        String raw;
+        while ((raw = reader.readLine()) != null) {
+          String line = raw.strip();
+          if (line.isEmpty() || line.startsWith("#")) {
+            continue;
+          }
+          tables.add(line.toLowerCase(Locale.ROOT));
+        }
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+    return tables;
   }
 
   private static Set<String> productionActiveTables() {
@@ -362,18 +441,51 @@ class BackgroundEntrypointTenantScopeArchTest {
         .collect(Collectors.toSet());
   }
 
-  /** The tenant tables of the entity model, derived the same way production does. */
+  /**
+   * The tenant tables of the entity model. {@link TenantTables#fromEntities} classifies {@link
+   * TenantBase}/{@link DualScopeBase}; the model also has a third strict marker, {@link
+   * TenantIdBase} (e.g. Collector/Injector/Executor), which {@code fromEntities} does not read, so
+   * its tables are added here as strict. Tables the entity model does not mark at all (link tables
+   * with no entity, or an entity that maps a tenant_id table without a marker) are covered by
+   * {@link #strictTablesMissedByEntityScan()}.
+   */
   static TenantTables productionTenantTables() {
-    List<Class<?>> entities = new ArrayList<>();
+    List<Class<?>> markedEntities = new ArrayList<>();
+    Set<String> tenantIdStrict = new TreeSet<>();
     for (JavaClass clazz : PRODUCTION_CLASSES) {
       if (clazz.isInterface() || clazz.getModifiers().contains(JavaModifier.ABSTRACT)) {
         continue;
       }
       if (clazz.isAssignableTo(TenantBase.class) || clazz.isAssignableTo(DualScopeBase.class)) {
-        entities.add(clazz.reflect());
+        markedEntities.add(clazz.reflect());
+      } else if (clazz.isAssignableTo(TenantIdBase.class)) {
+        // A concrete TenantIdBase without a @Table is not a mapped table (e.g. the
+        // SecretsProvider$Placeholder helper); it has no row in the schema, so skip it.
+        String table = entityTableName(clazz.reflect());
+        if (table != null) {
+          tenantIdStrict.add(table);
+        }
       }
     }
-    return TenantTables.fromEntities(entities);
+    TenantTables marked = TenantTables.fromEntities(markedEntities);
+    Set<String> strict = new TreeSet<>(marked.strict());
+    strict.addAll(tenantIdStrict);
+    return new TenantTables(strict, marked.dualScope());
+  }
+
+  /**
+   * The {@code @Table} name of an entity, walking up to the nearest mapping, or null if unmapped.
+   */
+  private static String entityTableName(Class<?> entity) {
+    for (Class<?> type = entity;
+        type != null && type != Object.class;
+        type = type.getSuperclass()) {
+      Table table = type.getAnnotation(Table.class);
+      if (table != null && !table.name().isBlank()) {
+        return table.name();
+      }
+    }
+    return null;
   }
 
   /**
@@ -480,10 +592,19 @@ class BackgroundEntrypointTenantScopeArchTest {
    *       flagged: {@code Executors.newSingleThreadExecutor().execute(this::work)} has no field for
    *       the field-typed detector to see.
    * </ul>
+   *
+   * <p>The scan reads the class's own code and the bodies of the methods it INHERITS from
+   * non-{@code Object} superclasses, so a concrete bean whose only hand-off is declared in an
+   * abstract parent's method (the parent is filtered out by {@link #isConcreteBean}, so it is never
+   * checked directly) is not missed. This matches the inheritance behaviour of the annotation and
+   * field family detectors ({@code getAllMethods}/{@code getAllFields}); {@code
+   * getMethodCallsFromSelf} on the class alone sees only self-declared bodies.
    */
   private static boolean detachesInline(JavaClass clazz) {
+    List<JavaMethodCall> methodCalls = methodCallsIncludingInherited(clazz);
+    List<JavaConstructorCall> constructorCalls = constructorCallsIncludingInherited(clazz);
     boolean completableFuture =
-        clazz.getMethodCallsFromSelf().stream()
+        methodCalls.stream()
             .anyMatch(
                 call ->
                     "java.util.concurrent.CompletableFuture"
@@ -491,9 +612,40 @@ class BackgroundEntrypointTenantScopeArchTest {
                         && ("supplyAsync".equals(call.getName())
                             || "runAsync".equals(call.getName())));
     boolean newThread =
-        clazz.getConstructorCallsFromSelf().stream()
+        constructorCalls.stream()
             .anyMatch(call -> "java.lang.Thread".equals(call.getTargetOwner().getFullName()));
-    return completableFuture || newThread || usesExecutorInline(clazz);
+    return completableFuture || newThread || usesExecutorInline(methodCalls);
+  }
+
+  /**
+   * The method calls made from the class's own code plus the bodies of the methods it inherits from
+   * non-{@code Object} superclasses. An inherited method is owned by the declaring parent, so its
+   * calls are not in {@code clazz.getMethodCallsFromSelf()}; they are collected here from {@link
+   * JavaClass#getAllMethods()}.
+   */
+  private static List<JavaMethodCall> methodCallsIncludingInherited(JavaClass clazz) {
+    List<JavaMethodCall> calls = new ArrayList<>(clazz.getMethodCallsFromSelf());
+    for (JavaMethod method : clazz.getAllMethods()) {
+      if (isInheritedNonObjectBody(clazz, method)) {
+        calls.addAll(method.getMethodCallsFromSelf());
+      }
+    }
+    return calls;
+  }
+
+  private static List<JavaConstructorCall> constructorCallsIncludingInherited(JavaClass clazz) {
+    List<JavaConstructorCall> calls = new ArrayList<>(clazz.getConstructorCallsFromSelf());
+    for (JavaMethod method : clazz.getAllMethods()) {
+      if (isInheritedNonObjectBody(clazz, method)) {
+        calls.addAll(method.getConstructorCallsFromSelf());
+      }
+    }
+    return calls;
+  }
+
+  private static boolean isInheritedNonObjectBody(JavaClass clazz, JavaMethod method) {
+    JavaClass owner = method.getOwner();
+    return !owner.equals(clazz) && !owner.getFullName().equals("java.lang.Object");
   }
 
   /**
@@ -503,8 +655,8 @@ class BackgroundEntrypointTenantScopeArchTest {
    * Executors.new*} / {@code ForkJoinPool.commonPool}. Either alone is enough: the submission
    * proves work is handed off, the obtain proves a fresh unscoped pool is being spun up.
    */
-  private static boolean usesExecutorInline(JavaClass clazz) {
-    return clazz.getMethodCallsFromSelf().stream()
+  private static boolean usesExecutorInline(List<JavaMethodCall> methodCalls) {
+    return methodCalls.stream()
         .anyMatch(
             call -> {
               String owner = call.getTargetOwner().getFullName();
@@ -535,7 +687,7 @@ class BackgroundEntrypointTenantScopeArchTest {
 
   // --- baseline ---------------------------------------------------------------------------------
 
-  private static Map<String, String> loadBaseline() {
+  static Map<String, String> loadBaseline() {
     return baselineFrom(rawBaselineEntries());
   }
 

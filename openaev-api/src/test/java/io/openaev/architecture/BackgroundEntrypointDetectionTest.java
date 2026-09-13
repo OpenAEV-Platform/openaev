@@ -7,12 +7,18 @@ import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import io.openaev.architecture.background_fixtures.AbstractExecutorFieldParentFixture;
+import io.openaev.architecture.background_fixtures.AbstractInlineHandoffParentFixture;
+import io.openaev.architecture.background_fixtures.AsyncMethodFixture;
+import io.openaev.architecture.background_fixtures.CommandLineRunnerFixture;
+import io.openaev.architecture.background_fixtures.EventListenerFixture;
 import io.openaev.architecture.background_fixtures.InheritedExecutorFieldFixture;
+import io.openaev.architecture.background_fixtures.InheritedInlineHandoffFixture;
 import io.openaev.architecture.background_fixtures.InheritedPostConstructFixture;
 import io.openaev.architecture.background_fixtures.InlineCompletableFutureFixture;
 import io.openaev.architecture.background_fixtures.InlineExecutorFixture;
 import io.openaev.architecture.background_fixtures.NewThreadFixture;
 import io.openaev.architecture.background_fixtures.PlainBeanFixture;
+import io.openaev.architecture.background_fixtures.QuartzJobFixture;
 import io.openaev.architecture.background_fixtures.ScheduledOnlyFixture;
 import java.util.List;
 import java.util.Map;
@@ -112,6 +118,68 @@ class BackgroundEntrypointDetectionTest {
   }
 
   @Test
+  @DisplayName("an inline hand-off inherited from an abstract parent is caught (getAllMethods)")
+  void inheritedInlineHandoffIsAHandoff() {
+    // The concrete subclass declares nothing: its only hand-off (CompletableFuture.supplyAsync) is
+    // in the body of a method inherited from the abstract parent. A scan of the child's own method
+    // calls misses it; the scan must read the inherited method body. Both classes are imported so
+    // the inherited body resolves, as with the inherited-field fixture.
+    JavaClasses classes =
+        new ClassFileImporter()
+            .importClasses(
+                InheritedInlineHandoffFixture.class, AbstractInlineHandoffParentFixture.class);
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(
+            classes.get(InheritedInlineHandoffFixture.class));
+    assertTrue(
+        families.contains("handoff"),
+        "an inline hand-off owned by an abstract parent's method must be seen on the concrete"
+            + " subclass. Got: "
+            + families);
+  }
+
+  @Test
+  @DisplayName("a Quartz Job is caught as a family")
+  void quartzJobIsAFamily() {
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(imported(QuartzJobFixture.class));
+    assertTrue(
+        families.contains("quartz"),
+        "a class implementing org.quartz.Job must be the quartz family. Got: " + families);
+  }
+
+  @Test
+  @DisplayName("an @Async method is caught as a family")
+  void asyncMethodIsAFamily() {
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(imported(AsyncMethodFixture.class));
+    assertTrue(
+        families.contains("async"),
+        "a bean with an @Async method must be the async family. Got: " + families);
+  }
+
+  @Test
+  @DisplayName("an @EventListener method is caught as a family")
+  void eventListenerIsAFamily() {
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(imported(EventListenerFixture.class));
+    assertTrue(
+        families.contains("listener"),
+        "a bean with an @EventListener method must be the listener family. Got: " + families);
+  }
+
+  @Test
+  @DisplayName("a CommandLineRunner is caught as a family")
+  void commandLineRunnerIsAFamily() {
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(
+            imported(CommandLineRunnerFixture.class));
+    assertTrue(
+        families.contains("seeding"),
+        "a class implementing CommandLineRunner must be the seeding family. Got: " + families);
+  }
+
+  @Test
   @DisplayName("a plain bean belongs to no family (detection is not trivially always-true)")
   void plainBeanIsNoFamily() {
     assertEquals(
@@ -202,6 +270,31 @@ class BackgroundEntrypointDetectionTest {
     assertTrue(
         !known.contains("injcts_typo"),
         "a typo'd table name must not be a legal until-active" + " target");
+
+    // Not just absent from the known set: drive the tags through the actual validation seam, so a
+    // regression that stopped rejecting dual-scope or outside-v2 targets fails here. 'groups' is
+    // dual-scope; 'attackpath_graph_version' is strict but permanently outside v2 (never activated
+    // by '*'); 'injects' is a real strict target and must survive.
+    Map<String, String> baseline =
+        Map.of(
+            "io.openaev.Dual", "cross-tenant-resolve until-active:groups",
+            "io.openaev.Outside", "cross-tenant-resolve until-active:attackpath_graph_version",
+            "io.openaev.Ok", "cross-tenant-resolve until-active:injects");
+    List<String> unknown =
+        BackgroundEntrypointTenantScopeArchTest.unknownUntilActiveTables(baseline, known);
+    assertTrue(
+        unknown.stream().anyMatch(s -> s.contains("io.openaev.Dual") && s.contains("groups")),
+        "a dual-scope table tag must be rejected by the validation, not merely absent. Got: "
+            + unknown);
+    assertTrue(
+        unknown.stream()
+            .anyMatch(
+                s -> s.contains("io.openaev.Outside") && s.contains("attackpath_graph_version")),
+        "an outside-v2 table tag must be rejected by the validation, not merely absent. Got: "
+            + unknown);
+    assertTrue(
+        unknown.stream().noneMatch(s -> s.contains("io.openaev.Ok")),
+        "a real strict target ('injects') must not be flagged. Got: " + unknown);
   }
 
   @Test
@@ -255,5 +348,73 @@ class BackgroundEntrypointDetectionTest {
     assertTrue(
         !BackgroundEntrypointTenantScopeArchTest.isWellFormedReason("until-active:injects only"),
         "a bare until-active tag with no classification must be rejected");
+  }
+
+  @Test
+  @DisplayName(
+      "delegates-to must name a method and cross-tenant-resolve must carry an until-active")
+  void grammarRequiresMethodSeparatorAndTag() {
+    // delegates-to needs the <Class>#<method> separator: a bare delegate names nothing.
+    assertTrue(
+        !BackgroundEntrypointTenantScopeArchTest.isWellFormedReason("delegates-to-Foo"),
+        "delegates-to without a #method separator must be rejected");
+    assertTrue(
+        BackgroundEntrypointTenantScopeArchTest.isWellFormedReason(
+            "delegates-to-ReportingScheduleService#runDueSchedules until-active:reporting_schedules"),
+        "delegates-to with #method (and an optional until-active tag) is well formed");
+
+    // cross-tenant-resolve is honest only while a table stays v1, so it MUST carry the tag that
+    // expires it; a bare form or one whose only tag is malformed launders a permanent waiver.
+    assertTrue(
+        !BackgroundEntrypointTenantScopeArchTest.isWellFormedReason("cross-tenant-resolve"),
+        "a bare cross-tenant-resolve with no until-active tag must be rejected");
+    assertTrue(
+        !BackgroundEntrypointTenantScopeArchTest.isWellFormedReason(
+            "cross-tenant-resolve: launders an unscoped write"),
+        "cross-tenant-resolve with free text but no until-active tag must be rejected");
+    assertTrue(
+        !BackgroundEntrypointTenantScopeArchTest.isWellFormedReason(
+            "cross-tenant-resolve until-active:injects-typo"),
+        "a malformed (hyphenated) until-active tag is no tag, so cross-tenant-resolve is rejected");
+
+    // touches-no-tenant-table and platform-global are permanent: an until-active tag is a
+    // contradiction (nothing activates to make them wrong) and must be rejected, so a temporary
+    // waiver cannot hide behind a permanent label.
+    assertTrue(
+        !BackgroundEntrypointTenantScopeArchTest.isWellFormedReason(
+            "touches-no-tenant-table until-active:injects"),
+        "an until-active tag on the permanent touches-no-tenant-table must be rejected");
+    assertTrue(
+        !BackgroundEntrypointTenantScopeArchTest.isWellFormedReason(
+            "platform-global until-active:injects"),
+        "an until-active tag on the permanent platform-global must be rejected");
+  }
+
+  @Test
+  @DisplayName(
+      "a background job that writes tenant-bearing tables is not waived touches-no-tenant-table")
+  void writesToTenantTableAreNotWaivedAsTouchingNothing() {
+    // OpenCTIConnectorRegisterPingJob's flow writes Group/Role (DualScopeBase) and the strict
+    // users_tenants join (TenantUserService.attachToTenant); AiMetricCollector reads the
+    // platform Setting row (DualScopeBase). Neither "touches no tenant table"; both are
+    // platform-global. This pins the reclassification against a revert to the false reason.
+    Map<String, String> baseline = BackgroundEntrypointTenantScopeArchTest.loadBaseline();
+    assertClassification(
+        baseline, "io.openaev.scheduler.jobs.OpenCTIConnectorRegisterPingJob", "platform-global");
+    assertClassification(
+        baseline, "io.openaev.telemetry.metric_collectors.AiMetricCollector", "platform-global");
+
+    // Near miss: a class that genuinely touches nothing keeps touches-no-tenant-table, so this
+    // test is not merely asserting platform-global everywhere.
+    assertClassification(baseline, "io.openaev.debug.DebugModeManager", "touches-no-tenant-table");
+  }
+
+  private static void assertClassification(
+      Map<String, String> baseline, String fqcn, String classification) {
+    String reason = baseline.get(fqcn);
+    assertTrue(reason != null, fqcn + " must be listed in the baseline");
+    assertTrue(
+        reason.startsWith(classification),
+        fqcn + " must be classified '" + classification + "', got: " + reason);
   }
 }

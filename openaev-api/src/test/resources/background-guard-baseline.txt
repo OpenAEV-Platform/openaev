@@ -12,13 +12,20 @@
 # text (e.g. "temporary") is rejected: an entry must carry real evidence, and an until-active waiver
 # must be spelled as one so it has a tag to expire.
 #   touches-no-tenant-table : reads and writes nothing with a tenant_id column (i.e. no entity that
-#                             implements io.openaev.database.model.TenantBase). Say what it touches.
-#   delegates-to-<Class>#<m> : the scope is set by a service/method it calls (name it).
+#                             implements io.openaev.database.model.TenantBase, and no dual-scope
+#                             tenant-bearing table). Permanent: NO until-active tag (nothing
+#                             activates to make it wrong). Say what it touches.
+#   delegates-to-<Class>#<m> : the scope is set by a service/method it calls (name it, the #method
+#                             separator is required). An until-active tag is allowed but optional.
 #   platform-global         : it operates on platform rows or across tenants by design; say why.
+#                             Permanent: NO until-active tag.
 #   cross-tenant-resolve    : it resolves a row in another tenant by a globally-unique id, honest
-#                             only while its table stays v1 (must carry an until-active:<table> tag).
-# A classification may be followed by an until-active:<table> tag and free text, separated by a
-# colon or a space.
+#                             only while its table stays v1. MUST carry an until-active:<table> tag,
+#                             or nothing expires the waiver.
+# After the classification, free text and (where allowed above) an until-active:<table> tag may
+# follow, separated by a colon or a space. The <table> is token-bounded: until-active:injects-typo
+# is not a valid tag (a hyphen ends the name), so a cross-tenant-resolve whose only tag is malformed
+# is rejected rather than silently expiring against the wrong table.
 #
 # A waiver that is honest only while some table is still v1 (the path resolves cross-tenant, or runs
 # an unscoped read/write that a v2 activation would turn into a wrong-tenant access) must carry an
@@ -99,7 +106,7 @@ io.openaev.scheduler.jobs.ExecutionTraceRetentionJob  # touches-no-tenant-table:
 io.openaev.scheduler.jobs.ExecutionTracesBatchRequeueJob  # touches-no-tenant-table: only republishes in-memory queued callbacks to the trace queue, no entity access
 io.openaev.scheduler.jobs.InjectsExecutionJob  # delegates-to-TenantScopedJobRunner#runInTenant: each inject/exercise-update runs under TxCtx.forTenant via the primitive
 io.openaev.scheduler.jobs.InjectsFinalizationJob  # delegates-to-TenantScopedJobRunner#runInTenant: simulations and injects are finalized per-tenant under TxCtx.forTenant via the primitive
-io.openaev.scheduler.jobs.OpenCTIConnectorRegisterPingJob  # touches-no-tenant-table: touches no TenantBase entity (User is Base; Group/Role are DualScopeBase); connector user/group/role writes pass an explicit tenantId
+io.openaev.scheduler.jobs.OpenCTIConnectorRegisterPingJob  # platform-global: registers/pings the OpenCTI connector identity for every configured tenant with an explicit tenantId; ensurePrivilegedUserExistsForConnector writes Group/Role (DualScopeBase) and the strict users_tenants join (TenantUserService.attachToTenant -> TenantRepository.addUserToTenant INSERT INTO users_tenants), so it touches tenant-bearing tables cross-tenant by design, not none
 io.openaev.scheduler.jobs.TenantPurgeJob  # platform-global: operates on the tenants registry (Tenant is Base) and purges each tenant's dependencies by explicit tenantId; the global sweep is correct by design
 io.openaev.scheduler.jobs.WorkflowTimeoutJob  # delegates-to-TenantScopedJobRunner#runInTenant: force-complete runs per-tenant under TxCtx.forTenant (tenant taken from the owning simulation/scenario; Workflow has no tenant column)
 io.openaev.scheduler.jobs.notification.NotificationDigestJob  # delegates-to-NotificationDigestService#runDigests: reads under TxCtx.allTenants(), dispatches under TxCtx.forTenant() through TenantScopedTransaction
@@ -111,7 +118,7 @@ io.openaev.scheduler.jobs.user_event.UserEventRetentionJob  # touches-no-tenant-
 io.openaev.telemetry.CustomMetricReader  # touches-no-tenant-table: the scheduler only collects and exports in-JVM OTLP metrics, no DB access
 io.openaev.telemetry.OpenTelemetryConfig  # platform-global: reads only the tenant-IS-NULL platform-instance Settings for telemetry identity via findByKeyAndTenantIsNull
 io.openaev.telemetry.metric_collectors.ActionMetricCollector  # touches-no-tenant-table: in-memory OpenTelemetry counters only, no DB access
-io.openaev.telemetry.metric_collectors.AiMetricCollector  # touches-no-tenant-table: reads only the platform-level Setting (tenant_id IS NULL, DualScopeBase not TenantBase); the rest is in-memory
+io.openaev.telemetry.metric_collectors.AiMetricCollector  # platform-global: reads only the platform-level Setting row (Setting is DualScopeBase, a tenant-bearing table) via findByKeyAndTenantIsNull for the chatbot-CGU gauge; the rest is in-memory counters, no per-tenant row
 io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector  # touches-no-tenant-table: in-memory safety-policy delta counters only, no DB access
 io.openaev.telemetry.metric_collectors.CredentialMetricCollector  # platform-global: total_credentials_count intentionally counts CredentialSecretReference (TenantBase) across all tenants via CredentialService#globalCount using tenantTx.execute(TxCtx.allTenants())
 io.openaev.telemetry.metric_collectors.GlobalMetricCollector  # touches-no-tenant-table: counts User and Tenant (both Base, no tenant_id) plus the EE flag; no TenantBase entity touched
