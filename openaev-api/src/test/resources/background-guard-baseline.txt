@@ -1,0 +1,104 @@
+# Background-guard baseline (T1.6, #6398).
+#
+# The five background entry-point families (Quartz jobs, @Async methods, event listeners,
+# seeding/startup, detached thread hand-offs) are enumerated by
+# BackgroundEntrypointTenantScopeArchTest. Every entry point must either reference
+# TenantScopedTransaction (the primitive carries the scope) or be listed here with a reason.
+#
+# Format, one class per line: <fully.qualified.ClassName>  # <reason>
+# The reason is one of three, spelled out, never assumed:
+#   touches-no-tenant-table : reads and writes nothing with a tenant_id column (i.e. no entity that
+#                             implements io.openaev.database.model.TenantBase). Say what it touches.
+#   delegates-to-<Class>#<m> : the scope is set by a service/method it calls (name it).
+#   platform-global         : it operates on platform rows or across tenants by design; say why.
+#
+# This file is hand-authored and reviewed. It may only shrink: once a path is scoped through the
+# primitive, remove its line (the stale-entry check fails the build until you do). A run never
+# rewrites it. Lines starting with # and blank lines are ignored. The first '#' on an entry line is
+# the reason delimiter; a '#' inside a reason (a method name) is kept verbatim.
+
+# --- Seeding and startup: platform singletons and infrastructure, no per-tenant business rows -----
+io.openaev.App  # platform-global: seeds the platform_instance / platform_instance_creation Setting singletons via findByKeyAndTenantIsNull, correct to run once globally at startup
+io.openaev.runner.InitAdminCommandLineRunner  # platform-global: bootstraps the singleton admin User/Token (Base) and attaches them to the default tenant and the platform admin groups with an explicit DEFAULT_TENANT_UUID
+io.openaev.service.tenants.TenantQueueService  # platform-global: enumerates the Tenant registry to declare each tenant's broker queues at startup; infra setup, touches no TenantBase business row
+io.openaev.rest.inject.InjectApi  # platform-global: @PostConstruct only wires the platform inject-trace RabbitMQ queue (DEFAULT_TENANT_UUID) at startup, no TenantBase entity access
+
+# --- Config / debug / crypto: config properties, logging, in-memory state, no entity access -------
+io.openaev.config.AuditLogProperties  # touches-no-tenant-table: validates openaev.audit-logs config properties only, no entity access
+io.openaev.debug.DebugActivationGuard  # touches-no-tenant-table: reads Environment/debug properties and logs a barrier warning, no entity access
+io.openaev.debug.DebugLogCorrelationListener  # touches-no-tenant-table: adjusts the logging.pattern.correlation property source at env-prepared time, no entity access
+io.openaev.debug.DebugModeManager  # touches-no-tenant-table: debug-mode lifecycle (banner, JFR, auto-disable timer) over config and in-memory state, no entity access
+io.openaev.debug.DebugSqlLogFileConfigurer  # touches-no-tenant-table: routes debug SQL/ORM logs to rotated files via Logback, no entity access
+io.openaev.debug.JfrRecordingManager  # touches-no-tenant-table: manages a JDK JFR recording and its dump files on a daemon scheduler, no entity access
+io.openaev.service.xtm_auth.XtmAuthKeyService  # touches-no-tenant-table: @PostConstruct only derives Ed25519 keys from config via HKDF, no DB access
+io.openaev.search.FullTextSearchService  # touches-no-tenant-table: @PostConstruct only wires in-memory class-to-repository maps; the seeding path does no DB access (runtime search pins TenantSpecification on the request thread)
+
+# --- Messaging / queue infrastructure: brokers and thread pools, no entity access -----------------
+io.openaev.service.RabbitmqService  # touches-no-tenant-table: @PostConstruct only sizes the publish thread pool; the class talks to the RabbitMQ broker, not the DB
+io.openaev.service.chaining.QueueChainingService  # touches-no-tenant-table: @PostConstruct only declares broker batch queues; no TenantBase access
+io.openaev.service.chaining.QueueChainingServiceCallbackRegistrar  # touches-no-tenant-table: @PostConstruct only wires stepEventService method references as queue callbacks; no DB access
+io.openaev.service.queue.BatchQueueService  # delegates-to-QueueExecution#perform: the executor only invokes the injected queue callback; the tenant scope is that callback's responsibility
+
+# --- External clients / connectors: HTTP and config, no tenant entity -----------------------------
+io.openaev.opencti.connectors.service.OpenCTIConnectorService  # touches-no-tenant-table: seeds and pings the OpenCTI connector registry from the per-tenant config map, platform/config only, no TenantBase entity
+io.openaev.injectors.email.service.SmtpService  # platform-global: SMTP health probe writes only the platform Setting (tenant IS NULL) via saveServiceState, no tenant-scoped entity
+io.openaev.injectors.email.service.ImapService  # platform-global: intentionally cross-tenant IMAP router; resolves an inbound email to any tenant's inject by globally-unique id (injectRepository.findById), then derives that inject's tenant and applies it explicitly (injectTenantId/tenantId) to every dependent read/write; injects is still v1, revisit on #6394-class activation
+io.openaev.runner.CatalogConnectorIngestionRunner  # delegates-to-CatalogConnectorIngestionService#extractCatalog: the startup runner parses the bundled catalog JSON and hands it to the ingestion service, no direct entity access
+
+# --- Executor context services + vendor clients: caller-supplied objects + HTTP; ExecutionTrace is
+# --- Base (no tenant_id). Revisit on #6394 (adds tenant_id to execution_traces).
+io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient  # touches-no-tenant-table: CrowdStrike REST client only (auth + device/RTR HTTP calls), no entity or repository access
+io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorContextService  # touches-no-tenant-table: reads only caller-supplied in-memory Inject/Agent objects and issues vendor HTTP calls; any ExecutionTrace write is on a Base entity (no tenant_id); the scheduled executor issues HTTP only
+io.openaev.executors.mde.service.MdeExecutorContextService  # touches-no-tenant-table: reads only caller-supplied in-memory Inject/Agent objects and issues vendor HTTP calls; any ExecutionTrace write is on a Base entity (no tenant_id); the scheduled executor issues HTTP only
+io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorContextService  # touches-no-tenant-table: builds implant commands from caller-supplied in-memory Inject/Agent objects and POSTs to the Palo Alto Cortex API, no repository/DB access
+io.openaev.executors.sentinelone.service.SentinelOneExecutorContextService  # touches-no-tenant-table: builds implant commands from caller-supplied in-memory Inject/Agent objects and POSTs to the SentinelOne API, no repository/DB access
+io.openaev.executors.tanium.client.TaniumExecutorClient  # touches-no-tenant-table: async HTTP client to the Tanium GraphQL API, no DB entity access
+io.openaev.executors.tanium.service.TaniumExecutorContextService  # touches-no-tenant-table: builds implant commands from caller-supplied in-memory Inject/Agent objects and calls the Tanium client, no repository/DB access
+
+# --- Event listeners: operate on already-loaded events, resolve the tenant per item ---------------
+io.openaev.engine.EngineListener  # platform-global: journals deleted ids into engine_deletions (no tenant column, @AllowRawJdbc) and bulk-deletes globally-unique UUIDs from the search engine; deletions are deliberately not tenant-filtered
+io.openaev.notification.engine.NotificationEngineListener  # delegates-to-NotificationEngineService#handleEvent: forwards commit events with the tenant id resolved from each entity/user, no unscoped TenantBase access
+io.openaev.rest.stream.StreamApi  # delegates-to-StreamApi#isVisibleForTenant: SSE listeners filter pre-loaded events by strict tenant equality and set TenantContext per consumer before permission checks; no unscoped TenantBase read/write
+io.openaev.service.LogService  # delegates-to-PlatformSettingsService#cleanMessage: the listeners only refresh the platform audit banner; LogEvent goes to the search-engine transport, not a TenantBase row
+io.openaev.service.NotificationEventService  # delegates-to-ScenarioNotificationEventHandler#handle: the listener dispatches to the handler, which sets the scope itself through the primitive
+io.openaev.service.chaining.WorkflowScopeRuleCascadeListener  # touches-no-tenant-table: deletes WorkflowScopeRule (implements Base only, no tenant column) in the deleter's transaction
+
+# --- Async / reporting: derive and apply the tenant explicitly ------------------------------------
+io.openaev.aop.audit_log.AuditLogger  # touches-no-tenant-table: emits LogEvent audit documents to the engine transport (not a JPA entity); the tenant id is copied from the request thread context, no tenant-scoped row is written
+io.openaev.service.user_events.UserEventService  # touches-no-tenant-table: writes and reads UserEvent, which implements Base only (no tenant column)
+io.openaev.rest.reporting.service.PlaywrightReportingRenderer  # delegates-to-PlaywrightReportingRenderer#execute: the render thread re-establishes the tenant from the captured job and uses tenant-qualified findByIdAndTenantId for every ReportingGeneration/Document access
+
+# --- Quartz jobs: delegate to a scoped runner/service, or touch no tenant table --------------------
+io.openaev.scheduler.jobs.AutonomousTimeoutJob  # delegates-to-AutonomousTimeoutService#sweep: per-tenant scope via TenantScopedTransaction.forEachTenant + executeNew(forTenant)
+io.openaev.scheduler.jobs.EngineDeletionReplayJob  # touches-no-tenant-table: engine_deletions is a platform bookkeeping table (no tenant_id) and bulkDelete hits the search engine, not PG
+io.openaev.scheduler.jobs.ExecutionTraceRetentionJob  # touches-no-tenant-table: execution_traces (ExecutionTrace implements Base, no tenant_id); native delete-by-age has no tenant dimension
+io.openaev.scheduler.jobs.ExecutionTracesBatchRequeueJob  # touches-no-tenant-table: only republishes in-memory queued callbacks to the trace queue, no entity access
+io.openaev.scheduler.jobs.InjectsExecutionJob  # delegates-to-TenantScopedJobRunner#runInTenant: each inject/exercise-update runs under TxCtx.forTenant via the primitive
+io.openaev.scheduler.jobs.InjectsFinalizationJob  # delegates-to-TenantScopedJobRunner#runInTenant: simulations and injects are finalized per-tenant under TxCtx.forTenant via the primitive
+io.openaev.scheduler.jobs.OpenCTIConnectorRegisterPingJob  # touches-no-tenant-table: touches no TenantBase entity (User is Base; Group/Role are DualScopeBase); connector user/group/role writes pass an explicit tenantId
+io.openaev.scheduler.jobs.TenantPurgeJob  # platform-global: operates on the tenants registry (Tenant is Base) and purges each tenant's dependencies by explicit tenantId; the global sweep is correct by design
+io.openaev.scheduler.jobs.WorkflowTimeoutJob  # delegates-to-TenantScopedJobRunner#runInTenant: force-complete runs per-tenant under TxCtx.forTenant (tenant taken from the owning simulation/scenario; Workflow has no tenant column)
+io.openaev.scheduler.jobs.notification.NotificationDigestJob  # delegates-to-NotificationDigestService#runDigests: reads under TxCtx.allTenants(), dispatches under TxCtx.forTenant() through TenantScopedTransaction
+io.openaev.scheduler.jobs.notification.NotificationEventRetentionJob  # delegates-to-NotificationEventRetentionService#deleteOldEvents: single cross-tenant DELETE carries allTenants() scope so the inspector rewrites it platform-wide
+io.openaev.scheduler.jobs.reporting.ReportingScheduleJob  # delegates-to-ReportingScheduleService#runDueSchedules: scope is per-schedule via TenantContext(tenant) and the v1 tenantFilter, NOT the v2 primitive; safe while reporting_schedules stays v1, revisit on its activation
+io.openaev.scheduler.jobs.user_event.UserEventRetentionJob  # touches-no-tenant-table: user_events (UserEvent implements Base, no tenant_id); retention deletes by type and age, no tenant dimension
+
+# --- Telemetry / metric collectors: in-memory counters, or deliberate platform-wide aggregates ----
+io.openaev.telemetry.CustomMetricReader  # touches-no-tenant-table: the scheduler only collects and exports in-JVM OTLP metrics, no DB access
+io.openaev.telemetry.OpenTelemetryConfig  # platform-global: reads only the tenant-IS-NULL platform-instance Settings for telemetry identity via findByKeyAndTenantIsNull
+io.openaev.telemetry.metric_collectors.ActionMetricCollector  # touches-no-tenant-table: in-memory OpenTelemetry counters only, no DB access
+io.openaev.telemetry.metric_collectors.AiMetricCollector  # touches-no-tenant-table: reads only the platform-level Setting (tenant_id IS NULL, DualScopeBase not TenantBase); the rest is in-memory
+io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector  # touches-no-tenant-table: in-memory safety-policy delta counters only, no DB access
+io.openaev.telemetry.metric_collectors.CredentialMetricCollector  # platform-global: total_credentials_count intentionally counts CredentialSecretReference (TenantBase) across all tenants via CredentialService#globalCount using tenantTx.execute(TxCtx.allTenants())
+io.openaev.telemetry.metric_collectors.GlobalMetricCollector  # touches-no-tenant-table: counts User and Tenant (both Base, no tenant_id) plus the EE flag; no TenantBase entity touched
+io.openaev.telemetry.metric_collectors.ResultsMetricCollector  # touches-no-tenant-table: in-memory delta counters (results/coverage/workflow/payload/email) only, no DB access
+io.openaev.telemetry.metric_collectors.ScopeMetricCollector  # touches-no-tenant-table: in-memory scope-rule delta/usage counters only, no DB access
+io.openaev.telemetry.metric_collectors.UserMetricCollector  # touches-no-tenant-table: counts UserEvent (implements Base, no tenant column) via UserEventService#averageDailySuccessLogins
+
+# --- Collectors / XtmHub / XtmOne -----------------------------------------------------------------
+io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerCollector  # delegates-to-ExpectationsExpirationManagerJob#run: only schedules the job; the scope is opened by TenantScopedTransaction.forEachTenant inside the job
+io.openaev.xtmhub.XtmHubClient  # platform-global: HTTP client to the XTM Hub GraphQL API; @PostConstruct builds the endpoint URL only, no tenant DB access
+io.openaev.xtmhub.XtmHubConnectivityService  # platform-global: @PostConstruct performs an HTTP HEAD reachability check against the XTM Hub URL, no DB access
+io.openaev.xtmhub.collector.XtmHubCollector  # delegates-to-XtmHubService#refreshConnectivityAllTenants: reads tenant_xtmhub_registrations (TenantBase) under tenantTx.execute(TxCtx.allTenants()) and writes each row back per-tenant under tenantTx.forEachTenant
+io.openaev.xtmone.XtmOneConfig  # touches-no-tenant-table: config bean; @PostConstruct only normalizes the URL, no DB access
+io.openaev.xtmone.XtmOneConnectivityService  # delegates-to-XtmOneService#autoRegister: platform-wide XTM One registration; reads only platform settings resolved against DEFAULT_TENANT_UUID, touches no TenantBase entity

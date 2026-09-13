@@ -1122,12 +1122,25 @@ Model conversion: `UrlAccessTokenPurgeJob`
 converted to `tenantTx.execute(TxCtx.allTenants(), …)` in PR #6398. Injected
 dependency: `TenantScopedTransaction tenantTx`.
 
-Maturity note: the background path is newer and less proven than the HTTP path.
-At the time of writing, the only converted job is `UrlAccessTokenPurgeJob`, which
-uses `allTenants()`; the per-tenant `forEachTenant` idiom has no production caller
-yet (it is covered by integration tests, not by a real job). Treat the first
-per-tenant conversion as a real dress rehearsal, not a copy-paste, and expand the
-model list as jobs are converted.
+Maturity note (refreshed for T1.6, #6398): the background path is now well
+proven. Eight Quartz jobs sit directly on the primitive, and several more reach it
+through `TenantScopedJobRunner`. Working model implementations exist for all three
+idioms:
+
+- `allTenants()` (bulk read or predicate delete across tenants):
+  `UrlAccessTokenPurgeJob` and `NotificationEventRetentionService.deleteOldEvents`.
+- `forEachTenant` (per-tenant, one transaction each), three production callers:
+  `AutonomousTimeoutService.sweep`, `XtmHubService.refreshConnectivityAllTenants`,
+  and `ExpectationsExpirationManagerJob.run`.
+- `execute(TxCtx.forTenant(id), …)` (one known tenant): via
+  `TenantScopedJobRunner.runInTenant`, used by `InjectsExecutionJob`,
+  `InjectsFinalizationJob` and `WorkflowTimeoutJob`.
+
+Copy the idiom that matches the scope decision below, not a single blessed job.
+Every background family is now enumerated and classified by the T1.6 guard
+(`BackgroundEntrypointTenantScopeArchTest` + `background-guard-baseline.txt`): a
+new background entry point fails the build until it is on the primitive or
+classified there with a reason.
 
 **Enumerate every background path first.** Phase 1's greps are repository- and
 table-name-oriented and can miss a background surface. There is no single
