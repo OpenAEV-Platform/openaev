@@ -45,7 +45,7 @@ class CatalogPage {
 
   /** "Display name" field in the CreateConnectorInstanceDrawer form */
   get displayNameInput(): Locator {
-    return this.page.getByLabel('Display name*', { exact: true });
+    return this.page.getByLabel('Display name', { exact: true });
   }
 
   /** Submit button (labelled "Create") inside the connector-instance form */

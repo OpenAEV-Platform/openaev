@@ -46,7 +46,11 @@ class MuiFormHelpers {
     const select = fieldLocator
       .locator('xpath=following-sibling::p')
       .or(fieldLocator.locator('xpath=../following-sibling::p'));
-    return mui.or(combobox).or(select);
+    // Input and Textarea wrap label, control and helper in one flex column; the
+    // helper is a `<div id="…-helper">` holding a `<span>`, not a `<p>`.
+    const input = fieldLocator
+      .locator('xpath=ancestor::div[contains(@class, "flex-col")][1]/div[substring(@id, string-length(@id) - 6) = "-helper"]');
+    return mui.or(combobox).or(select).or(input);
   }
 
   static getListContainer(listItemLocator: Locator): Locator {
