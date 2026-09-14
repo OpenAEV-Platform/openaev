@@ -114,6 +114,7 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
     ...selectedOptions,
     ...options.filter(option => !selectedOptions.some(selectedOption => selectedOption.id === option.id)),
   ];
+  const hasGroups = mergedOptions.some(option => 'group' in option && !!option.group);
   const handleSearchOptions = (search: string) => {
     const searchOptionsConfig: SearchOptionsConfig = {
       filterKey: filter.key,
@@ -168,7 +169,9 @@ export const BasicSelectInput: FunctionComponent<Props & { propertySchema: Prope
       inputValue={inputValue}
       loading={loading}
       isOptionEqualToValue={(option, value) => option.id === value.id}
-      groupBy={(option: GroupOption | Option) => 'group' in option ? option.group : ''}
+      // Only when the list actually groups — see AutocompleteField for why an
+      // unconditional `groupBy` draws an empty 32px band above the first option.
+      groupBy={hasGroups ? (option: GroupOption | Option) => 'group' in option ? option.group : '' : undefined}
       getOptionLabel={option => option.label ?? ''}
       onInputChange={(search, meta) => {
         if (meta.cause !== 'type') {

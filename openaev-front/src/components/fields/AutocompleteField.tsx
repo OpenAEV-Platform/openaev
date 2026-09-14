@@ -96,6 +96,11 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
 
   // Hiding is done on the list itself rather than through `filterOptions`, so
   // the library keeps owning the text search it applies on top.
+  const hasGroups = useMemo(
+    () => options.some(option => 'group' in option && !!option.group),
+    [options],
+  );
+
   const visibleOptions = useMemo(
     () => (hideOption ? options.filter(o => !hideOption(o)) : options),
     [options, hideOption],
@@ -194,7 +199,12 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
         closeOnSelect={props.disableCloseOnSelect !== true}
         options={visibleOptions}
         value={selectedOption}
-        groupBy={option => ('group' in option ? option.group : '')}
+        // Only when the list ACTUALLY groups. Supplying `groupBy` unconditionally
+        // made every ungrouped list one group whose label is "", and the library
+        // draws a full 32px header row per group — an empty band above the first
+        // option. MUI drew nothing for an empty label, which is why it survived
+        // the conversion unnoticed.
+        groupBy={hasGroups ? option => ('group' in option ? option.group : '') : undefined}
         getOptionLabel={option => option.label ?? ''}
         isOptionEqualToValue={(option, val) => option.id === val.id}
         error={error}
