@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20260826120000000__Add_marking_definitions extends BaseJavaMigration {
+public class V6_20260914120000000__Add_marking_definitions extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
