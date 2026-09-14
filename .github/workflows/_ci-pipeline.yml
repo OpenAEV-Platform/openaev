@@ -65,7 +65,7 @@ jobs:
           distribution: temurin
           cache: maven
       - name: "Install OpenAEV maven plugin"
-        runs: |
+        run: |
           mvn -B clean install -pl openaev-maven-plugin
       - uses: ./.github/actions/generate-ocsf-parser
         with:
