@@ -1,8 +1,8 @@
-# ADR-007 Implementation Plan - Marking Definitions (Single-Chunk Delivery)
+# Marking Definitions Implementation Plan (Single-Chunk Delivery)
 
 ## 1) Goal
 
-Deliver ADR-007 Task 1 in one integrated execution chunk, behind feature flag `MARKING`, with tenant-v2-safe backend CRUD, frontend classic paginated list UX, protected default TLP seeds, and complete validation gates.
+Deliver Marking Definitions Task 1 in one integrated execution chunk, behind feature flag `MARKING`, with tenant-v2-safe backend CRUD, frontend classic paginated list UX, protected default TLP seeds, and complete validation gates.
 
 ## 2) Confirmed decisions and constraints
 

@@ -1,6 +1,6 @@
-# ADR-007 Task Board - Marking Definitions (Single Chunk)
+# Marking Definitions Task Board (Single Chunk)
 
-This checklist is derived from `adr/ADR-007-implementation-plan.md` and is ready to use in issue/PR tracking.
+This checklist is derived from the marking feature implementation plan and is ready to use in issue/PR tracking.
 
 ## 0. Scope lock (before coding)
 

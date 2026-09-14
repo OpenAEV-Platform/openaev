@@ -1,4 +1,4 @@
-# ADR-007: Marking definitions (create/manage) - brainstorm and implementation plan
+# Marking definitions (create/manage) - brainstorm and implementation plan
 
 |         |                                                        |
 |---------|--------------------------------------------------------|
