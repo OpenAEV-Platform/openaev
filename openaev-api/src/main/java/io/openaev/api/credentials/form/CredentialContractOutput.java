@@ -18,6 +18,11 @@ public record CredentialContractOutput(
     select,
     number,
     checkbox,
+    /**
+     * A file upload. A field declared with this type never travels inside the JSON {@code input}
+     * part: it is sent as a dedicated multipart part named after its {@code field_name}.
+     */
+    file,
   }
 
   public record CredentialContractField(
@@ -28,5 +33,32 @@ public record CredentialContractOutput(
       @JsonProperty("mandatory_condition_field") String mandatoryConditionField,
       @JsonProperty("mandatory_condition_value") String mandatoryConditionValue,
       @JsonProperty("visible_condition_field") String visibleConditionField,
-      @JsonProperty("visible_condition_value") String visibleConditionValue) {}
+      @JsonProperty("visible_condition_value") String visibleConditionValue,
+      @JsonProperty("default_value") String defaultValue) {
+
+    /**
+     * Convenience constructor for the fields carrying no default value, so contracts declared
+     * before {@code default_value} existed stay untouched.
+     */
+    public CredentialContractField(
+        String fieldName,
+        CredentialContractFieldType fieldType,
+        boolean required,
+        List<String> choices,
+        String mandatoryConditionField,
+        String mandatoryConditionValue,
+        String visibleConditionField,
+        String visibleConditionValue) {
+      this(
+          fieldName,
+          fieldType,
+          required,
+          choices,
+          mandatoryConditionField,
+          mandatoryConditionValue,
+          visibleConditionField,
+          visibleConditionValue,
+          null);
+    }
+  }
 }
