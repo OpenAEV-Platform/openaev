@@ -15,7 +15,7 @@ import { type DocumentCreateInput } from '../../../../utils/api-types';
 
 // The file is only part of the creation form: it is uploaded as multipart
 // alongside the JSON input, it is not a field of DocumentCreateInput.
-export type DocumentFormInput = DocumentCreateInput & { document_file?: File[] };
+export type DocumentFormInput = DocumentCreateInput & { document_file?: File };
 
 interface Props {
   onSubmit: SubmitHandler<DocumentFormInput>;
@@ -41,8 +41,8 @@ const DocumentForm: FunctionComponent<Props> = ({
     document_exercises: z.array(z.string()).optional(),
     document_scenarios: z.array(z.string()).optional(),
     document_tags: z.array(z.string()).optional(),
-    document_file: z.array(z.instanceof(File)).optional(),
-  }).refine(data => editing || (data.document_file?.length ?? 0) > 0, {
+    document_file: z.instanceof(File).optional(),
+  }).refine(data => editing || !!data.document_file, {
     message: t('This field is required.'),
     path: ['document_file'],
   });

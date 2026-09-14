@@ -261,8 +261,13 @@ runs:
         esac
         echo "🔐 tenant shadow: mode=$MODE"
         echo "   active-tables=$LIST"
+        # maven.test.failure.ignore=true: a shadow run is a report, not a gate. Test failures and
+        # errors are the expected output and are recorded in the surefire reports either way; ignoring
+        # them keeps the build (and so the job) green. The core API shards reach this step too, but with
+        # an empty tenant-mode they take the early return above (args=, exit 0) and never reach this
+        # line, so they never receive the flag and still fail on a red test. Only shadow modes get it.
         # Single-quoted so '*' reaches the JVM instead of being glob-expanded by the shell below.
-        echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on" >> "$GITHUB_OUTPUT"
+        echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on -Dmaven.test.failure.ignore=true" >> "$GITHUB_OUTPUT"
 
     - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       id: run-tests
@@ -295,9 +300,24 @@ runs:
           echo "already running with their table active._"
           echo
         } >> "$S"
-        if [ ! -d "$REPORTS" ]; then
+        # A broken instrument must stay visible without turning the job red. Two shapes go unnoticed
+        # otherwise: no surefire report at all (the suite never ran), and a Spring context that fails
+        # to load (every test errors, yet the JaCoCo agent still writes jacoco.exec at JVM exit and
+        # -Dmaven.test.failure.ignore=true leaves the build green — the 12 Sep shadow-all state). Emit
+        # a GitHub warning annotation, never an error and never a non-zero exit: it shows on the run
+        # page and in the job without failing either, and the on-call alert keys off the run
+        # conclusion, so it stays quiet.
+        if [ ! -d "$REPORTS" ] || [ -z "$(find "$REPORTS" -maxdepth 1 -name '*.txt' -print -quit 2>/dev/null)" ]; then
+          echo "::warning title=Tenant shadow $MODE (shard $SHARD)::No surefire report: the shadow suite did not run. A green job here is not a pass."
           echo "No surefire reports: the suite did not start." >> "$S"
           exit 0
+        fi
+
+        # Count the context-load failures across the shard's reports; each is a test that errored
+        # because the Spring context never came up. || true: grep exits 1 on no match under pipefail.
+        CTX=$(grep -ho 'Failed to load ApplicationContext' "$REPORTS"/*.txt 2>/dev/null | wc -l | tr -d ' ' || true)
+        if [ "${CTX:-0}" -gt 0 ]; then
+          echo "::warning title=Tenant shadow $MODE (shard $SHARD)::Spring context failed to load ($CTX x 'Failed to load ApplicationContext'). Every affected test errored; the job is green only because shadow failures are ignored, so this is not a pass."
         fi
 
         # Totals, summed over the shard's classes. Read from the reports, never from a grep of the

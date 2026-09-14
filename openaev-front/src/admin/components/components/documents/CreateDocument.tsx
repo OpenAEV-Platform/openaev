@@ -34,8 +34,8 @@ const CreateDocument: FunctionComponent<Props> = ({ onCreate, inline = false, fi
   const onSubmit = async (data: DocumentFormInput) => {
     const { document_file, ...inputValues } = data;
     const formData = new FormData();
-    if (document_file?.[0]) {
-      formData.append('file', document_file[0]);
+    if (document_file) {
+      formData.append('file', document_file);
     }
     formData.append('input', new Blob([JSON.stringify(inputValues)], { type: 'application/json' }));
     const result = await dispatch(addDocument(formData));
