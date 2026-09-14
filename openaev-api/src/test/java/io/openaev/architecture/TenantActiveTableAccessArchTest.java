@@ -93,6 +93,7 @@ import io.openaev.processor.core.V20260420_Migrate_rabbitmq_queues;
 import io.openaev.processor.datapack.V20260101_Starter_pack;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.processor.datapack.V20260708_Dynamic_injectors_base_url;
+import io.openaev.processor.datapack.V20260914_Default_tenant_markings;
 import io.openaev.rest.asset.security_platforms.SecurityPlatformApi;
 import io.openaev.rest.atomic_testing.AtomicTestingApi;
 import io.openaev.rest.attack_pattern.AttackPatternApi;
@@ -458,7 +459,12 @@ class TenantActiveTableAccessArchTest {
               // Service behind the handler; every caller is a wired handler:
               MarkingDefinitionService.class,
               // Provisioning datapack: seeds protected defaults during tenant creation.
-              V20260330_Default_tenant_data.class)
+              V20260330_Default_tenant_data.class,
+              // Provisioning datapack: seeds the default TLP markings. Runs under the same
+              // tenant-scoped transaction primitive as the datapack above (MigrationProcessor ->
+              // tenantTx.execute/setScopeOnCurrentTransaction with TxCtx.forTenant(...)), so it
+              // needs no waiver.
+              V20260914_Default_tenant_markings.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(MarkingDefinitionRepository.class)

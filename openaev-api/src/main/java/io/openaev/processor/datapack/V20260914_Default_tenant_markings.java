@@ -11,12 +11,12 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class V20260826_Default_tenant_markings extends DataPack {
+public class V20260914_Default_tenant_markings extends DataPack {
 
   private final MarkingDefinitionRepository markingDefinitionRepository;
   @PersistenceContext private EntityManager entityManager;
 
-  public V20260826_Default_tenant_markings(
+  public V20260914_Default_tenant_markings(
       DataPackService dataPackService, MarkingDefinitionRepository markingDefinitionRepository) {
     super(dataPackService);
     this.markingDefinitionRepository = markingDefinitionRepository;
