@@ -48,7 +48,8 @@ public void deleteScenario(@NotBlank final String scenarioId) {
 |---|---|---|
 | `workflows.workflow_scenario_id` → `scenarios.scenario_id` | DB FK `ON DELETE CASCADE` (`V4_91__Add_scenario_to_workflow.java`) | The scenario's TEMPLATE workflow row deleted with the scenario |
 | `steps.step_workflow_id` → `workflows.workflow_id` | DB FK `ON DELETE CASCADE` (`V4_72__Add_workflow_step_entities.java`) + JPA `CascadeType.ALL`/`orphanRemoval` (`Workflow.java` L85-93) | Step TEMPLATEs of that workflow deleted |
-| `conditions.step_id` → `steps.step_id` | DB FK `ON DELETE CASCADE` (`V4_72__Add_workflow_step_entities.java`) + JPA `CascadeType.ALL`/`orphanRemoval` (`Step.java` L128-136) | Condition TEMPLATEs deleted |
+| `conditions.condition_workflow_id` → `workflows.workflow_id` | DB FK `ON DELETE CASCADE` (`V4_94__Update_conditions_for_condition_tree.java`) | Condition TEMPLATEs (standalone and step-linked) deleted directly with their workflow |
+| `conditions_steps.step_id` → `steps.step_id` | DB FK `ON DELETE CASCADE` (`V4_94__Update_conditions_for_condition_tree.java`) + JPA `CascadeType.ALL`/`orphanRemoval` on `Step.conditionSteps` (`Step.java` L128-136) | Condition-to-step link rows deleted |
 | `workflow_scope_rules.workflow_id` → `workflows.workflow_id` | DB FK `ON DELETE CASCADE` (`V4_80__Add_workflow_configuration.java`) + JPA `CascadeType.ALL`/`orphanRemoval` (`Workflow.java` L159-166) | Scope Rules TEMPLATE deleted |
 | `scope_variables.scope_variable_workflow` → `workflows.workflow_id` | DB FK `ON DELETE CASCADE` (`V5_02__Add_scope_variables.java`) + JPA `CascadeType.ALL`/`orphanRemoval` (`Workflow.java` L189-196) | Scope variables deleted |
 
