@@ -261,8 +261,12 @@ runs:
         esac
         echo "🔐 tenant shadow: mode=$MODE"
         echo "   active-tables=$LIST"
+        # maven.test.failure.ignore=true: a shadow run is a report, not a gate. Test failures and
+        # errors are the expected output and are recorded in the surefire reports either way; ignoring
+        # them keeps the build (and so the job) green, while the core API shards, which never reach this
+        # step because their tenant-mode is empty, still fail on a red test. Only shadow modes get it.
         # Single-quoted so '*' reaches the JVM instead of being glob-expanded by the shell below.
-        echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on" >> "$GITHUB_OUTPUT"
+        echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on -Dmaven.test.failure.ignore=true" >> "$GITHUB_OUTPUT"
 
     - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       id: run-tests
