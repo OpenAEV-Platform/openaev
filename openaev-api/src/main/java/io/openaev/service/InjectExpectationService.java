@@ -86,11 +86,15 @@ public class InjectExpectationService {
 
   private final ExpectationBehaviorResolver expectationBehaviorResolver;
 
-  // -- BEHAVIOR-BASED EXPECTATION CREATION --
+  // -- BEHAVIOR-BASED EXPECTATION CREATION/UPDATE --
 
   /**
-   * Simple entry point: reads expectations from inject content and initializes them through
-   * behaviors.
+   * Computes and saves expectations for a given executable inject, based on the expectations
+   * defined in its content and an optional implant type.
+   *
+   * @param executableInject the executable inject for which to compute expectations
+   * @param implantType the type of implant, if applicable (nullable)
+   * @throws JsonProcessingException
    */
   public void computeAndSaveExpectations(
       ExecutableInject executableInject, @Nullable String implantType)
@@ -101,9 +105,12 @@ public class InjectExpectationService {
   }
 
   /**
-   * Single entry point used by executors: for each content-form expectation, resolves the behavior
-   * for its type, builds a template, then delegates target/context expansion and persistence to the
-   * behavior handling the produced expectation.
+   * Computes and saves expectations for a given executable inject, based on the provided content
+   * expectations and implant type.
+   *
+   * @param executableInject the executable inject for which to compute expectations
+   * @param contentExpectations the list of content-form expectations to process
+   * @param implantType the type of implant, if applicable (nullable)
    */
   public void computeAndSaveExpectations(
       ExecutableInject executableInject,
@@ -128,16 +135,14 @@ public class InjectExpectationService {
   }
 
   /**
-   * Updates an inject expectation
+   * Updates an inject expectation using behavior-based logic, applying the provided input to the
+   * expectation and its related leaves and parents.
    *
-   * <p>Dead code — not wired into any service yet. Part of the {@code InjectExpectation}
-   * refactoring (Vertical 2).
-   *
-   * @param expectationId
-   * @param input
-   * @return
+   * @param expectationId the ID of the expectation to update
+   * @param input the update input containing the new data
+   * @return the updated inject expectation
+   * @throws ElementNotFoundException if no expectation is found with the given ID
    */
-  @Transactional(rollbackFor = Exception.class)
   public BaseInjectExpectation updateInjectExpectationUsingBehaviors(
       @NotBlank final String expectationId, @NotNull final ExpectationUpdateInput input) {
     BaseInjectExpectation injectExpectation = this.findInjectExpectation(expectationId);
@@ -158,6 +163,8 @@ public class InjectExpectationService {
 
     return injectExpectation;
   }
+
+  // -- END BEHAVIOR-BASED EXPECTATION CREATION/UPDATE --
 
   // -- CRUD --
 
@@ -226,32 +233,12 @@ public class InjectExpectationService {
                 // EXPECTATION_TYPE.* wildcard one, hence the qualified reference.
                 BaseInjectExpectation.EXPECTATION_TYPE.VULNERABILITY)
             .contains(baseInjectExpectation.getType())) {
-      // Block down computation on asset group
-      if (isAssetGroupExpectation(technicalExpectation)) {
-        throw new IllegalArgumentException("Not possible to update Asset Group directly");
-      }
-      // Allow down computation on asset. Non-endpoint assets (AI targets, ...) have no agents and
-      // are treated as agentless.
-      Asset unproxied = (Asset) Hibernate.unproxy(technicalExpectation.getAsset());
-      List<Agent> agents =
-          (unproxied instanceof Endpoint endpoint) ? getPrimaryAgents(endpoint) : List.of();
-      boolean isAgentless = agents.isEmpty();
-      if (isAssetExpectation(technicalExpectation) && !isAgentless) {
-        List<TechnicalInjectExpectation> expectationsForAgents =
-            getAgentsExpectationsForAsset(technicalExpectation);
-        expectationsForAgents.forEach(
-            e -> computeInjectExpectationForAgentOrAssetAgentless(e, input));
-        this.injectExpectationRepository.saveAll(expectationsForAgents);
-        propagateTechnicalExpectation(technicalExpectation, isAgentless, null);
-        return technicalExpectation;
-        // Computation on agent or asset agentless
-      } else {
-        computeInjectExpectationForAgentOrAssetAgentless(technicalExpectation, input);
-        TechnicalInjectExpectation updated =
-            this.injectExpectationRepository.save(technicalExpectation);
-        propagateTechnicalExpectation(updated, isAgentless, null);
-        return updated;
-      }
+
+      BaseInjectExpectation updated = updateInjectExpectationUsingBehaviors(expectationId, input);
+      List<Exercise> exercises = new ArrayList<>();
+      exercises.add(updated.getInject().getExercise());
+      securityCoverageSendJobService.createOrUpdateCoverageSendJobForSimulationsIfReady(exercises);
+      return updated;
     }
     return baseInjectExpectation;
   }
@@ -436,25 +423,6 @@ public class InjectExpectationService {
   }
 
   // -- TECHNICAL --
-
-  /**
-   * Computes a technical expectation for an agent or agentless asset
-   *
-   * @param baseInjectExpectation the expectation to compute
-   * @param input the update input containing the score
-   */
-  private void computeInjectExpectationForAgentOrAssetAgentless(
-      @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final ExpectationUpdateInput input) {
-    String result =
-        ExpectationType.label(
-            baseInjectExpectation.getType(),
-            baseInjectExpectation.getExpectedScore(),
-            input.getScore());
-    addResult(baseInjectExpectation, input, result);
-    final Double score = computeScore(baseInjectExpectation.getResults(), baseInjectExpectation);
-    baseInjectExpectation.setScore(score);
-  }
 
   /**
    * Propagates a technical expectation update up the hierarchy (agent to asset to asset group).
