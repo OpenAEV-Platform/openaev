@@ -1,9 +1,9 @@
 # ADR-008: Scenario chaining deletion is TEMPLATE-scoped only, never cascades to the Simulation
 
-|         |                                                        |
-|---------|--------------------------------------------------------|
-| Status  | Accepted                                               |
-| Related | https://github.com/OpenAEV-Platform/openaev/issues/XXX |
+|         |                   |
+|---------|-------------------|
+| Status  | Accepted          |
+| Related | private issue 175 |
 
 ## 1. Context
 

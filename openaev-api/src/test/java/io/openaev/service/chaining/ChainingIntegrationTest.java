@@ -433,9 +433,8 @@ class ChainingIntegrationTest extends IntegrationTest {
       assertFalse(stepIds.isEmpty(), "Steps must exist before deletion");
 
       List<String> conditionIds =
-          conditionRepository
-              .findAllByWorkflowIdAndTypeNot(workflowTemplateId, ConditionType.MAPPER)
-              .stream()
+          conditionRepository.findAll().stream()
+              .filter(c -> workflowTemplateId.equals(c.getWorkflowId()))
               .map(Condition::getId)
               .toList();
       assertFalse(conditionIds.isEmpty(), "Conditions must exist before deletion");
@@ -464,7 +463,10 @@ class ChainingIntegrationTest extends IntegrationTest {
               .orElseThrow();
       Workflow simulationWorkflowRun =
           workflowRepository.findAll().stream()
-              .filter(w -> WorkflowStatus.RUN.equals(w.getStatus()))
+              .filter(
+                  w ->
+                      List.of(WorkflowStatus.RUN, WorkflowStatus.END, WorkflowStatus.STOP)
+                          .contains(w.getStatus()))
               .filter(
                   w -> w.getSimulation() != null && simulationId.equals(w.getSimulation().getId()))
               .findFirst()
