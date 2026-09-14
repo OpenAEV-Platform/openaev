@@ -20,7 +20,9 @@ import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 
 /** Shared behavior for technical expectations (detection/prevention/vulnerability). */
@@ -255,37 +257,61 @@ public abstract class AbstractTechnicalBehavior
   @Override
   public List<? extends BaseInjectExpectation> recomputeParentScores(
       BaseInjectExpectation expectation) {
-    Inject inject = expectation.getInject();
-    BaseInjectExpectation.EXPECTATION_TYPE type = expectation.getType();
+    if (!(expectation instanceof TechnicalInjectExpectation tech)) {
+      return List.of();
+    }
+    Inject inject = tech.getInject();
+    BaseInjectExpectation.EXPECTATION_TYPE type = tech.getType();
+
+    List<TechnicalInjectExpectation> sameType =
+        inject.getExpectations().stream()
+            .filter(TechnicalInjectExpectation.class::isInstance)
+            .map(TechnicalInjectExpectation.class::cast)
+            .filter(e -> type.equals(e.getType()))
+            .toList();
+
+    Map<String, List<TechnicalInjectExpectation>> agentsByAssetId =
+        sameType.stream()
+            .filter(ExpectationUtils::isAgentExpectation)
+            .filter(e -> e.getAsset() != null)
+            .collect(Collectors.groupingBy(e -> e.getAsset().getId()));
+
+    Map<String, List<TechnicalInjectExpectation>> assetsByAssetGroupId =
+        sameType.stream()
+            .filter(ExpectationUtils::isAssetExpectation)
+            .filter(e -> e.getAssetGroup() != null)
+            .collect(Collectors.groupingBy(e -> e.getAssetGroup().getId()));
 
     List<TechnicalInjectExpectation> updatedParents = new ArrayList<>();
-    updatedParents.addAll(
-        recomputeLevel(
-            getAssetsExpectationsByInjectAndType(inject, type),
-            ExpectationUtils::getAgentsExpectationsForAsset));
-    updatedParents.addAll(
-        recomputeLevel(
-            getAssetGroupsExpectationsByInjectAndType(inject, type),
-            ExpectationUtils::getAssetsExpectationsOfAssetGroup));
+    sameType.stream()
+        .filter(ExpectationUtils::isAssetExpectation)
+        .forEach(
+            asset ->
+                recomputeParent(
+                        asset, agentsByAssetId.getOrDefault(asset.getAsset().getId(), List.of()))
+                    .ifPresent(updatedParents::add));
+    sameType.stream()
+        .filter(ExpectationUtils::isAssetGroupExpectation)
+        .forEach(
+            group ->
+                recomputeParent(
+                        group,
+                        assetsByAssetGroupId.getOrDefault(group.getAssetGroup().getId(), List.of()))
+                    .ifPresent(updatedParents::add));
     return updatedParents;
   }
 
-  private List<TechnicalInjectExpectation> recomputeLevel(
-      List<TechnicalInjectExpectation> parents,
-      Function<TechnicalInjectExpectation, List<TechnicalInjectExpectation>> childrenResolver) {
-    List<TechnicalInjectExpectation> updated = new ArrayList<>();
-    for (TechnicalInjectExpectation parent : parents) {
-      List<TechnicalInjectExpectation> children = childrenResolver.apply(parent);
-      if (!children.isEmpty()) {
-        Double score =
-            computeChildrenScore(parent.isExpectationGroup(), parent.getExpectedScore(), children);
-        // A definitive direct VULNERABLE verdict written on the parent row (e.g. by an assessment
-        // injector such as Nuclei) must survive the children rollup.
-        parent.setScore(reconcileWithDirectVulnerableVerdict(parent, score));
-        updated.add(parent);
-      }
+  private Optional<TechnicalInjectExpectation> recomputeParent(
+      TechnicalInjectExpectation parent, List<TechnicalInjectExpectation> children) {
+    if (children.isEmpty()) {
+      return Optional.empty();
     }
-    return updated;
+    Double score =
+        computeChildrenScore(parent.isExpectationGroup(), parent.getExpectedScore(), children);
+    // A definitive direct VULNERABLE verdict written on the parent row (e.g. by an assessment
+    // injector such as Nuclei) must survive the children rollup.
+    parent.setScore(reconcileWithDirectVulnerableVerdict(parent, score));
+    return Optional.of(parent);
   }
 
   // -- END RECOMPUTE PARENT SCORE
