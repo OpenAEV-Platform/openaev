@@ -6,6 +6,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.Auditable;
+import io.openaev.database.audit.AuditableListener;
 import io.openaev.database.audit.ModelBaseListener;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -22,17 +24,15 @@ import java.time.Instant;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "marking_definitions")
-@EntityListeners({ModelBaseListener.class})
+@EntityListeners({ModelBaseListener.class, AuditableListener.class})
 // marking_definitions is a tenant-v2 active table (inspector + can_access_tenant), so no v1
 // @Filter.
-public class MarkingDefinition implements TenantBase {
+public class MarkingDefinition implements TenantBase, Auditable {
 
   @Id
   @ControlledUuidGeneration
@@ -79,13 +79,11 @@ public class MarkingDefinition implements TenantBase {
   @Column(name = "marking_definition_created_at", nullable = false)
   @JsonProperty("marking_definition_created_at")
   @NotNull
-  @CreationTimestamp
   private Instant createdAt = now();
 
   @Column(name = "marking_definition_updated_at", nullable = false)
   @JsonProperty("marking_definition_updated_at")
   @NotNull
-  @UpdateTimestamp
   private Instant updatedAt = now();
 
   @Getter(onMethod_ = @JsonIgnore)
