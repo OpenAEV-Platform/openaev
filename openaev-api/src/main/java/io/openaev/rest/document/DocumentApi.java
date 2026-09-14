@@ -246,13 +246,16 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public Document documentTags(
       TxCtx ctx, @PathVariable String documentId, @RequestBody DocumentTagUpdateInput input) {
-    // Report generation outputs are read-only here (owned by the Reporting module).
-    documentService.assertNotReportingGenerationOutput(documentId);
     Document document =
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     assertDocumentInRequestScope(ctx, document);
+    // Report generation outputs are read-only here (owned by the Reporting module). Checked after
+    // the request-scope guard so a caller outside the document's tenant gets the same 404 as for
+    // an ordinary document, not a 400 that discloses the id is a report output. The check issues a
+    // query whose flush is safe here: no entity has been mutated at this point.
+    documentService.assertNotReportingGenerationOutput(documentId);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     return documentService.save(document);
   }
@@ -265,13 +268,16 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public Document updateDocumentInformation(
       TxCtx ctx, @PathVariable String documentId, @Valid @RequestBody DocumentUpdateInput input) {
-    // Report generation outputs are read-only here (owned by the Reporting module).
-    documentService.assertNotReportingGenerationOutput(documentId);
     Document document =
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
     assertDocumentInRequestScope(ctx, document);
+    // Report generation outputs are read-only here (owned by the Reporting module). Checked after
+    // the request-scope guard so a caller outside the document's tenant gets the same 404 as for
+    // an ordinary document, not a 400 that discloses the id is a report output. The check issues a
+    // query whose flush is safe here: no entity has been mutated at this point.
+    documentService.assertNotReportingGenerationOutput(documentId);
     document.setUpdateAttributes(input);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
 
