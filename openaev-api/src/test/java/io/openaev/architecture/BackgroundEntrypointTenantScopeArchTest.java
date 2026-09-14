@@ -33,6 +33,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -296,7 +297,7 @@ public class BackgroundEntrypointTenantScopeArchTest {
   @DisplayName("no waiver outlives the v1 table it was granted against (until-active:<table>)")
   void no_baseline_waiver_outlives_its_table() {
     List<String> expired =
-        expiredWaivers(loadBaseline(), productionActiveTables(), wildcardActivatedTables());
+        expiredWaivers(loadBaseline(), effectiveActiveTables(), wildcardActivatedTables());
     assertTrue(
         expired.isEmpty(),
         "an until-active waiver was granted only while its table stayed v1, and that table is now"
@@ -446,9 +447,10 @@ public class BackgroundEntrypointTenantScopeArchTest {
    * and is rejected upstream as an illegal until-active target by {@code
    * every_until_active_tag_names_a_real_tenant_table}.
    *
-   * <p>(This check reads the production {@code application.properties} file, so it sees {@code *}
-   * only once that file carries it; the nightly shadow run arms {@code *} through a JVM property
-   * that never reaches this file read.)
+   * <p>(The active-tables set is resolved by {@link #effectiveActiveTables()}: the nightly shadow
+   * run arms {@code *} through a {@code -Dopenaev.tenant.active-tables} JVM property, which wins
+   * over the production {@code application.properties} file, so the wildcard expiry this check
+   * promises actually fires in that run.)
    */
   static List<String> expiredWaivers(
       Map<String, String> baseline, Set<String> activeTables, Set<String> wildcardActivates) {
@@ -525,14 +527,47 @@ public class BackgroundEntrypointTenantScopeArchTest {
     return tables;
   }
 
-  private static Set<String> productionActiveTables() {
+  static final String ACTIVE_TABLES_PROPERTY = "openaev.tenant.active-tables";
+
+  /**
+   * The active-tables allowlist the JVM is actually running under. A shadow run arms the wildcard
+   * (or the production list) by passing {@code -Dopenaev.tenant.active-tables=...}, which Surefire
+   * forwards to the test fork as a system property; that is the effective allowlist and MUST win
+   * over the checked-in file, or the expiry check would run against an empty (or stale) list in the
+   * shadow run and an until-active waiver would never expire when the wildcard activates its table.
+   * With no such property (an ordinary build) the production {@code application.properties} is the
+   * source of truth.
+   */
+  static Set<String> effectiveActiveTables() {
+    return resolveActiveTables(
+        System.getProperty(ACTIVE_TABLES_PROPERTY),
+        BackgroundEntrypointTenantScopeArchTest::activeTablesFromFile);
+  }
+
+  /**
+   * Resolves the effective allowlist: the system-property value when the JVM carries one (a shadow
+   * run), otherwise the production file. Pulled out as a pure function so a test drives both arms
+   * without mutating global JVM state.
+   */
+  static Set<String> resolveActiveTables(String systemProperty, Supplier<Set<String>> fileTables) {
+    if (systemProperty != null) {
+      return parseActiveTables(systemProperty);
+    }
+    return fileTables.get();
+  }
+
+  private static Set<String> activeTablesFromFile() {
     Properties props = new Properties();
     try (InputStream in = new FileInputStream("src/main/resources/application.properties")) {
       props.load(in);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
-    return Arrays.stream(props.getProperty("openaev.tenant.active-tables", "").split(","))
+    return parseActiveTables(props.getProperty(ACTIVE_TABLES_PROPERTY, ""));
+  }
+
+  private static Set<String> parseActiveTables(String raw) {
+    return Arrays.stream(raw.split(","))
         .map(String::strip)
         .filter(s -> !s.isEmpty())
         .collect(Collectors.toSet());

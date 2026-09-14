@@ -1140,8 +1140,10 @@ the nested `EngineSyncExecutionJob.Job`, which implements `org.quartz.Job` and c
 Copy the idiom that matches the scope decision below, not a single blessed job.
 Every background family is now enumerated and classified by the background guard
 (`BackgroundEntrypointTenantScopeArchTest` + `background-guard-baseline.txt`): a
-new background entry point fails the build until it is on the primitive or
-classified there with a reason.
+new background entry point in one of the six recognised families fails the build
+until it is on the primitive or classified there with a reason. This is
+build-time enumeration, not a runtime scope check — see the "Known limits" note
+below for what it does not prove.
 
 **Enumerate every background path first.** Phase 1's greps are repository- and
 table-name-oriented and can miss a background surface. There is no single
@@ -1310,13 +1312,20 @@ over them:**
 
 - No runtime scope guarantee for background writers. The HTTP side is pinned by
   `TenantScopedEntrypointsTxCtxArchTest`, which fails the build if an active
-  table's handler loses its `TxCtx`. There is NO background analogue yet: a NEW
-  job that writes an already-active table without going through the primitive
-  would read and write zero rows with no failing test. The existing rules forbid
-  the wrong SHAPE (`@Transactional`, raw plumbing, raw JDBC) but do not assert
-  that every writer of an active table carries a real scope. Until that guard
-  exists, converting a table's writers is a point-in-time fact, not an invariant
-  — say so in the report.
+  table's handler loses its `TxCtx`. The background side now has a *build-time*
+  analogue: `BackgroundEntrypointTenantScopeArchTest` (+
+  `background-guard-baseline.txt`) enumerates the six background families and
+  fails the build until a new entry point is on the primitive or classified in
+  the baseline with a reason. That closes the "new job slips in unnoticed" gap,
+  but only structurally: the guard proves every entry point is enumerated and
+  reasoned, NOT that the SQL each one runs actually carries a scope. A path
+  waived `touches-no-tenant-table`, or one whose class-level waiver no longer
+  fits a method added later, can still read or write an already-active table
+  with the wrong tenant and no test fails. The existing rules forbid the wrong
+  SHAPE (`@Transactional`, raw plumbing, raw JDBC) but do not assert that every
+  writer of an active table carries a real scope. Until a *runtime* guard exists,
+  converting a table's writers is a point-in-time fact, not an invariant — say so
+  in the report.
 - The per-tenant loop is serial and single-threaded, one transaction per tenant.
   For a job over thousands of tenants, watch total runtime against the job's
   window (`@DisallowConcurrentExecution` means an overrun skips the next fire).

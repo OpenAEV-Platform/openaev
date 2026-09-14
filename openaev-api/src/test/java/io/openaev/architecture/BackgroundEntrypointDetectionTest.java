@@ -665,4 +665,83 @@ class BackgroundEntrypointDetectionTest {
         reason.startsWith(classification),
         fqcn + " must be classified '" + classification + "', got: " + reason);
   }
+
+  @Test
+  @DisplayName(
+      "the effective active-tables prefers the JVM system property over the production file")
+  void effectiveActiveTablesPrefersTheShadowSystemProperty() {
+    Set<String> file = Set.of("tags");
+    // A shadow run passes -Dopenaev.tenant.active-tables='*'; that must win over the file so the
+    // wildcard expiry the guard promises actually fires in that run.
+    assertEquals(
+        Set.of("*"),
+        BackgroundEntrypointTenantScopeArchTest.resolveActiveTables("*", () -> file),
+        "the system property the JVM carries is the effective allowlist and must win over the file");
+    // No property set: an ordinary build reads the production application.properties.
+    assertEquals(
+        file,
+        BackgroundEntrypointTenantScopeArchTest.resolveActiveTables(null, () -> file),
+        "with no system property the production file is the source of truth");
+  }
+
+  @Test
+  @DisplayName("effectiveActiveTables reads the -D the shadow run passes, not only the file")
+  void effectiveActiveTablesReadsTheShadowProperty() {
+    String key = BackgroundEntrypointTenantScopeArchTest.ACTIVE_TABLES_PROPERTY;
+    String previous = System.getProperty(key);
+    try {
+      System.setProperty(key, "*");
+      assertTrue(
+          BackgroundEntrypointTenantScopeArchTest.effectiveActiveTables().contains("*"),
+          "the shadow run's -Dopenaev.tenant.active-tables='*' must reach the expiry check");
+    } finally {
+      if (previous == null) {
+        System.clearProperty(key);
+      } else {
+        System.setProperty(key, previous);
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("a v1-scoped background path names every table it reaches outside the primitive")
+  void v1ScopedWaiversNameEveryTableTheyReach() {
+    // These paths run under the v1 TenantContext, not the v2 primitive, so activating any table
+    // they reach outside the primitive would turn their reads/writes into wrong-tenant accesses.
+    // Each must carry an until-active tag for every such table so the day it activates the guard
+    // fails and forces conversion. A revert to an incomplete reason fails here.
+    Map<String, String> baseline = BackgroundEntrypointTenantScopeArchTest.loadBaseline();
+    assertUntilActive(baseline, "io.openaev.service.EsAttackPathService", "attack_patterns");
+    assertUntilActive(baseline, "io.openaev.rest.stream.StreamApi", "injects");
+    assertUntilActive(
+        baseline,
+        "io.openaev.rest.reporting.service.PlaywrightReportingRenderer",
+        "reporting_generations",
+        "documents");
+    assertUntilActive(
+        baseline,
+        "io.openaev.scheduler.jobs.reporting.ReportingScheduleJob",
+        "reporting_schedules",
+        "reportings",
+        "reporting_generations",
+        "documents");
+  }
+
+  private static void assertUntilActive(
+      Map<String, String> baseline, String fqcn, String... tables) {
+    String reason = baseline.get(fqcn);
+    assertTrue(reason != null, fqcn + " must be listed in the baseline");
+    Set<String> tagged = BackgroundEntrypointTenantScopeArchTest.untilActiveTables(reason);
+    for (String table : tables) {
+      assertTrue(
+          tagged.contains(table),
+          fqcn
+              + " reaches '"
+              + table
+              + "' outside the primitive and must carry until-active:"
+              + table
+              + ", got: "
+              + reason);
+    }
+  }
 }
