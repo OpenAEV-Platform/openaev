@@ -13,5 +13,5 @@ runs:
     - name: Invoke the plugin
       id: invoke-openaev-plugin
       run: |
-        mvn openaev:ocsf -Dversion=${{ inputs.version }} && mvn spotless:apply
+        mvn openaev:generate-ocsf-parser -Dversion=${{ inputs.version }} && mvn spotless:apply
       shell: bash
