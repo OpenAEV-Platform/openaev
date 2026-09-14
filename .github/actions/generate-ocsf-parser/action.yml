@@ -6,17 +6,11 @@ inputs:
     description: Version of the OCSF specification for which to generate the parser
     required: true
 
-
 runs:
   using: composite
   steps:
-    - name: Install the plugin
-      id: install-openaev-plugin
-      run: |
-        mvn clean install -pl openaev-maven-plugin
-      shell: bash
     - name: Invoke the plugin
       id: invoke-openaev-plugin
       run: |
-        mvn openaev:generate-ocsf-parser -Dversion=${{ inputs.version }} && mvn spotless:apply
+        mvn io.openaev:openaev-maven-plugin:3.260904.0:generate-ocsf-parser -Dversion=${{ inputs.version }} && mvn spotless:apply
       shell: bash
