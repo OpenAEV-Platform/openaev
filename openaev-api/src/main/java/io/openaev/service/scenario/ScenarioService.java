@@ -1138,7 +1138,7 @@ public class ScenarioService {
    * @param scenarioId the source scenario
    * @return the persisted duplicate
    */
-  @Transactional
+  @Transactional(rollbackFor = Exception.class)
   public Scenario duplicateScenario(@NotBlank String scenarioId) throws ChainingException {
     Scenario duplicate = copyScenarioContent(scenarioId);
     duplicateChainingWorkflowIfAny(scenarioId, duplicate);
