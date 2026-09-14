@@ -14,6 +14,7 @@ import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.ratelimit.exception.RateLimitedException;
 import io.openaev.rest.exception.*;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.stix.parsing.ParsingException;
@@ -33,6 +34,7 @@ import org.springframework.context.MessageSourceResolvable;
 import org.springframework.core.MethodParameter;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -357,6 +359,16 @@ public class RestBehavior {
     // Index -1 is the method return value, which has no position to point at - the declared type
     // is the most useful label left.
     return index >= 0 ? "arg" + index : parameter.getParameterType().getSimpleName();
+  }
+
+  @ResponseStatus(code = HttpStatus.TOO_MANY_REQUESTS)
+  @ExceptionHandler(RateLimitedException.class)
+  public ResponseEntity<Object> handleRateLimitingException(RateLimitedException ex) {
+    return ResponseEntity.of(ProblemDetail.forStatus(HttpStatus.TOO_MANY_REQUESTS))
+        .header("RateLimit-Limit", String.valueOf(ex.getQuota()))
+        .header("RateLimit-Remaining", String.valueOf(ex.getRemaining()))
+        .header("RateLimit-Reset", String.valueOf(ex.getReset()))
+        .build();
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)

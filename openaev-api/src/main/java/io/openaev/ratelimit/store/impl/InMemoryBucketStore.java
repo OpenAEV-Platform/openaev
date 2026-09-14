@@ -1,6 +1,6 @@
 package io.openaev.ratelimit.store.impl;
 
-import static io.openaev.ratelimit.config.Limits.CONSUMPTION_RATE;
+import static io.openaev.ratelimit.config.Limits.TOKEN_PER_HIT;
 
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
@@ -24,9 +24,9 @@ public class InMemoryBucketStore implements Store {
       buckets.put(key, bucketFactory.createLimit(key));
     }
     Bucket bucket = buckets.get(key);
-    ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(CONSUMPTION_RATE);
+    ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(TOKEN_PER_HIT);
     return new Limit(
-        bucket.getAvailableTokens(),
+        key.getSpecification().rps(),
         probe.getRemainingTokens(),
         probe.getNanosToWaitForRefill(),
         !probe.isConsumed());

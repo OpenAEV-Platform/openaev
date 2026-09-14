@@ -1,7 +1,9 @@
 package io.openaev.ratelimit.aop;
 
+import io.openaev.ratelimit.exception.RateLimitedException;
 import io.openaev.ratelimit.model.RateLimitedPrincipal;
 import io.openaev.ratelimit.service.RateLimitService;
+import io.openaev.ratelimit.store.Limit;
 import io.openaev.ratelimit.store.request.LimitConsumptionRequest;
 import io.openaev.ratelimit.store.request.LimitSpecification;
 import io.openaev.service.UserService;
@@ -40,8 +42,9 @@ public class RateLimitAspect {
                     Arrays.hashCode(signature.getParameterNames()))),
             spec);
 
-    if (rateLimitService.consume(lcr).getIsRateLimited()) {
-      throw new RuntimeException("RATE LIMIT");
+    Limit l = rateLimitService.consume(lcr);
+    if (l.getIsRateLimited()) {
+      throw new RateLimitedException("Rate limited.", l.getLimit(), l.getRemaining(), l.getReset());
     }
   }
 }
