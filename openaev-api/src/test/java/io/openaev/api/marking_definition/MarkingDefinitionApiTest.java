@@ -109,6 +109,29 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_malformedColor_should_rejectCreation")
+    void given_malformedColor_should_rejectCreation() throws Exception {
+      // Arrange
+      String body =
+          """
+          {
+            "marking_definition_type": "TLP",
+            "marking_definition_definition": "TLP:MALFORMED-COLOR",
+            "marking_definition_color": "not-a-hex-color",
+            "marking_definition_order": 7
+          }
+          """;
+
+      // Act & Assert
+      mvc.perform(
+              post(URI, Tenant.DEFAULT_TENANT_UUID)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body)
+                  .with(csrf()))
+          .andExpect(status().is4xxClientError());
+    }
+
+    @Test
     @DisplayName("given_protectedDefinition_should_notDelete")
     void given_protectedDefinition_should_notDelete() throws Exception {
       // Arrange
