@@ -8,7 +8,6 @@ import {
   ListItemIcon,
   ListItemText,
   Skeleton,
-  ToggleButtonGroup,
   Tooltip,
 } from '@mui/material';
 import { type CSSProperties, useCallback, useMemo, useState } from 'react';
@@ -179,14 +178,20 @@ const CustomDashboards = () => {
         topBarButtons={(
           <Box display="flex" gap={1} alignItems="center">
             {viewSwitcher}
-            <ToggleButtonGroup value="fake" exclusive>
+            {/* A plain row of actions: this was a ToggleButtonGroup used as a frame,
+                which announced a group of choices that never existed. */}
+            <Box sx={{
+              display: 'flex',
+              gap: 1,
+            }}
+            >
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
                 <ImportUploaderJsonApiComponent
                   title={t('Import a custom dashboard')}
                   uploadFn={importCustomDashboard}
                 />
               </Can>
-            </ToggleButtonGroup>
+            </Box>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
               <CustomDashboardCreation />
             </Can>

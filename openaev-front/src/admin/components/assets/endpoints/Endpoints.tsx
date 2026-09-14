@@ -7,7 +7,6 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  ToggleButtonGroup,
 } from '@mui/material';
 import { type CSSProperties, useContext, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -234,12 +233,18 @@ const Endpoints = () => {
         queryableHelpers={queryableHelpers}
         topBarButtons={(
           <Box display="flex" gap={1} alignItems="center">
-            <ToggleButtonGroup value="fake" exclusive>
+            {/* A plain row of actions: this was a ToggleButtonGroup used as a frame,
+                which announced a group of choices that never existed. */}
+            <Box sx={{
+              display: 'flex',
+              gap: 1,
+            }}
+            >
               <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
                 <ImportUploaderEndpoints />
               </Can>
-            </ToggleButtonGroup>
+            </Box>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
               <EndpointCreation onCreate={result => setEndpoints([result as EndpointOutput, ...endpoints])} agentless={true} />
             </Can>

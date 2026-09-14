@@ -269,8 +269,11 @@ const SelectListPicker = <T extends object>({
                     )}
                   />
                   {/* The row (a ListItemButton) owns the selection, so the box
-                      is presentational and must not announce a second state. */}
-                  <Checkbox presentational checked={checked} disabled={disabled} />
+                      is presentational and must not announce a second state. No
+                      `disabled` passed: the presentational branch has no disabled
+                      tone, so the prop would be inert — the row carries the
+                      disabled treatment, as it did before. */}
+                  <Checkbox presentational checked={checked} />
                 </ListItemButton>
               );
             })}
