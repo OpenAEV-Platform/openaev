@@ -77,8 +77,11 @@ public class DocumentService {
     byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
     String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
+    // Scope both duplicate lookups to the resolved write tenant: an unscoped lookup runs under the
+    // ambient tenant filter, so on the header route an upsert scoped to B would find and mutate the
+    // default tenant's document with the same bytes or name.
     Optional<Document> targetDocument =
-        documentRepository.findFirstByTargetOrderByIdAsc(fileTarget);
+        documentRepository.findFirstByTargetAndTenantIdOrderByIdAsc(fileTarget, tenantId);
     // Document already exists by hash
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
@@ -106,7 +109,7 @@ public class DocumentService {
       return save(document);
     } else {
       Optional<Document> existingDocument =
-          documentRepository.findFirstByNameOrderByIdAsc(fileName);
+          documentRepository.findFirstByNameAndTenantIdOrderByIdAsc(fileName, tenantId);
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
         // Update doc: store the new bytes under the existing row's tenant so the object stays

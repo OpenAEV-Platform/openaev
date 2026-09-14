@@ -97,10 +97,17 @@ public class DocumentApi extends RestBehavior {
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
+    // Resolve the write tenant before the duplicate lookup: an ambiguous or missing write scope
+    // must be refused with 400 whether the uploaded bytes match an existing document or not, not
+    // only on the new-document branch. The new document below is attributed to this tenant.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
     String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
+    // Scope the duplicate lookup to the resolved write tenant: an unscoped lookup runs under the
+    // ambient tenant filter, so on the header route a request scoped to B would find and mutate the
+    // default tenant's document with the same bytes.
     Optional<Document> targetDocument =
-        documentRepository.findFirstByTargetOrderByIdAsc(fileTarget);
+        documentRepository.findFirstByTargetAndTenantIdOrderByIdAsc(fileTarget, tenantId);
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
       // Compute exercises
@@ -126,9 +133,9 @@ public class DocumentApi extends RestBehavior {
       document.setTags(tags);
       return documentService.save(document);
     } else {
-      // Resolve the write tenant before any object-storage I/O: a refused scope must return 400
-      // without the upload having persisted an object the rolled-back transaction cannot remove.
-      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+      // The write tenant was resolved above, before any object-storage I/O, so a refused scope
+      // returns 400 without the upload having persisted an object the rolled-back transaction
+      // cannot remove.
       fileService.uploadFile(tenantId, fileTarget, file);
       Document document = new Document();
       document.setTenant(new Tenant(tenantId));
@@ -208,9 +215,12 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
   public Document document(TxCtx ctx, @PathVariable String documentId) {
-    return documentRepository
-        .findById(documentId)
-        .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    Document document =
+        documentRepository
+            .findById(documentId)
+            .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    assertDocumentInRequestScope(ctx, document);
+    return document;
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
@@ -224,6 +234,7 @@ public class DocumentApi extends RestBehavior {
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    assertDocumentInRequestScope(ctx, document);
     return document.getTags();
   }
 
@@ -241,6 +252,7 @@ public class DocumentApi extends RestBehavior {
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    assertDocumentInRequestScope(ctx, document);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     return documentService.save(document);
   }
@@ -259,6 +271,7 @@ public class DocumentApi extends RestBehavior {
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    assertDocumentInRequestScope(ctx, document);
     document.setUpdateAttributes(input);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
 
@@ -490,7 +503,9 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
   public DocumentRelationsOutput getDocumentRelations(TxCtx ctx, @PathVariable String documentId) {
-    return toDocumentRelationsOutput(documentService.document(documentId));
+    Document document = documentService.document(documentId);
+    assertDocumentInRequestScope(ctx, document);
+    return toDocumentRelationsOutput(document);
   }
 
   @Transactional(rollbackFor = Exception.class)
