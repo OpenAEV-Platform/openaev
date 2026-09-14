@@ -405,13 +405,13 @@ const CredentialForm: FunctionComponent<Props> = ({
                   label={field.field_name}
                   acceptMimeTypes="application/json"
                   required={!!field.required}
+                  disabled={isSubmitting}
                 />
               )
             : (
                 <InjectContentFieldComponent
                   key={field.field_name}
                   field={formatField(field)}
-                  readOnly={isSubmitting}
                 />
               )))}
 
