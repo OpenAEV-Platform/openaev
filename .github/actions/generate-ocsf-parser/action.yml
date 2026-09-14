@@ -10,6 +10,11 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Install the plugin
+      id: install-openaev-plugin
+      run: |
+        mvn clean install -pl openaev-maven-plugin
+      shell: bash
     - name: Invoke the plugin
       id: invoke-openaev-plugin
       run: |
