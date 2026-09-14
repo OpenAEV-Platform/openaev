@@ -1,11 +1,13 @@
 # Background-guard baseline (#6398).
 #
 # The six background entry-point families (Quartz jobs, @Async methods, @Scheduled methods, event
-# listeners, seeding/startup, detached thread hand-offs including inline
-# CompletableFuture.supplyAsync/runAsync, new Thread, and an executor obtained and used inline such
-# as Executors.new*().execute(...) or ForkJoinPool.commonPool().submit(...)) are enumerated by
-# BackgroundEntrypointTenantScopeArchTest. Every entry point must either reference
-# TenantScopedTransaction (the primitive carries the scope) or be listed here with a reason.
+# listeners, seeding/startup, detached thread hand-offs including inline CompletableFuture *Async
+# methods, new Thread, and an executor obtained and used inline such as Executors.new*().execute(...)
+# or ForkJoinPool.commonPool().submit(...)) are enumerated by BackgroundEntrypointTenantScopeArchTest.
+# The Quartz, listener and seeding/startup families are also recognised on a @Bean factory whose
+# return type is that family's type (a @Bean CommandLineRunner/ApplicationListener/Job). Every entry
+# point must either reference TenantScopedTransaction (the primitive carries the scope) or be listed
+# here with a reason.
 #
 # Format, one class per line: <fully.qualified.ClassName>  # <reason>
 # The reason must BEGIN with one of these four classifications, spelled out, never assumed. Any other
@@ -88,7 +90,7 @@ io.openaev.executors.tanium.service.TaniumExecutorContextService  # touches-no-t
 
 # --- Event listeners: operate on already-loaded events, resolve the tenant per item ---------------
 io.openaev.engine.EngineListener  # platform-global: journals deleted ids into engine_deletions (no tenant column, @AllowRawJdbc) and bulk-deletes globally-unique UUIDs from the search engine; deletions are deliberately not tenant-filtered
-io.openaev.notification.engine.NotificationEngineListener  # delegates-to-NotificationEngineService#handleEvent: forwards commit events with the tenant id resolved from each entity/user, no unscoped TenantBase access
+io.openaev.notification.engine.NotificationEngineListener  # delegates-to-NotificationEngineService#handleEvent until-active:users_tenants: each catalog event is handled per-tenant by handleEvent under an explicit tenantId; the only unscoped access is resolveUserTenantIds resolving a user's tenants by global user id from the strict users_tenants join (UserRepository.findTenantIdsByUserId, native query, NotificationEngineListener.java:87) on the async thread with no TxCtx, correct only while users_tenants stays v1 (once active that read falls back to the default tenant and drops the user's other memberships)
 io.openaev.rest.stream.StreamApi  # delegates-to-StreamApi#isVisibleForTenant: SSE listeners filter pre-loaded events by strict tenant equality and set TenantContext per consumer before permission checks; no unscoped TenantBase read/write
 io.openaev.service.LogService  # delegates-to-PlatformSettingsService#cleanMessage: the listeners only refresh the platform audit banner; LogEvent goes to the search-engine transport, not a TenantBase row
 io.openaev.service.NotificationEventService  # delegates-to-ScenarioNotificationEventHandler#handle: the listener dispatches to the handler, which sets the scope itself through the primitive
@@ -136,5 +138,6 @@ io.openaev.xtmone.XtmOneConnectivityService  # delegates-to-XtmOneService#autoRe
 
 # --- Inline executor hand-offs (no executor field): filesystem or transport plumbing, no entity ----
 io.openaev.config.MvcConfig  # touches-no-tenant-table: @Bean factory building the Spring MVC async-request executor (Executors.newFixedThreadPool(20)); the config bean itself does no DB access, and the async controller work that runs on the pool carries its own request-thread scope
+io.openaev.config.ThreadPoolTaskSchedulerConfig  # touches-no-tenant-table: @Bean factory for the shared thread pools (task scheduler and the stream / notification-engine / manager-integrations executors); the config does no DB access, and the ThreadPoolTaskScheduler/ThreadPoolTaskExecutor beans it returns are ApplicationListeners only through Spring's ExecutorConfigurationSupport context-close shutdown hook, not a business event listener. Beans that submit work to these pools carry their own scope and are enumerated separately
 io.openaev.driver.RabbitmqDriver  # touches-no-tenant-table: createBatchConnectionFactory sizes the RabbitMQ connection's shared I/O thread pool (Executors.newFixedThreadPool); AMQP transport plumbing, no DB access
 io.openaev.service.InjectImportService  # touches-no-tenant-table: the only inline hand-off is a CompletableFuture.delayedExecutor(...).execute(...) that deletes the uploaded xls temp dir after FILE_STORAGE_DURATION minutes (filesystem only); the inject-import DB work runs synchronously on the request thread, not in the detached task

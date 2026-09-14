@@ -76,12 +76,21 @@ import org.junit.jupiter.api.Test;
  *   <li>seeding and startup, {@code CommandLineRunner} / {@code ApplicationRunner} or a method
  *       annotated {@code @PostConstruct};
  *   <li>detached thread hand-offs: a field of an executor type ({@code Executor} family or {@code
- *       TaskScheduler}), or inline detachment with no such field, i.e. {@code
- *       CompletableFuture.supplyAsync/runAsync}, a {@code new Thread(...)} or a subclass of it, a
+ *       TaskScheduler}), or inline detachment with no such field, i.e. any {@code
+ *       CompletableFuture} method whose name ends in {@code Async} ({@code supplyAsync}, {@code
+ *       runAsync}, {@code thenApplyAsync}, ...), a {@code new Thread(...)} or a subclass of it, a
  *       {@code schedule*} call on a {@code TaskScheduler}, or an executor obtained and used inline
  *       ({@code Executors.newSingleThreadExecutor().execute(...)}, {@code
  *       ForkJoinPool.commonPool().submit(...)}).
  * </ol>
+ *
+ * <p>The three type-recognised families (Quartz, listener, seeding/startup) are also recognised on
+ * the class that only <em>produces</em> the bean: a {@code @Bean} factory method whose return type
+ * is {@code org.quartz.Job}, {@code ApplicationListener} or {@code CommandLineRunner}/{@code
+ * ApplicationRunner} makes its declaring configuration class an entry point of that family. The
+ * lambda or anonymous instance the factory returns is excluded from the scan and the configuration
+ * class carries no marker of its own, so without this a {@code @Bean CommandLineRunner seed() {
+ * return args -> ...; }} would slip both the family scan and the baseline.
  *
  * <p>Method-level markers are read with {@code getAllMethods()}, not {@code getMethods()}, so a
  * concrete bean that inherits its only background method from an abstract parent is not missed (the
@@ -200,16 +209,28 @@ public class BackgroundEntrypointTenantScopeArchTest {
   @Test
   @DisplayName("every baseline entry carries a one-line reason")
   void every_baseline_entry_carries_a_reason() {
-    List<String> malformed = new ArrayList<>();
-    for (RawLine line : rawBaselineEntries()) {
-      if (line.reason.isBlank()) {
-        malformed.add("line " + line.number + ": '" + line.fqcn + "' has no reason after '#'");
-      }
-    }
+    List<String> malformed = entriesWithoutReason(rawBaselineEntries());
     assertTrue(
         malformed.isEmpty(),
         "Every background-guard-baseline.txt entry must carry a reason (\"<fqcn>  # <reason>\"):\n  "
             + String.join("\n  ", malformed));
+  }
+
+  /**
+   * The entries carrying no reason after the {@code #}. Pulled out of the test so the rule can be
+   * driven by an injected list: {@code every_baseline_entry_carries_a_reason} only ever runs it
+   * over the checked-in file, whose entries all currently have reasons, so a regression that
+   * deleted the blank check would leave the suite green while the contract was violated. {@code
+   * BackgroundEntrypointDetectionTest} feeds a blank-reason fixture through this seam.
+   */
+  static List<String> entriesWithoutReason(List<RawLine> entries) {
+    List<String> malformed = new ArrayList<>();
+    for (RawLine line : entries) {
+      if (line.reason().isBlank()) {
+        malformed.add("line " + line.number() + ": '" + line.fqcn() + "' has no reason after '#'");
+      }
+    }
+    return malformed;
   }
 
   @Test
@@ -415,13 +436,15 @@ public class BackgroundEntrypointTenantScopeArchTest {
 
   /**
    * The waivers whose table is no longer v1. Under an explicit allowlist a table counts as active
-   * when it is named. Under the wildcard {@link TenantTables#ALL_STRICT} the terminal state does
-   * not activate <em>every</em> table: {@code *} activates strict tables only, minus those
-   * permanently outside v2 ({@link TenantTables#restrictTo}). So a tag expires under {@code *} only
-   * when its table is in {@code wildcardActivates} (the {@code *}-expansion). A dual-scope or
-   * outside-v2 table is never in that set, so a mis-tagged waiver on one does not spuriously expire
-   * here; it is rejected upstream by {@code every_until_active_tag_names_a_real_tenant_table},
-   * which restricts legal until-active tables to the same {@code *}-activated set.
+   * when it is named, so a waiver on a dual-scope table (which {@link TenantTables#restrictTo}
+   * accepts in an explicit list) expires the day that table is listed. Under the wildcard {@link
+   * TenantTables#ALL_STRICT} the terminal state does not activate <em>every</em> table: {@code *}
+   * activates strict tables only, minus those permanently outside v2 ({@link
+   * TenantTables#restrictTo}). So a tag expires under {@code *} only when its table is in {@code
+   * wildcardActivates} (the {@code *}-expansion); a dual-scope waiver does not expire under {@code
+   * *} (it is not in that set) but does under an explicit list. An outside-v2 table is in neither,
+   * and is rejected upstream as an illegal until-active target by {@code
+   * every_until_active_tag_names_a_real_tenant_table}.
    *
    * <p>(This check reads the production {@code application.properties} file, so it sees {@code *}
    * only once that file carries it; the nightly shadow run arms {@code *} through a JVM property
@@ -563,14 +586,33 @@ public class BackgroundEntrypointTenantScopeArchTest {
   }
 
   /**
-   * The tables an until-active tag may legally name: exactly those the terminal {@code *}
-   * activation turns v2 (strict, minus those permanently outside v2), computed through {@link
-   * TenantTables#restrictTo}. A dual-scope table ({@code *} never activates one) or an outside-v2
-   * strict table would give a waiver whose expiry the terminal state never enforces, so it is
-   * permanent by accident and rejected here, together with a typo that names no table at all.
+   * The tables an until-active tag may legally name: every table {@code
+   * openaev.tenant.active-tables} can activate, so that a waiver always has an activation to expire
+   * it. That is the union of
+   *
+   * <ul>
+   *   <li>the strict tables the terminal {@code *} turns v2 ({@link #wildcardActivatedTables()},
+   *       minus those permanently outside v2), which expire under {@code *} or when named
+   *       explicitly; and
+   *   <li>the dual-scope tables: {@code *} never activates one, but {@link TenantTables#restrictTo}
+   *       accepts a dual table in an explicit allowlist (e.g. {@code groups}), so an {@code
+   *       until-active:<dual>} waiver expires the day that table is listed explicitly. Barring it
+   *       here would reject a legal waiver as unknown and leave the path permanently un-expiring.
+   * </ul>
+   *
+   * An outside-v2 strict table ({@code attackpath_graph_version}, {@code tenants}) and a typo are
+   * still rejected: {@code *} never activates them and they must never be activated, so a waiver on
+   * one could not honestly expire.
+   *
+   * <p>The dual set is derived from the entity model ({@link #productionTenantTables()}); a dual
+   * link table with no entity would be missed and its waiver rejected as unknown. That is
+   * fail-closed (it demands attention, never hides a path) and none exists today (the missed-table
+   * inventory lists only strict tables); the day one appears, add it there or an entity marker.
    */
   static Set<String> knownTenantTables() {
-    return wildcardActivatedTables();
+    Set<String> known = new TreeSet<>(wildcardActivatedTables());
+    known.addAll(productionTenantTables().dualScope());
+    return known;
   }
 
   // --- family recognition ------------------------------------------------------------------------
@@ -599,7 +641,27 @@ public class BackgroundEntrypointTenantScopeArchTest {
   }
 
   private static boolean isQuartzJob(JavaClass clazz) {
-    return clazz.isAssignableTo("org.quartz.Job");
+    return clazz.isAssignableTo("org.quartz.Job") || declaresBeanReturning(clazz, "org.quartz.Job");
+  }
+
+  /**
+   * A {@code @Bean} factory whose return type is one of the type-recognised background families is
+   * itself a background entry point: the lambda or anonymous instance it returns is excluded from
+   * the scan ({@link #isConcreteBean} drops anonymous classes) and the declaring configuration
+   * class carries no marker of its own, so {@code @Bean CommandLineRunner seed() { return args ->
+   * ...; }} would slip both the family scan and the baseline. The declaring class is attributed the
+   * family of the type it produces: {@code org.quartz.Job} -> quartz, {@code ApplicationListener}
+   * -> listener, {@code CommandLineRunner}/{@code ApplicationRunner} -> seeding. The three
+   * annotation-driven families (@Async, @Scheduled, @EventListener) have no factory return type to
+   * read, so they are not covered here; a bean produced by a factory still carries its own method
+   * annotations, which the annotation detectors already read.
+   */
+  private static boolean declaresBeanReturning(JavaClass clazz, String type) {
+    return clazz.getAllMethods().stream()
+        .anyMatch(
+            m ->
+                m.isAnnotatedWith("org.springframework.context.annotation.Bean")
+                    && m.getRawReturnType().isAssignableTo(type));
   }
 
   private static boolean isAsync(JavaClass clazz) {
@@ -621,7 +683,8 @@ public class BackgroundEntrypointTenantScopeArchTest {
   }
 
   private static boolean isEventListener(JavaClass clazz) {
-    if (clazz.isAssignableTo("org.springframework.context.ApplicationListener")) {
+    if (clazz.isAssignableTo("org.springframework.context.ApplicationListener")
+        || declaresBeanReturning(clazz, "org.springframework.context.ApplicationListener")) {
       return true;
     }
     return clazz.getAllMethods().stream()
@@ -634,7 +697,9 @@ public class BackgroundEntrypointTenantScopeArchTest {
 
   private static boolean isSeedingOrStartup(JavaClass clazz) {
     if (clazz.isAssignableTo("org.springframework.boot.CommandLineRunner")
-        || clazz.isAssignableTo("org.springframework.boot.ApplicationRunner")) {
+        || clazz.isAssignableTo("org.springframework.boot.ApplicationRunner")
+        || declaresBeanReturning(clazz, "org.springframework.boot.CommandLineRunner")
+        || declaresBeanReturning(clazz, "org.springframework.boot.ApplicationRunner")) {
       return true;
     }
     return clazz.getAllMethods().stream()
@@ -662,7 +727,12 @@ public class BackgroundEntrypointTenantScopeArchTest {
    * field-typed executor detector would not see it:
    *
    * <ul>
-   *   <li>{@code CompletableFuture.supplyAsync/runAsync} (default {@code ForkJoinPool});
+   *   <li>any {@code CompletableFuture} method whose name ends in {@code Async}: the static {@code
+   *       supplyAsync}/{@code runAsync} and every instance continuation ({@code thenApplyAsync},
+   *       {@code thenComposeAsync}, {@code thenAcceptAsync}, {@code whenCompleteAsync}, ...). With
+   *       no {@code Executor} argument each runs on the default {@code ForkJoinPool}, off the
+   *       caller's thread and so off its transaction and tenant scope; matching only {@code
+   *       supplyAsync}/ {@code runAsync} would let a {@code thenApplyAsync} hand-off escape;
    *   <li>a raw {@code new Thread(...)};
    *   <li>an executor obtained and used inline: a submission call ({@code execute}, {@code submit},
    *       {@code invokeAll}, {@code invokeAny} or a {@code schedule*}) on any {@code Executor}
@@ -688,8 +758,7 @@ public class BackgroundEntrypointTenantScopeArchTest {
                 call ->
                     "java.util.concurrent.CompletableFuture"
                             .equals(call.getTargetOwner().getFullName())
-                        && ("supplyAsync".equals(call.getName())
-                            || "runAsync".equals(call.getName())));
+                        && call.getName().endsWith("Async"));
     boolean newThread =
         constructorCalls.stream()
             .anyMatch(call -> call.getTargetOwner().isAssignableTo("java.lang.Thread"));

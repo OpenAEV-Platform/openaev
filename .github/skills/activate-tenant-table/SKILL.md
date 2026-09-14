@@ -1123,9 +1123,10 @@ converted to `tenantTx.execute(TxCtx.allTenants(), …)` in PR #6398. Injected
 dependency: `TenantScopedTransaction tenantTx`.
 
 Maturity note (refreshed for #6398): the background path is now well
-proven. Eight Quartz jobs sit directly on the primitive, and several more reach it
-through `TenantScopedJobRunner`. Working model implementations exist for all three
-idioms:
+proven. Nine Quartz jobs sit directly on the primitive (eight top-level jobs plus
+the nested `EngineSyncExecutionJob.Job`, which implements `org.quartz.Job` and calls
+`TenantScopedTransaction` itself), and several more reach it through
+`TenantScopedJobRunner`. Working model implementations exist for all three idioms:
 
 - `allTenants()` (bulk read or predicate delete across tenants):
   `UrlAccessTokenPurgeJob` and `NotificationEventRetentionService.deleteOldEvents`.

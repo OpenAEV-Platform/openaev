@@ -9,6 +9,8 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import io.openaev.architecture.background_fixtures.AbstractExecutorFieldParentFixture;
 import io.openaev.architecture.background_fixtures.AbstractInlineHandoffParentFixture;
 import io.openaev.architecture.background_fixtures.AsyncMethodFixture;
+import io.openaev.architecture.background_fixtures.BeanFactoryBackgroundFixture;
+import io.openaev.architecture.background_fixtures.ChainedCompletableFutureFixture;
 import io.openaev.architecture.background_fixtures.CommandLineRunnerFixture;
 import io.openaev.architecture.background_fixtures.EventListenerFixture;
 import io.openaev.architecture.background_fixtures.InheritedExecutorFieldFixture;
@@ -80,6 +82,45 @@ class BackgroundEntrypointDetectionTest {
         families.contains("handoff"),
         "an inline CompletableFuture.runAsync with no executor field must be a hand-off. Got: "
             + families);
+  }
+
+  @Test
+  @DisplayName("a CompletableFuture *Async continuation (thenApplyAsync) is caught as a hand-off")
+  void chainedCompletableFutureAsyncIsAHandoff() {
+    // thenApplyAsync is neither supplyAsync nor runAsync; matching only those two names would let a
+    // continuation hand-off to the default ForkJoinPool escape. The detector matches any
+    // CompletableFuture method whose name ends in Async.
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(
+            imported(ChainedCompletableFutureFixture.class));
+    assertTrue(
+        families.contains("handoff"),
+        "an inline CompletableFuture.thenApplyAsync with no executor field must be a hand-off. Got: "
+            + families);
+  }
+
+  @Test
+  @DisplayName("a @Bean factory returning a background type is classified on its declaring class")
+  void beanFactoryReturningBackgroundTypeIsClassifiedByDeclaringClass() {
+    // The configuration class carries no marker of its own; the lambda instances its @Bean methods
+    // return are anonymous and excluded from the scan, so the declaring class is recognised only by
+    // reading the factory return types. Each type maps to its family: CommandLineRunner /
+    // ApplicationRunner -> seeding, ApplicationListener -> listener, org.quartz.Job -> quartz.
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(
+            imported(BeanFactoryBackgroundFixture.class));
+    assertTrue(
+        families.contains("seeding"),
+        "a @Bean CommandLineRunner/ApplicationRunner factory must make its class the seeding family."
+            + " Got: "
+            + families);
+    assertTrue(
+        families.contains("listener"),
+        "a @Bean ApplicationListener factory must make its class the listener family. Got: "
+            + families);
+    assertTrue(
+        families.contains("quartz"),
+        "a @Bean org.quartz.Job factory must make its class the quartz family. Got: " + families);
   }
 
   @Test
@@ -309,6 +350,26 @@ class BackgroundEntrypointDetectionTest {
   }
 
   @Test
+  @DisplayName("a dual-scope until-active waiver expires when its table is listed explicitly")
+  void dualScopeWaiverExpiresWhenListedExplicitly() {
+    // '*' never activates 'groups' (a dual table), but an explicit allowlist can, so a
+    // cross-tenant-resolve until-active:groups waiver must expire the day 'groups' is listed.
+    Map<String, String> baseline =
+        Map.of("io.openaev.Fixture", "cross-tenant-resolve until-active:groups");
+    assertTrue(
+        BackgroundEntrypointTenantScopeArchTest.expiredWaivers(
+                baseline, Set.of("groups"), Set.of("reporting_schedules"))
+            .stream()
+            .anyMatch(s -> s.contains("io.openaev.Fixture")),
+        "an explicit allowlist naming 'groups' must expire the dual-scope waiver");
+    assertTrue(
+        BackgroundEntrypointTenantScopeArchTest.expiredWaivers(
+                baseline, Set.of("tags"), Set.of("reporting_schedules"))
+            .isEmpty(),
+        "while 'groups' is still v1 the waiver must not expire (red for the right reason)");
+  }
+
+  @Test
   @DisplayName(
       "an until-active tag naming an unknown table is rejected through the validation seam")
   void unknownUntilActiveTableIsRejected() {
@@ -330,26 +391,30 @@ class BackgroundEntrypointDetectionTest {
   }
 
   @Test
-  @DisplayName("a dual-scope or outside-v2 table cannot be named by an until-active tag")
-  void untilActiveMustNameAWildcardActivatedTable() {
+  @DisplayName("a dual-scope table is a legal until-active target; outside-v2 and typos are not")
+  void untilActiveTargetsAreEveryActivatableTable() {
     Set<String> known = BackgroundEntrypointTenantScopeArchTest.knownTenantTables();
     assertTrue(known.contains("injects"), "a strict table '*' activates must be known");
     assertTrue(known.contains("reporting_schedules"), "a strict table '*' activates must be known");
+    // A dual-scope table is never activated by '*', but TenantTables.restrictTo accepts it in an
+    // explicit allowlist, so an until-active:<dual> waiver has an activation to expire it and must
+    // be a legal target (otherwise it is rejected as unknown and never expires).
     assertTrue(
-        !known.contains("groups"),
-        "a dual-scope table is not activated by '*', so it must not be a legal until-active target");
+        known.contains("groups"),
+        "a dual-scope table an explicit allowlist can activate must be a legal until-active target");
     assertTrue(
         !known.contains("attackpath_graph_version"),
-        "a strict table permanently outside v2 is not activated by '*', so it must not be a legal"
+        "a strict table permanently outside v2 is never activated, so it must not be a legal"
             + " until-active target");
     assertTrue(
         !known.contains("injcts_typo"),
         "a typo'd table name must not be a legal until-active" + " target");
 
-    // Not just absent from the known set: drive the tags through the actual validation seam, so a
-    // regression that stopped rejecting dual-scope or outside-v2 targets fails here. 'groups' is
-    // dual-scope; 'attackpath_graph_version' is strict but permanently outside v2 (never activated
-    // by '*'); 'injects' is a real strict target and must survive.
+    // Not just membership of the known set: drive the tags through the actual validation seam. A
+    // regression that dropped dual tables from the legal set (rejecting a legal waiver) or that
+    // stopped rejecting outside-v2 targets fails here. 'groups' is dual-scope and now legal;
+    // 'attackpath_graph_version' is strict but permanently outside v2 (never activated); 'injects'
+    // is a real strict target.
     Map<String, String> baseline =
         Map.of(
             "io.openaev.Dual", "cross-tenant-resolve until-active:groups",
@@ -358,8 +423,8 @@ class BackgroundEntrypointDetectionTest {
     List<String> unknown =
         BackgroundEntrypointTenantScopeArchTest.unknownUntilActiveTables(baseline, known);
     assertTrue(
-        unknown.stream().anyMatch(s -> s.contains("io.openaev.Dual") && s.contains("groups")),
-        "a dual-scope table tag must be rejected by the validation, not merely absent. Got: "
+        unknown.stream().noneMatch(s -> s.contains("io.openaev.Dual")),
+        "a dual-scope table tag must be accepted (an explicit allowlist can activate it). Got: "
             + unknown);
     assertTrue(
         unknown.stream()
@@ -401,6 +466,30 @@ class BackgroundEntrypointDetectionTest {
         2,
         BackgroundEntrypointTenantScopeArchTest.baselineFrom(distinct).size(),
         "distinct FQCNs must load without error");
+  }
+
+  @Test
+  @DisplayName("an entry with a blank reason is rejected through the injected seam")
+  void blankReasonEntryIsRejectedThroughTheSeam() {
+    // every_baseline_entry_carries_a_reason only ever runs over the checked-in file, whose entries
+    // all currently have reasons, so a regression that deleted the blank check would stay green.
+    // Drive a blank-reason line through the extracted seam, like the duplicate and waiver checks.
+    List<BackgroundEntrypointTenantScopeArchTest.RawLine> entries =
+        List.of(
+            new BackgroundEntrypointTenantScopeArchTest.RawLine(4, "io.openaev.NoReason", ""),
+            new BackgroundEntrypointTenantScopeArchTest.RawLine(9, "io.openaev.Blank", "   "),
+            new BackgroundEntrypointTenantScopeArchTest.RawLine(
+                12, "io.openaev.Ok", "platform-global: fine"));
+    List<String> malformed = BackgroundEntrypointTenantScopeArchTest.entriesWithoutReason(entries);
+    assertTrue(
+        malformed.stream().anyMatch(s -> s.contains("io.openaev.NoReason") && s.contains("4")),
+        "an empty reason must be flagged, naming its line number. Got: " + malformed);
+    assertTrue(
+        malformed.stream().anyMatch(s -> s.contains("io.openaev.Blank") && s.contains("9")),
+        "a whitespace-only reason must be flagged, naming its line number. Got: " + malformed);
+    assertTrue(
+        malformed.stream().noneMatch(s -> s.contains("io.openaev.Ok")),
+        "an entry that carries a reason must not be flagged. Got: " + malformed);
   }
 
   @Test
