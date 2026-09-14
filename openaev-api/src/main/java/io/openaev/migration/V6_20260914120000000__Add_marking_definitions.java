@@ -51,7 +51,7 @@ public class V6_20260914120000000__Add_marking_definitions extends BaseJavaMigra
             )
           """);
 
-      // Manager gets full marking definition and assignment capabilities.
+      // Manager gets full marking definition capabilities.
       statement.execute(
           """
           INSERT INTO roles_capabilities (role_id, capability)
@@ -61,10 +61,7 @@ public class V6_20260914120000000__Add_marking_definitions extends BaseJavaMigra
             VALUES
               ('ACCESS_MARKING_DEFINITION'),
               ('MANAGE_MARKING_DEFINITION'),
-              ('DELETE_MARKING_DEFINITION'),
-              ('ACCESS_MARKING_ASSIGNMENT'),
-              ('ASSIGN_MARKING'),
-              ('DELETE_MARKING_ASSIGNMENT')
+              ('DELETE_MARKING_DEFINITION')
           ) AS c(capability) ON true
           WHERE r.role_name = 'Manager'
             AND r.tenant_id IS NOT NULL
