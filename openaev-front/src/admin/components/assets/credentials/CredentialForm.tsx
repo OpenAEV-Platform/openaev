@@ -397,7 +397,7 @@ const CredentialForm: FunctionComponent<Props> = ({
                 field.visible_condition_value,
               )
             : true)
-          .map(field => (field.field_type === 'file'
+          .map((field: CredentialContractField) => (field.field_type === 'file'
             ? (
                 <FileFieldController
                   key={field.field_name}
@@ -411,6 +411,7 @@ const CredentialForm: FunctionComponent<Props> = ({
                 <InjectContentFieldComponent
                   key={field.field_name}
                   field={formatField(field)}
+                  readOnly={isSubmitting}
                 />
               )))}
 
