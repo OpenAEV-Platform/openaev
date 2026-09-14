@@ -11,6 +11,7 @@ import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.ratelimit.aop.RateLimit;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.login.LoginUserInput;
@@ -124,6 +125,7 @@ public class UserApi extends RestBehavior {
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
+  @RateLimit
   @NoTenantScope
   // No TxCtx here either: permitAll, pre-auth, see the comment on login() above.
   public ResponseEntity<?> passwordReset(@Valid @RequestBody ResetUserInput input) {

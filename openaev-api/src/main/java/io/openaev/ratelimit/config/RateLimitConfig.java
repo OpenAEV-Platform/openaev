@@ -1,5 +1,7 @@
 package io.openaev.ratelimit.config;
 
+import static io.openaev.ratelimit.config.RateLimitStoreBackendValues.IN_MEMORY_STRING;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,14 +13,14 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "openaev.ratelimit")
 public class RateLimitConfig {
   @JsonProperty("store_backend")
-  @Value("${openaev.ratelimit.store-backend}")
-  private RateLimitStoreBackend storeBackend = RateLimitStoreBackend.IN_MEMORY;
+  @Value("${openaev.ratelimit.store-backend:" + IN_MEMORY_STRING + "}")
+  private RateLimitStoreBackend storeBackend;
 
   @JsonProperty("default_rqs")
-  @Value("${openaev.ratelimit.default-rps}")
-  private Long defaultRps = Limits.DEFAULT_RPS;
+  @Value("${default-rps:" + Limits.DEFAULT_RPS + "}")
+  private Long defaultRps;
 
   @JsonProperty("authenticated_rqs")
-  @Value("${openaev.ratelimit.authenticated-rps}")
-  private Long authenticatedRps = Limits.AUTHENTICATED_RPS;
+  @Value("${authenticated-rps:" + Limits.AUTHENTICATED_RPS + "}")
+  private Long authenticatedRps;
 }

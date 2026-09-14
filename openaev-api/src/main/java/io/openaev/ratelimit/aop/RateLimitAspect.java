@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 
 @Aspect
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Order(Ordered.LOWEST_PRECEDENCE)
 @RequiredArgsConstructor
 @Slf4j
 public class RateLimitAspect {

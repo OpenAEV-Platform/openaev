@@ -1,9 +1,13 @@
 package io.openaev.ratelimit.config;
 
-public enum RateLimitStoreBackend {
-  IN_MEMORY("in-memory");
+import static io.openaev.ratelimit.config.RateLimitStoreBackendValues.IN_MEMORY_STRING;
 
-  private final String value;
+import lombok.Getter;
+
+public enum RateLimitStoreBackend {
+  IN_MEMORY(IN_MEMORY_STRING);
+
+  @Getter private final String value;
 
   RateLimitStoreBackend(String value) {
     this.value = value;
