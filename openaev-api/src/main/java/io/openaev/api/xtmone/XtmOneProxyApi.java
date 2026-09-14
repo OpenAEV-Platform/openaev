@@ -5,6 +5,7 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.xtmone.dto.AgentCallInput;
 import io.openaev.api.xtmone.dto.AgentCallOutput;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
@@ -61,7 +62,7 @@ public class XtmOneProxyApi extends RestBehavior {
           "Returns the agents enabled for the given intent in the discovered XTM One catalog.")
   @Transactional(propagation = Propagation.NEVER)
   public ResponseEntity<List<ChatbotAgentOutput>> getChatbotAgents(
-      @RequestParam(value = "intent", defaultValue = "global.assistant") String intent) {
+      TxCtx ctx, @RequestParam(value = "intent", defaultValue = "global.assistant") String intent) {
     if (!config.isConfigured()) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(List.of());
     }
@@ -80,7 +81,8 @@ public class XtmOneProxyApi extends RestBehavior {
           "Routes the user prompt to the requested agent and returns its full response. The client"
               + " supplied agent_slug is validated against the discovered intent catalog (any"
               + " enabled agent across all intents) before the request is forwarded.")
-  public ResponseEntity<AgentCallOutput> postAgentCall(@Valid @RequestBody AgentCallInput input) {
+  public ResponseEntity<AgentCallOutput> postAgentCall(
+      TxCtx ctx, @Valid @RequestBody AgentCallInput input) {
     if (!config.isConfigured()) {
       return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
           .body(AgentCallOutput.error("XTM One is not configured"));
@@ -107,7 +109,7 @@ public class XtmOneProxyApi extends RestBehavior {
               + " supplied agent_slug is validated against the discovered intent catalog before"
               + " the request is forwarded.")
   public ResponseEntity<StreamingResponseBody> postAgentStream(
-      @Valid @RequestBody AgentCallInput input) {
+      TxCtx ctx, @Valid @RequestBody AgentCallInput input) {
     if (!config.isConfigured()) {
       StreamingResponseBody errorBody =
           out ->

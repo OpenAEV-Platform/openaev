@@ -10,7 +10,6 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Filters.FilterGroup;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -23,21 +22,39 @@ import java.util.*;
 import lombok.Data;
 import lombok.Getter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
 @Entity
 @Table(name = "asset_groups")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "AssetGroup.tags-assets",
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("assets")})
 })
 public class AssetGroup implements TenantBase {
+
+  // asset_groups is on multi-tenancy v2 (#6435).
+  //
+  // The v1 @Filter is GONE and must not come back: reads are scoped by TenantStatementInspector
+  // from app.current_tenants, and re-adding the filter would AND a thread-local predicate onto the
+  // rewritten one, silently emptying every result reached without TenantContext, the header route
+  // first.
+  //
+  // TenantBaseListener is REMOVED, as the activate-tenant-table runbook requires at go-live. It
+  // stamped tenant_id from the v1 thread-local on every insert, which is the wrong tenant as often
+  // as the right one on a background or provisioning path, and it made an unattributed write look
+  // successful instead of failing. Every create path now resolves the tenant explicitly:
+  // AssetGroupService.createAssetGroup takes it as a required parameter, HTTP callers get it from
+  // TenantWriteScopeResolver, and background callers pass the tenant their own scope was opened
+  // for.
+  //
+  // AssetGroupFixture stamps the tenant itself, the way SecurityCoverageFixture already did, which
+  // is what makes the removal a small diff rather than a rewrite of every call site. Eight of the
+  // nineteen active tables still carry a listener; removing those is tracked in #7844.
+
   @Id
   @ControlledUuidGeneration
   @Column(name = "asset_group_id")
@@ -105,7 +122,7 @@ public class AssetGroup implements TenantBase {
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
   @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("asset_group_tags")
-  @Queryable(filterable = true, sortable = true, dynamicValues = true, path = "tags.id")
+  @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
 
   // -- INJECT --

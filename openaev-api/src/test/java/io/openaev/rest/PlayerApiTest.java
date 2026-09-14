@@ -928,7 +928,7 @@ class PlayerApiTest extends IntegrationTest {
     assertEquals(PLAYER_FIXTURE_FIRSTNAME, JsonPath.read(response, "$.user_firstname"));
   }
 
-  @DisplayName("Given valid player ID and input, should update player successfully")
+  @DisplayName("Given valid player ID and input, should update player but never its address")
   @Test
   @WithMockUser(isAdmin = true)
   void given_validPlayerIdAndInput_should_updatePlayerSuccessfully() throws Exception {
@@ -937,8 +937,10 @@ class PlayerApiTest extends IntegrationTest {
     User user = new User();
     user.setUpdateAttributes(playerInput);
     userRepository.save(user);
+    String originalEmail = user.getEmail();
     String newFirstname = "updatedFirstname";
     playerInput.setFirstname(newFirstname);
+    playerInput.setEmail("attacker@example.invalid");
 
     // --EXECUTE--
     String response =
@@ -955,6 +957,7 @@ class PlayerApiTest extends IntegrationTest {
 
     // --ASSERT--
     assertEquals("updatedFirstname", JsonPath.read(response, "$.user_firstname"));
+    assertEquals(originalEmail, JsonPath.read(response, "$.user_email"));
   }
 
   @DisplayName("Given restricted user, should not allow updating a player")

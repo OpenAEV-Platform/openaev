@@ -51,7 +51,6 @@ public interface ActionStep {
    * to END.
    *
    * @param stepRun the step to end
-   * @param workflow the workflow
    */
-  void end(Step stepRun, Workflow workflow) throws ChainingException;
+  void end(Step stepRun) throws ChainingException;
 }

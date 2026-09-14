@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.SecurityPlatform.SECURITY_PLATFORM_TYPE;
 import io.openaev.database.repository.*;
@@ -69,6 +70,7 @@ class InjectExpectationTraceApiTest extends IntegrationTest {
     sp.setExternalReference(UUID.randomUUID().toString());
     sp.setName("sp-name");
     sp.setSecurityPlatformType(SECURITY_PLATFORM_TYPE.SIEM);
+    sp.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     savedSecurityPlatform = securityPlatformRepository.save(sp);
 
     CollectorType collectorType = new CollectorType("type");

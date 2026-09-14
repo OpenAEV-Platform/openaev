@@ -1,12 +1,28 @@
 import { type Locator, type Page } from '@playwright/test';
+
+import { TIMEOUT } from '../../utils/constants';
 class CatalogPage {
   constructor(private page: Page) {}
   async waitForLoad(): Promise<void> {
     await this.page.waitForURL('**/integrations/available**');
+    await this.searchInput.waitFor({
+      state: 'visible',
+      timeout: TIMEOUT,
+    });
+    await Promise.any([
+      this.page.getByTestId('marketplace-view-cards').first().waitFor({
+        state: 'visible',
+        timeout: TIMEOUT,
+      }),
+      this.page.getByTestId('marketplace-view-list').first().waitFor({
+        state: 'visible',
+        timeout: TIMEOUT,
+      }),
+    ]);
   }
 
   get searchInput(): Locator {
-    return this.page.getByPlaceholder('Search the catalog...');
+    return this.page.getByPlaceholder(/Search the catalog/i);
   }
 
   getConnectorCard(namePattern: string | RegExp): Locator {

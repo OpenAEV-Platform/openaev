@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -21,6 +22,8 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
 import java.util.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +31,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class ScenarioServiceUnitTest {
@@ -54,7 +58,15 @@ class ScenarioServiceUnitTest {
   @Mock private InjectRepository injectRepository;
   @Mock private LessonsCategoryRepository lessonsCategoryRepository;
   @Mock private HealthCheckUtils healthCheckUtils;
+  @Mock private OpenAEVConfig openAEVConfig;
   @InjectMocks private ScenarioService scenarioService;
+
+  @BeforeEach
+  void injectResourceFields() {
+    // openAEVConfig is a @Resource field, not a constructor argument: @InjectMocks only performs
+    // constructor injection here, so it has to be wired explicitly.
+    ReflectionTestUtils.setField(scenarioService, "openAEVConfig", openAEVConfig);
+  }
 
   @Test
   public void testUpdateScenario_WITH_applyRule_true() {
@@ -172,6 +184,7 @@ class ScenarioServiceUnitTest {
   }
 
   @Nested
+  @DisplayName("Compute scenario email defaults")
   class ComputeEmails {
 
     @Test
@@ -182,6 +195,67 @@ class ScenarioServiceUnitTest {
       scenarioService.computeEmails(scenario);
 
       assertEquals("existing@mail.com", scenario.getFrom());
+    }
+
+    @Test
+    void given_a_scenario_with_reply_tos_should_not_override_them() {
+      // -- PREPARE --
+      Scenario scenario = new Scenario();
+      scenario.setReplyTos(new ArrayList<>(List.of("custom@mail.com")));
+
+      // -- EXECUTE --
+      scenarioService.computeEmails(scenario);
+
+      // -- ASSERT --
+      assertEquals(List.of("custom@mail.com"), scenario.getReplyTos());
+    }
+
+    @Test
+    void given_a_scenario_with_a_from_name_and_no_from_should_not_override_the_from_name() {
+      // -- PREPARE --
+      // The creation input carries no `from`: gating the whole defaulting block on it used to
+      // wipe the display name the user had just typed in the creation form.
+      Scenario scenario = new Scenario();
+      scenario.setFromName("Custom sender");
+      when(openAEVConfig.getDefaultMailer()).thenReturn("default@mail.com");
+
+      // -- EXECUTE --
+      scenarioService.computeEmails(scenario);
+
+      // -- ASSERT --
+      assertEquals("Custom sender", scenario.getFromName());
+      assertEquals("default@mail.com", scenario.getFrom());
+    }
+
+    @Test
+    void given_a_scenario_without_emails_should_apply_the_platform_defaults() {
+      // -- PREPARE --
+      Scenario scenario = new Scenario();
+      when(openAEVConfig.getDefaultMailer()).thenReturn("default@mail.com");
+      when(openAEVConfig.getDefaultMailerName()).thenReturn("Default sender");
+      when(openAEVConfig.getDefaultReplyTo()).thenReturn("reply@mail.com");
+
+      // -- EXECUTE --
+      scenarioService.computeEmails(scenario);
+
+      // -- ASSERT --
+      assertEquals("default@mail.com", scenario.getFrom());
+      assertEquals("Default sender", scenario.getFromName());
+      assertEquals(List.of("reply@mail.com"), scenario.getReplyTos());
+    }
+
+    @Test
+    void given_a_scenario_with_null_reply_tos_should_apply_the_platform_default() {
+      // -- PREPARE --
+      Scenario scenario = new Scenario();
+      scenario.setReplyTos(null);
+      when(openAEVConfig.getDefaultReplyTo()).thenReturn("reply@mail.com");
+
+      // -- EXECUTE --
+      scenarioService.computeEmails(scenario);
+
+      // -- ASSERT --
+      assertEquals(List.of("reply@mail.com"), scenario.getReplyTos());
     }
   }
 

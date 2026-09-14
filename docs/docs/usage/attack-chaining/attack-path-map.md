@@ -103,6 +103,9 @@ detail panel to keep the working area clear.
 6. Toggle between the **graph view** and the **table view** (top-right) if you prefer reviewing endpoints as a
    sortable list.
 7. Use the fullscreen toggle for a larger working area on complex chains.
+8. Use the **Export as PNG** button (next to the fullscreen toggle, in the graph view) to download the map as an
+   image. The export always contains the **whole** graph — every node, whatever the current zoom or pan — so it can
+   be dropped into a report or a debrief as-is.
 
 ### Reading the legend
 

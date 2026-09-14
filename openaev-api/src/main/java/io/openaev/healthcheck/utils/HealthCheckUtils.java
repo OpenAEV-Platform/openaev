@@ -29,6 +29,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class HealthCheckUtils {
+  private static final ObjectMapper mapper = new ObjectMapper();
 
   /** Scope allowlist entry types consumed by asset/IP-centric (technical) steps. */
   private static final Set<ScopeRuleValueType> TECHNICAL_SCOPE_TYPES =
@@ -328,7 +329,6 @@ public class HealthCheckUtils {
       return result;
     }
 
-    ObjectMapper mapper = new ObjectMapper();
     ArrayNode injectContractFields;
 
     try {

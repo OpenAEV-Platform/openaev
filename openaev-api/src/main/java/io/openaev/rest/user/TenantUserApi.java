@@ -8,12 +8,11 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.raw.RawUser;
-import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.user.form.user.ChangePasswordInput;
 import io.openaev.service.tenants.TenantUserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
@@ -54,7 +53,7 @@ public class TenantUserApi extends RestBehavior {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
-  public UserOutput create(@Valid @RequestBody UserInput input) {
+  public UserOutput create(TxCtx ctx, @Valid @RequestBody UserInput input) {
     return tenantUserService.createOrAttach(input);
   }
 
@@ -67,7 +66,7 @@ public class TenantUserApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.USER)
   @GetMapping("/{userId}")
-  public UserOutput findById(@PathVariable String userId) {
+  public UserOutput findById(TxCtx ctx, @PathVariable String userId) {
     return tenantUserService.user(userId);
   }
 
@@ -75,7 +74,7 @@ public class TenantUserApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
   @PostMapping("/find")
   @Transactional
-  public List<UserOutput> find(@RequestBody @Valid @NotNull final List<String> userIds) {
+  public List<UserOutput> find(TxCtx ctx, @RequestBody @Valid @NotNull final List<String> userIds) {
     return tenantUserService.find(userIds);
   }
 
@@ -84,7 +83,7 @@ public class TenantUserApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of users")})
   @GetMapping
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.USER)
-  public List<RawUser> users() {
+  public List<RawUser> users(TxCtx ctx) {
     return tenantUserService.users();
   }
 
@@ -95,7 +94,7 @@ public class TenantUserApi extends RestBehavior {
   @PostMapping("/search")
   @Transactional
   public Page<UserOutput> search(
-      @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return tenantUserService.search(searchPaginationInput);
   }
 
@@ -108,23 +107,9 @@ public class TenantUserApi extends RestBehavior {
       resourceType = ResourceType.USER)
   @PutMapping("/{userId}")
   @Transactional
-  public UserOutput update(@PathVariable String userId, @Valid @RequestBody UserInput input) {
+  public UserOutput update(
+      TxCtx ctx, @PathVariable String userId, @Valid @RequestBody UserInput input) {
     return tenantUserService.update(userId, input);
-  }
-
-  @Operation(
-      summary = "Change the password of a tenant user",
-      description = "Changes the password of a user belonging to the current tenant")
-  @AccessControl(
-      resourceId = "#userId",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.USER)
-  @PutMapping("/{userId}/password")
-  @Transactional
-  public UserOutput changePassword(
-      @PathVariable String userId, @Valid @RequestBody ChangePasswordInput input)
-      throws InputValidationException {
-    return tenantUserService.updatePassword(userId, input);
   }
 
   // -- DELETE --
@@ -137,7 +122,7 @@ public class TenantUserApi extends RestBehavior {
   @DeleteMapping("/{userId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void delete(@PathVariable String userId) {
+  public void delete(TxCtx ctx, @PathVariable String userId) {
     tenantUserService.detach(userId);
   }
 }

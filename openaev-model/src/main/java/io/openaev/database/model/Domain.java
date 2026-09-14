@@ -6,27 +6,29 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 @Entity
 @Table(name = "domains")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners({ModelBaseListener.class})
 @Builder
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+/**
+ * Tenant isolation for {@code domains} is fully handled by v2 SQL rewriting ({@code
+ * TenantStatementInspector}) once the table is active in {@code openaev.tenant.active-tables}. Keep
+ * v1 {@code @Filter} and {@code TenantBaseListener} removed to avoid dual mechanisms.
+ */
 public class Domain implements TenantBase {
 
   @Id

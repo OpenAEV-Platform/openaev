@@ -6,6 +6,7 @@ import static io.openaev.helper.UrlHelper.buildFrontSimulationUrl;
 import static io.openaev.rest.payload.service.PayloadService.DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY;
 import static io.openaev.stix.objects.constants.CommonProperties.MODIFIED;
 import static io.openaev.utils.constants.StixConstants.*;
+import static org.apache.commons.lang3.StringUtils.stripEnd;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +14,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
@@ -95,6 +98,8 @@ public class SecurityCoverageService {
    * @param securityCoverageStixId the STIX ID of the security-coverage object in the bundle
    * @param securityCoverageObj the SDO representing the security coverage
    * @param bundle the full bundle, also containing the security coverage SDO
+   * @param ctx the scope of this transaction, and the sole source of the tenant every row written
+   *     here is attributed to
    * @throws ParsingException if the STIX bundle is malformed
    * @throws BundleValidationError if the STIX bundle is obsolete or already stored
    * @throws ConnectorError there was an issue communicating with the connector
@@ -103,22 +108,59 @@ public class SecurityCoverageService {
   @Lock(type = LockResourceType.SECURITY_COVERAGE, key = "#securityCoverageStixId")
   @Transactional(rollbackFor = Exception.class)
   public Scenario handleSecurityCoverageProcessing(
-      String securityCoverageStixId, ObjectBase securityCoverageObj, Bundle bundle, String tenantId)
+      TxCtx ctx, String securityCoverageStixId, ObjectBase securityCoverageObj, Bundle bundle)
       throws ParsingException, BundleValidationError, ConnectorError, IOException {
-    // Telemetry: one CTI security coverage bundle processed (attempts semantics).
-    resultsMetricCollector.recordSecurityCoverageProcessed();
-    String bundleHash = md5Hex(bundle.toStix(objectMapper).toString());
+    // The transaction's scope and the tenant of the rows written here are one value; taking both
+    // from the caller let them disagree, and the coverage row would then be inserted for one tenant
+    // and dirty-updated under another's scope, where can_access_tenant matches nothing.
+    //
+    // The only caller today, StixApi, resolves the tenant from ctx and so refuses an unattributable
+    // bundle before reaching this method. Guarding here makes that a property of the write itself
+    // rather than of one endpoint remembering to check.
+    String tenantId =
+        switch (ctx) {
+          case TxCtx.Restricted restricted when restricted.tenantIds().size() == 1 ->
+              restricted.tenantIds().get(0);
+          default ->
+              throw new IllegalStateException(
+                  "Cannot process security coverage "
+                      + securityCoverageStixId
+                      + " without a single-tenant scope: the coverage row and everything derived"
+                      + " from it are attributed to the transaction's tenant, and"
+                      + " security_coverages.tenant_id is NOT NULL. The caller must resolve a"
+                      + " single tenant for this bundle.");
+        };
+    // The scenario, its injects and their tags are still v1 tables: TenantBaseListener stamps them
+    // from TenantContext, which TenantInterceptor only sets on the /api/tenants/{tenantId}/ route.
+    // On the header route it is unset and falls back to the default tenant, so the coverage landed
+    // in the requested tenant while everything derived from it landed in the default one. Bridging
+    // the resolved tenant onto v1 for this transaction keeps the whole bundle in one tenant; the
+    // bridge goes away when scenarios and injects are activated.
+    String previousTenant =
+        TenantContext.hasCurrentTenant() ? TenantContext.getCurrentTenant() : null;
+    TenantContext.setCurrentTenant(tenantId);
+    try {
+      // Telemetry: one CTI security coverage bundle processed (attempts semantics).
+      resultsMetricCollector.recordSecurityCoverageProcessed();
+      String bundleHash = md5Hex(bundle.toStix(objectMapper).toString());
 
-    SecurityCoverage securityCoverage =
-        buildSecurityCoverageFromStix(
-            securityCoverageObj, bundle, securityCoverageStixId, bundleHash, tenantId);
-    Scenario scenario = buildScenarioFromSecurityCoverage(securityCoverage);
-    // Telemetry: a scenario was generated from the coverage.
-    resultsMetricCollector.recordCoverageScenarioGenerated();
+      SecurityCoverage securityCoverage =
+          buildSecurityCoverageFromStix(
+              securityCoverageObj, bundle, securityCoverageStixId, bundleHash, tenantId);
+      Scenario scenario = buildScenarioFromSecurityCoverage(ctx, securityCoverage);
+      // Telemetry: a scenario was generated from the coverage.
+      resultsMetricCollector.recordCoverageScenarioGenerated();
 
-    // FIXME: extract this behaviour into an async worker
-    pushSecurityCoverageBundleWithExternalURI(scenario);
-    return scenario;
+      // FIXME: extract this behaviour into an async worker
+      pushSecurityCoverageBundleWithExternalURI(scenario);
+      return scenario;
+    } finally {
+      if (previousTenant == null) {
+        TenantContext.clearCurrentTenant();
+      } else {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+    }
   }
 
   /**
@@ -141,7 +183,8 @@ public class SecurityCoverageService {
       String tenantId)
       throws ParsingException, BundleValidationError, ConnectorError {
 
-    SecurityCoverage securityCoverage = getByExternalIdOrCreateSecurityCoverage(externalId);
+    SecurityCoverage securityCoverage =
+        getByExternalIdOrCreateSecurityCoverage(externalId, tenantId);
 
     // Validations related to the pertinence of the received bundle
     checkExistingBundle(externalId, stixJsonHash, securityCoverage);
@@ -162,7 +205,8 @@ public class SecurityCoverageService {
                 () ->
                     new ConnectorError(
                         "No active OpenCTI connector found for tenant %s".formatted(tenantId)));
-    securityCoverage.setExternalUrl(openCtiUrl + "/dashboard/id/" + coveredRef);
+
+    securityCoverage.setExternalUrl(stripEnd(openCtiUrl, "/") + "/dashboard/id/" + coveredRef);
 
     // Optional fields
     stixCoverageObj.setIfPresent(STIX_DESCRIPTION, securityCoverage::setDescription);
@@ -301,23 +345,29 @@ public class SecurityCoverageService {
    * new instance is returned.
    *
    * @param externalId the external identifier from the STIX content
+   * @param tenantId tenant identifier used to scope the lookup
    * @return an existing or new {@link SecurityCoverage}
    */
-  public SecurityCoverage getByExternalIdOrCreateSecurityCoverage(String externalId) {
-    List<SecurityCoverage> coverages = securityCoverageRepository.findAllByExternalId(externalId);
+  public SecurityCoverage getByExternalIdOrCreateSecurityCoverage(
+      String externalId, String tenantId) {
+    List<SecurityCoverage> coverages =
+        securityCoverageRepository.findAllByExternalIdAndTenantId(externalId, tenantId);
     if (coverages.isEmpty()) {
-      return new SecurityCoverage();
+      SecurityCoverage coverage = new SecurityCoverage();
+      coverage.setTenant(new Tenant(tenantId));
+      return coverage;
     }
     if (coverages.size() > 1) {
-      // Duplicates are prevented by the unique constraint on security_coverage_external_id
-      // (V6_20260729130000000__Dedupe_security_coverages_external_id), but a legacy-duplicated
-      // database must never fail the whole bundle with a NonUniqueResultException: pick the best
-      // row deterministically (linked to a scenario first, then most recently updated).
+      // Duplicates are prevented by the unique constraint on
+      // (security_coverage_external_id, tenant_id), but a legacy-duplicated database must never
+      // fail the whole bundle with a NonUniqueResultException: pick the best row deterministically
+      // (linked to a scenario first, then most recently updated).
       log.error(
-          "Found {} security coverages sharing external id {}; using the most relevant one."
-              + " Duplicates should have been removed by the dedupe migration.",
+          "Found {} security coverages sharing external id {} for tenant {};"
+              + " using the most relevant one. Duplicates should have been removed by migration.",
           coverages.size(),
-          externalId);
+          externalId,
+          tenantId);
     }
     return coverages.stream()
         .min(
@@ -348,12 +398,12 @@ public class SecurityCoverageService {
    * @param securityCoverage the source coverage
    * @return the created or updated {@link Scenario}
    */
-  public Scenario buildScenarioFromSecurityCoverage(SecurityCoverage securityCoverage) {
-    Scenario scenario = updateOrCreateScenarioFromSecurityCoverage(securityCoverage);
+  public Scenario buildScenarioFromSecurityCoverage(TxCtx ctx, SecurityCoverage securityCoverage) {
+    Scenario scenario = updateOrCreateScenarioFromSecurityCoverage(ctx, securityCoverage);
     securityCoverage.setScenario(scenario);
     Set<Inject> injects =
         securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(
-            scenario, securityCoverage);
+            ctx, scenario, securityCoverage);
     scenario.setInjects(injects);
     log.info(
         "Creating or Updating Scenario with ID: {} from Security coverage with external ID: {}",
@@ -413,29 +463,31 @@ public class SecurityCoverageService {
    * @param securityCoverage the {@link SecurityCoverage}
    * @return the updated or newly created {@link Scenario}
    */
-  public Scenario updateOrCreateScenarioFromSecurityCoverage(SecurityCoverage securityCoverage) {
+  public Scenario updateOrCreateScenarioFromSecurityCoverage(
+      TxCtx ctx, SecurityCoverage securityCoverage) {
     if (securityCoverage.getScenario() != null) {
       return scenarioRepository
           .findById(securityCoverage.getScenario().getId())
-          .map(existing -> updateScenarioFromSecurityCoverage(existing, securityCoverage))
-          .orElseGet(() -> createAndInitializeScenario(securityCoverage));
+          .map(existing -> updateScenarioFromSecurityCoverage(ctx, existing, securityCoverage))
+          .orElseGet(() -> createAndInitializeScenario(ctx, securityCoverage));
     }
-    return createAndInitializeScenario(securityCoverage);
+    return createAndInitializeScenario(ctx, securityCoverage);
   }
 
-  private Scenario createAndInitializeScenario(SecurityCoverage securityCoverage) {
+  private Scenario createAndInitializeScenario(TxCtx ctx, SecurityCoverage securityCoverage) {
     Scenario scenario = new Scenario();
-    updatePropertiesFromSecurityCoverage(scenario, securityCoverage);
+    updatePropertiesFromSecurityCoverage(ctx, scenario, securityCoverage);
     return scenarioService.createScenario(scenario);
   }
 
   private Scenario updateScenarioFromSecurityCoverage(
-      Scenario scenario, SecurityCoverage securityCoverage) {
-    updatePropertiesFromSecurityCoverage(scenario, securityCoverage);
+      TxCtx ctx, Scenario scenario, SecurityCoverage securityCoverage) {
+    updatePropertiesFromSecurityCoverage(ctx, scenario, securityCoverage);
     return scenarioService.updateScenario(scenario);
   }
 
-  private void updatePropertiesFromSecurityCoverage(Scenario scenario, SecurityCoverage sa) {
+  private void updatePropertiesFromSecurityCoverage(
+      TxCtx ctx, Scenario scenario, SecurityCoverage sa) {
     scenario.setSecurityCoverage(sa);
     scenario.setName(sa.getName());
     scenario.setDescription(sa.getDescription());
@@ -447,6 +499,7 @@ public class SecurityCoverageService {
     setRecurrence(scenario, sa);
     scenario.setTags(
         tagService.findOrCreateTagsFromNames(
+            ctx,
             sa.getPlatformsAffinity().stream()
                 .map("security coverage: %s"::formatted)
                 .collect(Collectors.toSet())));

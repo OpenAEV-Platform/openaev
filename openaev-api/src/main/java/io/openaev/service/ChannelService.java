@@ -49,7 +49,8 @@ public class ChannelService {
 
   // -- DELETE --
 
-  // existsById() is tenant-filtered by Hibernate, so deleteById() below is safe.
+  // existsById() goes through tenant-scoped repository SQL for channels, so deleteById() below is
+  // safe for the caller's current scope.
   public void deleteChannel(@NotBlank final String channelId) {
     if (!channelRepository.existsById(channelId)) {
       throw new ElementNotFoundException("Channel not found with id: " + channelId);

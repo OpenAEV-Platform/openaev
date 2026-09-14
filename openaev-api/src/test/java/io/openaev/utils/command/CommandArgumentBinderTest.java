@@ -3,6 +3,7 @@ package io.openaev.utils.command;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Random;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,7 +32,209 @@ class CommandArgumentBinderTest {
         "> /tmp/pwned",
         "' ; whoami ; '",
         "\" ; whoami ; \"",
+        // A value carrying the cmd statement separator: a test locating the prologue by searching
+        // for that separator would land inside the value instead of at the real boundary.
+        "a & whoami",
+        // Escape characters that must stay data rather than becoming escapes of their own.
+        "a^b",
+        "a^^b",
+        "trailing caret ^",
+        "trailing backslash \\",
+        "a ( b ) c",
+        "a\tb",
+        // Line separators beyond CR and LF, built from code points because a literal one in this
+        // source file would break the string it sits in. Unicode designates these as line
+        // separators; java.util.Scanner splits on them, String.lines() and BufferedReader do not.
+        "a" + NEL + "b",
+        "a" + LINE_SEPARATOR + "b",
+        "a" + PARAGRAPH_SEPARATOR + "b",
+        "a" + BYTE_ORDER_MARK + "b",
+        // A value shaped like a placeholder, so a substitution pass cannot mistake it for one.
+        "#{target}",
+        "#{other}",
         "a\u0000whoami");
+  }
+
+  private static final String NEL = Character.toString(0x0085);
+  private static final String LINE_SEPARATOR = Character.toString(0x2028);
+  private static final String PARAGRAPH_SEPARATOR = Character.toString(0x2029);
+  private static final String BYTE_ORDER_MARK = Character.toString(0xFEFF);
+
+  /**
+   * Characters a hostile value is built from: every metacharacter, escape, quote, separator and
+   * line terminator the three engines give meaning to, plus filler.
+   */
+  private static final char[] HOSTILE_ALPHABET =
+      ("'\"\\^!%$&|<>();`#{}=*?[] \t\r\n"
+              + NEL
+              + LINE_SEPARATOR
+              + PARAGRAPH_SEPARATOR
+              + BYTE_ORDER_MARK
+              + "abcXY01")
+          .toCharArray();
+
+  /**
+   * Characters a consumer may read as the end of a line. A value carrying one is not the single
+   * token the template describes, whatever the shell does with it.
+   */
+  private static final String[] LINE_SEPARATORS = {
+    "\n", "\r", NEL, LINE_SEPARATOR, PARAGRAPH_SEPARATOR
+  };
+
+  /** Asserts a value, once bound, carries no line separator into whatever the engine produced. */
+  private static void assertNoLineSeparator(String subject, String context, String what) {
+    for (String separator : LINE_SEPARATORS) {
+      assertThat(subject)
+          .as("%s must leave no line separator in %s", context, what)
+          .doesNotContain(separator);
+    }
+  }
+
+  /** How many generated values each property test samples. */
+  private static final int GENERATED_SAMPLES = 20_000;
+
+  /**
+   * Asserts the structural invariant for an engine that declares values in a single-quoted string:
+   * the rendered command is the binder's prologue followed by the template with its placeholders
+   * replaced by references, and the value contributes only to the interior of its own declaration.
+   *
+   * <p>The prologue boundary is derived from the expected tail, never by searching for the
+   * statement separator, because a value may itself contain that separator.
+   *
+   * @param quoteEscape how the engine escapes a single quote inside a single-quoted string
+   * @return true when the value was accepted and rendered, false when the binder refused it
+   */
+  private static boolean assertSingleQuotedContainment(
+      String executor,
+      String template,
+      String expectedTail,
+      String assignment,
+      String quoteEscape,
+      String value) {
+    CommandArgumentBinder binder = CommandArgumentBinder.forExecutor(executor);
+    if (isRefused(binder, value)) {
+      return false;
+    }
+    String rendered = binder.render(template);
+    String context = "value " + readable(value);
+
+    assertThat(rendered).as("%s must not alter the command", context).endsWith(expectedTail);
+    assertThat(rendered.indexOf(expectedTail))
+        .as("%s must not smuggle a second copy of the command", context)
+        .isEqualTo(rendered.length() - expectedTail.length());
+
+    String prologue = rendered.substring(0, rendered.length() - expectedTail.length());
+    assertThat(prologue)
+        .as("%s must stay inside its declaration", context)
+        .startsWith(assignment + "'")
+        .endsWith("'\n");
+
+    String interior =
+        prologue.substring(assignment.length() + 1, prologue.length() - "'\n".length());
+    assertThat(interior.replace(quoteEscape, ""))
+        .as("%s must not close its declaration early", context)
+        .doesNotContain("'");
+    assertNoLineSeparator(interior, context, "its declaration");
+    return true;
+  }
+
+  private static boolean assertShContainment(String value) {
+    return assertSingleQuotedContainment(
+        "bash", "echo #{target}", "echo \"$OAEV_ARG_TARGET\"", "OAEV_ARG_TARGET=", "'\\''", value);
+  }
+
+  /**
+   * The invariant is a disjunction: a value the engine cannot carry must be refused outright, and
+   * any value that is accepted must be rendered fully contained. This encodes neither which values
+   * are refused nor why, so the assertion stays independent of the rule under test.
+   *
+   * @return true when the binder refused the value, in which case the refusal must name the
+   *     argument so the caller can act on it
+   */
+  private static boolean isRefused(CommandArgumentBinder binder, String value) {
+    try {
+      binder.bind("target", value);
+      return false;
+    } catch (CommandBindingException refused) {
+      assertThat(refused)
+          .as("a refusal must name the argument it is about")
+          .hasMessageContaining("target");
+      return true;
+    }
+  }
+
+  /**
+   * Asserts the structural invariant for the cmd engine, whose declaration is {@code set
+   * "VAR=value"}. The quoted region opened by {@code set "} ends at the next {@code "}, so the
+   * value must contribute no quote of its own. Percent and delayed expansion must be neutralised
+   * for the same reason: both would let the value name something outside itself.
+   */
+  private static boolean assertCmdContainment(String value) {
+    CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("cmd");
+    if (isRefused(binder, value)) {
+      return false;
+    }
+    String rendered = binder.render("echo #{target}");
+    String expectedTail = "echo \"!OAEV_ARG_TARGET!\"";
+    String context = "value " + readable(value);
+
+    assertThat(rendered).as("%s must not alter the command", context).endsWith(expectedTail);
+    assertThat(rendered.indexOf(expectedTail))
+        .as("%s must not smuggle a second copy of the command", context)
+        .isEqualTo(rendered.length() - expectedTail.length());
+
+    String opening = "set \"OAEV_ARG_TARGET=";
+    String closing = "\" & ";
+    String prologue = rendered.substring(0, rendered.length() - expectedTail.length());
+    assertThat(prologue)
+        .as("%s must stay inside its declaration", context)
+        .startsWith(opening)
+        .endsWith(closing);
+
+    String interior = prologue.substring(opening.length(), prologue.length() - closing.length());
+    assertThat(interior)
+        .as("%s must not close its declaration early", context)
+        .doesNotContain("\"");
+    assertThat(interior.replace("^^!", ""))
+        .as("%s must not leave delayed expansion reachable", context)
+        .doesNotContain("!");
+    assertThat(interior.replace("%%", ""))
+        .as("%s must not leave percent expansion reachable", context)
+        .doesNotContain("%");
+    assertNoLineSeparator(interior, context, "its declaration");
+    return true;
+  }
+
+  private static boolean assertPowerShellContainment(String value) {
+    return assertSingleQuotedContainment(
+        "psh",
+        "Write-Output #{target}",
+        "Write-Output ${OAEV_ARG_TARGET}",
+        "$OAEV_ARG_TARGET = ",
+        "''",
+        value);
+  }
+
+  /**
+   * Generates a value from {@link #HOSTILE_ALPHABET}. The seed is fixed by the caller so a failing
+   * build names a value that can be reproduced exactly, rather than a different one on every run.
+   */
+  private static String hostileValue(Random random) {
+    int length = random.nextInt(14);
+    StringBuilder value = new StringBuilder(length);
+    for (int i = 0; i < length; i++) {
+      value.append(HOSTILE_ALPHABET[random.nextInt(HOSTILE_ALPHABET.length)]);
+    }
+    return value.toString();
+  }
+
+  /** Renders control and non-ASCII characters visible, so an assertion message is actionable. */
+  private static String readable(String value) {
+    StringBuilder out = new StringBuilder();
+    value
+        .chars()
+        .forEach(c -> out.append(c < 0x20 || c > 0x7e ? "\\u%04x".formatted(c) : (char) c));
+    return out.toString();
   }
 
   @Nested
@@ -40,20 +243,33 @@ class CommandArgumentBinderTest {
 
     @ParameterizedTest
     @MethodSource("io.openaev.utils.command.CommandArgumentBinderTest#maliciousValues")
-    @DisplayName("given a metacharacter-laden value should keep it inside a single-quoted literal")
+    @DisplayName("given a metacharacter-laden value should keep it inside its own declaration")
     void given_malicious_value_should_quote_it(String value) {
-      // -- ARRANGE --
+      assertShContainment(value);
+    }
+
+    @Test
+    @DisplayName("property: no generated value alters the command, over many random inputs")
+    void property_no_generated_value_alters_the_command() {
+      // A fixture list only proves the binder handles the payloads someone thought of. This
+      // asserts the invariant itself, over values built from every character the engines give
+      // meaning to. The seed is fixed so a failure names a reproducible value.
+      Random random = new Random(20260812L);
+
+      for (int i = 0; i < GENERATED_SAMPLES; i++) {
+        assertShContainment(hostileValue(random));
+      }
+    }
+
+    @Test
+    @DisplayName("given a value carrying a double quote should still be accepted")
+    void given_double_quote_should_be_accepted() {
+      // The cmd restriction must not leak into shells that can quote a double quote.
       CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
 
-      // -- ACT --
-      binder.bind("target", value);
-      String rendered = binder.render("echo #{target}");
+      binder.bind("a", "say \"hello\"");
 
-      // -- ASSERT --
-      assertThat(rendered).startsWith("OAEV_ARG_TARGET='").contains("\necho \"$OAEV_ARG_TARGET\"");
-      // The value never reaches the command line itself, only the quoted declaration.
-      assertThat(rendered.substring(rendered.indexOf("\necho")))
-          .isEqualTo("\necho \"$OAEV_ARG_TARGET\"");
+      assertThat(binder.render("echo #{a}")).startsWith("OAEV_ARG_A='say \"hello\"'");
     }
 
     @Test
@@ -83,15 +299,29 @@ class CommandArgumentBinderTest {
 
     @ParameterizedTest
     @MethodSource("io.openaev.utils.command.CommandArgumentBinderTest#maliciousValues")
-    @DisplayName("given a metacharacter-laden value should keep it inside a single-quoted literal")
+    @DisplayName("given a metacharacter-laden value should keep it inside its own declaration")
     void given_malicious_value_should_quote_it(String value) {
+      assertPowerShellContainment(value);
+    }
+
+    @Test
+    @DisplayName("property: no generated value alters the command, over many random inputs")
+    void property_no_generated_value_alters_the_command() {
+      Random random = new Random(20260812L);
+
+      for (int i = 0; i < GENERATED_SAMPLES; i++) {
+        assertPowerShellContainment(hostileValue(random));
+      }
+    }
+
+    @Test
+    @DisplayName("given a value carrying a double quote should still be accepted")
+    void given_double_quote_should_be_accepted() {
       CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("psh");
 
-      binder.bind("target", value);
-      String rendered = binder.render("Write-Output #{target}");
+      binder.bind("a", "say \"hello\"");
 
-      assertThat(rendered).startsWith("$OAEV_ARG_TARGET = '");
-      assertThat(rendered).endsWith("Write-Output ${OAEV_ARG_TARGET}");
+      assertThat(binder.render("echo #{a}")).startsWith("$OAEV_ARG_A = 'say \"hello\"'");
     }
 
     @Test
@@ -111,21 +341,66 @@ class CommandArgumentBinderTest {
 
     @ParameterizedTest
     @MethodSource("io.openaev.utils.command.CommandArgumentBinderTest#maliciousValues")
-    @DisplayName("given a metacharacter-laden value should keep the command on a single statement")
+    @DisplayName("given a metacharacter-laden value should keep it inside its own declaration")
     void given_malicious_value_should_neutralize_it(String value) {
+      assertCmdContainment(value);
+    }
+
+    @Test
+    @DisplayName("property: no generated value alters the command, over many random inputs")
+    void property_no_generated_value_alters_the_command() {
+      Random random = new Random(20260812L);
+      int accepted = 0;
+
+      for (int i = 0; i < GENERATED_SAMPLES; i++) {
+        if (assertCmdContainment(hostileValue(random))) {
+          accepted++;
+        }
+      }
+
+      // The invariant above is a disjunction, so a binder that refused everything would satisfy
+      // it. This pins the other side: the overwhelming majority of hostile values are still
+      // rendered, and only the ones cmd cannot carry are turned away.
+      assertThat(accepted)
+          .as("refusing everything would trivially satisfy the containment property")
+          .isGreaterThan(GENERATED_SAMPLES / 2);
+    }
+
+    @Test
+    @DisplayName("given a value carrying a double quote should refuse it and name the argument")
+    void given_unrepresentable_value_should_refuse_and_name_the_argument() {
       CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("cmd");
 
-      binder.bind("target", value);
-      String rendered = binder.render("echo #{target}");
+      assertThatThrownBy(() -> binder.bind("guest_user", "x\" & calc"))
+          .isInstanceOf(CommandBindingException.class)
+          .hasMessageContaining("guest_user")
+          .hasMessageContaining("cmd");
+    }
 
-      assertThat(rendered)
-          .startsWith("set \"OAEV_ARG_TARGET=")
-          .endsWith(" & echo \"!OAEV_ARG_TARGET!\"");
-      // No newline may survive: cmd would treat it as a new statement.
-      assertThat(rendered).doesNotContain("\n").doesNotContain("\r");
-      // Delayed expansion can no longer be triggered from a value.
-      String declaration = rendered.substring(0, rendered.indexOf(" & echo"));
-      assertThat(declaration.replace("^^!", "")).doesNotContain("!");
+    @Test
+    @DisplayName("given a benign value should still render, so the refusal stays narrow")
+    void given_benign_value_should_still_render() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("cmd");
+
+      binder.bind("a", "C:\\Program Files\\app.exe");
+
+      assertThat(binder.render("run #{a}"))
+          .isEqualTo("set \"OAEV_ARG_A=C:\\Program Files\\app.exe\" & run \"!OAEV_ARG_A!\"");
+    }
+
+    @Test
+    @DisplayName("given a placeholder inside a wider quoted string should render it unquoted")
+    void given_placeholder_inside_a_wider_quoted_string_should_render_it_unquoted() {
+      // The class javadoc tells template authors not to quote a placeholder themselves. A
+      // placeholder sitting inside a wider quoted string is not that case and is not detected, so
+      // the reference lands outside the template's quotes. Pinned because it is the shape the
+      // containment tests do not exercise: they all use a bare placeholder.
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("cmd");
+
+      binder.bind("t", "a b");
+
+      assertThat(binder.render("echo \"prefix #{t} suffix\""))
+          .isEqualTo("set \"OAEV_ARG_T=a b\" & echo \"prefix \"!OAEV_ARG_T!\" suffix\"");
     }
 
     @Test
@@ -154,6 +429,18 @@ class CommandArgumentBinderTest {
     }
 
     @Test
+    @DisplayName("given a multi-line value should resolve a single hostname")
+    void given_multi_line_value_should_resolve_a_single_hostname() {
+      // The implant resolves a hostname line by line, so a value carrying a line separator would
+      // resolve several names instead of the one the template describes.
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("host", "example.com\nattacker.test");
+
+      assertThat(binder.render("#{host}")).isEqualTo("example.comattacker.test").hasLineCount(1);
+    }
+
+    @Test
     @DisplayName("given a value with control characters should strip them")
     void given_control_characters_should_strip_them() {
       CommandArgumentBinder binder = CommandArgumentBinder.literal();
@@ -178,6 +465,22 @@ class CommandArgumentBinderTest {
       assertThat(rendered).isEqualTo("echo \"localhost\":'22'");
     }
 
+    @ParameterizedTest
+    @MethodSource("io.openaev.utils.command.CommandArgumentBinderTest#maliciousValues")
+    @DisplayName("given any value should substitute verbatim and never declare a variable")
+    void given_any_value_should_substitute_without_declaring(String value) {
+      // Literal mode backs the read-only display and the DNS hostname, which never reach a shell.
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("target", value);
+      String rendered = binder.render("host-#{target}");
+
+      assertThat(rendered).startsWith("host-").doesNotContain("OAEV_");
+      // No declaration here, so the whole rendered value must be a single line: the implant
+      // resolves a DNS hostname line by line.
+      assertNoLineSeparator(rendered, "value " + readable(value), "the rendered hostname");
+    }
+
     @Test
     @DisplayName("given a literal binder should never prepend a variable declaration")
     void given_literal_binder_should_not_prepend_declaration() {
@@ -186,6 +489,222 @@ class CommandArgumentBinderTest {
       binder.bind("host", "a; whoami");
 
       assertThat(binder.render("echo #{host}")).isEqualTo("echo a; whoami").doesNotContain("OAEV_");
+    }
+  }
+
+  @Nested
+  @DisplayName("Behaviour pinned as it stands")
+  class PinnedBehaviour {
+
+    @Test
+    @DisplayName("a null template renders as null")
+    void a_null_template_renders_as_null() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+      binder.bind("a", "value");
+
+      assertThat(binder.render(null)).isNull();
+    }
+
+    @Test
+    @DisplayName("a null value binds as empty rather than failing")
+    void a_null_value_binds_as_empty() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+
+      binder.bind("a", null);
+
+      assertThat(binder.render("echo #{a}")).isEqualTo("OAEV_ARG_A=''\necho \"$OAEV_ARG_A\"");
+    }
+
+    @Test
+    @DisplayName("a placeholder inside a wider quoted string is substituted, not left alone")
+    void a_placeholder_inside_a_wider_quoted_string_is_substituted() {
+      // The authoring rule tells template authors not to do this. Pinned because the outcome is
+      // easy to misread: the command is structurally safe, but under sh the reference sits inside
+      // the template's own single quotes and never expands, so the command sees the variable name.
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+
+      binder.bind("x", "value");
+
+      assertThat(binder.render("echo 'prefix #{x} suffix'"))
+          .endsWith("echo 'prefix \"$OAEV_ARG_X\" suffix'");
+    }
+
+    @Test
+    @DisplayName("a template with no placeholder is returned untouched")
+    void a_template_with_no_placeholder_is_returned_untouched() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+
+      assertThat(binder.render("echo hello")).isEqualTo("echo hello");
+    }
+
+    @Test
+    @DisplayName("binding the same key twice keeps the first value")
+    void binding_the_same_key_twice_keeps_the_first_value() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+
+      binder.bind("a", "first");
+      binder.bind("a", "second");
+
+      assertThat(binder.render("echo #{a}")).startsWith("OAEV_ARG_A='first'");
+    }
+  }
+
+  @Nested
+  @DisplayName("Substitution passes")
+  class SubstitutionPasses {
+
+    @Test
+    @DisplayName("a value shaped like another placeholder is not expanded")
+    void a_value_shaped_like_another_placeholder_is_not_expanded() {
+      // Substitution must read the template once. A value inserted by one key must never be
+      // re-examined for placeholders belonging to another.
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a", "#{b}");
+      binder.bind("b", "resolved");
+
+      assertThat(binder.render("host-#{a}-#{b}")).isEqualTo("host-#{b}-resolved");
+    }
+
+    @Test
+    @DisplayName("the outcome does not depend on the order the arguments were bound")
+    void the_outcome_does_not_depend_on_bind_order() {
+      CommandArgumentBinder first = CommandArgumentBinder.literal();
+      first.bind("a", "#{b}");
+      first.bind("b", "resolved");
+
+      CommandArgumentBinder second = CommandArgumentBinder.literal();
+      second.bind("b", "resolved");
+      second.bind("a", "#{b}");
+
+      assertThat(second.render("host-#{a}-#{b}")).isEqualTo(first.render("host-#{a}-#{b}"));
+    }
+
+    @Test
+    @DisplayName("a value shaped like its own placeholder is not expanded either")
+    void a_value_shaped_like_its_own_placeholder_is_not_expanded() {
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a", "#{a}");
+
+      assertThat(binder.render("host-#{a}")).isEqualTo("host-#{a}");
+    }
+
+    @Test
+    @DisplayName("a key that is a prefix of another still resolves to its own value")
+    void a_key_that_is_a_prefix_of_another_resolves_correctly() {
+      // Matching every key in one pass means they share an alternation, where a shorter key could
+      // shadow a longer one if the engine did not backtrack.
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a", "SHORT");
+      binder.bind("ab", "LONG");
+
+      assertThat(binder.render("#{a}|#{ab}")).isEqualTo("SHORT|LONG");
+    }
+
+    @Test
+    @DisplayName("the longer key resolves the same whichever order it was bound in")
+    void the_longer_key_resolves_the_same_whichever_order() {
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("ab", "LONG");
+      binder.bind("a", "SHORT");
+
+      assertThat(binder.render("#{a}|#{ab}")).isEqualTo("SHORT|LONG");
+    }
+
+    @Test
+    @DisplayName("a key carrying regex metacharacters is matched literally")
+    void a_key_carrying_regex_metacharacters_is_matched_literally() {
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a.b", "DOT");
+      binder.bind("axb", "NOT_DOT");
+
+      assertThat(binder.render("#{a.b}|#{axb}")).isEqualTo("DOT|NOT_DOT");
+    }
+
+    @Test
+    @DisplayName("a key metacharacter must not match an unbound placeholder")
+    void a_key_metacharacter_must_not_match_an_unbound_placeholder() {
+      // If keys were pasted into the pattern unquoted, the dot in this key would match any
+      // character and swallow a placeholder that was never bound.
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a.b", "DOT");
+
+      assertThat(binder.render("#{a.b}|#{axb}")).isEqualTo("DOT|#{axb}");
+    }
+
+    @Test
+    @DisplayName("a key carrying an alternation character stays a single key")
+    void a_key_carrying_an_alternation_character_stays_one_key() {
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a|b", "PIPED");
+
+      assertThat(binder.render("#{a|b}|#{a}")).isEqualTo("PIPED|#{a}");
+    }
+
+    @Test
+    @DisplayName("an unbound placeholder is left untouched")
+    void an_unbound_placeholder_is_left_untouched() {
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+
+      binder.bind("a", "resolved");
+
+      assertThat(binder.render("#{a}|#{never_bound}")).isEqualTo("resolved|#{never_bound}");
+    }
+
+    @Test
+    @DisplayName("binding modes were never exposed, the value goes to the declaration")
+    void binding_modes_keep_the_value_out_of_the_template() {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor("bash");
+
+      binder.bind("a", "#{b}");
+      binder.bind("b", "resolved");
+
+      assertThat(binder.render("echo #{a} #{b}"))
+          .endsWith("echo \"$OAEV_ARG_A\" \"$OAEV_ARG_B\"")
+          .contains("OAEV_ARG_A='#{b}'");
+    }
+  }
+
+  @Nested
+  @DisplayName("Characters deliberately kept")
+  class KeptCharacters {
+
+    @Test
+    @DisplayName("tab survives on every engine, it separates nothing in any supported shell")
+    void tab_survives_on_every_engine() {
+      assertThat(rendered("bash", "a\tb")).contains("a\tb");
+      assertThat(rendered("psh", "a\tb")).contains("a\tb");
+      assertThat(rendered("cmd", "a\tb")).contains("a\tb");
+      assertThat(literalRendered("a\tb")).contains("a\tb");
+    }
+
+    @Test
+    @DisplayName("a byte order mark survives, it is not a line separator")
+    void byte_order_mark_survives() {
+      // Kept on purpose: BOM is a zero-width no-break space, not a line separator. Removing
+      // invisible characters is a different concern from the one this class owns.
+      String value = "a" + BYTE_ORDER_MARK + "b";
+
+      assertThat(rendered("bash", value)).contains(value);
+      assertThat(literalRendered(value)).contains(value);
+    }
+
+    private String rendered(String executor, String value) {
+      CommandArgumentBinder binder = CommandArgumentBinder.forExecutor(executor);
+      binder.bind("t", value);
+      return binder.render("echo #{t}");
+    }
+
+    private String literalRendered(String value) {
+      CommandArgumentBinder binder = CommandArgumentBinder.literal();
+      binder.bind("t", value);
+      return binder.render("host-#{t}");
     }
   }
 

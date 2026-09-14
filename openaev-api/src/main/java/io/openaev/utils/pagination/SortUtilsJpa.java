@@ -6,6 +6,7 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openaev.schema.PropertySchema;
 import io.openaev.schema.SchemaUtils;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.springframework.data.domain.Sort;
@@ -42,7 +43,7 @@ public class SortUtilsJpa {
                         propertySchemas.stream()
                             .filter(p -> p.getJsonName().equals(property))
                             .findFirst()
-                            .map(PropertySchema::getName)
+                            .map(SortUtilsJpa::sortablePropertyName)
                             .orElseThrow(() -> new InvalidSortPropertyException(property));
                     Sort.NullHandling nullHandling =
                         field.nullHandling() != null
@@ -54,5 +55,13 @@ public class SortUtilsJpa {
     }
 
     return Sort.by(orders);
+  }
+
+  private static String sortablePropertyName(@NotNull final PropertySchema schema) {
+    if (Collection.class.isAssignableFrom(schema.getType())) {
+      throw new InvalidSortPropertyException(
+          schema.getJsonName(), "it is a to-many association and cannot be used to sort");
+    }
+    return schema.getName();
   }
 }

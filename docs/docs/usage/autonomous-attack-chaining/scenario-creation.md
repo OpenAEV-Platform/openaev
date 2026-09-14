@@ -48,6 +48,9 @@ While an autonomous run is active, the Scenario's page becomes its cockpit: the 
 graph, and an always-open reasoning panel, with a stop control in the header. Manual configuration
 (scope, logic, manual launch) is not exposed while the run is autonomous — the AI owns it.
 
+If you enable Lessons on the Scenario later, the Lessons target picker uses the teams defined in the
+run scope, just like other chained Scenarios and Simulations.
+
 ## What's next?
 
 - [Configuration](configuration.md): objectives, scope modes, and steering a running attack path.

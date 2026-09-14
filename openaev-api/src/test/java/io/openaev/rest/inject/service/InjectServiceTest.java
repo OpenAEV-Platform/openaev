@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionService;
@@ -18,6 +19,7 @@ import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
+import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.injectors.email.service.ImapService;
 import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.collector.service.CollectorService;
@@ -136,7 +138,9 @@ class InjectServiceTest {
 
   @Mock private ConditionService conditionService;
 
-  @Spy private InjectorContractContentUtils injectorContractContentUtils;
+  @Spy
+  private InjectorContractContentUtils injectorContractContentUtils =
+      new InjectorContractContentUtils(ObjectMapperHelper.openAEVJsonMapper());
 
   @Mock private ApplicationEventPublisher eventPublisher;
 
@@ -360,7 +364,8 @@ class InjectServiceTest {
     when(injectRepository.saveAll(expectedUpdatedInjects)).thenReturn(expectedUpdatedInjects);
 
     // Act
-    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);
@@ -437,7 +442,8 @@ class InjectServiceTest {
     when(injectRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     // Act
-    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);
@@ -502,7 +508,8 @@ class InjectServiceTest {
     when(injectRepository.saveAll(injectsToUpdate)).thenReturn(injectsToUpdate);
 
     // Act
-    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);
@@ -542,7 +549,8 @@ class InjectServiceTest {
     when(injectRepository.saveAll(expectedUpdatedInjects)).thenReturn(expectedUpdatedInjects);
 
     // Act
-    List<Inject> updatedInjects = injectService.bulkUpdateInject(injectsToUpdate, operations);
+    List<Inject> updatedInjects =
+        injectService.bulkUpdateInject(TxCtx.forTenant("tenant-1"), injectsToUpdate, operations);
 
     // Assert
     assertNotNull(updatedInjects);
@@ -568,7 +576,8 @@ class InjectServiceTest {
 
     // Act
     List<Inject> result =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission(
+            TxCtx.missing(), input, Grant.GRANT_TYPE.PLANNER);
 
     // Assert
     assertNotNull(result);
@@ -591,7 +600,8 @@ class InjectServiceTest {
 
     // Act
     List<Inject> result =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission(
+            TxCtx.missing(), input, Grant.GRANT_TYPE.PLANNER);
 
     // Assert
     assertNotNull(result);
@@ -615,7 +625,8 @@ class InjectServiceTest {
 
     // Act
     List<Inject> result =
-        injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER);
+        injectService.getInjectsAndCheckPermission(
+            TxCtx.missing(), input, Grant.GRANT_TYPE.PLANNER);
 
     // Assert
     assertNotNull(result);
@@ -632,7 +643,9 @@ class InjectServiceTest {
     BadRequestException exception =
         assertThrows(
             BadRequestException.class,
-            () -> injectService.getInjectsAndCheckPermission(input, Grant.GRANT_TYPE.PLANNER));
+            () ->
+                injectService.getInjectsAndCheckPermission(
+                    TxCtx.missing(), input, Grant.GRANT_TYPE.PLANNER));
 
     // Assert
     assertEquals(
@@ -649,7 +662,7 @@ class InjectServiceTest {
     doNothing().when(injectRepository).deleteByAllIdsNative(injectIds);
 
     // Act
-    injectService.deleteAllByIds(injectIds);
+    injectService.deleteAllByIds(TxCtx.missing(), injectIds);
 
     // Assert
     verify(injectRepository, times(1)).deleteByAllIdsNative(injectIds);
@@ -662,7 +675,7 @@ class InjectServiceTest {
     List<String> injectIds = List.of();
 
     // Act
-    injectService.deleteAllByIds(injectIds);
+    injectService.deleteAllByIds(TxCtx.missing(), injectIds);
 
     // Assert
     verify(injectRepository, never()).deleteByAllIdsNative(any());
@@ -675,7 +688,7 @@ class InjectServiceTest {
     List<String> injectIds = null;
 
     // Act
-    injectService.deleteAllByIds(injectIds);
+    injectService.deleteAllByIds(TxCtx.missing(), injectIds);
 
     // Assert
     verify(injectRepository, never()).deleteByAllIdsNative(any());

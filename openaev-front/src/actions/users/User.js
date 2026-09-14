@@ -1,3 +1,4 @@
+import { DATA_DELETE_SUCCESS } from '../../constants/ActionTypes';
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
 import * as schema from '../Schema';
 
@@ -37,8 +38,6 @@ export const searchPlayerByIdAsOption = (ids) => {
 
 export const addUser = data => dispatch => postReferential(schema.user, '/api/users', data)(dispatch);
 
-export const updateUserPassword = (userId, data) => dispatch => putReferential(schema.user, `/api/users/${userId}/password`, data)(dispatch);
-
 export const updateUser = (userId, data) => dispatch => putReferential(schema.user, `/api/users/${userId}`, data)(dispatch);
 
 export const deleteUser = userId => dispatch => delReferential(`/api/users/${userId}`, 'users', userId)(dispatch);
@@ -58,5 +57,15 @@ export const updateMeProfile = data => dispatch => putReferential(schema.user, '
 
 export const updateMeInformation = data => dispatch => putReferential(schema.user, '/api/me/information', data)(dispatch);
 
-export const renewToken = tokenId => dispatch => postReferential(schema.token, '/api/me/token/refresh', { token_id: tokenId })(dispatch);
+export const renewToken = tokenId => dispatch => postReferential(schema.token, '/api/me/token/refresh', { token_id: tokenId })(dispatch)
+  .then((data) => {
+    dispatch({
+      type: DATA_DELETE_SUCCESS,
+      payload: {
+        type: 'tokens',
+        id: tokenId,
+      },
+    });
+    return data;
+  });
 // endregion

@@ -53,7 +53,7 @@ const TagRules = () => {
     {
       field: 'tag_rule_asset_groups',
       label: 'Asset Groups',
-      isSortable: true,
+      isSortable: false,
       value: (tagRule: TagRuleOutput) => (
         <ItemTargets targets={Object.entries(tagRule.asset_groups ?? []).map(([target_id, target_name]) => ({
           target_id,

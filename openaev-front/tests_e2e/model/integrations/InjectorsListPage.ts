@@ -7,6 +7,14 @@ class InjectorsListPage {
 
   async waitForLoad(): Promise<void> {
     await this.page.waitForURL('**/integrations/deployed**');
+    await this.page
+      .getByTestId('marketplace-view-cards')
+      .or(this.page.getByTestId('marketplace-view-list'))
+      .first()
+      .waitFor({
+        state: 'visible',
+        timeout: TIMEOUT,
+      });
   }
 
   get searchInput(): Locator {
@@ -14,7 +22,14 @@ class InjectorsListPage {
   }
 
   getInjectorCard(namePattern: string | RegExp): Locator {
-    return this.page.locator('.MuiCard-root').filter({ hasText: namePattern });
+    return this.page
+      .getByTestId('connector-card')
+      .filter({ hasText: namePattern })
+      .or(
+        this.page
+          .getByTestId('connector-line')
+          .filter({ hasText: namePattern }),
+      );
   }
 
   async searchInjector(text: string): Promise<void> {
@@ -26,7 +41,7 @@ class InjectorsListPage {
    * Useful after catalog deployment when the connector instance is created asynchronously.
    */
   async waitForConnectorToAppear(injectorName: string, timeout = TIMEOUT): Promise<void> {
-    await this.page.locator('.MuiCard-root', { hasText: injectorName }).waitFor({
+    await this.getInjectorCard(injectorName).first().waitFor({
       state: 'visible',
       timeout,
     });

@@ -103,19 +103,15 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     });
   });
 
-  test.afterAll(async ({ browser }) => {
+  test.afterAll(async ({ request }) => {
     if (newTenantId) {
-      const context = await browser.newContext({
-        storageState: 'tests_e2e/.auth/user.json',
-        baseURL: APP_URL,
-      });
-      await new TenantApiHelpers(context.request).softDeleteTenant(newTenantId);
-      await context.close();
+      await new TenantApiHelpers(request).softDeleteTenant(newTenantId);
       newTenantId = null;
     }
   });
 
   test('should have OpenAEV agent executor running new atomic test on new tenant', async ({ page }) => {
+    test.setTimeout(480_000);
     expect(newTenantId).not.toBeNull();
 
     // ─── Wait for agent to register an endpoint ───

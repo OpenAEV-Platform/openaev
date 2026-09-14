@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 
-import { deleteUser, searchUsers, updateUser, updateUserPassword } from '../../../../../../actions/users/User';
-import { type ChangePasswordInput, type SearchPaginationInput, type UserInput, type UserOutput } from '../../../../../../utils/api-types';
+import { deleteUser, searchUsers, updateUser } from '../../../../../../actions/users/User';
+import { type SearchPaginationInput, type UserInput, type UserOutput } from '../../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../../utils/hooks';
 
 const useTenantUsers = () => {
@@ -48,10 +48,6 @@ const useTenantUsers = () => {
     });
   }, [dispatch]);
 
-  const changeUserPassword = useCallback((userId: string, data: ChangePasswordInput) => {
-    return dispatch(updateUserPassword(userId, data));
-  }, [dispatch]);
-
   return {
     users,
     setUserList,
@@ -60,7 +56,6 @@ const useTenantUsers = () => {
     addUser,
     editUser,
     removeUser,
-    changeUserPassword,
   };
 };
 

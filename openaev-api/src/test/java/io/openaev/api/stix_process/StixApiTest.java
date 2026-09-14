@@ -1,6 +1,5 @@
 package io.openaev.api.stix_process;
 
-import static io.openaev.api.stix_process.StixApi.STIX_URI;
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAsset;
 import static io.openaev.injector_contract.InjectorContractContentUtilsTest.createContentWithFieldAssetGroup;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
@@ -61,6 +60,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -253,10 +253,8 @@ class StixApiTest extends IntegrationTest {
             throws Exception {
       String response =
           mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(stixSecurityCoverageNoPlatformAffinity))
-                      .with(csrf()))
+                  processBundleRequest(
+                      mapper.writeValueAsString(stixSecurityCoverageNoPlatformAffinity)))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -311,11 +309,7 @@ class StixApiTest extends IntegrationTest {
               stixSecurityCoverage, CommonProperties.LABELS.toString(), null, List.of(label), 0);
 
       String response =
-          mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(updated))
-                      .with(csrf()))
+          mvc.perform(processBundleRequest(mapper.writeValueAsString(updated)))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -358,11 +352,7 @@ class StixApiTest extends IntegrationTest {
               emptyList(),
               0);
 
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(updated))
-                  .with(csrf()))
+      mvc.perform(processBundleRequest(mapper.writeValueAsString(updated)))
           .andExpect(status().isOk());
     }
 
@@ -372,12 +362,7 @@ class StixApiTest extends IntegrationTest {
       // Simulate bundle with two identical security coverages
       String content = mapper.writeValueAsString(stixSecurityCoverageTwoCoverages);
 
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(content)
-                  .with(csrf()))
-          .andExpect(status().isOk());
+      mvc.perform(processBundleRequest(content)).andExpect(status().isOk());
     }
 
     @Test
@@ -390,12 +375,7 @@ class StixApiTest extends IntegrationTest {
             }
           """;
 
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(invalidJson)
-                  .with(csrf()))
-          .andExpect(status().isBadRequest());
+      mvc.perform(processBundleRequest(invalidJson)).andExpect(status().isBadRequest());
     }
 
     @Test
@@ -409,12 +389,7 @@ class StixApiTest extends IntegrationTest {
             }
           """;
 
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(structurallyInvalidStix)
-                  .with(csrf()))
-          .andExpect(status().isBadRequest());
+      mvc.perform(processBundleRequest(structurallyInvalidStix)).andExpect(status().isBadRequest());
     }
 
     @Test
@@ -423,10 +398,7 @@ class StixApiTest extends IntegrationTest {
     void shouldCreateScenarioNoEnd() throws Exception {
       String response =
           mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(stixSecurityCoverageNoDuration))
-                      .with(csrf()))
+                  processBundleRequest(mapper.writeValueAsString(stixSecurityCoverageNoDuration)))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -449,21 +421,13 @@ class StixApiTest extends IntegrationTest {
     @Test
     @DisplayName("Should return 200 OK even when security coverage is already saved")
     void shouldReturn200OKEvenWhenSecurityCoverageIsAlreadySaved() throws Exception {
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(stixSecurityCoverage))
-                  .with(csrf()))
+      mvc.perform(processBundleRequest(mapper.writeValueAsString(stixSecurityCoverage)))
           .andExpect(status().isOk());
 
       entityManager.flush();
       entityManager.clear();
 
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(stixSecurityCoverage))
-                  .with(csrf()))
+      mvc.perform(processBundleRequest(mapper.writeValueAsString(stixSecurityCoverage)))
           .andExpect(status().isOk());
     }
 
@@ -479,11 +443,7 @@ class StixApiTest extends IntegrationTest {
               emptyList(),
               0);
 
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(referenceInput))
-                  .with(csrf()))
+      mvc.perform(processBundleRequest(mapper.writeValueAsString(referenceInput)))
           .andExpect(status().isOk());
 
       entityManager.flush();
@@ -498,11 +458,7 @@ class StixApiTest extends IntegrationTest {
               0);
 
       // Push an old Stix
-      mvc.perform(
-              post(STIX_URI + "/process-bundle")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(mapper.writeValueAsString(updated))
-                  .with(csrf()))
+      mvc.perform(processBundleRequest(mapper.writeValueAsString(updated)))
           .andExpect(status().isOk());
     }
 
@@ -989,7 +945,10 @@ class StixApiTest extends IntegrationTest {
       entityManager.clear();
       scenarioRepository.deleteById(scenarioId);
       entityManager.clear();
-      assertThat(securityCoverageRepository.findByExternalId(securityCoverageId)).isNotNull();
+      assertThat(
+              securityCoverageRepository.findAllByExternalIdAndTenantId(
+                  securityCoverageId, scenario.getTenant().getId()))
+          .isNotNull();
     }
 
     @Test
@@ -1017,10 +976,8 @@ class StixApiTest extends IntegrationTest {
     void shouldCreateScenarioWithDomainNameResolutionInjects() throws Exception {
       String createdResponse =
           mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(stixSecurityCoverageWithDomainName))
-                      .with(csrf()))
+                  processBundleRequest(
+                      mapper.writeValueAsString(stixSecurityCoverageWithDomainName)))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -1058,10 +1015,7 @@ class StixApiTest extends IntegrationTest {
       // EXECUTE
       String createdResponse =
           mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(stixSecurityCoverageWithArtifact)))
+                  processBundleRequest(mapper.writeValueAsString(stixSecurityCoverageWithArtifact)))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -1100,10 +1054,8 @@ class StixApiTest extends IntegrationTest {
       // EXECUTE
       String createdResponse =
           mvc.perform(
-                  post(STIX_URI + "/process-bundle")
-                      .with(csrf())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(mapper.writeValueAsString(stixSecurityCoverageWithFailingArtifact)))
+                  processBundleRequest(
+                      mapper.writeValueAsString(stixSecurityCoverageWithFailingArtifact)))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -1122,17 +1074,20 @@ class StixApiTest extends IntegrationTest {
 
   private String getScenarioIdResponse(String content) throws Exception {
     String response =
-        mvc.perform(
-                post(STIX_URI + "/process-bundle")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(content)
-                    .with(csrf()))
+        mvc.perform(processBundleRequest(content))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
             .getContentAsString();
     assertThat(response).isNotBlank();
     return JsonPath.read(response, "$.scenarioId");
+  }
+
+  private MockHttpServletRequestBuilder processBundleRequest(String content) {
+    return post(tenantUri("/api/tenants/{tenantId}/stix/process-bundle"))
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(content)
+        .with(csrf());
   }
 
   private JsonNode loadJsonWithStixObjects(String filePath) throws IOException {

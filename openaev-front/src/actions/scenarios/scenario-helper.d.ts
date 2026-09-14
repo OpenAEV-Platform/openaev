@@ -3,6 +3,7 @@ import { type LessonsCategory, type LessonsQuestion, type Objective, type Scenar
 export interface ScenariosHelper {
   getScenario: (scenarioId: string) => Scenario;
   getScenarios: () => Scenario[];
+  getScenariosMap: () => Record<string, Scenario>;
   getScenarioTeams: (scenarioId: string) => Team[];
   getScenarioObjectives: (scenarioId: string) => Objective[];
   getScenarioLessonsCategories: (scenarioId: string) => LessonsCategory[];

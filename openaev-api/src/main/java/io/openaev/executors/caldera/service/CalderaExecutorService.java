@@ -226,8 +226,8 @@ public class CalderaExecutorService implements Runnable {
     endpoint.setArch(input.getArch());
     endpoint.setHostname(input.getHostname());
     endpoint.setIps(input.getIps());
-    endpoint.setTenant(new Tenant(executor.getTenantId()));
-    endpointService.createEndpoint(endpoint);
+    // The connector runs inside tenantTx.execute(forTenant(executor.getTenantId()), ...).
+    endpointService.createEndpoint(endpoint, executor.getTenantId());
     Agent agent = new Agent();
     setUpdatedAgentAttributes(agent, input, endpoint);
     setNewAgentAttributes(input, agent);

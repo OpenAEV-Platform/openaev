@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.IndexEvent;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.*;
@@ -52,6 +53,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
 import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
 import io.openaev.rest.tag.TagService;
@@ -321,7 +323,7 @@ public class InjectService {
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public void deleteAllByIds(List<String> injectIds) {
+  public void deleteAllByIds(TxCtx ctx, List<String> injectIds) {
     if (!CollectionUtils.isEmpty(injectIds)) {
       injectRepository.deleteByAllIdsNative(injectIds);
       // Native delete: no JPA lifecycle event fires, notify the search engine explicitly so the
@@ -684,7 +686,9 @@ public class InjectService {
    */
   @Transactional(rollbackFor = Exception.class)
   public List<Inject> bulkUpdateInject(
-      final List<Inject> injectsToUpdate, final List<InjectBulkUpdateOperation> operations) {
+      final TxCtx ctx,
+      final List<Inject> injectsToUpdate,
+      final List<InjectBulkUpdateOperation> operations) {
     // We aggregate the different field values in distinct sets in order to avoid retrieving the
     // same data multiple times
     Set<String> teamsIDs = new HashSet<>();
@@ -723,7 +727,9 @@ public class InjectService {
         });
 
     // Save updated injects and return them
-    return this.injectRepository.saveAll(injectsToUpdate);
+    List<Inject> updated = this.injectRepository.saveAll(injectsToUpdate);
+    KillChainPhaseInitializer.initializeFromInjects(updated);
+    return updated;
   }
 
   /**
@@ -733,8 +739,9 @@ public class InjectService {
    * @return the injects to update/delete
    * @throws AccessDeniedException if the user is not allowed to update/delete the injects
    */
+  @Transactional(readOnly = true)
   public List<Inject> getInjectsAndCheckPermission(
-      InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
+      TxCtx ctx, InjectBulkProcessingInput input, Grant.GRANT_TYPE requested_grant_level) {
     // Control and format inputs
     // Specification building
     Specification<Inject> filterSpecifications =

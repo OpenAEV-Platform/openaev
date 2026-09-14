@@ -139,6 +139,17 @@ public class InjectorContractFixture {
     return createDefaultInjectorContractInternal();
   }
 
+  public static InjectorContract createDefaultInjectorContractWithFields(
+      List<? extends ContractElement> fields) throws JsonProcessingException {
+    InjectorContract injectorContract = createDefaultInjectorContractInternal();
+    ObjectMapper objectMapper = new ObjectMapper();
+    ObjectNode content = injectorContract.getConvertedContent();
+    content.set(CONTRACT_CONTENT_FIELDS, objectMapper.valueToTree(fields));
+    injectorContract.setContent(objectMapper.writeValueAsString(content));
+    injectorContract.setConvertedContent(content);
+    return injectorContract;
+  }
+
   public static InjectorContract createInjectorContractWithDomain(Domain domain) {
     InjectorContract injectorContract = createDefaultInjectorContractInternal();
     Set<Domain> domains = new HashSet<>();

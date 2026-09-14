@@ -92,6 +92,7 @@ class AttackPathSecurityPlatformsTest extends IntegrationTest {
     siem.setExternalReference("ext-siem");
     siem.setName("Splunk");
     siem.setSecurityPlatformType(SECURITY_PLATFORM_TYPE.SIEM);
+    siem.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     siem = securityPlatformRepository.save(siem);
   }
 

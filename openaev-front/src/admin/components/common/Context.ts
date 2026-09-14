@@ -65,8 +65,8 @@ export type ArticleContextType = {
   }>;
   fetchDocuments: () => Promise<Document[]>;
   onAddArticle: (data: ArticleCreateInput) => Promise<{ result: string }>;
-  onUpdateArticle: (article: Article, data: ArticleUpdateInput) => string;
-  onDeleteArticle: (article: Article) => string;
+  onUpdateArticle: (article: Article, data: ArticleUpdateInput) => Promise<Article>;
+  onDeleteArticle: (article: Article) => Promise<unknown>;
 };
 
 export type ChallengeContextType = {
@@ -237,11 +237,11 @@ export const ArticleContext = createContext<ArticleContextType>({
   onAddArticle(_data: ArticleCreateInput): Promise<{ result: string }> {
     return Promise.resolve({ result: '' });
   },
-  onDeleteArticle(_article: Article): string {
-    return '';
+  onDeleteArticle(_article: Article): Promise<unknown> {
+    return Promise.resolve();
   },
-  onUpdateArticle(_article: Article, _data: ArticleUpdateInput): string {
-    return '';
+  onUpdateArticle(_article: Article, _data: ArticleUpdateInput): Promise<Article> {
+    return Promise.resolve({} as Article);
   },
   previewArticleUrl(_article: FullArticleStore): string {
     return '';

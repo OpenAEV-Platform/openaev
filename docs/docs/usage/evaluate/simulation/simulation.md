@@ -42,8 +42,14 @@ The recommended approach is to create a Simulation from a [Scenario](../../build
 | Scheduled | Initial state, ready for launch |
 | Running | Actively executing Injects |
 | Paused | Paused mid-execution, can be resumed |
-| Finished | Execution complete |
+| Finished | All Injects executed and all their Expectations resolved or expired |
 | Canceled | Manually stopped before completion |
+
+!!! note "When does a Simulation become Finished?"
+
+    A Simulation does **not** finish as soon as its Injects are sent. It stays **Running** until, for every Inject, execution has completed **and** all of the Inject's [Expectations](../expectations/expectations.md) are resolved -- either fulfilled (by a Collector, a security platform, or manual validation) or [expired](../expectations/expectations.md#expiration). Only then does it move to **Finished**.
+
+    Expectations that are never fulfilled expire after their configured window (see [Expiration](../expectations/expectations.md#expiration)), which guarantees a Simulation always reaches **Finished** even when a Collector never reports.
 
 ### Actions
 
@@ -85,7 +91,13 @@ The Execution tab is a live operations dashboard for monitoring and managing a r
 
 ### Lessons learned
 
-An opt-in module for post-Simulation debriefs. Enable it during Simulation creation or update. Organize customizable survey questions by category, distribute them to Players, and collect qualitative feedback. Responses can be anonymized for sharing. Apply pre-built lesson templates from [Components > Lessons](../../build/components/lessons.md).
+An opt-in module for post-Simulation debriefs. Enable it during Simulation creation or update. Organize
+customizable survey questions by category, distribute them to Players, and collect qualitative feedback. Responses can be anonymized for sharing. Apply pre-built lesson templates from [Components > Lessons](../../build/components/lessons.md).
+
+!!! note
+
+    For chained Simulations, the Lessons target team list comes from the run scope. For time-based
+    Simulations, it comes from the Simulation teams you configured.
 
 ### Findings
 

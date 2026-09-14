@@ -15,6 +15,7 @@ import java.util.List;
  * @see io.openaev.database.model.AssetGroup
  */
 public interface RawAssetGroup {
+  ObjectMapper objectMapper = new ObjectMapper();
 
   /**
    * Parses and returns the dynamic filter configuration for this asset group.
@@ -26,7 +27,6 @@ public interface RawAssetGroup {
    *     or parsing fails
    */
   default Filters.FilterGroup getAssetGroupDynamicFilter() {
-    ObjectMapper objectMapper = new ObjectMapper();
     try {
       return objectMapper.readValue(getAsset_group_dynamic_filter(), Filters.FilterGroup.class);
     } catch (JsonProcessingException | IllegalArgumentException e) {

@@ -107,8 +107,14 @@ public class MdeExecutorServiceTest {
     assertEquals(0, agentsCaptor.getValue().size());
 
     ArgumentCaptor<AssetGroup> assetGroupCaptor = ArgumentCaptor.forClass(AssetGroup.class);
+    ArgumentCaptor<String> tenantCaptor = ArgumentCaptor.forClass(String.class);
     verify(assetGroupService)
-        .createOrUpdateAssetGroupWithoutDynamicAssets(assetGroupCaptor.capture());
+        .createOrUpdateAssetGroupWithoutDynamicAssets(
+            assetGroupCaptor.capture(), tenantCaptor.capture());
+    assertEquals(
+        mdeExecutor.getTenantId(),
+        tenantCaptor.getValue(),
+        "the asset group must be attributed to the executor's own tenant");
     assertEquals(DEVICE_GROUP_ID, assetGroupCaptor.getValue().getExternalReference());
     assertEquals("Test Device Group", assetGroupCaptor.getValue().getName());
   }

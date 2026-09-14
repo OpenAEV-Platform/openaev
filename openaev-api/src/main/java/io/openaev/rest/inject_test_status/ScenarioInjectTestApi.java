@@ -46,6 +46,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public Page<InjectTestStatusOutput> findAllScenarioInjectTests(
+      TxCtx ctx,
       @PathVariable @NotBlank String scenarioId,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return injectTestStatusService.findAllInjectTestsByScenarioId(
@@ -58,7 +59,8 @@ public class ScenarioInjectTestApi extends RestBehavior {
     TENANT_SCENARIO_URI + "/injects/test/{testId}"
   })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SCENARIO)
-  public InjectTestStatusOutput findInjectTestStatus(@PathVariable @NotBlank String testId) {
+  public InjectTestStatusOutput findInjectTestStatus(
+      TxCtx ctx, @PathVariable @NotBlank String testId) {
     return injectTestStatusService.findInjectTestStatusById(testId);
   }
 
@@ -91,7 +93,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public void deleteInjectTest(
-      @PathVariable @NotBlank final String scenarioId, @PathVariable String testId) {
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId, @PathVariable String testId) {
     injectTestStatusService.deleteInjectTest(testId);
   }
 

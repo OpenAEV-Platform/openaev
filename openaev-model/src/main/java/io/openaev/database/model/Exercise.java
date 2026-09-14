@@ -248,6 +248,16 @@ public class Exercise implements GrantableBase, TenantBase {
   }
 
   // STIX
+  // Intentionally EAGER, not the usual FetchType.LAZY default: SecurityCoverageSendJobService's
+  // shouldCreateCoverageSendJob() gates on `exercise.getSecurityCoverage() != null`. A lazy
+  // @ManyToOne builds its proxy purely from the FK column, with NO query and therefore no
+  // TenantStatementInspector involvement, so that null-check would silently bypass tenant scoping
+  // (a proxy for another tenant's row would come back non-null even with app.current_tenants
+  // empty). EAGER performs the read as a JOIN in the same query, which the inspector DOES rewrite,
+  // so the null-check stays scope-honest. See
+  // TenantActiveTableAccessArchTest#security_coverages_exercise_association_access_is_reviewed and
+  // SecurityCoverageTenantScopeTest#SendJobCreationGateRequiresScope (this is exactly what that
+  // test proves).
   @Getter
   @ManyToOne
   @JoinColumn(name = "exercise_security_coverage")

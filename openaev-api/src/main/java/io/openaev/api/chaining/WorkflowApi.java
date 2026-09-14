@@ -84,7 +84,8 @@ public class WorkflowApi extends RestBehavior {
       resourceType = ResourceType.WORKFLOW,
       isEnterpriseEdition = true)
   @LogExecutionTime
-  public List<ScopeAssetOutput> getValidAssets(@PathVariable @NotBlank final String workflowId) {
+  public List<ScopeAssetOutput> getValidAssets(
+      TxCtx ctx, @PathVariable @NotBlank final String workflowId) {
     return scopeService.getValidAssets(workflowId).stream()
         .map(ScopeAssetMapper::toOutput)
         .toList();
@@ -105,7 +106,8 @@ public class WorkflowApi extends RestBehavior {
       resourceType = ResourceType.WORKFLOW,
       isEnterpriseEdition = true)
   @LogExecutionTime
-  public List<ScopeTeamOutput> getValidTeams(@PathVariable @NotBlank final String workflowId) {
+  public List<ScopeTeamOutput> getValidTeams(
+      TxCtx ctx, @PathVariable @NotBlank final String workflowId) {
     return scopeService.getValidTeams(workflowId).stream().map(ScopeTeamMapper::toOutput).toList();
   }
 
@@ -173,7 +175,7 @@ public class WorkflowApi extends RestBehavior {
       isEnterpriseEdition = true)
   @LogExecutionTime
   public List<AssetGroupOutput> getScopeAssetGroups(
-      @PathVariable @NotBlank final String workflowId) {
+      TxCtx ctx, @PathVariable @NotBlank final String workflowId) {
     return scopeService.getScopeAssetGroups(workflowId);
   }
 
@@ -193,6 +195,7 @@ public class WorkflowApi extends RestBehavior {
       isEnterpriseEdition = true)
   @LogExecutionTime
   public List<AssetGroupOutput> findScopeAssetGroups(
+      TxCtx ctx,
       @PathVariable @NotBlank final String workflowId,
       @RequestBody @Valid @NotNull final List<String> assetGroupIds) {
     return scopeService.getScopeAssetGroupsByIds(workflowId, assetGroupIds);
@@ -219,6 +222,7 @@ public class WorkflowApi extends RestBehavior {
       isEnterpriseEdition = true)
   @LogExecutionTime
   public WorkflowInjectorContractOutput getWorkflowInjectorContract(
+      TxCtx ctx,
       @PathVariable @NotBlank final String workflowId,
       @PathVariable @NotBlank final String injectorContractId) {
     return WorkflowInjectorContractOutput.fromInjectorContract(

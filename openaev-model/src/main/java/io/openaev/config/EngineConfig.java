@@ -93,6 +93,13 @@ public class EngineConfig {
      */
     public static final int INDEXING_MAX_CONCURRENT_MODELS = 3;
 
+    /**
+     * Default threshold in milliseconds after which a model synchronisation is declared misfired
+     * and should be rescheduled. If the engine sync threadpool is temporarily exhausted, this
+     * avoids stacking repeated jobs for syncing the same model over and over.
+     */
+    public static final long INDEXING_MISFIRE_THRESHOLD_MS = 120_000L;
+
     /** Default connect timeout for the search engine client, in milliseconds. */
     public static final int CONNECT_TIMEOUT_MS = 5_000;
 
@@ -156,6 +163,18 @@ public class EngineConfig {
   private int indexingBatchSize = Defaults.INDEXING_BATCH_SIZE;
 
   private int indexingMaxConcurrentModels = Defaults.INDEXING_MAX_CONCURRENT_MODELS;
+
+  private long indexingMisfireThresholdMs = Defaults.INDEXING_MISFIRE_THRESHOLD_MS;
+
+  /**
+   * Get max number of concurrent models being synced at any one time. The value is clamped to a
+   * minimum of 1 (cannot be zero or negative) even if configured otherwise.
+   *
+   * @return indexingMaxConcurrentModels configuration value or 1 if configured lower than 1.
+   */
+  public int getIndexingMaxConcurrentModels() {
+    return Math.max(indexingMaxConcurrentModels, 1);
+  }
 
   private int connectTimeoutMs = Defaults.CONNECT_TIMEOUT_MS;
 

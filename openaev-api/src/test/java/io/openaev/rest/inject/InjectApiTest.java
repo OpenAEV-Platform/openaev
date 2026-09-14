@@ -27,7 +27,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
@@ -140,8 +139,8 @@ class InjectApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    emailInjectorIntegrationFactory.registerConnectorForTenant(Tenant.DEFAULT_TENANT_UUID);
+    openaevInjectorIntegrationFactory.registerConnectorForTenant(Tenant.DEFAULT_TENANT_UUID);
     managerFactory.getManager(Tenant.DEFAULT_TENANT_UUID).monitorIntegrations();
     // The manager bootstrap above joins this test's transaction and pins its scope to the default
     // tenant (ManagerCreator.setScopeOnCurrentTransaction). Inject endpoints carrying a TxCtx then
@@ -1047,9 +1046,12 @@ class InjectApiTest extends IntegrationTest {
           .satisfies(
               expectation ->
                   assertThat(
-                          expectation.getSignatures().stream()
-                              .filter(
-                                  s -> EXPECTATION_SIGNATURE_TYPE_START_DATE.equals(s.getType())))
+                          ((TechnicalInjectExpectation) expectation)
+                              .getSignatures().stream()
+                                  .filter(
+                                      s ->
+                                          EXPECTATION_SIGNATURE_TYPE_START_DATE.equals(
+                                              s.getType())))
                       .hasSize(1));
     }
 
@@ -1492,9 +1494,10 @@ class InjectApiTest extends IntegrationTest {
             injectExpectationRepository.findAllByInjectAndAgent(inject.getId(), agent.getId());
         assertEquals(1, injectExpectationSaved.size());
         List<InjectExpectationSignature> endDatesignatures =
-            injectExpectationSaved.getFirst().getSignatures().stream()
-                .filter(s -> EXPECTATION_SIGNATURE_TYPE_END_DATE.equals(s.getType()))
-                .toList();
+            ((TechnicalInjectExpectation) injectExpectationSaved.getFirst())
+                .getSignatures().stream()
+                    .filter(s -> EXPECTATION_SIGNATURE_TYPE_END_DATE.equals(s.getType()))
+                    .toList();
         assertEquals(1, endDatesignatures.size());
       }
 
@@ -2096,6 +2099,38 @@ class InjectApiTest extends IntegrationTest {
         assertTrue(injectTestHelper.findFindingsByInjectId(portScanInject.getId()).isEmpty());
       }
 
+      @Test
+      @DisplayName("Should not create PortScan findings when extracted port is invalid")
+      void shouldNotCreatePortScanFindingsWhenExtractedPortIsInvalid() throws Exception {
+        // -- PREPARE --
+        RegexGroup hostGroup = OutputParserFixture.getRegexGroup("host", "$1");
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$2");
+        RegexGroup serviceGroup = OutputParserFixture.getRegexGroup("service", "$3");
+        ContractOutputElement portScanElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.PortsScan,
+                "(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):([A-Za-z0-9-]+)\\s+\\S+\\s+(LISTENING)",
+                Set.of(hostGroup, portGroup, serviceGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portScanElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portScanInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        InjectExecutionInput input = new InjectExecutionInput();
+        input.setMessage(
+            "{\"stdout\":\"192.168.1.10:70000 0.0.0.0:0 LISTENING\\n"
+                + "10.0.0.5:abc 0.0.0.0:0 LISTENING\\n\"}");
+        input.setAction(InjectExecutionAction.command_execution);
+        input.setStatus("SUCCESS");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portScanInject.getId(), input);
+
+        // -- ASSERT --
+        assertTrue(injectTestHelper.findFindingsByInjectId(portScanInject.getId()).isEmpty());
+      }
+
       // Port
 
       @Test
@@ -2157,6 +2192,34 @@ class InjectApiTest extends IntegrationTest {
         String agentId = (String) setup[1];
 
         InjectExecutionInput input = buildStdoutInput("no ports here");
+
+        // -- EXECUTE --
+        performCallbackRequest(agentId, portInject.getId(), input);
+
+        // -- ASSERT --
+        assertTrue(injectTestHelper.findFindingsByInjectId(portInject.getId()).isEmpty());
+      }
+
+      @Test
+      @DisplayName("Should not create Port findings when extracted port is invalid")
+      void shouldNotCreatePortFindingsWhenExtractedPortIsInvalid() throws Exception {
+        // -- PREPARE --
+        RegexGroup portGroup = OutputParserFixture.getRegexGroup("port", "$1");
+        ContractOutputElement portElement =
+            OutputParserFixture.getContractOutputElement(
+                ContractOutputType.Port,
+                "(?:TCP|UDP)\\s+[\\d\\.]+:([A-Za-z0-9-]+)",
+                Set.of(portGroup),
+                true);
+        OutputParser outputParser = OutputParserFixture.getOutputParser(Set.of(portElement));
+        Object[] setup = buildInjectWithOutputParser(outputParser);
+        Inject portInject = (Inject) setup[0];
+        String agentId = (String) setup[1];
+
+        String rawOutput =
+            "  TCP    192.168.1.10:abc            0.0.0.0:0              LISTENING\\n"
+                + "  TCP    192.168.1.10:99999            0.0.0.0:0              LISTENING\\n";
+        InjectExecutionInput input = buildStdoutInput(rawOutput);
 
         // -- EXECUTE --
         performCallbackRequest(agentId, portInject.getId(), input);
@@ -3329,10 +3392,10 @@ class InjectApiTest extends IntegrationTest {
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference(
-                "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
+                "https://shodan.io/.../assetA", Tenant.DEFAULT_TENANT_UUID);
         List<Endpoint> endpointsB =
             endpointRepository.findByExternalReference(
-                "https://shodan.io/.../assetB", TenantContext.getCurrentTenant());
+                "https://shodan.io/.../assetB", Tenant.DEFAULT_TENANT_UUID);
         assertEquals(1, endpointsA.size());
         assertEquals(1, endpointsB.size());
         assertEquals("test.if", endpointsA.getFirst().getHostname());
@@ -3423,7 +3486,7 @@ class InjectApiTest extends IntegrationTest {
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference(
-                "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
+                "https://shodan.io/.../assetA", Tenant.DEFAULT_TENANT_UUID);
         assertEquals(1, endpointsA.size());
         assertEquals("test.if", endpointsA.getFirst().getHostname());
       }
@@ -3554,7 +3617,7 @@ class InjectApiTest extends IntegrationTest {
                 () -> {
                   List<Endpoint> endpointsA =
                       endpointRepository.findByExternalReference(
-                          "https://shodan.io/.../assetA", TenantContext.getCurrentTenant());
+                          "https://shodan.io/.../assetA", Tenant.DEFAULT_TENANT_UUID);
                   return endpointsA.isEmpty();
                 });
       }
@@ -3627,7 +3690,7 @@ class InjectApiTest extends IntegrationTest {
 
         List<Endpoint> endpointsA =
             endpointRepository.findByExternalReference(
-                "https://shodan.io/.../assetC", TenantContext.getCurrentTenant());
+                "https://shodan.io/.../assetC", Tenant.DEFAULT_TENANT_UUID);
         assertEquals(1, endpointsA.size());
         assertEquals("", endpointsA.getFirst().getHostname());
         assertEquals(Endpoint.PLATFORM_TYPE.Unknown, endpointsA.getFirst().getPlatform());

@@ -3,6 +3,12 @@ name: "[Core] Release Trivy Report Upload"
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to fetch reports from and upload to (example: 3.260821.0)"
+        required: true
+        type: string
 
 permissions:
   actions: read
@@ -19,12 +25,13 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            const tag = context.payload.release.tag_name;
+            const tag = context.eventName === 'workflow_dispatch'
+              ? context.payload.inputs?.tag
+              : context.payload.release?.tag_name;
             if (!tag) {
-              core.notice('No release tag found in payload');
+              core.notice('No release tag provided');
               return;
             }
-
             // Tag-triggered runs usually have head_branch = null, so resolve the
             // commit behind the release tag and match by head_sha instead.
             let tagSha;
@@ -84,18 +91,19 @@ jobs:
                 per_page: 100,
               },
             );
-
+            
             function findArtifactId(name) {
               const artifact = artifacts.find(candidate =>
                 candidate.name === name && !candidate.expired
               );
               return artifact ? String(artifact.id) : '';
             }
-
+            const standardReport = findArtifactId('container-vulnerability-report-standard');
+            const ubi9Report = findArtifactId('container-vulnerability-report-ubi9');
             core.setOutput('tag', tag);
             core.setOutput('run-id', String(run.id));
-            core.setOutput('standard-artifact-id', findArtifactId('container-vulnerability-report-standard'));
-            core.setOutput('ubi9-artifact-id', findArtifactId('container-vulnerability-report-ubi9'));
+            core.setOutput('standard-artifact-id', standardReport);
+            core.setOutput('ubi9-artifact-id', ubi9Report);
 
       - name: Download standard report
         if: ${{ steps.context.outputs.standard-artifact-id != '' }}
@@ -119,6 +127,7 @@ jobs:
         if: ${{ steps.context.outputs.tag != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ steps.context.outputs.tag }}
           REPORT_ROOT: ${{ runner.temp }}/container-vulnerability-reports
         run: |

@@ -57,4 +57,43 @@ class SecretToStringSecurityTest {
         .contains("UsernamePasswordSecret")
         .doesNotContain("__SENSITIVE_USERNAME__", "username=", "secret_username");
   }
+
+  @Test
+  @DisplayName("given_azureServicePrincipalSecret_should_notExposeSensitiveValuesInToString")
+  void given_azureServicePrincipalSecret_should_notExposeSensitiveValuesInToString() {
+    // Arrange
+    AzureServicePrincipalSecret secret = new AzureServicePrincipalSecret();
+    secret.setAzureEnvironment("AzureCloud");
+    secret.setAzureClientId("a-client-id");
+    secret.setAzureClientSecret("__SENSITIVE_CLIENT_SECRET__");
+    secret.setAzureTenantId("__SENSITIVE_TENANT_ID__");
+    secret.setAzureSubscriptionId("__SENSITIVE_SUBSCRIPTION_ID__");
+
+    // Act
+    String output = secret.toString();
+
+    // Assert
+    assertThat(output).contains("AzureServicePrincipalSecret");
+    assertThat(output)
+        .doesNotContain(
+            "__SENSITIVE_CLIENT_SECRET__",
+            "__SENSITIVE_TENANT_ID__",
+            "__SENSITIVE_SUBSCRIPTION_ID__");
+  }
+
+  @Test
+  @DisplayName("given_azureManagedIdentitySecret_should_notExposeSensitiveValuesInToString")
+  void given_azureManagedIdentitySecret_should_notExposeSensitiveValuesInToString() {
+    // Arrange
+    AzureManagedIdentitySecret secret = new AzureManagedIdentitySecret();
+    secret.setAzureEnvironment("AzureCloud");
+    secret.setAzureSubscriptionId("__SENSITIVE_SUBSCRIPTION_ID__");
+
+    // Act
+    String output = secret.toString();
+
+    // Assert
+    assertThat(output).contains("AzureManagedIdentitySecret");
+    assertThat(output).doesNotContain("__SENSITIVE_SUBSCRIPTION_ID__");
+  }
 }

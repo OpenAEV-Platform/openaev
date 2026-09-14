@@ -2,8 +2,11 @@ package io.openaev.scheduler.jobs;
 
 import static java.util.Optional.ofNullable;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.SecurityCoverageSendJob;
 import io.openaev.database.model.Tenant;
@@ -12,6 +15,7 @@ import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.service.SecurityCoverageSendJobService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.stix.objects.Bundle;
+import io.openaev.stix.parsing.ParsingException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -32,6 +36,7 @@ public class SecurityCoverageJob implements Job {
   private final SecurityCoverageSendJobService securityCoverageSendJobService;
   private final SecurityCoverageService securityCoverageService;
   private final OpenCTIConnectorService openCTIConnectorService;
+  private final TenantScopedTransaction tenantTx;
 
   // No job-level @Transactional here: a transaction spanning the whole loop held a pooled DB
   // connection across every external OpenCTI HTTP push (potentially minutes when OpenCTI is slow
@@ -74,8 +79,7 @@ public class SecurityCoverageJob implements Job {
             "Bundle creating for Security coverage job id {} for tenant {}",
             securityCoverageSendJob.getId(),
             tenantId);
-        Bundle resultBundle =
-            securityCoverageService.createBundleFromSendJobs(List.of(securityCoverageSendJob));
+        Bundle resultBundle = buildBundleInTenantScope(tenantId, securityCoverageSendJob);
         log.info(
             "Bundle {} created for Security coverage job id {} for tenant {}",
             resultBundle.getId(),
@@ -127,5 +131,19 @@ public class SecurityCoverageJob implements Job {
     if (!successfulJobs.isEmpty()) {
       securityCoverageSendJobService.consumeJobs(successfulJobs);
     }
+  }
+
+  private Bundle buildBundleInTenantScope(
+      String tenantId, SecurityCoverageSendJob securityCoverageSendJob) {
+    return tenantTx.execute(
+        TxCtx.forTenant(tenantId),
+        () -> {
+          try {
+            return securityCoverageService.createBundleFromSendJobs(
+                List.of(securityCoverageSendJob));
+          } catch (ParsingException | JsonProcessingException e) {
+            throw new IllegalStateException(e);
+          }
+        });
   }
 }

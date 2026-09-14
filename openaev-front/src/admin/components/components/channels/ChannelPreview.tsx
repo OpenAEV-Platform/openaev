@@ -4,6 +4,7 @@ import { alpha } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
 
 import { type Document } from '../../../../utils/api-types';
+import { colorOrFallback } from '../../../../utils/Colors';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 
 // The preview renders the channel exactly as readers will see it, in the
@@ -93,8 +94,8 @@ const MockCard = ({ surface, children }: {
 
 const ChannelPreview: FunctionComponent<Props> = ({ channel, mode }) => {
   const surface = SURFACES[mode];
-  const primary = (mode === 'dark' ? channel.channel_primary_color_dark : channel.channel_primary_color_light) || surface.text;
-  const secondary = (mode === 'dark' ? channel.channel_secondary_color_dark : channel.channel_secondary_color_light) || surface.muted;
+  const primary = colorOrFallback(mode === 'dark' ? channel.channel_primary_color_dark : channel.channel_primary_color_light, surface.text);
+  const secondary = colorOrFallback(mode === 'dark' ? channel.channel_secondary_color_dark : channel.channel_secondary_color_light, surface.muted);
   const logo = mode === 'dark' ? channel.logoDark : channel.logoLight;
   const showLogo = channel.channel_mode !== 'title' && !!logo;
   const showTitle = channel.channel_mode !== 'logo' || !logo;

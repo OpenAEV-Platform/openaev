@@ -53,7 +53,7 @@ public class HashHandler implements SecretHandler {
   @Override
   public SecretMetadata toMetadata(Secret secret) {
     if (secret instanceof HashSecret hashSecret) {
-      return new SecretMetadata(null, hashSecret.getHashAlgorithm());
+      return SecretMetadata.forHashAlgorithm(hashSecret.getHashAlgorithm());
     }
     throw new IllegalArgumentException("Secret type mismatch: expected HASH secret");
   }

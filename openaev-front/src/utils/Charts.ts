@@ -3,6 +3,7 @@ import * as C from '@mui/material/colors';
 import { type ApexOptions } from 'apexcharts';
 
 import { scaleFactor } from '../components/AppThemeProvider';
+import { sanitizeHtml } from './String';
 
 type Temp = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800;
 
@@ -53,6 +54,11 @@ export const colors = (temp: Temp): string[] => {
   ];
 };
 
+const SAFE_CSS_COLOR_REGEX = /^(#[0-9a-fA-F]{3,8}|rgba?\([0-9.,%\s]+\))$/;
+const sanitizeCssColor = (value: unknown, fallback: string): string => (
+  typeof value === 'string' && SAFE_CSS_COLOR_REGEX.test(value) ? value : fallback
+);
+
 /**
  * A custom tooltip for ApexChart.
  * This tooltip only display the label of the data it hovers.
@@ -62,11 +68,16 @@ export const colors = (temp: Temp): string[] => {
  *
  * @param {Theme} theme
  */
-const simpleLabelTooltip = (theme: Theme): ApexTooltip['custom'] => ({ seriesIndex, w }) => (`
-  <div style="background: ${theme.palette.background.nav}; color: ${theme.palette.text?.primary}; padding: 2px 6px; font-size: 12px">
-    ${w.config.labels[seriesIndex]}
+export const simpleLabelTooltip = (theme: Theme): ApexTooltip['custom'] => ({ seriesIndex, w }) => {
+  const safeNavColor = sanitizeCssColor(theme.palette.background.nav, 'inherit');
+  const safeTextColor = sanitizeCssColor(theme.palette.text?.primary, 'inherit');
+  const safeLabel = sanitizeHtml(w.config.labels?.[seriesIndex]);
+  return (`
+  <div style="background: ${safeNavColor}; color: ${safeTextColor}; padding: 2px 6px; font-size: 12px">
+    ${safeLabel}
   </div>
 `);
+};
 
 export const resultColors = (temp: Temp) => [
   C.deepPurple[temp],
@@ -745,11 +756,13 @@ export const polarAreaChartOptions = (
       },
       position: legendPosition,
       fontFamily: '"IBM Plex Sans", sans-serif',
+      formatter: (legendName: string) => sanitizeHtml(legendName),
     },
     tooltip: {
       enabled: !isFakeData,
       theme: theme.palette.mode,
       custom: simpleLabelTooltip(theme),
+      y: { title: { formatter: (seriesName: string) => sanitizeHtml(seriesName) } },
     },
     fill: { opacity: isFakeData ? 0.2 : 0.5 },
     stroke: { show: !isFakeData },
@@ -882,6 +895,7 @@ export const donutChartOptions = ({
       enabled: !isFakeData && displayTooltip,
       theme: theme.palette.mode,
       custom: simpleLabelTooltip(theme),
+      y: { title: { formatter: (seriesName: string) => sanitizeHtml(seriesName) } },
     },
     noData: { text: emptyChartText || 'No data to display' },
     legend: {
@@ -894,6 +908,7 @@ export const donutChartOptions = ({
       fontFamily: '"IBM Plex Sans", sans-serif',
       onItemClick: { toggleDataSeries: !isFakeData },
       onItemHover: { highlightDataSeries: !isFakeData },
+      formatter: (legendName: string) => sanitizeHtml(legendName),
     },
     dataLabels: {
       enabled: !isFakeData && displayLabels,
