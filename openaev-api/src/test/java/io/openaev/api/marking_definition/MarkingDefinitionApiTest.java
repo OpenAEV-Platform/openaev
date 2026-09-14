@@ -2,6 +2,7 @@ package io.openaev.api.marking_definition;
 
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -22,6 +23,7 @@ import io.openaev.utils.pagination.SortField;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -49,7 +51,10 @@ class MarkingDefinitionApiTest extends IntegrationTest {
         Capability.MANAGE_MARKING_DEFINITION,
         Capability.DELETE_MARKING_DEFINITION,
         Capability.ACCESS_MARKING_DEFINITION
-      })
+      },
+      // These tests target Tenant.DEFAULT_TENANT_UUID directly (no tenant of their own), so the
+      // mock user needs real membership there for TenantInterceptor to let the request through.
+      autoJoinDefaultTenant = true)
   @DisplayName("CRUD operations")
   class CrudOperations {
 
@@ -71,7 +76,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
       mvc.perform(
               post(URI, Tenant.DEFAULT_TENANT_UUID)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(body))
+                  .content(body)
+                  .with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.marking_definition_type").value("TLP"))
           .andExpect(jsonPath("$.marking_definition_definition").value("TLP:BLUE"))
@@ -97,7 +103,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
       mvc.perform(
               post(URI, Tenant.DEFAULT_TENANT_UUID)
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(body))
+                  .content(body)
+                  .with(csrf()))
           .andExpect(status().is4xxClientError());
     }
 
@@ -116,7 +123,7 @@ class MarkingDefinitionApiTest extends IntegrationTest {
       MarkingDefinition saved = repository.save(protectedDefinition);
 
       // Act & Assert
-      mvc.perform(delete(URI + "/{id}", Tenant.DEFAULT_TENANT_UUID, saved.getId()))
+      mvc.perform(delete(URI + "/{id}", Tenant.DEFAULT_TENANT_UUID, saved.getId()).with(csrf()))
           .andExpect(status().is4xxClientError());
     }
   }
@@ -131,11 +138,17 @@ class MarkingDefinitionApiTest extends IntegrationTest {
   class TenantIsolation {
 
     @Test
-    @DisplayName("given_twoTenantRows_should_onlyListRowsFromRequestedTenant")
-    void given_twoTenantRows_should_onlyListRowsFromRequestedTenant() throws Exception {
+    @DisplayName("given_twoTenantRows_should_onlyListTenantARowUnderTenantAPath")
+    void given_twoTenantRows_should_onlyListTenantARowUnderTenantAPath() throws Exception {
       // Arrange
-      Tenant tenantA = tenantIsolationTestHelper.createTenantWithCurrentUser("marking-tenant-a");
-      Tenant tenantB = tenantIsolationTestHelper.createTenantWithCurrentUser("marking-tenant-b");
+      Tenant tenantA =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-tenant-a",
+              Set.of(Capability.MANAGE_MARKING_DEFINITION, Capability.ACCESS_MARKING_DEFINITION));
+      Tenant tenantB =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-tenant-b",
+              Set.of(Capability.MANAGE_MARKING_DEFINITION, Capability.ACCESS_MARKING_DEFINITION));
 
       MarkingDefinition tenantARow =
           createPersistedMarkingDefinition(
@@ -157,23 +170,15 @@ class MarkingDefinitionApiTest extends IntegrationTest {
       SearchPaginationInput input = new SearchPaginationInput();
 
       // Act
+      // A single test method stays on one tenant path: TenantScopeTransactionAspect refuses to
+      // redefine the tenant scope already set on this transaction.
       String responseA =
           mvc.perform(
                   post(URI + "/search", tenantA.getId())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input))
-                      .accept(MediaType.APPLICATION_JSON))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      String responseB =
-          mvc.perform(
-                  post(URI + "/search", tenantB.getId())
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .content(asJsonString(input))
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -181,9 +186,58 @@ class MarkingDefinitionApiTest extends IntegrationTest {
 
       // Assert
       List<String> idsA = JsonPath.read(responseA, "$.content[*].marking_definition_id");
-      List<String> idsB = JsonPath.read(responseB, "$.content[*].marking_definition_id");
-
       assertThat(idsA).contains(tenantARow.getId()).doesNotContain(tenantBRow.getId());
+    }
+
+    @Test
+    @DisplayName("given_twoTenantRows_should_onlyListTenantBRowUnderTenantBPath")
+    void given_twoTenantRows_should_onlyListTenantBRowUnderTenantBPath() throws Exception {
+      // Arrange
+      Tenant tenantA =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-tenant-a",
+              Set.of(Capability.MANAGE_MARKING_DEFINITION, Capability.ACCESS_MARKING_DEFINITION));
+      Tenant tenantB =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-tenant-b",
+              Set.of(Capability.MANAGE_MARKING_DEFINITION, Capability.ACCESS_MARKING_DEFINITION));
+
+      MarkingDefinition tenantARow =
+          createPersistedMarkingDefinition(
+              tenantA.getId(),
+              "TLP",
+              "TENANT-A-ONLY",
+              "#0066CC",
+              10,
+              Instant.parse("2026-01-01T10:00:00Z"));
+      MarkingDefinition tenantBRow =
+          createPersistedMarkingDefinition(
+              tenantB.getId(),
+              "TLP",
+              "TENANT-B-ONLY",
+              "#CC6600",
+              20,
+              Instant.parse("2026-01-01T11:00:00Z"));
+
+      SearchPaginationInput input = new SearchPaginationInput();
+
+      // Act
+      // A single test method stays on one tenant path: TenantScopeTransactionAspect refuses to
+      // redefine the tenant scope already set on this transaction.
+      String responseB =
+          mvc.perform(
+                  post(URI + "/search", tenantB.getId())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> idsB = JsonPath.read(responseB, "$.content[*].marking_definition_id");
       assertThat(idsB).contains(tenantBRow.getId()).doesNotContain(tenantARow.getId());
     }
 
@@ -191,8 +245,14 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     @DisplayName("given_crossTenantUpdate_should_notUpdateRow")
     void given_crossTenantUpdate_should_notUpdateRow() throws Exception {
       // Arrange
-      Tenant tenantA = tenantIsolationTestHelper.createTenantWithCurrentUser("marking-update-a");
-      Tenant tenantB = tenantIsolationTestHelper.createTenantWithCurrentUser("marking-update-b");
+      Tenant tenantA =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-update-a",
+              Set.of(Capability.MANAGE_MARKING_DEFINITION, Capability.ACCESS_MARKING_DEFINITION));
+      Tenant tenantB =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-update-b",
+              Set.of(Capability.MANAGE_MARKING_DEFINITION, Capability.ACCESS_MARKING_DEFINITION));
 
       MarkingDefinition tenantARow =
           createPersistedMarkingDefinition(
@@ -217,7 +277,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
       mvc.perform(
               put(URI + "/{id}", tenantB.getId(), tenantARow.getId())
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(updateBody))
+                  .content(updateBody)
+                  .with(csrf()))
           .andExpect(status().is4xxClientError());
 
       // Assert
@@ -237,7 +298,9 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     @DisplayName("given_typeAndColorFilters_should_returnMatchingRowsOnly")
     void given_typeAndColorFilters_should_returnMatchingRowsOnly() throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("marking-filter");
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-filter", Set.of(Capability.ACCESS_MARKING_DEFINITION));
 
       MarkingDefinition matching =
           createPersistedMarkingDefinition(
@@ -274,7 +337,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
                   post(URI + "/search", tenant.getId())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input))
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -290,7 +354,9 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     @DisplayName("given_textSearch_should_matchDefinition")
     void given_textSearch_should_matchDefinition() throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("marking-text-search");
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-text-search", Set.of(Capability.ACCESS_MARKING_DEFINITION));
 
       MarkingDefinition matching =
           createPersistedMarkingDefinition(
@@ -318,7 +384,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
                   post(URI + "/search", tenant.getId())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input))
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -333,7 +400,9 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     @DisplayName("given_sortByOrderDesc_should_returnHighestOrderFirst")
     void given_sortByOrderDesc_should_returnHighestOrderFirst() throws Exception {
       // Arrange
-      Tenant tenant = tenantIsolationTestHelper.createTenantWithCurrentUser("marking-sort-order");
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-sort-order", Set.of(Capability.ACCESS_MARKING_DEFINITION));
 
       MarkingDefinition low =
           createPersistedMarkingDefinition(
@@ -363,7 +432,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
                   post(URI + "/search", tenant.getId())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input))
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -379,7 +449,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
     void given_sortByCreatedAtAsc_should_returnOldestFirst() throws Exception {
       // Arrange
       Tenant tenant =
-          tenantIsolationTestHelper.createTenantWithCurrentUser("marking-sort-created-at");
+          tenantIsolationTestHelper.createTenantWithCapabilities(
+              "marking-sort-created-at", Set.of(Capability.ACCESS_MARKING_DEFINITION));
 
       MarkingDefinition oldest =
           createPersistedMarkingDefinition(
@@ -412,7 +483,8 @@ class MarkingDefinitionApiTest extends IntegrationTest {
                   post(URI + "/search", tenant.getId())
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(input))
-                      .accept(MediaType.APPLICATION_JSON))
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
