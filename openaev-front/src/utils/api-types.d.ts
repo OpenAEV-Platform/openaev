@@ -7705,6 +7705,7 @@ export interface MapperConditionOutput {
 }
 
 export interface MarkingDefinitionInput {
+  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
   marking_definition_color?: string;
   /** @minLength 1 */
   marking_definition_definition: string;
