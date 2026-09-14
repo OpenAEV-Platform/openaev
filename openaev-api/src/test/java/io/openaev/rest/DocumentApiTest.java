@@ -188,6 +188,7 @@ class DocumentApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should create a document when uploading a valid file and input")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void uploadDocumentShouldCreateDocument() throws Exception {
       // -- PREPARE
       Scenario scenario =
@@ -235,6 +236,7 @@ class DocumentApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should update a document when uploading a valid file and input")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void uploadDocumentShouldUpdateDocument() throws Exception {
       // -- PREPARE
       Scenario scenario =
@@ -289,6 +291,7 @@ class DocumentApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should update a document by target id when uploading a valid file and input")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void uploadDocumentShouldUpdateDocumentByTargetId() throws Exception {
       // -- PREPARE
       Scenario scenario =

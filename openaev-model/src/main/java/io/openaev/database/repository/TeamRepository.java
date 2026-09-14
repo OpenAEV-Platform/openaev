@@ -26,8 +26,22 @@ public interface TeamRepository
   @NotNull
   Optional<Team> findByName(@NotNull final String name);
 
+  // Native so the lookup is scoped to the explicit write tenant only, not to the thread-local
+  // tenant the Hibernate tenantFilter would add.
+  @Query(
+      value = "SELECT * FROM teams WHERE team_name = :name AND tenant_id = :tenantId",
+      nativeQuery = true)
+  Optional<Team> findByNameAndTenantId(
+      @Param("name") @NotNull final String name, @Param("tenantId") @NotNull final String tenantId);
+
   @NotNull
   List<Team> findAllByNameIgnoreCase(@NotNull final String name);
+
+  @Query(
+      value = "SELECT * FROM teams WHERE lower(team_name) = lower(:name) AND tenant_id = :tenantId",
+      nativeQuery = true)
+  List<Team> findAllByNameIgnoreCaseAndTenantId(
+      @Param("name") @NotNull final String name, @Param("tenantId") @NotNull final String tenantId);
 
   @Query(
       "SELECT team FROM Team team where lower(team.name) = lower(:name) and team.contextual = false and team.tenant.id = :#{#tenantContext.currentTenant}")

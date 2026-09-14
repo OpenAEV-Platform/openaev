@@ -150,16 +150,18 @@ public class DocumentApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.DOCUMENT)
   @Transactional(rollbackFor = Exception.class)
   public Document upsertDocument(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @Valid @RequestPart("input") DocumentCreateInput input,
       @RequestPart("file") MultipartFile file)
       throws Exception {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return documentService.upsert(
         file.getOriginalFilename(),
         file.getInputStream(),
         file.getSize(),
         file.getContentType(),
-        input);
+        input,
+        tenantId);
   }
 
   @GetMapping({DOCUMENT_API, TENANT_DOCUMENT_API})

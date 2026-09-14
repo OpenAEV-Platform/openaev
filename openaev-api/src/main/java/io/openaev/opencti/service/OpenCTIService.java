@@ -302,7 +302,8 @@ public class OpenCTIService {
             octiResponseFile.getInputStream(),
             octiResponseFile.getSize(),
             mimeType,
-            documentCreateInput);
+            documentCreateInput,
+            tenantId);
       }
     } catch (Exception e) {
       log.error(

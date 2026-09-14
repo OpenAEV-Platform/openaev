@@ -198,8 +198,8 @@ public class TeamApi extends RestBehavior {
   @Operation(description = "Create a new team", summary = "Create team")
   public Team createTeam(
       @RequireTenantSelector TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
-    isTeamAlreadyExists(input);
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    isTeamAlreadyExists(input, tenantId);
     Team team = new Team();
     team.setTenant(new Tenant(tenantId));
     team.setUpdateAttributes(input);
@@ -223,7 +223,8 @@ public class TeamApi extends RestBehavior {
       throw new UnsupportedOperationException(
           "Contextual team can only be associated to one exercise");
     }
-    Optional<Team> team = teamRepository.findByName(input.getName());
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    Optional<Team> team = teamRepository.findByNameAndTenantId(input.getName(), tenantId);
     if (team.isPresent()) {
       Team existingTeam = team.get();
       existingTeam.setUpdateAttributes(input);
@@ -234,7 +235,6 @@ public class TeamApi extends RestBehavior {
               input.getOrganizationId(), existingTeam.getOrganization(), organizationRepository));
       return teamRepository.save(existingTeam);
     } else {
-      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       Team newTeam = new Team();
       newTeam.setTenant(new Tenant(tenantId));
       newTeam.setUpdateAttributes(input);
@@ -425,8 +425,10 @@ public class TeamApi extends RestBehavior {
 
   // -- PRIVATE --
 
-  private void isTeamAlreadyExists(@NotNull final TeamCreateInput input) {
-    List<Team> teams = this.teamRepository.findAllByNameIgnoreCase(input.getName());
+  private void isTeamAlreadyExists(
+      @NotNull final TeamCreateInput input, @NotNull final String tenantId) {
+    List<Team> teams =
+        this.teamRepository.findAllByNameIgnoreCaseAndTenantId(input.getName(), tenantId);
     if (teams.isEmpty()) {
       return;
     }

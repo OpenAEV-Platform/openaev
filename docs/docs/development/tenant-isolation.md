@@ -142,8 +142,38 @@ The resolver applies three rules:
 
 - a single-tenant scope resolves to that tenant;
 - a supplied tenant outside the scope is refused (HTTP 400);
-- a multi-tenant scope with no explicit selector is refused (HTTP 400): the platform never guesses
-  which tenant should own a new row.
+- a multi-tenant scope with no explicit selector is refused (HTTP 400): the resolver never picks one
+  of several tenants to own a new row.
+
+The scope the resolver sees is decided one step earlier, when the `TxCtx` parameter is resolved from
+the request. That is where the selector fallback below can turn "no selector" into a single-tenant
+scope, so the resolver is never asked to guess.
+
+### Selectors and the default-tenant fallback
+
+A create handler chooses between two contracts by whether its `TxCtx` parameter carries
+`@RequireTenantSelector`.
+
+Without the annotation, the caller must name the tenant: the tenant-prefixed route
+(`/api/tenants/{id}/...`) names it in the path, or the non-prefixed route carries it in the
+`X-Tenant-Ids` header. A multi-tenant caller that names nothing is left multi-tenant, and the
+resolver refuses the write.
+
+With `@RequireTenantSelector`, a request that names no tenant gets a fallback scope so tenant-unaware
+API clients (collectors, injectors, plain scripts) keep working:
+
+- a single-tenant caller resolves to its only tenant;
+- a multi-tenant caller with access to the default tenant falls back to the default tenant, matching
+  the platform-wide convention for requests without an explicit tenant context;
+- a multi-tenant caller without access to the default tenant stays ambiguous and is refused
+  (HTTP 400).
+
+A non-empty selector never triggers the fallback: several ids in `X-Tenant-Ids` cannot attribute one
+row, so the write is refused.
+
+Use `@RequireTenantSelector` on create handlers that tenant-unaware clients reach (documents, teams,
+organizations, reportings, scenarios, exercises, attack patterns). Leave it off where an explicit
+selector must always be present, such as UI-driven reference creates that always carry a tenant.
 
 ### The find-or-create trap
 

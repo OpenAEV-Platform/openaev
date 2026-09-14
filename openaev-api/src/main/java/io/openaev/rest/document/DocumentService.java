@@ -62,6 +62,7 @@ public class DocumentService {
    * @param fileSize Size of the document to upsert
    * @param fileContentType Content Type of the document to upsert
    * @param input documents informations for his creation
+   * @param tenantId tenant the new document is attributed to when the upsert creates one
    * @return the upserted Document
    * @throws Exception when an upload issue occur
    */
@@ -70,7 +71,8 @@ public class DocumentService {
       InputStream fileIS,
       long fileSize,
       String fileContentType,
-      DocumentCreateInput input)
+      DocumentCreateInput input,
+      String tenantId)
       throws Exception {
     byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
@@ -138,6 +140,7 @@ public class DocumentService {
         fileService.uploadFile(
             fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
         Document document = new Document();
+        document.setTenant(new Tenant(tenantId));
         document.setTarget(fileTarget);
         document.setName(fileName);
         document.setDescription(input.getDescription());

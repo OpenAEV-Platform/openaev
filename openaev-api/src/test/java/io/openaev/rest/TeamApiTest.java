@@ -101,7 +101,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given existing team name input, should throw an exception")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_existingTeamNameInput_should_throwAnException() throws Exception {
     // --PREPARE--
     Team team = new Team();
@@ -158,7 +158,7 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given existing contextual team name input, should throw an exception")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_existingContextualTeamNameInput_should_throwAnException() throws Exception {
     // -- PREPARE --
     Exercise exercise = ExerciseFixture.getExercise();

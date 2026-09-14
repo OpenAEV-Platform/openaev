@@ -2,6 +2,8 @@ package io.openaev.rest.tenancy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -11,6 +13,7 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockPart;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
@@ -36,9 +40,11 @@ import org.springframework.transaction.annotation.Transactional;
  * non-prefixed route carrying {@code X-Tenant-Ids}. This class pins that rule per site on both
  * routes.
  *
- * <p>Ground truth is read with a native query: {@code scenarios} and {@code exercises} are still on
- * the v1 {@code @Filter}, and native SQL reaches neither that filter nor the v2 statement
- * inspector, so it reads the row's {@code tenant_id} regardless of the scope in effect. The test
+ * <p>Ground truth is read with a native query. This class arms no table (no
+ * {@code @TestPropertySource} overriding {@code openaev.tenant.active-tables}), so the statement
+ * inspector is inert and rewrites nothing: a native {@code SELECT tenant_id} reads the row's real
+ * value regardless of the scope in effect, on every table it touches (including {@code
+ * custom_dashboards}, which is armed only where a test explicitly overrides the list). The test
  * transaction rolls back, so nothing it writes survives the method.
  *
  * <p>The create handlers carry {@code @RequireTenantSelector}, so a request with no selector still
@@ -57,11 +63,15 @@ class WriteAttributionRouteTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
 
+  // Chaining create handlers are Enterprise-Edition gated; the license check is stubbed active.
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
+
   private String tenantB;
 
   @BeforeEach
   void seedTenantB() throws Exception {
     tenantB = tenantHelper.createTenantWithCurrentUser("t010-b").getId();
+    when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
   }
 
   @AfterEach
@@ -347,6 +357,42 @@ class WriteAttributionRouteTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().isBadRequest());
     }
+
+    @Test
+    @DisplayName(
+        "header route: a same-named team in the default tenant does not block a create for B")
+    void teamHeaderRouteCreateNotBlockedByDefaultTenantDuplicate() throws Exception {
+      String name = "t014f-team-" + UUID.randomUUID();
+      // A team with this name already exists in the default tenant (seeded directly so the create
+      // below is the only scoped write in this transaction).
+      seedTeam(name, DEFAULT_TENANT);
+      // The duplicate check must be scoped to the write tenant (B), not the thread-local default,
+      // so the create for B succeeds and is attributed to B.
+      String id =
+          postJson(
+              post("/api/teams").header("X-Tenant-Ids", tenantB).with(csrf()),
+              "{\"team_name\":\"" + name + "\"}",
+              "$.team_id");
+      assertEquals(
+          tenantB,
+          rowTenant("teams", "team_id", id),
+          "a team with the same name in the default tenant must not block a create for B");
+    }
+
+    @Test
+    @DisplayName("header route: a same-named team in B still blocks a create for B (near miss)")
+    void teamHeaderRouteCreateBlockedBySameTenantDuplicate() throws Exception {
+      String name = "t014f-team-" + UUID.randomUUID();
+      // A team with this name already exists in B; a second create for B must be refused.
+      seedTeam(name, tenantB);
+      mvc.perform(
+              post("/api/teams")
+                  .header("X-Tenant-Ids", tenantB)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"team_name\":\"" + name + "\"}")
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
   }
 
   // endregion
@@ -416,6 +462,27 @@ class WriteAttributionRouteTest extends IntegrationTest {
           tenantB,
           rowTenant("documents", "document_id", id),
           "the document uploaded with X-Tenant-Ids: B must belong to B, not the default tenant");
+    }
+
+    @Test
+    @DisplayName("upsert prefixed route (new document): attributed to the path tenant (control)")
+    void documentUpsertPrefixedRouteAttributesToPathTenant() throws Exception {
+      String id = uploadDocument(multipart("/api/tenants/{t}/documents/upsert", tenantB), null);
+      assertEquals(
+          tenantB,
+          rowTenant("documents", "document_id", id),
+          "the document upserted under tenant B's path must belong to B");
+    }
+
+    @Test
+    @DisplayName(
+        "upsert header route (new document): attributed to X-Tenant-Ids, not to the default")
+    void documentUpsertHeaderRouteMustAttributeToHeaderTenant() throws Exception {
+      String id = uploadDocument(multipart("/api/documents/upsert"), tenantB);
+      assertEquals(
+          tenantB,
+          rowTenant("documents", "document_id", id),
+          "the new document upserted with X-Tenant-Ids: B must belong to B, not the default tenant");
     }
   }
 
@@ -498,6 +565,45 @@ class WriteAttributionRouteTest extends IntegrationTest {
                   .content(attackPatternBody())
                   .with(csrf()))
           .andExpect(status().isBadRequest());
+    }
+  }
+
+  // endregion
+
+  // region chaining (ChainingApi.createSimulation and createScenarioChaining, POST
+  // /api/tenants/{id}/chaining/{simulations|scenarios}; Enterprise-Edition gated, prefixed route
+  // only)
+
+  @Nested
+  @DisplayName("POST /api/tenants/{id}/chaining/...")
+  class Chaining {
+
+    @Test
+    @DisplayName("simulation prefixed route: attributed to the path tenant")
+    void simulationChainingAttributesToPathTenant() throws Exception {
+      String id =
+          postJson(
+              post("/api/tenants/{t}/chaining/simulations", tenantB).with(csrf()),
+              "{\"exercise_name\":\"t014f-chaining-sim\"}",
+              "$.exercise_id");
+      assertEquals(
+          tenantB,
+          exerciseTenant(id),
+          "the chaining simulation created under tenant B's path must belong to B");
+    }
+
+    @Test
+    @DisplayName("scenario prefixed route: attributed to the path tenant")
+    void scenarioChainingAttributesToPathTenant() throws Exception {
+      String id =
+          postJson(
+              post("/api/tenants/{t}/chaining/scenarios", tenantB).with(csrf()),
+              "{\"scenario_name\":\"t014f-chaining-scn\"}",
+              "$.scenario_id");
+      assertEquals(
+          tenantB,
+          scenarioTenant(id),
+          "the chaining scenario created under tenant B's path must belong to B");
     }
   }
 
@@ -595,6 +701,19 @@ class WriteAttributionRouteTest extends IntegrationTest {
     return "{\"scenario_name\":\"t010-scenario\",\"scenario_custom_dashboard\":\""
         + dashboardId
         + "\"}";
+  }
+
+  private void seedTeam(String name, String tenantId) {
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO teams"
+                + " (team_id, team_name, tenant_id, team_contextual,"
+                + "  team_created_at, team_updated_at)"
+                + " VALUES (?1, ?2, ?3, false, now(), now())")
+        .setParameter(1, UUID.randomUUID().toString())
+        .setParameter(2, name)
+        .setParameter(3, tenantId)
+        .executeUpdate();
   }
 
   private String seedCustomDashboard(String tenantId, String name) {
