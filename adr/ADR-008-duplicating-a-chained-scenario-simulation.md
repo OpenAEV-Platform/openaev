@@ -23,14 +23,8 @@ RabbitMQ messages and runtime-generated injects.
 
 Two half-built pieces are the starting point of this decision:
 
-1. **The backend endpoints exist but are unreachable.** `ChainingApi.duplicateExercise`
-   (`ChainingApi.java:154-176`) and `ChainingApi.duplicateScenarioChaining` (`:241-261`) already call
-   `getDuplicateExercise` / `getDuplicateScenario` then `workflowService.duplicateSimulation` /
-   `duplicateScenario` + `stepService.copyStepTemplate`. Note that `ChainingApi` is mapped on
-   `TENANT_CHAINING_URI` (`:46`), so these routes exist **only** in their tenant-scoped form
-   (`/api/tenants/{tenantId}/chaining/...`) — unlike the time-based ones, which are exposed on both
-   `/api/scenarios/{id}` and `/api/tenants/{tenantId}/scenarios/{id}` (`ScenarioApi:187`,
-   `ExerciseApi:526`).
+1. **Unused endpoints in `ChainingApi`.** `ChainingApi` carried its own `duplicateExercise` /
+   `duplicateScenarioChaining` routes, never called by the frontend. This ADR removes them.
 2. **The frontend hides the action.** `Scenarios.tsx:299-303`, `ScenarioHeader.tsx:305-308` and
    `ExerciseHeader.tsx:408-410` strip `'Duplicate'` when the object is chained or autonomous.
    `openaev-front/src/actions/chaining/*` contains no duplicate action, and the existing actions
