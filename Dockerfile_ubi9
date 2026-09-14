@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/nodejs-22 AS front-builder
+FROM registry.access.redhat.com/ubi9/nodejs-24 AS front-builder
 
 USER root
 

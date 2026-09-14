@@ -1,6 +1,7 @@
 package io.openaev.processor.datapack;
 
 import io.openaev.database.model.Injector;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.service.DataPackService;
 import java.util.HashMap;
@@ -40,7 +41,7 @@ public class V20260708_Dynamic_injectors_base_url extends DataPack {
   }
 
   @Override
-  protected boolean doProcess() {
+  protected boolean doProcess(Tenant tenant) {
     List<Injector> injectors = injectorRepository.findAll();
     List<Injector> updatedInjectors =
         injectors.stream().filter(this::replaceParamsInInjectorCommands).toList();

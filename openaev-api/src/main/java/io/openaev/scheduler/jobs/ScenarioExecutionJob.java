@@ -10,7 +10,9 @@ import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.ScenarioToExerciseService;
+import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
 import io.openaev.service.scenario.ScenarioService;
 import jakarta.persistence.EntityManager;
@@ -38,6 +40,7 @@ public class ScenarioExecutionJob implements Job {
   private final ScenarioRecurrenceService scenarioRecurrenceService;
   private final ExerciseRepository exerciseRepository;
   private final ScenarioToExerciseService scenarioToExerciseService;
+  private final WorkflowService workflowService;
   private final EntityManager entityManager;
   private final TenantScopedTransaction tenantTx;
   private final TenantRepository tenantRepository;
@@ -46,7 +49,6 @@ public class ScenarioExecutionJob implements Job {
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     // Disable tenant filter — this job runs cross-tenant
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     createExercisesFromScenarios();
     cleanOutdatedRecurringScenario();
   }
@@ -62,6 +64,13 @@ public class ScenarioExecutionJob implements Job {
     executeInTenant(
         tenantId,
         () -> {
+          // MT v1 compatibility: the tenant filter must be active for now
+          // we ust enable the filter here for lack of the @Transactional aspect
+          // (forbidden by usage of the TenantScopedTransaction)
+          entityManager
+              .unwrap(Session.class)
+              .enableFilter("tenantFilter")
+              .setParameter("tenantId", tenantId);
           // Find each scenario with cron where now is between start and end date
           List<Scenario> scenarios = this.scenarioService.recurringScenarios(now);
           // Filter on valid cron scenario -> Start date on cron is in 1 minute
@@ -92,15 +101,30 @@ public class ScenarioExecutionJob implements Job {
           // Filter scenarios with this results
           validScenarios.stream()
               .filter(scenario -> !alreadyExistIds.contains(scenario.getId()))
-              // Create simulation with start date provided by cron
-              .forEach(
-                  scenario -> {
-                    this.scenarioToExerciseService.toExercise(
-                        scenario,
-                        scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now),
-                        false);
-                  });
+              // Time-based scenarios stay scheduled and are auto-started later.
+              // Chained scenarios only provision their simulation template here; the workflow run
+              // is created when the scheduled simulation is auto-started.
+              .forEach(scenario -> createScheduledExercise(scenario, now));
         });
+  }
+
+  private void createScheduledExercise(Scenario scenario, Instant now) {
+    Instant start = scenarioRecurrenceService.getNextExecutionTime(scenario, now).orElse(now);
+    Exercise exercise = this.scenarioToExerciseService.toExercise(scenario, start, false);
+    // Chained scenarios need the workflow template now; the workflow run is created later when
+    // the scheduled exercise is auto-started.
+    provisionChainedWorkflowTemplateIfNeeded(scenario.getId(), exercise);
+  }
+
+  private void provisionChainedWorkflowTemplateIfNeeded(String scenarioId, Exercise exercise) {
+    if (!this.workflowService.isScenarioChaining(scenarioId)) {
+      return;
+    }
+    try {
+      this.workflowService.provisionSimulationTemplateWorkflow(scenarioId, exercise);
+    } catch (ChainingException e) {
+      throw new IllegalStateException("Could not provision chained scenario " + scenarioId, e);
+    }
   }
 
   private void executeInTenant(@NotNull final String tenantId, @NotNull final Runnable work) {
@@ -119,6 +143,8 @@ public class ScenarioExecutionJob implements Job {
   }
 
   private void cleanOutdatedRecurringScenario() {
+    // MT v1: disable filter here to act on all tenants
+    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     // Find each scenario with cron is outdated:
     List<Scenario> scenarios =
         this.scenarioService.potentialOutdatedRecurringScenario(Instant.now());

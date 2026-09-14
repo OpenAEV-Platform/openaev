@@ -29,6 +29,7 @@ import org.springframework.util.StringUtils;
 @Component
 @Slf4j
 public class WorkflowExportInitializer {
+  private static final ObjectMapper objectMapper = new ObjectMapper();
 
   private static final String WORKFLOW_STEPS = "workflow_steps";
   private static final String WORKFLOW_SCOPE_RULES = "workflow_scope_rules";
@@ -116,7 +117,6 @@ public class WorkflowExportInitializer {
       return tags;
     }
 
-    ObjectMapper objectMapper = new ObjectMapper();
     for (Step step : workflow.getSteps()) {
       if (!StringUtils.hasText(step.getData())) {
         continue;

@@ -1,6 +1,7 @@
 package io.openaev.api.threat_arsenal;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ResourceType;
@@ -37,7 +38,9 @@ public class ThreatArsenalApiExporter {
   @Transactional
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.THREAT_ARSENAL)
   public void exportCsv(
-      @RequestBody @Valid final SearchPaginationInput input, HttpServletResponse response) {
+      TxCtx ctx,
+      @RequestBody @Valid final SearchPaginationInput input,
+      HttpServletResponse response) {
     mapperService.exportMappersCsv(CsvType.INJECTOR_CONTRACTS, input, response);
   }
 
@@ -47,7 +50,7 @@ public class ThreatArsenalApiExporter {
   @GetMapping(value = "/{actionId}/export", produces = "application/zip")
   @Transactional(readOnly = true)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.THREAT_ARSENAL)
-  public ResponseEntity<byte[]> export(@PathVariable @NotBlank final String actionId)
+  public ResponseEntity<byte[]> export(TxCtx ctx, @PathVariable @NotBlank final String actionId)
       throws IOException {
     Map<String, IncludeOptions.IncludeMode> opts = new HashMap<>();
     opts.put("exclude from action export", IncludeOptions.IncludeMode.FALSE);

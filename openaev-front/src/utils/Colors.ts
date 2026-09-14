@@ -74,3 +74,8 @@ export const getSeverityAndColor = (score: number | string | null | undefined): 
     color: '#607d8b',
   };
 };
+
+const HEX_COLOR = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+
+export const colorOrFallback = (color: string | null | undefined, fallback: string): string =>
+  color?.trim().match(HEX_COLOR)?.[0] ?? fallback;

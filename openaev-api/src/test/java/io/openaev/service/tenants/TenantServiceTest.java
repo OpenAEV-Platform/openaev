@@ -104,11 +104,12 @@ class TenantServiceTest extends IntegrationTest {
     boolean pathExists = results.iterator().hasNext();
     assertThat(pathExists).isTrue();
 
-    // Verify the 10 domains from PresetDomain are created for this tenant
+    // domains and vulnerabilities are on v2 isolation: assert by explicit tenant attribution.
+    assertThat(domainRepository.findAll())
+        .filteredOn(domain -> created.getId().equals(domain.getTenant().getId()))
+        .hasSize(10);
     Session session = entityManager.unwrap(Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", created.getId());
-    assertThat(domainRepository.findAll()).hasSize(10);
-    // Verify datapack
     assertThat(vulnerabilityRepository.findAll()).hasSize(7);
     // cwes is on v2 isolation (no v1 @Filter anymore): assert by explicit tenant attribution.
     assertThat(cweRepository.findAll())
@@ -308,6 +309,27 @@ class TenantServiceTest extends IntegrationTest {
   }
 
   @Test
+  void should_evict_membership_cache_of_tenant_members_on_soft_delete() {
+    // -- ARRANGE --
+    Tenant tenant = getTenant("Tenant A");
+    Tenant created = tenantComposer.forTenant(tenant).persist().get();
+    String userId = testUserHolder.get().getId();
+    tenantRepository.addUserToTenant(userId, created.getId());
+    // Populate the cache while the tenant is still active.
+    assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
+        .isTrue();
+
+    // -- ACT --
+    tenantService.softDelete(created.getId());
+
+    // -- ASSERT --
+    // TenantMembershipCacheManager filters on t.tenant_deleted_at IS NULL: without an eviction,
+    // the membership would incorrectly still read as active until the cache's TTL expires.
+    assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
+        .isFalse();
+  }
+
+  @Test
   void should_reactivate_soft_deleted_tenant() {
     // -- ARRANGE --
     Tenant tenant = getTenant("Tenant A");
@@ -319,6 +341,28 @@ class TenantServiceTest extends IntegrationTest {
 
     // -- ASSERT --
     assertThat(reactivated.getDeletedAt()).isNull();
+  }
+
+  @Test
+  void should_evict_membership_cache_of_tenant_members_on_reactivate() {
+    // -- ARRANGE --
+    Tenant tenant = getTenant("Tenant A");
+    Tenant created = tenantComposer.forTenant(tenant).persist().get();
+    String userId = testUserHolder.get().getId();
+    tenantRepository.addUserToTenant(userId, created.getId());
+    tenantService.softDelete(created.getId());
+    // Populate the cache while the tenant is soft-deleted (membership reads as inactive).
+    assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
+        .isFalse();
+
+    // -- ACT --
+    tenantService.reactivate(created.getId());
+
+    // -- ASSERT --
+    // Without an eviction here, the member would incorrectly stay denied until the cache's TTL
+    // expires, even though the tenant is active again.
+    assertThat(tenantMembershipCacheManager.existsByUserIdAndTenantId(userId, created.getId()))
+        .isTrue();
   }
 
   @Test
@@ -343,11 +387,12 @@ class TenantServiceTest extends IntegrationTest {
     assertThat(tenantRepository.findById(tenantExpired.getId())).isEmpty();
     assertThat(tenantRepository.findById(tenantRecent.getId())).isPresent();
 
-    // Verify no domain anymore for the deleted tenant
+    // domains and vulnerabilities are on v2 isolation: assert by explicit tenant attribution.
+    assertThat(domainRepository.findAll())
+        .filteredOn(domain -> tenantExpired.getId().equals(domain.getTenant().getId()))
+        .isEmpty();
     Session session = entityManager.unwrap(Session.class);
     session.enableFilter("tenantFilter").setParameter("tenantId", tenantExpired.getId());
-    assertThat(domainRepository.findAll()).isEmpty();
-    // Verify datapack
     assertThat(vulnerabilityRepository.findAll()).isEmpty();
     // cwes is on v2 isolation (no v1 @Filter anymore): assert by explicit tenant attribution.
     assertThat(cweRepository.findAll())

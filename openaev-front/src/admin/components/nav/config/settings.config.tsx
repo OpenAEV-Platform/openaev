@@ -44,6 +44,14 @@ export const SETTINGS_ACCESS_CHECKS: {
     action: ACTIONS.ACCESS,
     subject: SUBJECTS.TAGS,
   },
+  {
+    action: ACTIONS.MANAGE,
+    subject: SUBJECTS.SESSIONS,
+  },
+  {
+    action: ACTIONS.MANAGE,
+    subject: SUBJECTS.PLATFORM_SESSIONS,
+  },
 ];
 
 export const canAccessTags = (ability: AppAbility): boolean => {
@@ -62,6 +70,8 @@ const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
   const canAccessLessonsLearned = ability.can(ACTIONS.ACCESS, SUBJECTS.LESSONS_LEARNED);
   const hasTagsAccess = canAccessTags(ability);
+  const canManageAnySessions = ability.can(ACTIONS.MANAGE, SUBJECTS.SESSIONS)
+    || ability.can(ACTIONS.MANAGE, SUBJECTS.PLATFORM_SESSIONS);
 
   const subItems = [
     {
@@ -72,7 +82,8 @@ const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
     {
       link: '/admin/settings/security',
       label: 'Security',
-      userRight: hasTenantSettingsAccess || canAccessTenantUsers || canAccessPlatformUGR || canAccessTenants,
+      userRight: hasTenantSettingsAccess || canAccessTenantUsers || canAccessPlatformUGR || canAccessTenants
+        || canManageAnySessions,
     },
     {
       // Section root: redirects to asset_rules; Notifiers and Lessons learned

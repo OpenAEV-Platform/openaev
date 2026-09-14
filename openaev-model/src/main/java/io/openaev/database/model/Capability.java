@@ -454,6 +454,21 @@ public enum Capability {
       pair(ResourceType.PLATFORM_ROLE, Action.DELETE),
       pair(ResourceType.PLATFORM_USER, Action.DELETE)),
 
+  // Sessions
+  MANAGE_SESSIONS(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.SESSION, Action.READ),
+      pair(ResourceType.SESSION, Action.WRITE)),
+
+  MANAGE_PLATFORM_SESSIONS(
+      null,
+      CapabilityGroup.SECURITY,
+      EnumSet.of(CapabilityScope.PLATFORM),
+      pair(ResourceType.PLATFORM_SESSION, Action.READ),
+      pair(ResourceType.PLATFORM_SESSION, Action.WRITE)),
+
   // STIX
   MANAGE_STIX_BUNDLE(
       null,
@@ -471,16 +486,7 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.JOB, Action.READ),
       pair(ResourceType.JOB, Action.WRITE),
-      pair(ResourceType.AGENT, Action.CREATE)),
-
-  MANAGE_SESSIONS(
-      null,
-      CapabilityGroup.SECURITY,
-      true,
-      true,
-      EnumSet.of(CapabilityScope.TENANT),
-      pair(ResourceType.SESSION, Action.READ),
-      pair(ResourceType.SESSION, Action.WRITE));
+      pair(ResourceType.AGENT, Action.CREATE));
 
   private record ResourceTypeActionPair(ResourceType resource, Action action) {}
 

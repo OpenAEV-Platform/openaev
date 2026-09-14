@@ -51,6 +51,9 @@ public class ScenarioInput {
   @JsonProperty("scenario_external_url")
   private String externalUrl;
 
+  @JsonProperty("scenario_lessons_enabled")
+  private boolean lessonsEnabled;
+
   @JsonProperty("scenario_tags")
   private List<String> tagIds = new ArrayList<>();
 
@@ -67,8 +70,12 @@ public class ScenarioInput {
   @JsonProperty("scenario_mail_from_name")
   private String fromName;
 
+  /**
+   * Left null on purpose: {@code null} means "field not provided" and the update keeps the stored
+   * addresses, while an explicit empty array clears them.
+   */
   @JsonProperty("scenario_mails_reply_to")
-  private List<String> replyTos = new ArrayList<>();
+  private List<String> replyTos;
 
   @JsonProperty("scenario_message_header")
   private String header;

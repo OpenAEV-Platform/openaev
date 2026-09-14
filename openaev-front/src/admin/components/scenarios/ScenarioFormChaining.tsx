@@ -25,14 +25,17 @@ import { useHelper } from '../../../store';
 import { type PlatformSettings, type ScenarioInput } from '../../../utils/api-types';
 import { zodImplement } from '../../../utils/Zod';
 import DefaultKillChainSelectField from '../common/filters/DefaultKillChainSelectField';
+import LessonsLearnedSection from '../common/form/LessonsLearnedSection';
 import { scenarioCategories } from './constants';
 
+export type ScenarioFormInput = ScenarioInput & { scenario_lessons_enabled?: boolean };
+
 interface Props {
-  onSubmit: (data: ScenarioInput, isScenarioAssistantChecked?: boolean) => void;
+  onSubmit: (data: ScenarioFormInput, isScenarioAssistantChecked?: boolean) => void;
   handleClose: () => void;
   editing?: boolean;
   disabled?: boolean;
-  initialValues: ScenarioInput;
+  initialValues: ScenarioFormInput;
   isChaining?: boolean;
   /** Full-width companion action rendered at the very end of the form, right above the Cancel /
    *  Create buttons (e.g. the "Generate with AI" or "Scenario assistant" post-creation toggle). */
@@ -60,26 +63,27 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
     handleSubmit,
     formState: { errors, isDirty, isSubmitting },
     setValue,
-  } = useForm<ScenarioInput>({
+  } = useForm<ScenarioFormInput>({
     mode: 'onTouched',
     resolver: zodResolver(
-      zodImplement<ScenarioInput>().with({
+      zodImplement<ScenarioFormInput>().with({
         scenario_name: z.string().min(1, { message: t('Should not be empty') }),
-        scenario_category: z.string().optional(),
-        scenario_main_focus: z.string().optional(),
+        scenario_category: z.string().optional().nullable(),
+        scenario_main_focus: z.string().optional().nullable(),
         scenario_severity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
-        scenario_default_kill_chain: z.string().optional(),
+        scenario_default_kill_chain: z.string().optional().nullable(),
         scenario_subtitle: z.string().optional(),
         scenario_description: z.string().optional(),
         scenario_tags: z.string().array().optional(),
-        scenario_external_reference: z.string().optional(),
-        scenario_external_url: z.string().optional(),
+        scenario_external_reference: z.string().optional().nullable(),
+        scenario_external_url: z.string().optional().nullable(),
         scenario_mail_from_name: z.string().max(100, t('Should not exceed {max_length} characters', { max_length: '100' })).optional(),
         scenario_mails_reply_to: z.array(z.email(t('Should be a valid email address'))).optional(),
         scenario_message_header: z.string().optional(),
         scenario_message_footer: z.string().optional(),
         scenario_custom_dashboard: z.string().optional(),
         scenario_is_chaining: z.boolean().optional(),
+        scenario_lessons_enabled: z.boolean().optional(),
       }),
     ),
     defaultValues: initialValues,
@@ -197,7 +201,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
             <DefaultKillChainSelectField<ScenarioInput>
               name="scenario_default_kill_chain"
               control={control}
-              defaultValue={initialValues.scenario_default_kill_chain}
+              defaultValue={initialValues.scenario_default_kill_chain ?? undefined}
             />
           </div>
           <TextField
@@ -226,6 +230,12 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
             )}
           />
         </>
+        <LessonsLearnedSection
+          control={control}
+          name="scenario_lessons_enabled"
+          disabled={disabled}
+          style={{ marginTop: theme.spacing(2) }}
+        />
         {!isChaining && (
           <Accordion
             defaultExpanded

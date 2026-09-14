@@ -3,9 +3,11 @@ package io.openaev.rest.session;
 import static io.openaev.config.TenantUriUtils.TENANT_ID_PATH_VARIABLE;
 import static io.openaev.rest.session.SessionApi.SESSION_URI;
 import static io.openaev.rest.session.SessionApi.TENANT_SESSION_URI;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
@@ -110,6 +112,40 @@ public class SessionApiTest extends IntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .with(csrf()))
             .andExpect(status().isOk());
+      }
+
+      @Test
+      @DisplayName("Given an active session, then the listing names its owner")
+      void given_anActiveSession_then_listingNamesItsOwner() throws Exception {
+        User me = testUserHolder.get();
+        String uri = tenantUri(TENANT_SESSION_URI);
+        String sessionId = persistSessionFor(me);
+
+        mockMvc
+            .perform(get(uri).contentType(MediaType.APPLICATION_JSON).with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(
+                jsonPath("$[?(@.session_id == '%s')].session_user_name".formatted(sessionId))
+                    .value(hasItem(me.getNameOrEmail())));
+      }
+
+      private String persistSessionFor(User user) {
+        String sessionId = UUID.randomUUID().toString();
+        long now = System.currentTimeMillis();
+        entityManager
+            .createNativeQuery(
+                "insert into spring_session(primary_id, session_id, creation_time,"
+                    + " last_access_time, max_inactive_interval, expiry_time, principal_name)"
+                    + " values (?, ?, ?, ?, ?, ?, ?)")
+            .setParameter(1, UUID.randomUUID().toString())
+            .setParameter(2, sessionId)
+            .setParameter(3, now)
+            .setParameter(4, now)
+            .setParameter(5, 3600)
+            .setParameter(6, now + 3_600_000)
+            .setParameter(7, user.getId())
+            .executeUpdate();
+        return sessionId;
       }
 
       @Test

@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,13 +52,15 @@ public class CustomDashboardTenantService {
             .filter(StringUtils::hasText)
             // tenant-scoped lookup: a preference set in another tenant must not leak here,
             // it simply falls back to the tenant setting below
-            .flatMap(id -> customDashboardRepository.findByIdAndTenantId(id, tenantId));
+            .flatMap(customDashboardRepository::findById)
+            .map(this::withWidgetsInitialized);
     if (userDashboard.isPresent()) {
       return userDashboard;
     }
     return tenantSettingsService
         .findHomeDashboardId(tenantId)
-        .flatMap(customDashboardRepository::findById);
+        .flatMap(customDashboardRepository::findById)
+        .map(this::withWidgetsInitialized);
   }
 
   // -- HOME DASHBOARD WIDGET QUERIES --
@@ -131,5 +134,10 @@ public class CustomDashboardTenantService {
     if (!found) {
       throw new AccessDeniedException("Access denied");
     }
+  }
+
+  private CustomDashboard withWidgetsInitialized(CustomDashboard customDashboard) {
+    Hibernate.initialize(customDashboard.getWidgets());
+    return customDashboard;
   }
 }

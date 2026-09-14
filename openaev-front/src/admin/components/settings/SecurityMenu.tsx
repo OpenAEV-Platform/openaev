@@ -32,101 +32,101 @@ const SecurityMenuComponent: FunctionComponent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isValidated: isEnterpriseEdition, openDialog } = useEnterpriseEdition();
-  const { scope, canAccessTenant, canAccessTenantSettings, canAccessTenantUsers, canAccessPlatform } = useSecurityScope();
+  const {
+    scope,
+    canAccessTenant,
+    canAccessTenantSettings,
+    canAccessTenantUsers,
+    canAccessPlatform,
+    canAccessPlatformUsers,
+    canAccessSession,
+  } = useSecurityScope();
   const ability = useContext(AbilityContext);
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
 
   // The platform scope is an EE feature: in Community Edition the switcher is
   // not displayed at all and the section stays on the tenant scope.
   const showScopeSwitch = isEnterpriseEdition && canAccessTenant && canAccessPlatform;
-  const isPlatform = scope === 'platform';
+  const isPlatform = scope === 'PLATFORM';
 
   // Carry the current scope on the shared entity links so navigating within
   // the section preserves the chosen context.
   const scopedPath = (entity: string) => `${SECURITY_BASE}/${entity}${isPlatform ? '?scope=platform' : ''}`;
 
   const changeScope = (next: SecurityScope) => {
-    if (next === 'platform' && !isEnterpriseEdition) {
+    if (next === 'PLATFORM' && !isEnterpriseEdition) {
       openDialog();
       return;
     }
     // Keep the current entity when it exists in the target scope, else land on Users.
     const currentEntity = location.pathname.replace(`${SECURITY_BASE}/`, '').split('/')[0];
     const entity = SCOPED_ENTITIES.includes(currentEntity) ? currentEntity : 'users';
-    navigate(`${SECURITY_BASE}/${entity}${next === 'platform' ? '?scope=platform' : ''}`);
+    navigate(`${SECURITY_BASE}/${entity}${next === 'PLATFORM' ? '?scope=platform' : ''}`);
   };
 
   // The menu reshapes with the selected scope (single context selector on top,
-  // no per-entity repetition):
-  // - This tenant: Users / Groups / Organizations / Roles / Sessions / Policies.
-  // - Platform: platform-wide Users / Groups / Roles plus the Tenants registry.
-  const scopedEntries: RightMenuEntry[] = (canAccessTenantUsers || canAccessPlatform)
-    ? [
-        {
-          path: scopedPath('users'),
-          activePath: `${SECURITY_BASE}/users`,
-          icon: () => (<PermIdentityOutlined />),
-          label: 'Users',
-        },
-        {
-          path: scopedPath('groups'),
-          activePath: `${SECURITY_BASE}/groups`,
-          icon: () => (<GroupsOutlined />),
-          label: 'Groups',
-        },
-        {
-          path: scopedPath('roles'),
-          activePath: `${SECURITY_BASE}/roles`,
-          icon: () => (<SecurityOutlined />),
-          label: 'Roles',
-        },
-      ]
-    : [];
+  // no per-entity repetition)
+  // - This tenant: Users / Groups / Roles / Organizations / Sessions / Policies.
+  // - Platform: platform-wide Users / Groups / Roles, Sessions, Tenants registry.
+  const entries: RightMenuEntry[] = [];
 
-  const entries: RightMenuEntry[] = isPlatform
-    ? [
-        ...scopedEntries,
-        ...(canAccessPlatform
-          ? [{
-              path: scopedPath('sessions'),
-              activePath: `${SECURITY_BASE}/sessions`,
-              icon: () => (<KeyOutlined />),
-              label: 'Sessions',
-            }]
-          : []),
-        ...(canAccessTenants
-          ? [{
-              path: `${SECURITY_BASE}/tenants`,
-              icon: () => (<HomeWorkOutlined />),
-              label: 'Tenants',
-              chip: !isEnterpriseEdition ? (<EEChip clickable />) : undefined,
-              onClick: !isEnterpriseEdition ? () => openDialog() : undefined,
-            }]
-          : []),
-      ]
-    : [
-        ...scopedEntries,
-        ...(canAccessTenantSettings
-          ? [
-              {
-                path: `${SECURITY_BASE}/organizations`,
-                icon: () => (<DomainOutlined />),
-                label: 'Organizations',
-              },
-              {
-                path: scopedPath('sessions'),
-                activePath: `${SECURITY_BASE}/sessions`,
-                icon: () => (<KeyOutlined />),
-                label: 'Sessions',
-              },
-              {
-                path: `${SECURITY_BASE}/policies`,
-                icon: () => (<LocalPoliceOutlined />),
-                label: 'Policies',
-              },
-            ]
-          : []),
-      ];
+  if (isPlatform ? canAccessPlatformUsers : canAccessTenantUsers) {
+    entries.push(
+      {
+        path: scopedPath('users'),
+        activePath: `${SECURITY_BASE}/users`,
+        icon: () => (<PermIdentityOutlined />),
+        label: 'Users',
+      },
+      {
+        path: scopedPath('groups'),
+        activePath: `${SECURITY_BASE}/groups`,
+        icon: () => (<GroupsOutlined />),
+        label: 'Groups',
+      },
+      {
+        path: scopedPath('roles'),
+        activePath: `${SECURITY_BASE}/roles`,
+        icon: () => (<SecurityOutlined />),
+        label: 'Roles',
+      },
+    );
+  }
+
+  if (!isPlatform && canAccessTenantSettings) {
+    entries.push({
+      path: `${SECURITY_BASE}/organizations`,
+      icon: () => (<DomainOutlined />),
+      label: 'Organizations',
+    });
+  }
+
+  if (canAccessSession(scope)) {
+    entries.push({
+      path: scopedPath('sessions'),
+      activePath: `${SECURITY_BASE}/sessions`,
+      icon: () => (<KeyOutlined />),
+      label: 'Sessions',
+    });
+  }
+
+  if (!isPlatform && canAccessTenantSettings) {
+    entries.push({
+      path: `${SECURITY_BASE}/policies`,
+      icon: () => (<LocalPoliceOutlined />),
+      label: 'Policies',
+    });
+  }
+
+  if (isPlatform && canAccessTenants) {
+    entries.push({
+      path: `${SECURITY_BASE}/tenants`,
+      icon: () => (<HomeWorkOutlined />),
+      label: 'Tenants',
+      chip: !isEnterpriseEdition ? (<EEChip clickable />) : undefined,
+      onClick: !isEnterpriseEdition ? () => openDialog() : undefined,
+    });
+  }
 
   // Single context selector at the top of the section (industry pattern: scope
   // is a primary navigation constraint expressed once, not a per-resource
@@ -169,11 +169,11 @@ const SecurityMenuComponent: FunctionComponent = () => {
               },
             }}
           >
-            <ToggleButton value="tenant">
+            <ToggleButton value="TENANT">
               <DomainOutlined />
               {t('This tenant')}
             </ToggleButton>
-            <ToggleButton value="platform">
+            <ToggleButton value="PLATFORM">
               <PublicOutlined />
               {t('Platform')}
               {!isEnterpriseEdition && <EEChip />}

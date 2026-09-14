@@ -3,6 +3,7 @@ package io.openaev.service.threat_arsenal;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.payload.PayloadImportService;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectorRepository;
@@ -36,11 +37,11 @@ public class ThreatArsenalImportService {
   private final InjectorRepository injectorRepository;
 
   public ThreatArsenalAction importThreatArsenalAction(
-      @NotNull MultipartFile file, @NotNull String tenantId) throws Exception {
+      @NotNull TxCtx ctx, @NotNull MultipartFile file, @NotNull String tenantId) throws Exception {
     if (isInjectorContractExport(file)) {
       return importFromInjectorContract(file, tenantId);
     }
-    return importFromPayload(file);
+    return importFromPayload(ctx, file);
   }
 
   private ThreatArsenalAction importFromInjectorContract(MultipartFile file, String tenantId)
@@ -82,8 +83,8 @@ public class ThreatArsenalImportService {
    * format handled by {@link #importFromInjectorContract(MultipartFile)}. This path will be removed
    * soon.
    */
-  private ThreatArsenalAction importFromPayload(MultipartFile file) throws Exception {
-    PayloadImportService.PayloadImportResult result = payloadImportService.importPayload(file);
+  private ThreatArsenalAction importFromPayload(TxCtx ctx, MultipartFile file) throws Exception {
+    PayloadImportService.PayloadImportResult result = payloadImportService.importPayload(ctx, file);
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
   }
 

@@ -55,7 +55,7 @@ Repositories that are used with `ReferenceResolver` must expose a `countByIdIn(S
 
 - Prefer repository methods or `@Query` JPQL over `CrudRepository.findAll()` when filtering
 - Use `existsById()` instead of `findById().isPresent()` for existence checks
-- Use `@Modifying @Query` for bulk updates/deletes — avoid loading entities just to delete them
+- Use `@Modifying @Query` for bulk updates/deletes to avoid loading entities just to delete them, but only when the entity is not `@Indexable`, `@AuditDiffTracked`, or streamed: a native or bulk write skips the listener chain, so the index, audit, and stream are not updated (see `orm.instructions.md`). Otherwise keep the session delete or update them explicitly
 - Use projections (DTO queries) for read-heavy endpoints that don't need the full entity
 - Add database indexes on columns used in WHERE, ORDER BY, and JOIN conditions
 - Verify with `EXPLAIN` on realistic data volumes (>= 100k rows) that new indexes are actually

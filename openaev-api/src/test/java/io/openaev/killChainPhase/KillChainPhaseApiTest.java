@@ -9,7 +9,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -21,7 +20,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.KillChainPhase;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.specification.KillChainPhaseSpecification;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseApi;
@@ -29,6 +31,7 @@ import io.openaev.rest.kill_chain_phase.form.KillChainPhaseCreateInput;
 import io.openaev.rest.kill_chain_phase.form.KillChainPhaseUpsertInput;
 import io.openaev.rest.kill_chain_phase.service.KillChainPhaseService;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -46,22 +49,29 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 @TestInstance(PER_CLASS)
 public class KillChainPhaseApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
+  @Autowired private JdbcTemplate jdbc;
 
   @Autowired private KillChainPhaseRepository killChainPhaseRepository;
+
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   @Mock private KillChainPhaseRepository mockKillChainPhaseRepository;
 
   @InjectMocks private KillChainPhaseApi killChainPhaseApi;
 
-  private static final KillChainPhase KILL_CHAIN_PHASE_1 = getKillChainPhase("name1", 1L);
-  private static final KillChainPhase KILL_CHAIN_PHASE_2 = getKillChainPhase("name2", 2L);
-  private static final KillChainPhase KILL_CHAIN_PHASE_3 = getKillChainPhase("name3", 3L);
+  private static final KillChainPhase KILL_CHAIN_PHASE_1 =
+      getKillChainPhase("name1", 1L, Tenant.DEFAULT_TENANT_UUID);
+  private static final KillChainPhase KILL_CHAIN_PHASE_2 =
+      getKillChainPhase("name2", 2L, Tenant.DEFAULT_TENANT_UUID);
+  private static final KillChainPhase KILL_CHAIN_PHASE_3 =
+      getKillChainPhase("name3", 3L, Tenant.DEFAULT_TENANT_UUID);
 
   private static final String SEARCH_INPUT = "search input";
   private static final Specification<KillChainPhase> spec = byNameOrKillChainName(SEARCH_INPUT);
@@ -276,13 +286,30 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     private static final String KILL_CHAIN = "upsert-test-chain";
     private static final String STIX_ID = "x-mitre-tactic--upsert-test-0001";
 
+    private String writeTenantId;
+
+    /**
+     * An upsert now needs a single-tenant scope to attribute the row: {@code
+     * TenantWriteScopeResolver} refuses an empty scope with 400 and a selector outside the caller's
+     * memberships with 403. The mock user is rebuilt for every test method and starts with no
+     * tenant membership at all, so the two upserts that must succeed give it exactly one: with a
+     * single membership the plain route resolves to an unambiguous single-tenant scope, which is
+     * the documented convention for tenant-unaware clients (collectors, scripts).
+     */
+    private void grantSingleTenantMembership() throws Exception {
+      writeTenantId = tenantHelper.createTenantWithCurrentUser("kcp-api-upsert").getId();
+    }
+
     @AfterEach
     void cleanUp() {
       for (String shortName : List.of("old-short", "new-short", "exec")) {
         killChainPhaseRepository
-            .findByKillChainNameAndShortName(KILL_CHAIN, shortName)
+            .findByKillChainNameAndShortNameAndTenantId(KILL_CHAIN, shortName, writeTenantId)
             .ifPresent(killChainPhaseRepository::delete);
       }
+      // The membership tenant is created (and committed) by grantSingleTenantMembership.
+      tenantHelper.deleteCommittedTenants(writeTenantId);
+      writeTenantId = null;
     }
 
     private KillChainPhaseCreateInput createInput(String shortName, String name, String stixId) {
@@ -304,10 +331,15 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     @Test
     @DisplayName("Upsert matches an existing phase by STIX id even when the short name changed")
     void given_existing_stix_id_should_update_phase_instead_of_inserting() throws Exception {
-      KillChainPhase existing = getKillChainPhase("Old name", 1L);
+      grantSingleTenantMembership();
+      KillChainPhase existing = getKillChainPhase("Old name", 1L, Tenant.DEFAULT_TENANT_UUID);
       existing.setKillChainName(KILL_CHAIN);
       existing.setShortName("old-short");
       existing.setStixId(STIX_ID);
+      // The upsert resolves the existing row by (STIX id, write tenant): the seed must belong to
+      // the
+      // tenant the request writes to, otherwise the lookup misses it and inserts a second row.
+      existing.setTenant(new Tenant(writeTenantId));
       String existingId = killChainPhaseRepository.save(existing).getId();
 
       mvc.perform(
@@ -321,15 +353,18 @@ public class KillChainPhaseApiTest extends IntegrationTest {
           .andExpect(jsonPath("$[0].phase_shortname").value("new-short"))
           .andExpect(jsonPath("$[0].phase_name").value("New name"));
 
-      assertTrue(
-          killChainPhaseRepository
-              .findByKillChainNameAndShortName(KILL_CHAIN, "old-short")
-              .isEmpty(),
+      // Ground truth through JdbcTemplate: a repository read carries no tenant scope here, so once
+      // the table is active it would return zero rows and pass this assertion for the wrong reason.
+      assertEquals(
+          0,
+          countByNaturalKey("old-short"),
           "the old natural key must not survive as a separate row");
+      assertEquals(
+          1, countByNaturalKey("new-short"), "the phase must have moved to the new natural key");
       assertEquals(
           existingId,
           killChainPhaseRepository
-              .findByKillChainNameAndShortName(KILL_CHAIN, "new-short")
+              .findByKillChainNameAndShortNameAndTenantId(KILL_CHAIN, "new-short", writeTenantId)
               .orElseThrow()
               .getId());
     }
@@ -384,6 +419,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     @Test
     @DisplayName("Duplicate entries in one request (with and without STIX id) persist a single row")
     void given_duplicate_inputs_in_batch_should_persist_single_row() throws Exception {
+      grantSingleTenantMembership();
       mvc.perform(
               post("/api/kill_chain_phases/upsert")
                   .contentType(MediaType.APPLICATION_JSON)
@@ -398,10 +434,22 @@ public class KillChainPhaseApiTest extends IntegrationTest {
 
       KillChainPhase persisted =
           killChainPhaseRepository
-              .findByKillChainNameAndShortName(KILL_CHAIN, "exec")
+              .findByKillChainNameAndShortNameAndTenantId(KILL_CHAIN, "exec", writeTenantId)
               .orElseThrow();
       assertEquals("Execution updated", persisted.getName());
       assertEquals(STIX_ID, persisted.getStixId(), "STIX id must survive the stix-less duplicate");
+    }
+
+    private int countByNaturalKey(String shortName) {
+      Integer count =
+          jdbc.queryForObject(
+              "SELECT count(*) FROM kill_chain_phases"
+                  + " WHERE phase_kill_chain_name = ? AND phase_shortname = ? AND tenant_id = ?",
+              Integer.class,
+              KILL_CHAIN,
+              shortName,
+              writeTenantId);
+      return count == null ? 0 : count;
     }
 
     private static DataIntegrityViolationException uniqueViolation(String constraintName) {
@@ -415,35 +463,43 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     @DisplayName("Upsert retries once when the first attempt loses a concurrent-insert race")
     void given_concurrent_insert_race_should_retry_once() {
       KillChainPhaseService service = mock(KillChainPhaseService.class);
-      KillChainPhaseApi api = new KillChainPhaseApi(mock(KillChainPhaseRepository.class), service);
+      KillChainPhaseApi api = newApi(service);
       KillChainPhaseUpsertInput input = new KillChainPhaseUpsertInput();
+      TxCtx ctx = TxCtx.forTenant("tenant-1");
       List<KillChainPhase> winner = List.of(new KillChainPhase());
-      when(service.upsertKillChainPhases(input.getKillChainPhases()))
+      when(service.upsertKillChainPhases(ctx, input.getKillChainPhases()))
           .thenThrow(uniqueViolation("kill_chain_phases_stix_id_tenant_unique"))
           .thenReturn(winner);
 
-      Iterable<KillChainPhase> result = api.upsertKillChainPhases(input);
+      Iterable<KillChainPhase> result = api.upsertKillChainPhases(ctx, input);
 
       assertSame(winner, result);
-      verify(service, times(2)).upsertKillChainPhases(input.getKillChainPhases());
+      verify(service, times(2)).upsertKillChainPhases(ctx, input.getKillChainPhases());
     }
 
     @Test
     @DisplayName("Upsert does not retry integrity failures unrelated to the unique constraints")
     void given_unrelated_integrity_violation_should_not_retry() {
       KillChainPhaseService service = mock(KillChainPhaseService.class);
-      KillChainPhaseApi api = new KillChainPhaseApi(mock(KillChainPhaseRepository.class), service);
+      KillChainPhaseApi api = newApi(service);
       KillChainPhaseUpsertInput input = new KillChainPhaseUpsertInput();
+      TxCtx ctx = TxCtx.forTenant("tenant-1");
       DataIntegrityViolationException notNullViolation =
           new DataIntegrityViolationException("null value in column phase_external_id");
-      when(service.upsertKillChainPhases(input.getKillChainPhases())).thenThrow(notNullViolation);
+      when(service.upsertKillChainPhases(ctx, input.getKillChainPhases()))
+          .thenThrow(notNullViolation);
 
       DataIntegrityViolationException thrown =
           assertThrows(
-              DataIntegrityViolationException.class, () -> api.upsertKillChainPhases(input));
+              DataIntegrityViolationException.class, () -> api.upsertKillChainPhases(ctx, input));
 
       assertSame(notNullViolation, thrown);
-      verify(service, times(1)).upsertKillChainPhases(input.getKillChainPhases());
+      verify(service, times(1)).upsertKillChainPhases(ctx, input.getKillChainPhases());
+    }
+
+    private KillChainPhaseApi newApi(KillChainPhaseService service) {
+      return new KillChainPhaseApi(
+          mock(KillChainPhaseRepository.class), service, mock(TenantWriteScopeResolver.class));
     }
   }
 
@@ -454,7 +510,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     try (MockedStatic<KillChainPhaseSpecification> mocked =
         Mockito.mockStatic(KillChainPhaseSpecification.class)) {
       when(KillChainPhaseSpecification.byNameOrKillChainName(SEARCH_INPUT)).thenReturn(spec);
-      List<FilterUtilsJpa.Option> result = killChainPhaseApi.optionsByName(SEARCH_INPUT);
+      List<FilterUtilsJpa.Option> result =
+          killChainPhaseApi.optionsByName(TxCtx.forTenant("tenant-1"), SEARCH_INPUT);
 
       // Multi kill chain platform: options are sorted by kill chain then phase order, and
       // labelled "[kill chain] phase" (see KillChainPhaseApi#toOption)

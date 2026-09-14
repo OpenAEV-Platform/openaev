@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.aop.HibernateFilterTransactionAspect;
+import io.openaev.aop.TenantScopeTransactionAspect;
 import io.openaev.aop.audit_log.AccessControlAuditLogAspect;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockAspect;
@@ -36,9 +38,9 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
- * Proves the precedence chain {@code @Lock -> transaction -> tenant scope} holds for a method that
- * carries all three. Two properties matter and both are checked against a real Spring context and a
- * real database, no mocks:
+ * Proves the precedence chain {@code @Lock -> transaction -> tenant scope -> audit -> RBAC} holds
+ * for a method that carries all three. Two properties matter and both are checked against a real
+ * Spring context and a real database, no mocks:
  *
  * <ul>
  *   <li>the tenant scope is set <b>inside</b> the active transaction even when {@code @Lock} is
@@ -61,13 +63,14 @@ class TenantScopeLockOrderingIntegrationTest {
 
   @Test
   @DisplayName(
-      "the transaction advisor really sits at LOWEST_PRECEDENCE - 2 (the order is effective)")
+      "the transaction advisor really sits at LOWEST_PRECEDENCE - 4 (the order is effective)")
   void transactionAdvisorOrderIsApplied() {
     assertEquals(
-        Ordered.LOWEST_PRECEDENCE - 2,
+        Ordered.LOWEST_PRECEDENCE - 4,
         transactionAdvisor.getOrder(),
         "@EnableTransactionManagement(order=...) must actually move the advisor; otherwise the lock"
-            + " -> tx -> audit -> scope ordering is illusory and still rests on an undefined tie-break");
+            + " -> tx -> scope -> audit -> rbac ordering is illusory and still rests on an undefined"
+            + " tie-break");
   }
 
   @Test
@@ -122,11 +125,14 @@ class TenantScopeLockOrderingIntegrationTest {
   }
 
   @Test
-  @DisplayName("aspect ordering: Lock < Transaction < Audit < RBAC (no ties)")
+  @DisplayName(
+      "aspect ordering: Lock < Transaction < TenantFilter < TenantScope < Audit < RBAC (no ties)")
   void given_allAspects_should_respectStrictRelativeOrdering() {
     // Arrange
     int lockOrder = getOrderValue(LockAspect.class);
     int transactionOrder = transactionAdvisor.getOrder();
+    int tenantFilterOrder = getOrderValue(HibernateFilterTransactionAspect.class);
+    int tenantScopeOrder = getOrderValue(TenantScopeTransactionAspect.class);
     int auditOrder = getOrderValue(AccessControlAuditLogAspect.class);
     int rbacOrder = getOrderValue(AccessControlAspect.class);
 
@@ -135,7 +141,18 @@ class TenantScopeLockOrderingIntegrationTest {
         .as("LockAspect must wrap @Transactional (lower order)")
         .isLessThan(transactionOrder);
     assertThat(transactionOrder)
-        .as("@Transactional must wrap AuditLogAspect (lower order)")
+        .as("@Transactional must wrap the tenant filter aspect (lower order)")
+        .isLessThan(tenantFilterOrder);
+    assertThat(tenantFilterOrder)
+        .as("the v1 tenant filter must be installed before the v2 tenant scope (lower order)")
+        .isLessThan(tenantScopeOrder);
+    assertThat(tenantScopeOrder)
+        .as(
+            "the tenant scope must wrap AuditLogAspect, and through it the RBAC aspect:"
+                + " AccessControlAspect resolves a resource's parent by loading the entity, inside"
+                + " this same transaction. Tied on LOWEST_PRECEDENCE that read could win and"
+                + " hydrate v2-scoped associations as null (fail-closed can_access_tenant) before"
+                + " the scope existed, and the controller would then serve the partial entity.")
         .isLessThan(auditOrder);
     assertThat(auditOrder)
         .as("AuditLogAspect must wrap AccessControlAspect (lower order)")

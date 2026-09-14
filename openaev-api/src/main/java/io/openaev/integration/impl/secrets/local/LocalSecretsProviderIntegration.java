@@ -6,11 +6,10 @@ import io.openaev.integration.IntegrationInMemory;
 import io.openaev.integration.annotation.QualifiedComponent;
 import io.openaev.secrets.provider.SecretsProvider;
 import io.openaev.secrets.provider.impl.LocalSecretsProvider;
-import io.openaev.secrets.provider.impl.handlers.SecretHandler;
+import io.openaev.secrets.provider.impl.handlers.SecretHandlerResolver;
 import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.secrets.service.SecretService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
-import java.util.List;
 
 public class LocalSecretsProviderIntegration extends IntegrationInMemory {
   public static final String LOCAL_SECRETS_PROVIDER_ID = "8c703d47-b6a7-472e-ace1-85ce7e216a89";
@@ -21,7 +20,7 @@ public class LocalSecretsProviderIntegration extends IntegrationInMemory {
 
   private final SecretService secretService;
   private final SecretReferenceService secretReferenceService;
-  private final List<SecretHandler> secretHandlers;
+  private final SecretHandlerResolver secretHandlerResolver;
 
   public LocalSecretsProviderIntegration(
       ConnectorInstance connectorInstance,
@@ -29,11 +28,11 @@ public class LocalSecretsProviderIntegration extends IntegrationInMemory {
       ComponentRequestEngine componentRequestEngine,
       SecretService secretService,
       SecretReferenceService secretReferenceService,
-      List<SecretHandler> secretHandlers) {
+      SecretHandlerResolver secretHandlerResolver) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.secretService = secretService;
     this.secretReferenceService = secretReferenceService;
-    this.secretHandlers = secretHandlers;
+    this.secretHandlerResolver = secretHandlerResolver;
   }
 
   @Override
@@ -44,7 +43,7 @@ public class LocalSecretsProviderIntegration extends IntegrationInMemory {
             LOCAL_SECRETS_PROVIDER_NAME,
             secretService,
             secretReferenceService,
-            secretHandlers);
+            secretHandlerResolver);
   }
 
   @Override

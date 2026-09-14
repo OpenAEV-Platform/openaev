@@ -35,8 +35,8 @@ const UpdateTeams: FunctionComponent<Props> = ({ addedTeamIds }) => {
   };
 
   const handleSubmit = async () => {
+    await onReplaceTeam?.(selectedTeamValues.map(v => v.team_id));
     setOpen(false);
-    onReplaceTeam?.(selectedTeamValues.map(v => v.team_id));
   };
 
   useEffect(() => {

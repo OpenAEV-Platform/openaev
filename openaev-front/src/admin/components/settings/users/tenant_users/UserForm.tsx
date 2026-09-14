@@ -52,7 +52,6 @@ const UserForm: FunctionComponent<UserFormProps> = ({
       t('Phone number must start with + and contain only digits'),
     );
 
-  const passwordRequiredMessage = t('This field is required.');
   const schema = zodImplement<UserInput>().with({
     user_email: z.email(t('Should be a valid email address')),
     user_plain_password: z.string().optional(),
@@ -65,13 +64,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
     user_phone2: phoneValidation as unknown as z.ZodOptional<z.ZodType<string | undefined>>,
     user_pgp_key: z.string().optional(),
     user_admin: z.boolean().optional(),
-  }).refine(
-    data => editing || (data.user_plain_password && data.user_plain_password.length > 0),
-    {
-      path: ['user_plain_password'],
-      message: passwordRequiredMessage,
-    },
-  );
+  });
 
   const methods = useForm<UserInput>({
     mode: 'onTouched',
@@ -104,14 +97,6 @@ const UserForm: FunctionComponent<UserFormProps> = ({
           label={t('Email address')}
           disabled={editing}
         />
-        {!editing && (
-          <TextFieldController
-            required
-            name="user_plain_password"
-            label={t('Password')}
-            type="password"
-          />
-        )}
         <TextFieldController name="user_firstname" label={t('Firstname')} />
         <TextFieldController name="user_lastname" label={t('Lastname')} />
         {type === 'PLATFORM' && <TenantFieldController name="user_tenants" label="Tenants" />}

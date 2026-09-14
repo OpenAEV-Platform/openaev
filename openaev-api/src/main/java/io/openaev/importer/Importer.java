@@ -3,6 +3,7 @@ package io.openaev.importer;
 import static java.util.Spliterators.spliteratorUnknownSize;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Exercise;
@@ -18,6 +19,7 @@ import java.util.stream.StreamSupport;
 public interface Importer {
 
   ImportResult importData(
+      TxCtx ctx,
       JsonNode importNode,
       Map<String, ImportEntry> docReferences,
       Exercise exercise,

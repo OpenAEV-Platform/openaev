@@ -11,7 +11,6 @@ import { type ChannelsHelper } from '../../../../actions/channels/channel-helper
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type Article } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useSearchAndFilter from '../../../../utils/SortingFiltering';
 import ChannelIcon from '../../components/channels/ChannelIcon';
@@ -127,14 +126,13 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
 
   // Standard hooks
   const { classes } = useStyles();
-  const dispatch = useAppDispatch();
   const { t } = useFormatter();
 
   // Fetching data
   const { channelsMap } = useHelper((helper: ChannelsHelper) => ({ channelsMap: helper.getChannelsMap() }));
   useDataLoader(() => {
-    dispatch(fetchChannels());
-    dispatch(fetchDocuments());
+    fetchChannels();
+    fetchDocuments();
   });
 
   // Creation

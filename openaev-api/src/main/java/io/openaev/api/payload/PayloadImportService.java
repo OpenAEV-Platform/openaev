@@ -4,6 +4,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.jsonapi.*;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
@@ -62,7 +63,7 @@ public class PayloadImportService {
    * @return the import result containing the persisted payload and the synchronised injector
    *     contract
    */
-  public PayloadImportResult importPayload(MultipartFile file) throws Exception {
+  public PayloadImportResult importPayload(TxCtx ctx, MultipartFile file) throws Exception {
     ZipJsonService.ImportOutput<Payload> response =
         zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null);
 
@@ -72,7 +73,8 @@ public class PayloadImportService {
     List<Domain> domains =
         extractRelationshipObjects("domains", this::handleDomainImport, response.sourceDocument());
     List<Tag> tags =
-        extractRelationshipObjects("tags", this::handleTagImport, response.sourceDocument());
+        extractRelationshipObjects(
+            "tags", object -> handleTagImport(ctx, object), response.sourceDocument());
 
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
@@ -112,11 +114,11 @@ public class PayloadImportService {
     return domainService.upsert(input);
   }
 
-  private Tag handleTagImport(ResourceObject object) {
+  private Tag handleTagImport(TxCtx ctx, ResourceObject object) {
     TagCreateInput input = new TagCreateInput();
     input.setName(object.attributes().get("tag_name").toString());
     input.setColor(object.attributes().get("tag_color").toString());
-    return tagService.upsertTag(input);
+    return tagService.upsertTag(ctx, input);
   }
 
   private <T> List<T> extractRelationshipObjects(

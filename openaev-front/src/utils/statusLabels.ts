@@ -23,9 +23,16 @@ const statusLabelMap: Record<string, string> = {
   ASSET_AGENTLESS: 'Asset agentless',
 };
 
+// Sentence-case catalogue keys: an unmapped status falls back to the raw enum, which t()
+// then looks up in upper case, where no locale defines it.
 const injectStatusLabelMap: Record<string, string> = {
-  EXECUTED: 'EXECUTED',
-  EXECUTING: 'RUNNING',
+  DRAFT: 'Draft',
+  QUEUING: 'Queued',
+  PENDING: 'Pending',
+  EXECUTING: 'Running',
+  EXECUTED: 'Executed',
+  PARTIAL: 'Partial',
+  ERROR: 'Error',
 };
 
 export const getInjectStatusLabel = (status: string | undefined | null): string => {

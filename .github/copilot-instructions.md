@@ -8,7 +8,7 @@ strategic levels.
 
 ### Architecture
 
-- **Backend**: Spring Boot (Java), PostgreSQL, Elasticsearch/OpenSearch, MinIO, RabbitMQ
+- **Backend**: Spring Boot (Java), PostgreSQL, Elasticsearch/OpenSearch, Silo (S3 object storage), RabbitMQ
 - **Frontend**: React, TypeScript, Vite, Material-UI
 - **Multi-module Maven project** with 3 modules: `openaev-model`, `openaev-framework`, `openaev-api`
 - ⚠️ **`openaev-framework` is deprecated** — it will be removed. **Never add new code to `openaev-framework`**. Place
@@ -60,7 +60,7 @@ CI runs on GitHub Actions (see `.github/workflows/`):
 3. **E2E Tests**: Full app test with Playwright
 4. **Type Check**: `yarn generate-types-from-api` verification
 
-**Services**: PostgreSQL, MinIO, Elasticsearch, RabbitMQ (see workflow files for exact versions)
+**Services**: PostgreSQL, Silo, Elasticsearch, RabbitMQ (see workflow files for exact versions)
 
 ### Key Workflows
 
@@ -90,6 +90,7 @@ Before creating a pull request, validate locally:
 2. **PR title**: Must match `type(scope?): description (#issue)` — no `[context]` prefix. The `openaev-pr-checks` GitHub App validates this pattern; titles with extra prefixes (e.g. `[backend]`) will be rejected.
 3. **Compile**: `mvn compile -DskipTests` (or via Docker)
 4. **Frontend** (if changed): `cd openaev-front && yarn check-ts && yarn lint`
+5. **PR description**: Must follow [`.github/PULL_REQUEST_TEMPLATE.md`](/.github/PULL_REQUEST_TEMPLATE.md) — see [PR description format](#pr-description-format).
 
 ## Code Conventions
 
@@ -106,6 +107,7 @@ Conventions are defined in dedicated instruction files that activate automatical
 | Tests (integration/unit/fixtures)    | [testing.instructions.md](.github/instructions/testing.instructions.md)                   |
 | Security (RBAC/@AccessControl)       | [security.instructions.md](.github/instructions/security.instructions.md)                 |
 | Performance (N+1/pagination/fetch)   | [performance.instructions.md](.github/instructions/performance.instructions.md)           |
+| ORM (write correctness/native/tests) | [orm.instructions.md](.github/instructions/orm.instructions.md)                           |
 | Code Review                          | [code-review.instructions.md](.github/instructions/code-review.instructions.md)           |
 
 ### Available Agents
@@ -115,11 +117,35 @@ Conventions are defined in dedicated instruction files that activate automatical
 | `code-reviewer`          | General-purpose reviewer: architecture, conventions, readability, delegation |
 | `security-reviewer`      | Reviews code for RBAC, tenant isolation, data exposure, auth bypasses    |
 | `performance-reviewer`   | Reviews code for N+1, fetch strategy, pagination, indexing, memory      |
+| `orm-reviewer`           | Reviews ORM doctrine: write correctness (listener chain), native-query justification, composite keys, test methodology |
 | `multi-tenancy-reviewer` | Reviews code for tenant isolation, cross-tenant leaks, filter bypasses |
 | `frontend-reviewer`      | Reviews frontend for component patterns, forms, permissions, MUI, i18n   |
 | `test-specialist`        | Creates and maintains tests following project patterns                   |
 
 ## PR & Review Conventions
+
+### PR description format
+
+**Every pull request description MUST follow [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md).**
+When you open a PR (via `gh pr create`, the `create_pull_request` tool, or the UI), read that
+template first and reproduce its structure — do not invent your own headings.
+
+Required sections, in this order:
+
+| Section | Content |
+|---|---|
+| `### Proposed changes` | Bullet list of what changed, one bullet per file or logical group, with the *why* — not a diff paraphrase |
+| `### Testing Instructions` | Numbered, reproducible steps + environment/config notes (services to start, commands run) |
+| `### Related issues` | `* Related #ISSUE-NUMBER` — mandatory, every PR must be linked to an issue |
+| `### Checklist` | Reproduce every line unchecked (`[ ]`); never delete a line and never tick a box — the human author does that |
+| `### Further comments` | Design rationale, alternatives considered, explicit out-of-scope items. Omit only for trivial PRs |
+
+Rules:
+
+- Keep the section headings verbatim (`###` level, exact wording) — tooling and reviewers rely on them.
+- Drop the HTML comments from the template in the final description; keep the checklist items themselves.
+- **Never tick a checklist item.** Leave every box as `[ ]` — ticking them is the human author's responsibility, after their own review.
+- The PR title still follows Conventional Commits and ends with the issue reference: `type(scope?): description (#issue)`.
 
 ### Conventional Comments (for code reviews)
 
@@ -141,7 +167,7 @@ Examples:
 2. **Trust these instructions**: Only search for information if instructions are incomplete or incorrect.
 3. **Pre-existing issues**: Don't fix unrelated linting/build issues unless they block your task.
 4. **Frontend must build first**: The backend copies frontend build artifacts.
-5. **Services required**: PostgreSQL, MinIO, Elasticsearch/OpenSearch, and RabbitMQ must be running for tests.
+5. **Services required**: PostgreSQL, Silo, Elasticsearch/OpenSearch, and RabbitMQ must be running for tests.
 6. **Java 21 is mandatory**: The project will not compile with earlier versions.
 7. **Node.js version**: Check `openaev-front/package.json` engines field for the minimum required version.
 8. **API types**: After API changes, run `yarn generate-types-from-api` in frontend to update TypeScript types.

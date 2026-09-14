@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -57,7 +58,8 @@ class ExerciseLessonsApiTenantIsolationTest extends IntegrationTest {
     when(exerciseRepository.findByIdAndTenantId(anyString(), anyString()))
         .thenReturn(Optional.of(new Exercise()));
     when(lessonsCategoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-    when(lessonsCategoryRepository.findAll(any())).thenReturn(List.<LessonsCategory>of());
+    when(lessonsCategoryRepository.findAll(any(Specification.class)))
+        .thenReturn(List.<LessonsCategory>of());
     when(lessonsQuestionRepository.saveAll(any())).thenReturn(List.of());
   }
 

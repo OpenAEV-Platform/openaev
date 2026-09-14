@@ -6,9 +6,9 @@ import static io.openaev.database.specification.CustomDashboardSpecification.byN
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Setting;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.model.Widget;
 import io.openaev.database.raw.RawCustomDashboard;
@@ -38,6 +38,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
@@ -64,9 +65,9 @@ public class CustomDashboardService {
    * @return the saved {@link CustomDashboard}
    */
   @Transactional
-  public CustomDashboard createCustomDashboard(@NotNull final CustomDashboard customDashboard) {
-    CustomDashboard customDashboardWithDefaultParams = initParameters(customDashboard);
-    return this.customDashboardRepository.save(customDashboardWithDefaultParams);
+  public CustomDashboard createCustomDashboard(
+      @NotNull final CustomDashboard customDashboard, @NotBlank final String tenantId) {
+    return this.customDashboardRepository.save(prepareForTenantWrite(customDashboard, tenantId));
   }
 
   public static CustomDashboard sanityCheck(@NotNull final CustomDashboard customDashboard) {
@@ -91,6 +92,15 @@ public class CustomDashboardService {
         .addParameter("Time range", timeRange)
         .addParameter("Start date", startDate)
         .addParameter("End date", endDate);
+  }
+
+  public static CustomDashboard prepareForTenantWrite(
+      @NotNull final CustomDashboard customDashboard, @NotBlank final String tenantId) {
+    CustomDashboard prepared = sanityCheck(customDashboard);
+    Tenant tenant = new Tenant(tenantId);
+    prepared.setTenant(tenant);
+    prepared.getWidgets().forEach(widget -> widget.setTenant(tenant));
+    return prepared;
   }
 
   /**
@@ -128,10 +138,11 @@ public class CustomDashboardService {
    */
   @Transactional(readOnly = true)
   public CustomDashboard customDashboard(@NotNull final String id) {
-    return this.customDashboardRepository
-        .findByIdAndTenantId(id, TenantContext.getCurrentTenant())
-        .orElseThrow(
-            () -> new EntityNotFoundException("Custom dashboard not found with id: " + id));
+    return withWidgetsInitialized(
+        this.customDashboardRepository
+            .findById(id)
+            .orElseThrow(
+                () -> new EntityNotFoundException("Custom dashboard not found with id: " + id)));
   }
 
   /**
@@ -236,7 +247,7 @@ public class CustomDashboardService {
   // existence checks of the fallback, whatever the caller's context.
   @Transactional(readOnly = true)
   public CustomDashboard findCustomDashboardByResourceId(@NotBlank final String resourceId) {
-    return resolveCustomDashboardByResourceId(resourceId);
+    return withWidgetsInitialized(resolveCustomDashboardByResourceId(resourceId));
   }
 
   // Shared by the transactional public entry point above and the internal callers of this class
@@ -253,22 +264,30 @@ public class CustomDashboardService {
   }
 
   private Optional<CustomDashboard> findTenantDefaultDashboardForResource(final String resourceId) {
-    final TenantSettingKeys defaultDashboardKey;
-    if (this.scenarioRepository.existsById(resourceId)) {
-      defaultDashboardKey = TenantSettingKeys.TENANT_SCENARIO_DASHBOARD;
-    } else if (this.exerciseRepository.existsById(resourceId)) {
-      defaultDashboardKey = TenantSettingKeys.TENANT_SIMULATION_DASHBOARD;
-    } else {
-      return Optional.empty();
-    }
-    String tenantId = TenantContext.getCurrentTenant();
-    return this.tenantSettingsService
-        .findSetting(tenantId, defaultDashboardKey.key())
+    Optional<Map.Entry<String, TenantSettingKeys>> scopedDashboardSetting =
+        this.scenarioRepository
+            .findById(resourceId)
+            .map(
+                scenario ->
+                    Map.entry(
+                        scenario.getTenant().getId(), TenantSettingKeys.TENANT_SCENARIO_DASHBOARD))
+            .or(
+                () ->
+                    this.exerciseRepository
+                        .findById(resourceId)
+                        .map(
+                            exercise ->
+                                Map.entry(
+                                    exercise.getTenant().getId(),
+                                    TenantSettingKeys.TENANT_SIMULATION_DASHBOARD)));
+    return scopedDashboardSetting
+        .flatMap(
+            tenantAndKey ->
+                this.tenantSettingsService.findSetting(
+                    tenantAndKey.getKey(), tenantAndKey.getValue().key()))
         .map(Setting::getValue)
         .filter(value -> !value.isEmpty())
-        .flatMap(
-            dashboardId ->
-                this.customDashboardRepository.findByIdAndTenantId(dashboardId, tenantId));
+        .flatMap(this.customDashboardRepository::findById);
   }
 
   /**
@@ -357,5 +376,10 @@ public class CustomDashboardService {
       throw new AccessDeniedException("Access denied");
     }
     return this.dashboardService.attackPaths(widgetId, parameters);
+  }
+
+  private CustomDashboard withWidgetsInitialized(@NotNull CustomDashboard customDashboard) {
+    Hibernate.initialize(customDashboard.getWidgets());
+    return customDashboard;
   }
 }

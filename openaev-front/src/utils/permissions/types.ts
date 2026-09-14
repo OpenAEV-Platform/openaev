@@ -1,3 +1,14 @@
+import { type CapabilityOutput, type RoleInput } from '../api-types';
+
+/** Scope vocabulary owned by the back end (CapabilityScope), read from the generated types. */
+export type CapabilityScope = CapabilityOutput['capability_scopes'][number];
+
+/** Value form of that vocabulary, so no component spells a scope by hand. */
+export const CAPABILITY_SCOPES = {
+  TENANT: 'TENANT',
+  PLATFORM: 'PLATFORM',
+} as const satisfies Record<CapabilityScope, CapabilityScope>;
+
 export const ACTIONS = {
   ACCESS: 'ACCESS',
   MANAGE: 'MANAGE',
@@ -8,6 +19,10 @@ export const ACTIONS = {
 } as const;
 
 export type Actions = typeof ACTIONS[keyof typeof ACTIONS];
+
+type CapabilityName = NonNullable<RoleInput['role_capabilities']>[number];
+type SuffixOf<T> = T extends `${Actions}_${infer S}` ? S : never;
+type BackendSubject = SuffixOf<CapabilityName>;
 
 export const SUBJECTS = {
   ASSESSMENT: 'ASSESSMENT', // Scenarios, Simulations and Atomic Testings
@@ -31,7 +46,9 @@ export const SUBJECTS = {
   TAGS: 'TAGS',
   TENANTS: 'TENANTS',
   PLATFORM_USERS_GROUPS_AND_ROLES: 'PLATFORM_USERS_GROUPS_AND_ROLES',
-} as const;
+  SESSIONS: 'SESSIONS',
+  PLATFORM_SESSIONS: 'PLATFORM_SESSIONS',
+} as const satisfies Record<string, BackendSubject | 'RESOURCE'>;
 
 export type Subjects = typeof SUBJECTS[keyof typeof SUBJECTS];
 

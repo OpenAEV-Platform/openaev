@@ -2,7 +2,6 @@ package io.openaev.output_processor;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,10 +12,8 @@ import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.*;
-import io.openaev.utils.injector_contract.InjectorContractContentUtils;
-import java.util.ArrayList;
+import io.openaev.service.expectation.ExpectationBehaviorResolver;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -33,10 +30,9 @@ class SignatureOutputProcessorTest {
       mock(SecurityPlatformRepository.class);
   private final SecurityCoverageSendJobService securityCoverageSendJobService =
       mock(SecurityCoverageSendJobService.class);
-  private final AssetGroupService assetGroupService = mock(AssetGroupService.class);
   private final InjectService injectService = mock(InjectService.class);
-  private final InjectorContractContentUtils injectorContractContentUtils =
-      mock(InjectorContractContentUtils.class);
+  private final ExpectationBehaviorResolver expectationBehaviorResolver =
+      mock(ExpectationBehaviorResolver.class);
 
   private final InjectExpectationLockService injectExpectationLockService =
       new InjectExpectationLockService(injectExpectationRepository);
@@ -48,13 +44,10 @@ class SignatureOutputProcessorTest {
           securityPlatformRepository,
           securityCoverageSendJobService,
           injectExpectationLockService,
-          assetGroupService,
           injectService,
-          injectorContractContentUtils,
-          new ArrayList<>(List.of()));
-  private final PreviewFeatureService previewFeatureService = mock(PreviewFeatureService.class);
+          expectationBehaviorResolver);
   private final SignatureOutputProcessor processor =
-      new SignatureOutputProcessor(injectExpectationService, previewFeatureService);
+      new SignatureOutputProcessor(injectExpectationService);
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   SignatureOutputProcessorTest() {
@@ -87,39 +80,8 @@ class SignatureOutputProcessorTest {
   }
 
   @Test
-  @DisplayName("Should skip processing when feature flag is disabled")
-  void shouldSkipProcessingWhenFeatureFlagIsDisabled() throws Exception {
-    when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-        .thenReturn(false);
-
-    ExecutionProcessingContext executionProcessingContext = mock(ExecutionProcessingContext.class);
-    Inject inject = mock(Inject.class);
-    when(inject.getId()).thenReturn("inject-1");
-    when(executionProcessingContext.inject()).thenReturn(inject);
-
-    ContractOutputContext contractOutputContext =
-        new ContractOutputContext(
-            "signatures",
-            "signatures",
-            ContractOutputType.ExpectationSignature,
-            false,
-            new String[0],
-            new String[] {"SIGNATURES_PROCESSING"});
-
-    assertDoesNotThrow(
-        () ->
-            processor.process(
-                executionProcessingContext, contractOutputContext, objectMapper.readTree("{}")));
-
-    verify(injectExpectationRepository, never())
-        .findAllByInjectAndAgent(eq("inject-1"), eq("agent-1"));
-  }
-
-  @Test
   @DisplayName("First call clears signatures, second call appends without clearing")
   void shouldClearOnFirstCallAndAppendOnSecondCall() throws Exception {
-    when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-        .thenReturn(true);
 
     Inject inject = mock(Inject.class);
     when(inject.getId()).thenReturn("inject-1");
@@ -198,8 +160,6 @@ class SignatureOutputProcessorTest {
   @Test
   @DisplayName("Target with agent ID should resolve expectations by inject_id + agent_id")
   void shouldResolveAgentTargetByInjectAndAgent() throws Exception {
-    when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-        .thenReturn(true);
 
     Inject inject = mock(Inject.class);
     when(inject.getId()).thenReturn("inject-1");
@@ -250,8 +210,6 @@ class SignatureOutputProcessorTest {
   @Test
   @DisplayName("Target with asset ID should resolve expectations by inject_id + asset_id")
   void shouldResolveAssetTargetByInjectAndAsset() throws Exception {
-    when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-        .thenReturn(true);
 
     Inject inject = mock(Inject.class);
     when(inject.getId()).thenReturn("inject-1");
@@ -302,8 +260,6 @@ class SignatureOutputProcessorTest {
   @Test
   @DisplayName("Missing target in DB should not throw and should not update signatures")
   void shouldNotThrowWhenTargetIsMissingInDb() throws Exception {
-    when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-        .thenReturn(true);
 
     Inject inject = mock(Inject.class);
     when(inject.getId()).thenReturn("inject-1");
@@ -382,8 +338,6 @@ class SignatureOutputProcessorTest {
     @DisplayName("given targets node not an array should return early without processing")
     void given_targetsNotArray_should_returnEarly() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-x");
 
       // -- Act --
@@ -398,8 +352,6 @@ class SignatureOutputProcessorTest {
     @DisplayName("given signature_values node not an array should skip that target and continue")
     void given_signatureValuesNotArray_should_skipTarget() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-x");
 
       String payload =
@@ -434,8 +386,6 @@ class SignatureOutputProcessorTest {
     @DisplayName("given expectation_type missing (null text) should skip without processing")
     void given_expectationTypeNull_should_skip() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-x");
 
       String payload =
@@ -465,8 +415,6 @@ class SignatureOutputProcessorTest {
     @DisplayName("given expectation_type is MANUAL (not DETECTION/PREVENTION) should skip")
     void given_expectationTypeManual_should_skip() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-x");
 
       String payload =
@@ -498,8 +446,6 @@ class SignatureOutputProcessorTest {
         "given expectation_type is an unknown string (IllegalArgumentException) should skip")
     void given_expectationTypeUnknownString_should_skip() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-x");
 
       String payload =
@@ -539,8 +485,6 @@ class SignatureOutputProcessorTest {
     @DisplayName("given values node not an array should produce empty list and skip processing")
     void given_valuesNotArray_should_skipProcessing() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-x");
 
       String payload =
@@ -571,8 +515,6 @@ class SignatureOutputProcessorTest {
     @DisplayName("given values array is empty should skip processing")
     void given_valuesArrayEmpty_should_skipProcessing() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-x");
 
       String payload =
@@ -603,8 +545,6 @@ class SignatureOutputProcessorTest {
     @DisplayName("given signature with empty type should be filtered out and skip processing")
     void given_signatureWithEmptyType_should_skipProcessing() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-x");
 
       String payload =
@@ -635,8 +575,6 @@ class SignatureOutputProcessorTest {
     @DisplayName("given signature with empty value should be filtered out and skip processing")
     void given_signatureWithEmptyValue_should_skipProcessing() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-x");
 
       String payload =
@@ -667,8 +605,6 @@ class SignatureOutputProcessorTest {
     @DisplayName("given signature using fallback 'type'/'value' keys should be parsed correctly")
     void given_signatureWithFallbackTypeValueKeys_should_processSignature() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-1");
 
       DetectionInjectExpectation expectation = new DetectionInjectExpectation();
@@ -719,8 +655,6 @@ class SignatureOutputProcessorTest {
         "given asset_group_id in signature_target should resolve via findAllByInjectAndAssetGroup")
     void given_assetGroupId_should_resolveViaAssetGroup() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-1");
 
       DetectionInjectExpectation expectation = new DetectionInjectExpectation();
@@ -761,8 +695,6 @@ class SignatureOutputProcessorTest {
         "given fallback 'asset_group' key in signature_target should resolve via findAllByInjectAndAssetGroup")
     void given_assetGroupFallbackKey_should_resolveViaAssetGroup() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-1");
 
       DetectionInjectExpectation expectation = new DetectionInjectExpectation();
@@ -811,8 +743,6 @@ class SignatureOutputProcessorTest {
     @DisplayName("given fallback 'agent' key in signature_target should resolve agent expectations")
     void given_agentFallbackKey_should_resolveAgentExpectations() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-1");
 
       DetectionInjectExpectation expectation = new DetectionInjectExpectation();
@@ -852,8 +782,6 @@ class SignatureOutputProcessorTest {
     @DisplayName("given fallback 'asset' key in signature_target should resolve asset expectations")
     void given_assetFallbackKey_should_resolveAssetExpectations() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-1");
 
       PreventionInjectExpectation expectation = new PreventionInjectExpectation();
@@ -894,8 +822,6 @@ class SignatureOutputProcessorTest {
         "given signature_target is missing (null/missing node) should skip without processing")
     void given_missingSignatureTarget_should_skip() throws Exception {
       // -- Arrange --
-      when(previewFeatureService.isFeatureEnabled(PreviewFeature.SIGNATURE_OUTPUT_PROCESSOR))
-          .thenReturn(true);
       ExecutionProcessingContext ctx = buildCtx("inject-x");
 
       // No signature_target key → readText receives a MissingNode

@@ -3,8 +3,11 @@ package io.openaev.rest.finding;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.TeamRepository;
@@ -35,12 +38,18 @@ public class FindingService {
 
   private final FindingRepository findingRepository;
   private final FindingWriter findingWriter;
+  private final TenantWriteScopeResolver tenantWriteScopeResolver;
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
 
   // -- CRUD --
 
+  /**
+   * No production caller: only tests reach this. Kept because two tenant-isolation suites use it as
+   * their subject, but it is a trap for the next person - an unscoped {@code findAll} on an
+   * activated table returns nothing in production. Tracked for removal with its test callers.
+   */
   public List<Finding> findings() {
     return fromIterable(this.findingRepository.findAll());
   }
@@ -80,9 +89,18 @@ public class FindingService {
         .build();
   }
 
-  public Finding createFinding(@NotNull final Finding finding, @NotBlank final String injectId) {
+  public Finding createFinding(
+      @NotNull final TxCtx ctx, @NotNull final Finding finding, @NotBlank final String injectId) {
     Inject inject = this.injectService.inject(injectId);
     finding.setInject(inject);
+    // The inject's tenant is validated against the request scope, not trusted: inject() is a
+    // primary key load that no tenant predicate filters, and the endpoint's @AccessControl checks a
+    // capability with no resourceId, so a caller could otherwise attribute a finding to a tenant
+    // that does not own the inject.
+    String tenantId =
+        this.tenantWriteScopeResolver.tenantForWrite(
+            ctx, inject.getTenant() != null ? inject.getTenant().getId() : null);
+    finding.setTenant(new Tenant(tenantId));
     return this.findingRepository.save(finding);
   }
 
@@ -184,7 +202,10 @@ public class FindingService {
   public void saveAgentFinding(
       Inject inject, Asset asset, ContractOutputContext contractOutputContext, String value) {
 
+    String tenantId = inject.getTenant() != null ? inject.getTenant().getId() : null;
+
     findingWriter.saveCompleteFinding(
+        tenantId == null ? TxCtx.missing() : TxCtx.forTenant(tenantId),
         contractOutputContext.key(),
         contractOutputContext.type().name(),
         value,
@@ -192,8 +213,7 @@ public class FindingService {
         inject.getId(),
         contractOutputContext.name(),
         asset.getId(),
-        contractOutputContext.tagIds(),
-        inject.getTenant() != null ? inject.getTenant().getId() : null);
+        contractOutputContext.tagIds());
   }
 
   private Optional<Asset> resolveAssetFromStructuredOutput(
