@@ -7,6 +7,8 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawAttackPatternIndexing;
@@ -52,6 +54,7 @@ public class AttackPatternApi extends RestBehavior {
   private final InjectorContractRepository injectorContractRepository;
   private final KillChainPhaseRepository killChainPhaseRepository;
   private final KillChainPhaseService killChainPhaseService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping
   @Transactional
@@ -111,8 +114,9 @@ public class AttackPatternApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATTACK_PATTERN)
   @Transactional(rollbackFor = Exception.class)
   public AttackPattern createAttackPattern(
-      TxCtx ctx, @Valid @RequestBody AttackPatternCreateInput input) {
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody AttackPatternCreateInput input) {
     AttackPattern attackPattern = new AttackPattern();
+    attackPattern.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, null)));
     attackPattern.setUpdateAttributes(input);
     attackPattern.setKillChainPhases(
         fromIterable(killChainPhaseRepository.findAllById(input.getKillChainPhasesIds())));

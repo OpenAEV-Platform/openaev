@@ -421,6 +421,88 @@ class WriteAttributionRouteTest extends IntegrationTest {
 
   // endregion
 
+  // region attack patterns (AttackPatternApi.createAttackPattern, POST {/api/attack_patterns |
+  // /api/tenants/{id}/attack_patterns})
+
+  @Nested
+  @DisplayName("POST /api/attack_patterns")
+  class AttackPatterns {
+
+    @Test
+    @DisplayName("prefixed route: the attack pattern is attributed to the path tenant (control)")
+    void attackPatternPrefixedRouteAttributesToPathTenant() throws Exception {
+      String id =
+          postJson(
+              post("/api/tenants/{t}/attack_patterns", tenantB).with(csrf()),
+              attackPatternBody(),
+              "$.attack_pattern_id");
+      assertEquals(
+          tenantB,
+          rowTenant("attack_patterns", "attack_pattern_id", id),
+          "the attack pattern created under tenant B's path must belong to B");
+    }
+
+    @Test
+    @DisplayName(
+        "header route: the attack pattern must be attributed to X-Tenant-Ids, not to the default")
+    void attackPatternHeaderRouteMustAttributeToHeaderTenant() throws Exception {
+      String id =
+          postJson(
+              post("/api/attack_patterns").header("X-Tenant-Ids", tenantB).with(csrf()),
+              attackPatternBody(),
+              "$.attack_pattern_id");
+      assertEquals(
+          tenantB,
+          rowTenant("attack_patterns", "attack_pattern_id", id),
+          "the attack pattern created with X-Tenant-Ids: B must belong to B, not the default tenant");
+    }
+
+    @Test
+    @DisplayName(
+        "no selector, caller of B and the default tenant: attributed to the default tenant (fallback)")
+    void attackPatternNoSelectorMultiTenantWithDefaultAccessAttributesToDefault() throws Exception {
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String id =
+          postJson(
+              post("/api/attack_patterns").with(csrf()),
+              attackPatternBody(),
+              "$.attack_pattern_id");
+      assertEquals(
+          DEFAULT_TENANT,
+          rowTenant("attack_patterns", "attack_pattern_id", id),
+          "a tenant-unaware attack pattern create by a caller of the default tenant lands in the default tenant");
+    }
+
+    @Test
+    @DisplayName(
+        "several ids in X-Tenant-Ids: the attack pattern create is refused (ambiguous write scope)")
+    void attackPatternSeveralHeaderIdsAreRefused() throws Exception {
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      mvc.perform(
+              post("/api/attack_patterns")
+                  .header("X-Tenant-Ids", tenantB + "," + DEFAULT_TENANT)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(attackPatternBody())
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName(
+        "no selector, caller of two non-default tenants: the attack pattern create is refused (no safe fallback)")
+    void attackPatternNoSelectorMultiTenantWithoutDefaultAccessIsRefused() throws Exception {
+      tenantHelper.createTenantWithCurrentUser("t014e-ap-c");
+      mvc.perform(
+              post("/api/attack_patterns")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(attackPatternBody())
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+  }
+
+  // endregion
+
   // region helpers
 
   private String postScenario(MockHttpServletRequestBuilder request, String dashboardId)
@@ -490,6 +572,20 @@ class WriteAttributionRouteTest extends IntegrationTest {
             .createNativeQuery("SELECT tenant_id FROM " + table + " WHERE " + idColumn + " = ?1")
             .setParameter(1, id)
             .getSingleResult();
+  }
+
+  private String attackPatternBody() {
+    // Unique external id and stix id so the (external_id, tenant_id) and (stix_id, tenant_id)
+    // unique
+    // indexes never collide with a pre-seeded row or across the tenants a single test touches.
+    String suffix = UUID.randomUUID().toString();
+    return "{\"attack_pattern_name\":\"t014e-ap-"
+        + suffix
+        + "\",\"attack_pattern_external_id\":\"T-"
+        + suffix
+        + "\",\"attack_pattern_stix_id\":\"attack-pattern--"
+        + suffix
+        + "\"}";
   }
 
   private String scenarioBody(String dashboardId) {
