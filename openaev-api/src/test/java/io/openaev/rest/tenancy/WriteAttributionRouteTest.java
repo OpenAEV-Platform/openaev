@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -17,13 +18,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Document;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.FileService;
+import io.openaev.service.MinioService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,7 +85,13 @@ class WriteAttributionRouteTest extends IntegrationTest {
   // Spied (real behaviour preserved) to assert the object upload is not reached on a refused scope.
   @MockitoSpyBean private FileService fileService;
 
+  @Autowired private MinioService minioService;
+
   private String tenantB;
+
+  // (tenantId, objectTarget) of every object an upload writes to real MinIO, so teardown can remove
+  // them: uploads are a real side effect and are not rolled back with the test transaction.
+  private final List<String[]> uploadedObjects = new ArrayList<>();
 
   @BeforeEach
   void seedTenantB() throws Exception {
@@ -89,6 +101,16 @@ class WriteAttributionRouteTest extends IntegrationTest {
 
   @AfterEach
   void clearContext() {
+    // Remove the objects each test uploaded to real MinIO so repeated or local runs leave no orphan
+    // under a tenant prefix; the test transaction only rolls back the database rows.
+    for (String[] object : uploadedObjects) {
+      try {
+        minioService.deleteFileForTenant(object[0], object[1]);
+      } catch (Exception e) {
+        // best-effort cleanup: a missing object must not fail teardown
+      }
+    }
+    uploadedObjects.clear();
     TenantContext.clearCurrentTenant();
   }
 
@@ -627,23 +649,7 @@ class WriteAttributionRouteTest extends IntegrationTest {
         "header route: the uploaded object is retrievable through the prefixed B download route")
     void documentHeaderRouteObjectIsRetrievableFromPrefixedRoute() throws Exception {
       byte[] content = ("t014i-body-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
-      MockPart inputPart = new MockPart("input", "{}".getBytes(StandardCharsets.UTF_8));
-      inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-      MockMultipartFile filePart =
-          new MockMultipartFile(
-              "file", "t014i-" + UUID.randomUUID() + ".txt", MediaType.TEXT_PLAIN_VALUE, content);
-      String response =
-          mvc.perform(
-                  multipart("/api/documents")
-                      .part(inputPart)
-                      .file(filePart)
-                      .header("X-Tenant-Ids", tenantB)
-                      .with(csrf()))
-              .andExpect(status().isOk())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      String id = JsonPath.read(response, "$.document_id");
+      String id = uploadDocumentWithContent(multipart("/api/documents"), tenantB, content);
 
       // The bytes were written under B on the header route; a later download on B's prefixed route
       // must find them. Before the fix the object landed under the default tenant's path and this
@@ -658,6 +664,101 @@ class WriteAttributionRouteTest extends IntegrationTest {
           content,
           downloaded,
           "the document uploaded for B on the header route must be downloadable from B's path");
+    }
+
+    @Test
+    @DisplayName(
+        "download by id: a caller scoped to another tenant is refused a B document's bytes (both"
+            + " routes)")
+    void documentDownloadByIdIsRefusedForACallerScopedToAnotherTenant() throws Exception {
+      // Seed the B document out of band (no controller call, so the test transaction's tenant scope
+      // is set for the first time by the download below, on tenant A). The row is loaded by id,
+      // which
+      // is exempt from the tenant filter, so before the guard a caller scoped to A received B's
+      // bytes; now the row's tenant is outside the request scope and the read is a 404.
+      byte[] content = ("t014j-xtenant-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String target = UUID.randomUUID() + ".txt";
+      String id = seedDocumentInTenant(tenantB, target, content);
+      String tenantA = tenantHelper.createTenantWithCurrentUser("t014j-a").getId();
+
+      mvc.perform(get("/api/tenants/{t}/documents/{id}/file", tenantA, id))
+          .andExpect(status().isNotFound());
+      mvc.perform(get("/api/documents/{id}/file", id).header("X-Tenant-Ids", tenantA))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("download by id: the owning tenant still receives its bytes (both routes)")
+    void documentDownloadByIdSucceedsForTheOwningTenant() throws Exception {
+      byte[] content = ("t014j-owner-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String target = UUID.randomUUID() + ".txt";
+      String id = seedDocumentInTenant(tenantB, target, content);
+
+      assertArrayEquals(
+          content,
+          mvc.perform(get("/api/tenants/{t}/documents/{id}/file", tenantB, id))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray(),
+          "tenant B must download its own document on the prefixed route");
+      assertArrayEquals(
+          content,
+          mvc.perform(get("/api/documents/{id}/file", id).header("X-Tenant-Ids", tenantB))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray(),
+          "tenant B must download its own document on the header route");
+    }
+
+    @Test
+    @DisplayName(
+        "delete on the header route: the B row and its object are both removed, not silently"
+            + " dropped")
+    void documentDeleteRemovesRowAndObjectForTheOwningTenant() throws Exception {
+      byte[] content = ("t014j-del-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String id = uploadDocumentWithContent(multipart("/api/documents"), tenantB, content);
+      String target = documentTarget(id);
+      assertEquals(
+          1,
+          minioService.countObjects(tenantB + "/" + target),
+          "the uploaded object must exist under tenant B before the delete");
+
+      mvc.perform(delete("/api/documents/{id}", id).header("X-Tenant-Ids", tenantB).with(csrf()))
+          .andExpect(status().isOk());
+
+      // The row is removed by primary key (not a tenant-filtered derived delete, which matched no B
+      // row on the header route and left both the row and its object behind), and the object is
+      // removed under B's own prefix rather than the ambient default.
+      assertEquals(
+          0, documentRowCount(id), "the B document row must be removed on the header route");
+      assertEquals(
+          0,
+          minioService.countObjects(tenantB + "/" + target),
+          "deleting the B document must remove its object from B's prefix");
+    }
+
+    @Test
+    @DisplayName(
+        "delete by id: a caller scoped to another tenant leaves the B row and object intact")
+    void documentDeleteIsRefusedForACallerScopedToAnotherTenant() throws Exception {
+      byte[] content = ("t014j-del-xtenant-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String target = UUID.randomUUID() + ".txt";
+      String id = seedDocumentInTenant(tenantB, target, content);
+      String tenantA = tenantHelper.createTenantWithCurrentUser("t014j-del-a").getId();
+
+      mvc.perform(delete("/api/documents/{id}", id).header("X-Tenant-Ids", tenantA).with(csrf()))
+          .andExpect(status().isNotFound());
+
+      // The unfiltered delete would otherwise remove any document by id: the request-scope guard
+      // keeps a caller from deleting another tenant's row or object.
+      assertEquals(
+          1, documentRowCount(id), "the B document row must survive a cross-tenant delete");
+      assertEquals(
+          1,
+          minioService.countObjects(tenantB + "/" + target),
+          "the B object must survive a cross-tenant delete");
     }
   }
 
@@ -915,26 +1016,84 @@ class WriteAttributionRouteTest extends IntegrationTest {
 
   private String uploadDocument(MockMultipartHttpServletRequestBuilder request, String tenantHeader)
       throws Exception {
+    // A unique payload per call so the content-hash lookup misses and the new-document branch runs,
+    // rather than the dedup branch that reuses an existing row's tenant.
+    return uploadDocumentWithContent(
+        request, tenantHeader, ("t014-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8));
+  }
+
+  private String uploadDocumentWithContent(
+      MockMultipartHttpServletRequestBuilder request, String tenantHeader, byte[] content)
+      throws Exception {
     if (tenantHeader != null) {
       request.header("X-Tenant-Ids", tenantHeader);
     }
     MockPart inputPart = new MockPart("input", "{}".getBytes(StandardCharsets.UTF_8));
     inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-    // A unique payload per call so the content-hash lookup misses and the new-document branch runs,
-    // rather than the dedup branch that reuses an existing row's tenant.
     MockMultipartFile filePart =
         new MockMultipartFile(
-            "file",
-            "t014-" + UUID.randomUUID() + ".txt",
-            MediaType.TEXT_PLAIN_VALUE,
-            ("t014-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8));
+            "file", "t014-" + UUID.randomUUID() + ".txt", MediaType.TEXT_PLAIN_VALUE, content);
     String response =
         mvc.perform(request.part(inputPart).file(filePart).with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
             .getContentAsString();
-    return JsonPath.read(response, "$.document_id");
+    String id = JsonPath.read(response, "$.document_id");
+    trackUploadedObject(id);
+    return id;
+  }
+
+  /** Records the (tenant, target) of a just-uploaded document so teardown removes its object. */
+  private void trackUploadedObject(String documentId) {
+    uploadedObjects.add(
+        new String[] {
+          rowTenant("documents", "document_id", documentId), documentTarget(documentId)
+        });
+  }
+
+  private String documentTarget(String documentId) {
+    entityManager.flush();
+    return (String)
+        entityManager
+            .createNativeQuery("SELECT document_target FROM documents WHERE document_id = ?1")
+            .setParameter(1, documentId)
+            .getSingleResult();
+  }
+
+  private long documentRowCount(String documentId) {
+    entityManager.flush();
+    return ((Number)
+            entityManager
+                .createNativeQuery("SELECT count(*) FROM documents WHERE document_id = ?1")
+                .setParameter(1, documentId)
+                .getSingleResult())
+        .longValue();
+  }
+
+  /**
+   * Seeds a document owned by {@code tenantId} without going through a controller, so the test
+   * transaction's tenant scope is left unset for the request under test to define. The object is
+   * written under the tenant's own prefix and the row carries that tenant explicitly, matching what
+   * an upload attributed to that tenant produces.
+   */
+  private String seedDocumentInTenant(String tenantId, String target, byte[] content)
+      throws Exception {
+    minioService.uploadFileForTenant(
+        tenantId,
+        target,
+        new ByteArrayInputStream(content),
+        content.length,
+        MediaType.TEXT_PLAIN_VALUE);
+    uploadedObjects.add(new String[] {tenantId, target});
+    Document document = new Document();
+    document.setName("t014j-seed-" + UUID.randomUUID() + ".txt");
+    document.setTarget(target);
+    document.setType(MediaType.TEXT_PLAIN_VALUE);
+    document.setTenant(new Tenant(tenantId));
+    entityManager.persist(document);
+    entityManager.flush();
+    return document.getId();
   }
 
   private String upsertAttackPattern(MockHttpServletRequestBuilder request) throws Exception {
