@@ -163,7 +163,8 @@ public class AttackPatternApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATTACK_PATTERN)
   @Transactional(rollbackFor = Exception.class)
   public Iterable<AttackPattern> upsertAttackPatterns(
-      TxCtx ctx, @Valid @RequestBody AttackPatternUpsertInput input) {
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody AttackPatternUpsertInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     List<AttackPattern> upserted = new ArrayList<>();
     List<AttackPatternCreateInput> attackPatterns = input.getAttackPatterns();
     List<AttackPatternCreateInput> patternsWithoutParent =
@@ -172,10 +173,10 @@ public class AttackPatternApi extends RestBehavior {
         attackPatterns.stream().filter(a -> a.getParentId() != null).toList();
     upserted.addAll(
         attackPatternService.internalUpsertAttackPatterns(
-            patternsWithoutParent, input.getIgnoreDependencies()));
+            patternsWithoutParent, input.getIgnoreDependencies(), tenantId));
     upserted.addAll(
         attackPatternService.internalUpsertAttackPatterns(
-            patternsWithParent, input.getIgnoreDependencies()));
+            patternsWithParent, input.getIgnoreDependencies(), tenantId));
     return upserted;
   }
 

@@ -90,7 +90,18 @@ public class TenantIsolationTestHelper {
    */
   @Transactional
   public void attachCurrentUserToTenant(String tenantId) {
-    String userId = testUserHolder.get().getId();
+    attachUserToTenant(testUserHolder.get().getId(), tenantId);
+  }
+
+  /**
+   * Attaches an explicitly built user (not the ambient mock user) to an existing tenant, so a
+   * create endpoint can resolve a single-tenant write scope for it.
+   *
+   * @param userId the user to attach
+   * @param tenantId the existing tenant to attach the user to
+   */
+  @Transactional
+  public void attachUserToTenant(String userId, String tenantId) {
     tenantRepository.addUserToTenant(userId, tenantId);
     tenantMembershipCacheManager.evict(userId, tenantId);
     entityManager.flush();

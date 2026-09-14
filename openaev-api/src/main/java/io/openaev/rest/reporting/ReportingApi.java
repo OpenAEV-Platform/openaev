@@ -55,7 +55,7 @@ public class ReportingApi extends RestBehavior {
   public ResponseEntity<Reporting> createReporting(
       @RequireTenantSelector TxCtx ctx, @RequestBody @Valid @NotNull final ReportingInput input) {
     return ResponseEntity.ok(
-        this.reportingService.createReporting(input.toReporting(new Reporting()), ctx));
+        this.reportingService.createReporting(ctx, input.toReporting(new Reporting())));
   }
 
   // -- READ --

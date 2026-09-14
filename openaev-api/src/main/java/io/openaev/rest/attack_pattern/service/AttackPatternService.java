@@ -568,7 +568,7 @@ public class AttackPatternService {
   }
 
   private AttackPattern createAttackPatternFromAttackPatternCreateInput(
-      AttackPatternCreateInput input) {
+      AttackPatternCreateInput input, String tenantId) {
     AttackPattern newAttackPattern = new AttackPattern();
     newAttackPattern.setName(input.getName());
     newAttackPattern.setStixId(input.getStixId());
@@ -576,7 +576,7 @@ public class AttackPatternService {
     newAttackPattern.setExternalId(input.getExternalId());
     newAttackPattern.setPlatforms(input.getPlatforms());
     newAttackPattern.setPermissionsRequired(input.getPermissionsRequired());
-    newAttackPattern.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    newAttackPattern.setTenant(new Tenant(tenantId));
     return newAttackPattern;
   }
 
@@ -597,11 +597,13 @@ public class AttackPatternService {
             .stream()
             .findFirst();
     return attackPattern.orElseGet(
-        () -> attackPatternRepository.save(createAttackPatternFromAttackPatternCreateInput(input)));
+        () ->
+            attackPatternRepository.save(
+                createAttackPatternFromAttackPatternCreateInput(input, tenant)));
   }
 
   public List<AttackPattern> internalUpsertAttackPatterns(
-      List<AttackPatternCreateInput> attackPatterns, Boolean ignoreDependencies) {
+      List<AttackPatternCreateInput> attackPatterns, Boolean ignoreDependencies, String tenantId) {
     List<AttackPattern> upserted = new ArrayList<>();
     attackPatterns.forEach(
         attackPatternInput -> {
@@ -624,7 +626,7 @@ public class AttackPatternService {
           if (optionalAttackPattern.isEmpty()) {
             attackPatternInput.setExternalId(attackPatternExternalId);
             AttackPattern newAttackPattern =
-                createAttackPatternFromAttackPatternCreateInput(attackPatternInput);
+                createAttackPatternFromAttackPatternCreateInput(attackPatternInput, tenantId);
             newAttackPattern.setKillChainPhases(killChainPhases);
             newAttackPattern.setExternalId(attackPatternExternalId);
             upserted.add(newAttackPattern);

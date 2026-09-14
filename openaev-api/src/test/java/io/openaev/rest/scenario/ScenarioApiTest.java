@@ -737,6 +737,7 @@ public class ScenarioApiTest extends IntegrationTest {
   void given_validInput_should_createScenarioWithInjectorContracts() throws Exception {
     // -- PREPARE --
     User testUser = createUserWithManageAssessmentRoleAndGrantOnEmailInjectorContract();
+    tenantIsolationHelper.attachUserToTenant(testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
     Authentication auth = buildAuthenticationToken(testUser);
 
     ScenarioInput scenarioInput = new ScenarioInput();
@@ -799,6 +800,7 @@ public class ScenarioApiTest extends IntegrationTest {
         .persist();
 
     User testUser = createUserWithManageAssessmentRoleAndGrantOnContract(contract.getId());
+    tenantIsolationHelper.attachUserToTenant(testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
     Authentication auth = buildAuthenticationToken(testUser);
 
     ScenarioInput scenarioInput = new ScenarioInput();

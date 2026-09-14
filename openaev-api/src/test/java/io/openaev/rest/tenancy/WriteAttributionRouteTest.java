@@ -164,6 +164,44 @@ class WriteAttributionRouteTest extends IntegrationTest {
 
   // endregion
 
+  // region scenarios with injector contracts
+  // (ScenarioApi.createScenarioWithInjectorContracts, POST
+  // {/api/scenarios/with-injector-contracts | /api/tenants/{id}/scenarios/with-injector-contracts})
+
+  @Nested
+  @DisplayName("POST /api/scenarios/with-injector-contracts")
+  class ScenariosWithInjectorContracts {
+
+    @Test
+    @DisplayName("prefixed route: the scenario is attributed to the path tenant (control)")
+    void prefixedRouteAttributesToPathTenant() throws Exception {
+      String id =
+          postScenarioWithContracts(
+              post("/api/tenants/{t}/scenarios/with-injector-contracts", tenantB).with(csrf()));
+      assertEquals(
+          tenantB,
+          scenarioTenant(id),
+          "the scenario created under tenant B's path must belong to B");
+    }
+
+    @Test
+    @DisplayName(
+        "header route: the scenario must be attributed to X-Tenant-Ids, not to the default")
+    void headerRouteMustAttributeToHeaderTenant() throws Exception {
+      String id =
+          postScenarioWithContracts(
+              post("/api/scenarios/with-injector-contracts")
+                  .header("X-Tenant-Ids", tenantB)
+                  .with(csrf()));
+      assertEquals(
+          tenantB,
+          scenarioTenant(id),
+          "the scenario created with X-Tenant-Ids: B must belong to B, not the default tenant");
+    }
+  }
+
+  // endregion
+
   // region exercises (ExerciseApi.createExercise, POST {/api/exercises |
   // /api/tenants/{id}/exercises})
 
@@ -605,6 +643,41 @@ class WriteAttributionRouteTest extends IntegrationTest {
 
   // endregion
 
+  // region attack patterns upsert (AttackPatternApi.upsertAttackPatterns, POST
+  // {/api/attack_patterns/upsert | /api/tenants/{id}/attack_patterns/upsert})
+
+  @Nested
+  @DisplayName("POST /api/attack_patterns/upsert")
+  class AttackPatternsUpsert {
+
+    @Test
+    @DisplayName("prefixed route: the created attack pattern is attributed to the path tenant")
+    void prefixedRouteAttributesToPathTenant() throws Exception {
+      String id =
+          upsertAttackPattern(
+              post("/api/tenants/{t}/attack_patterns/upsert", tenantB).with(csrf()));
+      assertEquals(
+          tenantB,
+          rowTenant("attack_patterns", "attack_pattern_id", id),
+          "the attack pattern upserted under tenant B's path must belong to B");
+    }
+
+    @Test
+    @DisplayName(
+        "header route: the created attack pattern must be attributed to X-Tenant-Ids, not to the default")
+    void headerRouteMustAttributeToHeaderTenant() throws Exception {
+      String id =
+          upsertAttackPattern(
+              post("/api/attack_patterns/upsert").header("X-Tenant-Ids", tenantB).with(csrf()));
+      assertEquals(
+          tenantB,
+          rowTenant("attack_patterns", "attack_pattern_id", id),
+          "the attack pattern upserted with X-Tenant-Ids: B must belong to B, not the default tenant");
+    }
+  }
+
+  // endregion
+
   // region chaining (ChainingApi.createSimulation and createScenarioChaining, POST
   // /api/tenants/{id}/chaining/{simulations|scenarios}; Enterprise-Edition gated, prefixed route
   // only)
@@ -658,6 +731,21 @@ class WriteAttributionRouteTest extends IntegrationTest {
     return JsonPath.read(response, "$.scenario_id");
   }
 
+  private String postScenarioWithContracts(MockHttpServletRequestBuilder request) throws Exception {
+    // An empty search selects no injector contracts, so no injects are created: the endpoint still
+    // creates and attributes the scenario, which is all this route-attribution test asserts.
+    String body =
+        "{\"locale\":\"en\",\"scenario_input\":{\"scenario_name\":\"t014h-wic\"},"
+            + "\"injector_contract_search_pagination_input\":{}}";
+    String response =
+        mvc.perform(request.contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return JsonPath.read(response, "$.scenario_id");
+  }
+
   private String postExercise(MockHttpServletRequestBuilder request) throws Exception {
     String response =
         mvc.perform(
@@ -704,6 +792,27 @@ class WriteAttributionRouteTest extends IntegrationTest {
             .getResponse()
             .getContentAsString();
     return JsonPath.read(response, "$.document_id");
+  }
+
+  private String upsertAttackPattern(MockHttpServletRequestBuilder request) throws Exception {
+    // A unique external id so the upsert dedup lookup misses and a brand-new attack pattern is
+    // created, which is the write-attribution path under test.
+    String suffix = UUID.randomUUID().toString();
+    String body =
+        "{\"attack_patterns\":[{\"attack_pattern_name\":\"t014h-ap-"
+            + suffix
+            + "\",\"attack_pattern_external_id\":\"T-"
+            + suffix
+            + "\",\"attack_pattern_stix_id\":\"attack-pattern--"
+            + suffix
+            + "\"}],\"ignore_dependencies\":false}";
+    String response =
+        mvc.perform(request.contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return JsonPath.read(response, "$[0].attack_pattern_id");
   }
 
   private String rowTenant(String table, String idColumn, String id) {

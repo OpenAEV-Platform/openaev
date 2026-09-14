@@ -1444,6 +1444,7 @@ public class ScenarioService {
   private Scenario prepareScenarioFromScenarioInput(
       @NotBlank final String tenantId, @NotNull final ScenarioInput input) {
     Scenario scenario = new Scenario();
+    scenario.setTenant(new Tenant(tenantId));
     scenario.setUpdateAttributes(input);
     scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     if (hasText(input.getCustomDashboard())) {

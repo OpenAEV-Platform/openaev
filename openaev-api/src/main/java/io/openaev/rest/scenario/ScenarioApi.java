@@ -151,12 +151,14 @@ public class ScenarioApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   public ScenarioSimple createScenarioWithInjectorContracts(
-      TxCtx ctx, @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
+      @RequireTenantSelector TxCtx ctx,
+      @Valid @RequestBody final ScenarioAndInjectorContractsInputs inputs) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return BulkOperationContext.runSuppressed(
         () ->
             this.scenarioService.createScenarioWithInjectorContracts(
                 ctx,
-                TenantContext.getCurrentTenant(),
+                tenantId,
                 inputs.getScenarioInput(),
                 inputs.getInjectorContractSearchPaginationInput(),
                 inputs.getLocale()));

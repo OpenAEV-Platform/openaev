@@ -138,12 +138,12 @@ public class ReportingService {
    * TenantWriteScopeResolver#tenantForWrite}) therefore happens only once the subject is confirmed
    * readable.
    *
-   * @param reporting the {@link Reporting} to save
    * @param ctx the request write scope used to attribute the row's tenant
+   * @param reporting the {@link Reporting} to save
    * @return the saved {@link Reporting}
    */
   @Transactional
-  public Reporting createReporting(@NotNull final Reporting reporting, @NotNull final TxCtx ctx) {
+  public Reporting createReporting(@NotNull final TxCtx ctx, @NotNull final Reporting reporting) {
     checkSubjectAccess(reporting.getContextType(), reporting.getContextId());
     reporting.setTenant(new Tenant(this.writeScopeResolver.tenantForWrite(ctx, null)));
     return this.reportingRepository.save(reporting);

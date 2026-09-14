@@ -154,10 +154,11 @@ scope, so the resolver is never asked to guess.
 A create handler chooses between two contracts by whether its `TxCtx` parameter carries
 `@RequireTenantSelector`.
 
-Without the annotation, the caller must name the tenant: the tenant-prefixed route
+Without the annotation, a multi-tenant caller must name the tenant: the tenant-prefixed route
 (`/api/tenants/{id}/...`) names it in the path, or the non-prefixed route carries it in the
-`X-Tenant-Ids` header. A multi-tenant caller that names nothing is left multi-tenant, and the
-resolver refuses the write.
+`X-Tenant-Ids` header. A single-tenant caller resolves to its only tenant even with an empty
+selector. A multi-tenant caller that names nothing is left multi-tenant, and the resolver refuses
+the write.
 
 With `@RequireTenantSelector`, a request that names no tenant gets a fallback scope so tenant-unaware
 API clients (collectors, injectors, plain scripts) keep working:
