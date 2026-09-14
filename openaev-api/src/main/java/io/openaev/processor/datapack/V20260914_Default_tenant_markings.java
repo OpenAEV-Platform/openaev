@@ -26,22 +26,34 @@ public class V20260914_Default_tenant_markings extends DataPack {
   protected boolean doProcess(Tenant tenant) {
     try {
       PresetTenantData.createDefaultMarkings()
-          .forEach(
-              seed -> {
-                MarkingDefinition markingDefinition = new MarkingDefinition();
-                markingDefinition.setType(seed.type());
-                markingDefinition.setDefinition(seed.definition());
-                markingDefinition.setColor(seed.color());
-                markingDefinition.setOrder(seed.order());
-                markingDefinition.setProtectedDefinition(true);
-                markingDefinition.setTenant(
-                    entityManager.getReference(Tenant.class, tenant.getId()));
-                markingDefinitionRepository.save(markingDefinition);
-              });
+          .forEach(seed -> createMarkingDefinitionIfMissing(tenant, seed));
       return true;
     } catch (Exception e) {
       log.error("Unexpected error during DataPack 20260826 initialization.", e);
       return false;
     }
+  }
+
+  private void createMarkingDefinitionIfMissing(Tenant tenant, PresetTenantData.MarkingSeed seed) {
+    // Find-or-create keyed by (tenant, type, definition): makes the seed idempotent so a retry
+    // after a previous partial failure (some seeds already inserted, the run then crashed before
+    // the pack got registered as processed) converges instead of tripping the unique index again.
+    if (markingDefinitionRepository.existsByTypeAndDefinitionAndTenantIdExcludingId(
+        seed.type(), seed.definition(), tenant.getId(), null)) {
+      log.info(
+          "Marking definition {}:{} already exists for tenant {}, skipping",
+          seed.type(),
+          seed.definition(),
+          tenant.getId());
+      return;
+    }
+    MarkingDefinition markingDefinition = new MarkingDefinition();
+    markingDefinition.setType(seed.type());
+    markingDefinition.setDefinition(seed.definition());
+    markingDefinition.setColor(seed.color());
+    markingDefinition.setOrder(seed.order());
+    markingDefinition.setProtectedDefinition(true);
+    markingDefinition.setTenant(entityManager.getReference(Tenant.class, tenant.getId()));
+    markingDefinitionRepository.save(markingDefinition);
   }
 }
