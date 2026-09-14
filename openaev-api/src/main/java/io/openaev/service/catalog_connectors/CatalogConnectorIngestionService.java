@@ -1,6 +1,7 @@
 package io.openaev.service.catalog_connectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.service.FileService;
@@ -13,11 +14,9 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class CatalogConnectorIngestionService {
   public static final Set<String> PROTECTED_KEYS =
@@ -29,6 +28,7 @@ public class CatalogConnectorIngestionService {
   private final FileService fileService;
   private final ConnectorInstanceService connectorInstanceService;
   private final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
+  private final TenantScopedTransaction tenantScopedTransaction;
 
   public List<CatalogConnector> extractCatalog(JsonNode rootNode) {
     JsonNode contracts = rootNode.get("contracts");
@@ -45,9 +45,11 @@ public class CatalogConnectorIngestionService {
 
     List<CatalogConnector> saved = catalogConnectorService.saveAll(catalogConnectorList);
 
-    for (CatalogConnector connector : saved) {
-      cleanupInstanceConfigurations(connector);
-    }
+    // connector_instances is tenant-scoped: run the cleanup once per tenant so each tenant's
+    // instance configurations are read and cleaned within its own scope. Read without a scope,
+    // the query returns no row and the cleanup silently does nothing.
+    tenantScopedTransaction.forEachTenant(
+        tenantId -> saved.forEach(this::cleanupInstanceConfigurations));
 
     return saved;
   }
