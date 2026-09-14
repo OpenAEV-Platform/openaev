@@ -17,8 +17,8 @@ import NotFound from '../../../../components/NotFound';
 import { type CredentialFullOutput, type CredentialInput, type CredentialOutput } from '../../../../utils/api-types';
 import { humanizeEnum } from '../asset-categories';
 import AssetCategoryIcon from '../AssetCategoryIcon';
-import AssetStatus from '../AssetStatus';
 import CredentialPopover from './CredentialPopover';
+import CredentialStatusChip from './CredentialStatusChip';
 import convertCredentialFullOutputToCredentialInput from './credentialUtils';
 
 const CredentialDetailPage = () => {
@@ -136,13 +136,7 @@ const CredentialDetailPage = () => {
           }}
           >
             <Field label={t('Status')}>
-              {(credential.credential_status == 'ACTIVE' || credential.credential_status == 'INACTIVE')
-                ? (
-                    <AssetStatus
-                      variant="list"
-                      status={credential?.credential_status?.toUpperCase() == 'ACTIVE' ? 'Active' : 'Inactive'}
-                    />
-                  ) : '-'}
+              <CredentialStatusChip status={credential.credential_status} variant="list" />
             </Field>
             <Field label={t('Created by')}>{credential.credential_created_by?.user_name || '-'}</Field>
             <Field label={t('Creation date')}>{fldt(credential?.credential_created_at)}</Field>

@@ -45,6 +45,9 @@ public record CredentialFullOutput(
         AwsRegion awsDefaultRegion,
     @Schema(description = "AWS access key ID") @JsonProperty("credential_aws_access_key_id")
         String awsAccessKeyId,
+    @Schema(description = "AWS session token present")
+        @JsonProperty("credential_aws_session_token_present")
+        boolean awsSessionTokenPresent,
     @Schema(description = "AWS role ARN") @JsonProperty("credential_aws_role_arn")
         String awsRoleArn,
     @Schema(description = "AWS source identity type")
@@ -52,4 +55,13 @@ public record CredentialFullOutput(
         AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
     @Schema(description = "AWS source profile access key id")
         @JsonProperty("credential_aws_source_profile_access_key_id")
-        String awsSourceProfileAccessKeyId) {}
+        String awsSourceProfileAccessKeyId,
+    // AZURE
+    @Schema(description = "Azure environment") @JsonProperty("credential_azure_environment")
+        String azureEnvironment,
+    @Schema(description = "Azure client id") @JsonProperty("credential_azure_client_id")
+        String azureClientId,
+    @Schema(description = "Azure tenant id") @JsonProperty("credential_azure_tenant_id")
+        String azureTenantId,
+    @Schema(description = "Azure subscription id") @JsonProperty("credential_azure_subscription_id")
+        String azureSubscriptionId) {}

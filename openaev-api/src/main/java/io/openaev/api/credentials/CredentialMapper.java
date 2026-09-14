@@ -30,9 +30,14 @@ public final class CredentialMapper {
         .hashAlgorithm(secretMetadata.hashAlgorithm())
         .awsDefaultRegion(secretMetadata.awsDefaultRegion())
         .awsAccessKeyId(secretMetadata.awsAccessKeyId())
+        .awsSessionTokenPresent(secretMetadata.awsSessionTokenPresent())
         .awsRoleArn(secretMetadata.awsRoleArn())
         .awsSourceIdentityType(secretMetadata.awsSourceIdentityType())
         .awsSourceProfileAccessKeyId(secretMetadata.awsSourceProfileAccessKeyId())
+        .azureEnvironment(secretMetadata.azureEnvironment())
+        .azureClientId(secretMetadata.azureClientId())
+        .azureTenantId(secretMetadata.azureTenantId())
+        .azureSubscriptionId(secretMetadata.azureSubscriptionId())
         .build();
   }
 

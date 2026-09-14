@@ -73,7 +73,7 @@ public class PlatformSessionApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("With privileges")
-  @WithMockUser(withCapabilities = {Capability.MANAGE_SESSIONS})
+  @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_SESSIONS})
   class WithPrivileges {
     @Test
     @DisplayName("Can read all active sessions")

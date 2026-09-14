@@ -11,7 +11,6 @@ import static io.openaev.integration.impl.executors.paloaltocortex.PaloAltoCorte
 import static io.openaev.utils.ArchitectureFilterUtils.handleEndpointFilter;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
-import static io.openaev.utils.pagination.PaginationUtils.buildPageable;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
@@ -132,11 +131,30 @@ public class EndpointService implements AuditLoggedService {
   private final ApplicationEventPublisher eventPublisher;
 
   // -- CRUD --
-  public Endpoint createEndpoint(@NotNull final Endpoint endpoint) {
+  /**
+   * Creates an endpoint owned by {@code tenantId}.
+   *
+   * <p>The tenant is a required parameter and is never inferred. {@code assets} is a v2-activated
+   * table, so a row that reaches the database without its tenant is either invisible to every
+   * subsequent read or attributed to whichever tenant the v1 thread-local happened to hold, which
+   * on a background or provisioning path is the wrong one as often as the right one. HTTP callers
+   * resolve it through {@link io.openaev.config.TenantWriteScopeResolver}, which refuses an
+   * ambiguous multi-tenant scope with a 400; background callers pass the tenant their own scope was
+   * opened for.
+   *
+   * <p>The parameter is deliberately not optional: making it required is what turns a forgotten
+   * attribution into a compile error instead of a silent one.
+   */
+  public Endpoint createEndpoint(
+      @NotNull final Endpoint endpoint, @NotBlank final String tenantId) {
+    endpoint.setTenant(requireTenant(tenantId));
     return this.endpointRepository.save(endpoint);
   }
 
-  public Endpoint createEndpoint(@NotNull final EndpointInput input) {
+  /** Builds an endpoint from its input and creates it under {@code tenantId}. */
+  public Endpoint createEndpoint(
+      @NotNull final EndpointInput input, @NotBlank final String tenantId) {
+    validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
     Endpoint endpoint = new Endpoint();
     endpoint.setUpdateAttributes(input);
     String[] ips = EndpointMapper.setIps(input.getIps());
@@ -145,13 +163,20 @@ public class EndpointService implements AuditLoggedService {
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(input.getMacAddresses()));
     endpoint.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     endpoint.setEoL(input.isEol());
-    return createEndpoint(endpoint);
+    return createEndpoint(endpoint, tenantId);
   }
 
-  public Endpoint createEndpoint(
-      @NotNull final EndpointInput input, @NotNull final String tenantId) {
-    validateLinkedPersonInTenant(input.getLinkedPerson(), tenantId);
-    return createEndpoint(input);
+  /**
+   * Builds the owning tenant reference, refusing a blank one loudly.
+   *
+   * <p>Explicit rather than {@code @NotBlank}: this bean is not {@code @Validated}, so the
+   * annotation alone never fires and a blank tenant would reach the database unchecked.
+   */
+  private static Tenant requireTenant(final String tenantId) {
+    if (tenantId == null || tenantId.isBlank()) {
+      throw new IllegalArgumentException("an endpoint write must carry the tenant that owns it");
+    }
+    return new Tenant(tenantId);
   }
 
   // Rejects a linked person that is not a member of the current tenant, so an identity asset
@@ -332,46 +357,23 @@ public class EndpointService implements AuditLoggedService {
             .findById(assetGroupId)
             .orElseThrow(() -> new IllegalArgumentException("Asset group not found"));
 
-    Specification<Endpoint> specificationStatic =
-        findEndpointsForAssetGroup(assetGroupId)
-            .and(findEndpointsForInjectionOrAgentlessEndpoints());
+    Specification<Endpoint> membership = findEndpointsForAssetGroup(assetGroupId);
 
     if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
-      Specification<Endpoint> specificationDynamic =
-          computeFilterGroupJpa(assetGroup.getDynamicFilter());
-      Specification<Endpoint> specificationDynamicWithInjection =
-          specificationDynamic.and(findEndpointsForInjectionOrAgentlessEndpoints());
-
-      Page<Endpoint> dynamicResult =
-          buildPaginationJPA(
-              (Specification<Endpoint> specification, Pageable pageable) ->
-                  this.endpointRepository.findAll(
-                      specificationDynamicWithInjection.and(specification), pageable),
-              handleEndpointFilter(searchPaginationInput),
-              Endpoint.class);
-      Page<Endpoint> staticResult =
-          buildPaginationJPA(
-              (Specification<Endpoint> specification, Pageable pageable) ->
-                  this.endpointRepository.findAll(specificationStatic.and(specification), pageable),
-              handleEndpointFilter(searchPaginationInput),
-              Endpoint.class);
-      List<Endpoint> mergedContent =
-          Stream.concat(dynamicResult.getContent().stream(), staticResult.getContent().stream())
-              .distinct()
-              .limit(searchPaginationInput.getSize())
-              .collect(toList());
-
-      long total = dynamicResult.getTotalElements() + staticResult.getTotalElements();
-
-      Pageable pageable = buildPageable(searchPaginationInput, Endpoint.class);
-      return new PageImpl<>(mergedContent, pageable, total);
-    } else {
-      return buildPaginationJPA(
-          (Specification<Endpoint> specification, Pageable pageable) ->
-              this.endpointRepository.findAll(specificationStatic.and(specification), pageable),
-          handleEndpointFilter(searchPaginationInput),
-          Endpoint.class);
+      // Static members OR dynamic members, resolved in a SINGLE paginated query. Running two
+      // separate queries and concatenating their pages double-counted the endpoints belonging to
+      // both sets (the total was a plain sum) and broke sorting/pagination past the first page.
+      membership = membership.or(computeFilterGroupJpa(assetGroup.getDynamicFilter()));
     }
+
+    Specification<Endpoint> finalSpec =
+        membership.and(findEndpointsForInjectionOrAgentlessEndpoints());
+
+    return buildPaginationJPA(
+        (Specification<Endpoint> specification, Pageable pageable) ->
+            this.endpointRepository.findAll(finalSpec.and(specification), pageable),
+        handleEndpointFilter(searchPaginationInput),
+        Endpoint.class);
   }
 
   public Endpoint updateEndpoint(
@@ -830,12 +832,12 @@ public class EndpointService implements AuditLoggedService {
     endpoint.setIps(input.getIps());
     endpoint.setSeenIp(input.getSeenIp());
     endpoint.setMacAddresses(input.getMacAddresses());
-    endpoint.setTenant(new Tenant(input.getExecutor().getTenantId()));
+    // The create stamps the tenant itself; passing it here is what makes that explicit.
     Agent agent = new Agent();
     setNewAgentAttributes(input, agent);
     setUpdatedAgentAttributes(agent, input, endpoint);
     endpoint.getAgents().add(agent);
-    createEndpoint(endpoint);
+    createEndpoint(endpoint, input.getExecutor().getTenantId());
     addSourceTagToEndpoint(endpoint, input);
     return agent;
   }
@@ -1167,7 +1169,7 @@ public class EndpointService implements AuditLoggedService {
       }
       return updateEndpoint(endpointToUpdate);
     }
-    return createEndpoint(input);
+    return createEndpoint(input, tenantId);
   }
 
   /**

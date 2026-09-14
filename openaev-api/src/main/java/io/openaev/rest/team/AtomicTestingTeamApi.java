@@ -5,6 +5,7 @@ import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.TENANT_ATOMIC_TESTING_URI;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Team;
@@ -31,7 +32,7 @@ public class AtomicTestingTeamApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   @Transactional(readOnly = true)
   public Page<TeamOutput> searchTeams(
-      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     final Specification<Team> teamSpecification = contextual(false);
     return this.teamService.teamPagination(searchPaginationInput, teamSpecification);
   }

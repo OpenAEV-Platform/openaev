@@ -32,18 +32,25 @@ public class CredentialSecretReference extends SecretReference {
               CREDENTIAL_TYPE.CLOUD_AWS,
                   EnumSet.of(
                       CREDENTIAL_AUTH_METHOD.AWS_ACCESS_KEY,
-                      CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE));
+                      CREDENTIAL_AUTH_METHOD.AWS_ASSUME_ROLE),
+              CREDENTIAL_TYPE.CLOUD_AZURE,
+                  EnumSet.of(
+                      CREDENTIAL_AUTH_METHOD.AZURE_SERVICE_PRINCIPAL,
+                      CREDENTIAL_AUTH_METHOD.AZURE_MANAGED_IDENTITY));
 
   public enum CREDENTIAL_AUTH_METHOD {
     USERNAME_PASSWORD,
     HASH,
     AWS_ACCESS_KEY,
-    AWS_ASSUME_ROLE
+    AWS_ASSUME_ROLE,
+    AZURE_SERVICE_PRINCIPAL,
+    AZURE_MANAGED_IDENTITY
   }
 
   public enum CREDENTIAL_TYPE {
     IDENTITY,
     CLOUD_AWS,
+    CLOUD_AZURE,
   }
 
   @Column(name = "secret_reference_credential_type")

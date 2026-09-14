@@ -28,6 +28,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.ScopeRuleSelectedMode;
@@ -121,6 +122,7 @@ class AutonomousRunServiceScopeTest {
   @InjectMocks private AutonomousRunService runService;
 
   @Captor private ArgumentCaptor<List<WorkflowScopeRuleInput>> rulesCaptor;
+  @Captor private ArgumentCaptor<TxCtx> ctxCaptor;
   @Captor private ArgumentCaptor<List<String>> existingEventIdsCaptor;
   @Captor private ArgumentCaptor<List<String>> scenarioEventIdsCaptor;
   @Captor private ArgumentCaptor<List<ConditionCreateInput>> triggerConditionsCaptor;
@@ -163,7 +165,8 @@ class AutonomousRunServiceScopeTest {
     inOrder.verify(runRepository).save(run);
     inOrder
         .verify(workflowService)
-        .writeAllowlistScopeIsolated(eq(SCENARIO_ID), eq(SIMULATION_ID), anyList(), eq(true));
+        .writeAllowlistScopeIsolated(
+            any(TxCtx.class), eq(SCENARIO_ID), eq(SIMULATION_ID), anyList(), eq(true));
     assertThat(saved.getScope()).hasSize(2);
     assertThat(saved.getScopeAssetGroupId()).isEqualTo("group-1");
     assertThat(saved.getScopeTeamId()).isEqualTo("team-1");
@@ -171,7 +174,16 @@ class AutonomousRunServiceScopeTest {
     // The mirror receives the scope translated to ALLOWLIST rules (unknown kinds dropped).
     verify(workflowService)
         .writeAllowlistScopeIsolated(
-            eq(SCENARIO_ID), eq(SIMULATION_ID), rulesCaptor.capture(), eq(true));
+            ctxCaptor.capture(),
+            eq(SCENARIO_ID),
+            eq(SIMULATION_ID),
+            rulesCaptor.capture(),
+            eq(true));
+
+    // The mirror runs REQUIRES_NEW, so the caller's scope does not travel with it. This argument is
+    // what carries it, and it must be the run's own tenant: without it the realignment reads the
+    // activated assets table unscoped and persists an empty inject_assets onto the step templates.
+    assertThat(ctxCaptor.getValue()).isEqualTo(TxCtx.forTenant("tenant-1"));
     assertThat(rulesCaptor.getValue())
         .extracting(
             WorkflowScopeRuleInput::getSelectedMode,
@@ -187,7 +199,8 @@ class AutonomousRunServiceScopeTest {
   void given_theMirrorThrows_when_settingScope_then_scopeIsRecordedAndTeamsStillEnabled() {
     doThrow(new IllegalStateException("action-target realignment failed"))
         .when(workflowService)
-        .writeAllowlistScopeIsolated(anyString(), anyString(), anyList(), anyBoolean());
+        .writeAllowlistScopeIsolated(
+            any(TxCtx.class), anyString(), anyString(), anyList(), anyBoolean());
     List<AutonomousScopeTarget> scope = List.of(new AutonomousScopeTarget("TEAMS", "team-1"));
 
     assertThatCode(() -> runService.setRunScope(RUN_ID, scope)).doesNotThrowAnyException();
@@ -255,7 +268,8 @@ class AutonomousRunServiceScopeTest {
               return null;
             })
         .when(workflowService)
-        .writeAllowlistScopeIsolated(anyString(), anyString(), anyList(), anyBoolean());
+        .writeAllowlistScopeIsolated(
+            any(TxCtx.class), anyString(), anyString(), anyList(), anyBoolean());
     doAnswer(
             inv -> {
               seenTenants.add(TenantContext.getCurrentTenant());

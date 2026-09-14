@@ -73,13 +73,6 @@ export const arrayOfGrants = new schema.Array(grant);
 export const user = new schema.Entity('users', {}, { idAttribute: 'user_id' });
 export const arrayOfUsers = new schema.Array(user);
 
-export const role = new schema.Entity(
-  'roles',
-  {},
-  { idAttribute: 'role_id' },
-);
-export const arrayOfRoles = new schema.Array(role);
-
 export const exercise = new schema.Entity(
   'exercises',
   {},
@@ -523,11 +516,6 @@ export const storeHelper = state => ({
   getCatalogConnectors: () => entities('catalog_connectors', state),
   getCatalogConnector: id => entity(id, 'catalog_connectors', state),
   getConnectorInstance: id => entity(id, 'connectorinstances', state),
-  // capabilities
-  getPlatformCapabilities: () => entities('platform_capabilities', state),
-  getPlatformCapabilitiesMap: () => maps('platform_capabilities', state),
-  getTenantCapabilities: () => entities('tenant_capabilities', state),
-  getTenantCapabilitiesMap: () => maps('tenant_capabilities', state),
   // workflow configurations
   getWorkflowConfiguration: id => entity(id, 'workflowconfigurations', state),
 });

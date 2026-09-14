@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
+import { Button, CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useMemo, useState } from 'react';
 import {
@@ -22,6 +22,7 @@ import type {
   EnhancedContractElement,
 } from '../../../../utils/api-types-custom';
 import InjectContentFieldComponent from '../../common/injects/form/InjectContentFieldComponent';
+import { humanizeEnum } from '../asset-categories';
 
 interface Props {
   onSubmit: SubmitHandler<CredentialInput>;
@@ -54,7 +55,7 @@ const CredentialForm: FunctionComponent<Props> = ({
 
   const matchesCondition = (
     values: CredentialFormValues,
-    conditionField?: keyof CredentialInput,
+    conditionField?: string,
     conditionValue?: string,
   ): boolean => {
     if (!conditionField || !conditionValue) {
@@ -68,8 +69,8 @@ const CredentialForm: FunctionComponent<Props> = ({
       .object({
         credential_name: z.string().min(1, { message: t('Should not be empty') }),
         credential_description: z.string().optional(),
-        credential_type: z.enum(['IDENTITY', 'CLOUD_AWS']),
-        credential_auth_method: z.enum(['USERNAME_PASSWORD', 'HASH', 'AWS_ACCESS_KEY', 'AWS_ASSUME_ROLE']),
+        credential_type: z.enum(['IDENTITY', 'CLOUD_AWS', 'CLOUD_AZURE']),
+        credential_auth_method: z.enum(['USERNAME_PASSWORD', 'HASH', 'AWS_ACCESS_KEY', 'AWS_ASSUME_ROLE', 'AZURE_SERVICE_PRINCIPAL', 'AZURE_MANAGED_IDENTITY']),
         credential_tags: z.array(z.string()).optional(),
       })
       .catchall(dynamicFieldValueSchema)
@@ -88,12 +89,12 @@ const CredentialForm: FunctionComponent<Props> = ({
           .filter((field: CredentialContractField) => {
             const isVisible = !field.visible_condition_field || matchesCondition(
               values,
-              field.visible_condition_field as keyof CredentialInput,
+              field.visible_condition_field,
               field.visible_condition_value,
             );
             const isRequired = field.required || matchesCondition(
               values,
-              field.mandatory_condition_field as keyof CredentialInput,
+              field.mandatory_condition_field,
               field.mandatory_condition_value,
             );
             return isVisible && isRequired;
@@ -217,7 +218,7 @@ const CredentialForm: FunctionComponent<Props> = ({
     const isRequired = !!field.required
       || matchesCondition(
         currentFormValues,
-        field.mandatory_condition_field as keyof CredentialInput,
+        field.mandatory_condition_field,
         field.mandatory_condition_value,
       );
 
@@ -227,11 +228,11 @@ const CredentialForm: FunctionComponent<Props> = ({
       isInMandatoryGroup: false,
       mandatoryGroupContractElementLabels: '',
       isVisible: true,
+      readOnly: false,
       key: `${field.field_name}`,
       type: formatFieldType(field.field_type),
       mandatory: isRequired,
       label: t(`${field.field_name}`) ?? '',
-      readOnly: false,
       choices: field.choices?.map((value: string) => ({
         label: t(`${value}`),
         value,
@@ -291,6 +292,7 @@ const CredentialForm: FunctionComponent<Props> = ({
           name="credential_name"
           label={t('Name')}
           required
+          disabled={isSubmitting}
         />
 
         <TextFieldController
@@ -298,9 +300,10 @@ const CredentialForm: FunctionComponent<Props> = ({
           name="credential_description"
           label={t('Description')}
           multiline
+          disabled={isSubmitting}
         />
 
-        <TagFieldController name="credential_tags" label={t('Tags')} />
+        <TagFieldController name="credential_tags" label={t('Tags')} disabled={isSubmitting} />
 
         <SelectFieldController
           name="credential_type"
@@ -308,9 +311,9 @@ const CredentialForm: FunctionComponent<Props> = ({
           required
           items={availableTypes.map(type => ({
             value: type,
-            label: t(`${t(type)}`),
+            label: t(`${type}`),
           }))}
-          disabled={isLoadingContracts || availableTypes.length < 2}
+          disabled={isSubmitting || isLoadingContracts || availableTypes.length < 2}
         />
 
         <SelectFieldController
@@ -319,16 +322,16 @@ const CredentialForm: FunctionComponent<Props> = ({
           required
           items={availableAuthMethods.map(method => ({
             value: method,
-            label: t(`${t(method)}`),
+            label: t(`${humanizeEnum(method)}`),
           }))}
-          disabled={isLoadingContracts || availableAuthMethods.length === 0}
+          disabled={isSubmitting || isLoadingContracts || availableAuthMethods.length === 0}
         />
 
         {(selectedContract?.fields ?? [])
           .filter((field: CredentialContractField) => field.visible_condition_field
             ? matchesCondition(
                 currentFormValues,
-                field.visible_condition_field as keyof CredentialInput,
+                field.visible_condition_field,
                 field.visible_condition_value,
               )
             : true)
@@ -361,6 +364,13 @@ const CredentialForm: FunctionComponent<Props> = ({
             type="submit"
             disabled={isSubmitting || !isDirty}
           >
+            {isSubmitting && (
+              <CircularProgress
+                size={16}
+                color="inherit"
+                sx={{ marginRight: theme.spacing(1) }}
+              />
+            )}
             {editing ? t('Update') : t('Create')}
           </Button>
         </div>

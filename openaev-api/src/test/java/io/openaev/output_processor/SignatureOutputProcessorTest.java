@@ -13,8 +13,7 @@ import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.*;
-import io.openaev.utils.injector_contract.InjectorContractContentUtils;
-import java.util.ArrayList;
+import io.openaev.service.expectation.ExpectationBehaviorResolver;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -31,10 +30,9 @@ class SignatureOutputProcessorTest {
       mock(SecurityPlatformRepository.class);
   private final SecurityCoverageSendJobService securityCoverageSendJobService =
       mock(SecurityCoverageSendJobService.class);
-  private final AssetGroupService assetGroupService = mock(AssetGroupService.class);
   private final InjectService injectService = mock(InjectService.class);
-  private final InjectorContractContentUtils injectorContractContentUtils =
-      mock(InjectorContractContentUtils.class);
+  private final ExpectationBehaviorResolver expectationBehaviorResolver =
+      mock(ExpectationBehaviorResolver.class);
 
   private final InjectExpectationLockService injectExpectationLockService =
       new InjectExpectationLockService(injectExpectationRepository);
@@ -46,10 +44,8 @@ class SignatureOutputProcessorTest {
           securityPlatformRepository,
           securityCoverageSendJobService,
           injectExpectationLockService,
-          assetGroupService,
           injectService,
-          injectorContractContentUtils,
-          new ArrayList<>(List.of()));
+          expectationBehaviorResolver);
   private final SignatureOutputProcessor processor =
       new SignatureOutputProcessor(injectExpectationService);
   private final ObjectMapper objectMapper = new ObjectMapper();

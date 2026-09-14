@@ -8,8 +8,6 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.executors.Injector;
 import io.openaev.executors.InjectorContext;
-import io.openaev.expectation.Expectation;
-import io.openaev.expectation.ManualExpectation;
 import io.openaev.injectors.email.model.EmailContent;
 import io.openaev.injectors.email.service.EmailService;
 import io.openaev.model.ExecutionProcess;
@@ -21,7 +19,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class EmailExecutor extends Injector {
 
@@ -174,17 +171,7 @@ public class EmailExecutor extends Injector {
               message,
               attachments);
     }
-    List<Expectation> expectations =
-        content.getExpectations().stream()
-            .flatMap(
-                (entry) ->
-                    switch (entry.getType()) {
-                      case MANUAL -> Stream.of((Expectation) new ManualExpectation(entry));
-                      default -> Stream.of();
-                    })
-            .toList();
-
-    injectExpectationService.buildAndSaveInjectExpectations(injection, expectations);
+    injectExpectationService.computeAndSaveExpectations(injection, content.getExpectations(), null);
 
     return new ExecutionProcess(false);
   }

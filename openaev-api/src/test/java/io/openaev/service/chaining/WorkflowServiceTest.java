@@ -24,6 +24,7 @@ import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.service.LessonsService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
@@ -64,6 +65,7 @@ class WorkflowServiceTest {
   @Mock private StepDelayQueueService stepDelayQueueService;
   @Mock private ScopeSnapshotService scopeSnapshotService;
   @Mock private ScopeService scopeService;
+  @Mock private LessonsService lessonsService;
   @Mock private WorkflowStateService workflowStateService;
   @Mock private ScopeMetricCollector scopeMetricCollector;
   @Mock private ChainingSafetyPolicyMetricCollector chainingSafetyPolicyMetricCollector;
@@ -96,6 +98,7 @@ class WorkflowServiceTest {
             stepDelayQueueService,
             scopeSnapshotService,
             scopeService,
+            lessonsService,
             workflowRepository,
             workflowScopeRuleRepository,
             scopeVariableRepository,
@@ -845,6 +848,36 @@ class WorkflowServiceTest {
     }
 
     @Test
+    @DisplayName("should prune lesson targets when scenario scope rules changed")
+    void shouldPruneLessonTargetsForScenarioScopeChanges() {
+      String workflowId = UUID.randomUUID().toString();
+      String scenarioId = UUID.randomUUID().toString();
+      Workflow workflow =
+          Workflow.builder()
+              .id(workflowId)
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .scenario(new Scenario())
+              .build();
+      workflow.getScenario().setId(scenarioId);
+
+      WorkflowConfigurationInput input = new WorkflowConfigurationInput();
+      input.setWorkflowScopeRules(WorkflowFixture.getDefaultWorkflowScopeRuleInputList());
+
+      Team team = new Team();
+      team.setId("team-1");
+
+      when(workflowRepository.findByIdAndStatus(workflowId, WorkflowStatus.TEMPLATE))
+          .thenReturn(Optional.of(workflow));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidTeams(workflowId)).thenReturn(List.of(team));
+
+      workflowService.updateWorkflowConfiguration(workflowId, input);
+
+      verify(lessonsService).pruneTeamsForScenario(scenarioId, List.of("team-1"));
+    }
+
+    @Test
     @DisplayName("should realign step templates on the new scope when scope rules changed")
     void given_changedScopeRules_should_realignStepTemplatesOnNewScope() {
       // Arrange - an action was authored before the asset was added to the allowlist
@@ -922,6 +955,33 @@ class WorkflowServiceTest {
       // Assert
       verify(workflowRepository).flush();
       verify(stepService).syncScopeAssetsOnStepTemplates(template, List.of("asset-1"));
+    }
+
+    @Test
+    @DisplayName("writeAllowlistScope should prune simulation lesson targets when rules changed")
+    void writeAllowlistScope_should_pruneSimulationLessonTargets_whenRulesChanged() {
+      Workflow run = Workflow.builder().id("wf-run").status(WorkflowStatus.RUN).version(0).build();
+      Exercise simulation = new Exercise();
+      simulation.setId("simulation-1");
+      run.setSimulation(simulation);
+
+      WorkflowScopeRuleInput rule =
+          WorkflowScopeRuleInput.builder()
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-1")
+              .build();
+      Team team = new Team();
+      team.setId("team-2");
+
+      when(workflowRepository.findAllBySimulation_IdAndStatus("simulation-1", WorkflowStatus.RUN))
+          .thenReturn(List.of(run));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidTeams("wf-run")).thenReturn(List.of(team));
+
+      workflowService.writeAllowlistScope(null, "simulation-1", List.of(rule), true);
+
+      verify(lessonsService).pruneTeamsForSimulation("simulation-1", List.of("team-2"));
     }
 
     @Test
@@ -1203,6 +1263,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               scopeSnapshotService,
               scopeService,
+              lessonsService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
@@ -1554,6 +1615,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               scopeSnapshotService,
               scopeService,
+              lessonsService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
@@ -1744,6 +1806,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               scopeSnapshotService,
               scopeService,
+              lessonsService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,
@@ -2014,6 +2077,7 @@ class WorkflowServiceTest {
               stepDelayQueueService,
               scopeSnapshotService,
               scopeService,
+              lessonsService,
               workflowRepository,
               workflowScopeRuleRepository,
               scopeVariableRepository,

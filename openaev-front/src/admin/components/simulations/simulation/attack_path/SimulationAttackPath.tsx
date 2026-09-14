@@ -40,6 +40,7 @@ import type {
 } from '../../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../../utils/Environment';
 import useRemainingViewportHeight from '../../../../../utils/hooks/useRemainingViewportHeight';
+import { download } from '../../../../../utils/utils';
 import ChainingUpdatedBanner from '../../../chaining/ChainingUpdatedBanner';
 import useSnapshotUpdated from '../../../chaining/useSnapshotUpdated';
 import attackPathStatusColor from './attack-path-colors';
@@ -2522,6 +2523,25 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
     return () => window.removeEventListener('keydown', onKey);
   }, [fullscreen]);
 
+  // PNG export of the graph. The capture itself belongs to the canvas (it owns the world geometry
+  // and the off-screen culling), so the button only fires a nonce and waits for the blob back.
+  const [exportNonce, setExportNonce] = useState(0);
+  const [exportingPng, setExportingPng] = useState(false);
+  const requestPngExport = useCallback(() => {
+    setExportingPng(true);
+    setExportNonce(n => n + 1);
+  }, []);
+  const onPngExported = useCallback((png: Blob | null) => {
+    setExportingPng(false);
+    if (!png) {
+      MESSAGING$.notifyError(t('Error while exporting the attack path'));
+      return;
+    }
+    const name = metaById.get(simulationId)?.exercise_name || simulationId;
+    const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    download(png, `attack-path-${slug || 'graph'}.png`, 'image/png');
+  }, [metaById, simulationId, t]);
+
   // Free-text search input (endpoint / injector / finding type), used by the search autocomplete.
   const [searchInput, setSearchInput] = useState('');
 
@@ -2731,6 +2751,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
         onViewChange={setView}
         fullscreen={fullscreen}
         onToggleFullscreen={() => setFullscreen(f => !f)}
+        onExportPng={graphHasContent ? requestPngExport : undefined}
+        exportingPng={exportingPng}
         searchOptions={searchOptions}
         searchInput={searchInput}
         onSearchInputChange={setSearchInput}
@@ -2877,6 +2899,8 @@ const SimulationAttackPath = ({ scenarioExerciseIds, scenarioId, hideLaunchCta =
                 pursuitActive={pursuitActive && !pathFinding}
                 showMiniMap={!pathFinding && nodes.length > 40}
                 legend={<AttackPathLegend collapseSignal={legendCollapseNonce} />}
+                exportRequest={exportNonce}
+                onExportDone={onPngExported}
               />
             )}
           </Paper>

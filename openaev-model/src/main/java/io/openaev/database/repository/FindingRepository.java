@@ -124,7 +124,15 @@ public interface FindingRepository
               + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
               + "LEFT JOIN findings_assets fa ON f.finding_id = fa.finding_id "
               + "WHERE f.finding_updated_at > :from "
-              + "GROUP BY f.finding_id, i.inject_exercise "
+              // Every non-aggregated projected column, not just the id. Grouping on the id
+              // alone relies on PostgreSQL's functional-dependency rule, which only applies to
+              // BASE TABLES. Once findings is v2-active the tenant statement inspector rewrites
+              // "FROM findings f" into a derived table, the dependency can no longer be inferred,
+              // and this query stops being valid SQL: search indexing then fails outright instead
+              // of degrading. MAX(...) and array_agg(...) stay out, being aggregates.
+              + "GROUP BY f.finding_id, f.finding_value, f.finding_type, f.finding_field,"
+              + " f.finding_inject_id, i.inject_exercise, f.finding_created_at,"
+              + " f.finding_updated_at, f.tenant_id "
               + "ORDER BY f.finding_updated_at LIMIT :limit;",
       nativeQuery = true)
   List<RawFindingIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);

@@ -3,11 +3,11 @@ import { useContext, useMemo } from 'react';
 import { type ExercisesHelper } from '../../actions/exercises/exercise-helper';
 import { type LoggedHelper, type UserHelper } from '../../actions/helper';
 import { useHelper } from '../../store';
-import { type SimulationDetails } from '../api-types';
+import { type PublicExercise, type SimulationDetails } from '../api-types';
 import { AbilityContext } from './permissionsContext';
 import { ACTIONS, SUBJECTS } from './types';
 
-const useSimulationPermissions = (exerciseId: string, fullExercise?: SimulationDetails) => {
+const useSimulationPermissions = (exerciseId: string, fullExercise?: SimulationDetails | PublicExercise) => {
   const ability = useContext(AbilityContext);
 
   const { exercise, me, logged } = useHelper((helper: ExercisesHelper & UserHelper & LoggedHelper) => {
@@ -37,7 +37,8 @@ const useSimulationPermissions = (exerciseId: string, fullExercise?: SimulationD
     const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
     const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT);
     const canDelete = ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, exerciseId) || ability.can(ACTIONS.DELETE, SUBJECTS.ASSESSMENT);
-    const isRunning = (exercise || fullExercise).exercise_status === 'RUNNING';
+    const currentExercise = exercise ?? fullExercise;
+    const isRunning = !!currentExercise && 'exercise_status' in currentExercise && currentExercise.exercise_status === 'RUNNING';
     const readOnly = !canManage;
 
     return {

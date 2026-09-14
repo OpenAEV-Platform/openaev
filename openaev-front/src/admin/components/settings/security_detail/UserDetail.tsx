@@ -30,8 +30,10 @@ const UserDetail = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { userId } = useParams() as { userId: string };
-  const { scope } = useSecurityScope();
-  const isPlatform = scope === 'platform';
+  const { scope, canAccessSession } = useSecurityScope();
+  const isPlatform = scope === 'PLATFORM';
+  const canManageSessions = canAccessSession('TENANT');
+  const showSessions = !isPlatform && canManageSessions;
 
   const [user, setUser] = useState<UserOutput | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -57,10 +59,12 @@ const UserDetail = () => {
     // Sessions and the tenant group membership list are tenant-scoped concepts;
     // for platform users we surface their tenant memberships instead (below).
     if (!isPlatform) {
-      loadSessions();
+      if (canManageSessions) {
+        loadSessions();
+      }
       fetchAllGroups().then(response => setGroups((response.data?.content ?? []) as Group[]));
     }
-  }, [userId, isPlatform, loadUser, loadSessions]);
+  }, [userId, isPlatform, canManageSessions, loadUser, loadSessions]);
 
   const memberGroups = useMemo(
     () => groups.filter(group => (group.group_users ?? []).includes(userId)),
@@ -177,14 +181,14 @@ const UserDetail = () => {
               </Section>
             )}
 
-            {!isPlatform && (
+            {showSessions && (
               <Section title={t('Sessions')}>
                 {sessions.length === 0
                   ? <Empty message={t('No active session.')} />
                   : (
                       <SessionsTable
                         sessions={sessions}
-                        canManage
+                        canManage={canManageSessions}
                         onKill={sessionId => killSession(sessionId).then(loadSessions)}
                       />
                     )}

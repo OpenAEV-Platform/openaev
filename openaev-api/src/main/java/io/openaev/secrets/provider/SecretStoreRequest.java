@@ -20,6 +20,11 @@ import io.openaev.database.model.HashSecret;
  * @param awsSourceIdentityType optional source identity type for ASSUME_ROLE
  * @param awsSourceProfileAccessKeyId optional source profile access key id for ASSUME_ROLE
  * @param awsSourceProfileSecretAccessKey optional source profile secret access key for ASSUME_ROLE
+ * @param azureEnvironment Azure cloud name for AZURE auth methods (see {@code AzureEnvironments})
+ * @param azureClientId client id of the service principal, or of the user-assigned managed identity
+ * @param azureClientSecret client secret for AZURE_SERVICE_PRINCIPAL
+ * @param azureTenantId Entra ID tenant id for AZURE_SERVICE_PRINCIPAL
+ * @param azureSubscriptionId optional subscription id for AZURE auth methods
  */
 public record SecretStoreRequest(
     // IDENTITY CREDENTIALS
@@ -36,4 +41,10 @@ public record SecretStoreRequest(
     String awsExternalId,
     AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
     String awsSourceProfileAccessKeyId,
-    String awsSourceProfileSecretAccessKey) {}
+    String awsSourceProfileSecretAccessKey,
+    // AZURE CREDENTIALS
+    String azureEnvironment,
+    String azureClientId,
+    String azureClientSecret,
+    String azureTenantId,
+    String azureSubscriptionId) {}

@@ -78,7 +78,7 @@ public class CatalogConnectorApiTest extends IntegrationTest {
             .persist()
             .get();
     catalogConnectorComposer
-        .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("New Collector"))
+        .forCatalogConnector(createDefaultCatalogConnectorManagedByXtmComposer("New Collector 2"))
         .withCatalogConnectorConfiguration(
             catalogConfigurationComposer.forCatalogConnectorConfiguration(confDef2))
         .persist()

@@ -1,6 +1,7 @@
 package io.openaev.rest;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -48,7 +49,7 @@ public class CrawlerProtectionApi {
   @GetMapping(path = "/robots.txt", produces = MediaType.TEXT_PLAIN_VALUE)
   @Transactional
   @AccessControl(skipRBAC = true)
-  public ResponseEntity<String> robotsTxt() {
+  public ResponseEntity<String> robotsTxt(TxCtx ctx) {
     return ResponseEntity.ok()
         .cacheControl(CacheControl.maxAge(java.time.Duration.ofDays(1)).cachePublic())
         .body(ROBOTS_TXT_BODY);
@@ -58,7 +59,7 @@ public class CrawlerProtectionApi {
   @GetMapping(path = "/sitemap.xml", produces = MediaType.APPLICATION_XML_VALUE)
   @Transactional
   @AccessControl(skipRBAC = true)
-  public ResponseEntity<String> sitemapXml() {
+  public ResponseEntity<String> sitemapXml(TxCtx ctx) {
     return ResponseEntity.ok()
         .cacheControl(CacheControl.maxAge(java.time.Duration.ofDays(1)).cachePublic())
         .body(EMPTY_SITEMAP);

@@ -51,6 +51,7 @@ public class SimulationInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION,
       resourceId = "#simulationId")
   public Page<InjectTestStatusOutput> findAllExerciseInjectTests(
+      TxCtx ctx,
       @PathVariable @NotBlank String simulationId,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return injectTestStatusService.findAllInjectTestsByExerciseId(
@@ -67,6 +68,7 @@ public class SimulationInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION,
       resourceId = "#simulationId")
   public Page<InjectTestStatusOutput> findExercisePageInjectTests(
+      TxCtx ctx,
       @PathVariable @NotBlank String simulationId,
       @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return injectTestStatusService.findAllInjectTestsByExerciseId(
@@ -101,7 +103,8 @@ public class SimulationInjectTestApi extends RestBehavior {
       actionPerformed = Action.SEARCH,
       resourceType =
           ResourceType.SIMULATION) // fixme : should use action search on resourceType simulation
-  public InjectTestStatusOutput findInjectTestStatus(@PathVariable @NotBlank String testId) {
+  public InjectTestStatusOutput findInjectTestStatus(
+      TxCtx ctx, @PathVariable @NotBlank String testId) {
     return injectTestStatusService.findInjectTestStatusById(testId);
   }
 
@@ -115,7 +118,7 @@ public class SimulationInjectTestApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
   public void deleteInjectTest(
-      @PathVariable @NotBlank String simulationId, @PathVariable String testId) {
+      TxCtx ctx, @PathVariable @NotBlank String simulationId, @PathVariable String testId) {
     injectTestStatusService.deleteInjectTest(testId);
   }
 
