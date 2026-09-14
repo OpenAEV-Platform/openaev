@@ -238,6 +238,98 @@ class TenantStatementInspectorTest {
     assertTrue(out.contains("can_access_tenant(chl_dark.tenant_id)"), out);
   }
 
+  // --- Primary-table narrowing (#7843) -------------------------------------
+  //
+  // The primary FROM item, when it is a plain tenant table, is filtered through the select's WHERE
+  // instead of being wrapped in a derived sub-query. Wrapping strips the primary key's functional
+  // dependency, so "GROUP BY id" while projecting other columns becomes invalid SQL in PostgreSQL
+  // (passes in CI, where active-tables is empty, and fails in production). The move is equivalent
+  // only while the primary table is never NULL-extended, so a RIGHT or FULL join anywhere in the
+  // join list forces a fallback to wrapping. Joined tables stay wrapped exactly as before.
+
+  @Test
+  @DisplayName("the primary tenant table is narrowed to the WHERE, not wrapped in a sub-query")
+  void primaryTableIsNarrowedNotWrapped() {
+    String out = inspect("SELECT d.id, d.name FROM documents d GROUP BY d.id");
+    // The primary table stays a base table, so PostgreSQL keeps the primary key's functional
+    // dependency and GROUP BY d.id over other projected columns is legal.
+    assertFalse(
+        out.contains("(SELECT * FROM documents"), "primary table must not be wrapped: " + out);
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("WHERE can_access_tenant(d.tenant_id)"), out);
+    assertTrue(out.contains("GROUP BY d.id"), out);
+  }
+
+  @Test
+  @DisplayName("a RIGHT join falls back to wrapping the primary table")
+  void rightJoinFallsBackToWrappingPrimary() {
+    // documents is NULL-extended by the RIGHT join, so moving its predicate into the WHERE would
+    // drop the NULL-extended rows and silently turn the RIGHT join into an INNER one. It must stay
+    // wrapped. This fallback is not optional: a refactor that drops it is a silent semantic change.
+    String out = inspect("SELECT * FROM documents d RIGHT JOIN findings f ON f.doc_id = d.id");
+    assertTrue(
+        out.contains("(SELECT * FROM documents d WHERE can_access_tenant(d.tenant_id))"), out);
+  }
+
+  @Test
+  @DisplayName("a FULL join falls back to wrapping the primary table")
+  void fullJoinFallsBackToWrappingPrimary() {
+    // Both sides of a FULL join are NULL-extended, so the same reasoning as the RIGHT join applies.
+    String out = inspect("SELECT * FROM documents d FULL JOIN findings f ON f.doc_id = d.id");
+    assertTrue(
+        out.contains("(SELECT * FROM documents d WHERE can_access_tenant(d.tenant_id))"), out);
+  }
+
+  @Test
+  @DisplayName("a RIGHT join later in the list still forces the fallback for the whole select")
+  void rightJoinAfterInnerJoinStillFallsBack() {
+    // The RIGHT join NULL-extends the accumulated left side, so it is the whole join list that must
+    // be checked, not only the first join.
+    String out =
+        inspect(
+            "SELECT * FROM documents d JOIN groups g ON g.id = d.gid"
+                + " RIGHT JOIN findings f ON f.doc_id = d.id");
+    assertTrue(
+        out.contains("(SELECT * FROM documents d WHERE can_access_tenant(d.tenant_id))"), out);
+  }
+
+  @Test
+  @DisplayName("in the narrowed case the joined tenant table is still wrapped")
+  void narrowedPrimaryStillWrapsJoinedTable() {
+    String out = inspect("SELECT * FROM documents d JOIN findings f ON f.doc_id = d.id");
+    assertFalse(out.contains("(SELECT * FROM documents"), "primary must be narrowed: " + out);
+    assertTrue(out.contains("can_access_tenant(d.tenant_id)"), out);
+    assertTrue(
+        out.contains("(SELECT * FROM findings f WHERE can_access_tenant(f.tenant_id))"), out);
+  }
+
+  @Test
+  @DisplayName(
+      "the narrowed predicate is added once, not twice, when the select already has a WHERE")
+  void narrowedPredicateAddedOnceWithExistingWhere() {
+    String out = inspect("SELECT * FROM documents d WHERE d.id = ?");
+    assertEquals(
+        1,
+        out.split("can_access_tenant\\(d\\.tenant_id\\)", -1).length - 1,
+        "the tenant predicate must appear exactly once: " + out);
+    assertTrue(out.contains("d.id = ?"), out);
+  }
+
+  @Test
+  @DisplayName("a narrowed dual-scope primary table keeps allow_platform on reads")
+  void narrowedDualScopePrimaryKeepsAllowPlatform() {
+    String out = inspect("SELECT * FROM groups g WHERE g.id = ?");
+    assertFalse(out.contains("(SELECT * FROM groups"), "primary must be narrowed: " + out);
+    assertTrue(out.contains("can_access_tenant(g.tenant_id, true)"), out);
+  }
+
+  @Test
+  @DisplayName("the narrowed output is valid, re-parsable SQL")
+  void narrowedOutputIsValidSql() {
+    String out = inspector.inspect("SELECT d.id, d.name FROM documents d GROUP BY d.id");
+    assertDoesNotThrow(() -> CCJSqlParserUtil.parse(out));
+  }
+
   // --- Single table --------------------------------------------------------
 
   @Test

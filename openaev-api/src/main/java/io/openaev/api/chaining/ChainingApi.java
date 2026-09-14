@@ -10,7 +10,7 @@ import io.openaev.api.chaining.dto.ChainingOutput;
 import io.openaev.api.chaining.dto.EventOutput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.TenantSettingKeys;
@@ -64,6 +64,7 @@ public class ChainingApi extends RestBehavior {
   private final StepService stepService;
   private final TagRepository tagRepository;
   private final ConditionService conditionService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- READ --
 
@@ -109,11 +110,10 @@ public class ChainingApi extends RestBehavior {
       simulation.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       simulation.setCustomDashboard(
           this.tenantSettingsService
-              .findSetting(
-                  TenantContext.getCurrentTenant(),
-                  TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
+              .findSetting(tenantId, TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
               .map(this.customDashboardService::customDashboard)
@@ -196,11 +196,10 @@ public class ChainingApi extends RestBehavior {
       scenario.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
+      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       scenario.setCustomDashboard(
           this.tenantSettingsService
-              .findSetting(
-                  TenantContext.getCurrentTenant(),
-                  TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
+              .findSetting(tenantId, TenantSettingKeys.TENANT_SCENARIO_DASHBOARD.key())
               .map(Setting::getValue)
               .filter(v -> !v.isEmpty())
               .map(this.customDashboardService::customDashboard)

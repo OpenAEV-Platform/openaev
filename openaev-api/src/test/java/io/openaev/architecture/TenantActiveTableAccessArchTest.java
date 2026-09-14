@@ -9,24 +9,32 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import io.openaev.api.chaining.InjectExecutionStep;
+import io.openaev.api.custom_dashboard.CustomDashboardApiExporter;
+import io.openaev.api.custom_dashboard.CustomDashboardApiImporter;
 import io.openaev.api.notification.NotificationApi;
+import io.openaev.api.notification_trigger.NotificationTriggerMapper;
 import io.openaev.api.notifier.NotifierApi;
 import io.openaev.api.xtmhub.XtmHubApi;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CatalogConnector;
+import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.NotificationEventRecord;
+import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Vulnerability;
+import io.openaev.database.model.Widget;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
+import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.CweRepository;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.ExecutorRepository;
@@ -36,11 +44,15 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
 import io.openaev.database.repository.MitigationRepository;
+import io.openaev.database.repository.NotificationEventRecordRepository;
 import io.openaev.database.repository.NotificationRepository;
+import io.openaev.database.repository.NotificationTriggerRepository;
+import io.openaev.database.repository.NotifierRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
+import io.openaev.database.repository.WidgetRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
@@ -69,8 +81,14 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegration;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.integration.migration.ConfigurationMigration;
+import io.openaev.notification.engine.NotificationDigestService;
 import io.openaev.notification.engine.NotificationDispatchService;
+import io.openaev.notification.engine.NotificationEngineService;
+import io.openaev.notification.engine.NotificationEventRetentionService;
+import io.openaev.notification.engine.NotificationTriggerLoader;
+import io.openaev.notification.engine.ResolvedNotificationTrigger;
 import io.openaev.processor.core.V20260420_Migrate_rabbitmq_queues;
+import io.openaev.processor.datapack.V20260101_Starter_pack;
 import io.openaev.processor.datapack.V20260330_Default_tenant_data;
 import io.openaev.processor.datapack.V20260708_Dynamic_injectors_base_url;
 import io.openaev.rest.asset.security_platforms.SecurityPlatformApi;
@@ -85,11 +103,19 @@ import io.openaev.rest.channel.output.ArticleOutput;
 import io.openaev.rest.collector.CollectorApi;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.connector_instance.ConnectorInstanceApi;
+import io.openaev.rest.custom_dashboard.CustomDashboardApi;
+import io.openaev.rest.custom_dashboard.CustomDashboardService;
+import io.openaev.rest.custom_dashboard.CustomDashboardTenantService;
+import io.openaev.rest.custom_dashboard.CustomDashboardWidgetApi;
+import io.openaev.rest.custom_dashboard.WidgetService;
+import io.openaev.rest.dashboard.DashboardApi;
+import io.openaev.rest.dashboard.DashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.domain.DomainApi;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.executor.ExecutorApi;
 import io.openaev.rest.exercise.ExerciseApi;
+import io.openaev.rest.exercise.ExerciseDashboardApi;
 import io.openaev.rest.exercise.ExerciseImportApi;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -121,7 +147,9 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpdateService;
 import io.openaev.rest.payload.service.PayloadUpsertService;
 import io.openaev.rest.scenario.ScenarioApi;
+import io.openaev.rest.scenario.ScenarioDashboardApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
+import io.openaev.rest.settings.TenantSettingsApi;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.scheduler.jobs.ComchecksExecutionJob;
 import io.openaev.service.ChallengeService;
@@ -151,6 +179,8 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.expectation.ChallengeBehavior;
 import io.openaev.service.notification.NotificationService;
+import io.openaev.service.notification.NotificationTriggerService;
+import io.openaev.service.notification.NotifierService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
@@ -204,6 +234,7 @@ class TenantActiveTableAccessArchTest {
       Set.of(
           "import_mappers",
           "lessons_templates",
+          "custom_dashboards",
           "cwes",
           "mitigations",
           "collectors",
@@ -223,12 +254,16 @@ class TenantActiveTableAccessArchTest {
           "autonomous_directives",
           "kill_chain_phases",
           "security_coverages",
+          "widgets",
           "tenant_xtmhub_registrations",
           "notifications",
           "challenges",
           "asset_groups",
           "findings",
-          "assets");
+          "assets",
+          "notifiers",
+          "notification_triggers",
+          "notification_events");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -297,7 +332,10 @@ class TenantActiveTableAccessArchTest {
    * is {@code AttackPathFindingRepository} (7 joined queries, none correlated).
    */
   private static final Set<Class<?>> REPOSITORIES_WITH_REVIEWED_JOINED_QUERIES =
-      Set.of(KillChainPhaseRepository.class, TenantXtmHubRegistrationRepository.class);
+      Set.of(
+          CustomDashboardRepository.class,
+          KillChainPhaseRepository.class,
+          TenantXtmHubRegistrationRepository.class);
 
   @ArchTest
   static void joined_queries_on_active_tables_correlate_the_tenant(JavaClasses classes) {
@@ -535,6 +573,48 @@ class TenantActiveTableAccessArchTest {
           .because(
               "notifications is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule notifiers_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying notifier handlers, pinned by TenantScopedEntrypointsTxCtxArchTest.
+              NotifierApi.class,
+              // Service behind NotifierApi: reads are scoped by the entrypoint transaction, creates
+              // are attributed through TenantWriteScopeResolver, and the built-in backfill runs
+              // only under a single-tenant scope.
+              NotifierService.class,
+              // Resolves a trigger's notifier ids inside the TxCtx-scoped NotificationTriggerApi
+              // transaction; the inspector scopes the lookup.
+              NotificationTriggerMapper.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(NotifierRepository.class)
+          .because(
+              "notifiers is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule notifiers_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Resolves the association inside the API transaction to build the output DTO.
+              NotificationTriggerMapper.class,
+              // Validates that a trigger has at least one notifier, inside its own transaction.
+              NotificationTriggerService.class,
+              // Detaches the association into ResolvedNotifier records; runs under the
+              // allTenants() scope NotificationTriggerLoader opens (#7864).
+              ResolvedNotificationTrigger.class,
+              NotificationTriggerLoader.class)
+          .should()
+          .callMethod(NotificationTrigger.class, "getNotifiers")
+          .because(
+              "notifiers is reached through NotificationTrigger's lazy @ManyToMany WITHOUT touching"
+                  + " the repository: resolving it in an unscoped context silently yields an empty"
+                  + " notifier list, and the dispatch pipeline then delivers nothing at all. New"
+                  + " callers must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule channels_repository_access_is_reviewed =
@@ -840,6 +920,94 @@ class TenantActiveTableAccessArchTest {
                   + " repository: a lazy getCollectors() in an unscoped context silently loads zero"
                   + " rows, which unlocks collector-managed platforms in the UI. New callers must"
                   + " run inside a scoped transaction and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule custom_dashboards_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // CRUD, option lookups and import/export are driven by TxCtx-carrying dashboard
+              // endpoints (pinned by TenantScopedEntrypointsTxCtxArchTest and the custom
+              // dashboard/widget isolation tests):
+              CustomDashboardApi.class,
+              CustomDashboardWidgetApi.class,
+              CustomDashboardApiImporter.class,
+              CustomDashboardApiExporter.class,
+              CustomDashboardService.class,
+              WidgetService.class,
+              // Home-dashboard reads resolve and initialize the widget list inside TxCtx-scoped
+              // transactions (pinned by TenantScopedEntrypointsTxCtxArchTest):
+              CustomDashboardTenantService.class,
+              TenantSettingsApi.class,
+              ExerciseDashboardApi.class,
+              ScenarioDashboardApi.class,
+              // Startup datapack import explicitly attributes rows to the tenant before save.
+              V20260101_Starter_pack.class,
+              // Background telemetry must read all tenants explicitly once the table is active.
+              ProductInventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(CustomDashboardRepository.class)
+          .because(
+              "custom_dashboards is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must run inside a reviewed scope and be"
+                  + " allowlisted here");
+
+  @ArchTest
+  static final ArchRule widgets_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // CRUD endpoints carry TxCtx and delegate through the service (pinned by
+              // TenantScopedEntrypointsTxCtxArchTest and CustomDashboardWidgetHttpIsolationTest):
+              CustomDashboardWidgetApi.class,
+              WidgetService.class,
+              // Dashboard widgets dereference the owning custom dashboard inside TxCtx-scoped
+              // requests (pinned by DashboardApiTenantScopeTest):
+              DashboardApi.class,
+              DashboardService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(WidgetRepository.class)
+          .because(
+              "widgets is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must run inside a reviewed scope and be allowlisted"
+                  + " here");
+
+  @ArchTest
+  static final ArchRule custom_dashboards_widgets_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // These services initialize the LAZY widget collection inside the request-scoped
+              // transaction before open-in-view serialization (pinned by the custom dashboard
+              // isolation tests and TenantScopedEntrypointsTxCtxArchTest):
+              CustomDashboardService.class, CustomDashboardTenantService.class)
+          .should()
+          .callMethod(CustomDashboard.class, "getWidgets")
+          .because(
+              "custom_dashboards serializes its widget list through a LAZY association. New"
+                  + " callers must initialize it inside a tenant-scoped transaction and be"
+                  + " allowlisted here so open-in-view cannot silently return an empty list");
+
+  @ArchTest
+  static final ArchRule widgets_dashboard_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Owning entity itself: Lombok-generated methods may call its own getter; this is not
+              // an external accessor path.
+              Widget.class,
+              // DashboardService resolves the widget and then dereferences its owning dashboard
+              // inside TxCtx-scoped endpoints (pinned by DashboardApiTenantScopeTest and
+              // TenantScopedEntrypointsTxCtxArchTest):
+              DashboardService.class)
+          .should()
+          .callMethod(Widget.class, "getCustomDashboard")
+          .because(
+              "widgets is tenant-active and DashboardService reaches custom_dashboards through"
+                  + " Widget#getCustomDashboard. New callers must run inside a tenant-scoped"
+                  + " transaction and be allowlisted here");
 
   @ArchTest
   static final ArchRule injectors_association_access_is_reviewed =
@@ -1201,6 +1369,74 @@ class TenantActiveTableAccessArchTest {
                   + " repository: a lazy getChallenges() in an unscoped context silently loads"
                   + " zero rows. New callers must run inside a scoped transaction and be"
                   + " allowlisted here");
+
+  @ArchTest
+  static final ArchRule notification_triggers_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Service behind NotificationTriggerApi, whose five handlers carry TxCtx (pinned by
+              // TenantScopedEntrypointsTxCtxArchTest).
+              NotificationTriggerService.class,
+              // Resolves notifiers and child triggers for the same handlers; child lookups are
+              // constrained to the resolved write tenant, not to the request's read scope.
+              NotificationTriggerMapper.class,
+              // Cross-tenant engine loader: reads every tenant's triggers under allTenants().
+              NotificationTriggerLoader.class,
+              // Platform-wide telemetry gauge, scoped with countAcrossAllTenants().
+              ProductInventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(NotificationTriggerRepository.class)
+          .because(
+              "notification_triggers is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule notification_events_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Outbox writer: saves inside tenantTx.execute(forTenant(trigger tenant)) with the
+              // tenant stamped on every row before save.
+              NotificationEngineService.class,
+              // Cross-tenant digest window read, under allTenants().
+              NotificationTriggerLoader.class,
+              // Bulk purge by predicate, under allTenants().
+              NotificationEventRetentionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(NotificationEventRecordRepository.class)
+          .because(
+              "notification_events is tenant-active: an unscoped read returns nothing and an"
+                  + " unscoped DELETE purges nothing while reporting success. New accessors must"
+                  + " carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule notification_triggers_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Detached view built inside the loader's cross-tenant transaction.
+              ResolvedNotificationTrigger.class,
+              // Maps the composed children to ids inside the handler's scoped transaction.
+              NotificationTriggerMapper.class,
+              // Validates that a digest composes at least one child, same transaction.
+              NotificationTriggerService.class,
+              // Reads the event's trigger name inside the allTenants() digest transaction.
+              NotificationDigestService.class,
+              NotificationTriggerLoader.class)
+          .should()
+          .callMethod(NotificationTrigger.class, "getChildTriggers")
+          .orShould()
+          .callMethod(NotificationEventRecord.class, "getTrigger")
+          .because(
+              "notification_triggers is also reached without touching its repository: through the"
+                  + " self-referencing childTriggers collection and through"
+                  + " NotificationEventRecord#getTrigger, a required @ManyToOne with no @NotFound"
+                  + " that THROWS EntityNotFoundException when its target is out of scope rather"
+                  + " than degrading to null. New callers must run inside a scoped transaction"
+                  + " wide enough to see the target, and be allowlisted here");
 
   @ArchTest
   static final ArchRule autonomous_directives_repository_access_is_reviewed =

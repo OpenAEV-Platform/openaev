@@ -65,7 +65,7 @@ public class NotifierApi {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of notifiers")})
   public List<NotifierOutput> notifiers(TxCtx ctx) {
     boolean includeConfiguration = canSeeConfiguration();
-    return notifierService.findAll().stream()
+    return notifierService.findAll(ctx).stream()
         .map(notifier -> notifierMapper.toNotifierOutput(notifier, includeConfiguration))
         .toList();
   }
@@ -101,7 +101,7 @@ public class NotifierApi {
       TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     boolean includeConfiguration = canSeeConfiguration();
     return notifierService
-        .search(searchPaginationInput)
+        .search(ctx, searchPaginationInput)
         .map(notifier -> notifierMapper.toNotifierOutput(notifier, includeConfiguration));
   }
 
@@ -114,7 +114,7 @@ public class NotifierApi {
   public NotifierOutput createNotifier(TxCtx ctx, @Valid @RequestBody final NotifierInput input) {
     // caller passed the CREATE capability gate, so the configuration is safe to return
     return notifierMapper.toNotifierOutput(
-        notifierService.create(notifierMapper.toNotifier(input)), true);
+        notifierService.create(ctx, notifierMapper.toNotifier(input)), true);
   }
 
   @LogExecutionTime
@@ -172,6 +172,6 @@ public class NotifierApi {
   public void testNotifier(
       TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the notifier") final String notifierId) {
-    notifierService.test(notifierId);
+    notifierService.test(ctx, notifierId);
   }
 }

@@ -1,6 +1,6 @@
 name: API Types Check
 description: >
-  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, MinIO),
+  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, Silo),
   download and run the backend JAR, and verify that generated API types
   are up to date.
   Requires job-level env vars: SPRING_DATASOURCE_URL,
@@ -103,12 +103,12 @@ runs:
         done
         docker exec rabbitmq rabbitmq-diagnostics -q check_running || { echo "❌ RabbitMQ failed to start"; exit 1; }
 
-        echo "⏳ Waiting for MinIO..."
+        echo "⏳ Waiting for Silo..."
         for i in $(seq 1 30); do
           curl -sf http://localhost:11000/minio/health/live && break
           sleep 1
         done
-        curl -sf http://localhost:11000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
+        curl -sf http://localhost:11000/minio/health/live || { echo "❌ Silo failed to start"; exit 1; }
 
         echo "✅ All services ready"
 

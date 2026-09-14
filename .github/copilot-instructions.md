@@ -8,7 +8,7 @@ strategic levels.
 
 ### Architecture
 
-- **Backend**: Spring Boot (Java), PostgreSQL, Elasticsearch/OpenSearch, MinIO, RabbitMQ
+- **Backend**: Spring Boot (Java), PostgreSQL, Elasticsearch/OpenSearch, Silo (S3 object storage), RabbitMQ
 - **Frontend**: React, TypeScript, Vite, Material-UI
 - **Multi-module Maven project** with 3 modules: `openaev-model`, `openaev-framework`, `openaev-api`
 - ⚠️ **`openaev-framework` is deprecated** — it will be removed. **Never add new code to `openaev-framework`**. Place
@@ -60,7 +60,7 @@ CI runs on GitHub Actions (see `.github/workflows/`):
 3. **E2E Tests**: Full app test with Playwright
 4. **Type Check**: `yarn generate-types-from-api` verification
 
-**Services**: PostgreSQL, MinIO, Elasticsearch, RabbitMQ (see workflow files for exact versions)
+**Services**: PostgreSQL, Silo, Elasticsearch, RabbitMQ (see workflow files for exact versions)
 
 ### Key Workflows
 
@@ -167,7 +167,7 @@ Examples:
 2. **Trust these instructions**: Only search for information if instructions are incomplete or incorrect.
 3. **Pre-existing issues**: Don't fix unrelated linting/build issues unless they block your task.
 4. **Frontend must build first**: The backend copies frontend build artifacts.
-5. **Services required**: PostgreSQL, MinIO, Elasticsearch/OpenSearch, and RabbitMQ must be running for tests.
+5. **Services required**: PostgreSQL, Silo, Elasticsearch/OpenSearch, and RabbitMQ must be running for tests.
 6. **Java 21 is mandatory**: The project will not compile with earlier versions.
 7. **Node.js version**: Check `openaev-front/package.json` engines field for the minimum required version.
 8. **API types**: After API changes, run `yarn generate-types-from-api` in frontend to update TypeScript types.

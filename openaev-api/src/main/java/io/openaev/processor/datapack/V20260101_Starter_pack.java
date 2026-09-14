@@ -204,7 +204,9 @@ public class V20260101_Starter_pack extends DataPack {
                             resourceToAdd.getContentAsByteArray(),
                             "custom_dashboard_name",
                             null,
-                            CustomDashboardService::sanityCheck,
+                            customDashboard ->
+                                CustomDashboardService.prepareForTenantWrite(
+                                    customDashboard, tenant.getId()),
                             "")
                         .jsonApiDocument();
                 this.setDefaultDashboard(

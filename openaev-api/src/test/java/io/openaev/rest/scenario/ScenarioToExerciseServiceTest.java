@@ -214,6 +214,7 @@ class ScenarioToExerciseServiceTest extends IntegrationTest {
     // Default Simulation dashboard
     CustomDashboard defaultDashboard = new CustomDashboard();
     defaultDashboard.setName("Default scenario dashboard");
+    defaultDashboard.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     CustomDashboard customDashboardSaved = customDashboardRepository.save(defaultDashboard);
     settingRepository.save(
         settingRepository

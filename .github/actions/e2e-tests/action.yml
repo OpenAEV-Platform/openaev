@@ -1,6 +1,6 @@
 name: E2E Tests
 description: >
-  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, MinIO),
+  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, Silo),
   download and run the backend Docker image, and run Playwright E2E tests.
   The Docker image is built in parallel by the docker-build job; this action
   waits for a registry marker or image artifact and loads the first usable source.
@@ -177,12 +177,12 @@ runs:
         done
         docker exec rabbitmq rabbitmq-diagnostics -q check_running || { echo "❌ RabbitMQ failed to start"; exit 1; }
 
-        echo "⏳ Waiting for MinIO..."
+        echo "⏳ Waiting for Silo..."
         for i in $(seq 1 30); do
           curl -sf http://localhost:11000/minio/health/live && break
           sleep 1
         done
-        curl -sf http://localhost:11000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
+        curl -sf http://localhost:11000/minio/health/live || { echo "❌ Silo failed to start"; exit 1; }
 
         echo "✅ All services ready"
 

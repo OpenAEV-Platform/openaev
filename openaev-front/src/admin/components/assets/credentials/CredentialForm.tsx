@@ -1,16 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type SyntheticEvent, useEffect, useMemo, useState } from 'react';
+import { type BaseSyntheticEvent, type FunctionComponent, type SyntheticEvent, useEffect, useMemo, useState } from 'react';
 import {
   FormProvider,
-  type SubmitHandler,
   useForm,
   useWatch,
 } from 'react-hook-form';
 import { z } from 'zod/v4';
 
 import { fetchCredentialContracts } from '../../../../actions/assets/credential-actions';
+import FileFieldController from '../../../../components/fields/FileFieldController';
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
 import TagFieldController from '../../../../components/fields/TagFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
@@ -25,7 +25,8 @@ import InjectContentFieldComponent from '../../common/injects/form/InjectContent
 import { humanizeEnum } from '../asset-categories';
 
 interface Props {
-  onSubmit: SubmitHandler<CredentialInput>;
+  /** Receives the multipart payload: an `input` JSON part plus one part per uploaded file. */
+  onSubmit: (formData: FormData, event?: BaseSyntheticEvent) => Promise<unknown> | void;
   handleClose: () => void;
   editing?: boolean;
   initialValues?: Partial<CredentialInput>;
@@ -47,6 +48,7 @@ const CredentialForm: FunctionComponent<Props> = ({
     z.number(),
     z.boolean(),
     z.array(z.string()),
+    z.instanceof(File),
     z.null(),
     z.undefined(),
   ]);
@@ -64,13 +66,32 @@ const CredentialForm: FunctionComponent<Props> = ({
     return values[conditionField] === conditionValue;
   };
 
+  // Accepted enum values are derived from the fetched contracts: adding a provider backend-side
+  // is enough, nothing has to be hardcoded here anymore.
+  const acceptedTypes = useMemo(
+    () => new Set(contracts.map(contract => contract.credential_type)),
+    [contracts],
+  );
+  const acceptedAuthMethods = useMemo(
+    () => new Set(contracts.map(contract => contract.credential_auth_method)),
+    [contracts],
+  );
+
   const schema = useMemo(
     () => z
       .object({
         credential_name: z.string().min(1, { message: t('Should not be empty') }),
         credential_description: z.string().optional(),
-        credential_type: z.enum(['IDENTITY', 'CLOUD_AWS', 'CLOUD_AZURE']),
-        credential_auth_method: z.enum(['USERNAME_PASSWORD', 'HASH', 'AWS_ACCESS_KEY', 'AWS_ASSUME_ROLE', 'AZURE_SERVICE_PRINCIPAL', 'AZURE_MANAGED_IDENTITY']),
+        credential_type: z.custom<CredentialInput['credential_type']>(
+          value => acceptedTypes.size === 0
+            || acceptedTypes.has(value as CredentialInput['credential_type']),
+          { message: t('Should not be empty') },
+        ),
+        credential_auth_method: z.custom<CredentialInput['credential_auth_method']>(
+          value => acceptedAuthMethods.size === 0
+            || acceptedAuthMethods.has(value as CredentialInput['credential_auth_method']),
+          { message: t('Should not be empty') },
+        ),
         credential_tags: z.array(z.string()).optional(),
       })
       .catchall(dynamicFieldValueSchema)
@@ -119,7 +140,7 @@ const CredentialForm: FunctionComponent<Props> = ({
             }
           });
       }),
-    [contracts, t],
+    [acceptedAuthMethods, acceptedTypes, contracts, t],
   );
 
   const methods = useForm<CredentialFormValues>({
@@ -131,6 +152,7 @@ const CredentialForm: FunctionComponent<Props> = ({
   const {
     handleSubmit,
     getValues,
+    setValue,
     formState: { isDirty, isSubmitting },
   } = methods;
 
@@ -178,6 +200,31 @@ const CredentialForm: FunctionComponent<Props> = ({
     ),
     [contracts, selectedAuthMethod, selectedType],
   );
+
+  const fileFieldNames = useMemo(
+    () => new Set(
+      (selectedContract?.fields ?? [])
+        .filter((field: CredentialContractField) => field.field_type === 'file')
+        .map((field: CredentialContractField) => field.field_name)
+        .filter((name): name is string => !!name),
+    ),
+    [selectedContract],
+  );
+
+  // Contract-declared defaults are applied once, and only on fields the user has not filled yet,
+  // so switching auth method never overwrites a value that was typed in.
+  useEffect(() => {
+    (selectedContract?.fields ?? []).forEach((field: CredentialContractField) => {
+      const fieldName = field.field_name;
+      if (!fieldName || field.default_value === undefined || field.default_value === null) {
+        return;
+      }
+      const currentValue = getValues()[fieldName];
+      if (currentValue === undefined || currentValue === null || currentValue === '') {
+        setValue(fieldName, field.default_value, { shouldDirty: false });
+      }
+    });
+  }, [getValues, selectedContract, setValue]);
 
   const fieldsToSubscribe = useMemo(() => {
     const names = new Set<string>();
@@ -238,13 +285,18 @@ const CredentialForm: FunctionComponent<Props> = ({
         value,
       })),
       cardinality: '1',
-      defaultValue: undefined,
+      defaultValue: field.default_value ?? undefined,
       settings: { required: isRequired },
-      writeOnly: editing && field.field_type === 'password',
+      // A stored secret is never echoed back: passwords and uploaded key files are both rendered
+      // as a placeholder in edit mode and only sent when the user provides a new value.
+      writeOnly: editing && (field.field_type === 'password' || field.field_type === 'file'),
     };
   };
 
-  const handleSubmitSanitized: SubmitHandler<CredentialFormValues> = async (values, event) => {
+  const handleSubmitSanitized = async (
+    values: CredentialFormValues,
+    event?: BaseSyntheticEvent,
+  ) => {
     const allowedKeys = new Set<string>([
       'credential_name',
       'credential_type',
@@ -253,11 +305,12 @@ const CredentialForm: FunctionComponent<Props> = ({
       'credential_description',
       ...((selectedContract?.fields ?? [])
         .map(field => field.field_name)
-        .filter((name): name is string => typeof name === 'string' && name.length > 0)),
+        .filter((name): name is string => name.length > 0)),
     ]);
 
+    // File fields never travel inside the JSON part: each one gets its own multipart part.
     const sanitizedEntries = Object.entries(values)
-      .filter(([key, value]) => allowedKeys.has(key) && value != DOTS);
+      .filter(([key, value]) => allowedKeys.has(key) && value != DOTS && !fileFieldNames.has(key));
 
     const sanitizedValues = Object.fromEntries(sanitizedEntries) as Partial<CredentialInput>;
     const payload: CredentialInput = {
@@ -267,7 +320,16 @@ const CredentialForm: FunctionComponent<Props> = ({
       credential_auth_method: values.credential_auth_method,
     };
 
-    await onSubmit(payload, event);
+    const formData = new FormData();
+    formData.append('input', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+    fileFieldNames.forEach((fieldName) => {
+      const fileValue = values[fieldName];
+      if (fileValue instanceof File) {
+        formData.append(fieldName, fileValue);
+      }
+    });
+
+    await onSubmit(formData, event);
   };
 
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
@@ -335,12 +397,23 @@ const CredentialForm: FunctionComponent<Props> = ({
                 field.visible_condition_value,
               )
             : true)
-          .map(field => (
-            <InjectContentFieldComponent
-              key={field.field_name}
-              field={formatField(field)}
-            />
-          ))}
+          .map((field: CredentialContractField) => (field.field_type === 'file'
+            ? (
+                <FileFieldController
+                  key={field.field_name}
+                  name={field.field_name}
+                  label={field.field_name}
+                  acceptMimeTypes="application/json"
+                  required={!!field.required}
+                  disabled={isSubmitting}
+                />
+              )
+            : (
+                <InjectContentFieldComponent
+                  key={field.field_name}
+                  field={formatField(field)}
+                />
+              )))}
 
         <div
           style={{

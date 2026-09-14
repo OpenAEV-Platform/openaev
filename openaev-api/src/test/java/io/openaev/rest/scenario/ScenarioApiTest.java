@@ -18,7 +18,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.*;
@@ -124,7 +123,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Create scenario succeed")
   @Test
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void createScenarioTest() throws Exception {
     // -- PREPARE --
     ScenarioInput scenarioInput = new ScenarioInput();
@@ -166,11 +167,12 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Create scenario succeed with default dashboard")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_scenario_creation_should_set_default_custom_dashboard() throws Exception {
     // -- PREPARE --
     CustomDashboard defaultDashboard = new CustomDashboard();
     defaultDashboard.setName("Default scenario dashboard");
+    defaultDashboard.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     CustomDashboard customDashboardSaved = customDashboardRepository.save(defaultDashboard);
 
     ScenarioInput scenarioInput = new ScenarioInput();
@@ -179,7 +181,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     settingRepository.save(
         settingRepository
-            .findByKeyAndTenantId(TENANT_SCENARIO_DASHBOARD.key(), TenantContext.getCurrentTenant())
+            .findByKeyAndTenantId(TENANT_SCENARIO_DASHBOARD.key(), Tenant.DEFAULT_TENANT_UUID)
             .map(
                 s -> {
                   s.setValue(customDashboardSaved.getId());
@@ -189,7 +191,7 @@ public class ScenarioApiTest extends IntegrationTest {
                 () -> {
                   Setting s =
                       new Setting(TENANT_SCENARIO_DASHBOARD.key(), customDashboardSaved.getId());
-                  s.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+                  s.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
                   return s;
                 }));
 
@@ -216,7 +218,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Create chained scenario fails without enterprise edition")
   @Test
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void given_chainedScenarioCreationWithoutEE_should_fail() throws Exception {
     // Arrange
     ScenarioInput scenarioInput = new ScenarioInput();
@@ -360,7 +364,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     @DisplayName("Creation keeps the reply-to and sender name typed by the user")
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_customEmails_should_notBeOverriddenByPlatformDefaults() throws Exception {
       // Arrange & Act
       String scenarioId = createScenarioWithReplyTos(List.of(CUSTOM_REPLY_TO));
@@ -373,7 +377,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     @DisplayName("Read exposes the reply-to addresses")
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_aScenarioWithReplyTos_should_returnThemOnRead() throws Exception {
       // Arrange
       String scenarioId = createScenarioWithReplyTos(List.of(CUSTOM_REPLY_TO));
@@ -387,7 +391,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     @DisplayName("Replaying the read payload as an update keeps the reply-to addresses")
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_theReadPayloadReplayedAsUpdate_should_keepReplyTos() throws Exception {
       // Arrange
       String scenarioId = createScenarioWithReplyTos(List.of(CUSTOM_REPLY_TO));
@@ -414,7 +418,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     @DisplayName("An update omitting the reply-to field keeps the stored addresses")
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_anUpdateWithoutReplyTos_should_keepThem() throws Exception {
       // Arrange
       String scenarioId = createScenarioWithReplyTos(List.of(CUSTOM_REPLY_TO));
@@ -438,7 +442,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     @DisplayName("An update with an explicit empty array clears the reply-to addresses")
     @Test
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_anUpdateWithEmptyReplyTos_should_clearThem() throws Exception {
       // Arrange
       String scenarioId = createScenarioWithReplyTos(List.of(CUSTOM_REPLY_TO, OTHER_REPLY_TO));
