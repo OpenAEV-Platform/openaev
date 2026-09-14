@@ -45,10 +45,13 @@ class ThreatArsenalFormComponent {
     this.tagsField = page.getByRole('combobox', { name: 'Tags' });
     this.domainsField = page.getByRole('combobox', { name: 'Domains' });
     this.expectationsField = page.getByRole('combobox', {
-      // A Combobox-based field, not a Select: `ComboboxLabel` has no `required`
-      // prop, so the site appends the asterisk as text and it stays in the
-      // accessible name. `SelectLabel` renders it `aria-hidden` instead.
-      name: 'Expectations *',
+      // No asterisk in the name: `ComboboxLabel` took a `required` prop (lib
+      // #163), and the site now uses it instead of appending " *" as text. The
+      // marker it draws is `<span aria-hidden="true">*</span>`, excluded from
+      // the accessible name — measured, the name is exactly "Expectations".
+      // `exact` is enough to narrow: its neighbours are named Prevention,
+      // Detection and Vulnerability.
+      name: 'Expectations',
       exact: true,
     });
 
