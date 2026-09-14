@@ -3,10 +3,12 @@ package io.openaev.service;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import com.cronutils.utils.VisibleForTesting;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.TagRule;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
@@ -32,9 +34,10 @@ public class TagRuleService {
   private final TagRepository tagRepository;
   private final TagService tagService;
   private final AssetGroupRepository assetGroupRepository;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
-  public Optional<TagRule> findById(String id, String tenantId) {
-    return tagRuleRepository.findByIdAndTenantId(id, tenantId);
+  public Optional<TagRule> findById(String id) {
+    return tagRuleRepository.findById(id);
   }
 
   public Optional<TagRule> findByTagName(String name) {
@@ -46,21 +49,19 @@ public class TagRuleService {
         .collect(Collectors.toList());
   }
 
-  public TagRule createTagRule(@NotBlank final String tagName, final List<String> assetGroupIds) {
-    return createTagRule(getTag(tagName), assetGroupIds, false);
-  }
-
   public TagRule createTagRule(
       @NotBlank final String tagName,
       final List<String> assetGroupIds,
-      final boolean allowCreatingReserved) {
-    return createTagRule(getTag(tagName), assetGroupIds, allowCreatingReserved);
+      final boolean allowCreatingReserved,
+      @NotBlank final String tenantId) {
+    return createTagRule(getTag(tagName), assetGroupIds, allowCreatingReserved, tenantId);
   }
 
   public TagRule createTagRule(
       @NotBlank final Tag tag,
       final List<String> assetGroupIds,
-      final boolean allowCreatingReserved) {
+      final boolean allowCreatingReserved,
+      @NotBlank final String tenantId) {
     // we block creation of tag rules for reserved tags
     if (TagRule.RESERVED_TAG_NAMES.contains(tag.getName()) && !allowCreatingReserved) {
       throw new ForbiddenException(
@@ -71,20 +72,18 @@ public class TagRuleService {
     TagRule tagRule = new TagRule();
     tagRule.setTag(tag);
     tagRule.setAssetGroups(getAssetGroups(assetGroupIds));
+    tagRule.setTenant(new Tenant(tenantId));
     return tagRuleRepository.save(tagRule);
   }
 
   public TagRule updateTagRule(
-      @NotBlank final String tagRuleId,
-      final String tagName,
-      final List<String> assetGroupIds,
-      @NotBlank final String tenantId) {
-    if (!tagRuleRepository.existsByIdAndTenantId(tagRuleId, tenantId)) {
+      @NotBlank final String tagRuleId, final String tagName, final List<String> assetGroupIds) {
+    if (!tagRuleRepository.existsById(tagRuleId)) {
       throw new ElementNotFoundException("TagRule not found with id: " + tagRuleId);
     }
     TagRule tagRule =
         tagRuleRepository
-            .findByIdAndTenantId(tagRuleId, tenantId)
+            .findById(tagRuleId)
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
 
@@ -130,13 +129,13 @@ public class TagRuleService {
     return tagRule.getTag() != null && !tagRule.getTag().equals(newTag);
   }
 
-  public void deleteTagRule(@NotBlank final String tagRuleId, @NotBlank final String tenantId) {
-    if (!tagRuleRepository.existsByIdAndTenantId(tagRuleId, tenantId)) {
+  public void deleteTagRule(@NotBlank final String tagRuleId) {
+    if (!tagRuleRepository.existsById(tagRuleId)) {
       throw new ElementNotFoundException("TagRule not found with id: " + tagRuleId);
     }
     TagRule tagRule =
         tagRuleRepository
-            .findByIdAndTenantId(tagRuleId, tenantId)
+            .findById(tagRuleId)
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
     if (tagRule.isProtected()) {
@@ -220,6 +219,7 @@ public class TagRuleService {
   }
 
   public Set<TagRule> ensurePresetRules(TxCtx ctx) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Set<TagRule> tagRules = new HashSet<>();
     Set<Tag> wellKnownTags = tagService.ensureWellKnownTags(ctx);
     for (String tagName : TagRule.RESERVED_TAG_NAMES) {
@@ -230,7 +230,7 @@ public class TagRuleService {
               .orElseGet(() -> tagService.createTag(ctx, tagName));
       tagRules.add(
           this.findByTagName(tag.getName())
-              .orElseGet(() -> this.createTagRule(tag, new ArrayList<>(), true)));
+              .orElseGet(() -> this.createTagRule(tag, new ArrayList<>(), true, tenantId)));
     }
     return tagRules;
   }

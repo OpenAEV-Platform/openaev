@@ -513,25 +513,6 @@ public class WorkflowService {
     return saveWorkflowRun(run);
   }
 
-  /**
-   * Launches a workflow for a scenario by creating a simulation-level template and a run from it.
-   *
-   * @param workflowTemplateScenario the scenario's workflow template
-   * @param simulation the simulation to attach the run to
-   * @return the created workflow run
-   */
-  public Workflow launchWorkflowScenario(Workflow workflowTemplateScenario, Exercise simulation) {
-    // Copy workflow TEMPLATE (scenario) to a new workflow TEMPLATE (simulation)
-    Workflow workflowTemplateSimulation =
-        copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation);
-    workflowTemplateSimulation = saveWorkflowRun(workflowTemplateSimulation);
-
-    // Copy workflow TEMPLATE (simulation) to a new workflow execution RUN (simulation)
-    Workflow run = copyWorkflowTemplateToRun(workflowTemplateSimulation);
-
-    return saveWorkflowRun(run);
-  }
-
   /** Increments the version and clears the edited flag when the template has pending runs. */
   private Workflow updateEditedWorkflow(Workflow workflowTemplate) {
     if (workflowTemplate.isEdited() && !workflowTemplate.getWorkflowsExecuted().isEmpty()) {
@@ -1419,8 +1400,24 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Simulation ID: " + simulationId));
-    Workflow workflowRun = launchWorkflowSimulation(workflowTemplate);
-    startWorkflow(workflowRun);
+    doStartWorkflowBySimulationId(workflowTemplate);
+  }
+
+  /**
+   * Starts a workflow run for a simulation only when a simulation TEMPLATE workflow exists.
+   *
+   * <p>This is the scheduled-execution counterpart of the manual start flow: manual launches always
+   * create the simulation TEMPLATE first, while scheduled chained simulations create that template
+   * earlier and only need the run started once the simulation becomes runnable.
+   *
+   * @param simulationId id of the simulation to start if chained
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void startWorkflowBySimulationIdIfPresent(String simulationId) throws ChainingException {
+    Optional<Workflow> workflowTemplate = findWorkflowTemplateBySimulationId(simulationId);
+    if (workflowTemplate.isPresent()) {
+      doStartWorkflowBySimulationId(workflowTemplate.get());
+    }
   }
 
   /**
@@ -1437,11 +1434,15 @@ public class WorkflowService {
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
-
-    Workflow workflowRun = launchWorkflowScenario(workflowTemplateScenario, simulation);
-    Workflow workflowTemplateSimulation = workflowRun.getWorkflowTemplate();
+    Workflow workflowTemplateSimulation =
+        saveWorkflowRun(copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation));
     stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
 
+    doStartWorkflowBySimulationId(workflowTemplateSimulation);
+  }
+
+  private void doStartWorkflowBySimulationId(Workflow workflowTemplate) throws ChainingException {
+    Workflow workflowRun = launchWorkflowSimulation(workflowTemplate);
     startWorkflow(workflowRun);
   }
 
@@ -1481,7 +1482,6 @@ public class WorkflowService {
    *
    * @param workflowRun the workflow run to start
    */
-  @Transactional(rollbackFor = Exception.class)
   public void startWorkflow(Workflow workflowRun) throws ChainingException {
     // Telemetry: one chaining workflow run started.
     resultsMetricCollector.recordWorkflowRun();

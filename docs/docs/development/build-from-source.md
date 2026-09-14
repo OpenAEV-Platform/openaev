@@ -40,7 +40,7 @@ cp ./openaev-api/src/main/resources/application.properties ./openaev-api/src/mai
 
 **Start the development dependencies docker stack**
 
-Preconfigured containers for all the needed support containers (PostgreSQL, MinIO, RabbitMQ, Elasticsearch...)
+Preconfigured containers for all the needed support containers (PostgreSQL, Silo, RabbitMQ, Elasticsearch...)
 can be found as a docker compose file in `./openaev/openaev-dev`.
 
 Create a file a this location: `./openaev/openaev-dev/.env` and populate it with a minimal set of keys:
@@ -69,7 +69,7 @@ and any additional configuration. Make sure the file contains settings for at th
 the following dependencies:
 
 - PostgreSQL
-- MinIO
+- S3 object storage (Silo in the development stack)
 - RabbitMQ
 - Engine (Elasticsearch or OpenSearch)
 

@@ -87,6 +87,13 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.domain.DomainApi#upsertDomain",
           "io.openaev.rest.domain.DomainApi#findAllAsOptionsByName",
           "io.openaev.rest.domain.DomainApi#findAllAsOptionsById",
+          // notification_triggers (v2), which also reach notifiers through the trigger's
+          // association in NotificationTriggerMapper
+          "io.openaev.api.notification_trigger.NotificationTriggerApi#notificationTrigger",
+          "io.openaev.api.notification_trigger.NotificationTriggerApi#searchNotificationTriggers",
+          "io.openaev.api.notification_trigger.NotificationTriggerApi#createNotificationTrigger",
+          "io.openaev.api.notification_trigger.NotificationTriggerApi#updateNotificationTrigger",
+          "io.openaev.api.notification_trigger.NotificationTriggerApi#deleteNotificationTrigger",
           // notifications (v2)
           "io.openaev.api.notification.NotificationApi#searchMyNotifications",
           "io.openaev.api.notification.NotificationApi#unreadNotificationsCount",
@@ -97,6 +104,13 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.notification.NotificationApi#deleteNotification",
           // notifications write-through from the notifier test endpoint
           "io.openaev.api.notifier.NotifierApi#testNotifier",
+          // notifiers (v2)
+          "io.openaev.api.notifier.NotifierApi#notifiers",
+          "io.openaev.api.notifier.NotifierApi#notifier",
+          "io.openaev.api.notifier.NotifierApi#searchNotifiers",
+          "io.openaev.api.notifier.NotifierApi#createNotifier",
+          "io.openaev.api.notifier.NotifierApi#updateNotifier",
+          "io.openaev.api.notifier.NotifierApi#deleteNotifier",
           // channels (v2)
           "io.openaev.rest.channel.ChannelApi#channels",
           "io.openaev.rest.channel.ChannelApi#channel",
@@ -252,6 +266,14 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.payload.PayloadApi#createPayload",
           "io.openaev.rest.payload.PayloadApi#updatePayload",
           "io.openaev.rest.payload.PayloadApi#duplicatePayload",
+          // tenant_xtmhub_registrations (v2): singleton registration endpoints and the explicit
+          // default-tenant contact-us lookup
+          "io.openaev.api.xtmhub.XtmHubApi#getRegistration",
+          "io.openaev.api.xtmhub.XtmHubApi#register",
+          "io.openaev.api.xtmhub.XtmHubApi#unregister",
+          "io.openaev.api.xtmhub.XtmHubApi#refreshConnectivity",
+          "io.openaev.api.xtmhub.XtmHubApi#autoRegister",
+          "io.openaev.api.xtmhub.XtmHubApi#contactUs",
           // threat arsenal: create/update/duplicate go through PayloadCreationService/
           // PayloadUpdateService into the same synchroniseInjectorContractBasedOnPayload path
           "io.openaev.api.threat_arsenal.ThreatArsenalApi#createAction",
@@ -468,8 +490,55 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.atomic_testing.AtomicTestingApi#updateAtomicTestingTags",
           // contract picker facet: INNER JOINs kill_chain_phases to count per phase
           "io.openaev.rest.injector_contract.InjectorContractApi#getFacetCounts",
-          // dashboards: EsAttackPathService reads each attack pattern's phases
+          // custom dashboards / widgets (v2): CRUD, import/export, linked dashboard endpoints,
+          // and every sink returning CustomDashboard with its LAZY widget list.
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#createCustomDashboard",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#customDashboards",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#customDashboard",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#updateCustomDashboard",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#deleteCustomDashboard",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsByName",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsById",
+          "io.openaev.rest.custom_dashboard.CustomDashboardApi#optionsByResourceId",
+          "io.openaev.rest.custom_dashboard.CustomDashboardWidgetApi#createWidget",
+          "io.openaev.rest.custom_dashboard.CustomDashboardWidgetApi#widgets",
+          "io.openaev.rest.custom_dashboard.CustomDashboardWidgetApi#widget",
+          "io.openaev.rest.custom_dashboard.CustomDashboardWidgetApi#updateWidget",
+          "io.openaev.rest.custom_dashboard.CustomDashboardWidgetApi#updateWidgetLayout",
+          "io.openaev.rest.custom_dashboard.CustomDashboardWidgetApi#deleteWidget",
+          "io.openaev.api.custom_dashboard.CustomDashboardApiExporter#export",
+          "io.openaev.api.custom_dashboard.CustomDashboardApiImporter#importJson",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#dashboard",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#dashboardCount",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#dashboardAverage",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#dashboardSeries",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#dashboardEntities",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#widgetToEntitiesRuntime",
+          "io.openaev.rest.exercise.ExerciseDashboardApi#dashboardAttackPaths",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#dashboard",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#dashboardCount",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#dashboardAverage",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#dashboardSeries",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#dashboardEntities",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#widgetToEntitiesRuntime",
+          "io.openaev.rest.scenario.ScenarioDashboardApi#dashboardAttackPaths",
+          "io.openaev.rest.settings.TenantSettingsApi#homeDashboard",
+          "io.openaev.rest.settings.TenantSettingsApi#homeDashboardCount",
+          "io.openaev.rest.settings.TenantSettingsApi#homeDashboardAverage",
+          "io.openaev.rest.settings.TenantSettingsApi#homeDashboardSeries",
+          "io.openaev.rest.settings.TenantSettingsApi#homeDashboardEntities",
+          "io.openaev.rest.settings.TenantSettingsApi#homeWidgetToEntitiesRuntime",
+          "io.openaev.rest.settings.TenantSettingsApi#homeDashboardAttackPaths",
+          "io.openaev.rest.dashboard.DashboardApi#count",
+          "io.openaev.rest.dashboard.DashboardApi#average",
+          "io.openaev.rest.dashboard.DashboardApi#series",
+          "io.openaev.rest.dashboard.DashboardApi#entities",
+          "io.openaev.rest.dashboard.DashboardApi#widgetToEntitiesRuntime",
           "io.openaev.rest.dashboard.DashboardApi#attackPaths",
+          "io.openaev.rest.exercise.ExerciseApi#createExercise",
+          "io.openaev.rest.scenario.ScenarioApi#createScenario",
+          "io.openaev.api.chaining.ChainingApi#createSimulation",
+          "io.openaev.api.chaining.ChainingApi#createScenarioChaining",
           // chaining duplications copy injects, so they serialize the phase lists
           // Propagation.SUPPORTS handlers: they hold no transaction, so the TxCtx here exists only
           // to be threaded into the service method that opens one (same shape as
@@ -517,6 +586,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.organization.OrganizationApi#searchInjectsForOrganization",
           "io.openaev.rest.scenario.ScenarioApi#assetGroupsByIds",
           "io.openaev.rest.tag_rule.TagRuleApi#createTagRule",
+          "io.openaev.rest.tag_rule.TagRuleApi#deleteTagRule",
           "io.openaev.rest.tag_rule.TagRuleApi#findTagRule",
           "io.openaev.rest.tag_rule.TagRuleApi#searchTagRules",
           "io.openaev.rest.tag_rule.TagRuleApi#tags",

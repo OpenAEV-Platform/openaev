@@ -26,24 +26,25 @@ public class StixService {
   /**
    * Generate or update a Scenario from Stix bundle
    *
+   * @param ctx the transaction scope; the tenant of every row written is resolved from it
    * @param stixJson string form of the provided stix bundle
    * @return Scenario
    */
-  public Scenario processBundle(TxCtx ctx, String stixJson, String tenantId)
+  public Scenario processBundle(TxCtx ctx, String stixJson)
       throws IOException, ParsingException, ConnectorError, BundleValidationError {
     Bundle bundle = stixParser.parseBundle(stixJson);
 
-    return processSecurityCoverage(ctx, bundle, tenantId);
+    return processSecurityCoverage(ctx, bundle);
   }
 
-  private Scenario processSecurityCoverage(TxCtx ctx, Bundle bundle, String tenantId)
+  private Scenario processSecurityCoverage(TxCtx ctx, Bundle bundle)
       throws BundleValidationError, ParsingException, ConnectorError, IOException {
     ObjectBase securityCoverageObj = securityCoverageUtils.extractAndValidateCoverage(bundle);
     String securityCoverageStixId =
         securityCoverageObj.getRequiredProperty(CommonProperties.ID.toString());
 
     return securityCoverageService.handleSecurityCoverageProcessing(
-        securityCoverageStixId, securityCoverageObj, bundle, ctx, tenantId);
+        ctx, securityCoverageStixId, securityCoverageObj, bundle);
   }
 
   /**

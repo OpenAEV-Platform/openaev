@@ -1,30 +1,45 @@
 import { FiberManualRecord } from '@mui/icons-material';
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, List, ListItem, Typography } from '@mui/material';
+import {
+  Button,
+  Dialog as MuiDialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  List,
+  ListItem,
+  Typography,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
-import { useContext, useEffect, useState } from 'react';
+import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { deleteDocument, updateDocument } from '../../../../actions/Document';
-import { fetchExercises } from '../../../../actions/Exercise';
-import { fetchScenarios } from '../../../../actions/scenarios/scenario-actions';
-import ButtonPopover from '../../../../components/common/ButtonPopover';
+import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
+import Dialog from '../../../../components/common/dialog/Dialog';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import Drawer from '../../../../components/common/Drawer';
 import { craftedDocumentFilter } from '../../../../components/common/queryable/filter/FilterUtils';
 import Transition from '../../../../components/common/Transition';
 import ContextLink from '../../../../components/ContextLink';
 import { useFormatter } from '../../../../components/i18n';
-import { ATOMIC_BASE_URL, CHALLENGE_BASE_URL, CHANNEL_BASE_URL, PAYLOAD_BASE_URL, SCENARIO_BASE_URL, SECURITY_PLATFORM_BASE_URL, SIMULATION_BASE_URL } from '../../../../constants/BaseUrls';
-import { useHelper } from '../../../../store';
+import {
+  ATOMIC_BASE_URL,
+  CHALLENGE_BASE_URL,
+  CHANNEL_BASE_URL,
+  PAYLOAD_BASE_URL,
+  SCENARIO_BASE_URL,
+  SECURITY_PLATFORM_BASE_URL,
+  SIMULATION_BASE_URL,
+} from '../../../../constants/BaseUrls';
+import { type Document, type DocumentRelationsOutput, type RelatedEntityOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
-import { exerciseOptions, scenarioOptions, tagOptions } from '../../../../utils/Option';
 import { AbilityContext } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
-import DocumentForm from './DocumentForm';
+import DocumentForm, { type DocumentFormInput } from './DocumentForm';
 
-const entityPaths = {
+type RelationType = keyof DocumentRelationsOutput;
+
+const entityPaths: Record<RelationType, (item: RelatedEntityOutput) => string> = {
   atomicTestings: item => `${ATOMIC_BASE_URL}/${item.id}`,
   simulations: item => `${SIMULATION_BASE_URL}/${item.id}`,
   channels: item => `${CHANNEL_BASE_URL}/${item.id}`,
@@ -38,86 +53,75 @@ const entityPaths = {
 };
 
 // Ordered entity types
-const renderOrder = ['atomicTestings', 'scenarioInjects', 'simulationInjects', 'simulations', 'payloads', 'channels', 'scenarioArticles', 'simulationArticles', 'challenges', 'securityPlatforms'];
+const renderOrder: RelationType[] = ['atomicTestings', 'scenarioInjects', 'simulationInjects', 'simulations', 'payloads', 'channels', 'scenarioArticles', 'simulationArticles', 'challenges', 'securityPlatforms'];
 
-const DocumentPopover = (props) => {
+// Structural subset shared by Document, RawDocument and RawPaginationDocument.
+export type PopoverDocument = Partial<Document> & { document_id?: string };
+
+interface Props {
+  document: PopoverDocument;
+  disabled?: boolean;
+  attached?: boolean;
+  inline?: boolean;
+  onRemoveDocument?: (documentId: string) => void;
+  onToggleAttach?: (documentId: string) => void;
+  onUpdate?: (document: Document) => void;
+  onDelete?: (documentId: string) => void;
+  managedMessage?: string;
+}
+
+const DocumentPopover: FunctionComponent<Props> = ({
+  document,
+  disabled = false,
+  attached = false,
+  inline = false,
+  onRemoveDocument,
+  onToggleAttach,
+  onUpdate,
+  onDelete,
+  managedMessage,
+}) => {
   // Standard hooks
   const { t } = useFormatter();
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const ability = useContext(AbilityContext);
 
-  // managedMessage: when set, the document is system-owned (e.g. a report generation
-  // output managed by the Reporting module) and Update/Delete are disabled with this
-  // message as tooltip. The backend enforces the same read-only contract.
-  const { document, disabled, onRemoveDocument, attached, onToggleAttach, inline, onUpdate, onDelete, managedMessage } = props;
-
-  // Fetching data
-  const { tagsMap, exercisesMap, scenariosMap } = useHelper(helper => ({
-    tagsMap: helper.getTagsMap(),
-    exercisesMap: helper.getExercisesMap(),
-    scenariosMap: helper.getScenariosMap(),
-  }));
-  if (!props.scenariosAndExercisesFetched) {
-    useDataLoader(() => {
-      dispatch(fetchExercises());
-      dispatch(fetchScenarios());
-    });
-  }
+  const documentId = document.document_id ?? '';
 
   const [openDelete, setOpenDelete] = useState(false);
-  const [relations, setRelations] = useState(null);
+  const [relations, setRelations] = useState<DocumentRelationsOutput | null>(null);
   const [loadingRelations, setLoadingRelations] = useState(false);
   const [isUsedInPayloads, setIsUsedInPayloads] = useState(false);
   const [isUsedAsPlatformLogo, setIsUsedAsPlatformLogo] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openRemove, setOpenRemove] = useState(false);
 
-  const handleOpenEdit = () => {
-    setOpenEdit(true);
-  };
+  const handleCloseEdit = () => setOpenEdit(false);
 
-  const handleCloseEdit = () => {
-    setOpenEdit(false);
-  };
-
-  const onSubmitEdit = (data) => {
-    const inputValues = R.pipe(R.assoc('document_tags', R.pluck('id', data.document_tags)), R.assoc('document_exercises', R.pluck('id', data.document_exercises)), R.assoc('document_scenarios', R.pluck('id', data.document_scenarios)))(data);
-    return dispatch(updateDocument(document.document_id, inputValues))
-      .then((result) => {
-        if (onUpdate) {
-          const updated = result.entities.documents[result.result];
-          onUpdate(updated);
-        }
-        handleCloseEdit();
-      });
+  const onSubmitEdit = async (data: DocumentFormInput) => {
+    // The file itself is not editable: only the document metadata is updated.
+    const { document_file: _file, ...inputValues } = data;
+    const result = await dispatch(updateDocument(documentId, inputValues));
+    onUpdate?.(result.entities.documents[result.result]);
+    handleCloseEdit();
   };
 
   const handleOpenDelete = () => {
     setOpenDelete(true);
     setLoadingRelations(true);
-    fetch(buildTenantApiPath(`/api/documents/${document.document_id}/relations`))
+    fetch(buildTenantApiPath(`/api/documents/${documentId}/relations`))
       .then(res => res.json())
-      .then((data) => {
-        setRelations(data);
-      })
-      .catch(() => {
-        setRelations(null);
-      })
-      .finally(() => {
-        setLoadingRelations(false);
-      });
+      .then((data: DocumentRelationsOutput) => setRelations(data))
+      .catch(() => setRelations(null))
+      .finally(() => setLoadingRelations(false));
   };
 
-  const handleCloseDelete = () => {
-    setOpenDelete(false);
-  };
+  const handleCloseDelete = () => setOpenDelete(false);
 
   const submitDelete = () => {
-    dispatch(deleteDocument(document.document_id)).then(() => {
-      if (onDelete) {
-        onDelete(document.document_id);
-      }
+    dispatch(deleteDocument(documentId)).then(() => {
+      onDelete?.(documentId);
     });
     handleCloseDelete();
   };
@@ -131,47 +135,32 @@ const DocumentPopover = (props) => {
     }
   }, [relations]);
 
-  const buildEntityPath = (type, item) => {
-    const pathFn = entityPaths[type];
-    if (!pathFn) return '#';
-    return pathFn.length > 0 ? pathFn(item) : pathFn();
-  };
-
-  const renderRelations = (entities) => {
-    return renderOrder.map((type) => {
-      const items = entities[type];
-      if (!items?.length) return null;
-
-      return (
-        <div key={type}>
-          <Typography gutterBottom>
-            {t(type)}
-          </Typography>
-          <List dense>
-            {items.map(item => (
-              <ListItem key={item.id}>
-                <FiberManualRecord sx={{
-                  fontSize: 8,
-                  marginRight: 1,
-                }}
-                />
-                <ContextLink
-                  title={item.name}
-                  url={buildEntityPath(type, item)}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </div>
-      );
-    });
-  };
+  const renderRelations = (entities: DocumentRelationsOutput) => renderOrder.map((type) => {
+    const items = entities[type];
+    if (!items?.length) return null;
+    return (
+      <div key={type}>
+        <Typography gutterBottom>{t(type)}</Typography>
+        <List dense>
+          {items.map(item => (
+            <ListItem key={item.id}>
+              <FiberManualRecord sx={{
+                fontSize: 8,
+                marginRight: 1,
+              }}
+              />
+              <ContextLink title={item.name ?? ''} url={entityPaths[type](item)} />
+            </ListItem>
+          ))}
+        </List>
+      </div>
+    );
+  });
 
   const renderDialogText = () => {
     if (loadingRelations) {
       return <div>{t('Loading relations...')}</div>;
     }
-
     if (!relations) {
       return t('Unable to load relations.');
     }
@@ -188,7 +177,6 @@ const DocumentPopover = (props) => {
             {renderRelations(relations)}
           </>
         )}
-
         <Typography sx={{ paddingTop: theme.spacing(2) }}>
           {(() => {
             if (isUsedInPayloads) {
@@ -204,44 +192,36 @@ const DocumentPopover = (props) => {
     );
   };
 
-  const handleOpenRemove = () => {
-    setOpenRemove(true);
-  };
-
-  const handleCloseRemove = () => {
-    setOpenRemove(false);
-  };
+  const handleCloseRemove = () => setOpenRemove(false);
 
   const submitRemove = () => {
-    onRemoveDocument(document.document_id);
+    onRemoveDocument?.(documentId);
     handleCloseRemove();
   };
 
-  const handleToggleAttachement = () => {
-    onToggleAttach(document.document_id);
+  const initialValues: Partial<DocumentFormInput> = {
+    document_description: document.document_description ?? '',
+    document_tags: document.document_tags ?? [],
+    document_exercises: document.document_exercises ?? [],
+    document_scenarios: document.document_scenarios ?? [],
   };
 
-  const documentTags = tagOptions(document.document_tags, tagsMap);
-  const documentExercises = exerciseOptions(document.document_exercises, exercisesMap);
-  const documentScenarios = scenarioOptions(document.document_scenarios, scenariosMap);
-  const initialValues = R.pipe(R.assoc('document_tags', documentTags), R.assoc('document_exercises', documentExercises), R.assoc('document_scenarios', documentScenarios), R.pick(['document_name', 'document_description', 'document_type', 'document_tags', 'document_exercises', 'document_scenarios']))(document);
-
-  const entries = [];
+  const entries: PopoverEntry[] = [];
   if (onUpdate) entries.push({
     label: t('Update'),
-    action: () => handleOpenEdit(),
+    action: () => setOpenEdit(true),
     userRight: ability.can(ACTIONS.MANAGE, SUBJECTS.DOCUMENTS),
     disabled: !!managedMessage,
     disabledMessage: managedMessage,
   });
   if (onToggleAttach) entries.push({
     label: attached ? t('Disable attachment') : t('Enable attachment'),
-    action: () => handleToggleAttachement(),
+    action: () => onToggleAttach(documentId),
     userRight: true,
   });
   if (onRemoveDocument) entries.push({
     label: t('Remove from the element'),
-    action: () => handleOpenRemove(),
+    action: () => setOpenRemove(true),
     userRight: true,
   });
   if (!onRemoveDocument) entries.push({
@@ -252,6 +232,15 @@ const DocumentPopover = (props) => {
     disabledMessage: managedMessage,
   });
 
+  const editForm = (
+    <DocumentForm
+      initialValues={initialValues}
+      editing
+      onSubmit={onSubmitEdit}
+      handleClose={handleCloseEdit}
+    />
+  );
+
   return (
     <div>
       <ButtonPopover entries={entries} disabled={disabled} variant="icon" />
@@ -260,42 +249,35 @@ const DocumentPopover = (props) => {
         open={openDelete}
         handleClose={handleCloseDelete}
         handleSubmit={!isUsedInPayloads && !isUsedAsPlatformLogo ? submitDelete : null}
+        text={t('Do you want to delete this document?')}
         richContent={renderDialogText()}
       />
 
-      {inline ? (
-        <Dialog
-          open={openEdit}
-          handleClose={handleCloseEdit}
-          title={t('Update the document')}
-        >
-          <DocumentForm
-            initialValues={initialValues}
-            editing
-            onSubmit={onSubmitEdit}
-            handleClose={handleCloseEdit}
-          />
-        </Dialog>
-      ) : (
-        <Drawer
-          open={openEdit}
-          handleClose={handleCloseEdit}
-          title={t('Update the document')}
-        >
-          <DocumentForm
-            initialValues={initialValues}
-            editing
-            onSubmit={onSubmitEdit}
-            handleClose={handleCloseEdit}
-          />
-        </Drawer>
-      )}
+      {inline
+        ? (
+            <Dialog
+              open={openEdit}
+              handleClose={handleCloseEdit}
+              title={t('Update the document')}
+            >
+              {editForm}
+            </Dialog>
+          )
+        : (
+            <Drawer
+              open={openEdit}
+              handleClose={handleCloseEdit}
+              title={t('Update the document')}
+            >
+              {editForm}
+            </Drawer>
+          )}
 
-      <Dialog
+      <MuiDialog
         open={openRemove}
-        TransitionComponent={Transition}
         onClose={handleCloseRemove}
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>
@@ -312,7 +294,7 @@ const DocumentPopover = (props) => {
             {t('Remove')}
           </Button>
         </DialogActions>
-      </Dialog>
+      </MuiDialog>
     </div>
   );
 };

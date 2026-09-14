@@ -2,6 +2,8 @@ package io.openaev.telemetry.metric_collectors;
 
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.PostConstruct;
@@ -33,6 +35,7 @@ public class PlatformAdoptionMetricCollector {
 
   private final MetricRegistry metricRegistry;
   private final Environment environment;
+  private final TenantScopedTransaction tenantTx;
   private final TenantXtmHubRegistrationRepository tenantXtmHubRegistrationRepository;
 
   @PostConstruct
@@ -61,7 +64,8 @@ public class PlatformAdoptionMetricCollector {
 
   private long isXtmHubRegistered() {
     try {
-      return tenantXtmHubRegistrationRepository.count() > 0 ? 1L : 0L;
+      return tenantTx.execute(
+          TxCtx.allTenants(), () -> tenantXtmHubRegistrationRepository.count() > 0 ? 1L : 0L);
     } catch (Exception e) {
       log.error("Telemetry - Failed to read XTM Hub registration state", e);
       return 0L;
