@@ -1,6 +1,5 @@
 package io.openaev.processor.datapack;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
@@ -24,7 +23,7 @@ public class V20260826_Default_tenant_markings extends DataPack {
   }
 
   @Override
-  public boolean doProcess() {
+  protected boolean doProcess(Tenant tenant) {
     try {
       PresetTenantData.createDefaultMarkings()
           .forEach(
@@ -36,7 +35,7 @@ public class V20260826_Default_tenant_markings extends DataPack {
                 markingDefinition.setOrder(seed.order());
                 markingDefinition.setProtectedDefinition(true);
                 markingDefinition.setTenant(
-                    entityManager.getReference(Tenant.class, TenantContext.getCurrentTenant()));
+                    entityManager.getReference(Tenant.class, tenant.getId()));
                 markingDefinitionRepository.save(markingDefinition);
               });
       return true;
