@@ -1,14 +1,13 @@
-import { CheckCircleOutlined, RadioButtonUncheckedOutlined, SearchOutlined } from '@mui/icons-material';
+import { SearchField } from '@filigran/design-system';
+import { CheckCircleOutlined, RadioButtonUncheckedOutlined } from '@mui/icons-material';
 import {
   Box,
   Button,
   ButtonBase,
   Chip,
   CircularProgress,
-  InputAdornment,
   Skeleton,
   Slide,
-  TextField,
   Typography,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -165,22 +164,14 @@ const ThreatArsenalScenarioUpdateComponent = ({
           {t('Chained scenarios are not listed: their injects are driven by their workflow')}
         </Typography>
 
-        <TextField
+        <SearchField
+          aria-label={t('Search scenarios...')}
           fullWidth
-          size="small"
-          variant="outlined"
+          size="sm"
           placeholder={t('Search scenarios...')}
           value={textSearch}
           onChange={event => setTextSearch(event.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchOutlined fontSize="small" />
-                </InputAdornment>
-              ),
-            },
-          }}
+          onClear={() => setTextSearch('')}
         />
 
         <Box sx={{
