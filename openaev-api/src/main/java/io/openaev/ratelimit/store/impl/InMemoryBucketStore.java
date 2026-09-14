@@ -25,6 +25,10 @@ public class InMemoryBucketStore implements Store {
     }
     Bucket bucket = buckets.get(key);
     ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(CONSUMPTION_RATE);
-    return new Limit(bucket.getAvailableTokens(), probe.getRemainingTokens(), !probe.isConsumed());
+    return new Limit(
+        bucket.getAvailableTokens(),
+        probe.getRemainingTokens(),
+        probe.getNanosToWaitForRefill(),
+        !probe.isConsumed());
   }
 }

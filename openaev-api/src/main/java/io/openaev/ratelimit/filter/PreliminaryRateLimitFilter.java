@@ -3,6 +3,7 @@ package io.openaev.ratelimit.filter;
 import io.openaev.ratelimit.config.RateLimitConfig;
 import io.openaev.ratelimit.model.RateLimitedPrincipal;
 import io.openaev.ratelimit.service.RateLimitService;
+import io.openaev.ratelimit.store.Limit;
 import io.openaev.ratelimit.store.request.LimitConsumptionRequest;
 import io.openaev.ratelimit.store.request.LimitSpecification;
 import io.openaev.service.UserService;
@@ -42,10 +43,15 @@ public class PreliminaryRateLimitFilter extends OncePerRequestFilter {
       LimitSpecification spec = new LimitSpecification(config.getDefaultRps());
       LimitConsumptionRequest lcr =
           new LimitConsumptionRequest(
-              new RateLimitedPrincipal(request.getLocalAddr()), "haha", spec);
+              new RateLimitedPrincipal(request.getLocalAddr()), "all endpoints", spec);
 
-      if (rateLimitService.consume(lcr).getIsRateLimited()) {
-        throw new RuntimeException("RATE LIMIT");
+      Limit l = rateLimitService.consume(lcr);
+
+      if (l.getIsRateLimited()) {
+        response.setHeader("RateLimit-Limit", config.getDefaultRps().toString());
+        response.setHeader("RateLimit-Remaining", l.getRemaining().toString());
+        response.setHeader("RateLimit-Reset", l.getReset().toString());
+        response.sendError(429, "Rate limited.");
       }
     }
     filterChain.doFilter(request, response);

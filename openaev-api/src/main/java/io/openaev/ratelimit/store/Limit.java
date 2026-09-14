@@ -7,5 +7,7 @@ public interface Limit {
 
   Long getRemaining();
 
+  Long getReset();
+
   Boolean getIsRateLimited();
 }

@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 public class Limit implements io.openaev.ratelimit.store.Limit {
   private final Long limit;
   private final Long remaining;
+  private final Long reset;
   private final Boolean isRateLimited;
 
   @Override
