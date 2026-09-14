@@ -21,6 +21,7 @@ import {
   type MarkingDefinitionInput,
   type MarkingDefinitionOutput,
 } from '../../../../utils/api-types';
+import { useAppDispatch } from '../../../../utils/hooks';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
@@ -46,6 +47,7 @@ const MarkingDefinitions = () => {
   const { t, fldt } = useFormatter();
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
+  const dispatch = useAppDispatch();
 
   const [markingDefinitions, setMarkingDefinitions] = useState<MarkingDefinitionOutput[]>([]);
   const [openCreate, setOpenCreate] = useState(false);
