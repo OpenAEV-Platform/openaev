@@ -155,7 +155,9 @@ public class WorkflowEndService {
    * simulation, ends active steps, clears the step delay queue and, when a simulation is attached,
    * stops active injects, deletes asset agent jobs and workflow states.
    *
-   * <p>{@code DELETED} is not handled yet (simulation delete/reset and scenario cleanup are
+   * <p>For simulation deletion/reset, also ensures the workflow is cleanly ended (if needed) and
+   * performs cause-aware cleanup before deleting/cascading the workflow rows.
+
    * developed in a separate branch).
    *
    * @param workflowRun the RUN workflow reaching END/STOP
