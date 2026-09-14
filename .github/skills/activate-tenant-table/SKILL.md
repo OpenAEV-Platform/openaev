@@ -1142,7 +1142,7 @@ Every background family is now enumerated and classified by the background guard
 (`BackgroundEntrypointTenantScopeArchTest` + `background-guard-baseline.txt`): a
 new background entry point in one of the six recognised families fails the build
 until it is on the primitive or classified there with a reason. This is
-build-time enumeration, not a runtime scope check — see the "Known limits" note
+build-time enumeration, not a runtime scope check: see the "Known limits" note
 below for what it does not prove.
 
 **Enumerate every background path first.** Phase 1's greps are repository- and
@@ -1324,7 +1324,7 @@ over them:**
   with the wrong tenant and no test fails. The existing rules forbid the wrong
   SHAPE (`@Transactional`, raw plumbing, raw JDBC) but do not assert that every
   writer of an active table carries a real scope. Until a *runtime* guard exists,
-  converting a table's writers is a point-in-time fact, not an invariant — say so
+  converting a table's writers is a point-in-time fact, not an invariant; say so
   in the report.
 - The per-tenant loop is serial and single-threaded, one transaction per tenant.
   For a job over thousands of tenants, watch total runtime against the job's
