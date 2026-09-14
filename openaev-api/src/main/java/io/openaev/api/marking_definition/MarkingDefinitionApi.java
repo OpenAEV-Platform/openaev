@@ -71,6 +71,7 @@ public class MarkingDefinitionApi extends RestBehavior {
 
   @PostMapping
   @Transactional
+  @ResponseStatus(HttpStatus.CREATED)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.MARKING_DEFINITION)
   @Operation(summary = "Create a marking definition")
   public MarkingDefinitionOutput create(

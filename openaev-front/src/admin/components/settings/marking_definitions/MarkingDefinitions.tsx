@@ -5,7 +5,6 @@ import { makeStyles } from 'tss-react/mui';
 
 import {
   createMarkingDefinition,
-  fetchMarkingDefinitions,
   searchMarkingDefinitions,
 } from '../../../../actions/marking_definitions/marking-definition-actions';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
@@ -22,8 +21,6 @@ import {
   type MarkingDefinitionInput,
   type MarkingDefinitionOutput,
 } from '../../../../utils/api-types';
-import { useAppDispatch } from '../../../../utils/hooks';
-import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { SETTINGS_LABEL } from '../../nav/config/settings.config';
@@ -47,16 +44,11 @@ const inlineStyles: Record<string, CSSProperties> = {
 
 const MarkingDefinitions = () => {
   const { t, fldt } = useFormatter();
-  const dispatch = useAppDispatch();
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
 
   const [markingDefinitions, setMarkingDefinitions] = useState<MarkingDefinitionOutput[]>([]);
   const [openCreate, setOpenCreate] = useState(false);
-
-  useDataLoader(() => {
-    dispatch(fetchMarkingDefinitions());
-  });
 
   const availableFilterNames = [
     'marking_definition_type',

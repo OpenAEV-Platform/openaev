@@ -27,7 +27,7 @@ public class V6_20260914120000000__Add_marking_definitions extends BaseJavaMigra
           """);
 
       statement.execute(
-          "CREATE UNIQUE INDEX IF NOT EXISTS idx_marking_definitions_type_definition_tenant_uq ON marking_definitions (marking_definition_type, marking_definition_definition, tenant_id)");
+          "CREATE UNIQUE INDEX IF NOT EXISTS idx_marking_definitions_type_definition_tenant_uq ON marking_definitions (LOWER(marking_definition_type), LOWER(marking_definition_definition), tenant_id)");
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_marking_definitions_type_order_tenant ON marking_definitions (marking_definition_type, marking_definition_order, tenant_id)");
       statement.execute(

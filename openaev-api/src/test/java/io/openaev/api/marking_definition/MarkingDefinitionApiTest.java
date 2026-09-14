@@ -30,11 +30,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
+@TestPropertySource(properties = "openaev.tenant.active-tables=marking_definitions")
 @DisplayName("Marking definition API")
 class MarkingDefinitionApiTest extends IntegrationTest {
 
@@ -78,7 +80,7 @@ class MarkingDefinitionApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(body)
                   .with(csrf()))
-          .andExpect(status().isOk())
+          .andExpect(status().isCreated())
           .andExpect(jsonPath("$.marking_definition_type").value("TLP"))
           .andExpect(jsonPath("$.marking_definition_definition").value("TLP:BLUE"))
           .andExpect(jsonPath("$.marking_definition_order").value(6))
