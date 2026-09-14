@@ -20,6 +20,9 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
+import io.openaev.database.model.Reporting;
+import io.openaev.database.model.ReportingFormat;
+import io.openaev.database.model.ReportingGeneration;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
@@ -27,6 +30,7 @@ import io.openaev.service.FileService;
 import io.openaev.service.MinioService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.ReportingFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -1151,10 +1155,146 @@ class WriteAttributionRouteTest extends IntegrationTest {
           1, documentTagCount(id), "the owning tenant must be able to update the document");
     }
 
+    @Test
+    @DisplayName(
+        "PUT tags by id on a report-generation output: a caller scoped to another tenant is"
+            + " refused with 404, not the 400 that discloses the id is a report output, and the"
+            + " document is unchanged (both routes)")
+    void putTagsByIdOnReportOutputIsRefusedWithNotFoundForACallerScopedToAnotherTenant()
+        throws Exception {
+      // The report output lives in the default tenant. On the header route the ambient tenant
+      // filter is always the default tenant, so the reporting check (existsByDocumentId, filtered
+      // by the ambient tenant) still sees the generation while the request scope is B, which does
+      // not own the document: that mismatch is where the ordering leaks the document type.
+      String id = seedReportGenerationOutput(DEFAULT_TENANT);
+      String originalName = documentName(id);
+      String tagId = seedTag(tenantB);
+
+      // Prefixed route to B: the ambient filter is B, so the reporting check cannot see the
+      // default-tenant generation and the scope guard already returns 404 on both orders.
+      mvc.perform(
+              put("/api/tenants/{t}/documents/{id}/tags", tenantB, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(tagsBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+      // Header route scoped to B: before the fix the reporting check ran first and returned 400,
+      // disclosing the document type; the scope guard must run first and return the same 404 as
+      // for any out-of-scope document.
+      mvc.perform(
+              put("/api/documents/{id}/tags", id)
+                  .header("X-Tenant-Ids", tenantB)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(tagsBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+
+      assertEquals(0, documentTagCount(id), "the refused tag write must not attach a tag");
+      assertEquals(originalName, documentName(id), "the report output must be unchanged");
+    }
+
+    @Test
+    @DisplayName(
+        "PUT by id on a report-generation output: a caller scoped to another tenant is refused"
+            + " with 404, not the 400 that discloses the id is a report output, and the document"
+            + " is unchanged (both routes)")
+    void putByIdOnReportOutputIsRefusedWithNotFoundForACallerScopedToAnotherTenant()
+        throws Exception {
+      String id = seedReportGenerationOutput(DEFAULT_TENANT);
+      String originalName = documentName(id);
+      String tagId = seedTag(tenantB);
+
+      mvc.perform(
+              put("/api/tenants/{t}/documents/{id}", tenantB, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(updateBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+      mvc.perform(
+              put("/api/documents/{id}", id)
+                  .header("X-Tenant-Ids", tenantB)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(updateBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+
+      assertEquals(0, documentTagCount(id), "the refused update must not attach a tag");
+      assertEquals(originalName, documentName(id), "the report output must be unchanged");
+    }
+
+    @Test
+    @DisplayName(
+        "PUT tags by id on a report-generation output: the owning tenant on the prefixed route"
+            + " still gets 400 (read-only)")
+    void putTagsByIdOnReportOutputStillRefusedForTheOwningTenantOnPrefixedRoute() throws Exception {
+      // The prefixed route sets the ambient tenant to B, so the reporting check sees B's own
+      // generation and the read-only refusal is preserved once the scope guard (which B passes)
+      // has run.
+      String id = seedReportGenerationOutput(tenantB);
+      String tagId = seedTag(tenantB);
+
+      mvc.perform(
+              put("/api/tenants/{t}/documents/{id}/tags", tenantB, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(tagsBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      assertEquals(
+          0, documentTagCount(id), "a report output stays read-only for its owning tenant");
+    }
+
+    @Test
+    @DisplayName(
+        "PUT by id on a report-generation output: the owning tenant on the prefixed route still"
+            + " gets 400 (read-only)")
+    void putByIdOnReportOutputStillRefusedForTheOwningTenantOnPrefixedRoute() throws Exception {
+      String id = seedReportGenerationOutput(tenantB);
+      String tagId = seedTag(tenantB);
+
+      mvc.perform(
+              put("/api/tenants/{t}/documents/{id}", tenantB, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(updateBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      assertEquals(
+          0, documentTagCount(id), "a report output stays read-only for its owning tenant");
+    }
+
     /** Seeds a document owned by tenant B out of band so the request under test sets the scope. */
     private String seedBDocument() throws Exception {
       byte[] content = ("t014l-doc-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
       return seedDocumentInTenant(tenantB, UUID.randomUUID() + ".txt", content);
+    }
+
+    /**
+     * Seeds a document owned by {@code ownerTenant} and a reporting generation in the same tenant
+     * whose output is that document, so {@code assertNotReportingGenerationOutput} treats the id as
+     * a report output. Returns the document id.
+     *
+     * <p>The generation carries the v1 {@code tenantFilter}, so {@code existsByDocumentId} only
+     * sees it when the ambient {@code TenantContext} is {@code ownerTenant}: the ambient is the
+     * path tenant on the prefixed route and always the default tenant on the header route,
+     * regardless of {@code X-Tenant-Ids}. A default-tenant report output is therefore the shape
+     * that makes the reporting check fire on the header route while the request scope points
+     * elsewhere.
+     */
+    private String seedReportGenerationOutput(String ownerTenant) throws Exception {
+      byte[] content = ("t014m-doc-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String documentId = seedDocumentInTenant(ownerTenant, UUID.randomUUID() + ".txt", content);
+      Reporting reporting = ReportingFixture.createDefaultReporting();
+      reporting.setTenant(new Tenant(ownerTenant));
+      entityManager.persist(reporting);
+      ReportingGeneration generation = new ReportingGeneration();
+      generation.setReporting(reporting);
+      generation.setFormat(ReportingFormat.PDF);
+      generation.setDocument(entityManager.getReference(Document.class, documentId));
+      generation.setTenant(new Tenant(ownerTenant));
+      entityManager.persist(generation);
+      entityManager.flush();
+      return documentId;
     }
   }
 
