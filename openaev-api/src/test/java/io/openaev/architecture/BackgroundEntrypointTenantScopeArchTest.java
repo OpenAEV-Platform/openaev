@@ -202,28 +202,42 @@ public class BackgroundEntrypointTenantScopeArchTest {
   @Test
   @DisplayName("no baseline entry is stale (shrink-only)")
   void no_baseline_entry_is_stale() {
-    Map<String, String> baseline = loadBaseline();
     Map<String, JavaClass> byName = new LinkedHashMap<>();
     for (JavaClass clazz : PRODUCTION_CLASSES) {
       byName.put(clazz.getFullName(), clazz);
     }
 
-    List<String> stale = new ArrayList<>();
-    for (String fqcn : new TreeSet<>(baseline.keySet())) {
-      JavaClass clazz = byName.get(fqcn);
-      if (clazz == null) {
-        stale.add(fqcn + " is not a production class any more, remove it");
-      } else if (familiesOf(clazz).isEmpty()) {
-        stale.add(fqcn + " is no longer a background entry point, remove it");
-      } else if (isOnPrimitive(clazz)) {
-        stale.add(fqcn + " now references the primitive, remove its waiver");
-      }
-    }
+    List<String> stale = staleEntries(loadBaseline(), byName);
     assertTrue(
         stale.isEmpty(),
         "background-guard-baseline.txt may only shrink; these entries are stale and must be"
             + " removed:\n  "
             + String.join("\n  ", stale));
+  }
+
+  /**
+   * The baseline entries that are stale: the class is gone, is no longer a recognised background
+   * entry point, or now carries the primitive. Pulled out of the test so the same rule can be
+   * exercised over an injected baseline. The "no longer an entry point" arm mirrors the production
+   * scan exactly: it is stale both when {@link #familiesOf} is empty and when {@link
+   * #isConcreteBean} is false, because {@code every_background_entrypoint_is_scoped_or_classified}
+   * skips non-concrete classes. A waived class later made abstract (or an interface/enum) is no
+   * longer enumerated by the guard, so its waiver must be removed rather than left as a permanent,
+   * un-enumerated exemption.
+   */
+  static List<String> staleEntries(Map<String, String> baseline, Map<String, JavaClass> byName) {
+    List<String> stale = new ArrayList<>();
+    for (String fqcn : new TreeSet<>(baseline.keySet())) {
+      JavaClass clazz = byName.get(fqcn);
+      if (clazz == null) {
+        stale.add(fqcn + " is not a production class any more, remove it");
+      } else if (!isConcreteBean(clazz) || familiesOf(clazz).isEmpty()) {
+        stale.add(fqcn + " is no longer a background entry point, remove it");
+      } else if (isOnPrimitive(clazz)) {
+        stale.add(fqcn + " now references the primitive, remove its waiver");
+      }
+    }
+    return stale;
   }
 
   @Test
@@ -307,6 +321,9 @@ public class BackgroundEntrypointTenantScopeArchTest {
 
   static boolean isWellFormedReason(String reason) {
     String r = reason.strip();
+    if (hasMalformedUntilActive(r)) {
+      return false;
+    }
     boolean carriesUntilActive = !untilActiveTables(r).isEmpty();
     if (TOUCHES_NO_TENANT_TABLE.matcher(r).matches() || PLATFORM_GLOBAL.matcher(r).matches()) {
       return !carriesUntilActive;
@@ -328,6 +345,32 @@ public class BackgroundEntrypointTenantScopeArchTest {
    */
   private static final Pattern UNTIL_ACTIVE =
       Pattern.compile("until-active:([a-z0-9_]+)(?![a-z0-9_-])", Pattern.CASE_INSENSITIVE);
+
+  /** Every mention of the reserved keyword, so a malformed one cannot be read as "no tag". */
+  private static final Pattern UNTIL_ACTIVE_KEYWORD =
+      Pattern.compile("until-active", Pattern.CASE_INSENSITIVE);
+
+  /**
+   * Whether the reason mentions {@code until-active} in any form other than a well-formed {@code
+   * until-active:<table>} tag. {@link #untilActiveTables} returns nothing for a malformed token (a
+   * hyphenated name like {@code until-active:injects-typo}, an empty {@code until-active:}, a colon
+   * broken by a space), so a permanent classification reads it as "no tag" and accepts it, and a
+   * delegates-to reads it as an absent optional tag: the unknown-table and expiry checks never see
+   * it and a typo launders a permanent waiver. So {@code isWellFormedReason} rejects a reason where
+   * any {@code until-active} keyword does not begin a valid tag, for every classification, before
+   * its own rule. The keyword must open a match of the same {@link #UNTIL_ACTIVE} pattern the
+   * extractor uses, so there is one source of truth for what a valid tag is.
+   */
+  static boolean hasMalformedUntilActive(String reason) {
+    Matcher keyword = UNTIL_ACTIVE_KEYWORD.matcher(reason);
+    Matcher tag = UNTIL_ACTIVE.matcher(reason);
+    while (keyword.find()) {
+      if (!(tag.find(keyword.start()) && tag.start() == keyword.start())) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   /** Tables a reason declares the waiver depends on staying v1 ({@code until-active:<table>}). */
   static Set<String> untilActiveTables(String reason) {

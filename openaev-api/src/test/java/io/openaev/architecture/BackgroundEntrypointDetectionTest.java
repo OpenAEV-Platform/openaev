@@ -392,6 +392,90 @@ class BackgroundEntrypointDetectionTest {
 
   @Test
   @DisplayName(
+      "a malformed until-active token is rejected for every classification, not just"
+          + " cross-tenant-resolve")
+  void malformedUntilActiveIsRejectedForEveryClassification() {
+    // The tag extractor returns nothing for a malformed until-active token (a hyphenated name, a
+    // missing colon, an empty table). For the two PERMANENT classifications that is read as "no
+    // tag", which they accept, and for delegates-to the tag is optional, so the malformed token
+    // slips through and the unknown-table / expiry checks never see it: a typo launders a permanent
+    // waiver. Every classification must reject a malformed until-active token before its own rule.
+    assertTrue(
+        !BackgroundEntrypointTenantScopeArchTest.isWellFormedReason(
+            "platform-global until-active:injects-typo"),
+        "a malformed (hyphenated) until-active tag on platform-global must be rejected, not read as"
+            + " no tag");
+    assertTrue(
+        !BackgroundEntrypointTenantScopeArchTest.isWellFormedReason(
+            "delegates-to-Foo#bar until-active:injects-typo"),
+        "a malformed (hyphenated) until-active tag on delegates-to must be rejected, not treated as"
+            + " an absent optional tag");
+
+    // Near misses: an empty table after the colon, and a space breaking the colon, are both
+    // malformed tokens and must be rejected wherever they appear.
+    assertTrue(
+        !BackgroundEntrypointTenantScopeArchTest.isWellFormedReason(
+            "delegates-to-Foo#bar until-active:"),
+        "an until-active token with no table must be rejected");
+    assertTrue(
+        !BackgroundEntrypointTenantScopeArchTest.isWellFormedReason(
+            "delegates-to-Foo#bar until-active :injects"),
+        "an until-active token whose colon is broken by a space must be rejected");
+
+    // A well-formed tag on a permanent classification is already rejected (nothing activates to
+    // make
+    // it wrong); keep that, so this test is not merely rejecting every until-active mention.
+    assertTrue(
+        !BackgroundEntrypointTenantScopeArchTest.isWellFormedReason(
+            "platform-global until-active:injects"),
+        "a well-formed tag on the permanent platform-global stays rejected");
+
+    // A well-formed tag where it is allowed (delegates-to, cross-tenant-resolve) must still pass:
+    // the rejection is of malformed tokens, not of the legal until-active shape.
+    assertTrue(
+        BackgroundEntrypointTenantScopeArchTest.isWellFormedReason(
+            "delegates-to-Foo#bar until-active:injects"),
+        "a well-formed until-active tag on delegates-to must still be accepted");
+    assertTrue(
+        BackgroundEntrypointTenantScopeArchTest.isWellFormedReason(
+            "cross-tenant-resolve until-active:reporting_schedules: free text after a colon"),
+        "a well-formed tag followed by colon-separated free text must still be accepted");
+  }
+
+  @Test
+  @DisplayName("a waived class made abstract is stale (the guard no longer enumerates it)")
+  void abstractWaivedClassIsStale() {
+    // The production scan skips non-concrete classes via isConcreteBean, so a waived class later
+    // made abstract while it still carries a background marker is no longer enumerated by the
+    // guard, yet familiesOf stays non-empty. The stale check must apply the same isConcreteBean
+    // filter, or the waiver becomes a permanent, un-enumerated exemption. AbstractInlineHandoff
+    // ParentFixture is abstract and is a hand-off family, so it stands in for that shape.
+    JavaClass abstractEntry = imported(AbstractInlineHandoffParentFixture.class);
+    assertTrue(
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(abstractEntry).contains("handoff"),
+        "the fixture must still look like a background entry point (non-empty families)");
+    Map<String, JavaClass> byName = Map.of(abstractEntry.getFullName(), abstractEntry);
+    Map<String, String> baseline =
+        Map.of(abstractEntry.getFullName(), "touches-no-tenant-table: nothing");
+    List<String> stale = BackgroundEntrypointTenantScopeArchTest.staleEntries(baseline, byName);
+    assertTrue(
+        stale.stream().anyMatch(s -> s.contains(abstractEntry.getFullName())),
+        "a waived class made abstract must be flagged stale so its waiver is removed. Got: "
+            + stale);
+
+    // Near miss: a concrete background entry point with the same waiver must NOT be flagged, so the
+    // check keys on isConcreteBean, not on being a fixture.
+    JavaClass concreteEntry = imported(QuartzJobFixture.class);
+    assertTrue(
+        BackgroundEntrypointTenantScopeArchTest.staleEntries(
+                Map.of(concreteEntry.getFullName(), "touches-no-tenant-table: nothing"),
+                Map.of(concreteEntry.getFullName(), concreteEntry))
+            .isEmpty(),
+        "a concrete, still-recognised background entry point must not be flagged stale");
+  }
+
+  @Test
+  @DisplayName(
       "a background job that writes tenant-bearing tables is not waived touches-no-tenant-table")
   void writesToTenantTableAreNotWaivedAsTouchingNothing() {
     // OpenCTIConnectorRegisterPingJob's flow writes Group/Role (DualScopeBase) and the strict
