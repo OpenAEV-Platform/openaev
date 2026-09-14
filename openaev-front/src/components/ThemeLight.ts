@@ -504,8 +504,34 @@ const ThemeLight = (
       defaultProps: { variant: 'standard' },
       styleOverrides: { root: { color: text_color } },
     },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          // The custom property, not the static hex: an outlined field inside a
+          // drawer or popover must pick up that surface's own layer.
+          'backgroundColor': 'var(--bg-input-default)',
+          // Geometry borrowed from the library `Input`; paint only, no behaviour.
+          'borderRadius': 'var(--radius-sm)',
+          'minHeight': 36,
+          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-hover)' },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-focus)' },
+          '&.Mui-error .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-error)' },
+          // Transparent with a disabled border, as the library `Input` does.
+          '&.Mui-disabled': {
+            'backgroundColor': 'transparent',
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-elevation-disabled)' },
+          },
+        },
+        // 8px lands the single-line row on the library's 36px height; MUI's own
+        // 16.5px makes a 54px row.
+        input: { padding: '8px 8px 8px 12px' },
+      },
+    },
     MuiTextField: {
-      defaultProps: { variant: 'standard' },
+      // Every remaining MUI field is outlined, so it can carry the library
+      // field background.
+      defaultProps: { variant: 'outlined' },
       styleOverrides: {
         root: {
           'color': text_color,

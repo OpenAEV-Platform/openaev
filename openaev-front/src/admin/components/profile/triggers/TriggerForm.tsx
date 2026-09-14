@@ -288,7 +288,6 @@ const TriggerForm: FunctionComponent<Props> = ({
           )}
           {period !== 'HOUR' && (
             <TextField
-              variant="standard"
               fullWidth
               type="time"
               label={t('Time (UTC)')}

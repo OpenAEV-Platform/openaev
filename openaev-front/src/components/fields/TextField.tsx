@@ -36,7 +36,7 @@ const TextField = <TFieldValues extends FieldValues = FieldValues>({
     const { name, onChange, onBlur, label, required, error, helperText, multiline, rows, style, type, disabled, id, defaultValue, maxLength: _maxLength, ...rest } = props;
     return (
       <MuiTextField
-        variant="standard"
+        variant="outlined"
         fullWidth
         label={required ? `${label}*` : label}
         error={typeof error === 'string' ? true : !!error}

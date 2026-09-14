@@ -125,7 +125,6 @@ const ReportingScheduleFields: FunctionComponent<Props> = ({ showEnabledSwitch =
             <MuiTextField
               {...field}
               type="time"
-              variant="standard"
               fullWidth
               label={t('Time of day')}
               slotProps={{ inputLabel: { shrink: true } }}
