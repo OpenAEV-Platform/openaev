@@ -1,5 +1,6 @@
 package io.openaev.rest.tenancy;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -8,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -19,6 +21,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.FileService;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -68,6 +71,7 @@ class WriteAttributionRouteTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private InjectorContractFixture injectorContractFixture;
 
   // Chaining create handlers are Enterprise-Edition gated; the license check is stubbed active.
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
@@ -197,6 +201,40 @@ class WriteAttributionRouteTest extends IntegrationTest {
           tenantB,
           scenarioTenant(id),
           "the scenario created with X-Tenant-Ids: B must belong to B, not the default tenant");
+    }
+
+    @Test
+    @DisplayName(
+        "prefixed route: the generated injects are attributed to the path tenant (control)")
+    void prefixedRouteInjectsAttributedToPathTenant() throws Exception {
+      String contractId = injectorContractFixture.getWellKnownSingleEmailContract().getId();
+      String id =
+          postScenarioSelectingContract(
+              post("/api/tenants/{t}/scenarios/with-injector-contracts", tenantB).with(csrf()),
+              contractId);
+      assertEquals(1, injectCount(id), "the selected contract must have produced one inject");
+      assertEquals(
+          tenantB,
+          injectScenarioTenant(id),
+          "the injects generated under tenant B's path must belong to B");
+    }
+
+    @Test
+    @DisplayName(
+        "header route: the generated injects must be attributed to X-Tenant-Ids, not to the default")
+    void headerRouteInjectsMustAttributeToHeaderTenant() throws Exception {
+      String contractId = injectorContractFixture.getWellKnownSingleEmailContract().getId();
+      String id =
+          postScenarioSelectingContract(
+              post("/api/scenarios/with-injector-contracts")
+                  .header("X-Tenant-Ids", tenantB)
+                  .with(csrf()),
+              contractId);
+      assertEquals(1, injectCount(id), "the selected contract must have produced one inject");
+      assertEquals(
+          tenantB,
+          injectScenarioTenant(id),
+          "the injects generated with X-Tenant-Ids: B must belong to B, not the default tenant");
     }
   }
 
@@ -427,6 +465,28 @@ class WriteAttributionRouteTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "upsert several ids with a contextual multi-exercise input: refused with 400, not 500")
+    void teamUpsertAmbiguousScopeIsRefusedWithBadRequestNotServerError() throws Exception {
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      // Two ids in X-Tenant-Ids is an ambiguous write scope. The body is also a contextual team
+      // with
+      // more than one exercise, whose guard throws an unmapped 500. The write-scope refusal must be
+      // resolved first, so the request returns the documented 400 rather than that 500.
+      mvc.perform(
+              post("/api/teams/upsert")
+                  .header("X-Tenant-Ids", tenantB + "," + DEFAULT_TENANT)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      "{\"team_name\":\"t014i-team-"
+                          + UUID.randomUUID()
+                          + "\",\"team_contextual\":true,"
+                          + "\"team_exercises\":[\"exercise-a\",\"exercise-b\"]}")
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("header route: a same-named team in B still blocks a create for B (near miss)")
     void teamHeaderRouteCreateBlockedBySameTenantDuplicate() throws Exception {
       String name = "t014f-team-" + UUID.randomUUID();
@@ -555,7 +615,49 @@ class WriteAttributionRouteTest extends IntegrationTest {
                   .header("X-Tenant-Ids", tenantB + "," + DEFAULT_TENANT)
                   .with(csrf()))
           .andExpect(status().isBadRequest());
+      // The new-document branch now uploads under the resolved write tenant (the three-argument
+      // overload), so a refused scope must reach neither the ambient nor the explicit-tenant
+      // upload.
       verify(fileService, never()).uploadFile(anyString(), any(MultipartFile.class));
+      verify(fileService, never()).uploadFile(anyString(), anyString(), any(MultipartFile.class));
+    }
+
+    @Test
+    @DisplayName(
+        "header route: the uploaded object is retrievable through the prefixed B download route")
+    void documentHeaderRouteObjectIsRetrievableFromPrefixedRoute() throws Exception {
+      byte[] content = ("t014i-body-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      MockPart inputPart = new MockPart("input", "{}".getBytes(StandardCharsets.UTF_8));
+      inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+      MockMultipartFile filePart =
+          new MockMultipartFile(
+              "file", "t014i-" + UUID.randomUUID() + ".txt", MediaType.TEXT_PLAIN_VALUE, content);
+      String response =
+          mvc.perform(
+                  multipart("/api/documents")
+                      .part(inputPart)
+                      .file(filePart)
+                      .header("X-Tenant-Ids", tenantB)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String id = JsonPath.read(response, "$.document_id");
+
+      // The bytes were written under B on the header route; a later download on B's prefixed route
+      // must find them. Before the fix the object landed under the default tenant's path and this
+      // read returned 404.
+      byte[] downloaded =
+          mvc.perform(get("/api/tenants/{t}/documents/{id}/file", tenantB, id))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+      assertArrayEquals(
+          content,
+          downloaded,
+          "the document uploaded for B on the header route must be downloadable from B's path");
     }
   }
 
@@ -744,6 +846,47 @@ class WriteAttributionRouteTest extends IntegrationTest {
             .getResponse()
             .getContentAsString();
     return JsonPath.read(response, "$.scenario_id");
+  }
+
+  private String postScenarioSelectingContract(
+      MockHttpServletRequestBuilder request, String injectorContractId) throws Exception {
+    // A non-empty selection (the well-known email contract, resolved by JPA id, no Elastic search)
+    // makes the endpoint generate one child inject, so the child-attribution path is exercised.
+    String body =
+        "{\"locale\":\"en\",\"scenario_input\":{\"scenario_name\":\"t014i-wic\"},"
+            + "\"injector_contract_search_pagination_input\":{\"include_full_details\":true,"
+            + "\"injector_contract_ids_to_process\":[\""
+            + injectorContractId
+            + "\"]}}";
+    String response =
+        mvc.perform(request.contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return JsonPath.read(response, "$.scenario_id");
+  }
+
+  private int injectCount(String scenarioId) {
+    entityManager.flush();
+    Number count =
+        (Number)
+            entityManager
+                .createNativeQuery("SELECT count(*) FROM injects WHERE inject_scenario = ?1")
+                .setParameter(1, scenarioId)
+                .getSingleResult();
+    return count.intValue();
+  }
+
+  private String injectScenarioTenant(String scenarioId) {
+    entityManager.flush();
+    // One distinct tenant across every inject of the scenario: a split would surface as more than
+    // one row here (getSingleResult throws) or as the wrong value.
+    return (String)
+        entityManager
+            .createNativeQuery("SELECT DISTINCT tenant_id FROM injects WHERE inject_scenario = ?1")
+            .setParameter(1, scenarioId)
+            .getSingleResult();
   }
 
   private String postExercise(MockHttpServletRequestBuilder request) throws Exception {

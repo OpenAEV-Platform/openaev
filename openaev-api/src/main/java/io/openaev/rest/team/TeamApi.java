@@ -219,11 +219,13 @@ public class TeamApi extends RestBehavior {
   @Operation(description = "Create a new team or update an existing team", summary = "Upsert team")
   public Team upsertTeam(
       @RequireTenantSelector TxCtx ctx, @Valid @RequestBody TeamCreateInput input) {
+    // Resolve the write tenant first: an ambiguous scope must be refused with 400 before the
+    // contextual guard, which otherwise throws an unmapped 500 for the same request.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     if (input.getContextual() && input.getExerciseIds().toArray().length > 1) {
       throw new UnsupportedOperationException(
           "Contextual team can only be associated to one exercise");
     }
-    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Optional<Team> team = teamRepository.findByNameAndTenantId(input.getName(), tenantId);
     if (team.isPresent()) {
       Team existingTeam = team.get();

@@ -74,6 +74,32 @@ public class MinioService implements DependenciesManager {
     return getTenantPath(fileName);
   }
 
+  /**
+   * Uploads a file under an explicitly named tenant path rather than the ambient {@link
+   * TenantContext}. Use this when the write tenant is resolved from the request scope, so the
+   * object lands under the same tenant the row is attributed to.
+   *
+   * @param tenantId the tenant whose path the object is written under
+   * @param fileName the target file path/name in the bucket
+   * @param data the input stream containing the file data
+   * @param size the size of the file in bytes
+   * @param contentType the MIME type of the file
+   * @return the full tenant-prefixed path of the uploaded file
+   * @throws Exception if the upload fails
+   */
+  public String uploadFileForTenant(
+      String tenantId, String fileName, InputStream data, long size, String contentType)
+      throws Exception {
+    minioClient.putObject(
+        PutObjectArgs.builder()
+            .bucket(bucket())
+            .object(getPathForTenant(tenantId, fileName))
+            .stream(data, size, -1)
+            .contentType(contentType)
+            .build());
+    return getPathForTenant(tenantId, fileName);
+  }
+
   public String uploadStreamInTenantPath(String fileName, String name, InputStream data)
       throws Exception {
     minioClient.putObject(

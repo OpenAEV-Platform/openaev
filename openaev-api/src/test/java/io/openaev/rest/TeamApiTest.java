@@ -357,7 +357,10 @@ class TeamApiTest extends IntegrationTest {
 
   @DisplayName("Given contextual team input with multiple exercise, should throw an exception")
   @Test
-  @WithMockUser(isAdmin = true)
+  // A single unambiguous write tenant, so the request reaches the contextual guard rather than
+  // being
+  // refused first for an ambiguous scope (the write tenant is now resolved before that guard).
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_contextualTeamWithMultipleExercise_should_throwAnException() {
     // -- PREPARE --
     Exercise exercise1 = ExerciseFixture.getExercise();

@@ -190,6 +190,10 @@ public class InjectService {
     // Get common attributes
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
     Inject inject = input.toInject(injectorContract, injector);
+    // A child inject is always co-tenant with its exercise or scenario: attribute it from the
+    // parent
+    // rather than from the ambient TenantContext.
+    inject.setTenant(exercise != null ? exercise.getTenant() : scenario.getTenant());
     inject.setUser(this.userService.currentUser());
     inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
     inject.setAssets(fromIterable(assetService.assets(input.getAssets())));

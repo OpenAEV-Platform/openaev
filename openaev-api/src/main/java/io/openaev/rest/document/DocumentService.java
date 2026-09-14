@@ -109,9 +109,14 @@ public class DocumentService {
           documentRepository.findFirstByNameOrderByIdAsc(fileName);
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
-        // Update doc
+        // Update doc: store the new bytes under the existing row's tenant so the object stays
+        // co-located with the row that points at it, regardless of the ambient scope.
         fileService.uploadFile(
-            fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
+            document.getTenant().getId(),
+            fileTarget,
+            new ByteArrayInputStream(content),
+            fileSize,
+            fileContentType);
         document.setDescription(input.getDescription());
 
         // Compute exercises
@@ -138,7 +143,7 @@ public class DocumentService {
         return save(document);
       } else {
         fileService.uploadFile(
-            fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
+            tenantId, fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
         Document document = new Document();
         document.setTenant(new Tenant(tenantId));
         document.setTarget(fileTarget);

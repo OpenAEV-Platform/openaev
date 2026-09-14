@@ -72,6 +72,38 @@ public class FileService {
   }
 
   /**
+   * Uploads a file from an input stream under an explicitly named tenant path.
+   *
+   * <p>Use this when the write tenant is resolved from the request scope, so the object is stored
+   * under the same tenant the owning row is attributed to and a later read of that row resolves the
+   * object, whatever the ambient {@link io.openaev.context.TenantContext}.
+   *
+   * @param tenantId the tenant whose path the object is written under
+   * @param name the target file path/name in the bucket
+   * @param data the input stream containing the file data
+   * @param size the size of the file in bytes
+   * @param contentType the MIME type of the file
+   * @throws Exception if the upload fails
+   */
+  public void uploadFile(
+      String tenantId, String name, InputStream data, long size, String contentType)
+      throws Exception {
+    minioService.uploadFileForTenant(tenantId, name, data, size, contentType);
+  }
+
+  /**
+   * Uploads a multipart file under an explicitly named tenant path.
+   *
+   * @param tenantId the tenant whose path the object is written under
+   * @param name the target file path/name in the bucket
+   * @param file the multipart file from an HTTP request
+   * @throws Exception if the upload fails
+   */
+  public void uploadFile(String tenantId, String name, MultipartFile file) throws Exception {
+    uploadFile(tenantId, name, file.getInputStream(), file.getSize(), file.getContentType());
+  }
+
+  /**
    * Uploads a stream to MinIO with metadata.
    *
    * @param path the directory path within the bucket
@@ -154,7 +186,13 @@ public class FileService {
    * @return an Optional containing the file input stream, or empty if not found
    */
   public Optional<InputStream> getFile(Document document) {
-    return getFilePath(document.getTarget());
+    Tenant tenant = document.getTenant();
+    // Resolve the object under the document's own tenant, not the ambient TenantContext: the bytes
+    // live under the tenant the row is attributed to, whatever scope the reader runs under.
+    if (tenant == null || tenant.getId() == null) {
+      return getFilePath(document.getTarget());
+    }
+    return minioService.getFilePathForTenant(tenant.getId(), document.getTarget());
   }
 
   public ResponseEntity<InputStreamResource> getConnectorImage(
