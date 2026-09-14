@@ -3,6 +3,9 @@ package io.openaev.rest.tenancy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -14,6 +17,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.service.FileService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.nio.charset.StandardCharsets;
@@ -28,10 +32,12 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockPart;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * A create handler that receives a {@code TxCtx} attributes the new row from the request's write
@@ -65,6 +71,9 @@ class WriteAttributionRouteTest extends IntegrationTest {
 
   // Chaining create handlers are Enterprise-Edition gated; the license check is stubbed active.
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
+
+  // Spied (real behaviour preserved) to assert the object upload is not reached on a refused scope.
+  @MockitoSpyBean private FileService fileService;
 
   private String tenantB;
 
@@ -483,6 +492,32 @@ class WriteAttributionRouteTest extends IntegrationTest {
           tenantB,
           rowTenant("documents", "document_id", id),
           "the new document upserted with X-Tenant-Ids: B must belong to B, not the default tenant");
+    }
+
+    @Test
+    @DisplayName(
+        "refused write scope: the object is not uploaded before the tenant is resolved (no orphan)")
+    void documentRefusedScopeDoesNotUploadObject() throws Exception {
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      MockPart inputPart = new MockPart("input", "{}".getBytes(StandardCharsets.UTF_8));
+      inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+      MockMultipartFile filePart =
+          new MockMultipartFile(
+              "file",
+              "refused-scope-" + UUID.randomUUID() + ".txt",
+              MediaType.TEXT_PLAIN_VALUE,
+              ("refused-scope-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8));
+      // Two ids in X-Tenant-Ids is an ambiguous write scope: tenantForWrite refuses it with 400
+      // from inside the handler, after argument resolution has succeeded. The upload must not have
+      // run before that refusal, or a rolled-back transaction leaves an orphan object in storage.
+      mvc.perform(
+              multipart("/api/documents")
+                  .part(inputPart)
+                  .file(filePart)
+                  .header("X-Tenant-Ids", tenantB + "," + DEFAULT_TENANT)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+      verify(fileService, never()).uploadFile(anyString(), any(MultipartFile.class));
     }
   }
 

@@ -125,8 +125,10 @@ public class DocumentApi extends RestBehavior {
       document.setTags(tags);
       return documentService.save(document);
     } else {
-      fileService.uploadFile(fileTarget, file);
+      // Resolve the write tenant before any object-storage I/O: a refused scope must return 400
+      // without the upload having persisted an object the rolled-back transaction cannot remove.
       String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+      fileService.uploadFile(fileTarget, file);
       Document document = new Document();
       document.setTenant(new Tenant(tenantId));
       document.setTarget(fileTarget);
