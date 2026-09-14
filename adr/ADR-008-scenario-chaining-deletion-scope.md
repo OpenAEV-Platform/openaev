@@ -50,7 +50,7 @@ public void deleteScenario(@NotBlank final String scenarioId) {
 | `steps.step_workflow_id` → `workflows.workflow_id` | DB FK `ON DELETE CASCADE` (`V4_72__Add_workflow_step_entities.java`) + JPA `CascadeType.ALL`/`orphanRemoval` (`Workflow.java` L85-93) | Step TEMPLATEs of that workflow deleted |
 | `conditions.step_id` → `steps.step_id` | DB FK `ON DELETE CASCADE` (`V4_72__Add_workflow_step_entities.java`) + JPA `CascadeType.ALL`/`orphanRemoval` (`Step.java` L128-136) | Condition TEMPLATEs deleted |
 | `workflow_scope_rules.workflow_id` → `workflows.workflow_id` | DB FK `ON DELETE CASCADE` (`V4_80__Add_workflow_configuration.java`) + JPA `CascadeType.ALL`/`orphanRemoval` (`Workflow.java` L159-166) | Scope Rules TEMPLATE deleted |
-| `scope_variables.workflow_id` → `workflows.workflow_id` | DB FK `ON DELETE CASCADE` (`V5_02__Add_scope_variables.java`) + JPA `CascadeType.ALL`/`orphanRemoval` (`Workflow.java` L189-196) | Scope variables deleted |
+| `scope_variables.scope_variable_workflow` → `workflows.workflow_id` | DB FK `ON DELETE CASCADE` (`V5_02__Add_scope_variables.java`) + JPA `CascadeType.ALL`/`orphanRemoval` (`Workflow.java` L189-196) | Scope variables deleted |
 
 **Why the Simulation (and its own TEMPLATE + RUN workflows) is never affected:**
 
