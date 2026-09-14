@@ -38,16 +38,12 @@ const LoginForm = ({ onSubmit, onResetPassword }: LoginFormProps) => {
           <OldTextField
             name="username"
             type="text"
-            variant="standard"
             label={t('Login')}
-            fullWidth={true}
           />
           <OldTextField
             name="password"
             type="password"
-            variant="standard"
             label={t('Password')}
-            fullWidth={true}
             style={{ marginTop: 16 }}
           />
           <Stack

@@ -159,7 +159,7 @@ const ScopeVariableCreateDialog = ({
     >
       <DialogTitle>{t('Create a new variable')}</DialogTitle>
       <FormProvider {...methods}>
-        <form id="scopeVariableForm" onSubmit={handleSubmit(handleFormSubmit)}>
+        <form noValidate id="scopeVariableForm" onSubmit={handleSubmit(handleFormSubmit)}>
           <DialogContent style={{
             display: 'grid',
             gap: theme.spacing(2),

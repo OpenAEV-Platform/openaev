@@ -1,27 +1,12 @@
 import { DeleteOutlined, ExpandMore } from '@mui/icons-material';
-import {
-  Accordion,
-  AccordionActions,
-  AccordionDetails,
-  AccordionSummary,
-  Badge,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  IconButton,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Accordion, AccordionActions, AccordionDetails, AccordionSummary, Badge, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Tooltip, Typography } from '@mui/material';
 import { CogOutline, InformationOutline } from 'mdi-material-ui';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { Controller, type FieldArrayWithId, useFieldArray, type UseFieldArrayRemove, type UseFormReturn } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import { directFetchInjectorContract } from '../../../../../actions/InjectorContracts';
+import TextFieldFds from '../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../components/i18n';
 import InjectContractComponent from '../../../../../components/InjectContractComponent';
 import RegexComponent from '../../../../../components/RegexComponent';
@@ -199,13 +184,11 @@ const RulesContractContent: FunctionComponent<Props> = ({
             gap: '8px',
           }}
           >
-            <TextField
-              variant="standard"
-              fullWidth
+            <TextFieldFds
+              required
               label={t('Matching type in the xls')}
               style={{ marginTop: 10 }}
-              inputProps={methods.register(`import_mapper_inject_importers.${index}.inject_importer_type_value` as const)}
-              InputLabelProps={{ required: true }}
+              {...methods.register(`import_mapper_inject_importers.${index}.inject_importer_type_value` as const)}
               error={!!methods.formState.errors.import_mapper_inject_importers?.[index]?.inject_importer_type_value}
               helperText={methods.formState.errors.import_mapper_inject_importers?.[index]?.inject_importer_type_value?.message}
             />
@@ -318,10 +301,9 @@ const RulesContractContent: FunctionComponent<Props> = ({
                         {t('Attribute mapping configuration')}
                       </DialogTitle>
                       <DialogContent>
-                        <TextField
-                          fullWidth
+                        <TextFieldFds
                           label={t('Default value')}
-                          inputProps={methods.register(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${currentRuleIndex}.rule_attribute_default_value`)}
+                          {...methods.register(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${currentRuleIndex}.rule_attribute_default_value`)}
                         />
                         {currentRuleIndex === rulesFields.findIndex(r => r.rule_attribute_name === 'trigger_time')
                           && (
@@ -331,11 +313,10 @@ const RulesContractContent: FunctionComponent<Props> = ({
                               gap: '8px',
                             }}
                             >
-                              <TextField
+                              <TextFieldFds
                                 label={t('Time pattern')}
-                                fullWidth
                                 style={{ marginTop: 10 }}
-                                inputProps={methods.register(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${currentRuleIndex}.rule_attribute_additional_config.timePattern`)}
+                                {...methods.register(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${currentRuleIndex}.rule_attribute_additional_config.timePattern`)}
                               />
                               <Tooltip
                                 title={t(
@@ -358,11 +339,10 @@ const RulesContractContent: FunctionComponent<Props> = ({
                               gap: '8px',
                             }}
                             >
-                              <TextField
+                              <TextFieldFds
                                 label={t('All teams value')}
-                                fullWidth
                                 style={{ marginTop: 10 }}
-                                inputProps={methods.register(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${currentRuleIndex}.rule_attribute_additional_config.allTeamsValue`)}
+                                {...methods.register(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${currentRuleIndex}.rule_attribute_additional_config.allTeamsValue`)}
                               />
                               <Tooltip
                                 title={t(

@@ -71,7 +71,7 @@ const CreateArticle: FunctionComponent<CreateArticleProps> = ({
         <DialogTitle>{t('Create a new media pressure article')}</DialogTitle>
         <DialogContent style={{ overflowX: 'hidden' }}>
           <FormProvider {...methods}>
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form noValidate onSubmit={handleSubmit(onSubmit)}>
               <ArticleForm
                 editing={false}
                 handleClose={handleClose}

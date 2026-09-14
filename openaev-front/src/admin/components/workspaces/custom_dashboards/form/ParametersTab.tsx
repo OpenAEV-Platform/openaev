@@ -62,7 +62,6 @@ const ParametersTab = () => {
                 <TextFieldController
                   name={`custom_dashboard_parameters.${index}.custom_dashboards_parameter_name`}
                   label={t('Parameter Name')}
-                  variant="standard"
                   required
                   noHelperText
                 />

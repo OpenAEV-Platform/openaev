@@ -35,9 +35,7 @@ const CommunicationForm = ({ onSubmit, handleClose, initialValues }) => {
       {({ handleSubmit, submitting, pristine }) => (
         <form id="communicationForm" onSubmit={handleSubmit}>
           <OldTextField
-            variant="standard"
             name="communication_subject"
-            fullWidth={true}
             label={t('Subject')}
             disabled={true}
           />

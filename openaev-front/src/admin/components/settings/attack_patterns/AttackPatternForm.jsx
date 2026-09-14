@@ -35,7 +35,6 @@ const AttackPatternForm = (props) => {
         <form id="attackPatternForm" onSubmit={handleSubmit}>
           <OldTextField
             name="attack_pattern_external_id"
-            fullWidth
             label={t('External ID')}
             style={{ marginTop: 10 }}
           />
@@ -48,14 +47,12 @@ const AttackPatternForm = (props) => {
           />
           <OldTextField
             name="attack_pattern_name"
-            fullWidth
             label={t('Name')}
             style={{ marginTop: 20 }}
           />
           <OldTextField
             name="attack_pattern_description"
             multiline
-            fullWidth
             rows={3}
             label={t('Description')}
             style={{ marginTop: 20 }}

@@ -280,7 +280,7 @@ const ChallengeForm: FunctionComponent<Props> = ({
   // Rendering
   return (
     <FormProvider {...methods}>
-      <form id="challengeForm" onSubmit={handleSubmit(onSubmit)}>
+      <form noValidate id="challengeForm" onSubmit={handleSubmit(onSubmit)}>
         <TextFieldController
           name="challenge_name"
           label={t('Name')}

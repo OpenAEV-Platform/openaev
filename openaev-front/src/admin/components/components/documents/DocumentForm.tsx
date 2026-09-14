@@ -77,7 +77,6 @@ const DocumentForm: FunctionComponent<Props> = ({
         }}
         >
           <TextFieldController
-            variant="standard"
             name="document_description"
             multiline
             rows={2}

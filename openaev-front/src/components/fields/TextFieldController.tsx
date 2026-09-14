@@ -1,15 +1,11 @@
-import { Visibility, VisibilityOff } from '@mui/icons-material';
-import {
-  IconButton,
-  InputAdornment,
-  TextField,
-  type TextFieldVariants,
-} from '@mui/material';
+import { Icon } from '@filigran/design-system';
+// fds:keep-mui one site needs a text suffix inside the field (`endAdornmentLabel`); the library has no text slot — LIBRARY-FEEDBACK #50
+import { InputAdornment, TextField as MuiTextField } from '@mui/material';
 import { type CSSProperties, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
-import { makeStyles } from 'tss-react/mui';
 
 import DOTS from '../../constants/Strings';
+import TextFieldFds from './TextFieldFds';
 
 interface Props {
   name: string;
@@ -19,18 +15,15 @@ interface Props {
   required?: boolean;
   disabled?: boolean;
   style?: CSSProperties;
-  variant?: TextFieldVariants;
   placeholder?: string;
-  size?: 'medium' | 'small';
-  endAdornmentLabel?: string;
-  startAdornmentLabel?: string;
+  helperText?: string;
   type?: 'number' | 'text' | 'password';
   defaultValue?: string;
   noHelperText?: boolean;
   writeOnly?: boolean;
+  /** Text suffix drawn inside the field. Keeps the MUI field until the library offers a text slot. */
+  endAdornmentLabel?: string;
 }
-
-const useStyles = makeStyles()(theme => ({ root: { '& .MuiOutlinedInput-root': { background: theme.palette.background.code } } }));
 
 const TextFieldController = ({
   name,
@@ -40,18 +33,15 @@ const TextFieldController = ({
   required = false,
   disabled = false,
   style = {},
-  variant = 'standard',
   placeholder = '',
-  size = 'medium',
-  endAdornmentLabel,
-  startAdornmentLabel,
+  helperText,
   type = 'text',
   defaultValue = '',
   noHelperText = false,
   writeOnly = false,
+  endAdornmentLabel,
 }: Props) => {
   const { control } = useFormContext();
-  const { classes } = useStyles();
 
   const [isOriginalValue, setIsOriginalValue] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -68,7 +58,7 @@ const TextFieldController = ({
       render={({ field, fieldState: { error } }) => {
         const isMasked = writeOnly && isOriginalValue && !!field.value;
 
-        const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
           // First user input replaces the masked value
           if (isMasked) {
             const next = stripDots(e.target.value);
@@ -79,62 +69,49 @@ const TextFieldController = ({
           setIsOriginalValue(false);
         };
 
+        if (endAdornmentLabel) {
+          return (
+            <MuiTextField
+              {...field}
+              type={type}
+              label={required ? `${label}*` : label}
+              fullWidth
+              variant="outlined"
+              onChange={handleChange}
+              error={!!error}
+              helperText={!noHelperText && error ? error.message : null}
+              disabled={disabled}
+              placeholder={placeholder}
+              style={style}
+              value={field.value}
+              slotProps={{ input: { endAdornment: <InputAdornment position="end">{endAdornmentLabel}</InputAdornment> } }}
+            />
+          );
+        }
+
         return (
-          <TextField
+          <TextFieldFds
             {...field}
             type={showPassword ? 'text' : type}
-            className={classes.root}
-            label={required ? `${label}*` : label}
-            fullWidth
+            label={label || undefined}
+            required={required}
             onChange={handleChange}
-            error={!!error}
-            helperText={!noHelperText && error ? error.message : null}
+            error={!noHelperText && error ? error.message : !!error}
+            helperText={helperText}
             multiline={multiline}
             rows={rows}
             disabled={disabled}
             placeholder={placeholder}
             style={style}
-            variant={variant}
             value={isMasked ? DOTS : field.value}
-            size={size}
-            slotProps={{
-              input: {
-                ...(type === 'password'
-                  ? {
-                      endAdornment: (
-                        <IconButton
-                          disabled={disabled || (writeOnly && isOriginalValue)}
-                          aria-label={
-                            showPassword ? 'Hide the password' : 'Display the password'
-                          }
-                          onClick={handleClickShowPassword}
-                          edge="end"
-                        >
-                          {showPassword ? (<VisibilityOff fontSize="small" />) : (<Visibility fontSize="small" />)}
-                        </IconButton>
-                      ),
-                    }
-                  : {}),
-                ...(endAdornmentLabel
-                  ? {
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          {endAdornmentLabel}
-                        </InputAdornment>
-                      ),
-                    }
-                  : {}),
-                ...(startAdornmentLabel
-                  ? {
-                      startAdornment: (
-                        <InputAdornment sx={{ alignSelf: 'flex-start' }} position="start">
-                          {startAdornmentLabel}
-                        </InputAdornment>
-                      ),
-                    }
-                  : {}),
-              },
-            }}
+            endIcon={type === 'password'
+              ? {
+                  type: 'iconButton',
+                  icon: <Icon name={showPassword ? 'eye-off' : 'eye'} size={16} aria-hidden />,
+                  onClick: handleClickShowPassword,
+                  label: showPassword ? 'Hide the password' : 'Display the password',
+                }
+              : undefined}
           />
         );
       }}

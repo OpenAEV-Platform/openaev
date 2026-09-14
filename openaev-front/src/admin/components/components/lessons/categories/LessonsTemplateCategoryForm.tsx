@@ -51,7 +51,7 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
   });
 
   return (
-    <form id="lessonTemplateCategoryForm" onSubmit={handleSubmit(onSubmit)}>
+    <form noValidate id="lessonTemplateCategoryForm" onSubmit={handleSubmit(onSubmit)}>
       <div style={{
         display: 'flex',
         flexDirection: 'column',
@@ -59,33 +59,27 @@ const LessonsTemplateCategoryForm: FunctionComponent<Props> = ({
       }}
       >
         <TextField
-          variant="standard"
-          fullWidth
+          required
           label={t('Name')}
           error={!!errors.lessons_template_category_name}
           helperText={errors.lessons_template_category_name?.message}
-          inputProps={register('lessons_template_category_name')}
-          InputLabelProps={{ required: true }}
+          {...register('lessons_template_category_name')}
           control={control}
         />
         <TextField
-          variant="standard"
-          fullWidth
           label={t('Description')}
           error={!!errors.lessons_template_category_description}
           helperText={errors.lessons_template_category_description?.message}
-          inputProps={register('lessons_template_category_description')}
+          {...register('lessons_template_category_description')}
           control={control}
         />
         <TextField
-          variant="standard"
-          fullWidth
+          required
           label={t('Order')}
           error={!!errors.lessons_template_category_order}
           helperText={errors.lessons_template_category_order?.message}
-          inputProps={register('lessons_template_category_order')}
+          {...register('lessons_template_category_order')}
           type="number"
-          InputLabelProps={{ required: true }}
           control={control}
         />
       </div>

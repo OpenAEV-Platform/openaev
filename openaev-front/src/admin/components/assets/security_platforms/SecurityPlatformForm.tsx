@@ -8,13 +8,14 @@ import {
   SelectValue,
 } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, TextField } from '@mui/material';
+import { Button } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import FileLoader from '../../../../components/fields/FileLoader';
 import TagField from '../../../../components/fields/TagField';
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { type SecurityPlatformInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
@@ -67,10 +68,8 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
   });
 
   return (
-    <form id="securityPlatformForm" onSubmit={handleSubmit(onSubmit)}>
-      <TextField
-        variant="standard"
-        fullWidth
+    <form noValidate id="securityPlatformForm" onSubmit={handleSubmit(onSubmit)}>
+      <TextFieldFds
         label={t('Name')}
         style={{ marginTop: 10 }}
         error={!!errors.asset_name}
@@ -111,9 +110,7 @@ const SecurityPlatformForm: FunctionComponent<Props> = ({
           </div>
         )}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         multiline
         rows={2}
         label={t('Description')}

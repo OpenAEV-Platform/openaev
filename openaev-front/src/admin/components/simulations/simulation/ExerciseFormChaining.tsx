@@ -8,12 +8,7 @@ import {
 } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ExpandMore } from '@mui/icons-material';
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Alert, AlertTitle, Button, GridLegacy, MenuItem, TextField as MuiTextField, Typography,
-} from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert, AlertTitle, Button, GridLegacy, MenuItem, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useState } from 'react';
@@ -24,6 +19,7 @@ import type { LoggedHelper } from '../../../../actions/helper';
 import SelectField from '../../../../components/fields/SelectField';
 import TagField from '../../../../components/fields/TagField';
 import TextField from '../../../../components/fields/TextField';
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type CreateExerciseInput, type PlatformSettings } from '../../../../utils/api-types';
@@ -107,6 +103,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
 
   return (
     <form
+      noValidate
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -124,13 +121,11 @@ const ExerciseForm: FunctionComponent<Props> = ({
       </Typography>
 
       <TextField
-        variant="standard"
-        fullWidth
+        required
         label={t('Name')}
         error={!!errors.exercise_name}
         helperText={errors.exercise_name?.message}
-        inputProps={register('exercise_name')}
-        InputLabelProps={{ required: true }}
+        {...register('exercise_name')}
         control={control}
         setValue={setValue}
         askAi={true}
@@ -220,14 +215,12 @@ const ExerciseForm: FunctionComponent<Props> = ({
         </GridLegacy>
       </GridLegacy>
       <TextField
-        variant="standard"
-        fullWidth
         multiline
         rows={2}
         label={t('Description')}
         error={!!errors.exercise_description}
         helperText={errors.exercise_description?.message}
-        inputProps={register('exercise_description')}
+        {...register('exercise_description')}
         control={control}
         setValue={setValue}
         askAi={true}
@@ -298,20 +291,16 @@ const ExerciseForm: FunctionComponent<Props> = ({
             gap: theme.spacing(2),
           }}
           >
-            <MuiTextField
-              variant="standard"
-              fullWidth
+            <TextFieldFds
               label={t('Sender email address')}
               value={settings.default_mailer ?? ''}
               disabled
             />
-            <MuiTextField
-              variant="standard"
-              fullWidth
+            <TextFieldFds
               label={t('Sender email from')}
               error={!!errors.exercise_mail_from_name}
               helperText={errors.exercise_mail_from_name?.message}
-              inputProps={register('exercise_mail_from_name')}
+              {...register('exercise_mail_from_name')}
               disabled={disabled}
             />
 
@@ -372,22 +361,18 @@ const ExerciseForm: FunctionComponent<Props> = ({
                 {t('If you remove the default email address, the email reception for this simulation / scenario will be disabled.')}
               </AlertTitle>
             </Alert>
-            <MuiTextField
-              variant="standard"
-              fullWidth
+            <TextFieldFds
               label={t('Messages header')}
               error={!!errors.exercise_message_header}
               helperText={errors.exercise_message_header?.message}
-              inputProps={register('exercise_message_header')}
+              {...register('exercise_message_header')}
               disabled={disabled}
             />
-            <MuiTextField
-              variant="standard"
-              fullWidth
+            <TextFieldFds
               label={t('Messages footer')}
               error={!!errors.exercise_message_footer}
               helperText={errors.exercise_message_footer?.message}
-              inputProps={register('exercise_message_footer')}
+              {...register('exercise_message_footer')}
               disabled={disabled}
             />
           </AccordionDetails>

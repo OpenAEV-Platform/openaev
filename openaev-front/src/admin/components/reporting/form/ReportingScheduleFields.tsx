@@ -6,6 +6,7 @@ import {
   ComboboxInput,
   ComboboxLabel,
 } from '@filigran/design-system';
+// fds:keep-mui the time-of-day field needs `type="time"`, which the library Input does not offer — LIBRARY-FEEDBACK #49
 import { TextField as MuiTextField } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
@@ -82,7 +83,6 @@ const ReportingScheduleFields: FunctionComponent<Props> = ({ showEnabledSwitch =
         <SwitchFieldController name="schedule_enabled" label={t('Enabled')} />
       )}
       <TextFieldController
-        variant="standard"
         name="schedule_name"
         label={t('Name')}
       />

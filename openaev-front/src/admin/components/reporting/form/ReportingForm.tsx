@@ -388,8 +388,8 @@ const ReportingForm: FunctionComponent<Props> = ({
       gap: 2,
     }}
     >
-      <TextFieldController variant="standard" name="reporting_name" label={t('Name')} required />
-      <TextFieldController variant="standard" name="reporting_description" label={t('Description')} multiline rows={2} />
+      <TextFieldController name="reporting_name" label={t('Name')} required />
+      <TextFieldController name="reporting_description" label={t('Description')} multiline rows={2} />
       <Controller
         control={control}
         name="reporting_context_type"
@@ -608,8 +608,6 @@ const ReportingForm: FunctionComponent<Props> = ({
                           </Typography>
                           <Box sx={{ flex: 1 }}>
                             <TextFieldController
-                              variant="standard"
-                              size="small"
                               name={`modules.${index}.module_title`}
                               label={t('Custom title (optional)')}
                               noHelperText
@@ -717,12 +715,12 @@ const ReportingForm: FunctionComponent<Props> = ({
         gap: 2,
       }}
       >
-        <ColorPickerField variant="standard" fullWidth label={t('Primary color')} control={control} name="branding_primary_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Secondary color')} control={control} name="branding_secondary_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Accent color')} control={control} name="branding_accent_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Background color')} control={control} name="branding_background_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Paper color')} control={control} name="branding_paper_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Text color')} control={control} name="branding_text_color" />
+        <ColorPickerField label={t('Primary color')} control={control} name="branding_primary_color" />
+        <ColorPickerField label={t('Secondary color')} control={control} name="branding_secondary_color" />
+        <ColorPickerField label={t('Accent color')} control={control} name="branding_accent_color" />
+        <ColorPickerField label={t('Background color')} control={control} name="branding_background_color" />
+        <ColorPickerField label={t('Paper color')} control={control} name="branding_paper_color" />
+        <ColorPickerField label={t('Text color')} control={control} name="branding_text_color" />
       </Box>
       <Controller
         control={control}
@@ -756,6 +754,7 @@ const ReportingForm: FunctionComponent<Props> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="reportingForm"
         style={{
           display: 'flex',

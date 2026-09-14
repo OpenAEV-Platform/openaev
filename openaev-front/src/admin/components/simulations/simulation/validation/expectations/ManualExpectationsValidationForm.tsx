@@ -6,7 +6,7 @@ import {
   SelectValue,
 } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Chip, Grid, Slider, TextField as MuiTextField, Typography } from '@mui/material';
+import { Button, Chip, Grid, Slider, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -18,6 +18,7 @@ import { type UserHelper } from '../../../../../../actions/helper';
 import { fetchTeams } from '../../../../../../actions/teams/team-actions';
 import { type TeamsHelper } from '../../../../../../actions/teams/team-helper';
 import { fetchPlayers } from '../../../../../../actions/users/User';
+import TextFieldFds from '../../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../../components/i18n';
 import { useHelper } from '../../../../../../store';
 import { type Team, type User } from '../../../../../../utils/api-types';
@@ -136,20 +137,16 @@ const ManualExpectationsValidationForm: FunctionComponent<FormProps> = ({
         {withSummary && targetLabel(expectation)}
         <Grid container spacing={3} className={withSummary ? classes.marginTop_2 : classes.scoreAcc}>
           <Grid size={{ xs: 6 }}>
-            <MuiTextField
-              variant="standard"
-              fullWidth
+            <TextFieldFds
               label={t('Score')}
               type="number"
               error={!!errors.expectation_score}
               disabled={isDisabled}
               helperText={errors.expectation_score?.message ?? `${t('Expected score:')} ${expectation.inject_expectation_expected_score}`}
-              slotProps={{
-                htmlInput: {
-                  ...register('expectation_score', { valueAsNumber: true }),
-                  min: 0,
-                  max: 100,
-                },
+              {...{
+                ...register('expectation_score', { valueAsNumber: true }),
+                min: 0,
+                max: 100,
               }}
             />
           </Grid>

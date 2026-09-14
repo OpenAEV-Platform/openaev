@@ -19,23 +19,7 @@ import {
   type SvgIconComponent,
   TrackChanges,
 } from '@mui/icons-material';
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardActionArea,
-  Skeleton,
-  Stack,
-  Step,
-  StepLabel,
-  Stepper,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Card, CardActionArea, Skeleton, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
 import { alpha, type Theme, useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
@@ -43,6 +27,7 @@ import {
   type AutonomousRunCreateInput,
   ORCHESTRATOR_AGENT_ID,
 } from '../../../actions/autonomous/autonomous-types';
+import TextFieldFds from '../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../components/i18n';
 import useAuth from '../../../utils/hooks/useAuth';
 import { toHttpUrl } from '../../../utils/url-helper';
@@ -178,14 +163,13 @@ export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demote
   const xtmOneUrl = toHttpUrl(settings.platform_xtm_one_url)?.replace(/\/+$/, '');
 
   const objectiveField = (
-    <TextField
+    <TextFieldFds
       value={config.objective}
       onChange={event => config.setObjective(event.target.value)}
       label={t('Objective (free text)')}
       placeholder={t('e.g. Reach the domain controller and prove domain admin from an initial foothold')}
       multiline
       minRows={3}
-      fullWidth
       disabled={disabled}
     />
   );
@@ -361,7 +345,7 @@ export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demote
                   {timeBudgetNote}
                 </Alert>
               )}
-              <TextField
+              <TextFieldFds
                 type="number"
                 value={config.timeoutHours}
                 onChange={(event) => {
@@ -369,15 +353,12 @@ export const AutonomousRunConfigFields = ({ config, activeStep, disabled, demote
                   config.setTimeoutHours(Number.isFinite(parsed) && parsed > 0 ? parsed : 1);
                 }}
                 label={t('Timeout (hours)')}
-                slotProps={{
-                  htmlInput: {
-                    min: 1,
-                    max: 720,
-                    step: 1,
-                  },
+                {...{
+                  min: 1,
+                  max: 720,
+                  step: 1,
                 }}
                 helperText={t('Maximum duration of a live run. OpenAEV steers the orchestrator to converge a few minutes before this deadline, then hard-stops the run.')}
-                fullWidth
                 disabled={disabled}
               />
             </Box>

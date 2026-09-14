@@ -66,7 +66,7 @@ const ChannelForm: FunctionComponent<Props> = ({
 
   return (
     <FormProvider {...methods}>
-      <form id="channelForm" onSubmit={handleSubmit(onSubmit)}>
+      <form noValidate id="channelForm" onSubmit={handleSubmit(onSubmit)}>
         <div style={{
           display: 'flex',
           flexDirection: 'column',
@@ -80,13 +80,11 @@ const ChannelForm: FunctionComponent<Props> = ({
             required
           />
           <TextFieldController
-            variant="standard"
             name="channel_name"
             label={t('Name')}
             required
           />
           <TextFieldController
-            variant="standard"
             name="channel_description"
             label={t('Subtitle')}
             required

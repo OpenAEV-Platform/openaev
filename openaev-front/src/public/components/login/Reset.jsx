@@ -65,9 +65,7 @@ const Reset = ({ onCancel }) => {
                   <OldTextField
                     name="username"
                     type="text"
-                    variant="standard"
                     label={t('Email address')}
-                    fullWidth={true}
                     style={{ marginTop: 5 }}
                   />
                   <div style={{
@@ -108,9 +106,7 @@ const Reset = ({ onCancel }) => {
                   <OldTextField
                     name="code"
                     type="text"
-                    variant="standard"
                     label={t('Enter code')}
-                    fullWidth={true}
                     style={{ marginTop: 5 }}
                   />
                   <Button
@@ -136,17 +132,13 @@ const Reset = ({ onCancel }) => {
                   <OldTextField
                     name="password"
                     type="password"
-                    variant="standard"
                     label={t('Password')}
-                    fullWidth={true}
                     style={{ marginTop: 5 }}
                   />
                   <OldTextField
                     name="password_validation"
                     type="password"
-                    variant="standard"
                     label={t('Password validation')}
-                    fullWidth={true}
                     style={{ marginTop: 5 }}
                   />
                   <Button

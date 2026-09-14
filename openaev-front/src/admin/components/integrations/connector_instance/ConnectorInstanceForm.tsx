@@ -275,7 +275,7 @@ const ConnectorInstanceForm = ({
           required
           disabled={disabled}
         />
-        <TextField id="catalog-connector-slug" label={t('Instance name')} disabled defaultValue={catalogConnectorSlug} />
+        <TextField fullWidth={false} id="catalog-connector-slug" label={t('Instance name')} disabled defaultValue={catalogConnectorSlug} />
         {requiredFields.map(({ index, field, definition }) => (
           <div
             key={field.id}

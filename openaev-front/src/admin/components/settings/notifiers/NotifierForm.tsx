@@ -7,9 +7,10 @@ import {
   SelectValue,
 } from '@filigran/design-system';
 import { AddOutlined, DeleteOutlined } from '@mui/icons-material';
-import { Button, IconButton, TextField, Typography } from '@mui/material';
+import { Button, IconButton, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
 
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { type NotifierInput, type NotifierOutput } from '../../../../utils/api-types';
 
@@ -91,18 +92,14 @@ const NotifierForm: FunctionComponent<Props> = ({
 
   return (
     <form id="notifierForm" onSubmit={handleSubmit}>
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Name')}
         value={name}
         onChange={e => setName(e.target.value)}
         error={!!nameError}
         helperText={nameError}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Description')}
         value={description}
         onChange={e => setDescription(e.target.value)}
@@ -135,9 +132,7 @@ const NotifierForm: FunctionComponent<Props> = ({
       </div>
       {type === 'EMAIL' && (
         <>
-          <TextField
-            variant="standard"
-            fullWidth
+          <TextFieldFds
             label={t('Subject template')}
             value={subject}
             onChange={e => setSubject(e.target.value)}
@@ -145,9 +140,7 @@ const NotifierForm: FunctionComponent<Props> = ({
             // eslint-disable-next-line no-template-curly-in-string
             placeholder="[OpenAEV] ${notification_name}"
           />
-          <TextField
-            variant="standard"
-            fullWidth
+          <TextFieldFds
             multiline
             minRows={6}
             label={t('Body template (FreeMarker, empty = default template)')}
@@ -159,9 +152,7 @@ const NotifierForm: FunctionComponent<Props> = ({
       )}
       {type === 'WEBHOOK' && (
         <>
-          <TextField
-            variant="standard"
-            fullWidth
+          <TextFieldFds
             label={t('URL')}
             value={url}
             onChange={e => setUrl(e.target.value)}
@@ -196,8 +187,8 @@ const NotifierForm: FunctionComponent<Props> = ({
                 alignItems: 'end',
               }}
             >
-              <TextField
-                variant="standard"
+              <TextFieldFds
+                fullWidth={false}
                 label={t('Key')}
                 value={header.key}
                 onChange={e => setHeaders(headers.map((existing, i) => (i === index
@@ -208,8 +199,8 @@ const NotifierForm: FunctionComponent<Props> = ({
                   : existing)))}
                 style={{ flex: 1 }}
               />
-              <TextField
-                variant="standard"
+              <TextFieldFds
+                fullWidth={false}
                 label={t('Value')}
                 value={header.value}
                 onChange={e => setHeaders(headers.map((existing, i) => (i === index
@@ -240,9 +231,7 @@ const NotifierForm: FunctionComponent<Props> = ({
           >
             {t('Add header')}
           </Button>
-          <TextField
-            variant="standard"
-            fullWidth
+          <TextFieldFds
             multiline
             minRows={6}
             label={t('Body template (FreeMarker, empty = default JSON payload)')}
