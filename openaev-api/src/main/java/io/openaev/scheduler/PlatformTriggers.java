@@ -50,6 +50,16 @@ public class PlatformTriggers {
   }
 
   @Bean
+  public Trigger injectsFinalizationTrigger() {
+    return newTrigger()
+        .forJob(platformJobs.getInjectsFinalization())
+        .withIdentity("InjectsFinalizationTrigger")
+        // Offset from the dispatch job so the two never contend for the same DB connections
+        .withSchedule(cronSchedule("30 0/1 * * * ?"))
+        .build();
+  }
+
+  @Bean
   public Trigger comchecksExecutionTrigger() {
     return newTrigger()
         .forJob(platformJobs.getComchecksExecution())

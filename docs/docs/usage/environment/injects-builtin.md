@@ -47,11 +47,11 @@ Published articles appear in the Player interface during the Simulation. See [Me
 
 The phishing Injector (`openaev_phishing`) runs built-in (internal) phishing exercises. It reuses the platform's global SMTP configuration to send lure emails and does not require any external component.
 
-Each phishing [Landing Page](../build/components/phishing.md) synthesizes its own Threat Arsenal action, so running a phishing exercise is a regular Inject that uses the generated action. The Inject targets Teams and references a reusable Email Template, with optional subject and sender overrides.
+Each phishing [Landing Page](../build/components/phishing/overview.md) synthesizes its own Threat Arsenal action, so running a phishing exercise is a regular Inject that uses the generated action. The Inject targets Teams and references a reusable Email Template, with optional subject and sender overrides.
 
-On execution, each recipient receives a per-recipient lure email with a unique tracking link. Open (tracking pixel), click (landing page), and submit (captured credentials) events are recorded per recipient and automatically fulfill the Inject expectations. Submitted credentials are stored as a Credentials Finding.
+On execution, each recipient receives a per-recipient lure email with a unique tracking link. Open (tracking pixel), click (landing page), and submit (captured credentials) events are recorded per recipient and score the Inject expectations. The three human-response expectations are inverted: each step starts green ("resisted") and turns red when the recipient performs it. When the Landing Page has capture enabled, submitted credentials are also stored as a Credentials Finding.
 
-See [Phishing](../build/components/phishing.md) for details on creating Landing Pages and Email Templates.
+See [Phishing](../build/components/phishing/overview.md) for details on creating Landing Pages and Email Templates, and [Results and scoring](../build/components/phishing/results.md) for how the expectations are filled.
 
 ## Challenge Injector
 

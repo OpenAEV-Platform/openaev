@@ -42,8 +42,14 @@ public class SecretReference implements TenantBase {
 
   public enum SECRET_STATUS {
     ACTIVE,
-    INACTIVE,
-    UNSET;
+    AUTH_FAILED,
+    PERMISSION_DENIED,
+    TIMEOUT,
+    NETWORK_ERROR,
+    UNSUPPORTED,
+    FORMAT_ERROR,
+    UNKNOWN,
+    UNSET
   }
 
   @Id
@@ -124,4 +130,10 @@ public class SecretReference implements TenantBase {
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
   private Tenant tenant;
+
+  @Override
+  @JsonIgnore
+  public boolean isListened() {
+    return false;
+  }
 }

@@ -25,6 +25,8 @@ public class Mixins {
         "scenario_message_header",
         "scenario_message_footer",
         "scenario_mail_from",
+        "scenario_lessons_anonymized",
+        "scenario_lessons_enabled",
         "scenario_tags",
         "scenario_documents",
         "scenario_dependencies",
@@ -90,6 +92,8 @@ public class Mixins {
         "exercise_message_header",
         "exercise_message_footer",
         "exercise_mail_from",
+        "exercise_lessons_anonymized",
+        "exercise_lessons_enabled",
         "exercise_tags",
         "exercise_documents",
       })

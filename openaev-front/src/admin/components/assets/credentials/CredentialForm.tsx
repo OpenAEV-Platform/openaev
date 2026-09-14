@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@mui/material';
+import { Button, CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useMemo, useState } from 'react';
 import {
@@ -228,11 +228,11 @@ const CredentialForm: FunctionComponent<Props> = ({
       isInMandatoryGroup: false,
       mandatoryGroupContractElementLabels: '',
       isVisible: true,
+      readOnly: false,
       key: `${field.field_name}`,
       type: formatFieldType(field.field_type),
       mandatory: isRequired,
       label: t(`${field.field_name}`) ?? '',
-      readOnly: false,
       choices: field.choices?.map((value: string) => ({
         label: t(`${value}`),
         value,
@@ -292,6 +292,7 @@ const CredentialForm: FunctionComponent<Props> = ({
           name="credential_name"
           label={t('Name')}
           required
+          disabled={isSubmitting}
         />
 
         <TextFieldController
@@ -299,9 +300,10 @@ const CredentialForm: FunctionComponent<Props> = ({
           name="credential_description"
           label={t('Description')}
           multiline
+          disabled={isSubmitting}
         />
 
-        <TagFieldController name="credential_tags" label={t('Tags')} />
+        <TagFieldController name="credential_tags" label={t('Tags')} disabled={isSubmitting} />
 
         <SelectFieldController
           name="credential_type"
@@ -311,7 +313,7 @@ const CredentialForm: FunctionComponent<Props> = ({
             value: type,
             label: t(`${type}`),
           }))}
-          disabled={isLoadingContracts || availableTypes.length < 2}
+          disabled={isSubmitting || isLoadingContracts || availableTypes.length < 2}
         />
 
         <SelectFieldController
@@ -322,7 +324,7 @@ const CredentialForm: FunctionComponent<Props> = ({
             value: method,
             label: t(`${humanizeEnum(method)}`),
           }))}
-          disabled={isLoadingContracts || availableAuthMethods.length === 0}
+          disabled={isSubmitting || isLoadingContracts || availableAuthMethods.length === 0}
         />
 
         {(selectedContract?.fields ?? [])
@@ -362,6 +364,13 @@ const CredentialForm: FunctionComponent<Props> = ({
             type="submit"
             disabled={isSubmitting || !isDirty}
           >
+            {isSubmitting && (
+              <CircularProgress
+                size={16}
+                color="inherit"
+                sx={{ marginRight: theme.spacing(1) }}
+              />
+            )}
             {editing ? t('Update') : t('Create')}
           </Button>
         </div>

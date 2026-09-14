@@ -17,6 +17,7 @@ public record SecretMetadata(
     HashSecret.HASH_ALGORITHM hashAlgorithm,
     AwsRegion awsDefaultRegion,
     String awsAccessKeyId,
+    boolean awsSessionTokenPresent,
     String awsRoleArn,
     AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
     String awsSourceProfileAccessKeyId,
@@ -26,21 +27,35 @@ public record SecretMetadata(
     String azureSubscriptionId) {
 
   public static SecretMetadata empty() {
-    return new SecretMetadata(null, null, null, null, null, null, null, null, null, null, null);
+    return new SecretMetadata(
+        null, null, null, null, false, null, null, null, null, null, null, null);
   }
 
   public static SecretMetadata forUsername(String username) {
-    return new SecretMetadata(username, null, null, null, null, null, null, null, null, null, null);
+    return new SecretMetadata(
+        username, null, null, null, false, null, null, null, null, null, null, null);
   }
 
   public static SecretMetadata forHashAlgorithm(HashSecret.HASH_ALGORITHM hashAlgorithm) {
     return new SecretMetadata(
-        null, hashAlgorithm, null, null, null, null, null, null, null, null, null);
+        null, hashAlgorithm, null, null, false, null, null, null, null, null, null, null);
   }
 
-  public static SecretMetadata forAwsAccessKey(AwsRegion awsDefaultRegion, String awsAccessKeyId) {
+  public static SecretMetadata forAwsAccessKey(
+      AwsRegion awsDefaultRegion, String awsAccessKeyId, boolean awsSessionTokenPresent) {
     return new SecretMetadata(
-        null, null, awsDefaultRegion, awsAccessKeyId, null, null, null, null, null, null, null);
+        null,
+        null,
+        awsDefaultRegion,
+        awsAccessKeyId,
+        awsSessionTokenPresent,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
   }
 
   public static SecretMetadata forAwsAssumeRole(
@@ -53,6 +68,7 @@ public record SecretMetadata(
         null,
         awsDefaultRegion,
         null,
+        false,
         awsRoleArn,
         awsSourceIdentityType,
         awsSourceProfileAccessKeyId,
@@ -85,6 +101,7 @@ public record SecretMetadata(
         null,
         null,
         null,
+        false,
         null,
         null,
         null,
@@ -112,6 +129,7 @@ public record SecretMetadata(
         null,
         null,
         null,
+        false,
         null,
         null,
         null,

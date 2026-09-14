@@ -1,16 +1,20 @@
 package io.openaev.xtmhub;
 
-import io.openaev.context.TenantContext;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
+import io.openaev.rest.exception.TenantWriteScopeException;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.UserService;
 import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.LicenseUtils;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.xtmhub.config.XtmHubConfig;
 import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
@@ -19,7 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import lombok.AllArgsConstructor;
+import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -27,7 +32,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class XtmHubService {
   private static final long CONNECTIVITY_EMAIL_THRESHOLD_HOURS = 24;
 
@@ -39,15 +44,19 @@ public class XtmHubService {
   private final XtmHubEmailService xtmHubEmailService;
   private final TenantXtmHubRegistrationRepository tenantXtmHubRegistrationRepository;
   private final TenantRepository tenantRepository;
+  private final TenantWriteScopeResolver tenantWriteScopeResolver;
+  private final TenantScopedTransaction tenantTx;
 
-  public Optional<TenantXtmHubRegistration> getRegistration() {
-    return tenantXtmHubRegistrationRepository.findByTenantId(TenantContext.getCurrentTenant());
+  public Optional<TenantXtmHubRegistration> getRegistration(TxCtx ctx) {
+    return tenantXtmHubRegistrationRepository.findByTenantId(
+        singleTenantScope(ctx, "Reading the XTM Hub registration"));
   }
 
-  public TenantXtmHubRegistration register(@NotBlank final String token) {
+  public TenantXtmHubRegistration register(TxCtx ctx, @NotBlank final String token) {
+    String tenantId = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     User currentUser = userService.currentUser();
 
-    TenantXtmHubRegistration registration = findOrCreateRegistration();
+    TenantXtmHubRegistration registration = findOrCreateRegistration(tenantId);
     registration.setToken(token);
     registration.setRegistrationDate(LocalDateTime.now());
     registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
@@ -58,10 +67,10 @@ public class XtmHubService {
     return tenantXtmHubRegistrationRepository.save(registration);
   }
 
-  public void autoRegister(@NotBlank final String token) {
+  public void autoRegister(TxCtx ctx, @NotBlank final String token) {
     PlatformSettings settings = platformSettingsService.findSettings();
     Long usersCount = userService.globalCount();
-    String tenantId = TenantContext.getCurrentTenant();
+    String tenantId = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     String tenantName = tenantRepository.findById(tenantId).map(Tenant::getName).orElse(tenantId);
     if (!xtmHubClient.autoRegister(
         token,
@@ -76,7 +85,7 @@ public class XtmHubService {
       throw new ResponseStatusException(
           HttpStatus.BAD_GATEWAY, "Failed to register the platform on XtmHub");
     }
-    TenantXtmHubRegistration registration = findOrCreateRegistration();
+    TenantXtmHubRegistration registration = findOrCreateRegistration(tenantId);
     registration.setToken(token);
     registration.setRegistrationDate(LocalDateTime.now());
     registration.setRegistrationStatus(XtmHubRegistrationStatus.REGISTERED);
@@ -85,22 +94,26 @@ public class XtmHubService {
     tenantXtmHubRegistrationRepository.save(registration);
   }
 
-  public void unregister() {
-    tenantXtmHubRegistrationRepository.deleteByTenantId(TenantContext.getCurrentTenant());
+  public void unregister(TxCtx ctx) {
+    tenantXtmHubRegistrationRepository.deleteByTenantId(
+        tenantWriteScopeResolver.tenantForWrite(ctx, null));
   }
 
-  public TenantXtmHubRegistration refreshConnectivity() {
-    Optional<TenantXtmHubRegistration> registration = getRegistration();
+  public TenantXtmHubRegistration refreshConnectivity(TxCtx ctx) {
+    String tenantId = singleTenantScope(ctx, "Refreshing XTM Hub connectivity");
+    Optional<TenantXtmHubRegistration> registration =
+        tenantXtmHubRegistrationRepository.findByTenantId(tenantId);
 
     if (registration.isEmpty()) {
       return null;
     }
 
     PlatformSettings settings = platformSettingsService.findSettings();
-    ConnectivityCheckResult checkResult = checkConnectivityStatus(settings, registration.get());
+    ConnectivityCheckResult checkResult =
+        checkConnectivityStatus(settings, registration.get(), tenantId);
     if (checkResult.status() == XtmHubConnectivityStatus.NOT_FOUND) {
       log.warn("Platform was not found on XTM Hub");
-      tenantXtmHubRegistrationRepository.deleteByTenantId(TenantContext.getCurrentTenant());
+      tenantXtmHubRegistrationRepository.deleteByTenantId(tenantId);
       return null;
     }
 
@@ -111,7 +124,9 @@ public class XtmHubService {
     PlatformSettings settings = platformSettingsService.findSettings();
 
     List<TenantXtmHubRegistration> registrations =
-        new ArrayList<>(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted());
+        tenantTx.execute(
+            TxCtx.allTenants(),
+            () -> new ArrayList<>(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted()));
 
     if (registrations.isEmpty()) {
       return;
@@ -133,45 +148,51 @@ public class XtmHubService {
 
     List<ConnectivityCheckResult> allCheckResults = new ArrayList<>();
 
-    try {
-      for (TenantXtmHubRegistration registration : registrations) {
-        TenantContext.setCurrentTenant(registration.getTenant().getId());
+    tenantTx.forEachTenant(
+        tenantId -> {
+          if (!tenants.containsKey(tenantId)) {
+            return;
+          }
+          TenantXtmHubRegistration registration =
+              tenantXtmHubRegistrationRepository.findByTenantId(tenantId).orElse(null);
+          if (registration == null) {
+            return;
+          }
 
-        XtmHubConnectivityStatus status =
-            statuses.getOrDefault(
-                registration.getTenant().getId(), XtmHubConnectivityStatus.INACTIVE);
+          XtmHubConnectivityStatus status =
+              statuses.getOrDefault(tenantId, XtmHubConnectivityStatus.INACTIVE);
 
-        if (status == XtmHubConnectivityStatus.NOT_FOUND) {
-          log.warn(
-              "Platform was not found on XTM Hub for tenant {}", registration.getTenant().getId());
-          tenantXtmHubRegistrationRepository.deleteByTenantId(registration.getTenant().getId());
-          continue;
-        }
+          if (status == XtmHubConnectivityStatus.NOT_FOUND) {
+            log.warn("Platform was not found on XTM Hub for tenant {}", tenantId);
+            tenantXtmHubRegistrationRepository.deleteByTenantId(tenantId);
+            return;
+          }
 
-        ConnectivityCheckResult checkResult =
-            new ConnectivityCheckResult(
-                status, parseLastConnectivityCheck(registration), registration);
-
-        allCheckResults.add(checkResult);
-        updateRegistrationStatus(registration, checkResult);
-        handleTenantConnectivityLossNotification(settings, checkResult);
-      }
-    } finally {
-      TenantContext.clearCurrentTenant();
-    }
+          ConnectivityCheckResult checkResult =
+              new ConnectivityCheckResult(
+                  status, parseLastConnectivityCheck(registration), registration);
+          updateRegistrationStatus(registration, checkResult);
+          handleTenantConnectivityLossNotification(checkResult);
+          allCheckResults.add(checkResult);
+        });
 
     handleConnectivityLossNotification(settings, allCheckResults);
   }
 
-  private TenantXtmHubRegistration findOrCreateRegistration() {
+  private TenantXtmHubRegistration findOrCreateRegistration(String tenantId) {
     return tenantXtmHubRegistrationRepository
-        .findByTenantId(TenantContext.getCurrentTenant())
-        .orElse(new TenantXtmHubRegistration());
+        .findByTenantId(tenantId)
+        .orElseGet(
+            () -> {
+              TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
+              registration.setTenant(new Tenant(tenantId));
+              return registration;
+            });
   }
 
   private ConnectivityCheckResult checkConnectivityStatus(
-      PlatformSettings settings, TenantXtmHubRegistration registration) {
-    String url = tenantSettingsService.buildTenantUrl(TenantContext.getCurrentTenant());
+      PlatformSettings settings, TenantXtmHubRegistration registration, String tenantId) {
+    String url = tenantSettingsService.buildTenantUrl(tenantId);
     String tenantName = registration.getTenant().getName();
 
     XtmHubConnectivityStatus status =
@@ -180,7 +201,7 @@ public class XtmHubService {
             settings.getPlatformVersion(),
             registration.getToken(),
             url,
-            TenantContext.getCurrentTenant(),
+            tenantId,
             tenantName);
 
     LocalDateTime lastCheck = parseLastConnectivityCheck(registration);
@@ -189,6 +210,13 @@ public class XtmHubService {
   }
 
   public Boolean contactUs(String message) {
+    // Deliberately reads the DEFAULT tenant's own registration, regardless of the caller's tenant
+    // scope (this endpoint is skipRBAC and callable from any tenant). tenant_xtmhub_registrations
+    // is v2-active, so the read must carry its own narrower scope. setScopeOnCurrentTransaction
+    // joins the ambient request transaction already opened by the controller (rather than
+    // executeNew's REQUIRES_NEW, which would open a second connection unable to see rows written
+    // earlier, uncommitted, in this same transaction).
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID));
     Optional<TenantXtmHubRegistration> registration =
         tenantXtmHubRegistrationRepository.findByTenantId(Tenant.DEFAULT_TENANT_UUID);
     if (registration.isEmpty()) {
@@ -203,6 +231,15 @@ public class XtmHubService {
   private LocalDateTime parseLastConnectivityCheck(TenantXtmHubRegistration registration) {
     LocalDateTime lastCheck = registration.getLastConnectivityCheck();
     return lastCheck != null ? lastCheck : LocalDateTime.now();
+  }
+
+  private String singleTenantScope(TxCtx ctx, String operation) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (tenantIds.size() != 1) {
+      throw new TenantWriteScopeException(
+          operation + " requires a single-tenant scope. Provide an explicit" + " tenant selector.");
+    }
+    return tenantIds.iterator().next();
   }
 
   private void handleConnectivityLossNotification(
@@ -225,8 +262,7 @@ public class XtmHubService {
     }
   }
 
-  private void handleTenantConnectivityLossNotification(
-      PlatformSettings settings, ConnectivityCheckResult checkResult) {
+  private void handleTenantConnectivityLossNotification(ConnectivityCheckResult checkResult) {
     TenantXtmHubRegistration registration = checkResult.registration();
     if (checkResult.status() == XtmHubConnectivityStatus.ACTIVE) {
       if (!registration.isConnectivityEmailEligible()) {

@@ -11,7 +11,13 @@ import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Scenario;
+import io.openaev.database.model.StepDelayQueue;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.StepDelayQueueRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.exception.ChainingException;
@@ -20,6 +26,7 @@ import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.scheduler.jobs.QueueChainingJob;
 import java.io.IOException;
 import java.util.*;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +39,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -62,21 +70,21 @@ class StepServiceTest {
   @Captor private ArgumentCaptor<Workflow> workflowCaptor;
   @Captor private ArgumentCaptor<List<Condition>> conditionsCaptor;
   @Captor private ArgumentCaptor<String> stepIdCaptor;
+  private TenantScopedTransaction tenantTx;
 
   @BeforeEach
   void setUp() {
-    transactionTemplate = mock(TransactionTemplate.class);
+    tenantTx = mock(TenantScopedTransaction.class);
     lenient()
         .doAnswer(
             invocation -> {
-              ((java.util.function.Consumer<Object>) invocation.getArgument(0)).accept(null);
+              ((Runnable) invocation.getArgument(1)).run();
               return null;
             })
-        .when(transactionTemplate)
-        .executeWithoutResult(any());
+        .when(tenantTx)
+        .execute(any(TxCtx.class), any(Runnable.class));
     queueChainingJob =
-        new QueueChainingJob(
-            stepDelayQueueService, stepService, workflowService, transactionTemplate);
+        new QueueChainingJob(stepDelayQueueService, stepService, workflowService, tenantTx);
     workflow = mock(Workflow.class);
   }
 
@@ -1966,6 +1974,81 @@ class StepServiceTest {
       assertEquals(0, updated);
       verify(stepTargetingService, never()).isAssetCentric(any());
       verify(stepRepository, never()).saveAll(anyList());
+    }
+  }
+
+  /* ============================================================
+   * QueueChainingJob - tenant scope
+   * ============================================================ */
+  @Nested
+  class DelayedStepTenantScope {
+
+    @Test
+    @DisplayName("each delayed step is processed under its own simulation's tenant scope")
+    void given_aDelayedStep_should_scopeTheTransactionToItsTenant() throws Exception {
+      // The job runs ONE transaction so a processing failure rolls the DELETE back, and
+      // popNextPerWorkflowRun spans tenants. Without a per-entry scope the whole transaction has
+      // none, and createReadySteps reaches assets - activated - through ScopeService, reads empty,
+      // and the delayed inject fires with no per-asset target. Silently.
+      String tenantId = UUID.randomUUID().toString();
+      Exercise simulation = mock(Exercise.class);
+      when(simulation.getTenant()).thenReturn(new Tenant(tenantId));
+      Workflow run = mock(Workflow.class);
+      when(run.getSimulation()).thenReturn(simulation);
+      when(run.getId()).thenReturn(UUID.randomUUID().toString());
+      StepDelayQueue entry = mock(StepDelayQueue.class);
+      when(entry.getWorkflowRun()).thenReturn(run);
+      when(stepDelayQueueService.popNextToProcess()).thenReturn(List.of(entry));
+      when(workflowService.isWorkflowEnded(any())).thenReturn(true);
+
+      queueChainingJob.execute(mock(JobExecutionContext.class));
+
+      verify(tenantTx).setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
+    }
+
+    @Test
+    @DisplayName("a scenario-backed run is scoped to its scenario's tenant")
+    void given_aScenarioBackedRun_should_scopeToTheScenarioTenant() throws Exception {
+      // chk_workflow_simulation_or_scenario allows exactly one of the two, so a workflow with no
+      // simulation still has a tenant, through its scenario. Reading only the simulation left every
+      // scenario-backed run unscoped.
+      String tenantId = UUID.randomUUID().toString();
+      Scenario scenario = mock(Scenario.class);
+      when(scenario.getTenant()).thenReturn(new Tenant(tenantId));
+      Workflow run = mock(Workflow.class);
+      when(run.getSimulation()).thenReturn(null);
+      when(run.getScenario()).thenReturn(scenario);
+      when(run.getId()).thenReturn(UUID.randomUUID().toString());
+      StepDelayQueue entry = mock(StepDelayQueue.class);
+      when(entry.getWorkflowRun()).thenReturn(run);
+      when(stepDelayQueueService.popNextToProcess()).thenReturn(List.of(entry));
+      when(workflowService.isWorkflowEnded(any())).thenReturn(true);
+
+      queueChainingJob.execute(mock(JobExecutionContext.class));
+
+      verify(tenantTx).setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
+    }
+
+    @Test
+    @DisplayName("a delayed step whose run has no simulation tenant gets no invented scope")
+    void given_noTenant_should_processWithoutInventingAScope() throws Exception {
+      Workflow run = mock(Workflow.class);
+      when(run.getSimulation()).thenReturn(null);
+      when(run.getScenario()).thenReturn(null);
+      StepDelayQueue entry = mock(StepDelayQueue.class);
+      when(entry.getWorkflowRun()).thenReturn(run);
+      when(stepDelayQueueService.popNextToProcess()).thenReturn(List.of(entry));
+      // Ended, so the loop short-circuits before createReadySteps: this test is about the scope
+      // decision, not about step creation.
+      when(workflowService.isWorkflowEnded(any())).thenReturn(true);
+      when(run.getId()).thenReturn(UUID.randomUUID().toString());
+
+      queueChainingJob.execute(mock(JobExecutionContext.class));
+
+      // Processed, not skipped: dropping the step would be the same silent loss the scoping
+      // exists to prevent. What must not happen is a scope being invented for it.
+      verify(tenantTx, never()).setScopeOnCurrentTransaction(any());
+      verify(workflowService).isWorkflowEnded(any());
     }
   }
 }

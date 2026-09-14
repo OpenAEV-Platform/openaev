@@ -326,28 +326,28 @@ export interface AiGenericTextInput {
 }
 
 export interface AiMediaInput {
-  ai_author?: string;
-  ai_context?: string;
+  ai_author?: string | null;
+  ai_context?: string | null;
   /** @minLength 1 */
-  ai_format: string;
+  ai_format: string | null;
   /** @minLength 1 */
   ai_input: string;
   /** @format int32 */
-  ai_paragraphs?: number;
-  ai_tone?: string;
+  ai_paragraphs?: number | null;
+  ai_tone?: string | null;
 }
 
 export interface AiMessageInput {
-  ai_context?: string;
+  ai_context?: string | null;
   /** @minLength 1 */
   ai_format: string;
   /** @minLength 1 */
   ai_input: string;
   /** @format int32 */
-  ai_paragraphs?: number;
-  ai_recipient?: string;
-  ai_sender?: string;
-  ai_tone?: string;
+  ai_paragraphs?: number | null;
+  ai_recipient?: string | null;
+  ai_sender?: string | null;
+  ai_tone?: string | null;
 }
 
 export interface AiResult {
@@ -1253,6 +1253,35 @@ export interface AttackPatternCreateInput {
   attack_pattern_stix_id?: string;
 }
 
+/** Attack pattern as returned by the read endpoints */
+export interface AttackPatternOutput {
+  /**
+   * Creation date
+   * @format date-time
+   */
+  attack_pattern_created_at?: string;
+  /** Description of the attack pattern */
+  attack_pattern_description?: string;
+  /** External id, e.g. the MITRE technique id */
+  attack_pattern_external_id?: string;
+  /** Id of the attack pattern */
+  attack_pattern_id?: string;
+  attack_pattern_kill_chain_phases?: string[];
+  /** Name of the attack pattern */
+  attack_pattern_name?: string;
+  /** Id of the parent attack pattern */
+  attack_pattern_parent?: string;
+  attack_pattern_permissions_required?: string[];
+  attack_pattern_platforms?: string[];
+  /** STIX id */
+  attack_pattern_stix_id?: string;
+  /**
+   * Last update date
+   * @format date-time
+   */
+  attack_pattern_updated_at?: string;
+}
+
 export interface AttackPatternSimple {
   /** @minLength 1 */
   attack_pattern_external_id: string;
@@ -1325,6 +1354,12 @@ export interface AutonomousAttackPathStepState {
 export interface AutonomousConvertToManualInput {
   /** DUPLICATE creates a new manual chained scenario from a copy and leaves the AI run untouched; IN_PLACE turns this scenario manual for good (irreversible). */
   mode: "DUPLICATE" | "IN_PLACE";
+}
+
+/** Identifier of the scenario resulting from the conversion */
+export interface AutonomousConvertToManualOutput {
+  /** Id of the resulting manual scenario. */
+  scenario_id?: string;
 }
 
 /** Tenant default additional agents for autonomous runs */
@@ -3063,11 +3098,12 @@ export interface CreateConnectorInstanceInput {
 }
 
 export interface CreateExerciseInput {
-  exercise_category?: string;
+  exercise_category?: string | null;
   exercise_custom_dashboard?: string;
-  exercise_default_kill_chain?: string;
-  exercise_description?: string;
+  exercise_default_kill_chain?: string | null;
+  exercise_description?: string | null;
   exercise_is_chaining?: boolean;
+  exercise_lessons_enabled?: boolean;
   /**
    * @minLength 0
    * @maxLength 100
@@ -3075,7 +3111,7 @@ export interface CreateExerciseInput {
    */
   exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
-  exercise_main_focus?: string;
+  exercise_main_focus?: string | null;
   exercise_message_footer?: string;
   exercise_message_header?: string;
   /**
@@ -3083,7 +3119,7 @@ export interface CreateExerciseInput {
    * @maxLength 255
    */
   exercise_name: string;
-  exercise_severity?: string;
+  exercise_severity?: string | null;
   /** @format date-time */
   exercise_start_date?: string | null;
   exercise_subtitle?: string;
@@ -3177,6 +3213,8 @@ export interface CredentialFullOutput {
     | "us-gov-west-1";
   /** AWS role ARN */
   credential_aws_role_arn?: string;
+  /** AWS session token present */
+  credential_aws_session_token_present?: boolean;
   /** AWS source identity type */
   credential_aws_source_identity_type?:
     | "STATIC_ACCESS_KEY"
@@ -3212,7 +3250,16 @@ export interface CredentialFullOutput {
   /** Credential name */
   credential_name: string;
   /** Credential status */
-  credential_status?: "ACTIVE" | "INACTIVE" | "UNSET";
+  credential_status?:
+    | "ACTIVE"
+    | "AUTH_FAILED"
+    | "PERMISSION_DENIED"
+    | "TIMEOUT"
+    | "NETWORK_ERROR"
+    | "UNSUPPORTED"
+    | "FORMAT_ERROR"
+    | "UNKNOWN"
+    | "UNSET";
   /**
    * Tag IDs linked to the credential
    * @uniqueItems true
@@ -3319,7 +3366,16 @@ export interface CredentialOutput {
   /** Credential name */
   credential_name?: string;
   /** Credential status */
-  credential_status?: "ACTIVE" | "INACTIVE" | "UNSET";
+  credential_status?:
+    | "ACTIVE"
+    | "AUTH_FAILED"
+    | "PERMISSION_DENIED"
+    | "TIMEOUT"
+    | "NETWORK_ERROR"
+    | "UNSUPPORTED"
+    | "FORMAT_ERROR"
+    | "UNKNOWN"
+    | "UNSET";
   /**
    * Tag IDs linked to the credential
    * @uniqueItems true
@@ -3427,7 +3483,7 @@ export interface CveCreateInput {
    * CVSS score
    * @min 0
    * @max 10
-   * @example "7.5"
+   * @example 7.5
    */
   cve_cvss_v31: number;
   /**
@@ -4648,7 +4704,7 @@ export interface EngineSortField {
 
 export interface EntitiesPaginationInput {
   /** Pagination to set (optional) */
-  pagination?: Pagination;
+  pagination?: null;
   /** Parameters to set */
   parameters?: Record<string, string>;
 }
@@ -6807,7 +6863,7 @@ export interface InjectorContract {
   injector_contract_created_at: string;
   injector_contract_custom?: boolean;
   injector_contract_domains?: string[];
-  injector_contract_external_id?: string;
+  injector_contract_external_id?: string | null;
   /** @minLength 1 */
   injector_contract_id: string;
   injector_contract_import_available?: boolean;
@@ -7903,6 +7959,7 @@ export interface NotificationTriggerInput {
     | "STEP"
     | "CONDITION"
     | "SESSION"
+    | "TOKEN"
     | "PLATFORM_SESSION"
     | "SKIP_RBAC";
   /** Digest firing time (UTC): DAY=HH:mm, WEEK=<1-7>-HH:mm, MONTH=<1-31>-HH:mm */
@@ -8010,6 +8067,7 @@ export interface NotificationTriggerOutput {
     | "STEP"
     | "CONDITION"
     | "SESSION"
+    | "TOKEN"
     | "PLATFORM_SESSION"
     | "SKIP_RBAC";
   /** Digest firing time (UTC) */
@@ -8252,8 +8310,8 @@ export interface PageAssetOutput {
   totalPages?: number;
 }
 
-export interface PageAttackPattern {
-  content?: AttackPattern[];
+export interface PageAttackPatternOutput {
+  content?: AttackPatternOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -8729,25 +8787,6 @@ export interface PagePhishingLandingPage {
 
 export interface PagePlatformGroupOutput {
   content?: PlatformGroupOutput[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject[];
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PagePlatformRoleOutput {
-  content?: PlatformRoleOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -10508,14 +10547,81 @@ export interface RoleInput {
 
 export interface RoleOutput {
   /** @uniqueItems true */
-  role_capabilities?: string[];
-  role_created_at?: string;
+  role_capabilities?: (
+    | "BYPASS"
+    | "ACCESS_ASSESSMENT"
+    | "MANAGE_ASSESSMENT"
+    | "DELETE_ASSESSMENT"
+    | "LAUNCH_ASSESSMENT"
+    | "ACCESS_TEAMS_AND_PLAYERS"
+    | "MANAGE_TEAMS_AND_PLAYERS"
+    | "DELETE_TEAMS_AND_PLAYERS"
+    | "ACCESS_ASSETS"
+    | "MANAGE_ASSETS"
+    | "DELETE_ASSETS"
+    | "ACCESS_PAYLOADS"
+    | "MANAGE_PAYLOADS"
+    | "DELETE_PAYLOADS"
+    | "ACCESS_THREAT_ARSENALS"
+    | "MANAGE_THREAT_ARSENALS"
+    | "DELETE_THREAT_ARSENALS"
+    | "ACCESS_CREDENTIALS"
+    | "MANAGE_CREDENTIALS"
+    | "DELETE_CREDENTIALS"
+    | "ACCESS_DASHBOARDS"
+    | "MANAGE_DASHBOARDS"
+    | "DELETE_DASHBOARDS"
+    | "ACCESS_REPORTINGS"
+    | "MANAGE_REPORTINGS"
+    | "DELETE_REPORTINGS"
+    | "ACCESS_FINDINGS"
+    | "MANAGE_FINDINGS"
+    | "DELETE_FINDINGS"
+    | "ACCESS_DOCUMENTS"
+    | "MANAGE_DOCUMENTS"
+    | "DELETE_DOCUMENTS"
+    | "ACCESS_CHANNELS"
+    | "MANAGE_CHANNELS"
+    | "DELETE_CHANNELS"
+    | "ACCESS_PHISHING"
+    | "MANAGE_PHISHING"
+    | "DELETE_PHISHING"
+    | "ACCESS_CHALLENGES"
+    | "MANAGE_CHALLENGES"
+    | "DELETE_CHALLENGES"
+    | "ACCESS_LESSONS_LEARNED"
+    | "MANAGE_LESSONS_LEARNED"
+    | "DELETE_LESSONS_LEARNED"
+    | "ACCESS_SECURITY_PLATFORMS"
+    | "MANAGE_SECURITY_PLATFORMS"
+    | "DELETE_SECURITY_PLATFORMS"
+    | "ACCESS_PLATFORM_SETTINGS"
+    | "MANAGE_PLATFORM_SETTINGS"
+    | "ACCESS_TENANTS"
+    | "MANAGE_TENANTS"
+    | "DELETE_TENANTS"
+    | "ACCESS_TENANT_SETTINGS"
+    | "ACCESS_TAGS"
+    | "MANAGE_TAGS"
+    | "DELETE_TAGS"
+    | "MANAGE_TENANT_SETTINGS"
+    | "DELETE_TENANT_SETTINGS"
+    | "ACCESS_TENANT_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_TENANT_USERS_GROUPS_AND_ROLES"
+    | "DELETE_TENANT_USERS_GROUPS_AND_ROLES"
+    | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
+    | "MANAGE_SESSIONS"
+    | "MANAGE_PLATFORM_SESSIONS"
+    | "MANAGE_STIX_BUNDLE"
+    | "AGENT_RUNTIME_ACCESS"
+  )[];
   role_description?: string;
   /** @minLength 1 */
   role_id: string;
   /** @minLength 1 */
   role_name: string;
-  role_updated_at?: string;
 }
 
 export interface RuleAttribute {
@@ -10655,13 +10761,14 @@ export interface ScenarioIdsAndInjectorContractsInputs {
 }
 
 export interface ScenarioInput {
-  scenario_category?: string;
+  scenario_category?: string | null;
   scenario_custom_dashboard?: string;
-  scenario_default_kill_chain?: string;
+  scenario_default_kill_chain?: string | null;
   scenario_description?: string;
-  scenario_external_reference?: string;
-  scenario_external_url?: string;
+  scenario_external_reference?: string | null;
+  scenario_external_url?: string | null;
   scenario_is_chaining?: boolean;
+  scenario_lessons_enabled?: boolean;
   /**
    * @minLength 0
    * @maxLength 100
@@ -10669,7 +10776,7 @@ export interface ScenarioInput {
    */
   scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
-  scenario_main_focus?: string;
+  scenario_main_focus?: string | null;
   scenario_message_footer?: string;
   scenario_message_header?: string;
   /** @minLength 1 */
@@ -10724,6 +10831,8 @@ export interface ScenarioOutput {
   scenario_mail_from: string;
   /** Sender display name of the scenario */
   scenario_mail_from_name?: string;
+  /** @uniqueItems true */
+  scenario_mails_reply_to?: string[];
   /** Main focus value of the scenario */
   scenario_main_focus?: string;
   /** Footer of the scenario */
@@ -11433,7 +11542,7 @@ export interface SimulationsResultsLatest {
 }
 
 export interface SortField {
-  direction?: string;
+  direction?: string | null;
   nullHandling?: "NATIVE" | "NULLS_FIRST" | "NULLS_LAST";
   property?: string;
 }
@@ -12472,11 +12581,12 @@ export interface UpdateConnectorInstanceRequestedStatus {
 
 export interface UpdateExerciseInput {
   apply_tag_rule?: boolean;
-  exercise_category?: string;
+  exercise_category?: string | null;
   exercise_custom_dashboard?: string;
-  exercise_default_kill_chain?: string;
-  exercise_description?: string;
+  exercise_default_kill_chain?: string | null;
+  exercise_description?: string | null;
   exercise_is_chaining?: boolean;
+  exercise_lessons_enabled?: boolean;
   /**
    * @minLength 0
    * @maxLength 100
@@ -12484,7 +12594,7 @@ export interface UpdateExerciseInput {
    */
   exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
-  exercise_main_focus?: string;
+  exercise_main_focus?: string | null;
   exercise_message_footer?: string;
   exercise_message_header?: string;
   /**
@@ -12492,7 +12602,7 @@ export interface UpdateExerciseInput {
    * @maxLength 255
    */
   exercise_name: string;
-  exercise_severity?: string;
+  exercise_severity?: string | null;
   exercise_subtitle?: string;
   exercise_tags?: string[];
 }
@@ -12525,13 +12635,14 @@ export interface UpdateProfileInput {
 
 export interface UpdateScenarioInput {
   apply_tag_rule?: boolean;
-  scenario_category?: string;
+  scenario_category?: string | null;
   scenario_custom_dashboard?: string;
-  scenario_default_kill_chain?: string;
+  scenario_default_kill_chain?: string | null;
   scenario_description?: string;
-  scenario_external_reference?: string;
-  scenario_external_url?: string;
+  scenario_external_reference?: string | null;
+  scenario_external_url?: string | null;
   scenario_is_chaining?: boolean;
+  scenario_lessons_enabled?: boolean;
   /**
    * @minLength 0
    * @maxLength 100
@@ -12539,7 +12650,7 @@ export interface UpdateScenarioInput {
    */
   scenario_mail_from_name?: string;
   scenario_mails_reply_to?: string[];
-  scenario_main_focus?: string;
+  scenario_main_focus?: string | null;
   scenario_message_footer?: string;
   scenario_message_header?: string;
   /** @minLength 1 */
@@ -12828,7 +12939,7 @@ export interface VulnerabilityCreateInput {
    * CVSS score
    * @min 0
    * @max 10
-   * @example "7.5"
+   * @example 7.5
    */
   vulnerability_cvss_v31: number;
   /**
@@ -12880,7 +12991,7 @@ export interface VulnerabilityCreateInput {
 export interface VulnerabilityOutput {
   /**
    * CVSS score
-   * @example "7.8"
+   * @example 7.8
    */
   vulnerability_cvss_v31: number;
   /**
@@ -12931,7 +13042,7 @@ export interface VulnerabilityOutput {
 export interface VulnerabilitySimple {
   /**
    * CVSS score
-   * @example "7.8"
+   * @example 7.8
    */
   vulnerability_cvss_v31: number;
   /**

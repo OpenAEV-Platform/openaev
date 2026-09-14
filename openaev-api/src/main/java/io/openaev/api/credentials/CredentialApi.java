@@ -72,7 +72,7 @@ public class CredentialApi extends RestBehavior {
   @Operation(summary = "Create a credential")
   public CredentialOutput createCredential(TxCtx ctx, @Valid @RequestBody CredentialInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    return credentialMapper.toOutput(credentialService.createCredential(input, tenantId));
+    return credentialService.createCredential(input, tenantId);
   }
 
   @PutMapping("/{credentialId}")
@@ -84,7 +84,8 @@ public class CredentialApi extends RestBehavior {
   @Operation(summary = "Update a credential with explicit secret update mode")
   public CredentialFullOutput updateCredential(
       TxCtx ctx, @PathVariable String credentialId, @Valid @RequestBody CredentialInput input) {
-    return credentialService.updateCredential(credentialId, input);
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return credentialService.updateCredential(credentialId, input, tenantId);
   }
 
   @DeleteMapping("/{credentialId}")

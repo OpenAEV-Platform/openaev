@@ -62,10 +62,7 @@ public class SecretsProviderResolver {
       return Optional.ofNullable(
           managerFactory.getManager(tenantId).requestForInstance(instance, SecretsProvider.class));
     } catch (Exception e) {
-      log.warn(
-          "No secrets provider available for connector instance {}: {}",
-          connectorInstanceId,
-          e.getMessage());
+      log.warn("No secrets provider available for connector instance {}", connectorInstanceId);
       return Optional.empty();
     }
   }

@@ -7,8 +7,10 @@ import static io.openaev.database.model.CapabilityScope.TENANT;
 import static org.assertj.core.api.Assertions.*;
 
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.CapabilityGroup;
 import io.openaev.database.model.CapabilityScope;
 import io.openaev.service.account.Constants;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -255,5 +257,40 @@ class CapabilityTreeBuilderTest {
     // -- ASSERT --
     assertThat(Constants.SERVICE_GROUP_NAME).isEqualTo("Service integration");
     assertThat(Constants.SERVICE_GROUP_DESCRIPTION).isNotBlank();
+  }
+
+  @Test
+  @DisplayName("Root nodes should follow the CapabilityGroup declaration order")
+  void given_anyScope_should_orderRootNodesByCapabilityGroupDeclarationOrder() {
+    for (CapabilityScope scope : CapabilityScope.values()) {
+      // -- ACT --
+      List<String> values =
+          CapabilityTreeBuilder.buildTree(scope).stream().map(CapabilityOutput::value).toList();
+
+      // -- ASSERT --
+      // SUPERUSER has no category wrapper: BYPASS itself is the root node.
+      List<String> expected =
+          Arrays.stream(CapabilityGroup.values())
+              .map(group -> group == CapabilityGroup.SUPERUSER ? BYPASS.name() : group.name())
+              .filter(values::contains)
+              .toList();
+      assertThat(values).as("scope %s", scope).containsExactlyElementsOf(expected);
+    }
+  }
+
+  @Test
+  @DisplayName("Tenant tree should start with bypass then the analytics groups")
+  void given_tenantScope_should_startTreeWithBypassThenAnalyticsGroups() {
+    // -- ACT --
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(TENANT);
+
+    // -- ASSERT --
+    assertThat(tree.stream().map(CapabilityOutput::value))
+        .startsWith(
+            BYPASS.name(),
+            DASHBOARDS.name(),
+            REPORTINGS.name(),
+            FINDINGS.name(),
+            ASSESSMENT.name());
   }
 }

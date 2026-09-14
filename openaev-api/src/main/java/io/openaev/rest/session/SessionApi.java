@@ -6,6 +6,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.config.SessionManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.UserRepository;
@@ -49,7 +50,7 @@ public class SessionApi extends RestBehavior {
   @Operation(
       summary = "List tenant sessions",
       description = "List the live sessions of the current tenant's users")
-  public List<SessionOutput> sessions() {
+  public List<SessionOutput> sessions(TxCtx ctx) {
     // Sessions are platform-global (keyed only by user id); scope them to the
     // current tenant by intersecting with the tenant's user ids. The platform-wide
     // listing lives in PlatformSessionApi (/api/platform-sessions).
@@ -68,7 +69,7 @@ public class SessionApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "The list of live sessions of the user")
       })
   @Operation(summary = "List user sessions", description = "List the live sessions of a user")
-  public List<SessionOutput> userSessions(@PathVariable String userId) {
+  public List<SessionOutput> userSessions(TxCtx ctx, @PathVariable String userId) {
     // Tenant scope: never expose sessions of users outside the current tenant.
     if (!tenantUserIds().contains(userId)) {
       return List.of();
@@ -85,7 +86,7 @@ public class SessionApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "The session was not found")
       })
   @Operation(summary = "Kill session", description = "Kill a single session by id")
-  public ResponseEntity<Void> killSession(@PathVariable String sessionId) {
+  public ResponseEntity<Void> killSession(TxCtx ctx, @PathVariable String sessionId) {
     // Tenant scope: only sessions owned by the current tenant's users can be killed
     // from this endpoint (cross-tenant kill lives in PlatformSessionApi).
     boolean belongsToTenant =
@@ -105,7 +106,7 @@ public class SessionApi extends RestBehavior {
   @ApiResponses(
       value = {@ApiResponse(responseCode = "200", description = "The user sessions were killed")})
   @Operation(summary = "Kill user sessions", description = "Kill every live session of a user")
-  public ResponseEntity<Void> killUserSessions(@PathVariable String userId) {
+  public ResponseEntity<Void> killUserSessions(TxCtx ctx, @PathVariable String userId) {
     // Tenant scope: refuse to kill sessions of users outside the current tenant.
     if (!tenantUserIds().contains(userId)) {
       return ResponseEntity.notFound().build();

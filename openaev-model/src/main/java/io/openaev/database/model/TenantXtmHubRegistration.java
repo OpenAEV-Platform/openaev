@@ -3,21 +3,21 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.xtmhub.XtmHubRegistrationStatus;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import lombok.Data;
 import lombok.Getter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Data
 @Entity
 @Table(name = "tenant_xtmhub_registrations")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@EntityListeners({ModelBaseListener.class})
+// tenant_xtmhub_registrations is fully on v2 tenant isolation (TenantStatementInspector +
+// can_access_tenant). Do NOT restore the v1 @Filter or TenantBaseListener: reads are scoped by the
+// inspector and writes are attributed explicitly by TenantWriteScopeResolver in XtmHubService.
 public class TenantXtmHubRegistration implements TenantBase {
 
   @Id

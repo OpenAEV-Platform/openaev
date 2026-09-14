@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import io.openaev.database.model.LessonsAnswer;
 import io.openaev.database.model.LessonsCategory;
 import io.openaev.database.model.LessonsQuestion;
+import io.openaev.database.model.Team;
 import io.openaev.database.repository.LessonsAnswerRepository;
 import io.openaev.database.repository.LessonsCategoryRepository;
 import io.openaev.database.repository.LessonsQuestionRepository;
@@ -265,6 +266,55 @@ class LessonsServiceTest {
       // Assert
       verifyNoInteractions(lessonsQuestionRepository);
       verifyNoInteractions(lessonsAnswerRepository);
+    }
+  }
+
+  // ========================================================================
+  // pruneTeamsForSimulation / pruneTeamsForScenario Tests
+  // ========================================================================
+  @Nested
+  @DisplayName("pruneTeams")
+  class PruneTeamsTests {
+
+    @Test
+    @DisplayName("should keep only scoped teams on simulation lesson categories")
+    void shouldPruneRemovedSimulationTeams() {
+      String simulationId = UUID.randomUUID().toString();
+      String keptTeamId = UUID.randomUUID().toString();
+      String removedTeamId = UUID.randomUUID().toString();
+
+      LessonsCategory category = mock(LessonsCategory.class);
+      Team keptTeam = mock(Team.class);
+      Team removedTeam = mock(Team.class);
+      when(keptTeam.getId()).thenReturn(keptTeamId);
+      when(removedTeam.getId()).thenReturn(removedTeamId);
+      when(category.getTeams()).thenReturn(List.of(keptTeam, removedTeam));
+      when(lessonsCategoryRepository.findAll(any(Specification.class)))
+          .thenReturn(List.of(category));
+
+      lessonsService.pruneTeamsForSimulation(simulationId, List.of(keptTeamId));
+
+      verify(category).setTeams(List.of(keptTeam));
+      verify(lessonsCategoryRepository).save(category);
+    }
+
+    @Test
+    @DisplayName("should clear scenario lesson categories when no scoped teams remain")
+    void shouldClearRemovedScenarioTeams() {
+      String scenarioId = UUID.randomUUID().toString();
+      String removedTeamId = UUID.randomUUID().toString();
+
+      LessonsCategory category = mock(LessonsCategory.class);
+      Team removedTeam = mock(Team.class);
+      when(removedTeam.getId()).thenReturn(removedTeamId);
+      when(category.getTeams()).thenReturn(List.of(removedTeam));
+      when(lessonsCategoryRepository.findAll(any(Specification.class)))
+          .thenReturn(List.of(category));
+
+      lessonsService.pruneTeamsForScenario(scenarioId, List.of());
+
+      verify(category).setTeams(List.of());
+      verify(lessonsCategoryRepository).save(category);
     }
   }
 }

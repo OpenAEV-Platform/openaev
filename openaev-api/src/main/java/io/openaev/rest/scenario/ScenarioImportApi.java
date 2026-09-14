@@ -132,6 +132,6 @@ public class ScenarioImportApi extends RestBehavior {
     if (file == null || file.isEmpty()) {
       throw new UnprocessableContentException("Insufficient input: file is required");
     }
-    this.injectImportService.importInjectsForScenario(file, scenarioId);
+    this.injectImportService.importInjectsForScenario(ctx, file, scenarioId);
   }
 }

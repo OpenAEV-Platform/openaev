@@ -17,6 +17,7 @@ const convertCredentialFullOutputToCredentialInput = (credential: CredentialFull
     aws_default_region: credential.credential_aws_default_region,
     aws_access_key_id: credential.credential_aws_access_key_id,
     aws_secret_access_key: credential.credential_aws_access_key_id ? DOTS : '',
+    aws_session_token: credential.credential_aws_session_token_present ? DOTS : '',
     aws_role_arn: credential.credential_aws_role_arn,
     aws_source_identity_type: credential.credential_aws_source_identity_type,
     aws_source_profile_access_key_id: credential.credential_aws_source_profile_access_key_id,

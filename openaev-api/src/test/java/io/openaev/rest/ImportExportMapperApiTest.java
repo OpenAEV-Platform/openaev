@@ -40,7 +40,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
 
   @DisplayName("Test testing an export csv with endpoints target")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void testExportCsvWithEndpoints() throws Exception {
     // -- PREPARE --
     endpointRepository.save(EndpointFixture.createEndpoint());
@@ -64,7 +64,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
 
   @DisplayName("Test testing an export csv with unknown csv type")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void testExportCsvWithUnknownCsvType() throws Exception {
     // -- PREPARE --
     endpointRepository.save(EndpointFixture.createEndpoint());
@@ -84,7 +84,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
 
   @DisplayName("Test testing an import csv with endpoints csv type")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void testImportCsvWithEndpointsCsvType() throws Exception {
     // -- PREPARE --
     endpointRepository.deleteAll();
@@ -121,7 +121,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
 
   @DisplayName("Test testing an import csv with unknown csv type")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void testImportCsvWithUnknownCsvType() throws Exception {
     // -- PREPARE --
     File testFile = ResourceUtils.getFile("classpath:csv-test-files/Endpoints.csv");

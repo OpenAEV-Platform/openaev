@@ -5,8 +5,9 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.Auditable;
+import io.openaev.database.audit.AuditableListener;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.jsonapi.BusinessId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -15,15 +16,16 @@ import java.time.Instant;
 import java.util.Objects;
 import lombok.Data;
 import lombok.Getter;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UuidGenerator;
 
 @Data
 @Entity
 @Table(name = "kill_chain_phases")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class KillChainPhase implements TenantBase {
+// Fully on v2: no v1 @Filter and no TenantBaseListener. Neither must come back — the filter's
+// thread-local predicate ANDs with the v2 scope and empties header-route reads, and the listener is
+// a TenantContext fallback that would silently mask a write path missing its explicit attribution.
+@EntityListeners({ModelBaseListener.class, AuditableListener.class})
+public class KillChainPhase implements TenantBase, Auditable {
 
   @Id
   @Column(name = "phase_id")

@@ -69,6 +69,7 @@ public enum ResourceType {
   CONDITION,
   // Auth related
   SESSION,
+  TOKEN,
   PLATFORM_SESSION,
   SKIP_RBAC; // Used to skip RBAC checks.
 

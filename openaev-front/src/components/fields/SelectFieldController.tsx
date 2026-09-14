@@ -40,7 +40,7 @@ const SelectFieldController = ({
       control={control}
       render={({ field, fieldState: { error } }) => (
         <FormControl fullWidth error={!!error}>
-          <InputLabel id={`select-label-${name}`} error={!!error}>{`${label}${required ? ' *' : ''}`}</InputLabel>
+          <InputLabel disabled={disabled} id={`select-label-${name}`} error={!!error}>{`${label}${required ? ' *' : ''}`}</InputLabel>
           <Select
             {...field}
             labelId={`select-label-${name}`}

@@ -170,6 +170,10 @@ nav:
         - Widgets: usage/evaluate/dashboards/widgets.md
       - Reporting: usage/evaluate/reporting/reporting.md
       - Security Coverage enrichment (XTM Suite): usage/evaluate/xtm-suite-connector.md
+      - Notifications & Triggers:
+        - Overview: usage/notifications/overview.md
+        - Triggers: usage/notifications/triggers.md
+        - Notification Center: usage/notifications/notification-center.md
     - Attack Chaining:
       - Overview: usage/attack-chaining/overview.md
       - Scope Definition: usage/attack-chaining/scope-definition.md
@@ -191,7 +195,13 @@ nav:
         - Custom variables: usage/build/components/variables.md
         - Channels: usage/build/components/channels.md
         - Media pressure: usage/build/components/media-pressure.md
-        - Phishing: usage/build/components/phishing.md
+        - Phishing:
+          - Overview: usage/build/components/phishing/overview.md
+          - Landing pages: usage/build/components/phishing/landing-pages.md
+          - Email templates: usage/build/components/phishing/email-templates.md
+          - Run a phishing exercise: usage/build/components/phishing/run-a-campaign.md
+          - Results and scoring: usage/build/components/phishing/results.md
+          - Custom domains: usage/build/components/phishing/custom-domains.md
         - Challenges: usage/build/components/challenges.md
         - Lessons: usage/build/components/lessons.md
       - Threat Arsenal:
@@ -199,7 +209,6 @@ nav:
         - Action properties: usage/build/threat-arsenals/action-properties.md
         - Output parsers: usage/build/threat-arsenals/output-parsers.md
         - Domains: usage/build/threat-arsenals/domains.md
-    - Notifications: usage/notifications.md
     - Interact with your environment:
       - Injectors:
         - Overview: usage/environment/injectors.md

@@ -1,6 +1,7 @@
 package io.openaev.rest.health_check;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.context.TxCtx;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.HealthCheckService;
 import io.openaev.service.exception.HealthCheckFailureException;
@@ -58,7 +59,7 @@ public class HealthCheckApi extends RestBehavior {
         @ApiResponse(responseCode = "503", description = "Service is not running properly")
       })
   public ResponseEntity<?> healthCheck(
-      @RequestParam("health_access_key") String requestHealthAccessKey) {
+      TxCtx ctx, @RequestParam("health_access_key") String requestHealthAccessKey) {
     if (StringUtils.isBlank(requestHealthAccessKey)
         || StringUtils.isBlank(healthCheckKey)
         || !healthCheckKey.equals(requestHealthAccessKey)) {

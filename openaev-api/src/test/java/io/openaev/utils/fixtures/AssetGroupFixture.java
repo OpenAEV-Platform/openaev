@@ -1,8 +1,10 @@
 package io.openaev.utils.fixtures;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Filters;
+import io.openaev.database.model.Tenant;
 import io.openaev.rest.asset_group.form.AssetGroupInput;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -13,6 +15,12 @@ public class AssetGroupFixture {
     AssetGroup assetGroup = new AssetGroup();
     assetGroup.setName(name);
     assetGroup.setDescription("An asset group");
+    // asset_groups is tenant-active and its TenantBaseListener was removed at go-live: stamp the
+    // tenant explicitly here, matching what the listener used to do, instead of leaving every call
+    // site to remember it. TenantContext.getCurrentTenant() never throws (it defaults to
+    // Tenant.DEFAULT_TENANT_UUID), so this is safe even outside a request context. Same shape as
+    // SecurityCoverageFixture, the other activated entity that carries no listener.
+    assetGroup.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return assetGroup;
   }
 

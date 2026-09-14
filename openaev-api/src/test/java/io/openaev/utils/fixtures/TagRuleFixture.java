@@ -3,6 +3,7 @@ package io.openaev.utils.fixtures;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.TagRule;
+import io.openaev.database.model.Tenant;
 import io.openaev.rest.tag_rule.form.TagRuleInput;
 import io.openaev.rest.tag_rule.form.TagRuleOutput;
 import java.util.ArrayList;
@@ -18,6 +19,10 @@ public class TagRuleFixture {
   public static final String ASSET_GROUP_ID_2 = "assetgroup2";
   public static final String ASSET_GROUP_NAME_1 = "name 1";
   public static final String ASSET_GROUP_NAME_2 = "name 2";
+
+  private static void assignCurrentTenant(TagRule tagRule) {
+    tagRule.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+  }
 
   public static TagRule createTagRule(String tagRuleId) {
 
@@ -35,6 +40,7 @@ public class TagRuleFixture {
     rule.setAssetGroups(new ArrayList<>(Arrays.asList(assetGroup1, assetGroup2)));
     rule.setTag(tag);
     rule.setId(tagRuleId);
+    assignCurrentTenant(rule);
 
     return rule;
   }
@@ -47,12 +53,15 @@ public class TagRuleFixture {
     rule.setAssetGroups(assetGroups);
     rule.setTag(tag);
     rule.setId(tagRuleId);
+    assignCurrentTenant(rule);
 
     return rule;
   }
 
   public static TagRule createDefaultTagRule() {
-    return new TagRule();
+    TagRule rule = new TagRule();
+    assignCurrentTenant(rule);
+    return rule;
   }
 
   public static TagRuleOutput createTagRuleOutput() {

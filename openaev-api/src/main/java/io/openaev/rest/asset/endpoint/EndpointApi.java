@@ -5,6 +5,7 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -88,7 +89,11 @@ public class EndpointApi extends RestBehavior {
   // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
   // executors table (the created endpoint's agents eager-load their executor).
   public Endpoint createEndpoint(TxCtx ctx, @Valid @RequestBody final EndpointInput input) {
-    return this.endpointService.createEndpoint(input, TenantContext.getCurrentTenant());
+    // Resolve the single tenant this write belongs to, and refuse an unscoped or ambiguous
+    // request with a 400 rather than letting the v1 thread-local pick one. Same resolution as
+    // /register below; TenantContext.getCurrentTenant() silently falls back to DEFAULT.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return this.endpointService.createEndpoint(input, tenantId);
   }
 
   @PostMapping({ENDPOINT_URI + "/agentless/upsert", TENANT_ENDPOINT_URI + "/agentless/upsert"})
@@ -97,14 +102,16 @@ public class EndpointApi extends RestBehavior {
   // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
   // executors table (the upserted endpoint's agents eager-load their executor).
   public Endpoint upsertAgentLessEndpoint(
-      TxCtx ctx, @Valid @RequestBody final EndpointInput input) {
-    return this.endpointService.upsertEndpoint(input, TenantContext.getCurrentTenant());
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody final EndpointInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return this.endpointService.upsertEndpoint(input, tenantId);
   }
 
   @PostMapping({ENDPOINT_URI + "/register", TENANT_ENDPOINT_URI + "/register"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.AGENT)
   @Transactional(rollbackFor = Exception.class)
-  public Endpoint upsertEndpoint(TxCtx ctx, @Valid @RequestBody final EndpointRegisterInput input)
+  public Endpoint upsertEndpoint(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody final EndpointRegisterInput input)
       throws IOException {
     input.setSeenIp(HttpReqRespUtils.getClientIpAddressIfServletRequestExist());
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
@@ -358,8 +365,9 @@ public class EndpointApi extends RestBehavior {
   // SUPPORTS (not REQUIRED) on purpose: the service deletes in small independent transactions
   // (chunked, with deadlock retry) - a request-wide transaction would defeat that.
   @Transactional(propagation = Propagation.SUPPORTS)
-  public List<String> bulkDeleteAssets(@RequestBody @Valid final AssetBulkProcessingInput input) {
-    return this.assetService.bulkDeleteAssets(input);
+  public List<String> bulkDeleteAssets(
+      TxCtx ctx, @RequestBody @Valid final AssetBulkProcessingInput input) {
+    return this.assetService.bulkDeleteAssets(ctx, input);
   }
 
   @GetMapping({ENDPOINT_URI + "/resolve", TENANT_ENDPOINT_URI + "/resolve"})
@@ -367,7 +375,7 @@ public class EndpointApi extends RestBehavior {
   // requires the annotation, so NOT_SUPPORTED keeps it while suspending any DB transaction.
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
-  public List<String> resolveHostname(@RequestParam @NotBlank final String hostname) {
+  public List<String> resolveHostname(TxCtx ctx, @RequestParam @NotBlank final String hostname) {
     return this.endpointService.resolveHostnameToIps(hostname);
   }
 
@@ -377,6 +385,7 @@ public class EndpointApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsByName(
+      TxCtx ctx,
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId,
       @RequestParam(required = false) final String inputFilterOption) {
@@ -434,6 +443,7 @@ public class EndpointApi extends RestBehavior {
   @GetMapping({ENDPOINT_URI + "/findings/options", TENANT_ENDPOINT_URI + "/findings/options"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   public List<FilterUtilsJpa.Option> optionsByNameLinkedToFindings(
+      TxCtx ctx,
       @RequestParam(required = false) final String searchText,
       @RequestParam(required = false) final String sourceId) {
     return endpointService.getOptionsByNameLinkedToFindings(
@@ -443,7 +453,7 @@ public class EndpointApi extends RestBehavior {
   @PostMapping({ENDPOINT_URI + "/options", TENANT_ENDPOINT_URI + "/options"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
-  public List<FilterUtilsJpa.Option> optionsById(@RequestBody final List<String> ids) {
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody final List<String> ids) {
     return fromIterable(this.endpointRepository.findAllById(ids)).stream()
         .map(i -> new FilterUtilsJpa.Option(i.getId(), i.getName()))
         .toList();

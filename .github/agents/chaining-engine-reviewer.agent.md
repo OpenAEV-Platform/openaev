@@ -28,7 +28,7 @@ instructions: |
 
   ## Package locations
 
-  - API layer: `io.openaev.api.chaining` (ChainingApi, StepApi, ConditionApi, WorkflowApi)
+  - API layer: `io.openaev.api.chaining` (StepApi, ConditionApi, WorkflowApi)
   - Service layer: `io.openaev.service.chaining` (StepService, ConditionService, WorkflowService, WorkflowStateService, QueueChainingService, ScopeService, StepEventService, StepDelayQueueService, WorkflowEndService)
   - AOP: `io.openaev.aop` (WorkflowUpdateEvent, WorkflowUpdateEventAspect)
   - Scheduler: `io.openaev.scheduler.jobs` (QueueChainingJob, WorkflowTimeoutJob)

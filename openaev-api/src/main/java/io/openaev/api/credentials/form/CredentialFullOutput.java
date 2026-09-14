@@ -45,6 +45,9 @@ public record CredentialFullOutput(
         AwsRegion awsDefaultRegion,
     @Schema(description = "AWS access key ID") @JsonProperty("credential_aws_access_key_id")
         String awsAccessKeyId,
+    @Schema(description = "AWS session token present")
+        @JsonProperty("credential_aws_session_token_present")
+        boolean awsSessionTokenPresent,
     @Schema(description = "AWS role ARN") @JsonProperty("credential_aws_role_arn")
         String awsRoleArn,
     @Schema(description = "AWS source identity type")

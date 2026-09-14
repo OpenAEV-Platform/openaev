@@ -8,10 +8,13 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawTeamIndexing;
+import io.openaev.database.repository.ExerciseTeamUserRepository;
+import io.openaev.database.repository.ScenarioTeamUserRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.exception.BadRequestException;
@@ -38,6 +41,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 @Service
@@ -46,6 +50,8 @@ public class TeamService {
 
   private final EntityManager entityManager;
   private final TeamRepository teamRepository;
+  private final ExerciseTeamUserRepository exerciseTeamUserRepository;
+  private final ScenarioTeamUserRepository scenarioTeamUserRepository;
   private final BulkDeleteExecutor bulkDeleteExecutor;
 
   /**
@@ -60,7 +66,7 @@ public class TeamService {
    * @param input the bulk processing input
    * @return the ids of the deleted teams
    */
-  public List<String> bulkDelete(@NotNull final TeamBulkProcessingInput input)
+  public List<String> bulkDelete(TxCtx ctx, @NotNull final TeamBulkProcessingInput input)
       throws ResourceInUseException {
     if ((CollectionUtils.isEmpty(input.getTeamIdsToProcess())
             && input.getSearchPaginationInput() == null)
@@ -71,6 +77,7 @@ public class TeamService {
     }
     List<String> teamIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
+            ctx,
             () -> {
               Specification<Team> specification;
               if (input.getSearchPaginationInput() != null) {
@@ -93,14 +100,22 @@ public class TeamService {
             });
     try {
       return bulkDeleteExecutor.deleteInChunks(
+          ctx,
           "teams",
           teamIdsToDelete,
-          chunk -> teamRepository.deleteAll(teamRepository.findAllById(chunk)));
+          chunk -> deleteAllDetachingInjects(teamRepository.findAllById(chunk)));
     } catch (InvalidDataAccessApiUsageException | TransientObjectException ex) {
       throw new ResourceInUseException(
           "Cannot delete these teams because at least one of them is still in use. Please remove their dependencies first.",
           ex);
     }
+  }
+
+  // injects_teams is owning on both the Team and the Inject side, and Inject.teams is EAGER:
+  // without this detach, loaded inject collections still reference the team at flush time.
+  public void deleteAllDetachingInjects(@NotNull final Iterable<Team> teams) {
+    teams.forEach(team -> team.getInjects().forEach(inject -> inject.getTeams().remove(team)));
+    teamRepository.deleteAll(teams);
   }
 
   /**
@@ -249,5 +264,14 @@ public class TeamService {
    */
   public List<Team> getTeamsByIds(List<String> teamIds) {
     return teamRepository.findAllById(teamIds);
+  }
+
+  @Transactional
+  public void removeUsersFromTeamActivations(String teamId, List<String> userIds) {
+    if (CollectionUtils.isEmpty(userIds)) {
+      return;
+    }
+    exerciseTeamUserRepository.deleteByTeamIdAndUserIds(teamId, userIds);
+    scenarioTeamUserRepository.deleteByTeamIdAndUserIds(teamId, userIds);
   }
 }

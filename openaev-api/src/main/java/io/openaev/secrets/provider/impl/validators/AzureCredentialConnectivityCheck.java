@@ -1,7 +1,5 @@
 package io.openaev.secrets.provider.impl.validators;
 
-import static io.openaev.secrets.provider.SecretConnectionDetails.*;
-
 import com.azure.core.credential.AccessToken;
 import com.azure.core.credential.TokenCredential;
 import com.azure.core.credential.TokenRequestContext;
@@ -80,10 +78,10 @@ public class AzureCredentialConnectivityCheck {
       environment = requireEnvironment(environmentName);
     } catch (IllegalArgumentException e) {
       // Stored configuration is wrong, not the credential: it cannot be checked at all.
-      return SecretConnectionResult.unknown(INVALID_CONFIGURATION);
+      return SecretConnectionResult.formatError();
     }
     if (isBlank(tenantId) || isBlank(clientId) || isBlank(clientSecret)) {
-      return SecretConnectionResult.unknown(INVALID_CONFIGURATION);
+      return SecretConnectionResult.formatError();
     }
 
     TokenCredential credential =
@@ -108,7 +106,7 @@ public class AzureCredentialConnectivityCheck {
     try {
       environment = requireEnvironment(environmentName);
     } catch (IllegalArgumentException e) {
-      return SecretConnectionResult.unknown(INVALID_CONFIGURATION);
+      return SecretConnectionResult.formatError();
     }
 
     TokenCredential credential = tokenCredentialFactory.forManagedIdentity(clientId);
@@ -125,7 +123,7 @@ public class AzureCredentialConnectivityCheck {
               .getToken(new TokenRequestContext().addScopes(armScope(environment)))
               .block(timeout);
       if (accessToken == null) {
-        return SecretConnectionResult.unknown(TIMEOUT);
+        return SecretConnectionResult.timeout();
       }
       token = accessToken.getToken();
     } catch (RuntimeException e) {
@@ -165,12 +163,12 @@ public class AzureCredentialConnectivityCheck {
           httpClient.send(request, HttpResponse.BodyHandlers.discarding());
       return mapStatusCode(response.statusCode());
     } catch (java.net.http.HttpTimeoutException e) {
-      return SecretConnectionResult.unknown(TIMEOUT);
+      return SecretConnectionResult.timeout();
     } catch (IOException e) {
-      return SecretConnectionResult.unknown(UNREACHABLE);
+      return SecretConnectionResult.networkError();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      return SecretConnectionResult.unknown(UNREACHABLE);
+      return SecretConnectionResult.networkError();
     }
   }
 
@@ -180,13 +178,14 @@ public class AzureCredentialConnectivityCheck {
     }
     return switch (statusCode) {
       // The token was refused: the credential is genuinely not usable.
-      case 401 -> SecretConnectionResult.inactive(AUTH_REJECTED);
+      case 400, 401 -> SecretConnectionResult.authFailed();
       // Authenticated but not authorized, and 404 is what ARM returns for a subscription the
       // principal cannot see: in both cases the credential no longer grants what it is stored
       // for.
-      case 403, 404 -> SecretConnectionResult.inactive(AUTH_FORBIDDEN);
-      case 429 -> SecretConnectionResult.unknown(THROTTLED);
-      default -> SecretConnectionResult.unknown(UNREACHABLE);
+      case 403, 404 -> SecretConnectionResult.permissionDenied();
+      // 429 -> throttled
+      case 429 -> SecretConnectionResult.networkError();
+      default -> SecretConnectionResult.networkError();
     };
   }
 
@@ -197,37 +196,33 @@ public class AzureCredentialConnectivityCheck {
   private SecretConnectionResult mapFailure(RuntimeException failure) {
     // Managed identity outside Azure, or no identity assigned: never a rejection.
     if (failure instanceof CredentialUnavailableException) {
-      return SecretConnectionResult.unknown(UNREACHABLE);
+      return SecretConnectionResult.unknown();
     }
     if (failure instanceof ClientAuthenticationException authenticationFailure) {
       Integer statusCode = statusCodeOf(authenticationFailure);
       // Entra ID answers 400 with an AADSTS code for a bad secret or an unknown application, and
       // 401 when the credential is refused outright.
-      if (statusCode == null || statusCode == 400 || statusCode == 401) {
-        return SecretConnectionResult.inactive(AUTH_REJECTED);
+      if (statusCode == null) {
+        return SecretConnectionResult.authFailed();
       }
       return mapStatusCode(statusCode);
     }
     if (failure instanceof HttpResponseException httpFailure) {
       // No status means no response at all: inconclusive, so fall back to a 5xx-like reading.
-      return mapStatusCode(statusCodeOf(httpFailure, 503));
+      Integer statusCode = statusCodeOf(httpFailure);
+      return mapStatusCode(statusCode != null ? statusCode : 503);
     }
     if (isTimeout(failure)) {
-      return SecretConnectionResult.unknown(TIMEOUT);
+      return SecretConnectionResult.timeout();
     }
     // Everything left is unclassified — inconclusive by default, never a rejection. Message only:
     // an Azure error body would leak identifiers into the logs.
-    log.debug("Azure credential probe failed with an unmapped error: {}", failure.getMessage());
-    return SecretConnectionResult.unknown(UNREACHABLE);
+    log.debug("Azure credential probe failed with an unmapped error");
+    return SecretConnectionResult.networkError();
   }
 
   private static Integer statusCodeOf(HttpResponseException failure) {
     return failure.getResponse() != null ? failure.getResponse().getStatusCode() : null;
-  }
-
-  private static int statusCodeOf(HttpResponseException failure, int fallback) {
-    Integer statusCode = statusCodeOf(failure);
-    return statusCode != null ? statusCode : fallback;
   }
 
   /**

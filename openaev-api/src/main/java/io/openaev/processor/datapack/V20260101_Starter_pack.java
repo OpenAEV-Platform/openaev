@@ -1,6 +1,6 @@
 package io.openaev.processor.datapack;
 
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.jsonapi.JsonApiDocument;
@@ -87,7 +87,7 @@ public class V20260101_Starter_pack extends DataPack {
   private final ResourcePatternResolver resolver;
 
   @Override
-  protected boolean doProcess() {
+  protected boolean doProcess(Tenant tenant) {
     // early break for when the starter pack was already run
     if (!isStarterPackEnabled) {
       log.info("Starter pack is disabled by configuration");
@@ -99,19 +99,15 @@ public class V20260101_Starter_pack extends DataPack {
       return true;
     }
 
-    // TODO v2: once tags get v2 activated
-    // https://github.com/OpenAEV-Platform/openaev/issues/6424, and tag_rules get v2 activated
-    // https://github.com/OpenAEV-Platform/openaev/issues/6407, remove this call - the SQL
-    // rewriter will scope both entities independently of the v1 filter
-    enableV1TenantFilter();
-
     // unconditionally run this code
-    Set<Tag> tags = tagService.ensureWellKnownTags();
-    Set<TagRule> tagRules = tagRuleService.ensurePresetRules();
+    TxCtx ctx = TxCtx.forTenant(tenant.getId());
+    Set<Tag> tags = tagService.ensureWellKnownTags(ctx);
+    Set<TagRule> tagRules = tagRuleService.ensurePresetRules(ctx);
 
     try {
       Endpoint honeyScanMeEndpoint =
           this.createHoneyScanMeAgentlessEndpoint(
+              tenant.getId(),
               new ArrayList<>(
                   tags.stream()
                       .filter(
@@ -120,7 +116,7 @@ public class V20260101_Starter_pack extends DataPack {
                                   .contains(t.getName()))
                       .map(Tag::getId)
                       .toList()));
-      AssetGroup allEndpointAssetGroup = this.createAllEndpointsAssetGroup();
+      AssetGroup allEndpointAssetGroup = this.createAllEndpointsAssetGroup(tenant.getId());
 
       TagRule openCTITagRule =
           tagRules.stream()
@@ -130,11 +126,10 @@ public class V20260101_Starter_pack extends DataPack {
       this.tagRuleService.updateTagRule(
           openCTITagRule.getId(),
           openCTITagRule.getTag().getName(),
-          new ArrayList<>(List.of(allEndpointAssetGroup.getId())),
-          TenantContext.getCurrentTenant());
+          new ArrayList<>(List.of(allEndpointAssetGroup.getId())));
 
-      this.importScenariosFromResources(honeyScanMeEndpoint, allEndpointAssetGroup);
-      this.importDashboardsFromResources();
+      this.importScenariosFromResources(tenant.getId(), honeyScanMeEndpoint, allEndpointAssetGroup);
+      this.importDashboardsFromResources(tenant);
       return true;
     } catch (Exception e) {
       log.error("Unexpected error during DataPack 20260101 initialization.", e);
@@ -142,7 +137,7 @@ public class V20260101_Starter_pack extends DataPack {
     }
   }
 
-  private Endpoint createHoneyScanMeAgentlessEndpoint(List<String> tags) {
+  private Endpoint createHoneyScanMeAgentlessEndpoint(String tenantId, List<String> tags) {
     EndpointInput endpointInput = new EndpointInput();
     endpointInput.setName(HoneyScanMeEndpoint.HOSTNAME);
     endpointInput.setHostname(HoneyScanMeEndpoint.HOSTNAME);
@@ -151,10 +146,11 @@ public class V20260101_Starter_pack extends DataPack {
     endpointInput.setPlatform(HoneyScanMeEndpoint.PLATFORM);
     endpointInput.setEol(HoneyScanMeEndpoint.END_OF_LIFE);
     endpointInput.setTagIds(tags);
-    return this.endpointService.createEndpoint(endpointInput);
+    // Tenant provisioning: the pack runs for one tenant, so the write carries it.
+    return this.endpointService.createEndpoint(endpointInput, tenantId);
   }
 
-  private AssetGroup createAllEndpointsAssetGroup() {
+  private AssetGroup createAllEndpointsAssetGroup(String tenantId) {
     Filters.Filter filter = new Filters.Filter();
     filter.setKey(AllEndpointsAssetGroup.KEY);
     filter.setOperator(AllEndpointsAssetGroup.OPERATOR);
@@ -169,16 +165,23 @@ public class V20260101_Starter_pack extends DataPack {
     allEndpointsAssetGroup.setName(AllEndpointsAssetGroup.NAME);
     allEndpointsAssetGroup.setDynamicFilter(filterGroup);
 
-    return this.assetGroupService.createAssetGroup(allEndpointsAssetGroup);
+    // Tenant provisioning: the pack runs for one tenant, so the write carries it explicitly.
+    return this.assetGroupService.createAssetGroup(allEndpointsAssetGroup, tenantId);
   }
 
-  private void importScenariosFromResources(Asset asset, AssetGroup assetGroup) {
+  private void importScenariosFromResources(String tenantId, Asset asset, AssetGroup assetGroup) {
     listFilesInResourceFolder(Config.SCENARIOS_FOLDER_NAME)
         .forEach(
             resourceToAdd -> {
               try {
                 this.importService.handleInputStreamFileImport(
-                    resourceToAdd.getInputStream(), null, null, asset, assetGroup, "");
+                    TxCtx.forTenant(tenantId),
+                    resourceToAdd.getInputStream(),
+                    null,
+                    null,
+                    asset,
+                    assetGroup,
+                    "");
                 log.info(
                     "Successfully imported StarterPack scenario file : {}",
                     resourceToAdd.getFilename());
@@ -190,7 +193,7 @@ public class V20260101_Starter_pack extends DataPack {
             });
   }
 
-  private void importDashboardsFromResources() {
+  private void importDashboardsFromResources(Tenant tenant) {
     listFilesInResourceFolder(Config.DASHBOARDS_FOLDER_NAME)
         .forEach(
             resourceToAdd -> {
@@ -201,10 +204,13 @@ public class V20260101_Starter_pack extends DataPack {
                             resourceToAdd.getContentAsByteArray(),
                             "custom_dashboard_name",
                             null,
-                            CustomDashboardService::sanityCheck,
+                            customDashboard ->
+                                CustomDashboardService.prepareForTenantWrite(
+                                    customDashboard, tenant.getId()),
                             "")
                         .jsonApiDocument();
-                this.setDefaultDashboard(resourceToAdd.getFilename(), dashboard.data().id());
+                this.setDefaultDashboard(
+                    tenant, resourceToAdd.getFilename(), dashboard.data().id());
                 log.info(
                     "Successfully imported StarterPack dashboard file : {}",
                     resourceToAdd.getFilename());
@@ -233,7 +239,7 @@ public class V20260101_Starter_pack extends DataPack {
     }
   }
 
-  private void setDefaultDashboard(String filename, String dashboardId) {
+  private void setDefaultDashboard(Tenant tenant, String filename, String dashboardId) {
     String settingKey =
         DASHBOARD_PREFIX_TO_SETTING_KEY.entrySet().stream()
             .filter(entry -> filename.startsWith(entry.getKey()))
@@ -242,15 +248,15 @@ public class V20260101_Starter_pack extends DataPack {
             .orElse(null);
 
     if (settingKey != null) {
-      String tenantId = TenantContext.getCurrentTenant();
-      Tenant tenant = new Tenant(tenantId);
+      String tenantId = tenant.getId();
       Setting defaultDashboardSetting =
           settingRepository
               .findByKeyAndTenantId(settingKey, tenantId)
               .orElseGet(
                   () -> {
                     Setting s = new Setting(settingKey, null);
-                    s.setTenant(tenant);
+                    // Id-only stub: the Tenant we were handed was loaded in another transaction.
+                    s.setTenant(new Tenant(tenantId));
                     return s;
                   });
       defaultDashboardSetting.setValue(dashboardId);

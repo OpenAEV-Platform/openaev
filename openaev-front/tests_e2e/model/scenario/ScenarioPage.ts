@@ -42,7 +42,10 @@ class ScenarioPage {
   // -- Get Locator methods
 
   getAllTeamItems() {
-    return this.teamListSection.locator('li:nth-child(n+2)'); // Skip the first item which is the header
+    // Team rows expose a per-row kebab action; the header row does not.
+    return this.teamListSection
+      .getByRole('listitem')
+      .filter({ has: this.page.getByRole('button', { name: 'More actions' }) });
   }
 
   getTeam(teamName: string) {

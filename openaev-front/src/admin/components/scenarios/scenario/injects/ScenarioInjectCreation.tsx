@@ -25,6 +25,7 @@ import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { ArticleContext, ChallengeContext, InjectContext, TeamContext } from '../../../common/Context';
 import InjectContractPicker from '../../../common/injects/create/InjectContractPicker';
 import InjectCreationConfig from '../../../common/injects/create/InjectCreationConfig';
+import { buildScenarioVariablesConfigurationUrl } from '../../ScenarioConfigurationTab';
 import articleContextForScenario from '../articles/articleContextForScenario';
 import teamContextForScenario from '../teams/teamContextForScenario';
 
@@ -114,7 +115,7 @@ const ScenarioInjectCreation: FunctionComponent = () => {
                       onBack={closeConfig}
                       presetInjectDuration={presetInjectDuration}
                       articlesFromExerciseOrScenario={articles}
-                      uriVariable={listUrl}
+                      uriVariable={buildScenarioVariablesConfigurationUrl(scenarioId, pickerUrl)}
                       variablesFromExerciseOrScenario={variables}
                     />
                   )

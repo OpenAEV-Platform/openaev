@@ -5,6 +5,8 @@ import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.repository.InjectRepository;
@@ -78,7 +80,9 @@ class EsFindingServiceTest extends IntegrationTest {
       Inject inject = injectRepository.save(getDefaultInject());
 
       // -- EXECUTE --
-      Finding result = findingService.createFinding(finding, inject.getId());
+      Finding result =
+          findingService.createFinding(
+              TxCtx.forTenant(TenantContext.getCurrentTenant()), finding, inject.getId());
 
       // -- ASSERT --
       assertNotNull(result);
@@ -92,7 +96,9 @@ class EsFindingServiceTest extends IntegrationTest {
       Inject inject = injectRepository.save(getDefaultInject());
 
       // -- EXECUTE --
-      Finding result = findingService.createFinding(finding, inject.getId());
+      Finding result =
+          findingService.createFinding(
+              TxCtx.forTenant(TenantContext.getCurrentTenant()), finding, inject.getId());
 
       // -- ASSERT --
       InetAddressValidator validator = InetAddressValidator.getInstance();
@@ -108,7 +114,9 @@ class EsFindingServiceTest extends IntegrationTest {
       Inject inject = injectRepository.save(getDefaultInject());
 
       // -- EXECUTE --
-      Finding result = findingService.createFinding(finding, inject.getId());
+      Finding result =
+          findingService.createFinding(
+              TxCtx.forTenant(TenantContext.getCurrentTenant()), finding, inject.getId());
 
       // -- ASSERT --
       assertNotNull(result);

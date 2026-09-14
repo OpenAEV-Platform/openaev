@@ -49,6 +49,7 @@ const Reset = ({ onCancel }) => {
     });
   };
   const onSubmitValidatePassword = data => dispatch(resetPassword(token, data));
+  const onGoToValidateToken = () => setStep(STEP_VALIDATE_TOKEN);
   return (
     <div className={classes.container}>
       <Paper variant="outlined">
@@ -68,15 +69,30 @@ const Reset = ({ onCancel }) => {
                     fullWidth={true}
                     style={{ marginTop: 5 }}
                   />
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="primary"
-                    disabled={pristine || submitting}
-                    style={{ marginTop: 30 }}
+                  <div style={{
+                    marginTop: 30,
+                    display: 'flex',
+                    gap: 10,
+                    justifyContent: 'center',
+                  }}
                   >
-                    {t('Send reset code')}
-                  </Button>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      color="primary"
+                      disabled={pristine || submitting}
+                    >
+                      {t('Send reset code')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outlined"
+                      color="primary"
+                      onClick={onGoToValidateToken}
+                    >
+                      {t('I already have a code')}
+                    </Button>
+                  </div>
                 </form>
               )}
             </Form>

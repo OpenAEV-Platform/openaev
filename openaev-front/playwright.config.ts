@@ -44,7 +44,7 @@ export default defineConfig({
     locale: 'en-US',
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: process.env.APP_URL ?? 'http://localhost:3001',
-
+    headless: process.env.CI ? true : process.env.HEADLESS === 'true',
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',

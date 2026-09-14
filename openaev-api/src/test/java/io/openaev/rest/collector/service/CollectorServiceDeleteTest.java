@@ -32,7 +32,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
  * A started collector can never be deleted (OpenCTI parity): an unmanaged one must have stopped
- * pinging, a managed one must have a stop requested or effective on its owning instance.
+ * pinging, a managed one must have both a stop requested or effective on its owning instance and a
+ * container that stopped pinging — the stop is only ever an intention.
  */
 @ExtendWith(MockitoExtension.class)
 class CollectorServiceDeleteTest {
@@ -131,10 +132,26 @@ class CollectorServiceDeleteTest {
   }
 
   @Test
+  @DisplayName("A managed collector still pinging cannot be deleted, even with a stop requested")
+  void given_managedCollectorStillPinging_should_rejectDeletion() throws Exception {
+    collector(Instant.now());
+    when(owningInstanceIds.getConnectorInstanceId()).thenReturn(INSTANCE_ID);
+    when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
+            "COLLECTOR_ID", COLLECTOR_ID, TENANT_ID))
+        .thenReturn(owningInstanceIds);
+
+    assertThatThrownBy(() -> service.deleteCollector(COLLECTOR_ID, TENANT_ID))
+        .isInstanceOf(BadRequestException.class)
+        .hasMessageContaining("stop it before deleting it");
+    verify(connectorInstanceService, never()).deleteById(INSTANCE_ID);
+    verify(collectorRepository, never()).delete(any(Collector.class));
+  }
+
+  @Test
   @DisplayName("A managed collector whose instance has a stop requested is deleted via its owner")
   void given_managedCollectorWithStopRequestedInstance_should_deleteThroughItsInstance()
       throws Exception {
-    Collector managed = collector(Instant.now());
+    Collector managed = collector(Instant.now().minus(Duration.ofMinutes(10)));
     when(owningInstanceIds.getConnectorInstanceId()).thenReturn(INSTANCE_ID);
     when(connectorInstanceConfigurationRepository.findInstanceAndCatalogIdsByKeyValueAndTenantId(
             "COLLECTOR_ID", COLLECTOR_ID, TENANT_ID))

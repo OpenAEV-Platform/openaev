@@ -1,7 +1,9 @@
 package io.openaev.service.tenants;
 
+import static io.openaev.utils.fixtures.UserFixture.RAW_PASSWORD;
 import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static io.openaev.utils.fixtures.UserFixture.getUserInput;
+import static io.openaev.utils.fixtures.UserFixture.getUserInputWithPasswordAndPhone;
 import static io.openaev.utils.fixtures.tenants.TenantFixture.getTenant;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -16,11 +18,15 @@ import io.openaev.database.model.User;
 import io.openaev.database.raw.RawUser;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.UserService;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
+import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
+import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -45,7 +51,10 @@ class TenantUserServiceTest extends IntegrationTest {
   @Autowired private UserComposer userComposer;
   @Autowired private TenantComposer tenantComposer;
   @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private PlatformGroupComposer platformGroupComposer;
   @Autowired private GroupRepository groupRepository;
+  @Autowired private UserRepository userRepository;
+  @Autowired private UserService userService;
   @Autowired private EntityManager entityManager;
 
   private Tenant tenant;
@@ -274,6 +283,37 @@ class TenantUserServiceTest extends IntegrationTest {
       Group reloaded = groupRepository.findById(autoGroup.getId()).orElseThrow();
       assertThat(reloaded.getUsers()).extracting(User::getId).doesNotContain(created.id());
     }
+
+    @Test
+    @DisplayName(
+        "Given a user still attached to another tenant should keep the same account and password")
+    void given_userStillAttachedToAnotherTenant_should_keepExistingAccountAndPassword() {
+      // -- ARRANGE --
+      Tenant otherTenant = tenantComposer.forTenant(getTenant("Other tenant")).persist().get();
+      User user = persistedUserInTenant("Shared", "Tenant", "shared-tenant@test.invalid");
+      tenantRepository.addUserToTenant(user.getId(), otherTenant.getId());
+      entityManager.flush();
+      entityManager.clear();
+      UserInput reAttachInput =
+          getUserInputWithPasswordAndPhone(
+              "shared-tenant@test.invalid", "Shared", "Tenant", "BrandNewP@ssword!", null);
+
+      // -- ACT --
+      tenantUserService.detach(user.getId());
+      UserOutput reattached = tenantUserService.createOrAttach(reAttachInput);
+
+      // -- ASSERT --
+      entityManager.flush();
+      entityManager.clear();
+      User reloaded = userRepository.findById(user.getId()).orElseThrow();
+      assertThat(reattached.id()).isEqualTo(user.getId());
+      assertThat(reloaded.getTenants())
+          .extracting(Tenant::getId)
+          .contains(tenant.getId(), otherTenant.getId());
+      assertThat(userService.isUserPasswordValid(reloaded, RAW_PASSWORD)).isTrue();
+      assertThat(userService.isUserPasswordValid(reloaded, reAttachInput.plainPassword()))
+          .isFalse();
+    }
   }
 
   @Nested
@@ -347,6 +387,66 @@ class TenantUserServiceTest extends IntegrationTest {
       entityManager.clear();
       Group reloaded = groupRepository.findById(autoGroup.getId()).orElseThrow();
       assertThat(reloaded.getUsers()).extracting(User::getId).contains(existingUser.getId());
+    }
+
+    @Test
+    @DisplayName("Given a platform auto-assign group, should not assign a user created in a tenant")
+    void given_platformAutoAssignGroup_should_notAssignTenantCreatedUser() {
+      // -- ARRANGE --
+      Group platformAutoGroup = PlatformGroupFixture.getPlatformGroup("AutoAssignPlatform");
+      platformAutoGroup.setDefaultUserAssignation(true);
+      platformGroupComposer.forPlatformGroup(platformAutoGroup).persist();
+      Group tenantAutoGroup = TenantGroupFixture.getGroup("AutoAssignTenantScoped");
+      tenantAutoGroup.setDefaultUserAssignation(true);
+      tenantGroupComposer.forGroup(tenantAutoGroup).persist();
+      entityManager.flush();
+
+      UserInput input = getUserInput("tenant-scoped@test.invalid", "Tenant", "Scoped");
+
+      // -- ACT --
+      UserOutput result = tenantUserService.createOrAttach(input);
+
+      // -- ASSERT --
+      entityManager.flush();
+      entityManager.clear();
+      Group reloadedPlatform = groupRepository.findById(platformAutoGroup.getId()).orElseThrow();
+      assertThat(reloadedPlatform.getUsers()).extracting(User::getId).doesNotContain(result.id());
+      Group reloadedTenant = groupRepository.findById(tenantAutoGroup.getId()).orElseThrow();
+      assertThat(reloadedTenant.getUsers()).extracting(User::getId).contains(result.id());
+    }
+
+    @Test
+    @DisplayName("Given tenants in the input, should ignore them when creating from a tenant")
+    void given_tenantIdsInInput_should_ignoreThem() {
+      // -- ARRANGE --
+      Tenant otherTenant = tenantComposer.forTenant(getTenant("Other tenant")).persist().get();
+      entityManager.flush();
+      UserInput base = getUserInput("cross-tenant@test.invalid", "Cross", "Tenant");
+      UserInput input =
+          new UserInput(
+              base.email(),
+              base.firstname(),
+              base.lastname(),
+              base.plainPassword(),
+              base.pgpKey(),
+              base.phone(),
+              base.phone2(),
+              base.organizationId(),
+              base.tagIds(),
+              base.admin(),
+              List.of(otherTenant.getId()));
+
+      // -- ACT --
+      UserOutput result = tenantUserService.createOrAttach(input);
+
+      // -- ASSERT --
+      entityManager.flush();
+      entityManager.clear();
+      User reloaded = userRepository.findById(result.id()).orElseThrow();
+      assertThat(reloaded.getTenants())
+          .extracting(Tenant::getId)
+          .containsExactly(tenant.getId())
+          .doesNotContain(otherTenant.getId());
     }
   }
 }

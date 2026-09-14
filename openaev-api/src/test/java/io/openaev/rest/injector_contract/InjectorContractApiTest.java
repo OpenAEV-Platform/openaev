@@ -46,12 +46,12 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.javacrumbs.jsonunit.core.Option;
-import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
@@ -1419,7 +1419,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                       .contentType(MediaType.APPLICATION_JSON)
                       .with(csrf()))
               .andDo(print())
-              .andExpect(status().is(HttpStatus.SC_OK));
+              .andExpect(status().is(HttpStatus.OK.value()));
 
       // Verify the response based on user permissions
       if (shouldSeeAllContracts) {
@@ -1461,7 +1461,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(searchPaginationInput))
                       .with(csrf()))
-              .andExpect(status().is(HttpStatus.SC_OK));
+              .andExpect(status().is(HttpStatus.OK.value()));
 
       // Verify pagination response
       result.andExpect(jsonPath("$.totalElements").exists());
@@ -1508,7 +1508,7 @@ public class InjectorContractApiTest extends IntegrationTest {
                       .contentType(MediaType.APPLICATION_JSON)
                       .content(asJsonString(searchPaginationInput))
                       .with(csrf()))
-              .andExpect(status().is(HttpStatus.SC_OK));
+              .andExpect(status().is(HttpStatus.OK.value()));
 
       // Verify pagination response with full details
       result.andExpect(jsonPath("$.totalElements").exists());

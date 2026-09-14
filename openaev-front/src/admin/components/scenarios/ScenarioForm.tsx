@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete, Button, Checkbox, Chip, FormControlLabel, MenuItem, Switch, TextField as MuiTextField, Typography } from '@mui/material';
+import { Autocomplete, Button, Checkbox, Chip, FormControlLabel, MenuItem, TextField as MuiTextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -14,6 +14,7 @@ import { useHelper } from '../../../store';
 import { type PlatformSettings, type ScenarioInput } from '../../../utils/api-types';
 import { zodImplement } from '../../../utils/Zod';
 import DefaultKillChainSelectField from '../common/filters/DefaultKillChainSelectField';
+import LessonsLearnedSection from '../common/form/LessonsLearnedSection';
 import { scenarioCategories } from './constants';
 
 // The lessons learned module toggle rides along the configuration form but is
@@ -58,15 +59,15 @@ const ScenarioForm: FunctionComponent<Props> = ({
     resolver: zodResolver(
       zodImplement<ScenarioFormInput>().with({
         scenario_name: z.string().min(1, { message: t('Should not be empty') }),
-        scenario_category: z.string().optional(),
-        scenario_main_focus: z.string().optional(),
+        scenario_category: z.string().optional().nullable(),
+        scenario_main_focus: z.string().optional().nullable(),
         scenario_severity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
-        scenario_default_kill_chain: z.string().optional(),
+        scenario_default_kill_chain: z.string().optional().nullable(),
         scenario_subtitle: z.string().optional(),
         scenario_description: z.string().optional(),
         scenario_tags: z.string().array().optional(),
-        scenario_external_reference: z.string().optional(),
-        scenario_external_url: z.string().optional(),
+        scenario_external_reference: z.string().optional().nullable(),
+        scenario_external_url: z.string().optional().nullable(),
         scenario_mail_from_name: z.string().max(100, t('Should not exceed {max_length} characters', { max_length: '100' })).optional(),
         scenario_mails_reply_to: z.array(z.string().email(t('Should be a valid email address'))).optional(),
         scenario_message_header: z.string().optional(),
@@ -188,7 +189,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
         <DefaultKillChainSelectField<ScenarioFormInput>
           name="scenario_default_kill_chain"
           control={control}
-          defaultValue={initialValues.scenario_default_kill_chain}
+          defaultValue={initialValues.scenario_default_kill_chain ?? undefined}
         />
       </div>
       <TextField
@@ -227,32 +228,12 @@ const ScenarioForm: FunctionComponent<Props> = ({
           label={t('Use the scenario assistant')}
         />
       )}
-      {editing && !isChaining && (
-        <div style={{ marginTop: theme.spacing(2) }}>
-          <Typography variant="h2" gutterBottom>
-            {t('Modules')}
-          </Typography>
-          <Controller
-            control={control}
-            name="scenario_lessons_enabled"
-            render={({ field }) => (
-              <FormControlLabel
-                control={(
-                  <Switch
-                    checked={field.value ?? false}
-                    onChange={event => field.onChange(event.target.checked)}
-                    disabled={disabled}
-                  />
-                )}
-                label={t('Enable lessons learned')}
-              />
-            )}
-          />
-          <Typography variant="body2" color="textSecondary">
-            {t('Adds a lessons learned tab to collect feedback with objectives and questionnaires.')}
-          </Typography>
-        </div>
-      )}
+      <LessonsLearnedSection
+        control={control}
+        name="scenario_lessons_enabled"
+        disabled={disabled}
+        style={{ marginTop: theme.spacing(2) }}
+      />
       {!isChaining && (
         <>
           <Typography variant="h2" style={{ marginTop: theme.spacing(2) }}>

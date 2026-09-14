@@ -18,6 +18,7 @@ import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.ScenarioInjectService;
+import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.service.*;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.mapper.InjectMapper;
@@ -61,7 +62,7 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(readOnly = true)
   public Iterable<InjectOutput> scenarioInjectsSimple(
-      @PathVariable @NotBlank final String scenarioId) {
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     return injectSearchService.injects(fromScenario(scenarioId));
   }
 
@@ -75,6 +76,7 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(readOnly = true)
   public Iterable<InjectOutput> scenarioInjectsSimple(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
@@ -101,10 +103,14 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
-  public Iterable<Inject> scenarioInjects(@PathVariable @NotBlank final String scenarioId) {
-    return this.injectRepository.findByScenarioId(scenarioId).stream()
-        .sorted(Inject.executionComparator)
-        .toList();
+  public Iterable<Inject> scenarioInjects(
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
+    List<Inject> injects =
+        this.injectRepository.findByScenarioId(scenarioId).stream()
+            .sorted(Inject.executionComparator)
+            .toList();
+    KillChainPhaseInitializer.initializeFromInjects(injects);
+    return injects;
   }
 
   @GetMapping({
@@ -117,11 +123,13 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public Inject scenarioInject(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     assert scenarioId.equals(scenario.getId());
-    return injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    return hydrateKillChainPhases(
+        injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new));
   }
 
   // -- CREATE --
@@ -156,14 +164,13 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @Transactional(rollbackFor = Exception.class)
   public List<Inject> createInjectsForScenario(
-      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for the transaction (createAndSaveInjectList resolves the injector through the v2
-      // tenant-scoped injectors table) — sibling createInjectForScenario already carries this.
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody List<InjectInput> inputs) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    return this.injectService.createAndSaveInjectList(null, scenario, inputs);
+    List<Inject> created = this.injectService.createAndSaveInjectList(null, scenario, inputs);
+    KillChainPhaseInitializer.initializeFromInjects(created);
+    return created;
   }
 
   @PostMapping({
@@ -179,15 +186,15 @@ public class ScenarioInjectApi extends RestBehavior {
       summary = "Assistant to generate injects for scenario",
       description = "Generates injects based on the provided attack pattern and targets.")
   public List<Inject> generateInjectsForScenario(
-      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for the transaction (buildInject resolves the injector through the v2 tenant-scoped
-      // injectors table).
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody InjectAssistantInput input) {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
-    return injectService.saveAll(
-        this.injectAssistantService.generateInjectsForScenario(scenario, input));
+    List<Inject> generated =
+        injectService.saveAll(
+            this.injectAssistantService.generateInjectsForScenario(scenario, input));
+    KillChainPhaseInitializer.initializeFromInjects(generated);
+    return generated;
   }
 
   @PostMapping({
@@ -242,10 +249,12 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public Inject updateInjectActivationForScenario(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
-    return scenarioInjectService.updateInjectActivationForScenario(scenarioId, injectId, input);
+    return hydrateKillChainPhases(
+        scenarioInjectService.updateInjectActivationForScenario(scenarioId, injectId, input));
   }
 
   // -- BULK UPDATE --
@@ -267,10 +276,11 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @LogExecutionTime
   public List<Inject> bulkUpdateInjectsForScenario(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestBody @Valid final InjectBulkUpdateInputs input) {
     input.setSimulationOrScenarioId(scenarioId);
-    return bulkInjectService.bulkUpdateWithMonitoring(input);
+    return bulkInjectService.bulkUpdateWithMonitoring(ctx, input);
   }
 
   // -- BULK DELETE --
@@ -292,10 +302,11 @@ public class ScenarioInjectApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   @LogExecutionTime
   public List<Inject> bulkDeleteInjectsForScenario(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestBody @Valid final InjectBulkProcessingInput input) {
     input.setSimulationOrScenarioId(scenarioId);
-    return bulkInjectService.bulkDeleteWithMonitoring(input);
+    return bulkInjectService.bulkDeleteWithMonitoring(ctx, input);
   }
 
   // -- DELETE --
@@ -310,8 +321,15 @@ public class ScenarioInjectApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECT)
   public void deleteInjectForScenario(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
     this.scenarioInjectService.deleteInject(scenarioId, injectId);
+  }
+
+  /** See {@link KillChainPhaseInitializer}: hydrate before open-in-view rendering. */
+  private static Inject hydrateKillChainPhases(Inject inject) {
+    KillChainPhaseInitializer.initializeFromInjects(List.of(inject));
+    return inject;
   }
 }

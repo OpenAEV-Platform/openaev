@@ -10,6 +10,7 @@ import Loader from '../../../../components/Loader';
 import { type SimulationDetails } from '../../../../utils/api-types';
 import useHasInjectTests from '../../injects/useHasInjectTests';
 import ExerciseHeader from './ExerciseHeader';
+import buildSimulationTabs from './simulationTabs';
 
 // Shared simulation chrome: breadcrumbs + hero header + navigation tabs.
 // Used by the simulation Index and by screens that must live OUTSIDE the Index
@@ -48,48 +49,16 @@ const SimulationShell: FunctionComponent<{
   // Tab set depends on the simulation flavour:
   // - autonomous (AI-driven): the AI provisions and drives the attack path, so Scope and Logic are
   //   surfaced in read-only mode (inspection only) while the operator steers from the reasoning panel;
-  // - chained (workflow-backed): Overview / Scope / Logic / Execution / Attack path / Findings / Statistics;
+  // - chained (workflow-backed): Overview / Scope / Logic / Execution / Lessons / Attack path /
+  //   Findings / Statistics;
   // - time-based: Overview / Injects / Tests / Execution / Lessons / Findings / Statistics.
-  const buildTabs = (): [string, string][] => {
-    if (isAutonomous) {
-      // Scope and Logic are ALWAYS surfaced (read-only) for an autonomous run: their routes are
-      // registered unconditionally in Index.tsx, and they must stay visible even before the AI has
-      // provisioned a workflow (e.g. a plan-mode / dry-run simulation that has no workflow yet), so
-      // the operator can always inspect the perimeter and the designed logic. Only Attack path is
-      // workflow-backed, so it alone is gated on the workflow existing (its route is too).
-      return [
-        ['', t('Overview')],
-        ['/scope', t('Scope')],
-        ['/logic', t('Logic')],
-        ...(hasWorkflow ? [['/attack-path', t('Attack Path')] as [string, string]] : []),
-        ['/execution', t('Execution')],
-        ['/findings', t('Findings')],
-        ['/statistics', t('Statistics')],
-      ];
-    }
-    if (hasWorkflow) {
-      return [
-        ['', t('Overview')],
-        ['/scope', t('Scope')],
-        ['/logic', t('Logic')],
-        ['/execution', t('Execution')],
-        ['/attack-path', t('Attack Path')],
-        ['/findings', t('Findings')],
-        ['/statistics', t('Statistics')],
-      ];
-    }
-    return [
-      ['', t('Overview')],
-      ['/injects', t('Injects')],
-      ...(hasInjectTests ? [['/tests', t('Tests')] as [string, string]] : []),
-      ['/execution', t('Execution')],
-      // The lessons learned module is opt-in (simulation configuration).
-      ...(exercise.exercise_lessons_enabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
-      ['/findings', t('Findings')],
-      ['/statistics', t('Statistics')],
-    ];
-  };
-  const tabs: [string, string][] = buildTabs();
+  const tabs: [string, string][] = buildSimulationTabs({
+    lessonsEnabled: exercise.exercise_lessons_enabled,
+    isAutonomous,
+    hasWorkflow,
+    hasInjectTests,
+    t,
+  });
 
   // MUI Tabs requires the value to match one of the rendered tabs; screens
   // without a dedicated tab (e.g. dashboard) deselect all tabs instead.
