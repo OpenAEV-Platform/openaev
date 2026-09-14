@@ -138,6 +138,12 @@ import org.junit.jupiter.api.Test;
  * positive and it is fail-closed (it demands attention, it never hides an unscoped path); the fix
  * is to reference the primitive in the child or add a {@code delegates-to} baseline entry, not to
  * weaken the guard.
+ *
+ * <p><b>Known limit, an explicit allowlist naming an outside-v2 table.</b> {@code until-active}
+ * rejects an outside-v2 strict table ({@code attackpath_graph_version}, {@code tenants}) because
+ * these are never meant to be activated, yet {@link io.openaev.config.TenantTables#restrictTo}
+ * still accepts such a name in an explicit {@code openaev.tenant.active-tables} list, so activating
+ * one that way is a production configuration error this guard does not reject today (follow-up).
  */
 public class BackgroundEntrypointTenantScopeArchTest {
 
@@ -695,16 +701,35 @@ public class BackgroundEntrypointTenantScopeArchTest {
     return clazz.getAllMethods().stream()
         .anyMatch(
             m ->
-                m.isAnnotatedWith("org.springframework.context.annotation.Bean")
+                annotatedDirectlyOrMeta(m, "org.springframework.context.annotation.Bean")
                     && m.getRawReturnType().isAssignableTo(type));
   }
 
+  /**
+   * Whether the element carries the annotation directly or through a composed (meta-)annotation.
+   * Spring applies {@code @Async}, {@code @Scheduled}, {@code @Schedules}, {@code @EventListener},
+   * {@code @TransactionalEventListener} and {@code @Bean} through {@code AnnotatedElementUtils} /
+   * the configuration parser, both meta-annotation aware, so a custom annotation meta-annotated
+   * with one of these (e.g. {@code @EveryFiveSeconds} meta-annotated {@code @Scheduled}) makes the
+   * element a live background entry point a direct-only check would not see. {@code
+   * isMetaAnnotatedWith} does not report the directly present case, so both are asked, as {@code
+   * HTTP_SIDE_CLASSES} does for {@code @Controller}.
+   */
+  private static boolean annotatedDirectlyOrMeta(JavaClass clazz, String annotationType) {
+    return clazz.isAnnotatedWith(annotationType) || clazz.isMetaAnnotatedWith(annotationType);
+  }
+
+  private static boolean annotatedDirectlyOrMeta(JavaMethod method, String annotationType) {
+    return method.isAnnotatedWith(annotationType) || method.isMetaAnnotatedWith(annotationType);
+  }
+
   private static boolean isAsync(JavaClass clazz) {
-    if (clazz.isAnnotatedWith("org.springframework.scheduling.annotation.Async")) {
+    if (annotatedDirectlyOrMeta(clazz, "org.springframework.scheduling.annotation.Async")) {
       return true;
     }
     return clazz.getAllMethods().stream()
-        .anyMatch(m -> m.isAnnotatedWith("org.springframework.scheduling.annotation.Async"));
+        .anyMatch(
+            m -> annotatedDirectlyOrMeta(m, "org.springframework.scheduling.annotation.Async"));
   }
 
   private static boolean isScheduled(JavaClass clazz) {
@@ -713,8 +738,9 @@ public class BackgroundEntrypointTenantScopeArchTest {
     return clazz.getAllMethods().stream()
         .anyMatch(
             m ->
-                m.isAnnotatedWith("org.springframework.scheduling.annotation.Scheduled")
-                    || m.isAnnotatedWith("org.springframework.scheduling.annotation.Schedules"));
+                annotatedDirectlyOrMeta(m, "org.springframework.scheduling.annotation.Scheduled")
+                    || annotatedDirectlyOrMeta(
+                        m, "org.springframework.scheduling.annotation.Schedules"));
   }
 
   private static boolean isEventListener(JavaClass clazz) {
@@ -725,9 +751,9 @@ public class BackgroundEntrypointTenantScopeArchTest {
     return clazz.getAllMethods().stream()
         .anyMatch(
             m ->
-                m.isAnnotatedWith("org.springframework.context.event.EventListener")
-                    || m.isAnnotatedWith(
-                        "org.springframework.transaction.event.TransactionalEventListener"));
+                annotatedDirectlyOrMeta(m, "org.springframework.context.event.EventListener")
+                    || annotatedDirectlyOrMeta(
+                        m, "org.springframework.transaction.event.TransactionalEventListener"));
   }
 
   private static boolean isSeedingOrStartup(JavaClass clazz) {
@@ -737,6 +763,8 @@ public class BackgroundEntrypointTenantScopeArchTest {
         || declaresBeanReturning(clazz, "org.springframework.boot.ApplicationRunner")) {
       return true;
     }
+    // @PostConstruct is @Target(METHOD) only, so it cannot be placed on an annotation type and has
+    // no composed form to resolve: the direct check is complete, no meta-annotation arm is needed.
     return clazz.getAllMethods().stream()
         .anyMatch(m -> m.isAnnotatedWith("jakarta.annotation.PostConstruct"));
   }

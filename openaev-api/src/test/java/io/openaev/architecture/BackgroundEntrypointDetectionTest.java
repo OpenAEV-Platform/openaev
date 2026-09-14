@@ -12,6 +12,14 @@ import io.openaev.architecture.background_fixtures.AsyncMethodFixture;
 import io.openaev.architecture.background_fixtures.BeanFactoryBackgroundFixture;
 import io.openaev.architecture.background_fixtures.ChainedCompletableFutureFixture;
 import io.openaev.architecture.background_fixtures.CommandLineRunnerFixture;
+import io.openaev.architecture.background_fixtures.ComposedAsync;
+import io.openaev.architecture.background_fixtures.ComposedAsyncFixture;
+import io.openaev.architecture.background_fixtures.ComposedBean;
+import io.openaev.architecture.background_fixtures.ComposedBeanFactoryFixture;
+import io.openaev.architecture.background_fixtures.ComposedEventListener;
+import io.openaev.architecture.background_fixtures.ComposedEventListenerFixture;
+import io.openaev.architecture.background_fixtures.ComposedScheduled;
+import io.openaev.architecture.background_fixtures.ComposedScheduledFixture;
 import io.openaev.architecture.background_fixtures.EventListenerFixture;
 import io.openaev.architecture.background_fixtures.InheritedExecutorFieldFixture;
 import io.openaev.architecture.background_fixtures.InheritedInlineHandoffFixture;
@@ -21,11 +29,13 @@ import io.openaev.architecture.background_fixtures.InlineExecutorFixture;
 import io.openaev.architecture.background_fixtures.InlineTaskSchedulerFixture;
 import io.openaev.architecture.background_fixtures.NewThreadFixture;
 import io.openaev.architecture.background_fixtures.PlainBeanFixture;
+import io.openaev.architecture.background_fixtures.PrimitiveBackedHandoffFixture;
 import io.openaev.architecture.background_fixtures.QuartzJobFixture;
 import io.openaev.architecture.background_fixtures.RepeatableScheduledFixture;
 import io.openaev.architecture.background_fixtures.ScheduledOnlyFixture;
 import io.openaev.architecture.background_fixtures.TenantThreadFixture;
 import io.openaev.architecture.background_fixtures.ThreadSubclassFixture;
+import io.openaev.context.TenantScopedTransaction;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -266,6 +276,75 @@ class BackgroundEntrypointDetectionTest {
     assertTrue(
         families.contains("seeding"),
         "a class implementing CommandLineRunner must be the seeding family. Got: " + families);
+  }
+
+  @Test
+  @DisplayName("a method annotated through a composed @Async is caught as the async family")
+  void composedAsyncMethodIsAFamily() {
+    // Spring applies @Async through meta-annotations, so a method marked with a custom annotation
+    // meta-annotated @Async runs on a pool thread just as a direct @Async would. A direct-only
+    // check sees no @Async; the meta-annotation-aware predicate must catch it. The composed
+    // annotation is imported alongside the fixture so its meta-annotations resolve.
+    JavaClasses classes =
+        new ClassFileImporter().importClasses(ComposedAsyncFixture.class, ComposedAsync.class);
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(classes.get(ComposedAsyncFixture.class));
+    assertTrue(
+        families.contains("async"),
+        "a method meta-annotated @Async through a composed annotation must be the async family."
+            + " Got: "
+            + families);
+  }
+
+  @Test
+  @DisplayName("a method annotated through a composed @Scheduled is caught as the scheduled family")
+  void composedScheduledMethodIsAFamily() {
+    JavaClasses classes =
+        new ClassFileImporter()
+            .importClasses(ComposedScheduledFixture.class, ComposedScheduled.class);
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(
+            classes.get(ComposedScheduledFixture.class));
+    assertTrue(
+        families.contains("scheduled"),
+        "a method meta-annotated @Scheduled through a composed annotation (@EveryFiveSeconds shape)"
+            + " must be the scheduled family. Got: "
+            + families);
+  }
+
+  @Test
+  @DisplayName(
+      "a method annotated through a composed @EventListener is caught as the listener" + " family")
+  void composedEventListenerMethodIsAFamily() {
+    JavaClasses classes =
+        new ClassFileImporter()
+            .importClasses(ComposedEventListenerFixture.class, ComposedEventListener.class);
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(
+            classes.get(ComposedEventListenerFixture.class));
+    assertTrue(
+        families.contains("listener"),
+        "a method meta-annotated @EventListener through a composed annotation must be the listener"
+            + " family. Got: "
+            + families);
+  }
+
+  @Test
+  @DisplayName("a @Bean factory annotated through a composed @Bean is classified by its class")
+  void composedBeanFactoryIsClassified() {
+    // The declaring class carries no marker of its own; the factory method is annotated with a
+    // composed @Bean, not a direct one, and returns a CommandLineRunner lambda (seeding). A
+    // direct-only @Bean check on declaresBeanReturning misses it.
+    JavaClasses classes =
+        new ClassFileImporter().importClasses(ComposedBeanFactoryFixture.class, ComposedBean.class);
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(
+            classes.get(ComposedBeanFactoryFixture.class));
+    assertTrue(
+        families.contains("seeding"),
+        "a @Bean CommandLineRunner factory annotated through a composed @Bean must make its class"
+            + " the seeding family. Got: "
+            + families);
   }
 
   @Test
@@ -636,6 +715,57 @@ class BackgroundEntrypointDetectionTest {
                 Map.of(concreteEntry.getFullName(), concreteEntry))
             .isEmpty(),
         "a concrete, still-recognised background entry point must not be flagged stale");
+  }
+
+  @Test
+  @DisplayName("a baseline entry whose class is gone, or now on the primitive, is stale")
+  void staleWhenClassMissingOrOnPrimitive() {
+    // Branch clazz == null: a baseline naming a class no longer in the production import is stale.
+    // abstractWaivedClassIsStale only drives the !isConcreteBean arm; without this the clazz ==
+    // null
+    // branch could be removed and the suite stay green.
+    List<String> missing =
+        BackgroundEntrypointTenantScopeArchTest.staleEntries(
+            Map.of("io.openaev.Gone", "platform-global: removed"), Map.of());
+    assertTrue(
+        missing.stream()
+            .anyMatch(s -> s.contains("io.openaev.Gone") && s.contains("not a production class")),
+        "a baseline entry naming a class that no longer exists must be flagged stale. Got: "
+            + missing);
+
+    // Branch isOnPrimitive: a concrete background class that now references TenantScopedTransaction
+    // no longer needs a waiver. Import the primitive with the fixture so the direct dependency
+    // resolves.
+    JavaClasses onPrimitiveClasses =
+        new ClassFileImporter()
+            .importClasses(PrimitiveBackedHandoffFixture.class, TenantScopedTransaction.class);
+    JavaClass onPrimitive = onPrimitiveClasses.get(PrimitiveBackedHandoffFixture.class);
+    assertTrue(
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(onPrimitive).contains("handoff"),
+        "the fixture must still look like a background entry point (non-empty families)");
+    List<String> onPrimitiveStale =
+        BackgroundEntrypointTenantScopeArchTest.staleEntries(
+            Map.of(onPrimitive.getFullName(), "touches-no-tenant-table: nothing"),
+            Map.of(onPrimitive.getFullName(), onPrimitive));
+    assertTrue(
+        onPrimitiveStale.stream()
+            .anyMatch(
+                s ->
+                    s.contains(onPrimitive.getFullName())
+                        && s.contains("references the primitive")),
+        "a waived class that now references the primitive must be flagged stale. Got: "
+            + onPrimitiveStale);
+
+    // Near miss: a concrete background class OFF the primitive keeps its waiver, so branch 3 keys
+    // on
+    // isOnPrimitive and not merely on being a fixture.
+    JavaClass offPrimitive = imported(NewThreadFixture.class);
+    assertTrue(
+        BackgroundEntrypointTenantScopeArchTest.staleEntries(
+                Map.of(offPrimitive.getFullName(), "touches-no-tenant-table: nothing"),
+                Map.of(offPrimitive.getFullName(), offPrimitive))
+            .isEmpty(),
+        "a concrete background class off the primitive must not be flagged stale");
   }
 
   @Test
