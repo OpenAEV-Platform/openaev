@@ -1480,7 +1480,7 @@ mvn -B -ntp spotless:check || mvn -ntp spotless:apply
 mvn -ntp clean install -DskipTests
 
 # 8.3 your tests, then the FULL API suite (needs the Docker services from
-# openaev-dev/docker-compose.yml: PostgreSQL, MinIO, OpenSearch, RabbitMQ)
+# openaev-dev/docker-compose.yml: PostgreSQL, Silo, OpenSearch, RabbitMQ)
 mvn -ntp -pl openaev-api test -Dtest='{Entity}*IsolationTest'
 ```
 

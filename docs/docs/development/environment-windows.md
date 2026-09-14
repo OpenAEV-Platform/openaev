@@ -34,7 +34,7 @@ mvn -version
 
 ### Docker Desktop
 
-Docker Desktop is required to run the development services (PostgreSQL, Elasticsearch, RabbitMQ, MinIO).
+Docker Desktop is required to run the development services (PostgreSQL, Elasticsearch, RabbitMQ, Silo).
 
 1. Download and install [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/).
 2. Enable the WSL 2 backend for better performance (recommended).
@@ -91,7 +91,7 @@ This starts:
 | Service | Port | Description |
 |---|---|---|
 | PostgreSQL 17 | 5432 | Database |
-| MinIO | 10000, 10001 | S3-compatible object storage |
+| Silo | 10000, 10001 | S3-compatible object storage (MinIO fork) |
 | Elasticsearch 8 | 9200 | Analytics engine |
 | RabbitMQ 4 | 5672, 15672 | Message broker |
 

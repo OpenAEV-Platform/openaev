@@ -104,7 +104,7 @@ If the OpenAEV container exits immediately after starting:
 
 1. Check the logs: `docker compose logs openaev`
 2. Verify all required environment variables are set in your `.env` file
-3. Ensure all dependency containers (PostgreSQL, ElasticSearch, RabbitMQ, MinIO) are healthy:
+3. Ensure all dependency containers (PostgreSQL, ElasticSearch, RabbitMQ, Silo) are healthy:
    ```bash
    docker compose ps
    ```
@@ -128,7 +128,7 @@ You may refer to [the official Docker documentation](https://docs.docker.com/ref
 
 Otherwise, you are responsible for providing the dependencies yourself by installing and running them.
 You need at least a Java Runtime, PostgreSQL (database), ElasticSearch (database), RabbitMQ (queue management), and 
-MinIO (for object storage).
+Silo or any other S3-compatible service (for object storage).
 
 !!! note "Supported dependency versions"
 
@@ -140,7 +140,7 @@ If you choose to install the dependencies manually, please refer to their respec
 * PostgreSQL: the [PostgreSQL documentation portal](https://www.postgresql.org/docs/)
 * ElasticSearch: the [ElasticSearch documentation portal](https://www.elastic.co/docs)
 * RabbitMQ: the [RabbitMQ documentation portal](https://www.rabbitmq.com/docs)
-* MinIO: the [MinIO website](https://min.io/docs).
+* Silo (the community-maintained fork of MinIO): the [Silo documentation](https://silo.pgsty.com/docs/).
 
 #### Download the application files
 
@@ -174,7 +174,7 @@ See the relevant Configuration sections for more details:
 - [PostgreSQL](configuration.md#postgresql)
 - [ElasticSearch](configuration.md#engine)
 - [RabbitMQ](configuration.md#rabbitmq)
-- [MinIO](configuration.md#s3-bucket)
+- [S3 bucket / Silo](configuration.md#s3-bucket)
 
 #### Start the application
 
