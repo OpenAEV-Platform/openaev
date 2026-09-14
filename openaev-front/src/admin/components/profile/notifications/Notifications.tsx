@@ -1,17 +1,6 @@
+import { Checkbox } from '@filigran/design-system';
 import { CheckCircleOutlined, DeleteOutlined, NotificationsOutlined, UnpublishedOutlined } from '@mui/icons-material';
-import {
-  Badge,
-  Button,
-  Checkbox,
-  Chip,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Tooltip,
-} from '@mui/material';
+import { Badge, Button, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -254,10 +243,9 @@ const Notifications = () => {
         >
           <ListItemIcon style={{ minWidth: 40 }}>
             <Checkbox
-              edge="start"
+              aria-label={t('Select all')}
               checked={selectAll}
-              disableRipple
-              onChange={handleToggleSelectAll}
+              onCheckedChange={handleToggleSelectAll}
             />
           </ListItemIcon>
           {numberOfSelectedElements > 0 ? (
@@ -352,12 +340,11 @@ const Notifications = () => {
                       onClick={event => onToggleEntity(notification, event)}
                     >
                       <Checkbox
-                        edge="start"
+                        aria-label={notification.notification_name}
                         checked={
                           (selectAll && !(notification.notification_id in (deSelectedElements || {})))
                           || notification.notification_id in (selectedElements || {})
                         }
-                        disableRipple
                       />
                     </ListItemIcon>
                     <ListItemIcon>

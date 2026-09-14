@@ -1,4 +1,5 @@
-import { Checkbox, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
+import { Checkbox } from '@filigran/design-system';
+import { ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
 import { type FunctionComponent, type MouseEvent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -75,11 +76,8 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
           }}
         >
           <Checkbox
-            edge="start"
             checked={checked}
-            disableRipple
-            size="small"
-            slotProps={{ input: { 'aria-label': name } }}
+            aria-label={name}
           />
         </ListItemIcon>
         <ListItemIcon style={{ minWidth: 40 }}>

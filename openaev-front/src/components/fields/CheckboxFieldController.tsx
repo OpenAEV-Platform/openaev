@@ -1,4 +1,4 @@
-import { Checkbox, FormControlLabel } from '@mui/material';
+import { Checkbox } from '@filigran/design-system';
 import { type CSSProperties } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -16,7 +16,16 @@ const CheckboxFieldController = ({ name, label, style }: Props) => {
       name={name}
       control={control}
       render={({ field }) => (
-        <FormControlLabel style={style} label={label} control={<Checkbox {...field} checked={field.value ?? false} />} />
+        <div style={style}>
+          <Checkbox
+            ref={field.ref}
+            name={field.name}
+            label={label}
+            checked={field.value ?? false}
+            onCheckedChange={checked => field.onChange(checked === true)}
+            onBlur={field.onBlur}
+          />
+        </div>
       )}
     />
   );

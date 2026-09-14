@@ -1,5 +1,6 @@
+import { Checkbox } from '@filigran/design-system';
 import { AutoAwesome, PlayCircleOutlineOutlined } from '@mui/icons-material';
-import { Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router';
@@ -185,10 +186,9 @@ const SimulationList: FunctionComponent<Props> = ({
             {entityToggle && (
               <ListItemIcon style={{ minWidth: 40 }}>
                 <Checkbox
-                  edge="start"
+                  aria-label={t('Select all')}
                   checked={entityToggle.selectAll}
-                  disableRipple
-                  onChange={entityToggle.handleToggleSelectAll}
+                  onCheckedChange={entityToggle.handleToggleSelectAll}
                 />
               </ListItemIcon>
             )}
@@ -231,12 +231,11 @@ const SimulationList: FunctionComponent<Props> = ({
                       onClick={event => entityToggle.onToggleEntity(exercise, event)}
                     >
                       <Checkbox
-                        edge="start"
+                        aria-label={exercise.exercise_name}
                         checked={
                           (entityToggle.selectAll && !(exercise.exercise_id in (entityToggle.deSelectedElements || {})))
                           || exercise.exercise_id in (entityToggle.selectedElements || {})
                         }
-                        disableRipple
                       />
                     </ListItemIcon>
                   )}

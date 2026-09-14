@@ -1,5 +1,6 @@
+import { Checkbox } from '@filigran/design-system';
 import { KeyboardArrowRight } from '@mui/icons-material';
-import { Box, Checkbox, Chip, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useMemo } from 'react';
 
@@ -100,11 +101,8 @@ const InjectContractListRow: FunctionComponent<Props> = ({
           }}
         >
           <Checkbox
-            edge="start"
             checked={checked}
-            disableRipple
-            size="small"
-            slotProps={{ input: { 'aria-label': name } }}
+            aria-label={name}
           />
         </Box>
       )}

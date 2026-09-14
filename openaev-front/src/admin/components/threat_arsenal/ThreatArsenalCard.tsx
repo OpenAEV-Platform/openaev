@@ -1,5 +1,5 @@
-import { CheckCircleOutlined, RadioButtonUncheckedOutlined } from '@mui/icons-material';
-import { Box, Card, CardActionArea, Checkbox, Chip, Tooltip, Typography } from '@mui/material';
+import { Checkbox } from '@filigran/design-system';
+import { Box, Card, CardActionArea, Chip, Tooltip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useMemo } from 'react';
 
@@ -199,11 +199,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       >
         <Checkbox
           checked={checked}
-          disableRipple
-          size="small"
-          icon={<RadioButtonUncheckedOutlined />}
-          checkedIcon={<CheckCircleOutlined />}
-          slotProps={{ input: { 'aria-label': name } }}
+          aria-label={name}
         />
       </Box>
 
