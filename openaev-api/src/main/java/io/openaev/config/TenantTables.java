@@ -20,10 +20,12 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
   public static final String ALL_STRICT = "*";
 
   /**
-   * Self-isolated tables: strict tables that isolate themselves by another mechanism and are never
-   * activated, so {@link #ALL_STRICT} leaves them alone. "Self-isolated" means the table enforces
-   * its own tenant boundary without the statement inspector, and activating it would break the very
-   * mechanism it isolates itself with.
+   * Self-isolated tables: tables the schema derivation reads as strict but that must not be gated
+   * by the statement inspector, so {@link #ALL_STRICT} leaves them out. "Self-isolated" means the
+   * table does not rely on the inspector for its isolation, for one of two reasons given per table
+   * below: it carries its own tenant predicates, or it holds no tenant-scoped data at all. Naming
+   * one of them in an explicit active-tables list is a configuration error that {@link #restrictTo}
+   * does not reject today.
    *
    * <ul>
    *   <li>{@code attackpath_graph_version}: its version counter is bumped by a single native {@code
