@@ -45,11 +45,22 @@ public class CatalogConnectorIngestionService {
 
     List<CatalogConnector> saved = catalogConnectorService.saveAll(catalogConnectorList);
 
-    // connector_instances is tenant-scoped: run the cleanup once per tenant so each tenant's
-    // instance configurations are read and cleaned within its own scope. Read without a scope,
-    // the query returns no row and the cleanup silently does nothing.
-    tenantScopedTransaction.forEachTenant(
-        tenantId -> saved.forEach(this::cleanupInstanceConfigurations));
+    // The cleanup reads connector_instances, which is tenant-scoped, so it runs once per tenant
+    // within that tenant's own scope; read without a scope the query returns no row and the
+    // cleanup silently does nothing. The connector_instance_configurations it then deletes are
+    // reached through those in-scope instances (that table is not itself tenant-scoped).
+    // Best effort: the cleanup must not abort platform startup, so a tenant whose cleanup fails
+    // is logged and skipped while the others still run. The ingestion itself (saveAll above)
+    // keeps its fail-fast behaviour and is not wrapped here.
+    try {
+      tenantScopedTransaction.forEachTenant(
+          ignoredTenantId -> saved.forEach(this::cleanupInstanceConfigurations));
+    } catch (RuntimeException cleanupFailure) {
+      log.error(
+          "Catalog startup cleanup failed for one or more tenants; continuing platform startup."
+              + " See the per-tenant warnings above for the failing tenant id(s).",
+          cleanupFailure);
+    }
 
     return saved;
   }
