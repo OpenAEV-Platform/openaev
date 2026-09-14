@@ -84,6 +84,88 @@
       "files": [
         "openaev-front/src/components/common/detail/EntityDetailCommon.tsx"
       ]
+    },
+    {
+      "component": "Input",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Form-field wave: every text, password and number field reaches the library Input through one product wrapper (TextFieldFds), which owns label, error, helper and the root that carries `style`. Both form libraries in use (react-hook-form, react-final-form) and the direct call sites go through it.",
+      "files": [
+        "openaev-front/src/components/fields/TextFieldFds.tsx"
+      ]
+    },
+    {
+      "component": "Textarea",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Form-field wave: the multiline branch of the same wrapper. `resize` is pinned to none on every site, as arbitrated; `rows` and autosize (`minRows`/`maxRows`) replay the previous heights.",
+      "files": [
+        "openaev-front/src/components/fields/TextFieldFds.tsx"
+      ]
+    },
+    {
+      "component": "SearchField",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Form-field wave: the shared list search (SearchFilter) and the two ad hoc search fields join the top bar on the library SearchField. Fixed width and no focus growth, as arbitrated.",
+      "files": [
+        "openaev-front/src/admin/components/nav/TopBar.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/attack_path/CategoryFindingsPanel.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalScenarioUpdateComponent.tsx",
+        "openaev-front/src/components/SearchFilter.tsx"
+      ]
+    },
+    {
+      "component": "Checkbox",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Selection boxes in list rows, table cells, the grants matrices and the two selection cards, plus the react-hook-form and react-final-form controllers. Label-less boxes carry an aria-label; the boxes that only mirror a row's state are `presentational`. The 16px target size is the arbitration recorded in LIBRARY-FEEDBACK #46.",
+      "files": [
+        "openaev-front/src/admin/components/assets/asset_groups/AssetGroups.tsx",
+        "openaev-front/src/admin/components/assets/credentials/Credentials.tsx",
+        "openaev-front/src/admin/components/assets/endpoints/Endpoints.tsx",
+        "openaev-front/src/admin/components/atomic_testings/InjectResultList.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/AtomicTestingHeaderActions.tsx",
+        "openaev-front/src/admin/components/chaining/logic/drawer/AddActionList.tsx",
+        "openaev-front/src/admin/components/common/injects/Injects.tsx",
+        "openaev-front/src/admin/components/common/injects/create/InjectContractCard.tsx",
+        "openaev-front/src/admin/components/common/injects/create/InjectContractListRow.tsx",
+        "openaev-front/src/admin/components/components/phishing/email_templates/PhishingEmailTemplates.tsx",
+        "openaev-front/src/admin/components/components/phishing/landing_pages/PhishingLandingPages.tsx",
+        "openaev-front/src/admin/components/components/teams/Teams.tsx",
+        "openaev-front/src/admin/components/profile/notifications/Notifications.tsx",
+        "openaev-front/src/admin/components/profile/triggers/TriggerForm.tsx",
+        "openaev-front/src/admin/components/reporting/form/ReportingForm.tsx",
+        "openaev-front/src/admin/components/scenarios/ScenarioForm.tsx",
+        "openaev-front/src/admin/components/scenarios/Scenarios.tsx",
+        "openaev-front/src/admin/components/settings/groups/tenant_groups/grants/atomic_testings/useAtomicTestingGrant.tsx",
+        "openaev-front/src/admin/components/settings/groups/tenant_groups/grants/scenarios/useScenarioGrant.tsx",
+        "openaev-front/src/admin/components/settings/groups/tenant_groups/grants/simulations/useSimulationGrant.tsx",
+        "openaev-front/src/admin/components/settings/groups/tenant_groups/grants/threat_arsenals/useThreatArsenalGrant.tsx",
+        "openaev-front/src/admin/components/settings/roles/CapabilitiesTab.tsx",
+        "openaev-front/src/admin/components/simulations/SimulationList.tsx",
+        "openaev-front/src/admin/components/teams/OrganizationsList.tsx",
+        "openaev-front/src/admin/components/teams/Players.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenal.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalCard.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalListRow.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/configuration/list/WidgetColumnsCustomizationInput.tsx",
+        "openaev-front/src/components/CheckboxField.jsx",
+        "openaev-front/src/components/PaginatedListLoader.tsx",
+        "openaev-front/src/components/common/ClickableList.tsx",
+        "openaev-front/src/components/common/SelectListPicker.tsx",
+        "openaev-front/src/components/common/export/ExportOptionsDialog.tsx",
+        "openaev-front/src/components/fields/CheckboxFieldController.tsx",
+        "openaev-front/src/public/components/login/Login.tsx"
+      ]
     }
   ],
   "migratedZones": [
