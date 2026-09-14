@@ -16,10 +16,14 @@ import io.openaev.architecture.background_fixtures.InheritedInlineHandoffFixture
 import io.openaev.architecture.background_fixtures.InheritedPostConstructFixture;
 import io.openaev.architecture.background_fixtures.InlineCompletableFutureFixture;
 import io.openaev.architecture.background_fixtures.InlineExecutorFixture;
+import io.openaev.architecture.background_fixtures.InlineTaskSchedulerFixture;
 import io.openaev.architecture.background_fixtures.NewThreadFixture;
 import io.openaev.architecture.background_fixtures.PlainBeanFixture;
 import io.openaev.architecture.background_fixtures.QuartzJobFixture;
+import io.openaev.architecture.background_fixtures.RepeatableScheduledFixture;
 import io.openaev.architecture.background_fixtures.ScheduledOnlyFixture;
+import io.openaev.architecture.background_fixtures.TenantThreadFixture;
+import io.openaev.architecture.background_fixtures.ThreadSubclassFixture;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -49,6 +53,20 @@ class BackgroundEntrypointDetectionTest {
     assertTrue(
         families.contains("scheduled"),
         "@Scheduled must be its own family; a scheduled-only bean escapes otherwise. Got: "
+            + families);
+  }
+
+  @Test
+  @DisplayName("a bean whose two @Scheduled land under the @Schedules container is caught")
+  void repeatableScheduledBeanIsAFamily() {
+    // Two @Scheduled on one method are stored by the compiler under @Schedules, and the individual
+    // @Scheduled is then not directly present, so a @Scheduled-only check misses this poller.
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(
+            imported(RepeatableScheduledFixture.class));
+    assertTrue(
+        families.contains("scheduled"),
+        "a method carrying the repeatable @Schedules container must be the scheduled family. Got: "
             + families);
   }
 
@@ -83,6 +101,36 @@ class BackgroundEntrypointDetectionTest {
         families.contains("handoff"),
         "an executor obtained and used inline (Executors.new*().execute(...)) with no executor field"
             + " must be a hand-off. Got: "
+            + families);
+  }
+
+  @Test
+  @DisplayName("a subclass of Thread started inline is caught as a detached hand-off")
+  void threadSubclassIsAHandoff() {
+    // The constructor owner is the subclass, not java.lang.Thread, so an exact-owner check misses
+    // it. Both classes are imported so the subclass relationship resolves to Thread.
+    JavaClasses classes =
+        new ClassFileImporter()
+            .importClasses(ThreadSubclassFixture.class, TenantThreadFixture.class);
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(
+            classes.get(ThreadSubclassFixture.class));
+    assertTrue(
+        families.contains("handoff"),
+        "a new <ThreadSubclass>(...) with no executor field must be a hand-off. Got: " + families);
+  }
+
+  @Test
+  @DisplayName("a TaskScheduler obtained and used inline is caught as a detached hand-off")
+  void inlineTaskSchedulerIsAHandoff() {
+    // TaskScheduler is not an Executor subtype, so a schedule(...) on a locally-obtained scheduler
+    // is missed by an Executor-only receiver check and has no field for the field detector to see.
+    List<String> families =
+        BackgroundEntrypointTenantScopeArchTest.familiesOf(
+            imported(InlineTaskSchedulerFixture.class));
+    assertTrue(
+        families.contains("handoff"),
+        "an inline TaskScheduler.schedule(...) with no scheduler field must be a hand-off. Got: "
             + families);
   }
 
@@ -186,6 +234,33 @@ class BackgroundEntrypointDetectionTest {
         List.of(),
         BackgroundEntrypointTenantScopeArchTest.familiesOf(imported(PlainBeanFixture.class)),
         "a class with no marker must belong to no family");
+  }
+
+  @Test
+  @DisplayName(
+      "the scan reports an unlisted concrete entry point, and a baseline entry silences it")
+  void unlistedConcreteEntrypointIsReported() {
+    // The production guard only ever runs the scan over the frozen production import, so nothing
+    // proves the scan reports an unclassified class or that the assertion still fires. Drive an
+    // unlisted concrete fixture (not on the primitive) through the same seam.
+    JavaClasses classes = new ClassFileImporter().importClasses(QuartzJobFixture.class);
+    String fqcn = QuartzJobFixture.class.getName();
+
+    Map<String, List<String>> unclassified =
+        BackgroundEntrypointTenantScopeArchTest.unclassifiedEntrypoints(classes, Map.of());
+    assertTrue(
+        unclassified.containsKey(fqcn) && unclassified.get(fqcn).contains("quartz"),
+        "an unlisted concrete background entry point must be reported by the scan. Got: "
+            + unclassified);
+
+    // Near miss: the same class classified in the baseline must NOT be reported, so the check keys
+    // on the baseline and is not trivially always-reporting.
+    Map<String, List<String>> classified =
+        BackgroundEntrypointTenantScopeArchTest.unclassifiedEntrypoints(
+            classes, Map.of(fqcn, "platform-global"));
+    assertTrue(
+        classified.isEmpty(),
+        "a concrete entry point listed in the baseline must not be reported. Got: " + classified);
   }
 
   @Test

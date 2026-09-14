@@ -1,4 +1,4 @@
-# Background-guard baseline (T1.6, #6398).
+# Background-guard baseline (#6398).
 #
 # The six background entry-point families (Quartz jobs, @Async methods, @Scheduled methods, event
 # listeners, seeding/startup, detached thread hand-offs including inline

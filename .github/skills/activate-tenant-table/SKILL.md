@@ -1122,7 +1122,7 @@ Model conversion: `UrlAccessTokenPurgeJob`
 converted to `tenantTx.execute(TxCtx.allTenants(), …)` in PR #6398. Injected
 dependency: `TenantScopedTransaction tenantTx`.
 
-Maturity note (refreshed for T1.6, #6398): the background path is now well
+Maturity note (refreshed for #6398): the background path is now well
 proven. Eight Quartz jobs sit directly on the primitive, and several more reach it
 through `TenantScopedJobRunner`. Working model implementations exist for all three
 idioms:
@@ -1137,7 +1137,7 @@ idioms:
   `InjectsFinalizationJob` and `WorkflowTimeoutJob`.
 
 Copy the idiom that matches the scope decision below, not a single blessed job.
-Every background family is now enumerated and classified by the T1.6 guard
+Every background family is now enumerated and classified by the background guard
 (`BackgroundEntrypointTenantScopeArchTest` + `background-guard-baseline.txt`): a
 new background entry point fails the build until it is on the primitive or
 classified there with a reason.

@@ -40,7 +40,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * The build-time guard over the background entry-point families (T1.6, #6398).
+ * The build-time guard over the background entry-point families (#6398).
  *
  * <p>Background work is where the v2 migration goes wrong: an entry point with no tenant scope does
  * not read zero rows, it falls back to the default tenant, which is a silent wrong-tenant write no
@@ -63,22 +63,23 @@ import org.junit.jupiter.api.Test;
  * that table activates ({@code no_baseline_waiver_outlives_its_table} / {@code
  * every_until_active_tag_names_a_real_tenant_table}).
  *
- * <p>The six families, and how each is recognised structurally (matching {@code tools/mt-jobs.sh},
- * which re-counts the same families for {@code evidence/background-jobs.md}):
+ * <p>The six families, and how each is recognised structurally:
  *
  * <ol>
  *   <li>Quartz jobs, classes assignable to {@code org.quartz.Job};
  *   <li>{@code @Async} methods, a class or method annotated {@code @Async};
- *   <li>{@code @Scheduled} methods, a method annotated {@code @Scheduled} (a bean whose only marker
- *       is {@code @Scheduled} is a real poller, e.g. ImapService; it would otherwise escape);
+ *   <li>{@code @Scheduled} methods, a method annotated {@code @Scheduled} or, when repeated, the
+ *       {@code @Schedules} container the compiler stores them under (a bean whose only marker is
+ *       {@code @Scheduled} is a real poller, e.g. ImapService; it would otherwise escape);
  *   <li>event listeners, {@code ApplicationListener} or a method annotated {@code @EventListener} /
  *       {@code @TransactionalEventListener};
  *   <li>seeding and startup, {@code CommandLineRunner} / {@code ApplicationRunner} or a method
  *       annotated {@code @PostConstruct};
  *   <li>detached thread hand-offs: a field of an executor type ({@code Executor} family or {@code
  *       TaskScheduler}), or inline detachment with no such field, i.e. {@code
- *       CompletableFuture.supplyAsync/runAsync}, a raw {@code new Thread(...)}, or an executor
- *       obtained and used inline ({@code Executors.newSingleThreadExecutor().execute(...)}, {@code
+ *       CompletableFuture.supplyAsync/runAsync}, a {@code new Thread(...)} or a subclass of it, a
+ *       {@code schedule*} call on a {@code TaskScheduler}, or an executor obtained and used inline
+ *       ({@code Executors.newSingleThreadExecutor().execute(...)}, {@code
  *       ForkJoinPool.commonPool().submit(...)}).
  * </ol>
  *
@@ -91,11 +92,10 @@ import org.junit.jupiter.api.Test;
  * and one unscoped background method passes without a baseline entry. Closing this at method level
  * is not tractable here: scope is usually established by delegation (a call to a scoped runner or
  * service, not a direct reference in the entry method), so a method-level check would misclassify
- * every legitimate delegate as unscoped. The mitigation is that the exempted set is small (listed
- * in the T1.6b report) and visible in the diff, so adding a bean to it is a review event; the
- * report records which exempted beans were read in depth. A bean that references the primitive for
- * one method while running another background method unscoped is the residual risk this check does
- * not close.
+ * every legitimate delegate as unscoped. The mitigation is that the exempted set is small and
+ * visible in the diff, so adding a bean to it is a review event. A bean that references the
+ * primitive for one method while running another background method unscoped is the residual risk
+ * this check does not close.
  *
  * <p><b>Known limit, a baseline waiver covers the whole class.</b> The baseline is keyed by class,
  * so a new background method added to a class already listed inherits that class's waiver: a second
@@ -112,6 +112,22 @@ import org.junit.jupiter.api.Test;
  * {@code @KafkaListener}, {@code @JmsListener}). None exists in production code (verified by grep
  * over all {@code src/main/java}, 2026-09-13); the day one is introduced it escapes this guard
  * until a family is added for it.
+ *
+ * <p><b>Known limit, a hand-off in an ancestor's constructor body is not seen.</b> The inline scan
+ * reads the class's own code and the bodies of the methods it inherits, but a superclass
+ * constructor's calls are attributed to that superclass, which {@code isConcreteBean} filters out,
+ * so a {@code new Thread(...)} or executor submission made from an abstract parent's constructor
+ * escapes classification. No production class starts detached work from a constructor (constructors
+ * run before the bean is wired), so this is left as a limit rather than closed by walking ancestor
+ * constructor bodies; the day one appears, add its family or a baseline entry.
+ *
+ * <p><b>Known limit, a primitive inherited from an abstract parent reads as unclassified.</b>
+ * {@code isOnPrimitive} looks only at the class's own direct dependencies, so a concrete bean whose
+ * only reference to {@code TenantScopedTransaction} is in a method inherited from an abstract
+ * parent is reported unclassified even though its inherited path is scoped. This is a false
+ * positive and it is fail-closed (it demands attention, it never hides an unscoped path); the fix
+ * is to reference the primitive in the child or add a {@code delegates-to} baseline entry, not to
+ * weaken the guard.
  */
 public class BackgroundEntrypointTenantScopeArchTest {
 
@@ -128,22 +144,8 @@ public class BackgroundEntrypointTenantScopeArchTest {
   @Test
   @DisplayName("every background entry point is on the primitive or classified in the baseline")
   void every_background_entrypoint_is_scoped_or_classified() {
-    Map<String, String> baseline = loadBaseline();
-
-    Map<String, List<String>> unclassified = new TreeMap<>();
-    for (JavaClass clazz : PRODUCTION_CLASSES) {
-      if (!isConcreteBean(clazz)) {
-        continue;
-      }
-      List<String> families = familiesOf(clazz);
-      if (families.isEmpty()) {
-        continue;
-      }
-      if (isOnPrimitive(clazz) || baseline.containsKey(clazz.getFullName())) {
-        continue;
-      }
-      unclassified.put(clazz.getFullName(), families);
-    }
+    Map<String, List<String>> unclassified =
+        unclassifiedEntrypoints(PRODUCTION_CLASSES, loadBaseline());
 
     if (!unclassified.isEmpty()) {
       StringBuilder message =
@@ -164,6 +166,35 @@ public class BackgroundEntrypointTenantScopeArchTest {
                   .append("]\n"));
       assertTrue(unclassified.isEmpty(), message.toString());
     }
+  }
+
+  /**
+   * The concrete background entry points among {@code classes} that are neither on the primitive
+   * nor listed in {@code baseline}, keyed by class with the families that made them entry points.
+   * This is the whole production scan, pulled out of the test so it can be driven by an injected
+   * fixture: {@code every_background_entrypoint_is_scoped_or_classified} only ever runs it over the
+   * frozen production import, so a regression that skipped an unclassified class, or that removed
+   * the assertion, would leave every test green against #7949's definition of done. {@code
+   * BackgroundEntrypointDetectionTest} feeds an unlisted concrete fixture through this seam and
+   * asserts it is reported.
+   */
+  static Map<String, List<String>> unclassifiedEntrypoints(
+      JavaClasses classes, Map<String, String> baseline) {
+    Map<String, List<String>> unclassified = new TreeMap<>();
+    for (JavaClass clazz : classes) {
+      if (!isConcreteBean(clazz)) {
+        continue;
+      }
+      List<String> families = familiesOf(clazz);
+      if (families.isEmpty()) {
+        continue;
+      }
+      if (isOnPrimitive(clazz) || baseline.containsKey(clazz.getFullName())) {
+        continue;
+      }
+      unclassified.put(clazz.getFullName(), families);
+    }
+    return unclassified;
   }
 
   @Test
@@ -580,8 +611,13 @@ public class BackgroundEntrypointTenantScopeArchTest {
   }
 
   private static boolean isScheduled(JavaClass clazz) {
+    // @Scheduled is @Repeatable: two on one method are stored under the @Schedules container and
+    // the individual @Scheduled is then no longer directly present, so both must be recognised.
     return clazz.getAllMethods().stream()
-        .anyMatch(m -> m.isAnnotatedWith("org.springframework.scheduling.annotation.Scheduled"));
+        .anyMatch(
+            m ->
+                m.isAnnotatedWith("org.springframework.scheduling.annotation.Scheduled")
+                    || m.isAnnotatedWith("org.springframework.scheduling.annotation.Schedules"));
   }
 
   private static boolean isEventListener(JavaClass clazz) {
@@ -631,9 +667,9 @@ public class BackgroundEntrypointTenantScopeArchTest {
    *   <li>an executor obtained and used inline: a submission call ({@code execute}, {@code submit},
    *       {@code invokeAll}, {@code invokeAny} or a {@code schedule*}) on any {@code Executor}
    *       whatever the receiver's origin, or an executor obtained inline from {@code
-   *       Executors.new*} / {@code ForkJoinPool.commonPool}. This is the shape the T1.6b review
-   *       flagged: {@code Executors.newSingleThreadExecutor().execute(this::work)} has no field for
-   *       the field-typed detector to see.
+   *       Executors.new*} / {@code ForkJoinPool.commonPool}. This inline shape has no field for the
+   *       field-typed detector to see: {@code
+   *       Executors.newSingleThreadExecutor().execute(this::work)}.
    * </ul>
    *
    * <p>The scan reads the class's own code and the bodies of the methods it INHERITS from
@@ -656,7 +692,7 @@ public class BackgroundEntrypointTenantScopeArchTest {
                             || "runAsync".equals(call.getName())));
     boolean newThread =
         constructorCalls.stream()
-            .anyMatch(call -> "java.lang.Thread".equals(call.getTargetOwner().getFullName()));
+            .anyMatch(call -> call.getTargetOwner().isAssignableTo("java.lang.Thread"));
     return completableFuture || newThread || usesExecutorInline(methodCalls);
   }
 
@@ -694,9 +730,11 @@ public class BackgroundEntrypointTenantScopeArchTest {
   /**
    * An executor used inline, with no executor field for {@link #isDetachedHandoff} to catch: either
    * a submission call on any {@code Executor}-typed receiver (whatever its origin: a getter, a
-   * method parameter, or a freshly created pool), or an executor obtained inline from {@code
-   * Executors.new*} / {@code ForkJoinPool.commonPool}. Either alone is enough: the submission
-   * proves work is handed off, the obtain proves a fresh unscoped pool is being spun up.
+   * method parameter, or a freshly created pool), a {@code schedule*} call on a {@code
+   * TaskScheduler} receiver ({@code TaskScheduler} is not an {@code Executor} subtype, so it needs
+   * its own arm), or an executor obtained inline from {@code Executors.new*} / {@code
+   * ForkJoinPool.commonPool}. Any one alone is enough: the submission proves work is handed off,
+   * the obtain proves a fresh unscoped pool is being spun up.
    */
   private static boolean usesExecutorInline(List<JavaMethodCall> methodCalls) {
     return methodCalls.stream()
@@ -711,7 +749,13 @@ public class BackgroundEntrypointTenantScopeArchTest {
               boolean submitsToExecutor =
                   call.getTargetOwner().isAssignableTo("java.util.concurrent.Executor")
                       && (EXECUTOR_SUBMIT_METHODS.contains(name) || name.startsWith("schedule"));
-              return obtainsExecutor || submitsToExecutor;
+              // TaskScheduler is not an Executor subtype, so its inline schedule*(...) calls need
+              // their own receiver arm or a locally-obtained scheduler escapes the field detector.
+              boolean submitsToTaskScheduler =
+                  call.getTargetOwner()
+                          .isAssignableTo("org.springframework.scheduling.TaskScheduler")
+                      && name.startsWith("schedule");
+              return obtainsExecutor || submitsToExecutor || submitsToTaskScheduler;
             });
   }
 
