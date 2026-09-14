@@ -1,19 +1,30 @@
 package io.openaev.ratelimit.store.request;
 
-import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
-
-import io.openaev.database.model.User;
+import io.openaev.ratelimit.model.RateLimitedPrincipal;
+import java.util.Objects;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @Getter
 public class LimitConsumptionRequest {
-  private final User principal;
+  private final RateLimitedPrincipal principal;
   private final String address;
   private final LimitSpecification specification;
 
-  public Boolean getIsAuthenticated() {
-    return this.principal != null && !ANONYMOUS.equals(this.principal.getId());
+  @Override
+  public boolean equals(Object o) {
+    if (o instanceof LimitConsumptionRequest other) {
+      return address != null
+          && address.equals(other.getAddress())
+          && principal != null
+          && principal.equals(other.getPrincipal());
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(principal, address);
   }
 }

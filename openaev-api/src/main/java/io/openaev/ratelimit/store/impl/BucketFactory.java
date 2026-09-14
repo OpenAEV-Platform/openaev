@@ -16,15 +16,12 @@ public class BucketFactory implements LimitFactory<Bucket> {
 
   @Override
   public Bucket createLimit(LimitConsumptionRequest key) {
-    Long rqs =
-        key.getIsAuthenticated()
-            ? key.getSpecification().authenticatedRps()
-            : key.getSpecification().defaultRps();
+    Long rps = key.getSpecification().rps();
     return Bucket.builder()
         .addLimit(
             Bandwidth.builder()
-                .capacity(rqs)
-                .refillIntervally(rqs, Duration.ofMillis(1000))
+                .capacity(rps)
+                .refillIntervally(rps, Duration.ofMillis(1000))
                 .build())
         .build();
   }

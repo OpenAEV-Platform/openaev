@@ -20,11 +20,11 @@ public class InMemoryBucketStore implements Store {
 
   @Override
   public synchronized Limit tryConsume(LimitConsumptionRequest key) {
-    if (!buckets.contains(key)) {
+    if (!buckets.containsKey(key)) {
       buckets.put(key, bucketFactory.createLimit(key));
     }
     Bucket bucket = buckets.get(key);
     ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(CONSUMPTION_RATE);
-    return new Limit(bucket.getAvailableTokens(), probe.getRemainingTokens(), probe.isConsumed());
+    return new Limit(bucket.getAvailableTokens(), probe.getRemainingTokens(), !probe.isConsumed());
   }
 }

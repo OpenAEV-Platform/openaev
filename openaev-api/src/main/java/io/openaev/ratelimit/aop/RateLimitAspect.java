@@ -1,21 +1,24 @@
 package io.openaev.ratelimit.aop;
 
+import io.openaev.ratelimit.model.RateLimitedPrincipal;
 import io.openaev.ratelimit.service.RateLimitService;
 import io.openaev.ratelimit.store.request.LimitConsumptionRequest;
 import io.openaev.ratelimit.store.request.LimitSpecification;
 import io.openaev.service.UserService;
+import java.util.Arrays;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
-import org.springframework.core.Ordered;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Aspect
 @Component
-@Order(Ordered.LOWEST_PRECEDENCE)
+@Order(1)
 @RequiredArgsConstructor
 @Slf4j
 public class RateLimitAspect {
@@ -24,10 +27,18 @@ public class RateLimitAspect {
 
   @Before("@annotation(rateLimit)")
   public void applyRateLimit(JoinPoint joinPoint, RateLimit rateLimit) {
-    LimitSpecification spec =
-        new LimitSpecification(rateLimit.defaultRps(), rateLimit.authenticatedRps());
+    MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+
+    LimitSpecification spec = new LimitSpecification(rateLimit.rps());
     LimitConsumptionRequest lcr =
-        new LimitConsumptionRequest(userService.currentUser(), "haha", spec);
+        new LimitConsumptionRequest(
+            RateLimitedPrincipal.fromUser(userService.currentUserOrNull()),
+            String.valueOf(
+                Objects.hash(
+                    signature.getDeclaringTypeName(),
+                    signature.getName(),
+                    Arrays.hashCode(signature.getParameterNames()))),
+            spec);
 
     if (rateLimitService.consume(lcr).getIsRateLimited()) {
       throw new RuntimeException("RATE LIMIT");

@@ -13,6 +13,7 @@ import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
+import io.openaev.ratelimit.aop.RateLimit;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.rest.collector.form.CollectorOutput;
@@ -52,6 +53,7 @@ public class CollectorApi extends RestBehavior {
 
   private final FileService fileService;
 
+  @RateLimit(rps = 10L)
   @GetMapping({COLLECTOR_URI, TENANT_COLLECTOR_URI})
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.COLLECTOR)
   @Operation(

@@ -9,7 +9,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RateLimit {
-  long defaultRps() default Limits.DEFAULT_RPS;
-
-  long authenticatedRps() default Limits.AUTHENTICATED_RPS;
+  long rps() default Limits.AUTHENTICATED_RPS;
 }
