@@ -9650,97 +9650,6 @@ export interface PlatformGroupUpdateUsersInput {
   platform_group_users?: string[];
 }
 
-export interface PlatformRoleInput {
-  /** @uniqueItems true */
-  platform_role_capabilities?: (
-    | "BYPASS"
-    | "ACCESS_ASSESSMENT"
-    | "MANAGE_ASSESSMENT"
-    | "DELETE_ASSESSMENT"
-    | "LAUNCH_ASSESSMENT"
-    | "ACCESS_TEAMS_AND_PLAYERS"
-    | "MANAGE_TEAMS_AND_PLAYERS"
-    | "DELETE_TEAMS_AND_PLAYERS"
-    | "ACCESS_ASSETS"
-    | "MANAGE_ASSETS"
-    | "DELETE_ASSETS"
-    | "ACCESS_PAYLOADS"
-    | "MANAGE_PAYLOADS"
-    | "DELETE_PAYLOADS"
-    | "ACCESS_THREAT_ARSENALS"
-    | "MANAGE_THREAT_ARSENALS"
-    | "DELETE_THREAT_ARSENALS"
-    | "ACCESS_CREDENTIALS"
-    | "MANAGE_CREDENTIALS"
-    | "DELETE_CREDENTIALS"
-    | "ACCESS_MARKING_DEFINITION"
-    | "MANAGE_MARKING_DEFINITION"
-    | "DELETE_MARKING_DEFINITION"
-    | "ACCESS_MARKING_ASSIGNMENT"
-    | "ASSIGN_MARKING"
-    | "DELETE_MARKING_ASSIGNMENT"
-    | "ACCESS_DASHBOARDS"
-    | "MANAGE_DASHBOARDS"
-    | "DELETE_DASHBOARDS"
-    | "ACCESS_REPORTINGS"
-    | "MANAGE_REPORTINGS"
-    | "DELETE_REPORTINGS"
-    | "ACCESS_FINDINGS"
-    | "MANAGE_FINDINGS"
-    | "DELETE_FINDINGS"
-    | "ACCESS_DOCUMENTS"
-    | "MANAGE_DOCUMENTS"
-    | "DELETE_DOCUMENTS"
-    | "ACCESS_CHANNELS"
-    | "MANAGE_CHANNELS"
-    | "DELETE_CHANNELS"
-    | "ACCESS_PHISHING"
-    | "MANAGE_PHISHING"
-    | "DELETE_PHISHING"
-    | "ACCESS_CHALLENGES"
-    | "MANAGE_CHALLENGES"
-    | "DELETE_CHALLENGES"
-    | "ACCESS_LESSONS_LEARNED"
-    | "MANAGE_LESSONS_LEARNED"
-    | "DELETE_LESSONS_LEARNED"
-    | "ACCESS_SECURITY_PLATFORMS"
-    | "MANAGE_SECURITY_PLATFORMS"
-    | "DELETE_SECURITY_PLATFORMS"
-    | "ACCESS_PLATFORM_SETTINGS"
-    | "MANAGE_PLATFORM_SETTINGS"
-    | "ACCESS_TENANTS"
-    | "MANAGE_TENANTS"
-    | "DELETE_TENANTS"
-    | "ACCESS_TENANT_SETTINGS"
-    | "ACCESS_TAGS"
-    | "MANAGE_TAGS"
-    | "DELETE_TAGS"
-    | "MANAGE_TENANT_SETTINGS"
-    | "DELETE_TENANT_SETTINGS"
-    | "ACCESS_TENANT_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_TENANT_USERS_GROUPS_AND_ROLES"
-    | "DELETE_TENANT_USERS_GROUPS_AND_ROLES"
-    | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
-    | "MANAGE_SESSIONS"
-    | "MANAGE_PLATFORM_SESSIONS"
-    | "MANAGE_STIX_BUNDLE"
-    | "AGENT_RUNTIME_ACCESS"
-  )[];
-  platform_role_description?: string;
-  /** @minLength 1 */
-  platform_role_name: string;
-}
-
-export interface PlatformRoleOutput {
-  platform_role_description?: string;
-  /** @minLength 1 */
-  platform_role_id: string;
-  /** @minLength 1 */
-  platform_role_name: string;
-}
-
 export interface PlatformSettings {
   /** True if Saml2 is enabled */
   auth_saml2_enable?: boolean;
@@ -10594,6 +10503,12 @@ export interface RoleOutput {
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
+    | "ACCESS_MARKING_ASSIGNMENT"
+    | "ASSIGN_MARKING"
+    | "DELETE_MARKING_ASSIGNMENT"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
