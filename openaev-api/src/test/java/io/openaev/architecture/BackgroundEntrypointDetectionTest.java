@@ -470,7 +470,8 @@ class BackgroundEntrypointDetectionTest {
   }
 
   @Test
-  @DisplayName("a dual-scope table is a legal until-active target; outside-v2 and typos are not")
+  @DisplayName(
+      "a dual-scope table is a legal until-active target; self-isolated tables and typos are not")
   void untilActiveTargetsAreEveryActivatableTable() {
     Set<String> known = BackgroundEntrypointTenantScopeArchTest.knownTenantTables();
     assertTrue(known.contains("injects"), "a strict table '*' activates must be known");
@@ -483,7 +484,7 @@ class BackgroundEntrypointDetectionTest {
         "a dual-scope table an explicit allowlist can activate must be a legal until-active target");
     assertTrue(
         !known.contains("attackpath_graph_version"),
-        "a strict table permanently outside v2 is never activated, so it must not be a legal"
+        "a self-isolated strict table is never activated, so it must not be a legal"
             + " until-active target");
     assertTrue(
         !known.contains("injcts_typo"),
@@ -491,8 +492,8 @@ class BackgroundEntrypointDetectionTest {
 
     // Not just membership of the known set: drive the tags through the actual validation seam. A
     // regression that dropped dual tables from the legal set (rejecting a legal waiver) or that
-    // stopped rejecting outside-v2 targets fails here. 'groups' is dual-scope and now legal;
-    // 'attackpath_graph_version' is strict but permanently outside v2 (never activated); 'injects'
+    // stopped rejecting self-isolated targets fails here. 'groups' is dual-scope and now legal;
+    // 'attackpath_graph_version' is strict but self-isolated (never activated); 'injects'
     // is a real strict target.
     Map<String, String> baseline =
         Map.of(
@@ -509,7 +510,7 @@ class BackgroundEntrypointDetectionTest {
         unknown.stream()
             .anyMatch(
                 s -> s.contains("io.openaev.Outside") && s.contains("attackpath_graph_version")),
-        "an outside-v2 table tag must be rejected by the validation, not merely absent. Got: "
+        "a self-isolated table tag must be rejected by the validation, not merely absent. Got: "
             + unknown);
     assertTrue(
         unknown.stream().noneMatch(s -> s.contains("io.openaev.Ok")),

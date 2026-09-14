@@ -40,8 +40,8 @@ inputs:
       Multi-tenancy v2 shadow mode. Empty (default) leaves the run exactly as it was: the test
       profile declares no active tables, so the statement inspector never fires. "production" runs
       the suite under the active-tables list main ships, which catches a regression on a table that
-      is already live. "all" runs it with every strict tenant table active except those deliberately
-      outside v2, which surfaces what activating the rest would break. Both turn the fail-closed
+      is already live. "all" runs it with every strict tenant table active except the self-isolated
+      ones, which surfaces what activating the rest would break. Both turn the fail-closed
       detector on, so an unscoped production read fails its test instead of silently returning zero
       rows.
       Scope, exactly: the list is a JVM system property, and a class carrying

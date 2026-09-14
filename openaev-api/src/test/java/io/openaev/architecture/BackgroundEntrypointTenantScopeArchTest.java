@@ -139,8 +139,8 @@ import org.junit.jupiter.api.Test;
  * is to reference the primitive in the child or add a {@code delegates-to} baseline entry, not to
  * weaken the guard.
  *
- * <p><b>Known limit, an explicit allowlist naming an outside-v2 table.</b> {@code until-active}
- * rejects an outside-v2 strict table ({@code attackpath_graph_version}, {@code tenants}) because
+ * <p><b>Known limit, an explicit allowlist naming a self-isolated table.</b> {@code until-active}
+ * rejects a self-isolated strict table ({@code attackpath_graph_version}, {@code tenants}) because
  * these are never meant to be activated, yet {@link io.openaev.config.TenantTables#restrictTo}
  * still accepts such a name in an explicit {@code openaev.tenant.active-tables} list, so activating
  * one that way is a production configuration error this guard does not reject today (follow-up).
@@ -319,7 +319,8 @@ public class BackgroundEntrypointTenantScopeArchTest {
     assertTrue(
         unknown.isEmpty(),
         "an until-active:<table> tag must name a table the terminal '*' activation turns v2 (a"
-            + " strict, non-outside-v2 table), or it can never expire and the waiver is permanent by"
+            + " strict, non-self-isolated table), or it can never expire and the waiver is permanent"
+            + " by"
             + " accident:\n  "
             + String.join("\n  ", unknown));
   }
@@ -446,11 +447,11 @@ public class BackgroundEntrypointTenantScopeArchTest {
    * when it is named, so a waiver on a dual-scope table (which {@link TenantTables#restrictTo}
    * accepts in an explicit list) expires the day that table is listed. Under the wildcard {@link
    * TenantTables#ALL_STRICT} the terminal state does not activate <em>every</em> table: {@code *}
-   * activates strict tables only, minus those permanently outside v2 ({@link
-   * TenantTables#restrictTo}). So a tag expires under {@code *} only when its table is in {@code
-   * wildcardActivates} (the {@code *}-expansion); a dual-scope waiver does not expire under {@code
-   * *} (it is not in that set) but does under an explicit list. An outside-v2 table is in neither,
-   * and is rejected upstream as an illegal until-active target by {@code
+   * activates strict tables only, minus the self-isolated ones ({@link TenantTables#restrictTo}).
+   * So a tag expires under {@code *} only when its table is in {@code wildcardActivates} (the
+   * {@code *}-expansion); a dual-scope waiver does not expire under {@code *} (it is not in that
+   * set) but does under an explicit list. A self-isolated table is in neither, and is rejected
+   * upstream as an illegal until-active target by {@code
    * every_until_active_tag_names_a_real_tenant_table}.
    *
    * <p>(The active-tables set is resolved by {@link #effectiveActiveTables()}: the nightly shadow
@@ -476,7 +477,7 @@ public class BackgroundEntrypointTenantScopeArchTest {
                       + table
                       + "' activates, but that table is now active"
                       + (wildcard
-                          ? " ('*' activates every strict table except those outside v2)"
+                          ? " ('*' activates every strict table except the self-isolated ones)"
                           : "")
                       + "; scope the path through TenantScopedTransaction and remove the waiver");
             }
@@ -486,9 +487,9 @@ public class BackgroundEntrypointTenantScopeArchTest {
   }
 
   /**
-   * The tables the terminal {@code *} activation turns v2: the strict entity tables minus those
-   * outside v2, plus the strict tables that carry a {@code tenant_id} but no tenant-marker entity
-   * ({@link #strictTablesMissedByEntityScan()}). Production derives its set from {@code
+   * The tables the terminal {@code *} activation turns v2: the strict entity tables minus the
+   * self-isolated ones, plus the strict tables that carry a {@code tenant_id} but no tenant-marker
+   * entity ({@link #strictTablesMissedByEntityScan()}). Production derives its set from {@code
    * information_schema} and so covers those; this guard has no database, so it unions the
    * checked-in inventory to stay identical to production. {@code
    * TenantFilteringConfigTest#backgroundGuardWildcardMatchesProductionSchema} fails the build if
@@ -633,15 +634,14 @@ public class BackgroundEntrypointTenantScopeArchTest {
    *
    * <ul>
    *   <li>the strict tables the terminal {@code *} turns v2 ({@link #wildcardActivatedTables()},
-   *       minus those permanently outside v2), which expire under {@code *} or when named
-   *       explicitly; and
+   *       minus the self-isolated ones), which expire under {@code *} or when named explicitly; and
    *   <li>the dual-scope tables: {@code *} never activates one, but {@link TenantTables#restrictTo}
    *       accepts a dual table in an explicit allowlist (e.g. {@code groups}), so an {@code
    *       until-active:<dual>} waiver expires the day that table is listed explicitly. Barring it
    *       here would reject a legal waiver as unknown and leave the path permanently un-expiring.
    * </ul>
    *
-   * An outside-v2 strict table ({@code attackpath_graph_version}, {@code tenants}) and a typo are
+   * A self-isolated strict table ({@code attackpath_graph_version}, {@code tenants}) and a typo are
    * still rejected: {@code *} never activates them and they must never be activated, so a waiver on
    * one could not honestly expire.
    *
