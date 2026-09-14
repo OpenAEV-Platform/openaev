@@ -67,7 +67,7 @@ const MarkingDefinitionForm: FunctionComponent<Props> = ({
         label={t('Type')}
         error={!!errors.marking_definition_type}
         helperText={errors.marking_definition_type?.message}
-        disabled={isEdit}
+        slotProps={{ htmlInput: { readOnly: isEdit } }}
         {...register('marking_definition_type')}
       />
       <TextField
