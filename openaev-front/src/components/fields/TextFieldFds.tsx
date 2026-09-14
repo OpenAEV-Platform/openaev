@@ -91,6 +91,7 @@ const TextFieldFds = forwardRef<Control, TextFieldFdsProps>(({
           minRows={autosize ? minRows ?? 1 : undefined}
           maxRows={autosize ? maxRows : undefined}
           maxLength={maxLength}
+          infoTooltip={infoTooltip}
           resize="none"
         />
       </div>
