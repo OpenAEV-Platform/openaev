@@ -7704,6 +7704,35 @@ export interface MapperConditionOutput {
   condition_value?: string;
 }
 
+export interface MarkingDefinitionInput {
+  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
+  marking_definition_color?: string;
+  /** @minLength 1 */
+  marking_definition_definition: string;
+  /**
+   * @format int32
+   * @min 0
+   */
+  marking_definition_order: number;
+  /** @minLength 1 */
+  marking_definition_type: string;
+}
+
+export interface MarkingDefinitionOutput {
+  marking_definition_color?: string;
+  /** @format date-time */
+  marking_definition_created_at: string;
+  /** @minLength 1 */
+  marking_definition_definition: string;
+  /** @minLength 1 */
+  marking_definition_id: string;
+  /** @format int32 */
+  marking_definition_order: number;
+  marking_definition_protected: boolean;
+  /** @minLength 1 */
+  marking_definition_type: string;
+}
+
 export interface MissingImportedAction {
   name?: string;
   type?: string;
@@ -7911,6 +7940,7 @@ export interface NotificationTriggerInput {
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
     | "CREDENTIAL"
+    | "MARKING_DEFINITION"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -8017,6 +8047,7 @@ export interface NotificationTriggerOutput {
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
     | "CREDENTIAL"
+    | "MARKING_DEFINITION"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -8591,6 +8622,25 @@ export interface PageKillChainPhase {
 
 export interface PageLessonsTemplate {
   content?: LessonsTemplate[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageMarkingDefinitionOutput {
+  content?: MarkingDefinitionOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -9629,6 +9679,7 @@ export interface PlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
+    | "MARKING"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -9924,6 +9975,7 @@ export interface PublicPlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
+    | "MARKING"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -10367,6 +10419,9 @@ export interface RoleInput {
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -10444,6 +10499,9 @@ export interface RoleOutput {
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -12577,6 +12635,9 @@ export interface User {
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
