@@ -146,6 +146,22 @@ public class FileService {
   }
 
   /**
+   * Deletes a file under an explicitly named tenant path.
+   *
+   * <p>The delete-side counterpart of {@link #uploadFile(String, String, InputStream, long,
+   * String)}: use this when the owning row's tenant is resolved, so the object is removed from the
+   * same tenant path it was stored under, whatever the ambient {@link
+   * io.openaev.context.TenantContext}.
+   *
+   * @param tenantId the tenant whose path the object is removed from
+   * @param name the file path/name to delete
+   * @throws Exception if the deletion fails
+   */
+  public void deleteFile(String tenantId, String name) throws Exception {
+    minioService.deleteFileForTenant(tenantId, name);
+  }
+
+  /**
    * Deletes all files in a directory recursively.
    *
    * <p>This method lists all objects with the given directory prefix and deletes them. Errors

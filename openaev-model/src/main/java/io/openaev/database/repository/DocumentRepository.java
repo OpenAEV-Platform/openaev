@@ -29,8 +29,6 @@ public interface DocumentRepository
   @NotNull
   Optional<Document> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
-  List<Document> removeById(@NotNull String id);
-
   // document_target and document_name are not unique (concurrent uploads can create
   // duplicates), so lookups must be duplicate-tolerant and deterministic instead of
   // failing with a NonUniqueResultException.

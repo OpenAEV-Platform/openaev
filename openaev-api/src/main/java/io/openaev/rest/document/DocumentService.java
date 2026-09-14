@@ -272,18 +272,33 @@ public class DocumentService {
   }
 
   private void removeDocumentAndFile(final String documentId) {
-    List<Document> documents = documentRepository.removeById(documentId);
+    // Load by primary key (exempt from the Hibernate tenantFilter) so a document attributed to a
+    // tenant other than the ambient TenantContext is still found: on the non-prefixed route the
+    // filter is parameterised with the default tenant, so a filtered derived delete would match no
+    // row and silently drop the delete. The caller (DocumentApi.deleteDocument) has already checked
+    // the row is inside the request scope, so this cannot delete another tenant's document.
+    Optional<Document> found = documentRepository.findById(documentId);
+    if (found.isEmpty()) {
+      return;
+    }
+    Document documentToRemove = found.get();
+    Tenant tenant = documentToRemove.getTenant();
+    String target = documentToRemove.getTarget();
+    documentRepository.delete(documentToRemove);
 
-    // Remove document from minio (best-effort: a missing file must not fail the row deletion)
-    documents.forEach(
-        documentToRemove -> {
-          try {
-            fileService.deleteFile(documentToRemove.getTarget());
-          } catch (Exception e) {
-            log.warn(
-                "File already removed or not found in minio: {}", documentToRemove.getTarget(), e);
-          }
-        });
+    // Remove the object from minio (best-effort: a missing file must not fail the row deletion).
+    // Delete under the row's own tenant, not the ambient TenantContext: the object lives under the
+    // tenant the row is attributed to, so a header-route delete (which sets no TenantContext) still
+    // removes it. A row with no tenant keeps the ambient path, matching how its bytes were stored.
+    try {
+      if (tenant == null || tenant.getId() == null) {
+        fileService.deleteFile(target);
+      } else {
+        fileService.deleteFile(tenant.getId(), target);
+      }
+    } catch (Exception e) {
+      log.warn("File already removed or not found in minio: {}", target, e);
+    }
   }
 
   public static String encodeFileName(String name) {

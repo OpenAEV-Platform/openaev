@@ -90,14 +90,12 @@ public class MinioService implements DependenciesManager {
   public String uploadFileForTenant(
       String tenantId, String fileName, InputStream data, long size, String contentType)
       throws Exception {
+    String objectKey = getPathForTenant(tenantId, fileName);
     minioClient.putObject(
-        PutObjectArgs.builder()
-            .bucket(bucket())
-            .object(getPathForTenant(tenantId, fileName))
-            .stream(data, size, -1)
+        PutObjectArgs.builder().bucket(bucket()).object(objectKey).stream(data, size, -1)
             .contentType(contentType)
             .build());
-    return getPathForTenant(tenantId, fileName);
+    return objectKey;
   }
 
   public String uploadStreamInTenantPath(String fileName, String name, InputStream data)
@@ -203,6 +201,24 @@ public class MinioService implements DependenciesManager {
   public void deleteFileInTenantPath(String name) throws Exception {
     minioClient.removeObject(
         RemoveObjectArgs.builder().bucket(bucket()).object(getTenantPath(name)).build());
+  }
+
+  /**
+   * Deletes a file under an explicitly named tenant path rather than the ambient {@link
+   * TenantContext}. The delete-side counterpart of {@link #uploadFileForTenant}: use it when the
+   * owning row's tenant is known, so the object is removed from the same path it was written to,
+   * whatever scope the caller runs under (a header-route delete sets no {@link TenantContext}).
+   *
+   * @param tenantId the tenant whose path the object is removed from
+   * @param name the object name to delete
+   * @throws Exception if the deletion fails
+   */
+  public void deleteFileForTenant(String tenantId, String name) throws Exception {
+    minioClient.removeObject(
+        RemoveObjectArgs.builder()
+            .bucket(bucket())
+            .object(getPathForTenant(tenantId, name))
+            .build());
   }
 
   public void deleteDirectoryInTenantPath(String directory) {

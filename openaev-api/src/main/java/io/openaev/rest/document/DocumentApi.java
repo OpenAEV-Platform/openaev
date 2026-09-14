@@ -28,6 +28,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChannelService;
 import io.openaev.service.FileService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -317,12 +318,45 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public ResponseEntity<InputStreamResource> downloadDocument(
       TxCtx ctx, @PathVariable String documentId) {
-    return buildDocumentDownloadResponse(documentId);
+    Document document = documentService.document(documentId);
+    assertDocumentInRequestScope(ctx, document);
+    return buildDocumentDownloadResponse(document);
+  }
+
+  /**
+   * Refuses access to a document whose tenant is outside the request scope, with the same 404 as a
+   * missing document. The row is loaded through a primary-key {@code findById}, which is exempt
+   * from the Hibernate tenant filter, and {@code @AccessControl(DOCUMENT, ...)} is a capability
+   * check, not a tenant compare: without this guard a caller scoped to one tenant could reach the
+   * bytes (read) or the row and object (delete) of another tenant's document by id.
+   *
+   * <p>A request that narrows to an explicit tenant set (a path tenant or {@code X-Tenant-Ids}) is
+   * held to it. A request with no scope at all (no selector and no membership) falls back to the
+   * ambient tenant, the same boundary the Hibernate {@code tenantFilter} applies to such requests,
+   * so unscoped and cross-tenant admin paths are neither opened nor blocked. A row with no tenant
+   * is a platform asset with no boundary and is always allowed, matching the ambient-path fallback
+   * in {@link FileService#getFile}.
+   */
+  private void assertDocumentInRequestScope(TxCtx ctx, Document document) {
+    Tenant tenant = document.getTenant();
+    if (tenant == null || tenant.getId() == null) {
+      return;
+    }
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      String ambient = TenantContext.getCurrentTenant();
+      scope = ambient == null ? Set.of() : Set.of(ambient);
+    }
+    if (!scope.isEmpty() && !scope.contains(tenant.getId())) {
+      throw new ElementNotFoundException("Document not found");
+    }
   }
 
   private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(String documentId) {
-    Document document = documentService.document(documentId);
+    return buildDocumentDownloadResponse(documentService.document(documentId));
+  }
 
+  private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(Document document) {
     String encodedFilename = DocumentService.encodeFileName(document.getName());
     InputStream in =
         fileService
@@ -466,6 +500,10 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
   public void deleteDocument(TxCtx ctx, @PathVariable String documentId) {
+    // Same request-scope guard as the download: the delete below removes the row by primary key
+    // (exempt from the tenant filter) so it works on the non-prefixed route, which means the scope
+    // must be checked here or a caller could delete another tenant's document by id.
+    assertDocumentInRequestScope(ctx, documentService.document(documentId));
     documentService.deleteDocument(documentId);
   }
 
