@@ -13,12 +13,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
+import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.FileService;
@@ -31,6 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -760,6 +763,399 @@ class WriteAttributionRouteTest extends IntegrationTest {
           minioService.countObjects(tenantB + "/" + target),
           "the B object must survive a cross-tenant delete");
     }
+
+    @Test
+    @DisplayName(
+        "duplicate content with several ids in X-Tenant-Ids: the update is refused (400) and the"
+            + " existing document is left unchanged")
+    void documentDuplicateWithAmbiguousScopeIsRefusedAndLeavesDocumentUnchanged() throws Exception {
+      // The existing document is seeded out of band (no controller call), so the test transaction's
+      // tenant scope is left for the request under test to set; its target is the content hash the
+      // duplicate lookup keys on. It is seeded in the default tenant because Document still carries
+      // the v1 tenantFilter, enabled from TenantContext, which is unset on the header route and so
+      // defaults to the default tenant: only a default-tenant row is visible to the duplicate
+      // lookup
+      // there, which is exactly the document a header-route request can reach.
+      byte[] content = ("t014k-dup-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String existingId = seedDuplicateTargetDocument(DEFAULT_TENANT, content);
+      String tagId = seedTag(DEFAULT_TENANT);
+
+      // The current user can select either tenant, so two ids in X-Tenant-Ids is an authorised but
+      // ambiguous write scope rather than a forbidden selector.
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+
+      // Uploading the same bytes matches the existing document, so the request takes the duplicate
+      // branch. That branch must resolve the write scope like the new-document branch and refuse
+      // the
+      // ambiguous request with 400 instead of mutating a document the caller did not unambiguously
+      // scope. Before the fix it returned 200 and updated the existing document.
+      mvc.perform(
+              multipart("/api/documents")
+                  .part(documentInputWithTag(tagId))
+                  .file(txtFile(content))
+                  .header("X-Tenant-Ids", tenantB + "," + DEFAULT_TENANT)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      assertEquals(
+          DEFAULT_TENANT,
+          rowTenant("documents", "document_id", existingId),
+          "the existing document must still belong to the default tenant");
+      assertEquals(
+          0,
+          documentTagCount(existingId),
+          "the refused duplicate upload must not attach its tag to the existing document");
+    }
+
+    @Test
+    @DisplayName(
+        "duplicate content with a single-tenant selector: the existing document is still updated"
+            + " (200)")
+    void documentDuplicateSingleTenantSelectorStillUpdatesExistingDocument() throws Exception {
+      // A single unambiguous selector must keep the legitimate duplicate-upload behaviour:
+      // resolving
+      // the write scope at the top of the handler succeeds, so the duplicate branch runs as before
+      // and updates the existing row rather than creating a new one. The prefixed default route
+      // sets
+      // TenantContext to the default tenant, so the v1 tenantFilter matches the seeded document.
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      byte[] content = ("t014k-single-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String existingId = seedDuplicateTargetDocument(DEFAULT_TENANT, content);
+      String tagId = seedTag(DEFAULT_TENANT);
+
+      String response =
+          mvc.perform(
+                  multipart("/api/tenants/{t}/documents", DEFAULT_TENANT)
+                      .part(documentInputWithTag(tagId))
+                      .file(txtFile(content))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertEquals(
+          existingId,
+          JsonPath.read(response, "$.document_id"),
+          "the single-tenant duplicate upload updates the existing document, not a new one");
+      assertEquals(
+          DEFAULT_TENANT,
+          rowTenant("documents", "document_id", existingId),
+          "the existing document keeps its tenant on a single-tenant duplicate upload");
+    }
+
+    @Test
+    @DisplayName(
+        "upload header route: bytes that exist in the default tenant create a new B document and"
+            + " leave the default one unchanged")
+    void documentUploadHeaderRouteWithBytesInDefaultTenantCreatesBDocument() throws Exception {
+      // The default tenant already holds a document with these bytes, seeded out of band. On the
+      // header route the ambient tenant filter defaults to the default tenant, so before the fix
+      // the
+      // unscoped content-hash lookup found and reused that default document, attributing the upload
+      // to the default tenant. The lookup is now scoped to the resolved write tenant (B), so no B
+      // document matches and a fresh one is created for B.
+      byte[] content = ("t014l-upload-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String existingId =
+          seedDocumentInTenant(DEFAULT_TENANT, DigestUtils.md5Hex(content) + ".txt", content);
+
+      String newId = uploadDocumentWithContent(multipart("/api/documents"), tenantB, content);
+
+      assertNotEquals(
+          existingId,
+          newId,
+          "a B upload must not reuse the default tenant's document with the same bytes");
+      assertEquals(
+          tenantB,
+          rowTenant("documents", "document_id", newId),
+          "the new document created for B must belong to B");
+      assertEquals(
+          DEFAULT_TENANT,
+          rowTenant("documents", "document_id", existingId),
+          "the default tenant's document must be left unchanged");
+      assertEquals(
+          0, documentTagCount(existingId), "the default tenant's document must gain no tag");
+    }
+
+    @Test
+    @DisplayName(
+        "upsert header route: bytes that exist in the default tenant create a new B document and"
+            + " leave the default one unchanged")
+    void documentUpsertHeaderRouteWithBytesInDefaultTenantCreatesBDocument() throws Exception {
+      byte[] content = ("t014l-upsert-bytes-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String existingId =
+          seedDocumentInTenant(DEFAULT_TENANT, DigestUtils.md5Hex(content) + ".txt", content);
+
+      String newId =
+          uploadDocumentWithContent(multipart("/api/documents/upsert"), tenantB, content);
+
+      assertNotEquals(
+          existingId,
+          newId,
+          "a B upsert must not reuse the default tenant's document with the same bytes");
+      assertEquals(
+          tenantB,
+          rowTenant("documents", "document_id", newId),
+          "the new document upserted for B must belong to B");
+      assertEquals(
+          DEFAULT_TENANT,
+          rowTenant("documents", "document_id", existingId),
+          "the default tenant's document must be left unchanged");
+    }
+
+    @Test
+    @DisplayName(
+        "upsert header route: a name that exists in the default tenant creates a new B document and"
+            + " leaves the default one unchanged")
+    void documentUpsertHeaderRouteWithNameInDefaultTenantCreatesBDocument() throws Exception {
+      // Different bytes, so the content-hash lookup misses and the upsert falls to the name lookup.
+      // Before the fix that name lookup ran under the ambient (default) filter and reused the
+      // default tenant's document, rewriting its bytes; the scoped lookup now misses in B and a
+      // fresh B document is created.
+      String sharedName = "t014l-shared-" + UUID.randomUUID() + ".txt";
+      byte[] defaultBytes = ("t014l-default-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String defaultTarget = DigestUtils.md5Hex(defaultBytes) + ".txt";
+      String existingId =
+          seedNamedDocumentInTenant(DEFAULT_TENANT, sharedName, defaultTarget, defaultBytes);
+
+      byte[] bBytes = ("t014l-b-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      MockPart inputPart = new MockPart("input", "{}".getBytes(StandardCharsets.UTF_8));
+      inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+      MockMultipartFile filePart =
+          new MockMultipartFile("file", sharedName, MediaType.TEXT_PLAIN_VALUE, bBytes);
+      String response =
+          mvc.perform(
+                  multipart("/api/documents/upsert")
+                      .part(inputPart)
+                      .file(filePart)
+                      .header("X-Tenant-Ids", tenantB)
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String newId = JsonPath.read(response, "$.document_id");
+      trackUploadedObject(newId);
+
+      assertNotEquals(
+          existingId,
+          newId,
+          "a B upsert must not reuse the default tenant's document with the same name");
+      assertEquals(
+          tenantB,
+          rowTenant("documents", "document_id", newId),
+          "the new document upserted for B must belong to B");
+      assertEquals(
+          DEFAULT_TENANT,
+          rowTenant("documents", "document_id", existingId),
+          "the default tenant's document must be left unchanged");
+      assertEquals(
+          defaultTarget,
+          documentTarget(existingId),
+          "the default tenant's document must keep its bytes (target) unchanged");
+    }
+
+    @Test
+    @DisplayName(
+        "upsert prefixed route: a duplicate in the same tenant still reuses the existing row")
+    void documentUpsertPrefixedRouteDuplicateInSameTenantReusesExistingRow() throws Exception {
+      tenantHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      byte[] content = ("t014l-reuse-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String existingId = seedDuplicateTargetDocument(DEFAULT_TENANT, content);
+
+      // Same tenant, same bytes: the scoped lookup finds the existing row and reuses it rather than
+      // creating a new one, so a legitimate same-tenant duplicate keeps its behaviour.
+      String reusedId =
+          uploadDocumentWithContent(
+              multipart("/api/tenants/{t}/documents/upsert", DEFAULT_TENANT), null, content);
+
+      assertEquals(
+          existingId,
+          reusedId,
+          "a same-tenant duplicate upsert must reuse the existing row, not create a new one");
+    }
+  }
+
+  // endregion
+
+  // region documents by id, request-scope guard on the read and write endpoints
+  // (DocumentApi.document, documentTags read/write, updateDocumentInformation,
+  // getDocumentRelations)
+
+  @Nested
+  @DisplayName("Document by-id endpoints hold the request scope")
+  class DocumentsByIdScope {
+
+    @Test
+    @DisplayName(
+        "GET by id: a caller scoped to another tenant is refused a B document (both routes)")
+    void getByIdIsRefusedForACallerScopedToAnotherTenant() throws Exception {
+      String id = seedBDocument();
+      String tenantA = tenantHelper.createTenantWithCurrentUser("t014l-get-a").getId();
+
+      mvc.perform(get("/api/tenants/{t}/documents/{id}", tenantA, id))
+          .andExpect(status().isNotFound());
+      mvc.perform(get("/api/documents/{id}", id).header("X-Tenant-Ids", tenantA))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET by id: the owning tenant still receives the document (both routes)")
+    void getByIdSucceedsForTheOwningTenant() throws Exception {
+      String id = seedBDocument();
+
+      mvc.perform(get("/api/tenants/{t}/documents/{id}", tenantB, id)).andExpect(status().isOk());
+      mvc.perform(get("/api/documents/{id}", id).header("X-Tenant-Ids", tenantB))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName(
+        "GET tags by id: a caller scoped to another tenant is refused a B document (both routes)")
+    void getTagsByIdIsRefusedForACallerScopedToAnotherTenant() throws Exception {
+      String id = seedBDocument();
+      String tenantA = tenantHelper.createTenantWithCurrentUser("t014l-tags-a").getId();
+
+      mvc.perform(get("/api/tenants/{t}/documents/{id}/tags", tenantA, id))
+          .andExpect(status().isNotFound());
+      mvc.perform(get("/api/documents/{id}/tags", id).header("X-Tenant-Ids", tenantA))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET tags by id: the owning tenant still receives the tags (both routes)")
+    void getTagsByIdSucceedsForTheOwningTenant() throws Exception {
+      String id = seedBDocument();
+
+      mvc.perform(get("/api/tenants/{t}/documents/{id}/tags", tenantB, id))
+          .andExpect(status().isOk());
+      mvc.perform(get("/api/documents/{id}/tags", id).header("X-Tenant-Ids", tenantB))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName(
+        "GET relations by id: a caller scoped to another tenant is refused a B document (both"
+            + " routes)")
+    void getRelationsByIdIsRefusedForACallerScopedToAnotherTenant() throws Exception {
+      String id = seedBDocument();
+      String tenantA = tenantHelper.createTenantWithCurrentUser("t014l-rel-a").getId();
+
+      mvc.perform(get("/api/tenants/{t}/documents/{id}/relations", tenantA, id))
+          .andExpect(status().isNotFound());
+      mvc.perform(get("/api/documents/{id}/relations", id).header("X-Tenant-Ids", tenantA))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName(
+        "GET relations by id: the owning tenant still receives the relations (both routes)")
+    void getRelationsByIdSucceedsForTheOwningTenant() throws Exception {
+      String id = seedBDocument();
+
+      mvc.perform(get("/api/tenants/{t}/documents/{id}/relations", tenantB, id))
+          .andExpect(status().isOk());
+      mvc.perform(get("/api/documents/{id}/relations", id).header("X-Tenant-Ids", tenantB))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName(
+        "PUT tags by id: a caller scoped to another tenant is refused and the B document is"
+            + " unchanged (both routes)")
+    void putTagsByIdIsRefusedForACallerScopedToAnotherTenantAndLeavesDocumentUnchanged()
+        throws Exception {
+      String id = seedBDocument();
+      String originalName = documentName(id);
+      String tenantA = tenantHelper.createTenantWithCurrentUser("t014l-puttags-a").getId();
+      String tagId = seedTag(tenantA);
+
+      mvc.perform(
+              put("/api/tenants/{t}/documents/{id}/tags", tenantA, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(tagsBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+      mvc.perform(
+              put("/api/documents/{id}/tags", id)
+                  .header("X-Tenant-Ids", tenantA)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(tagsBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+
+      assertEquals(0, documentTagCount(id), "the refused tag write must not attach a tag to B");
+      assertEquals(originalName, documentName(id), "the B document name must be unchanged");
+    }
+
+    @Test
+    @DisplayName("PUT tags by id: the owning tenant still updates the tags")
+    void putTagsByIdSucceedsForTheOwningTenant() throws Exception {
+      String id = seedBDocument();
+      String tagId = seedTag(tenantB);
+
+      mvc.perform(
+              put("/api/tenants/{t}/documents/{id}/tags", tenantB, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(tagsBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      assertEquals(
+          1, documentTagCount(id), "the owning tenant must be able to set the document tags");
+    }
+
+    @Test
+    @DisplayName(
+        "PUT by id: a caller scoped to another tenant is refused and the B document is unchanged"
+            + " (both routes)")
+    void putByIdIsRefusedForACallerScopedToAnotherTenantAndLeavesDocumentUnchanged()
+        throws Exception {
+      String id = seedBDocument();
+      String originalName = documentName(id);
+      String tenantA = tenantHelper.createTenantWithCurrentUser("t014l-put-a").getId();
+      String tagId = seedTag(tenantA);
+
+      mvc.perform(
+              put("/api/tenants/{t}/documents/{id}", tenantA, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(updateBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+      mvc.perform(
+              put("/api/documents/{id}", id)
+                  .header("X-Tenant-Ids", tenantA)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(updateBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+
+      assertEquals(0, documentTagCount(id), "the refused update must not attach a tag to B");
+      assertEquals(originalName, documentName(id), "the B document name must be unchanged");
+    }
+
+    @Test
+    @DisplayName("PUT by id: the owning tenant still updates the document")
+    void putByIdSucceedsForTheOwningTenant() throws Exception {
+      String id = seedBDocument();
+      String tagId = seedTag(tenantB);
+
+      mvc.perform(
+              put("/api/tenants/{t}/documents/{id}", tenantB, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(updateBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      assertEquals(
+          1, documentTagCount(id), "the owning tenant must be able to update the document");
+    }
+
+    /** Seeds a document owned by tenant B out of band so the request under test sets the scope. */
+    private String seedBDocument() throws Exception {
+      byte[] content = ("t014l-doc-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      return seedDocumentInTenant(tenantB, UUID.randomUUID() + ".txt", content);
+    }
   }
 
   // endregion
@@ -1071,6 +1467,66 @@ class WriteAttributionRouteTest extends IntegrationTest {
         .longValue();
   }
 
+  private long documentTagCount(String documentId) {
+    entityManager.flush();
+    return ((Number)
+            entityManager
+                .createNativeQuery("SELECT count(*) FROM documents_tags WHERE document_id = ?1")
+                .setParameter(1, documentId)
+                .getSingleResult())
+        .longValue();
+  }
+
+  private String documentName(String documentId) {
+    entityManager.flush();
+    return (String)
+        entityManager
+            .createNativeQuery("SELECT document_name FROM documents WHERE document_id = ?1")
+            .setParameter(1, documentId)
+            .getSingleResult();
+  }
+
+  private String tagsBody(String tagId) {
+    return "{\"tags\":[\"" + tagId + "\"]}";
+  }
+
+  private String updateBody(String tagId) {
+    return "{\"document_tags\":[\"" + tagId + "\"]}";
+  }
+
+  /**
+   * Seeds a document owned by {@code tenantId} whose target is the content hash the upload handler
+   * computes for {@code content}, so a later upload of the same bytes hits the duplicate branch.
+   */
+  private String seedDuplicateTargetDocument(String tenantId, byte[] content) throws Exception {
+    String target = DigestUtils.md5Hex(content) + ".txt";
+    return seedDocumentInTenant(tenantId, target, content);
+  }
+
+  private MockPart documentInputWithTag(String tagId) {
+    MockPart inputPart =
+        new MockPart(
+            "input", ("{\"document_tags\":[\"" + tagId + "\"]}").getBytes(StandardCharsets.UTF_8));
+    inputPart.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+    return inputPart;
+  }
+
+  private MockMultipartFile txtFile(byte[] content) {
+    return new MockMultipartFile(
+        "file", "t014k-" + UUID.randomUUID() + ".txt", MediaType.TEXT_PLAIN_VALUE, content);
+  }
+
+  /** Seeds a tag owned by {@code tenantId} so a duplicate upload can try to attach it. */
+  private String seedTag(String tenantId) {
+    Tag tag = new Tag();
+    tag.setName("t014k-tag-" + UUID.randomUUID());
+    tag.setColor("#123456");
+    tag.setTenant(new Tenant(tenantId));
+    entityManager.persist(tag);
+    entityManager.flush();
+    return tag.getId();
+  }
+
   /**
    * Seeds a document owned by {@code tenantId} without going through a controller, so the test
    * transaction's tenant scope is left unset for the request under test to define. The object is
@@ -1088,6 +1544,26 @@ class WriteAttributionRouteTest extends IntegrationTest {
     uploadedObjects.add(new String[] {tenantId, target});
     Document document = new Document();
     document.setName("t014j-seed-" + UUID.randomUUID() + ".txt");
+    document.setTarget(target);
+    document.setType(MediaType.TEXT_PLAIN_VALUE);
+    document.setTenant(new Tenant(tenantId));
+    entityManager.persist(document);
+    entityManager.flush();
+    return document.getId();
+  }
+
+  /** As {@link #seedDocumentInTenant} but with a caller-chosen name, for the name-lookup path. */
+  private String seedNamedDocumentInTenant(
+      String tenantId, String name, String target, byte[] content) throws Exception {
+    minioService.uploadFileForTenant(
+        tenantId,
+        target,
+        new ByteArrayInputStream(content),
+        content.length,
+        MediaType.TEXT_PLAIN_VALUE);
+    uploadedObjects.add(new String[] {tenantId, target});
+    Document document = new Document();
+    document.setName(name);
     document.setTarget(target);
     document.setType(MediaType.TEXT_PLAIN_VALUE);
     document.setTenant(new Tenant(tenantId));
