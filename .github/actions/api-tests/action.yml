@@ -1,6 +1,6 @@
 name: API Tests
 description: >
-  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, MinIO),
+  Start service containers (PostgreSQL, Elasticsearch, RabbitMQ, Silo),
   download pre-compiled artifacts, and run API tests for a single shard.
   Requires job-level env vars:
   SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME,
@@ -33,6 +33,23 @@ inputs:
     default: ""
   artifact-suffix:
     description: "Suffix appended to artifact names to avoid conflicts (e.g. '-opensearch')"
+    required: false
+    default: ""
+  tenant-mode:
+    description: >
+      Multi-tenancy v2 shadow mode. Empty (default) leaves the run exactly as it was: the test
+      profile declares no active tables, so the statement inspector never fires. "production" runs
+      the suite under the active-tables list main ships, which catches a regression on a table that
+      is already live. "all" runs it with every strict tenant table active except those deliberately
+      outside v2, which surfaces what activating the rest would break. Both turn the fail-closed
+      detector on, so an unscoped production read fails its test instead of silently returning zero
+      rows.
+      Scope, exactly: the list is a JVM system property, and a class carrying
+      @TestPropertySource(properties = "openaev.tenant.active-tables=...") keeps its own narrower
+      list, because inlined test properties win over system properties. Those classes are the
+      isolation suites, which already run with their table active; the shadow's new information
+      comes from every other class, which has never run under activation. Making the shadow win over
+      per-class activation needs a context customizer and is tracked separately.
     required: false
     default: ""
 
@@ -155,12 +172,12 @@ runs:
         done
         docker exec rabbitmq rabbitmq-diagnostics -q check_running || { echo "❌ RabbitMQ failed to start"; exit 1; }
 
-        echo "⏳ Waiting for MinIO..."
+        echo "⏳ Waiting for Silo..."
         for i in $(seq 1 30); do
           curl -sf http://localhost:11000/minio/health/live && break
           sleep 1
         done
-        curl -sf http://localhost:11000/minio/health/live || { echo "❌ MinIO failed to start"; exit 1; }
+        curl -sf http://localhost:11000/minio/health/live || { echo "❌ Silo failed to start"; exit 1; }
 
         echo "✅ All services ready"
 
@@ -210,6 +227,43 @@ runs:
           echo "surefire_arg=$ARGS" >> "$GITHUB_OUTPUT"
         fi
 
+    - name: Resolve multi-tenancy shadow mode
+      id: tenant
+      shell: bash
+      env:
+        MODE: ${{ inputs.tenant-mode }}
+      run: |
+        if [ -z "$MODE" ]; then
+          echo "args=" >> "$GITHUB_OUTPUT"
+          echo "ℹ️ tenant shadow: off (test profile, inspector inert)"
+          exit 0
+        fi
+        case "$MODE" in
+          production)
+            # Read the list main ships rather than restating it here, so the two can never drift.
+            PROPS=openaev-api/src/main/resources/application.properties
+            # Exactly one definition, or fail: sed prints every match, so a second definition would
+            # make LIST multi-line and silently corrupt the -D below.
+            COUNT=$(grep -c '^openaev\.tenant\.active-tables=' "$PROPS" || true)
+            if [ "$COUNT" != "1" ]; then
+              echo "❌ expected exactly one openaev.tenant.active-tables in $PROPS, found $COUNT"; exit 1
+            fi
+            LIST=$(sed -n 's/^openaev\.tenant\.active-tables=//p' "$PROPS")
+            if [ -z "$LIST" ]; then
+              echo "❌ openaev.tenant.active-tables is empty in $PROPS"; exit 1
+            fi
+            ;;
+          all)
+            # TenantTables.ALL_STRICT: every strict tenant table, no dual-scope one.
+            LIST='*'
+            ;;
+          *) echo "❌ unknown tenant-mode: $MODE (expected '', 'production' or 'all')"; exit 1 ;;
+        esac
+        echo "🔐 tenant shadow: mode=$MODE"
+        echo "   active-tables=$LIST"
+        # Single-quoted so '*' reaches the JVM instead of being glob-expanded by the shell below.
+        echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on" >> "$GITHUB_OUTPUT"
+
     - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       id: run-tests
       shell: bash
@@ -222,6 +276,79 @@ runs:
         mvn -B -ntp -pl openaev-api test
         -Dmaven.compiler.skip=true
         ${{ steps.suite.outputs.surefire_arg }}
+        ${{ steps.tenant.outputs.args }}
+
+    - name: Summarise the multi-tenancy shadow run
+      if: ${{ !cancelled() && inputs.tenant-mode != '' }}
+      shell: bash
+      env:
+        MODE: ${{ inputs.tenant-mode }}
+        SHARD: ${{ inputs.shard-name }}
+      run: |
+        REPORTS=openaev-api/target/surefire-reports
+        S="$GITHUB_STEP_SUMMARY"
+        {
+          echo "## 🔐 Tenant shadow \`$MODE\` — shard $SHARD"
+          echo
+          echo "_Classes carrying their own \`@TestPropertySource\` activation keep it: inlined test"
+          echo "properties win over the system property this mode sets. Those are the isolation suites,"
+          echo "already running with their table active._"
+          echo
+        } >> "$S"
+        if [ ! -d "$REPORTS" ]; then
+          echo "No surefire reports: the suite did not start." >> "$S"
+          exit 0
+        fi
+
+        # Totals, summed over the shard's classes. Read from the reports, never from a grep of the
+        # build log: Maven writes ANSI colour codes inside its counters, so a grep there is vacuous.
+        awk -F'[:,]' '/^Tests run:/ {t+=$2; f+=$4; e+=$6; s+=$8}
+          END {printf "| Tests | Failures | Errors | Skipped |\n|---|---|---|---|\n| %d | %d | %d | %d |\n", t, f, e, s}' \
+          "$REPORTS"/*.txt >> "$S" 2>/dev/null || true
+        echo >> "$S"
+
+        # Unscoped production reads the fail-closed gate refused. Each is a path that would return
+        # zero rows in production once its table is active.
+        SIGS=$(awk '
+            /Fail-closed: production code read/ { inblock = 1; next }
+            inblock && /^Scope the path/ { inblock = 0; next }
+            inblock && /io\.openaev\./ {
+              gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+              if ($0 ~ /^io\.openaev\.[A-Za-z0-9_.$]+$/) print
+            }
+          ' "$REPORTS"/*.txt 2>/dev/null | sort -u)
+        if [ -n "$SIGS" ]; then
+          {
+            echo "### Unscoped production reads ($(echo "$SIGS" | wc -l))"
+            echo
+            echo "Scope each one, or waive it in \`failclosed-baseline.txt\` with a reason."
+            echo
+            echo '```'
+            echo "$SIGS"
+            echo '```'
+            echo
+          } >> "$S"
+        else
+          echo "No unscoped production read." >> "$S"
+          echo >> "$S"
+        fi
+
+        # Everything else that went red: the exception type is what tells a refused query shape from
+        # a GROUP BY error from a plain assertion.
+        # || true: a clean run has no failure line, grep exits 1, and the composite action's shell
+        # is `bash -e -o pipefail`, so without this a green shadow run would fail its own summary.
+        OTHER=$(grep -h '<<< \(FAILURE\|ERROR\)!' -A1 "$REPORTS"/*.txt 2>/dev/null \
+          | grep -oE '^[a-z][a-zA-Z0-9.]*\.[A-Za-z0-9_]*(Exception|Error)' | sort | uniq -c | sort -rn || true)
+        if [ -n "$OTHER" ]; then
+          {
+            echo "### Failures by exception type"
+            echo
+            echo '```'
+            echo "$OTHER"
+            echo '```'
+          } >> "$S"
+        fi
+
     - name: Verify JaCoCo exec data
       if: ${{ !cancelled() }}
       shell: bash
@@ -240,7 +367,9 @@ runs:
           exit 1
         fi
     - name: Upload JaCoCo exec data
-      if: ${{ !cancelled() }}
+      # A shadow run re-executes tests the normal shards already covered, so its exec data would be
+      # merged twice into the project's coverage. It is an instrument, not a coverage contributor.
+      if: ${{ !cancelled() && inputs.tenant-mode == '' }}
       uses: actions/upload-artifact@v7
       with:
         name: jacoco-exec-shard-${{ inputs.shard }}${{ inputs.artifact-suffix }}

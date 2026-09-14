@@ -5,8 +5,10 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import io.openaev.api.tenants.TenantInput;
 import io.openaev.api.tenants.TenantOutput;
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.TenantRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.engine.EngineService;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.multitenancy.DependenciesManagerException;
@@ -37,8 +39,10 @@ public class TenantService {
   public static final int SOFT_DELETE_RETENTION_DAYS = 30;
 
   private final TenantRepository tenantRepository;
+  private final UserRepository userRepository;
   private final List<DependenciesManager> dependencies;
   private final EngineService engineService;
+  private final TenantMembershipCacheManager tenantMembershipCacheManager;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
@@ -165,7 +169,9 @@ public class TenantService {
     }
 
     tenant.setDeletedAt(null);
-    return tenantRepository.save(tenant);
+    Tenant saved = tenantRepository.save(tenant);
+    evictMembershipForTenantUsers(tenantId);
+    return saved;
   }
 
   // -- DELETE --
@@ -185,7 +191,9 @@ public class TenantService {
     }
 
     tenant.setDeletedAt(Instant.now());
-    return tenantRepository.save(tenant);
+    Tenant saved = tenantRepository.save(tenant);
+    evictMembershipForTenantUsers(tenantId);
+    return saved;
   }
 
   /**
@@ -235,5 +243,21 @@ public class TenantService {
       }
     }
     return purgedIds.size();
+  }
+
+  // -- INTERNAL --
+
+  /**
+   * Evicts the tenant-membership cache of every user currently attached to {@code tenantId}. {@code
+   * TenantMembershipCacheManager.findTenantIdsByUserId} / {@code existsByUserIdAndTenantId} both
+   * filter on {@code t.tenant_deleted_at IS NULL}, so flipping a tenant's soft-delete status
+   * changes what every one of its members should see — even though {@code users_tenants} itself is
+   * untouched. Without this, membership access stays stale (wrongly granted after soft-delete, or
+   * wrongly denied after reactivation) until the cache's TTL expires.
+   */
+  private void evictMembershipForTenantUsers(String tenantId) {
+    for (String userId : userRepository.findUserIdsByTenantId(tenantId)) {
+      tenantMembershipCacheManager.evict(userId, tenantId);
+    }
   }
 }

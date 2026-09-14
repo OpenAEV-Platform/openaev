@@ -1,6 +1,7 @@
 package io.openaev.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import io.openaev.config.cache.CommitAwareCacheManager;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.CacheManager;
@@ -42,7 +43,7 @@ public class CachingConfig {
         "userTenantIds",
         Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(5)).maximumSize(10_000).build());
 
-    return cacheManager;
+    return new CommitAwareCacheManager(cacheManager);
   }
 
   /** Emptying the cache every second to avoid old data on the admin users being persisted */

@@ -248,6 +248,25 @@ class ProductInventoryMetricCollectorTest {
     }
 
     @Test
+    @DisplayName(
+        "the notification-triggers gauge is wired to the scoped supplier, not the repository")
+    void notificationTriggerGaugeGoesThroughTheScope() {
+      // notification_triggers is v2-active, so a gauge left on the raw repository publishes zero
+      // under the inspector's fail-closed scope. Asserting the count alone cannot see that; only
+      // asserting that the REGISTERED supplier reaches the primitive can.
+      when(notificationTriggerRepository.count()).thenReturn(4L);
+
+      collector.init();
+
+      verify(metricRegistry)
+          .registerGauge(eq("notification_triggers_total"), any(), gaugeCaptor.capture());
+      Supplier<Long> gauge = gaugeCaptor.getValue();
+      clearInvocations(tenantTx);
+      assertThat(gauge.get()).isEqualTo(4L);
+      verify(tenantTx).execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Long>>any());
+    }
+
+    @Test
     @DisplayName("channels gauge uses the all-tenants scoped transaction for v2 tables")
     void given_channelsGauge_should_runInAllTenantsScope() {
       when(channelRepository.count()).thenReturn(11L);

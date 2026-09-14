@@ -276,7 +276,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
       clearInvocations(auditLogger);
 
       // Act
-      job.handleAutoStartExercises();
+      job.autoStartDueExercises();
 
       // Assert
       ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
@@ -309,7 +309,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
       clearInvocations(auditLogger);
 
       // Act
-      job.handleAutoStartExercises();
+      job.autoStartDueExercises();
 
       // Assert
       ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);

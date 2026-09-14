@@ -4,11 +4,8 @@ import io.openaev.database.model.Tenant;
 import io.openaev.processor.MigrationProcessingResult;
 import io.openaev.processor.Processable;
 import io.openaev.service.DataPackService;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.Session;
 
 @Slf4j
 /**
@@ -30,27 +27,11 @@ import org.hibernate.Session;
 public abstract class DataPack implements Processable {
   private final DataPackService dataPackService;
 
-  @PersistenceContext private EntityManager entityManager;
-
   protected DataPack(DataPackService dataPackService) {
     this.dataPackService = dataPackService;
   }
 
   protected abstract boolean doProcess(Tenant tenant);
-
-  /**
-   * Enables the v1 Hibernate {@code tenantFilter} for the tenant being processed. Call this
-   * explicitly, when doing a datapack that touches v1 tables. Once the tables are migrated to v2,
-   * this call can be removed.
-   */
-  // TODO v2: once tags, tags_rules get v2 activated, remove this method and all calls to it (and
-  // the v1 filter itself)
-  protected void enableV1TenantFilter(Tenant tenant) {
-    entityManager
-        .unwrap(Session.class)
-        .enableFilter("tenantFilter")
-        .setParameter("tenantId", tenant.getId());
-  }
 
   @Getter private final String packId = getProcessableId();
 
