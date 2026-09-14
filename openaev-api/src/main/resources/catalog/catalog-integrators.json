@@ -4410,8 +4410,8 @@
             }
         },
         {
-            "title": "Email",
-            "slug": "openaev_email_smtp",
+            "title": "Email (alternative)",
+            "slug": "openaev_email_alternative",
             "description": "Craft and send emails over SMTP",
             "short_description": "Craft and send emails over SMTP",
             "use_cases": [
@@ -4456,7 +4456,7 @@
                         "type": "string"
                     },
                     "INJECTOR_NAME": {
-                        "default": "Email",
+                        "default": "Email (alternative)",
                         "description": "Name of the injector.",
                         "type": "string"
                     },
@@ -4479,7 +4479,7 @@
                         "type": "string"
                     },
                     "INJECTOR_TYPE": {
-                        "default": "openaev_email_smtp",
+                        "default": "openaev_email_alternative",
                         "description": "Type of the injector.",
                         "type": "string"
                     },
