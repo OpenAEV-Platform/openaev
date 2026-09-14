@@ -4472,41 +4472,10 @@
                         ],
                         "type": "string"
                     },
-                    "INJECTOR_PERIOD": {
-                        "default": "PT1M",
-                        "description": "Duration between two scheduled runs of the collector (ISO 8601 format).",
-                        "format": "duration",
-                        "type": "string"
-                    },
                     "INJECTOR_TYPE": {
                         "default": "openaev_email_alternative",
                         "description": "Type of the injector.",
                         "type": "string"
-                    },
-                    "INJECTOR_AUTHOR": {
-                        "default": null,
-                        "description": "Optional author override for the connector's payloads and contracts. When absent, the platform attributes them to the connector's name.",
-                        "type": "string"
-                    },
-                    "INJECTOR_PLATFORM_DESCRIPTION": {
-                        "default": null,
-                        "description": "Description applied to the security platform auto-created by the collector, so its read-only card is not empty in the platform UI.",
-                        "type": "string"
-                    },
-                    "INJECTOR_PLATFORM_TAGS": {
-                        "anyOf": [
-                            {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ],
-                        "default": null,
-                        "description": "Tag names applied to the security platform auto-created by the collector. Accepts a list of names or a single comma-separated string (the usual shape when configured through an environment variable)."
                     },
                     "EMAIL_HASH_ALGORITHM": {
                         "default": "sha256",
