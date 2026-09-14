@@ -25,7 +25,17 @@ public class ObjectRedactionUtils {
           Pattern.compile("^aws_session_token$"),
           Pattern.compile("^aws_secret_access_key$"),
           Pattern.compile("^aws_external_id$"),
-          Pattern.compile("^aws_source_profile_secret_access_key$"));
+          Pattern.compile("^aws_source_profile_secret_access_key$"),
+          // The uploaded GCP service account key file: the request payload captured by
+          // AccessControlAuditLogAspect is the only place it ever appears in clear text.
+          Pattern.compile("^gcp_private_key_json$"),
+          // Already covered by the ".*secret.*" pattern above, listed only for explicitness.
+          Pattern.compile("^gcp_oauth_client_secret$"),
+          // Currently caught by ".*token.*" in SENSITIVE_FIELDS_REGEX_TO_HASH, which would replace
+          // it with a SHA-256 digest instead of redacting it. Listing it here takes precedence
+          // because redactProperty evaluates shouldRedact before shouldHash, and full redaction is
+          // the right treatment for a long-lived bearer credential.
+          Pattern.compile("^gcp_oauth_refresh_token$"));
 
   /** Sensitive-like fields that are explicitly allowed and therefore not redacted. */
   private static final Set<Pattern> ALLOWED_SENSITIVE_FIELDS_REGEX_TO_REDACT =
