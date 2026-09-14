@@ -15,7 +15,7 @@
 # and the '*' expiry would never fire on it. Kept honest by the DB-backed
 # TenantFilteringConfigTest#backgroundGuardWildcardMatchesProductionSchema, which fails the build if
 # this set drifts from what the live schema activates under '*'. Only STRICT tables belong here;
-# tables permanently outside v2 (TenantTables.OUTSIDE_V2, e.g. the tenants registry) do not, because
+# self-isolated tables (TenantTables.SELF_ISOLATED_TABLES, e.g. the tenants registry) do not, because
 # '*' does not activate them. One table name per line, lowercase; # and blank lines are ignored.
 users_tenants
 injectors_contracts_attack_patterns
