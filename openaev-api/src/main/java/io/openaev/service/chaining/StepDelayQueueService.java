@@ -37,6 +37,7 @@ public class StepDelayQueueService {
    * @param workflowRun the {@link Workflow} instance associated with the step
    * @param goal the target timestamp when the step should be ready to execute
    */
+  @Transactional
   public void pushStepTemplateIntoStepDelayQueue(
       Step stepTemplate,
       Instant now,
@@ -50,16 +51,14 @@ public class StepDelayQueueService {
         now,
         delay,
         goal);
-    StepDelayQueue stepDelayQueue =
-        StepDelayQueue.builder()
-            .input(input)
-            .now(now)
-            .goal(goal)
-            .delay(delay)
-            .stepTemplate(stepTemplate)
-            .workflowRun(workflowRun)
-            .build();
-    stepDelayQueueRepository.save(stepDelayQueue);
+    stepDelayQueueRepository.upsertByWorkflowRunStepTemplateAndInput(
+        UUID.randomUUID().toString(),
+        input,
+        now,
+        goal,
+        delay,
+        stepTemplate.getId(),
+        workflowRun.getId());
   }
 
   /**
