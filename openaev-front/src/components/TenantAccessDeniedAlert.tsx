@@ -2,6 +2,7 @@ import { Alert, AlertTitle, AppBar, Button, Toolbar } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import { logout } from '../actions/Application';
+import { APP_BASE_PATH } from '../utils/Environment';
 import { useAppDispatch } from '../utils/hooks';
 import { useFormatter } from './i18n';
 
@@ -15,7 +16,7 @@ const TenantAccessDeniedAlert = () => {
 
   const handleLogout = async () => {
     await dispatch(logout());
-    window.location.href = '/';
+    window.location.href = `${APP_BASE_PATH}/`;
   };
 
   return (
