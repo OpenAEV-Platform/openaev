@@ -6,7 +6,7 @@
  * fields. Wiring: fds-migration/TOKEN-MAPPING.md.
  *
  * Source: @filigran/design-system packages/filigran-design-system/src/tokens/theme.css
- * Theme.css content hash: sha256:3c0ef256c9d92003739f590c0d969d3aec1dcc6bcb26e00e9e5db5ca845fa20e
+ * Theme.css content hash: sha256:4719a8a35ab7c376301f1b39942ad6a67ae93ec882a7bfa8c9e439ab0afdbd8e
  * Regenerate (from the filigran-design-system repo, not here):
  *   pnpm generate:mui-bridge --product openaev --write-to-product
  *
@@ -18,7 +18,7 @@
 
 export const FDS_META = {
   product: "openaev",
-  themeCssHash: "sha256:3c0ef256c9d92003739f590c0d969d3aec1dcc6bcb26e00e9e5db5ca845fa20e",
+  themeCssHash: "sha256:4719a8a35ab7c376301f1b39942ad6a67ae93ec882a7bfa8c9e439ab0afdbd8e",
   generator: "@filigran/design-system scripts/generate-mui-bridge.ts",
 } as const;
 
@@ -90,10 +90,10 @@ const colorsDark = {
   "--border-elevation-subtle-soft-layer-0-transparency-15": "#2b4f8d26",
   "--border-elevation-subtle-soft-layer-1": "#2b4f8d",
   "--border-elevation-subtle-soft-layer-1-transparency-15": "#2b4f8d26",
-  "--border-elevation-subtle-soft-layer-2": "#2b4f8d",
-  "--border-elevation-subtle-soft-layer-2-transparency-15": "#2b4f8d26",
-  "--border-elevation-subtle-soft-layer-3": "#2b4f8d",
-  "--border-elevation-subtle-soft-layer-3-transparency-15": "#2b4f8d26",
+  "--border-elevation-subtle-soft-layer-2": "#7a9cd6",
+  "--border-elevation-subtle-soft-layer-2-transparency-15": "#7a9cd626",
+  "--border-elevation-subtle-soft-layer-3": "#7a9cd6",
+  "--border-elevation-subtle-soft-layer-3-transparency-15": "#7a9cd626",
   "--border-input-error": "#f14337",
   "--border-input-focus": "#42caff",
   "--border-input-hover": "#f2f2f3",
@@ -124,6 +124,7 @@ const colorsDark = {
   "--color-feedback-contrast-tertiary": "#ffffff0d",
   "--color-feedback-error-primary": "#f14337",
   "--color-feedback-error-secondary": "#881106",
+  "--color-feedback-error-secondary-transparency-20": "#88110633",
   "--color-feedback-error-secondary-transparency-30": "#8811064d",
   "--color-feedback-error-tertiary": "#f57266",
   "--color-feedback-info-primary": "#42caff",
@@ -147,7 +148,7 @@ const colorsDark = {
   "--color-filigran-brand-primary-transparency-10": "#42caff1a",
   "--color-filigran-brand-primary-transparency-55": "#42caff8c",
   "--color-filigran-brand-secondary": "#a8e7ff",
-  "--color-filigran-brand-tertiary": "#0079a8",
+  "--color-filigran-brand-tertiary": "#009edb",
   "--color-filigran-ia-primary": "#a47af0",
   "--color-filigran-ia-secondary": "#e3d6fa",
   "--color-filigran-ia-secondary-transparency-10": "#e3d6fa1a",
@@ -179,7 +180,7 @@ const colorsDark = {
   "--text-input-label": "#afb0b6",
   "--text-input-placeholder": "#f2f2f3",
   "--text-input-required": "#f2f2f3",
-  "--text-negative-disabled": "#2b4f8d",
+  "--text-negative-disabled": "#62636a",
   "--text-negative-primary": "#18191b",
   "--text-negative-secondary": "#494a50"
 } as const;
@@ -211,14 +212,14 @@ const colorsLight = {
   "--bg-elevation-highlight-layer-1": "#f2f2f3",
   "--bg-elevation-highlight-layer-2": "#e4e5e7",
   "--bg-elevation-highlight-layer-3": "#f4f4f6",
-  "--bg-elevation-hover": "#f4f4f6",
-  "--bg-elevation-hover-layer-0": "#f4f4f6",
+  "--bg-elevation-hover": "#cacbce",
+  "--bg-elevation-hover-layer-0": "#cacbce",
   "--bg-elevation-hover-layer-1": "#e4e5e7",
-  "--bg-elevation-hover-layer-2": "#f4f4f6",
-  "--bg-elevation-hover-layer-3": "#e4e5e7",
+  "--bg-elevation-hover-layer-2": "#cacbce",
+  "--bg-elevation-hover-layer-3": "#cacbce",
   "--bg-input-default": "#e4e5e7",
   "--bg-input-disabled": "#cacbce",
-  "--bg-input-hover": "#f4f4f6",
+  "--bg-input-hover": "#cacbce",
   "--border-alert-alert": "#f2be3a",
   "--border-alert-error": "#b8180a",
   "--border-alert-info": "#0079a8",
@@ -278,6 +279,7 @@ const colorsLight = {
   "--color-feedback-contrast-tertiary": "#0000000d",
   "--color-feedback-error-primary": "#b8180a",
   "--color-feedback-error-secondary": "#f57266",
+  "--color-feedback-error-secondary-transparency-20": "#f5726633",
   "--color-feedback-error-secondary-transparency-30": "#f572664d",
   "--color-feedback-error-tertiary": "#881106",
   "--color-feedback-info-primary": "#0079a8",
@@ -333,7 +335,7 @@ const colorsLight = {
   "--text-input-label": "#494a50",
   "--text-input-placeholder": "#18191b",
   "--text-input-required": "#18191b",
-  "--text-negative-disabled": "#a0b4e3",
+  "--text-negative-disabled": "#95969d",
   "--text-negative-primary": "#f2f2f3",
   "--text-negative-secondary": "#afb0b6"
 } as const;
@@ -393,6 +395,10 @@ const scalars = {
   "--darkblue-700": "#0015a8",
   "--darkblue-800": "#000f75",
   "--darkblue-900": "#000842",
+  "--depth-lg": "16px",
+  "--depth-md": "8px",
+  "--depth-sm": "4px",
+  "--depth-xl": "20px",
   "--font-content-base": "\"IBM Plex Sans\"",
   "--font-content-base-bold": "\"IBM Plex Sans\"",
   "--font-content-base-link": "\"IBM Plex Sans\"",
@@ -527,10 +533,6 @@ const scalars = {
   "--red-800": "#570a05",
   "--red-900": "#3b0602",
   "--shadow-global-shadow": "0px 2px 4px 0px #00000066",
-  "--shadow-lg": "16px",
-  "--shadow-md": "8px",
-  "--shadow-sm": "4px",
-  "--shadow-xl": "20px",
   "--text-1": "10px",
   "--text-10": "42px",
   "--text-11": "52px",
