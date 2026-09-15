@@ -38,3 +38,8 @@ openaev-dev/telemetry-output/
 
 ### macOS ###
 .DS_Store
+
+### Python ###
+# .github/scripts/ holds CI helper scripts that are also meant to be run locally
+__pycache__/
+*.pyc
