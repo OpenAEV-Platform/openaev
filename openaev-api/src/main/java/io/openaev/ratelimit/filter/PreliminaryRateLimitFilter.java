@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.core5.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -51,7 +52,8 @@ public class PreliminaryRateLimitFilter extends OncePerRequestFilter {
         response.setHeader("RateLimit-Limit", config.getDefaultRps().toString());
         response.setHeader("RateLimit-Remaining", l.getRemaining().toString());
         response.setHeader("RateLimit-Reset", l.getReset().toString());
-        response.sendError(429, "Rate limited.");
+        response.sendError(HttpStatus.SC_TOO_MANY_REQUESTS, "Rate limited.");
+        return;
       }
     }
     filterChain.doFilter(request, response);

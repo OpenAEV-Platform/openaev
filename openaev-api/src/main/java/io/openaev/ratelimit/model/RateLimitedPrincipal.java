@@ -10,6 +10,7 @@ public class RateLimitedPrincipal {
   @Getter private final String identifier;
 
   public static RateLimitedPrincipal fromUser(User user) {
+    if (user == null) return null;
     return new RateLimitedPrincipal(user.getId());
   }
 

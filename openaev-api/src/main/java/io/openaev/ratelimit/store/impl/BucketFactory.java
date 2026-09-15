@@ -2,6 +2,7 @@ package io.openaev.ratelimit.store.impl;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
+import io.openaev.ratelimit.config.Limits;
 import io.openaev.ratelimit.config.RateLimitConfig;
 import io.openaev.ratelimit.store.LimitFactory;
 import io.openaev.ratelimit.store.request.LimitConsumptionRequest;
@@ -21,7 +22,7 @@ public class BucketFactory implements LimitFactory<Bucket> {
         .addLimit(
             Bandwidth.builder()
                 .capacity(rps)
-                .refillIntervally(rps, Duration.ofMillis(1000))
+                .refillIntervally(rps, Duration.ofMillis(Limits.REFILL_PERIOD_1000MS))
                 .build())
         .build();
   }
