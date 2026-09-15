@@ -6331,6 +6331,8 @@ export interface InjectExpectationOutput {
   inject_expectation_asset_group?: string;
   /** Challenge ID associated with the inject expectation */
   inject_expectation_challenge?: string;
+  /** True when this technical detection/prevention expectation required a security platform collector to be fulfilled but none was connected at initialization, so it was resolved as a definitive failure instead of staying pending. */
+  inject_expectation_collector_missing_at_init?: boolean;
   /**
    * Creation date of the inject expectation
    * @format date-time

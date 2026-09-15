@@ -660,7 +660,7 @@ class InjectExpectationServiceTest {
   }
 
   @Nested
-  @DisplayName("findMergedExpectationsByInjectAndTargetAndTargetType for assets")
+  @DisplayName("findExpectationsByInjectAndTargetAndTargetType for assets")
   class AssetSecurityPlatformEnrichmentTests {
 
     @Test
@@ -685,8 +685,8 @@ class InjectExpectationServiceTest {
           .thenReturn(List.of(agentExpectation));
 
       List<? extends BaseInjectExpectation> merged =
-          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-              "inject-id", "asset-id", "parent-id", "ASSETS");
+          injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "ASSETS");
 
       assertEquals(1, merged.size());
       assertEquals(List.of(collectorResult), merged.get(0).getResults());
@@ -732,8 +732,8 @@ class InjectExpectationServiceTest {
           .thenReturn(List.of(agentExpectation));
 
       List<? extends BaseInjectExpectation> merged =
-          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-              "inject-id", "asset-id", "parent-id", "ASSETS");
+          injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "ASSETS");
 
       assertEquals(1, merged.size());
       assertEquals(List.of(nucleiResult), merged.get(0).getResults());
@@ -765,8 +765,8 @@ class InjectExpectationServiceTest {
           .thenReturn(List.of(agentExpectation));
 
       List<? extends BaseInjectExpectation> merged =
-          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-              "inject-id", "asset-id", "parent-id", "ASSETS");
+          injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "ASSETS");
 
       assertEquals(1, merged.size());
       assertEquals(List.of(managerResult), merged.get(0).getResults());
@@ -784,8 +784,8 @@ class InjectExpectationServiceTest {
           .thenReturn(List.of());
 
       List<? extends BaseInjectExpectation> merged =
-          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-              "inject-id", "asset-id", "parent-id", "ASSETS");
+          injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "ASSETS");
 
       assertEquals(List.of(assetExpectation), merged);
     }
@@ -864,7 +864,7 @@ class InjectExpectationServiceTest {
   }
 
   @Nested
-  @DisplayName("findMergedExpectationsByInjectAndTargetAndTargetType for asset groups")
+  @DisplayName("findExpectationsByInjectAndTargetAndTargetType for asset groups")
   class AssetGroupSecurityPlatformEnrichmentTests {
 
     private InjectExpectationResult collectorResult(String result, Double score) {
@@ -878,8 +878,8 @@ class InjectExpectationServiceTest {
     }
 
     private List<? extends BaseInjectExpectation> merge() {
-      return injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
-          "inject-id", "group-id", "parent-id", "ASSETS_GROUPS");
+      return injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+          "inject-id", "group-id", "ASSETS_GROUPS");
     }
 
     @Test

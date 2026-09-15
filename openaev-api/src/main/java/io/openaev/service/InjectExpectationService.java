@@ -1168,8 +1168,7 @@ public class InjectExpectationService {
       return mergeExpectationResultsByExpectationType(
           switch (targetTypeEnum) {
             case TEAMS, ASSETS_GROUPS ->
-                this.findMergedExpectationsByInjectAndTargetAndTargetType(
-                    injectId, targetId, "not applicable", targetType);
+                this.findExpectationsByInjectAndTargetAndTargetType(injectId, targetId, targetType);
             case PLAYERS ->
                 injectExpectationRepository.findAllByInjectAndPlayer(injectId, targetId);
             case AGENT -> injectExpectationRepository.findAllByInjectAndAgent(injectId, targetId);
@@ -1189,18 +1188,19 @@ public class InjectExpectationService {
   }
 
   /**
-   * Finds expectations by inject, target, parent target, and target type.
+   * Finds expectations by inject, target, and target type, enriching asset and asset-group
+   * expectations with their agents'/children's security-platform results for display (unlike {@link
+   * #findMergedExpectationsByInjectAndTargetAndTargetType(String, String, String)}, results are NOT
+   * merged across expectations of the same type).
    *
    * @param injectId the inject ID
    * @param targetId the target ID
-   * @param parentTargetId the parent target ID (e.g., team ID for players)
    * @param targetType the type of target (TEAMS, PLAYERS, AGENT, ASSETS, ASSETS_GROUPS)
    * @return a list of matching expectations
    */
-  public List<? extends BaseInjectExpectation> findMergedExpectationsByInjectAndTargetAndTargetType(
+  public List<? extends BaseInjectExpectation> findExpectationsByInjectAndTargetAndTargetType(
       @NotBlank final String injectId,
       @NotBlank final String targetId,
-      @NotBlank final String parentTargetId,
       @NotBlank final String targetType) {
     try {
       TargetType targetTypeEnum = TargetType.valueOf(targetType);
@@ -1223,7 +1223,7 @@ public class InjectExpectationService {
             throw new RuntimeException(
                 "Target type "
                     + targetType
-                    + " not implemented for this method findMergedExpectationsByInjectAndTargetAndTargetType");
+                    + " not implemented for this method findExpectationsByInjectAndTargetAndTargetType");
       };
     } catch (IllegalArgumentException e) {
       return Collections.emptyList();
