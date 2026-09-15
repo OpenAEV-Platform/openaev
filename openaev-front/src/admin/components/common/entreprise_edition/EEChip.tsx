@@ -22,11 +22,14 @@ const EEChip = ({ clickable = false, featureDetectedInfo = null, style = {} }: {
       }
     : undefined;
 
+  const chip = <Chip label={t('EE')} severity="ee" size="sm" onClick={onClick} style={style} />;
+
   return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
+        {/* The trigger hands its own onClick to its child, which would turn a plain marker into a button. */}
         <TooltipTrigger asChild>
-          <Chip label={t('EE')} severity="ee" size="sm" onClick={onClick} style={style} />
+          {onClick ? chip : <span className="inline-flex">{chip}</span>}
         </TooltipTrigger>
         <TooltipContent>{t('Enterprise Edition Feature')}</TooltipContent>
       </Tooltip>

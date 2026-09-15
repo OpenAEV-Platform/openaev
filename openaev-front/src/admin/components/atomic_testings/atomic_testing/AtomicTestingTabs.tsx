@@ -95,10 +95,7 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
             <Box display="flex" alignItems="center">
               {t('Remediations')}
               {!isValidatedEnterpriseEdition && (
-                <EEChip
-                  style={{ marginLeft: theme.spacing(1) }}
-                  clickable
-                />
+                <EEChip style={{ marginLeft: theme.spacing(1) }} />
               )}
             </Box>
           )}

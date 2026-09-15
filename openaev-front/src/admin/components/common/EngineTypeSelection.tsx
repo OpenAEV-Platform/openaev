@@ -203,7 +203,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
                   <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
                     {option.title}
                   </Typography>
-                  {isChaining && !isEnterpriseEdition && <EEChip clickable />}
+                  {isChaining && !isEnterpriseEdition && <EEChip />}
                 </Stack>
                 {/* Illustrative workflow diagram (crisp inline SVG). */}
                 <Stack sx={{

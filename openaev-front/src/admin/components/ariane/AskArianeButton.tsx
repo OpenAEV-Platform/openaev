@@ -73,7 +73,7 @@ const AskArianeButton = () => {
         />
       )}
       // Decorative: the button owns the behaviour and the accessible name.
-      endIcon={!isEnterpriseEdition ? <span aria-hidden="true"><Chip label={t('EE')} severity="ee" /></span> : undefined}
+      endIcon={!isEnterpriseEdition ? <span aria-hidden="true"><Chip label={t('EE')} severity="ee" size="sm" /></span> : undefined}
     >
       {t('Ask Ariane')}
     </Button>
