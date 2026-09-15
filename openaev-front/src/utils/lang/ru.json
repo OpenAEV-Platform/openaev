@@ -2625,6 +2625,7 @@
   "No technique was exercised over the selected time range.": "No technique was exercised over the selected time range.",
   "No tenant": "Нет tenant",
   "No tenant assigned": "Tenant не назначен",
+  "Tenant access denied": "Доступ к tenant запрещён",
   "No tenant available": "Нет tenant",
   "No tenant available — using default tenant as fallback": "Нет доступного tenant — используем стандартный tenant в качестве запасного",
   "No tenant selected": "Tenant не выбран",

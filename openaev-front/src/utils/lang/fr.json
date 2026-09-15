@@ -2625,6 +2625,7 @@
   "No technique was exercised over the selected time range.": "Aucune technique exercée sur la période sélectionnée.",
   "No tenant": "Aucun tenant",
   "No tenant assigned": "Aucun tenant assigné",
+  "Tenant access denied": "Accès au tenant refusé",
   "No tenant available": "Aucun tenant disponible",
   "No tenant available — using default tenant as fallback": "Aucun tenant disponible — utilisation du tenant par défaut comme solution de repli",
   "No tenant selected": "Aucun tenant sélectionné",

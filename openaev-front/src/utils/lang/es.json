@@ -2625,6 +2625,7 @@
   "No technique was exercised over the selected time range.": "No technique was exercised over the selected time range.",
   "No tenant": "Sin tenant",
   "No tenant assigned": "Ningún tenant asignado",
+  "Tenant access denied": "Acceso al tenant denegado",
   "No tenant available": "Ningún tenant disponible",
   "No tenant available — using default tenant as fallback": "Ning�n tenant disponible � utilizando el tenant por defecto como reserva",
   "No tenant selected": "Ningún tenant seleccionado",
