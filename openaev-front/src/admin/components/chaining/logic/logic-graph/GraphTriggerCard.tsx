@@ -282,6 +282,7 @@ const GraphTriggerCard = ({
           <Tooltip title={t('Add an action gated by this trigger')} slotProps={graphTooltipSlotProps}>
             <IconButton
               size="small"
+              aria-label={t('Add an action gated by this trigger')}
               onPointerDown={e => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();

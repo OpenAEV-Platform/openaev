@@ -1,26 +1,15 @@
-import { execSync } from 'node:child_process';
-import os from 'node:os';
-
 import { expect } from '@playwright/test';
 
 import { test } from '../../fixtures';
-import AgentInstallPage from '../../model/agents/AgentInstallPage';
 import EndpointListPage from '../../model/assets/EndpointListPage';
 import AtomicTestingFormComponent from '../../model/atomic-testings/AtomicTestingFormComponent';
 import AtomicTestingListPage from '../../model/atomic-testings/AtomicTestingListPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
+import { installAgent } from '../../utils/agent';
 import { AUTH_FILE } from '../../utils/constants';
 import { tenantUrl } from '../../utils/url';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
-
-const getOsPlatform = (): string => {
-  switch (os.platform()) {
-    case 'win32': return 'Windows';
-    case 'darwin': return 'MacOS';
-    default: return 'Linux';
-  }
-};
 
 test.describe.serial('Agent implant registration', () => {
   let hostname: string;
@@ -28,45 +17,27 @@ test.describe.serial('Agent implant registration', () => {
   const payloadName = `E2E Payload ${echoToken}`;
 
   test.beforeAll(async ({ browser }) => {
-    hostname = os.hostname().toLowerCase();
-    const platform = getOsPlatform();
+    const installedAgent = await installAgent(browser);
+    hostname = installedAgent.hostname;
 
     // Create an authenticated page to navigate the UI
     const context = await browser.newContext({
       storageState: AUTH_FILE,
       baseURL: APP_URL,
     });
-    const page = await context.newPage();
 
-    // ─── Install the agent ───
-    await page.goto(tenantUrl('/admin/agents'));
-    const agentInstallPage = new AgentInstallPage(page);
-    await agentInstallPage.waitForLoad();
-    const installCommand = await agentInstallPage.getInstallCommand(platform);
-
-    // ─── Create the threat arsenal payload ───
-    await page.goto(tenantUrl('/admin'));
-    const threatArsenalHelper = new ThreatArsenalHelper(page);
-    await threatArsenalHelper.createCommandLinePayload({
-      name: payloadName,
-      command: `echo ${echoToken}`,
-      platform,
-    });
-
-    await context.close();
-
-    // Windows PowerShell 5.1 prompts for confirmation when iwr parses HTML;
-    // -UseBasicParsing avoids the interactive security prompt.
-    const commandToExecute = os.platform() === 'win32'
-      ? installCommand.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing')
-      : installCommand;
-
-    // Execute the install command
-    execSync(commandToExecute, {
-      stdio: 'inherit',
-      timeout: 60_000,
-      shell: os.platform() === 'win32' ? 'powershell' : undefined,
-    });
+    try {
+      const page = await context.newPage();
+      await page.goto(tenantUrl('/admin'));
+      const threatArsenalHelper = new ThreatArsenalHelper(page);
+      await threatArsenalHelper.createCommandLinePayload({
+        name: payloadName,
+        command: `echo ${echoToken}`,
+        platform: installedAgent.platform,
+      });
+    } finally {
+      await context.close();
+    }
   });
 
   test('installed agent registers an endpoint', async ({ page }) => {
