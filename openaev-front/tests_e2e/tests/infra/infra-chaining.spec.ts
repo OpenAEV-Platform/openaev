@@ -1,0 +1,202 @@
+import { expect, type Page } from '@playwright/test';
+
+import { test } from '../../fixtures';
+import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
+import { installAgent, waitForRegisteredAgent } from '../../utils/agent';
+import { tenantUrl } from '../../utils/url';
+
+const createChainedScenario = async (page: Page, name: string): Promise<void> => {
+  await page.goto(tenantUrl('/admin/scenarios'));
+  await page.getByRole('button', {
+    name: 'Create',
+    exact: true,
+  }).click();
+  await page.getByRole('button', {
+    name: 'Chained scenario',
+    exact: true,
+  }).click();
+  await page.getByLabel('Name', { exact: true }).fill(name);
+  await page.getByRole('button', {
+    name: 'Create',
+    exact: true,
+  }).last().click();
+  await page.waitForURL(/\/admin\/scenarios\/[0-9a-f-]+(?:\?.*)?$/);
+};
+
+const addEndpointToScope = async (page: Page, hostname: string): Promise<void> => {
+  await page.getByRole('tab', {
+    name: 'Scope',
+    exact: true,
+  }).click();
+  await expect(page.getByText('Allow list', { exact: true })).toBeVisible();
+  await page.getByRole('button', {
+    name: 'Define',
+    exact: true,
+  }).first().click();
+  await page.getByRole('tab', {
+    name: 'Assets',
+    exact: true,
+  }).click();
+
+  const endpoint = page.getByRole('button', { name: new RegExp(hostname, 'i') }).first();
+  await expect(endpoint).toBeVisible();
+  await endpoint.click();
+  await page.getByRole('button', {
+    name: 'Define scope',
+    exact: true,
+  }).click();
+  await expect(page.getByText(hostname, { exact: true })).toBeVisible();
+};
+
+const addPayloadAction = async (page: Page, payloadName: string): Promise<void> => {
+  await page.getByRole('button', {
+    name: 'Add component',
+    exact: true,
+  }).click();
+  await page.getByRole('button', { name: /^Action\s/ }).click();
+  await page.getByText(payloadName, { exact: true }).click();
+  await page.getByRole('button', {
+    name: 'Save',
+    exact: true,
+  }).click();
+  await expect(page.getByRole('button', {
+    name: 'Add component',
+    exact: true,
+  })).toBeVisible();
+};
+
+const addTextTrigger = async (page: Page, name: string, value: string): Promise<void> => {
+  await page.getByRole('button', {
+    name: 'Add component',
+    exact: true,
+  }).click();
+  await page.getByRole('button', { name: /^Event\s/ }).click();
+  await page.getByLabel('Name', { exact: true }).fill(name);
+  await page.getByLabel('Field to Check', { exact: true }).click();
+  await page.getByRole('option', {
+    name: 'Text',
+    exact: true,
+  }).click();
+  await page.getByLabel('Operator', { exact: true }).click();
+  await page.getByRole('option', {
+    name: 'Equals',
+    exact: true,
+  }).click();
+  await page.getByLabel('Expected Value', { exact: true }).fill(value);
+  await page.getByRole('button', {
+    name: 'Add trigger',
+    exact: true,
+  }).click();
+  await expect(page.getByText(name, { exact: true })).toBeVisible();
+};
+
+const addPayloadActionGatedByTrigger = async (page: Page, payloadName: string): Promise<void> => {
+  await page.getByRole('button', {
+    name: 'Add an action gated by this trigger',
+    exact: true,
+  }).click();
+  await page.getByText(payloadName, { exact: true }).click();
+  await page.getByRole('button', {
+    name: 'Save',
+    exact: true,
+  }).click();
+  await expect(page.getByRole('button', {
+    name: 'Add component',
+    exact: true,
+  })).toBeVisible();
+};
+
+const launchScenario = async (page: Page): Promise<string> => {
+  await page.getByRole('button', {
+    name: 'Normal',
+    exact: true,
+  }).first().click();
+  await page.getByRole('button', {
+    name: 'Confirm',
+    exact: true,
+  }).click();
+  await page.waitForURL(/\/admin\/simulations\/[0-9a-f-]+\/attack-path$/);
+  return page.url();
+};
+
+test.describe.serial('Infrastructure - chaining', () => {
+  let hostname: string;
+  let platform: string;
+  const sourceToken = `chain-source-${Date.now()}`;
+  const resultToken = `chain-result-${Date.now()}`;
+  const sourcePayloadName = `E2E Chain Source ${sourceToken}`;
+  const resultPayloadName = `E2E Chain Result ${resultToken}`;
+  const scenarioName = `E2E Infra Chaining ${sourceToken}`;
+  const triggerName = `Source output received ${sourceToken}`;
+
+  test.beforeAll(async ({ browser }) => {
+    const installedAgent = await installAgent(browser);
+    hostname = installedAgent.hostname;
+    platform = installedAgent.platform;
+  });
+
+  test('runs an output-triggered action chain and displays the resulting finding', async ({ page }) => {
+    test.setTimeout(420_000);
+
+    await waitForRegisteredAgent(page, hostname);
+    const threatArsenalHelper = new ThreatArsenalHelper(page);
+    await threatArsenalHelper.createCommandLinePayload({
+      name: sourcePayloadName,
+      command: `echo ${sourceToken}`,
+      platform,
+      textOutput: {
+        name: 'Source token',
+        key: 'source_token',
+        rule: `(${sourceToken})`,
+      },
+    });
+    await threatArsenalHelper.createCommandLinePayload({
+      name: resultPayloadName,
+      command: `echo ${resultToken}`,
+      platform,
+      textOutput: {
+        name: 'Result token',
+        key: 'result_token',
+        rule: `(${resultToken})`,
+      },
+    });
+
+    await createChainedScenario(page, scenarioName);
+    await addEndpointToScope(page, hostname);
+    await page.getByRole('tab', {
+      name: 'Logic',
+      exact: true,
+    }).click();
+    await addPayloadAction(page, sourcePayloadName);
+    await addTextTrigger(page, triggerName, sourceToken);
+    await addPayloadActionGatedByTrigger(page, resultPayloadName);
+    const simulationUrl = await launchScenario(page);
+
+    await expect(async () => {
+      await page.goto(simulationUrl);
+
+      const target = page.getByText(hostname, { exact: true }).first();
+      const sourceAction = page.getByText(sourcePayloadName, { exact: true }).first();
+      const resultAction = page.getByText(resultPayloadName, { exact: true }).first();
+      await expect(target).toBeVisible({ timeout: 10_000 });
+      await expect(sourceAction).toBeVisible({ timeout: 10_000 });
+      await expect(resultAction).toBeVisible({ timeout: 10_000 });
+
+      await resultAction.click();
+      const resultExecution = page.getByRole('button', { name: new RegExp(resultPayloadName, 'i') }).last();
+      await expect(resultExecution).toBeVisible({ timeout: 10_000 });
+      await resultExecution.click();
+      await page.getByRole('tab', {
+        name: 'Terminal view',
+        exact: true,
+      }).click();
+      await expect(page.getByText(resultToken, { exact: false })).toBeVisible({ timeout: 10_000 });
+
+      await target.click();
+      await expect(page.getByTitle(resultToken, { exact: true })).toBeVisible({ timeout: 10_000 });
+    }).toPass({
+      intervals: [10_000],
+      timeout: 300_000,
+    });
+  });
+});

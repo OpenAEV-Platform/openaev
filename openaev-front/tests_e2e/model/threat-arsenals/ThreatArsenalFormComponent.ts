@@ -8,6 +8,7 @@ class ThreatArsenalFormComponent {
   // Form tabs
   readonly generalTab: Locator;
   readonly commandsTab: Locator;
+  readonly outputTab: Locator;
 
   // General tab fields
   readonly nameField: Locator;
@@ -37,6 +38,7 @@ class ThreatArsenalFormComponent {
     // Tabs
     this.generalTab = page.getByRole('tab', { name: 'General' });
     this.commandsTab = page.getByRole('tab', { name: 'Commands' });
+    this.outputTab = page.getByRole('tab', { name: 'Output' });
 
     // General fields
     this.nameField = page.getByRole('textbox', { name: 'Name*' });
@@ -79,6 +81,22 @@ class ThreatArsenalFormComponent {
   async switchToGeneralTab() {
     await this.generalTab.click();
   };
+
+  async addTextOutput(name: string, key: string, rule: string) {
+    await this.outputTab.click();
+    await this.page.getByRole('button', { name: 'Add attribute' }).click();
+
+    const outputPrefix = 'action_output_parsers.0.output_parser_contract_output_elements.0';
+    await this.page.locator(`[name="${outputPrefix}.contract_output_element_name"]`).fill(name);
+    await this.page.locator(`[name="${outputPrefix}.contract_output_element_key"]`).fill(key);
+    await MuiFormHelpers.selectSingleOption(
+      this.page,
+      this.page.getByRole('combobox', { name: 'Type *' }).last(),
+      'Text',
+    );
+    await this.page.locator(`[name="${outputPrefix}.contract_output_element_rule"]`).fill(rule);
+    await this.page.getByPlaceholder('$1').fill('$1');
+  }
 
   async selectDomain(domains: string | string[]) {
     const values = Array.isArray(domains) ? domains : [domains];
