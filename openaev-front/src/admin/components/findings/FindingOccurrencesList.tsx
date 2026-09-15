@@ -14,7 +14,7 @@ import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { INJECT, SCENARIO, SIMULATION } from '../../../constants/Entities';
-import type { Finding, RelatedFindingOutput, SearchPaginationInput } from '../../../utils/api-types';
+import type { FindingOutput, RelatedFindingOutput, SearchPaginationInput } from '../../../utils/api-types';
 import FindingContextLink from './FindingContextLink';
 import { buildOccurrencesFilter, occurrenceTargetLink, occurrenceTargets } from './FindingOccurrencesUtils';
 
@@ -30,7 +30,7 @@ const useStyles = makeStyles()(() => ({
 
 interface Props {
   searchFindings: (input: SearchPaginationInput) => Promise<{ data: Page<RelatedFindingOutput> }>;
-  finding: Pick<Finding, 'finding_type' | 'finding_value'>;
+  finding: Pick<FindingOutput, 'finding_type' | 'finding_value'>;
   contextId?: string;
 }
 

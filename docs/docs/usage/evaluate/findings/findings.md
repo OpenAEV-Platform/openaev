@@ -33,6 +33,44 @@ Each Finding is deduplicated by its combination of value, type, and field. If th
 
 Additional types exist for Active Directory findings (SID, delegation, Kerberoastable accounts, ASREPRoastable accounts, etc.).
 
+## Sensitive Findings
+
+Some Finding types carry secret material: their value is masked everywhere the platform returns it
+(list, detail, Simulation, Scenario, Endpoint and Inject views).
+
+| Sensitive type | Value shape | Masked as |
+| --- | --- | --- |
+| Credentials | `admin:motdepasse` | `admin:mo******` |
+
+Sensitivity is **derived from the Finding type**, not stored: a type is sensitive as soon as its
+value is made of a password, a hash or a key.
+
+Masking is applied **segment by segment**. The platform knows how each Finding value is composed, so
+it masks only the segments that are actually secret: a credential is returned as `admin:mo******`,
+keeping the account name - which tells you *which* account is compromised, and is not itself a
+secret - and masking only the password or the hash.
+
+A masked segment keeps its first two characters, so you can still tell which secret was discovered
+when you already know it, without the platform ever disclosing it. A segment too short to keep a
+fragment safely is masked entirely (`admin:abcd` becomes `admin:******`), and the mask has a fixed
+width, so the length of the secret is not leaked either.
+
+When the composition of a value is unknown, or when a value does not match the expected shape, every
+segment is masked instead: an omission can only ever hide too much, never disclose a secret.
+
+**Password policy** Findings are an explicit exception and are never masked: their `key` is the name
+of a policy setting (`MinimumPasswordLength`...), not a secret.
+
+Kerberoastable and ASREPRoastable account Findings are not masked either, and need no exception to
+be so: their value is the account name alone. The hash their type declares never reaches the value,
+so segment-level masking leaves them untouched on its own.
+
+!!! warning "The secret is not deleted"
+
+    The full value is still stored in the database, because deduplication, correlation and attack
+    path computation rely on it. Only its API representation is masked: it is not possible to
+    retrieve the cleartext value of a sensitive Finding through the REST API.
+
 ## Findings list
 
 Navigate to **Findings** in the left menu to see all Findings in an aggregated view. The list groups Findings by unique value and type, merging Assets from all occurrences into a single row.
@@ -42,7 +80,7 @@ Each row displays:
 | Column | Description |
 |---|---|
 | Type | The Finding category (CVE, Port, Credentials, etc.) |
-| Value | The technical value (monospace display) |
+| Value | The technical value (monospace display), masked for sensitive Findings |
 | Assets | Endpoints where the Finding was detected |
 | Asset groups | Asset groups containing affected endpoints |
 | First seen | When the Finding was first detected |

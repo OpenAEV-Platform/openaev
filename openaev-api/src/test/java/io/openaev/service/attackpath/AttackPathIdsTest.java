@@ -162,8 +162,36 @@ class AttackPathIdsTest {
   @DisplayName("The encoding is the documented kind-prefixed, delimiter-joined form")
   void readable_format() {
     assertThat(AttackPathIds.injectorNode("NMAP")).isEqualTo("NODE_INJECTOR|NMAP");
-    assertThat(AttackPathIds.findingNode("credentials", "admin"))
-        .isEqualTo("NODE_FINDING|credentials|admin");
+    assertThat(AttackPathIds.findingNode("cve", "CVE-2023-1"))
+        .isEqualTo("NODE_FINDING|cve|CVE-2023-1");
+  }
+
+  @Test
+  @DisplayName("A sensitive finding node id hashes the value under a distinct kind")
+  void finding_node_hashes_a_sensitive_value() {
+    // -------- Act --------
+    String id = AttackPathIds.findingNode("credentials", "admin:secret");
+
+    // -------- Assert --------
+    // the id travels in the graph payload, so it must not carry the secret it stands for
+    assertThat(id).startsWith("NODE_FINDING_H|credentials|").doesNotContain("admin:secret");
+    // deterministic, so deduplication by (type, value) is preserved
+    assertThat(id).isEqualTo(AttackPathIds.findingNode("credentials", "admin:secret"));
+    assertThat(id).isNotEqualTo(AttackPathIds.findingNode("credentials", "admin:other"));
+  }
+
+  @Test
+  @DisplayName("A sensitive finding-type edge id hashes the value too")
+  void finding_type_finding_edge_hashes_a_sensitive_value() {
+    // -------- Act --------
+    String id = AttackPathIds.findingTypeFindingEdge("credentials", "host-x", "admin:secret");
+
+    // -------- Assert --------
+    assertThat(id)
+        .startsWith("EDGE_FINDINGS_TYPE_FINDING_H|credentials|host-x|")
+        .doesNotContain("admin:secret");
+    assertThat(AttackPathIds.findingTypeFindingEdge("cve", "host-x", "CVE-2023-1"))
+        .isEqualTo("EDGE_FINDINGS_TYPE_FINDING|cve|host-x|CVE-2023-1");
   }
 
   @Test

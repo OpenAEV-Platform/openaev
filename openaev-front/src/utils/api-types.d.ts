@@ -230,7 +230,7 @@ export interface AggregatedFindingOutput {
    */
   finding_updated_at: string;
   /**
-   * Finding Value
+   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
    * @minLength 1
    */
   finding_value: string;
@@ -5760,57 +5760,6 @@ export interface FilterGroup {
   mode: "and" | "or";
 }
 
-export interface Finding {
-  /** @uniqueItems true */
-  finding_asset_groups?: AssetGroup[];
-  finding_assets?: string[];
-  /** @format date-time */
-  finding_created_at: string;
-  /** @minLength 1 */
-  finding_field: string;
-  /** @minLength 1 */
-  finding_id: string;
-  finding_inject_id?: string;
-  /** @deprecated */
-  finding_labels?: string[];
-  finding_name?: string;
-  finding_scenario?: Scenario;
-  finding_simulation?: Exercise;
-  finding_tags?: string[];
-  finding_teams?: string[];
-  finding_type:
-    | "text"
-    | "action_output"
-    | "number"
-    | "port"
-    | "portscan"
-    | "ipv4"
-    | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "email"
-    | "share"
-    | "file"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
-  /** @format date-time */
-  finding_updated_at: string;
-  finding_users?: string[];
-  /** @minLength 1 */
-  finding_value: string;
-  listened?: boolean;
-}
-
 export interface FindingInput {
   /** @minLength 1 */
   finding_field: string;
@@ -5842,6 +5791,92 @@ export interface FindingInput {
     | "kerberoastable_account"
     | "expectation_signature";
   /** @minLength 1 */
+  finding_value: string;
+}
+
+export interface FindingOutput {
+  /**
+   * Asset groups targeted by the inject that produced the finding
+   * @uniqueItems true
+   */
+  finding_asset_groups?: AssetGroupSimple[];
+  /** Asset ids linked to the finding */
+  finding_assets?: string[];
+  /**
+   * First time the finding was seen
+   * @format date-time
+   */
+  finding_created_at: string;
+  /**
+   * Contract output field the finding was extracted from
+   * @minLength 1
+   */
+  finding_field: string;
+  /**
+   * Finding Id
+   * @minLength 1
+   */
+  finding_id: string;
+  /** Inject that produced the finding */
+  finding_inject_id?: string;
+  /**
+   * Deprecated, kept for backward compatibility
+   * @deprecated
+   */
+  finding_labels?: string[];
+  /** Finding name */
+  finding_name?: string;
+  /** Scenario the finding was produced in */
+  finding_scenario?: ScenarioSimple;
+  /** Simulation the finding was produced in */
+  finding_simulation?: ExerciseSimple;
+  /**
+   * Tag ids linked to the finding
+   * @uniqueItems true
+   */
+  finding_tags?: string[];
+  /** Team ids linked to the finding */
+  finding_teams?: string[];
+  /**
+   * Represents the data type being extracted.
+   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
+   */
+  finding_type:
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature";
+  /**
+   * Last time the finding was seen
+   * @format date-time
+   */
+  finding_updated_at: string;
+  /** User ids linked to the finding */
+  finding_users?: string[];
+  /**
+   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
+   * @minLength 1
+   */
   finding_value: string;
 }
 
@@ -5909,7 +5944,7 @@ export interface FindingSummaryOutput {
    * @format int64
    */
   finding_users_count?: number;
-  /** Finding value */
+  /** Finding value, masked when the finding type holds secret material */
   finding_value?: string;
 }
 
@@ -10213,7 +10248,7 @@ export interface RelatedFindingOutput {
    */
   finding_users?: TargetSimple[];
   /**
-   * Finding Value
+   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
    * @minLength 1
    */
   finding_value: string;
