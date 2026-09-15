@@ -22,7 +22,7 @@ COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 RUN mvn install -DskipTests -Pdev
 
-FROM eclipse-temurin:21.0.12_8-jre-noble AS app
+FROM eclipse-temurin:25.0.4_7-jre-noble AS app
 
 # Fixed world-readable browser path so any runtime UID finds the Chromium bundle (reporting)
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
