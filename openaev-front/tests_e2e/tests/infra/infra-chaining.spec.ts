@@ -32,6 +32,11 @@ const muiSelect = (page: Page, label: string) => page
   .getByRole('combobox')
   .first();
 
+const attackPathNode = (page: Page, label: string) => page
+  .getByTestId('attack-path-node')
+  .filter({ hasText: label })
+  .first();
+
 const addEndpointToScope = async (page: Page, hostname: string): Promise<void> => {
   await page.getByRole('tab', {
     name: 'Scope',
@@ -225,9 +230,11 @@ test.describe.serial('Infrastructure - chaining', () => {
     await expect(async () => {
       await page.goto(simulationUrl);
 
-      const target = page.getByText(hostname, { exact: true }).first();
-      const sourceAction = page.getByText(sourcePayloadName, { exact: true }).first();
-      const resultAction = page.getByText(resultPayloadName, { exact: true }).first();
+      // Node cards sit above the connector SVG, whose edge labels repeat the same
+      // names and would swallow the click.
+      const target = attackPathNode(page, hostname);
+      const sourceAction = attackPathNode(page, sourcePayloadName);
+      const resultAction = attackPathNode(page, resultPayloadName);
       await expect(target).toBeVisible({ timeout: 10_000 });
       await expect(sourceAction).toBeVisible({ timeout: 10_000 });
       await expect(resultAction).toBeVisible({ timeout: 10_000 });
@@ -270,8 +277,8 @@ test.describe.serial('Infrastructure - chaining', () => {
     await expect(async () => {
       await page.goto(simulationUrl);
 
-      const target = page.getByText(hostname, { exact: true }).first();
-      const nmapAction = page.getByText(NMAP_TCP_CONNECT_SCAN, { exact: true }).first();
+      const target = attackPathNode(page, hostname);
+      const nmapAction = attackPathNode(page, NMAP_TCP_CONNECT_SCAN);
       await expect(target).toBeVisible({ timeout: 10_000 });
       await expect(nmapAction).toBeVisible({ timeout: 10_000 });
 
