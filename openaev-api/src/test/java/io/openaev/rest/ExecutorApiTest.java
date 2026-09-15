@@ -21,6 +21,7 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.service.EndpointService;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.HashUtils;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -69,6 +70,7 @@ public class ExecutorApiTest extends IntegrationTest {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TestUserHolder testUserHolder;
   @Autowired private EntityManager entityManager;
+  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   @BeforeEach
   void setUp() {
@@ -568,6 +570,48 @@ public class ExecutorApiTest extends IntegrationTest {
                           .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
                           .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE)))
           .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("Agent installer command")
+  class GetOpenAevAgentInstaller {
+
+    /**
+     * Bootstraps the service-account user + token for the given tenant. Required to reach a
+     * 2xx response, since {@code EndpointService.generateInstallCommand} looks up the
+     * service-account token.
+     */
+    private void ensureServiceAccount(String tenantId) {
+      serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+      entityManager.flush();
+      entityManager.clear();
+    }
+
+    @Test
+    @DisplayName(
+        "Given a user without the INSTALL_AGENT capability, should reject the installer command request")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS})
+    void givenUserWithoutInstallAgentCapability_shouldRejectInstallerCommand() throws Exception {
+      mvc.perform(
+              get("/api/agent/installer/openaev/%s/%s"
+                      .formatted(Endpoint.PLATFORM_TYPE.Windows.name(), EndpointService.SERVICE))
+                  .accept(MediaType.TEXT_PLAIN_VALUE))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a user with the INSTALL_AGENT capability, should return the installer command")
+    @WithMockUser(withCapabilities = {Capability.INSTALL_AGENT})
+    void givenUserWithInstallAgentCapability_shouldReturnInstallerCommand() throws Exception {
+      ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
+
+      mvc.perform(
+              get("/api/agent/installer/openaev/%s/%s"
+                      .formatted(Endpoint.PLATFORM_TYPE.Linux.name(), EndpointService.SERVICE))
+                  .accept(MediaType.TEXT_PLAIN_VALUE))
+          .andExpect(status().is2xxSuccessful());
     }
   }
 
