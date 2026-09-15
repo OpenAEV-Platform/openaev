@@ -106,7 +106,7 @@ const ArticlePopover = ({ article, onRemoveArticle, disabled = false, inline = f
 
   const editForm = (
     <FormProvider {...methods}>
-      <form onSubmit={handleSubmit(onSubmitEdit)}>
+      <form noValidate onSubmit={handleSubmit(onSubmitEdit)}>
         <ArticleForm
           editing
           handleClose={handleCloseEdit}

@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { TextField, type Theme } from '@mui/material';
-import { Button } from '@mui/material';
+import { Button, type Theme } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SxProps } from '@mui/system';
 import moment from 'moment/moment';
@@ -10,6 +9,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import Dialog from '../../../components/common/dialog/Dialog';
+import TextFieldFds from '../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../components/i18n';
 import { simplePostCall } from '../../../utils/Action';
 import { type License, type PlatformSettings } from '../../../utils/api-types';
@@ -138,10 +138,8 @@ const LicenseBanner = (settings: { settings: PlatformSettings }) => {
         handleClose={() => setShowFormDialog(false)}
       >
         <form id="contactUsForm" onSubmit={handleSubmit(onSubmit)}>
-          <TextField
+          <TextFieldFds
             {...register('message')}
-            variant="standard"
-            fullWidth
             multiline
             rows={5}
             label={t('Your message')}

@@ -1,4 +1,5 @@
-import { Button, Icon, Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Icon, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -32,23 +33,23 @@ const ExpectationPercentResultByType: FunctionComponent<Props> = ({ expectationT
         {`${capitalize(expectationType)} :`}
       </Typography>
       {datasByDomainsAndType.map(d => (
-        <Tooltip
-          key={`${expectationType}-${d.key}`}
-          onClick={() => onExpectationResultClick(d.key)}
-          style={{ color: d.color }}
-          title={d.label}
-        >
-          <Button
-            size="small"
-            sx={{
-              margin: 0,
-              minWidth: 0,
-              fontSize: theme.typography.fontSize,
-            }}
-            variant="text"
-          >
-            {formatPercentage(d.percentage ?? 0, 1)}
-          </Button>
+        <Tooltip key={`${expectationType}-${d.key}`}>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={() => onExpectationResultClick(d.key)}
+              style={{ color: d.color }}
+              size="small"
+              sx={{
+                margin: 0,
+                minWidth: 0,
+                fontSize: theme.typography.fontSize,
+              }}
+              variant="text"
+            >
+              {formatPercentage(d.percentage ?? 0, 1)}
+            </Button>
+          </TooltipTrigger>
+          {d.label && <TooltipContent>{d.label}</TooltipContent>}
         </Tooltip>
       ))}
     </div>

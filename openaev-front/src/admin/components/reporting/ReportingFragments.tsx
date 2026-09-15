@@ -1,4 +1,5 @@
-import { Box, Chip, Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Chip, Typography } from '@mui/material';
 import { FilePdfBox, LanguageHtml5 } from 'mdi-material-ui';
 import { type FunctionComponent } from 'react';
 
@@ -57,19 +58,22 @@ export const ReportingStatusChip: FunctionComponent<StatusChipProps> = ({ status
   // one, PENDING is the neutral fallback.
   const effectiveStatus = status ?? 'PENDING';
   return (
-    <Tooltip title={tooltip ?? t(effectiveStatus)}>
-      <Chip
-        label={t(effectiveStatus)}
-        style={computeStatusStyle(effectiveStatus)}
-        sx={{
-          height: 20,
-          fontSize: 11,
-          textTransform: 'uppercase',
-          borderRadius: 0.5,
-          width: 90,
-          flexShrink: 0,
-        }}
-      />
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Chip
+          label={t(effectiveStatus)}
+          style={computeStatusStyle(effectiveStatus)}
+          sx={{
+            height: 20,
+            fontSize: 11,
+            textTransform: 'uppercase',
+            borderRadius: 0.5,
+            width: 90,
+            flexShrink: 0,
+          }}
+        />
+      </TooltipTrigger>
+      {(tooltip ?? t(effectiveStatus)) && <TooltipContent>{tooltip ?? t(effectiveStatus)}</TooltipContent>}
     </Tooltip>
   );
 };

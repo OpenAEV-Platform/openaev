@@ -1,14 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DescriptionOutlined, HelpOutlineOutlined, RowingOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Chip,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Tooltip,
-} from '@mui/material';
+import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -318,22 +310,22 @@ const Documents = () => {
                                     return <span key={e}>-</span>;
                                   }
                                   return (
-                                    <Tooltip
-                                      key={exercise.exercise_id}
-                                      title={exercise.exercise_name}
-                                    >
-                                      <Chip
-                                        icon={<RowingOutlined style={{ fontSize: 12 }} />}
-                                        classes={{ root: classes.exercise }}
-                                        variant="outlined"
-                                        label={exercise.exercise_name}
-                                        clickable
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          event.preventDefault();
-                                          navigate(`/admin/simulations/${exercise.exercise_id}`);
-                                        }}
-                                      />
+                                    <Tooltip key={exercise.exercise_id}>
+                                      <TooltipTrigger asChild>
+                                        <Chip
+                                          icon={<RowingOutlined style={{ fontSize: 12 }} />}
+                                          classes={{ root: classes.exercise }}
+                                          variant="outlined"
+                                          label={exercise.exercise_name}
+                                          clickable
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            event.preventDefault();
+                                            navigate(`/admin/simulations/${exercise.exercise_id}`);
+                                          }}
+                                        />
+                                      </TooltipTrigger>
+                                      {exercise.exercise_name && <TooltipContent>{exercise.exercise_name}</TooltipContent>}
                                     </Tooltip>
                                   );
                                 })
@@ -351,22 +343,22 @@ const Documents = () => {
                                     return <span key={e}>-</span>;
                                   }
                                   return (
-                                    <Tooltip
-                                      key={scenario.scenario_id}
-                                      title={scenario.scenario_name}
-                                    >
-                                      <Chip
-                                        icon={<RowingOutlined style={{ fontSize: 12 }} />}
-                                        classes={{ root: classes.scenario }}
-                                        variant="outlined"
-                                        label={scenario.scenario_name}
-                                        clickable
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          event.preventDefault();
-                                          navigate(`/admin/scenarios/${scenario.scenario_id}`);
-                                        }}
-                                      />
+                                    <Tooltip key={scenario.scenario_id}>
+                                      <TooltipTrigger asChild>
+                                        <Chip
+                                          icon={<RowingOutlined style={{ fontSize: 12 }} />}
+                                          classes={{ root: classes.scenario }}
+                                          variant="outlined"
+                                          label={scenario.scenario_name}
+                                          clickable
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            event.preventDefault();
+                                            navigate(`/admin/scenarios/${scenario.scenario_id}`);
+                                          }}
+                                        />
+                                      </TooltipTrigger>
+                                      {scenario.scenario_name && <TooltipContent>{scenario.scenario_name}</TooltipContent>}
                                     </Tooltip>
                                   );
                                 })

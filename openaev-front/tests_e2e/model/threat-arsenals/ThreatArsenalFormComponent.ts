@@ -39,7 +39,10 @@ class ThreatArsenalFormComponent {
     this.commandsTab = page.getByRole('tab', { name: 'Commands' });
 
     // General fields
-    this.nameField = page.getByRole('textbox', { name: 'Name*' });
+    this.nameField = page.getByRole('textbox', {
+      name: 'Name',
+      exact: true,
+    });
     this.descriptionField = page.getByRole('textbox', { name: 'Description' });
     this.attackPatternsField = page.getByRole('combobox', { name: 'Attack patterns' });
     this.tagsField = page.getByRole('combobox', { name: 'Tags' });
@@ -80,7 +83,10 @@ class ThreatArsenalFormComponent {
       .and(page.locator('[aria-required="true"]'));
     this.commandField = page.locator('textarea[name="command_content"]');
     this.documentsAddBtn = page.getByText('Add document');
-    this.hostnameField = page.getByRole('textbox', { name: 'Hostname*' });
+    this.hostnameField = page.getByRole('textbox', {
+      name: 'Hostname',
+      exact: true,
+    });
 
     // Actions
     // Scoped to the action form: the list header hosts a "Create" button too.

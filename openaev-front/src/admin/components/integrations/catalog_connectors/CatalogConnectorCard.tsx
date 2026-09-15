@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined, HelpCenterOutlined } from '@mui/icons-material';
-import { Box, Card, CardActionArea, CardContent, Chip, Stack, SvgIcon, Tooltip, Typography } from '@mui/material';
+import { Box, Card, CardActionArea, CardContent, Chip, Stack, SvgIcon, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { LogoFiligranIcon } from 'filigran-icon';
 import { type ReactNode } from 'react';
@@ -67,30 +68,36 @@ export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
               position: isVisible ? 'relative' : 'absolute',
             }}
           >
-            <Tooltip title={prettifyUseCase(useCase)}>
-              <Chip
-                variant="outlined"
-                size="small"
-                color="primary"
-                label={prettifyUseCase(useCase)}
-                sx={chipSx}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Chip
+                  variant="outlined"
+                  size="small"
+                  color="primary"
+                  label={prettifyUseCase(useCase)}
+                  sx={chipSx}
+                />
+              </TooltipTrigger>
+              {prettifyUseCase(useCase) && <TooltipContent>{prettifyUseCase(useCase)}</TooltipContent>}
             </Tooltip>
           </Box>
         );
       })}
       {hiddenCount > 0 && (
-        <Tooltip title={hiddenUseCases.map(prettifyUseCase).join(', ')}>
-          <Chip
-            variant="outlined"
-            size="small"
-            color="primary"
-            label={`+${hiddenCount}`}
-            sx={{
-              ...chipSx,
-              flexShrink: 0,
-            }}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Chip
+              variant="outlined"
+              size="small"
+              color="primary"
+              label={`+${hiddenCount}`}
+              sx={{
+                ...chipSx,
+                flexShrink: 0,
+              }}
+            />
+          </TooltipTrigger>
+          {hiddenUseCases.map(prettifyUseCase).join(', ') && <TooltipContent>{hiddenUseCases.map(prettifyUseCase).join(', ')}</TooltipContent>}
         </Tooltip>
       )}
     </Stack>
@@ -214,45 +221,53 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
                 >
                   {typeLabels[connector.type]}
                 </Typography>
-                <Tooltip title={connector.title} placement="bottom-start">
-                  <Typography
-                    sx={{
-                      fontSize: 15,
-                      fontWeight: 600,
-                      lineHeight: 1.35,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {connector.title}
-                  </Typography>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Typography
+                      sx={{
+                        fontSize: 15,
+                        fontWeight: 600,
+                        lineHeight: 1.35,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {connector.title}
+                    </Typography>
+                  </TooltipTrigger>
+                  {connector.title && <TooltipContent side="bottom" align="start">{connector.title}</TooltipContent>}
                 </Tooltip>
               </Box>
               {/* Support semantics (same as OpenCTI): the verified flag means
                   supported by Filigran, otherwise supported by the community. */}
-              <Tooltip title={connector.verified ? t('Supported by Filigran') : t('Supported by Community')}>
-                {connector.verified ? (
-                  <SvgIcon
-                    component={LogoFiligranIcon}
-                    inheritViewBox
-                    color="primary"
-                    sx={{
-                      fontSize: 20,
-                      flexShrink: 0,
-                    }}
-                  />
-                ) : (
-                  <GroupsOutlined
-                    color="disabled"
-                    sx={{
-                      fontSize: 20,
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    {connector.verified ? (
+                      <SvgIcon
+                        component={LogoFiligranIcon}
+                        inheritViewBox
+                        color="primary"
+                        sx={{
+                          fontSize: 20,
+                          flexShrink: 0,
+                        }}
+                      />
+                    ) : (
+                      <GroupsOutlined
+                        color="disabled"
+                        sx={{
+                          fontSize: 20,
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{connector.verified ? t('Supported by Filigran') : t('Supported by Community')}</TooltipContent>
               </Tooltip>
             </Stack>
 

@@ -1,19 +1,11 @@
-import {
-  Checkbox,
-  Paper as FdsPaper,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-} from '@filigran/design-system';
+import { Checkbox, Paper as FdsPaper, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { DeleteOutlined, DragIndicatorOutlined, RestartAltOutlined } from '@mui/icons-material';
-import { Box, Button, FormHelperText, IconButton, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { Box, Button, FormHelperText, IconButton, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
-import { Controller, FormProvider, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
+import { Controller, FormProvider, type SubmitHandler, useFieldArray, useForm, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
 
 import { type LoggedHelper } from '../../../../actions/helper';
@@ -24,6 +16,7 @@ import MarkDownFieldController from '../../../../components/fields/MarkDownField
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
 import SwitchFieldController from '../../../../components/fields/SwitchFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import {
@@ -34,6 +27,7 @@ import {
   type TenantSettingsOutput,
   type ThemeInput,
 } from '../../../../utils/api-types';
+import { layerInputVars } from '../../../../utils/fdsLayer';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../utils/Option';
@@ -146,6 +140,41 @@ interface Props {
  * branding and - on creation only - an optional first schedule (schedules are
  * then managed from the report detail page).
  */
+/** The optional title, its label on the left: the row stays one line high. */
+const ModuleTitleField = ({ id, name }: {
+  id: string;
+  name: `modules.${number}.module_title`;
+}) => {
+  const { t } = useFormatter();
+  const { control } = useFormContext<ReportingFormValues>();
+  return (
+    <Box sx={{
+      flex: 1,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1,
+    }}
+    >
+      <Typography
+        component="label"
+        htmlFor={id}
+        variant="body2"
+        sx={{
+          color: 'text.secondary',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {t('Custom title (optional)')}
+      </Typography>
+      <Controller
+        control={control}
+        name={name}
+        render={({ field }) => <TextFieldFds {...field} id={id} value={field.value ?? ''} />}
+      />
+    </Box>
+  );
+};
+
 const ReportingForm: FunctionComponent<Props> = ({
   onSubmit,
   handleClose,
@@ -388,8 +417,8 @@ const ReportingForm: FunctionComponent<Props> = ({
       gap: 2,
     }}
     >
-      <TextFieldController variant="standard" name="reporting_name" label={t('Name')} required />
-      <TextFieldController variant="standard" name="reporting_description" label={t('Description')} multiline rows={2} />
+      <TextFieldController name="reporting_name" label={t('Name')} required />
+      <TextFieldController name="reporting_description" label={t('Description')} multiline rows={2} />
       <Controller
         control={control}
         name="reporting_context_type"
@@ -569,11 +598,15 @@ const ReportingForm: FunctionComponent<Props> = ({
                         ref={draggableProvided.innerRef}
                         {...draggableProvided.draggableProps}
                         padding={8}
+                        // One layer above the drawer's surface, like the sibling product's confidence
+                        // block; the input aliases follow the layer.
+                        elevation={3}
                         style={{
                           display: 'flex',
                           flexDirection: 'column',
                           gap: 8,
                           marginBottom: 8,
+                          ...layerInputVars,
                         }}
                       >
                         <Box sx={{
@@ -606,44 +639,63 @@ const ReportingForm: FunctionComponent<Props> = ({
                           >
                             {`${index + 1}. ${t(MODULE_TYPE_LABELS[type])}`}
                           </Typography>
-                          <Box sx={{ flex: 1 }}>
-                            <TextFieldController
-                              variant="standard"
-                              size="small"
-                              name={`modules.${index}.module_title`}
-                              label={t('Custom title (optional)')}
-                              noHelperText
-                            />
-                          </Box>
-                          <Tooltip title={t('Remove')}>
-                            <IconButton size="small" color="primary" onClick={() => removeModule(index)}>
-                              <DeleteOutlined fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                          {/* The kill chain section carries two fields: they get their own row below. */}
+                          {type !== 'MITRE_COVERAGE' && (
+                            <>
+                              <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <IconButton aria-label={t('Remove')} size="small" color="error" onClick={() => removeModule(index)}>
+                                    <DeleteOutlined fontSize="small" />
+                                  </IconButton>
+                                </TooltipTrigger>
+                                <TooltipContent>{t('Remove')}</TooltipContent>
+                              </Tooltip>
+                            </>
+                          )}
                         </Box>
+                        {type === 'MITRE_COVERAGE' && (
+                          <Box sx={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 1,
+                          }}
+                          >
+                            <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
+                            <Box sx={{ flex: 1 }}>
+                              <Controller
+                                control={control}
+                                name={`modules.${index}.kill_chains`}
+                                render={({ field: killChains }) => (
+                                  <ReportingAutocompleteField
+                                    multiple
+                                    label={t('Kill chains')}
+                                    labelPosition="left"
+                                    options={killChainOptions}
+                                    value={killChains.value}
+                                    onChange={killChains.onChange}
+                                    onInputChange={() => {}}
+                                    helperText={t('Leave empty to cover all kill chains.')}
+                                  />
+                                )}
+                              />
+                            </Box>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <IconButton aria-label={t('Remove')} size="small" color="error" onClick={() => removeModule(index)}>
+                                  <DeleteOutlined fontSize="small" />
+                                </IconButton>
+                              </TooltipTrigger>
+                              <TooltipContent>{t('Remove')}</TooltipContent>
+                            </Tooltip>
+                          </Box>
+                        )}
                         {type === 'CUSTOM_MARKDOWN' && (
                           <MarkDownFieldController
                             name={`modules.${index}.content`}
                             label={t('Content')}
                             style={{ marginTop: theme.spacing(1) }}
                             inInject={false}
-                          />
-                        )}
-                        {type === 'MITRE_COVERAGE' && (
-                          <Controller
-                            control={control}
-                            name={`modules.${index}.kill_chains`}
-                            render={({ field }) => (
-                              <ReportingAutocompleteField
-                                multiple
-                                label={t('Kill chains')}
-                                options={killChainOptions}
-                                value={field.value}
-                                onChange={field.onChange}
-                                onInputChange={() => {}}
-                                helperText={t('Leave empty to cover all kill chains.')}
-                              />
-                            )}
                           />
                         )}
                       </FdsPaper>
@@ -674,24 +726,27 @@ const ReportingForm: FunctionComponent<Props> = ({
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               {t('Theme')}
             </Typography>
-            <Tooltip title={t('Switching the theme resets the colors to the platform defaults of that theme.')}>
-              <ToggleButtonGroup
-                exclusive
-                size="small"
-                color="primary"
-                value={field.value}
-                onChange={(_, value: ReportingThemeMode | null) => {
-                  if (!value || value === field.value) return;
-                  field.onChange(value);
-                  // The palettes are theme-specific: carrying dark colors into
-                  // light mode (or vice versa) would produce unreadable reports.
-                  resetBrandingColors(value);
-                }}
-                sx={{ display: 'flex' }}
-              >
-                <ToggleButton value="LIGHT" sx={{ flex: 1 }}>{t('Light')}</ToggleButton>
-                <ToggleButton value="DARK" sx={{ flex: 1 }}>{t('Dark')}</ToggleButton>
-              </ToggleButtonGroup>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ToggleButtonGroup
+                  exclusive
+                  size="small"
+                  color="primary"
+                  value={field.value}
+                  onChange={(_, value: ReportingThemeMode | null) => {
+                    if (!value || value === field.value) return;
+                    field.onChange(value);
+                    // The palettes are theme-specific: carrying dark colors into
+                    // light mode (or vice versa) would produce unreadable reports.
+                    resetBrandingColors(value);
+                  }}
+                  sx={{ display: 'flex' }}
+                >
+                  <ToggleButton value="LIGHT" sx={{ flex: 1 }}>{t('Light')}</ToggleButton>
+                  <ToggleButton value="DARK" sx={{ flex: 1 }}>{t('Dark')}</ToggleButton>
+                </ToggleButtonGroup>
+              </TooltipTrigger>
+              <TooltipContent>{t('Switching the theme resets the colors to the platform defaults of that theme.')}</TooltipContent>
             </Tooltip>
           </div>
         )}
@@ -717,12 +772,12 @@ const ReportingForm: FunctionComponent<Props> = ({
         gap: 2,
       }}
       >
-        <ColorPickerField variant="standard" fullWidth label={t('Primary color')} control={control} name="branding_primary_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Secondary color')} control={control} name="branding_secondary_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Accent color')} control={control} name="branding_accent_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Background color')} control={control} name="branding_background_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Paper color')} control={control} name="branding_paper_color" />
-        <ColorPickerField variant="standard" fullWidth label={t('Text color')} control={control} name="branding_text_color" />
+        <ColorPickerField label={t('Primary color')} control={control} name="branding_primary_color" />
+        <ColorPickerField label={t('Secondary color')} control={control} name="branding_secondary_color" />
+        <ColorPickerField label={t('Accent color')} control={control} name="branding_accent_color" />
+        <ColorPickerField label={t('Background color')} control={control} name="branding_background_color" />
+        <ColorPickerField label={t('Paper color')} control={control} name="branding_paper_color" />
+        <ColorPickerField label={t('Text color')} control={control} name="branding_text_color" />
       </Box>
       <Controller
         control={control}
@@ -756,6 +811,7 @@ const ReportingForm: FunctionComponent<Props> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="reportingForm"
         style={{
           display: 'flex',

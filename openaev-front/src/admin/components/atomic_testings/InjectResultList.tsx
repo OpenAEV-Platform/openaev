@@ -1,6 +1,6 @@
-import { Checkbox, IconButton } from '@filigran/design-system';
+import { Checkbox, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloudUploadOutlined, HelpOutlineOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, type ReactElement, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -294,14 +294,17 @@ const InjectResultList: FunctionComponent<Props> = ({
         topBarButtons={showActions ? (
           <Box display="flex" gap={1} alignItems="center">
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-              <Tooltip title={t('inject_import_json_action')}>
-                <IconButton
-                  priority="secondary"
-                  size="md"
-                  aria-label={t('inject_import_json_action')}
-                  icon={<CloudUploadOutlined fontSize="small" />}
-                  onClick={handleOpenJsonImportDialog}
-                />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <IconButton
+                    priority="secondary"
+                    size="md"
+                    aria-label={t('inject_import_json_action')}
+                    icon={<CloudUploadOutlined fontSize="small" />}
+                    onClick={handleOpenJsonImportDialog}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>{t('inject_import_json_action')}</TooltipContent>
               </Tooltip>
             </Can>
             {createButton}

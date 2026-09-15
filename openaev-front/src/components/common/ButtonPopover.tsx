@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip } from '@mui/material';
+import { Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material';
 import { type CSSProperties, type Dispatch, type FunctionComponent, type ReactNode, type SetStateAction, useState } from 'react';
 
 import { useFormatter } from '../i18n';
@@ -94,8 +95,11 @@ const ButtonPopover: FunctionComponent<Props> = ({
           );
           const item = (entry.disabled && entry.disabledMessage)
             ? (
-                <Tooltip key={entry.label} title={t(entry.disabledMessage)}>
-                  <span>{menuItem}</span>
+                <Tooltip key={entry.label}>
+                  <TooltipTrigger asChild>
+                    <span>{menuItem}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>{t(entry.disabledMessage)}</TooltipContent>
                 </Tooltip>
               )
             : menuItem;

@@ -53,15 +53,11 @@ const TeamForm: FunctionComponent<TeamFormProps> = ({
       {({ handleSubmit, form, values, submitting, pristine }) => (
         <form id="teamForm" onSubmit={handleSubmit}>
           <OldTextField
-            variant="standard"
             name="team_name"
-            fullWidth
             label={t('Name')}
           />
           <OldTextField
-            variant="standard"
             name="team_description"
-            fullWidth
             label={t('Description')}
             style={{ marginTop: 20 }}
           />

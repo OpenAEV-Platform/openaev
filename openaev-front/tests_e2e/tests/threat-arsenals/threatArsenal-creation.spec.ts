@@ -153,6 +153,10 @@ test.describe('Threat Arsenal form', () => {
       await threatArsenalForm.selectCommandType(ThreatArsenalCommandTypes.EXECUTABLE);
 
       await threatArsenalForm.addArgument();
+      // The new row focuses its first field. Blur it first: otherwise the click on
+      // Save makes it validate on blur, the error message moves the button and
+      // the click never reaches it.
+      await threatArsenalForm.page.locator('[name="action_arguments.0.key"]').blur();
       await threatArsenalForm.save();
       await threatArsenalForm.switchToCommandsTab();
 

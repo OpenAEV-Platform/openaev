@@ -1,19 +1,10 @@
-import { ButtonGroup, ButtonGroupItem, Checkbox } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   GridViewOutlined,
   LinkOffOutlined,
   ViewListOutlined,
 } from '@mui/icons-material';
-import {
-  Box,
-  IconButton,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Skeleton,
-  Tooltip,
-} from '@mui/material';
+import { Box, IconButton, List, ListItem, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 
@@ -435,11 +426,17 @@ const ThreatArsenal = () => {
         onValueChange={handleViewModeChange}
         aria-label={t('View mode')}
       >
-        <Tooltip title={t('Grid view')}>
-          <ButtonGroupItem value="grid" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ButtonGroupItem value="grid" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
+          </TooltipTrigger>
+          <TooltipContent>{t('Grid view')}</TooltipContent>
         </Tooltip>
-        <Tooltip title={t('List view')}>
-          <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+          </TooltipTrigger>
+          <TooltipContent>{t('List view')}</TooltipContent>
         </Tooltip>
       </ButtonGroup>
 
@@ -561,35 +558,41 @@ const ThreatArsenal = () => {
                         floating selection bar once something is selected. This
                         single control drives select-all for BOTH the grid and
                         the list view (the toolbar is shared by the two). */}
-                    <Tooltip title={selectAllLabel}>
-                      <span>
-                        {/* The library box is 16x16 with no padding, so it no
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          {/* The library box is 16x16 with no padding, so it no
                             longer sets the row's height — the 36px is the row's
                             own now. The mixed state travels as the `checked`
                             value, which is where Radix reads it. */}
-                        <Checkbox
-                          aria-label={selectAllLabel}
-                          checked={
-                            (!selectAll && numberOfSelectedElements > 0)
-                            || (selectAll && Object.keys(deSelectedElements ?? {}).length > 0)
-                              ? 'indeterminate'
-                              : selectAll
-                          }
-                          onCheckedChange={handleToggleSelectAll}
-                          disabled={threatArsenalActions.length === 0}
-                        />
-                      </span>
+                          <Checkbox
+                            aria-label={selectAllLabel}
+                            checked={
+                              (!selectAll && numberOfSelectedElements > 0)
+                              || (selectAll && Object.keys(deSelectedElements ?? {}).length > 0)
+                                ? 'indeterminate'
+                                : selectAll
+                            }
+                            onCheckedChange={handleToggleSelectAll}
+                            disabled={threatArsenalActions.length === 0}
+                          />
+                        </span>
+                      </TooltipTrigger>
+                      {selectAllLabel && <TooltipContent>{selectAllLabel}</TooltipContent>}
                     </Tooltip>
                     {canDeleteThreatArsenal && (
-                      <Tooltip title={t('Select orphaned actions (no injector, no payload) to purge them at once')}>
-                        <IconButton
-                          size="small"
-                          aria-label={t('Select orphaned actions')}
-                          onClick={handleSelectOrphaned}
-                          sx={{ color: 'text.secondary' }}
-                        >
-                          <LinkOffOutlined fontSize="small" />
-                        </IconButton>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <IconButton
+                            size="small"
+                            aria-label={t('Select orphaned actions')}
+                            onClick={handleSelectOrphaned}
+                            sx={{ color: 'text.secondary' }}
+                          >
+                            <LinkOffOutlined fontSize="small" />
+                          </IconButton>
+                        </TooltipTrigger>
+                        <TooltipContent>{t('Select orphaned actions (no injector, no payload) to purge them at once')}</TooltipContent>
                       </Tooltip>
                     )}
                   </Box>

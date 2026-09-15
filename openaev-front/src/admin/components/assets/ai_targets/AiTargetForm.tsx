@@ -8,12 +8,13 @@ import {
   SelectValue,
 } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, TextField } from '@mui/material';
+import { Button } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import TagField from '../../../../components/fields/TagField';
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { type AiTargetInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
@@ -112,10 +113,8 @@ const AiTargetForm: FunctionComponent<Props> = ({
   });
 
   return (
-    <form id="aiTargetForm" onSubmit={handleSubmit(onSubmit)}>
-      <TextField
-        variant="standard"
-        fullWidth
+    <form noValidate id="aiTargetForm" onSubmit={handleSubmit(onSubmit)}>
+      <TextFieldFds
         label={t('Name')}
         style={{ marginTop: 10 }}
         error={!!errors.asset_name}
@@ -200,9 +199,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
           </div>
         )}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Endpoint URL')}
         placeholder="https://api.openai.com/v1"
         style={{ marginTop: 20 }}
@@ -210,9 +207,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         helperText={errors.ai_target_endpoint?.message}
         {...register('ai_target_endpoint')}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Model')}
         placeholder="gpt-4o"
         style={{ marginTop: 20 }}
@@ -220,9 +215,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         helperText={errors.ai_target_model?.message}
         {...register('ai_target_model')}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         multiline
         rows={3}
         label={t('System prompt (optional)')}
@@ -231,9 +224,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         helperText={errors.ai_target_system_prompt?.message}
         {...register('ai_target_system_prompt')}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         type="password"
         label={t('API token (optional)')}
         style={{ marginTop: 20 }}
@@ -244,9 +235,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         }
         {...register('ai_target_token')}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         multiline
         rows={2}
         label={t('Description')}

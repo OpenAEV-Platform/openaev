@@ -15,11 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@filigran/design-system';
-import { Box, TextField } from '@mui/material';
+import { Box } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { type Control, Controller, useFormContext, type UseFormSetValue, useWatch } from 'react-hook-form';
 
 import { engineSchemas } from '../../../../../../../actions/schema/schema-action';
+import TextFieldFds from '../../../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../../../components/i18n';
 import { type PropertySchemaDTO, type Widget } from '../../../../../../../utils/api-types';
 import { type WidgetInputWithoutLayout } from '../../../../../../../utils/api-types-custom';
@@ -193,13 +194,11 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
           name="widget_config.limit"
           defaultValue={10}
           render={({ field, fieldState }) => (
-            <TextField
+            <TextFieldFds
               {...field}
-              variant="standard"
-              fullWidth
               type="number"
               label={t('Number of results')}
-              sx={{ mt: 2 }}
+              style={{ marginTop: 16 }}
               value={field.value}
               onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
               error={!!fieldState.error}

@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined, PersonOutlined } from '@mui/icons-material';
-import { Box, Button, Tab, Tabs, Tooltip } from '@mui/material';
+import { Box, Button, Tab, Tabs } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import {
@@ -232,10 +233,13 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
         value: (endpoint: EndpointOutput) => {
           const status = getActiveMsgTooltip(endpoint.asset_agents.map(a => a.agent_active ?? false), t('Active'), t('Inactive'), t('Agentless'));
           return (
-            <Tooltip title={status.activeMsgTooltip}>
-              <span>
-                <AssetStatus variant="list" status={status.status} />
-              </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <AssetStatus variant="list" status={status.status} />
+                </span>
+              </TooltipTrigger>
+              {status.activeMsgTooltip && <TooltipContent>{status.activeMsgTooltip}</TooltipContent>}
             </Tooltip>
           );
         },
@@ -267,27 +271,26 @@ const ScopeForm: FunctionComponent<ScopeFormProps> = ({
                   const base = executorsOfType[0];
                   if (count > 0) {
                     return (
-                      <Tooltip
-                        key={executorType}
-                        title={`${base.executor_name} : ${count}`}
-                        arrow
-                      >
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                        }}
-                        >
-                          <img
-                            src={buildTenantApiPath(`/api/images/executors/icons/${executorType}`)}
-                            alt={executorType}
-                            style={{
-                              width: 20,
-                              height: 20,
-                              borderRadius: theme.borderRadius,
-                              marginRight: theme.spacing(2),
-                            }}
-                          />
-                        </div>
+                      <Tooltip key={executorType}>
+                        <TooltipTrigger asChild>
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                          }}
+                          >
+                            <img
+                              src={buildTenantApiPath(`/api/images/executors/icons/${executorType}`)}
+                              alt={executorType}
+                              style={{
+                                width: 20,
+                                height: 20,
+                                borderRadius: theme.borderRadius,
+                                marginRight: theme.spacing(2),
+                              }}
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>{`${base.executor_name} : ${count}`}</TooltipContent>
                       </Tooltip>
                     );
                   }

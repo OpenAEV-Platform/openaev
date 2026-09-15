@@ -113,7 +113,6 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
         {`${t('Regex group rules')} * :`}
       </Typography>
       <TextFieldController
-        variant="outlined"
         style={{ gridColumn: 'span 4' }}
         name={`${prefixName}.${index}.contract_output_element_rule` as const}
         required
@@ -143,7 +142,7 @@ const ContractOutputElementCard = ({ prefixName, index, remove }: Props) => {
           >
             {t(field.regex_group_field.charAt(0).toUpperCase() + field.regex_group_field.slice(1))}
           </Typography>
-          <TextFieldController size="small" placeholder={`$${indexField + 1}`} variant="outlined" name={getRegexIndexesValueName(field.regex_group_field)} required />
+          <TextFieldController placeholder={`$${indexField + 1}`} name={getRegexIndexesValueName(field.regex_group_field)} required />
         </div>
       ))}
     </Card>

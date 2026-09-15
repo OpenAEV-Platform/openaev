@@ -1,6 +1,6 @@
-import { Button as FdsButton } from '@filigran/design-system';
+import { Button as FdsButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add } from '@mui/icons-material';
-import { Button, Tooltip } from '@mui/material';
+import { Button } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../i18n';
@@ -76,8 +76,11 @@ const ButtonCreate: FunctionComponent<Props> = ({ onClick, style, label, disable
   // enabled wrapper to hang on to.
   if (disabled && disabledMessage) {
     return (
-      <Tooltip title={t(disabledMessage)}>
-        <span style={{ display: 'inline-flex' }}>{button}</span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span style={{ display: 'inline-flex' }}>{button}</span>
+        </TooltipTrigger>
+        <TooltipContent>{t(disabledMessage)}</TooltipContent>
       </Tooltip>
     );
   }

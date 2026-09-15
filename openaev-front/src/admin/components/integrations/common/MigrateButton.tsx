@@ -1,4 +1,5 @@
-import { Button, Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button } from '@mui/material';
 import { type CSSProperties, type SyntheticEvent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -31,25 +32,28 @@ const MigrateButton = ({ onMigrateBtnClick, style = {} }: Props) => {
     }
   };
   return (
-    <Tooltip title={t('Migrate a manually-deployed connector to the Integration Manager to manage its settings from the interface')}>
-      <div style={{
-        ...style,
-        position: 'relative',
-      }}
-      >
-        <Button
-          variant={isEnterpriseEdition ? 'contained' : 'outlined'}
-          sx={{
-            color: isEnterpriseEdition ? 'primary' : 'action.disabled',
-            borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',
-          }}
-          size="small"
-          onClick={onMigrateClickAction}
-          endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div style={{
+          ...style,
+          position: 'relative',
+        }}
         >
-          {t('Migrate')}
-        </Button>
-      </div>
+          <Button
+            variant={isEnterpriseEdition ? 'contained' : 'outlined'}
+            sx={{
+              color: isEnterpriseEdition ? 'primary' : 'action.disabled',
+              borderColor: isEnterpriseEdition ? 'primary' : 'action.disabledBackground',
+            }}
+            size="small"
+            onClick={onMigrateClickAction}
+            endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
+          >
+            {t('Migrate')}
+          </Button>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>{t('Migrate a manually-deployed connector to the Integration Manager to manage its settings from the interface')}</TooltipContent>
     </Tooltip>
 
   );

@@ -2363,3 +2363,53 @@ of every multi-select in the product. Ours is removed; the library's stays.
 This is a product defect, not a library one, and it is recorded here because
 the library gap in 48.1 is what hid it: the warnings the product read as "our
 box has no name" were in fact the library's own box complaining.
+
+---
+
+Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox), library pin `3426fc374d183b1ada331c3db06854054cdb265d` (1.1.0). Every statement below is read from the installed `dist/` and from the component source at that commit, not from the library's `main`.
+
+## 49. `Input` has no `type="time"`
+
+**Measured.** `InputProps.type` is the closed union `"text" | "password" | "number" | "email"` (`Input.tsx` line 100 at the pin). The product has two time-of-day fields (`TriggerForm.tsx`, `ReportingScheduleFields.tsx`) whose value is an `HH:mm` string edited with the browser's native time control.
+
+**Consequence.** Both fields stay on the MUI `TextField`, marked `fds:keep-mui` and pointing here, in forms whose every other field is now the library's.
+
+**The request.** Accept `type="time"` (and the other native text-like types the platform will meet: `url`, `tel`, `date`) on `Input`, with the browser's own control left in place — the same stance the number variant already takes for its native semantics.
+
+## 50. No slot for a text adornment (unit, prefix, suffix)
+
+**Status.** **Fixed upstream by library PR #224** (`endText`, read through `aria-describedby`), shipped in pin `4b54adb7f30d8bae322a7a9c150989149ced27ef` and adopted on the regex-flags field. Measured on the installed build: the unit is not `aria-hidden` and the value's padding reads `calc(24.875px + var(--spacing) * 3)` for `/gm`.
+
+**Measured.** `endIcon` is `{ type: "iconButton", … } | { type: "icon", icon }`; the decorative branch is `aria-hidden` and `pointer-events-none`, `startIcon` is decorative only. Nothing in `Input` or `Textarea` can place a *text* next to the value.
+
+**Product need.** One field shows the regular-expression flags `/gm` after the pattern (`ContractOutputElementCard.tsx`). Putting that text in the decorative icon slot would hide it from assistive technology, so it is not done. The site keeps its MUI field until this is ruled (product question open) or the library offers a text slot.
+
+**The request.** A `startText` / `endText` (or a typed `adornment`) rendered inside the field box and readable, or an explicit statement that units and suffixes belong in `helperText`.
+
+## 51. `Textarea` has no end slot
+
+**Measured.** `TextareaProps` carries `label`, `required`, `infoTooltip`, `helperText`, `error`, sizing and `resize` — no `endIcon`, while `Input` has one.
+
+**Product need.** The endpoint form's address list (`AddressesFieldComponent.tsx`) is a three-line textarea with a small action button in its top-right corner (resolve the typed hostname to its addresses; disabled until a hostname exists; shows a spinner while resolving). The product-side alternative is to move that button out of the field, next to the label row — a layout the product is asking its designer to confirm.
+
+**The request.** Either an `endIcon` on `Textarea` mirroring `Input`'s, or a documented "actions next to the label" pattern so consumers converge on one placement.
+
+## 52. `endIcon` cannot host a consumer-owned trigger
+
+**Status.** **Closed by product refactor plus library PR #224.** The Ask AI component now exposes an external-trigger mode (the library's end-slot button opens its menu) and the library's `endIcon` gained its own `disabled`, so the button reads as unavailable outside the Enterprise Edition while the field stays editable. The eight name fields are converted; only the EE tooltip on the disabled button is gone, by arbitration.
+
+**Measured.** The interactive branch of `endIcon` takes `icon`, `label` and `onClick`, and the library renders the `IconButton` itself; there is no `asChild`, no render prop, no node slot.
+
+**Product need.** Eight name fields carry an "Ask AI" trigger drawn by a product component that owns its button, its menu and its dialogs, and shows a disabled state with its own tooltip outside the Enterprise Edition. It cannot be dropped into the slot as-is; the product-side path is to split that component so the library draws the button and the menus anchor to it. Those eight fields stay on MUI until that split is ruled and done.
+
+**The request.** A way to render a consumer trigger in the end slot while keeping the library's geometry and tones — the same `asChild` idiom the library uses elsewhere — or an explicit statement that composite triggers belong outside the field.
+
+## 53. `Input` has no `labelPosition`
+
+**Status.** Open. Worked around in the product.
+
+**Measured.** `Combobox` accepts `labelPosition: "top" | "left" | "none"`; `Input` and `Textarea` only draw their `label` above the control (checked in the installed `dist/index.d.ts` at the pinned commit).
+
+**Product need.** The report structure rows carry one optional title per section on a single line: the label must sit left of the field so the row stays one line high next to its remove button. The product draws its own `<label htmlFor>` beside a label-less `Input` for now.
+
+**The request.** The same `labelPosition` on `Input` and `Textarea` as on `Combobox`, so a form row can keep the library label, its required marker and its tones when the label sits left.

@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DeleteOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, CircularProgress, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { Box, Button, Chip, CircularProgress, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { FileChartOutline } from 'mdi-material-ui';
 import { type CSSProperties, type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -250,10 +251,13 @@ const ReportingGenerationsTab: FunctionComponent<Props> = ({ generations, onRelo
               classes={downloadable ? undefined : { root: classes.item }}
               secondaryAction={canManage
                 ? (
-                    <Tooltip title={t('Delete')}>
-                      <IconButton size="small" color="primary" onClick={() => setGenerationToDelete(generation)}>
-                        <DeleteOutlined fontSize="small" />
-                      </IconButton>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <IconButton aria-label={t('Delete')} size="small" color="primary" onClick={() => setGenerationToDelete(generation)}>
+                          <DeleteOutlined fontSize="small" />
+                        </IconButton>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('Delete')}</TooltipContent>
                     </Tooltip>
                   )
                 : undefined}

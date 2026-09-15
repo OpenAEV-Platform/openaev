@@ -1,6 +1,5 @@
-import { ButtonGroup, ButtonGroupItem } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { BarChartOutlined, ReorderOutlined, ViewTimelineOutlined } from '@mui/icons-material';
-import { Tooltip } from '@mui/material';
 import { type FunctionComponent, useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -50,32 +49,41 @@ const InjectsListButtons: FunctionComponent<Props> = ({
       >
         {(!!setViewMode && availableButtons.includes('list'))
           && (
-            <Tooltip title={t('List view')}>
-              <ButtonGroupItem
-                value="list"
-                aria-label="List view mode"
-                icon={<ReorderOutlined fontSize="small" />}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ButtonGroupItem
+                  value="list"
+                  aria-label="List view mode"
+                  icon={<ReorderOutlined fontSize="small" />}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{t('List view')}</TooltipContent>
             </Tooltip>
           )}
         {(!!setViewMode && availableButtons.includes('chain'))
           && (
-            <Tooltip title={t('Interactive view')}>
-              <ButtonGroupItem
-                value="chain"
-                aria-label="Interactive view mode"
-                icon={<ViewTimelineOutlined fontSize="small" />}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ButtonGroupItem
+                  value="chain"
+                  aria-label="Interactive view mode"
+                  icon={<ViewTimelineOutlined fontSize="small" />}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{t('Interactive view')}</TooltipContent>
             </Tooltip>
           )}
         {(!!setViewMode && availableButtons.includes('distribution'))
           && (
-            <Tooltip title={t('Distribution view')}>
-              <ButtonGroupItem
-                value="distribution"
-                aria-label="Distribution view mode"
-                icon={<BarChartOutlined fontSize="small" />}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ButtonGroupItem
+                  value="distribution"
+                  aria-label="Distribution view mode"
+                  icon={<BarChartOutlined fontSize="small" />}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{t('Distribution view')}</TooltipContent>
             </Tooltip>
           )}
       </ButtonGroup>

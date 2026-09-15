@@ -9,6 +9,7 @@ import {
 import { RichTextEditor } from '@filigran/rich-text-editor';
 import { RefreshOutlined } from '@mui/icons-material';
 import { LoadingButton } from '@mui/lab';
+// fds:keep-mui the AI response fields stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
 import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, TextField } from '@mui/material';
 // As we can ask AI after and follow up, there is a dependency lifecycle here that can be accepted
 // TODO: Cleanup a bit in upcoming version

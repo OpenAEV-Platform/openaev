@@ -1,4 +1,5 @@
-import { Chip, Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip } from '@mui/material';
 
 import AssetPlatformFragment from '../../../../../../../../components/common/list/fragments/AssetPlatformFragment';
 import AttackPatternFragment from '../../../../../../../../components/common/list/fragments/AttackPatternFragment';
@@ -117,8 +118,11 @@ const injectExpectationRenderers: RendererMap = {
 export const defaultRenderer: ColumnRenderer = (value) => {
   const text = value?.toString() ?? '';
   return (
-    <Tooltip title={text} placement="bottom-start">
-      <span>{text}</span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span>{text}</span>
+      </TooltipTrigger>
+      {text && <TooltipContent side="bottom" align="start">{text}</TooltipContent>}
     </Tooltip>
   );
 };

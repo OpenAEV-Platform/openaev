@@ -1,4 +1,5 @@
-import { Chip, Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip } from '@mui/material';
 import { makeStyles } from 'tss-react/mui';
 
 import { type AttackPattern, type AttackPatternSimple } from '../utils/api-types';
@@ -20,13 +21,16 @@ const AttackPatternChip = (props: Props) => {
   const { classes } = useStyles();
   const attackPattern = props.attackPattern;
   return (
-    <Tooltip key={attackPattern.attack_pattern_id} title={`[${attackPattern.attack_pattern_external_id}] ${attackPattern.attack_pattern_name}`}>
-      <Chip
-        variant="outlined"
-        classes={{ root: classes.chip }}
-        color="primary"
-        label={`[${attackPattern.attack_pattern_external_id}] ${attackPattern.attack_pattern_name}`}
-      />
+    <Tooltip key={attackPattern.attack_pattern_id}>
+      <TooltipTrigger asChild>
+        <Chip
+          variant="outlined"
+          classes={{ root: classes.chip }}
+          color="primary"
+          label={`[${attackPattern.attack_pattern_external_id}] ${attackPattern.attack_pattern_name}`}
+        />
+      </TooltipTrigger>
+      <TooltipContent>{`[${attackPattern.attack_pattern_external_id}] ${attackPattern.attack_pattern_name}`}</TooltipContent>
     </Tooltip>
   );
 };

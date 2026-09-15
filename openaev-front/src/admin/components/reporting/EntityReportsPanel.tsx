@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FileDownloadOutlined } from '@mui/icons-material';
-import { alpha, Box, Button, CircularProgress, IconButton, Popover, Skeleton, Tooltip, Typography } from '@mui/material';
+import { alpha, Box, Button, CircularProgress, IconButton, Popover, Skeleton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { FileChartOutline } from 'mdi-material-ui';
 import { type FunctionComponent, type MouseEvent, useCallback, useContext, useEffect, useRef, useState } from 'react';
@@ -176,15 +177,18 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
 
   return (
     <>
-      <Tooltip title={t('Reports')}>
-        <IconButton
-          size="small"
-          color="primary"
-          aria-label={t('Reports')}
-          onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}
-        >
-          <FileChartOutline fontSize="small" />
-        </IconButton>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <IconButton
+            size="small"
+            color="primary"
+            aria-label={t('Reports')}
+            onClick={(event: MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget)}
+          >
+            <FileChartOutline fontSize="small" />
+          </IconButton>
+        </TooltipTrigger>
+        <TooltipContent>{t('Reports')}</TooltipContent>
       </Tooltip>
       <Popover
         open={!!anchorEl}
@@ -323,16 +327,20 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
                     />
                   )}
                   {downloadable && (
-                    <Tooltip title={t('Download latest generation')}>
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        component="a"
-                        href={downloadReportingGenerationUrl(generation.reporting_generation_id)}
-                        onClick={event => event.stopPropagation()}
-                      >
-                        <FileDownloadOutlined fontSize="small" />
-                      </IconButton>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <IconButton
+                          aria-label={t('Download latest generation')}
+                          size="small"
+                          color="primary"
+                          component="a"
+                          href={downloadReportingGenerationUrl(generation.reporting_generation_id)}
+                          onClick={event => event.stopPropagation()}
+                        >
+                          <FileDownloadOutlined fontSize="small" />
+                        </IconButton>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('Download latest generation')}</TooltipContent>
                     </Tooltip>
                   )}
                 </Box>

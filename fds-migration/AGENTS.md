@@ -35,12 +35,36 @@ served by the docs site).
    doesn't exist yet for something you're migrating, report the gap
    (filigran-design-system's `process/AI-BACKLOG.md` or `ROADMAP.json`)
    and move on — never build a local approximation.
-5. **This phase is TOKENS ONLY.** The current workstream
-   (IMPLEMENTATION-ROADMAP.md, "Phase 1") wires design-system token
-   *values* into this product's existing MUI theme — it does not touch
-   component code. Migrating individual components to design-system
-   components is a separate, future process with its own prompt; do not
-   start it here unless explicitly asked.
+5. **The component phase has started — declare every adoption.** Wiring
+   token *values* into the product's MUI theme (IMPLEMENTATION-ROADMAP.md,
+   "Phase 1") is no longer the only workstream: products now replace their
+   own container/control components with design-system ones. What changed
+   is not that anything goes — it is that adoptions must be **declared**,
+   not merely written.
+
+   Every adopted component gets an entry in `migration-state.json`'s
+   `libComponentUsage`: the component name, `importFrom`, the exact list
+   of files, the guards it runs under (`imported-from-library`,
+   `no-hardcoded-padding`), and a `reason`. An adoption absent from that
+   list is invisible to `check-fds-conformity.mjs` — it will not be caught
+   when it silently reverts to MUI or when a hardcoded padding creeps back.
+
+   **An agent may convert a component when all four hold:**
+   1. the design-system component **exists** and the capability is verified
+      on the **installed build** (`node_modules`), not on its types, its
+      meta or the changelog;
+   2. the visual delta has been **measured** and either is iso, or is a
+      change a human explicitly asked for — never "close enough" chosen
+      silently;
+   3. the conversion loses **no** function, information or interaction —
+      where it would, the site is listed with its reason instead of forced;
+   4. the adoption is **declared** in `libComponentUsage` in the same
+      change set as the code.
+
+   If any of the four fails, stop and report the gap (this repo's
+   `process/AI-BACKLOG.md`) rather than approximate it locally. Rule 4
+   above still applies in full: a missing component is flagged, never
+   forked.
 
 ## Where things are
 

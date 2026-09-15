@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Add } from '@mui/icons-material';
-import { Button, IconButton, TextField, Typography } from '@mui/material';
+import { Button, IconButton, Typography } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z } from 'zod';
 
+import TextFieldFds from '../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../components/i18n';
 import RegexComponent from '../../../../../components/RegexComponent';
 import { type ImportMapperAddInput } from '../../../../../utils/api-types';
@@ -82,16 +83,14 @@ const MapperForm: FunctionComponent<Props> = ({
 
   return (
     <>
-      <form id="mapperForm" onSubmit={methods.handleSubmit(onSubmit)}>
-        <TextField
-          variant="standard"
-          fullWidth
+      <form noValidate id="mapperForm" onSubmit={methods.handleSubmit(onSubmit)}>
+        <TextFieldFds
+          required
           label={t('Mapper name')}
           style={{ marginTop: 10 }}
           error={!!methods.formState.errors.import_mapper_name}
           helperText={methods.formState.errors.import_mapper_name?.message}
-          inputProps={methods.register('import_mapper_name')}
-          InputLabelProps={{ required: true }}
+          {...methods.register('import_mapper_name')}
         />
         <div style={{ marginTop: 20 }}>
           <Controller

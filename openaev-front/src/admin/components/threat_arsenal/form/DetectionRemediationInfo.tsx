@@ -1,4 +1,5 @@
-import { Chip, Tooltip, useTheme } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip, useTheme } from '@mui/material';
 import { CheckIndeterminateIcon, EditIcon, LogoXtmOneIcon } from 'filigran-icon';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -29,23 +30,26 @@ const DetectionRemediationInfo = ({ author_rule }: Props) => {
   }
 
   return (
-    <Tooltip title={label}>
-      <Chip
-        size="small"
-        variant="outlined"
-        icon={icon}
-        label={label}
-        sx={{
-          color,
-          'borderColor': color,
-          '& .MuiChip-icon': {
-            width: 12,
-            height: 12,
-            marginLeft: theme.spacing(0.5),
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Chip
+          size="small"
+          variant="outlined"
+          icon={icon}
+          label={label}
+          sx={{
             color,
-          },
-        }}
-      />
+            'borderColor': color,
+            '& .MuiChip-icon': {
+              width: 12,
+              height: 12,
+              marginLeft: theme.spacing(0.5),
+              color,
+            },
+          }}
+        />
+      </TooltipTrigger>
+      {label && <TooltipContent>{label}</TooltipContent>}
     </Tooltip>
   );
 };

@@ -15,11 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@filigran/design-system';
-import { Alert, Button, TextField as MuiTextField, TextField, Typography } from '@mui/material';
+import { Alert, Button, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
+import TextFieldFds from '../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
 import ScaleBar from '../../../../../components/scalebar/ScaleBar';
@@ -117,20 +118,16 @@ const ExpectationFormUpdate: FunctionComponent<Props> = ({
             {infoMessage(getValues().expectation_type, t)}
           </Alert>
         )}
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Name')}
         className={classes.marginTop_2}
         error={!!errors.expectation_name}
         helperText={
           errors.expectation_name && errors.expectation_name?.message
         }
-        inputProps={register('expectation_name')}
+        {...register('expectation_name')}
       />
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Description')}
         className={classes.marginTop_2}
         multiline
@@ -138,41 +135,39 @@ const ExpectationFormUpdate: FunctionComponent<Props> = ({
         helperText={
           errors.expectation_description && errors.expectation_description?.message
         }
-        inputProps={register('expectation_description')}
+        {...register('expectation_description')}
       />
       <div className={classes.duration}>
         <div className={classes.trigger}>
           {t('Expiration time')}
         </div>
-        <TextField
-          variant="standard"
+        <TextFieldFds
+          fullWidth={false}
           type="number"
           label={t('Days')}
           style={{ width: '20%' }}
-          slotProps={{ htmlInput: { ...register('expiration_time_days', { valueAsNumber: true }) } }}
+          {...{ ...register('expiration_time_days', { valueAsNumber: true }) }}
         />
-        <TextField
-          variant="standard"
+        <TextFieldFds
+          fullWidth={false}
           type="number"
           label={t('Hours')}
           style={{ width: '20%' }}
-          slotProps={{ htmlInput: { ...register('expiration_time_hours', { valueAsNumber: true }) } }}
+          {...{ ...register('expiration_time_hours', { valueAsNumber: true }) }}
         />
-        <TextField
-          variant="standard"
+        <TextFieldFds
+          fullWidth={false}
           type="number"
           label={t('Minutes')}
           style={{ width: '20%' }}
-          slotProps={{ htmlInput: { ...register('expiration_time_minutes', { valueAsNumber: true }) } }}
+          {...{ ...register('expiration_time_minutes', { valueAsNumber: true }) }}
         />
       </div>
       <div style={{ marginTop: 20 }}>
         <Typography variant="h4">{t('Scores')}</Typography>
         <ScaleBar expectationType={watchType} expectationExpectedScore={initialValues.expectation_score} />
       </div>
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Success score')}
         type="number"
         className={classes.marginTop_2}
@@ -180,12 +175,10 @@ const ExpectationFormUpdate: FunctionComponent<Props> = ({
         helperText={
           errors.expectation_score && errors.expectation_score?.message
         }
-        slotProps={{
-          htmlInput: {
-            ...register('expectation_score', { valueAsNumber: true }),
-            min: 0,
-            max: 100,
-          },
+        {...{
+          ...register('expectation_score', { valueAsNumber: true }),
+          min: 0,
+          max: 100,
         }}
       />
       {isTechnicalExpectation(getValues().expectation_type) && (

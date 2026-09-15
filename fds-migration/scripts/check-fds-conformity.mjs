@@ -13,9 +13,12 @@
  * Verifies, driven entirely by migration-state.json (never hardcoded here):
  *   1. The generated bridge file(s) haven't been hand-edited (sha256 vs the
  *      sidecar .meta.json written at generation time).
- *   2. Best-effort freshness vs the design system's current theme.css, IF
- *      filigran-design-system is checked out as a sibling repo — skipped
- *      otherwise, so this still works standalone in the product's own CI.
+ *   2. Freshness of that bridge against the theme.css the product actually
+ *      INSTALLS (the pinned package under node_modules), falling back to a
+ *      sibling checkout of the library only when the package is absent. The
+ *      verdict names the source it was computed from, in both directions:
+ *      compared against two stale copies of each other this check used to
+ *      report OK while the product consumed something else.
  *   3. Every "wired" file still imports the generated bridge.
  *   4. No forbidden pattern (a hardcoded value reintroduced into a migrated
  *      zone) matches in a wired file.
@@ -23,6 +26,9 @@
  *      imported from the library (not from MUI), and none of its rendered
  *      instances re-hardcodes a value the component now owns as a prop.
  *      See "Library component usage" below for why this one is not a regex.
+ *   6. A state file still on the legacy `paperPattern` field keeps every one of
+ *      its guards running, through the same implementations, under its original
+ *      check names — so regenerating this script cannot silently drop them.
  *
  * The check LISTS every issue it finds (this file), it does not decide what
  * to do about them — that's the agent's job, per the reconciliation loop in
@@ -50,6 +56,64 @@ function sha256(content) {
 
 function loadJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
+}
+
+/**
+ * Where a freshness verdict may be computed FROM, best source first.
+ *
+ * This order is the whole point of the check. The INSTALLED package is the copy
+ * the product consumes, and its version is pinned in the product's own
+ * package.json, so a hash taken from it can make a green verdict mean
+ * something. A sibling checkout is on whatever commit the machine happens to
+ * hold: when it is stale in the same way the bridge is, the two agree and the
+ * guard reports OK while the product ships different values. Measured on
+ * OpenCTI, 2026-08-22 — sidecar and sibling both `87f2d00a…`, installed
+ * `3c0ef256…`, verdict OK: a whole token release out of date, exit 0.
+ *
+ * `dist/tokens/theme.css` is a verbatim copy of the library's
+ * `src/tokens/theme.css` (the library build copies it unchanged), so it hashes
+ * identically to what the bridge generator read.
+ *
+ * The package may be installed per workspace or hoisted, so every directory
+ * from the front workspace up to the product root is a candidate.
+ */
+function themeCssSources(state) {
+  const installedSuffix = path.join(
+    "node_modules",
+    "@filigran",
+    "design-system",
+    "packages",
+    "filigran-design-system",
+    "dist",
+    "tokens",
+    "theme.css",
+  );
+  const sources = [];
+  let dir = path.join(PRODUCT_ROOT, state.frontDir ?? "");
+  for (;;) {
+    sources.push({
+      authoritative: true,
+      kind: "installed package",
+      file: path.join(dir, installedSuffix),
+    });
+    if (dir === PRODUCT_ROOT || path.dirname(dir) === dir) break;
+    dir = path.dirname(dir);
+  }
+  sources.push({
+    authoritative: false,
+    kind: "sibling checkout",
+    file: path.join(
+      PRODUCT_ROOT,
+      "..",
+      "filigran-design-system",
+      "packages",
+      "filigran-design-system",
+      "src",
+      "tokens",
+      "theme.css",
+    ),
+  });
+  return sources;
 }
 
 function checkBridgeFiles(state, results) {
@@ -84,39 +148,40 @@ function checkBridgeFiles(state, results) {
       results.push({ check: "bridge-integrity", file: relPath, status: "OK" });
     }
 
-    const libThemeCss = path.join(
-      PRODUCT_ROOT,
-      "..",
-      "filigran-design-system",
-      "packages",
-      "filigran-design-system",
-      "src",
-      "tokens",
-      "theme.css",
-    );
-    if (existsSync(libThemeCss)) {
-      const currentHash = sha256(readFileSync(libThemeCss));
-      if (currentHash !== meta.themeCssHash) {
-        results.push({
-          check: "bridge-freshness",
-          file: relPath,
-          status: "STALE",
-          detail:
-            "theme.css changed since this bridge was generated — run " +
-            `pnpm generate:mui-bridge --product ${state.product ?? "<product>"} ` +
-            "--write-to-product again",
-        });
-      } else {
-        results.push({ check: "bridge-freshness", file: relPath, status: "OK" });
-      }
-    } else {
+    // Freshness. The verdict NAMES the source it was computed from, in both
+    // directions: a green nobody can trace is a green nobody can read.
+    const source = themeCssSources(state).find((candidate) => existsSync(candidate.file));
+    if (!source) {
       results.push({
         check: "bridge-freshness",
         file: relPath,
         status: "SKIPPED",
         detail:
-          "filigran-design-system not checked out as a sibling repo — can't compare theme.css",
+          "no theme.css to compare against — the library is neither installed " +
+          "under this product nor checked out as a sibling repo. Install the " +
+          "dependency (the pinned package carries dist/tokens/theme.css) to make " +
+          "this check meaningful.",
       });
+      continue;
+    }
+    const where = `${source.kind} ${path.relative(PRODUCT_ROOT, source.file)}`;
+    const provenance = source.authoritative
+      ? `compared against the ${where}`
+      : `compared against the ${where} — NOT authoritative: this checkout is on ` +
+        "whatever commit the machine holds, not on the version this product pins";
+    const currentHash = sha256(readFileSync(source.file));
+    if (currentHash !== meta.themeCssHash) {
+      results.push({
+        check: "bridge-freshness",
+        file: relPath,
+        status: "STALE",
+        detail:
+          `theme.css changed since this bridge was generated (${provenance}) — run ` +
+          `pnpm generate:mui-bridge --product ${state.product ?? "<product>"} ` +
+          "--write-to-product again",
+      });
+    } else {
+      results.push({ check: "bridge-freshness", file: relPath, status: "OK", detail: provenance });
     }
   }
 }
@@ -264,10 +329,33 @@ function stripComments(source) {
  */
 function scanJsxOpenTags(source, componentName) {
   const tags = [];
-  // `(?=[\s/>])` keeps `<Paper` from matching `<PaperHeader`.
-  const opener = new RegExp(`<${componentName}(?=[\\s/>])`, "g");
+  // The character class keeps `<Paper` from matching `<PaperHeader`, and `<`
+  // belongs in it: a call site may carry explicit TYPE PARAMETERS,
+  // `<Paper<Row> …>`. Without `<` the site is not merely missed, it is
+  // reported as DRIFT ("declared, renders nothing") — a confident wrong
+  // verdict. Measured on OpenCTI: 9 such sites across 7 files, all invisible.
+  const opener = new RegExp(`<${componentName}(?=[\\s/><])`, "g");
   for (const match of source.matchAll(opener)) {
-    const attributesStart = match.index + match[0].length;
+    let attributesStart = match.index + match[0].length;
+    // Step over a type-argument list before reading attributes: its own `>`
+    // is not the element's, so a scan that stopped at the first one would
+    // read `<Row, true>` as the attribute text.
+    if (source[attributesStart] === "<") {
+      let angle = 0;
+      let j = attributesStart;
+      for (; j < source.length; j += 1) {
+        if (source[j] === "<") angle += 1;
+        // `=>` inside a function type is not a closing angle bracket.
+        else if (source[j] === ">" && source[j - 1] !== "=") {
+          angle -= 1;
+          if (angle === 0) {
+            j += 1;
+            break;
+          }
+        }
+      }
+      attributesStart = j;
+    }
     let i = attributesStart;
     let depth = 0;
     let quote = null;
@@ -479,6 +567,81 @@ function checkLibComponentUsage(state, results) {
   }
 }
 
+/**
+ * LEGACY MOTIF SHIM — reads a `paperPattern` state file with the generic engine.
+ *
+ * This exists because of a sequencing hazard that is invisible from the library:
+ * the motif field was replaced by `libComponentUsage`, and the script that reads
+ * it is GENERATED. A product regenerating its copy before migrating its own
+ * state file therefore drops every motif guard AND KEEPS EXITING ZERO — measured
+ * on OpenCTI, 2026-08-22: 57 checks to 19, the 38 rows of the Paper motif gone,
+ * no error, no warning, nothing to read as a loss.
+ *
+ * So the migration lives HERE, in the same artifact as the removal: the legacy
+ * field keeps running, through the same guard implementations as the new one,
+ * and under its original check names so a product's verdict count and diff stay
+ * comparable across the regeneration. The notice says what to move.
+ *
+ * Deliberately NOT reproduced: the new engine's drift check (a declared file
+ * that renders none of the component). Adding it here could turn a passing
+ * product red on a regeneration, which is the very failure mode this shim
+ * exists to prevent. Migrating the state file is what buys that check.
+ */
+function checkLegacyPaperPattern(state, results) {
+  const pattern = state.paperPattern;
+  if (!pattern) return;
+  results.push({
+    check: "lib-component-usage",
+    file: "fds-migration/migration-state.json",
+    status: "SKIPPED",
+    detail:
+      "MIGRATION OWED — this state file still declares the legacy `paperPattern` " +
+      "field. Its guards are running through the compatibility shim below, so " +
+      "nothing is unchecked; move the entries to `libComponentUsage` " +
+      "({ component, importFrom, guards, files }) to retire the shim and gain " +
+      "the adoption-drift check it deliberately does not reproduce.",
+  });
+  for (const entry of pattern.files ?? []) {
+    const filePath = path.join(PRODUCT_ROOT, entry.file);
+    if (!existsSync(filePath)) {
+      results.push({
+        check: "paper",
+        file: entry.file,
+        status: "MISSING",
+        detail: "declared converted but absent",
+      });
+      continue;
+    }
+    const source = stripComments(readFileSync(filePath, "utf8"));
+    const guards = entry.guards ?? ["imported-from-library", "no-hardcoded-padding"];
+    for (const name of ["imported-from-library", "no-hardcoded-padding"]) {
+      const check = `paper:${name}`;
+      if (!guards.includes(name)) {
+        // A file that legitimately keeps the MUI component declares itself.
+        if (name === "imported-from-library" && entry.mixed) {
+          results.push({
+            check,
+            file: entry.file,
+            status: "SKIPPED",
+            detail: `mixed file — MUI ${pattern.component ?? "Paper"} kept for ${entry.mixed.allowMuiPaperFor}: ${entry.mixed.reason}`,
+          });
+        }
+        continue;
+      }
+      const findings = LIB_COMPONENT_GUARDS[name]({
+        component: pattern.component ?? "Paper",
+        importFrom: pattern.importFrom ?? "@filigran/design-system",
+        source,
+        file: entry.file,
+      });
+      if (findings.length === 0) results.push({ check, file: entry.file, status: "OK" });
+      else
+        for (const detail of findings)
+          results.push({ check, file: entry.file, status: "FOUND", detail });
+    }
+  }
+}
+
 function main() {
   if (!existsSync(STATE_PATH)) {
     console.error(
@@ -494,6 +657,7 @@ function main() {
   checkWiring(state, results);
   checkForbiddenPatterns(state, results);
   checkLibComponentUsage(state, results);
+  checkLegacyPaperPattern(state, results);
 
   const failing = results.filter((r) => !["OK", "SKIPPED"].includes(r.status));
 

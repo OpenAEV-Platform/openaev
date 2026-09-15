@@ -1,5 +1,5 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CancelOutlined, PendingOutlined, VerifiedOutlined } from '@mui/icons-material';
-import { Tooltip } from '@mui/material';
 import { type JSX } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
@@ -12,8 +12,11 @@ const PayloadStatusComponent = ({ status }: Props) => {
 
   const withTooltip = (icon: JSX.Element, tooltip: string) => {
     return (
-      <Tooltip title={tooltip}>
-        <span>{icon}</span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>{icon}</span>
+        </TooltipTrigger>
+        {tooltip && <TooltipContent>{tooltip}</TooltipContent>}
       </Tooltip>
     );
   };

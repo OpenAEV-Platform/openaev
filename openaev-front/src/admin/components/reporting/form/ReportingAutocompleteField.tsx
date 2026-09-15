@@ -8,6 +8,7 @@ import {
   ComboboxHelperText,
   ComboboxInput,
   ComboboxLabel,
+  type ComboboxLabelPosition,
   ComboboxTrigger,
 } from '@filigran/design-system';
 import { type FunctionComponent, useMemo } from 'react';
@@ -22,6 +23,7 @@ import { type Option } from '../../../../utils/Option';
  */
 interface BaseProps {
   label: string;
+  labelPosition?: ComboboxLabelPosition;
   options: Option[];
   onInputChange: (search: string) => void;
   required?: boolean;
@@ -44,7 +46,7 @@ interface MultipleProps extends BaseProps {
 type Props = SingleProps | MultipleProps;
 
 const ReportingAutocompleteField: FunctionComponent<Props> = (props) => {
-  const { label, options, onInputChange, required = false, error = false, helperText } = props;
+  const { label, labelPosition, options, onInputChange, required = false, error = false, helperText } = props;
   const { t } = useFormatter();
 
   const selected = useMemo(() => {
@@ -83,6 +85,7 @@ const ReportingAutocompleteField: FunctionComponent<Props> = (props) => {
       }}
       required={required}
       error={error}
+      labelPosition={labelPosition}
     >
       <ComboboxLabel>{label}</ComboboxLabel>
       <ComboboxField>

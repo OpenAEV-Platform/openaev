@@ -1,4 +1,5 @@
-import { Chip, Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip } from '@mui/material';
 import PropTypes from 'prop-types';
 import { useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -72,21 +73,24 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
     resolvedDomains
       .filter(d => d.domain_name !== TO_CLASSIFY)
       .map(domain => (
-        <Tooltip key={domain.domain_id} title={domain.domain_name}>
-          <Chip
-            variant="outlined"
-            classes={{ root: style }}
-            icon={getIconByDomain(domain.domain_name, {
-              fontSize: 14,
-              color: domain.domain_color,
-            })}
-            label={truncate(domain.domain_name, truncateLimit)}
-            style={{
-              color: domain.domain_color,
-              borderColor: domain.domain_color,
-              backgroundColor: 'transparent',
-            }}
-          />
+        <Tooltip key={domain.domain_id}>
+          <TooltipTrigger asChild>
+            <Chip
+              variant="outlined"
+              classes={{ root: style }}
+              icon={getIconByDomain(domain.domain_name, {
+                fontSize: 14,
+                color: domain.domain_color,
+              })}
+              label={truncate(domain.domain_name, truncateLimit)}
+              style={{
+                color: domain.domain_color,
+                borderColor: domain.domain_color,
+                backgroundColor: 'transparent',
+              }}
+            />
+          </TooltipTrigger>
+          {domain.domain_name && <TooltipContent>{domain.domain_name}</TooltipContent>}
         </Tooltip>
       ));
 
@@ -98,30 +102,36 @@ const ItemDomains = ({ domains, variant }: ItemsDomainsProps) => {
 
     return (
       <>
-        <Tooltip title={primaryDomain.domain_name}>
-          <Chip
-            variant="outlined"
-            classes={{ root: style }}
-            icon={getIconByDomain(primaryDomain.domain_name, {
-              fontSize: 14,
-              color: primaryDomain.domain_color,
-            })}
-            label={truncate(primaryDomain.domain_name, truncateLimit)}
-            style={{
-              color: primaryDomain.domain_color,
-              borderColor: primaryDomain.domain_color,
-              backgroundColor: 'transparent',
-            }}
-          />
-        </Tooltip>
-
-        {resolvedDomains.length > 1 && (
-          <Tooltip title={tooltipLabel}>
+        <Tooltip>
+          <TooltipTrigger asChild>
             <Chip
               variant="outlined"
               classes={{ root: style }}
-              label={`+${resolvedDomains.length - 1}`}
+              icon={getIconByDomain(primaryDomain.domain_name, {
+                fontSize: 14,
+                color: primaryDomain.domain_color,
+              })}
+              label={truncate(primaryDomain.domain_name, truncateLimit)}
+              style={{
+                color: primaryDomain.domain_color,
+                borderColor: primaryDomain.domain_color,
+                backgroundColor: 'transparent',
+              }}
             />
+          </TooltipTrigger>
+          {primaryDomain.domain_name && <TooltipContent>{primaryDomain.domain_name}</TooltipContent>}
+        </Tooltip>
+
+        {resolvedDomains.length > 1 && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Chip
+                variant="outlined"
+                classes={{ root: style }}
+                label={`+${resolvedDomains.length - 1}`}
+              />
+            </TooltipTrigger>
+            {tooltipLabel && <TooltipContent>{tooltipLabel}</TooltipContent>}
           </Tooltip>
         )}
       </>

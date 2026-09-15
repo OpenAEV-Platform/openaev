@@ -18,22 +18,16 @@ class ProfileFormComponent extends Component {
         {({ handleSubmit, pristine, submitting }) => (
           <form id="profileForm" onSubmit={handleSubmit}>
             <OldTextField
-              variant="standard"
               name="user_phone"
-              fullWidth
               label={t('Phone number (mobile)')}
             />
             <OldTextField
-              variant="standard"
               name="user_phone2"
-              fullWidth
               label={t('Phone number (landline)')}
               style={{ marginTop: 20 }}
             />
             <OldTextField
-              variant="standard"
               name="user_pgp_key"
-              fullWidth
               multiline
               rows={5}
               label={t('PGP public key')}

@@ -123,7 +123,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
           required
         >
           <SelectFieldController name="command_executor" label={t('Executor')} items={executorsItems} required />
-          <TextFieldController variant="outlined" multiline rows={3} name="command_content" />
+          <TextFieldController multiline rows={3} name="command_content" />
         </InjectFormSection>
       )}
 
@@ -253,7 +253,7 @@ const CommandsFormTab = ({ disabledActionType = false }: Props) => {
             helper={t('Executed after the action to restore the asset to its initial state.')}
           >
             <SelectFieldController name="action_cleanup_executor" label={t('Executor')} items={executorsItems} />
-            <TextFieldController variant="outlined" multiline rows={3} name="action_cleanup_command" />
+            <TextFieldController multiline rows={3} name="action_cleanup_command" />
           </InjectFormSection>
         </>
       )}

@@ -1,24 +1,6 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@filigran/design-system';
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  InputAdornment,
-  Menu,
-  MenuItem,
-  SvgIcon,
-  TextField,
-  Tooltip,
-} from '@mui/material';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+// fds:keep-mui the AI prompt fields stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Menu, MenuItem, SvgIcon, TextField } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useState } from 'react';
@@ -58,6 +40,13 @@ interface TextFieldAskAiProps {
   inInject?: boolean;
   context?: string;
   inArticle?: boolean;
+  /**
+   * External trigger mode: the host draws the button (the library field's end slot) and
+   * hands its anchor here; this component then renders only the menu and its dialogs.
+   * `undefined` keeps the built-in button.
+   */
+  triggerAnchor?: HTMLElement | null;
+  onTriggerClose?: () => void;
 }
 
 const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
@@ -70,8 +59,11 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
   inInject,
   context,
   inArticle,
+  triggerAnchor,
+  onTriggerClose,
 }) => {
   const theme = useTheme();
+  const externalTrigger = triggerAnchor !== undefined;
   const { t } = useFormatter();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const { enabled, configured, xtmOneConfigured } = useAI();
@@ -117,7 +109,14 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
       open: false,
       anchorEl: null,
     });
+    onTriggerClose?.();
   };
+  const menuState = externalTrigger
+    ? {
+        open: Boolean(triggerAnchor),
+        anchorEl: triggerAnchor ?? null,
+      }
+    : menuOpen;
   const handleOpenToneOptions = () => {
     handleCloseMenu();
     setOpenToneOptions(true);
@@ -234,31 +233,33 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
     const isAvailable = isEnterpriseEdition && enabled && (configured || xtmOneConfigured);
     return (
       <>
-        <EETooltip
-          forAi
-          title={`${t('Ask AI')}${!isAvailable ? ' (EE)' : ''}`}
-        >
-          <span>
-            <IconButton
-              size="medium"
-              onClick={event =>
-                (isAvailable ? handleOpenMenu(event) : null)}
-              disabled={disabled || !isAvailable}
-              style={{
-                marginTop: -4,
-                color: isAvailable
-                  ? theme.palette.ai.main
-                  : theme.palette.action.disabled,
-              }}
-            >
-              <SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />
-            </IconButton>
-          </span>
-        </EETooltip>
+        {!externalTrigger && (
+          <EETooltip
+            forAi
+            title={`${t('Ask AI')}${!isAvailable ? ' (EE)' : ''}`}
+          >
+            <span>
+              <IconButton
+                size="medium"
+                onClick={event =>
+                  (isAvailable ? handleOpenMenu(event) : null)}
+                disabled={disabled || !isAvailable}
+                style={{
+                  marginTop: -4,
+                  color: isAvailable
+                    ? theme.palette.ai.main
+                    : theme.palette.action.disabled,
+                }}
+              >
+                <SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />
+              </IconButton>
+            </span>
+          </EETooltip>
+        )}
         <Menu
           id="menu-appbar"
-          anchorEl={menuOpen.anchorEl}
-          open={menuOpen.open}
+          anchorEl={menuState.anchorEl}
+          open={menuState.open}
           onClose={handleCloseMenu}
         >
           {inInject && (
@@ -271,47 +272,65 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               {t('Generate an article')}
             </MenuItem>
           )}
-          <Tooltip title={isContentEmpty() ? t('Content should not be empty') : ''} placement="left">
-            <div>
-              <MenuItem onClick={() => (useXtmOne ? handleAgentAction('spelling') : handleAskAi('spelling'))} disabled={isContentEmpty()}>
-                {t('Fix spelling & grammar')}
-              </MenuItem>
-            </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('spelling') : handleAskAi('spelling'))} disabled={isContentEmpty()}>
+                  {t('Fix spelling & grammar')}
+                </MenuItem>
+              </div>
+            </TooltipTrigger>
+            {(isContentEmpty() ? t('Content should not be empty') : '') && <TooltipContent side="left">{isContentEmpty() ? t('Content should not be empty') : ''}</TooltipContent>}
           </Tooltip>
-          <Tooltip title={isContentEmpty() ? t('Content should not be empty') : ''} placement="left">
-            <div>
-              <MenuItem onClick={() => (useXtmOne ? handleAgentAction('shorter') : handleAskAi('shorter'))} disabled={isContentEmpty()}>
-                {t('Make it shorter')}
-              </MenuItem>
-            </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('shorter') : handleAskAi('shorter'))} disabled={isContentEmpty()}>
+                  {t('Make it shorter')}
+                </MenuItem>
+              </div>
+            </TooltipTrigger>
+            {(isContentEmpty() ? t('Content should not be empty') : '') && <TooltipContent side="left">{isContentEmpty() ? t('Content should not be empty') : ''}</TooltipContent>}
           </Tooltip>
-          <Tooltip title={isContentEmpty() ? t('Content should not be empty') : ''} placement="left">
-            <div>
-              <MenuItem onClick={() => (useXtmOne ? handleAgentAction('longer') : handleAskAi('longer'))} disabled={isContentEmpty()}>
-                {t('Make it longer')}
-              </MenuItem>
-            </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('longer') : handleAskAi('longer'))} disabled={isContentEmpty()}>
+                  {t('Make it longer')}
+                </MenuItem>
+              </div>
+            </TooltipTrigger>
+            {(isContentEmpty() ? t('Content should not be empty') : '') && <TooltipContent side="left">{isContentEmpty() ? t('Content should not be empty') : ''}</TooltipContent>}
           </Tooltip>
-          <Tooltip title={isContentEmpty() ? t('Content should not be empty') : ''} placement="left">
-            <div>
-              <MenuItem onClick={() => (useXtmOne ? handleAgentAction('tone') : handleOpenToneOptions())} disabled={isContentEmpty()}>
-                {t('Change tone')}
-              </MenuItem>
-            </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('tone') : handleOpenToneOptions())} disabled={isContentEmpty()}>
+                  {t('Change tone')}
+                </MenuItem>
+              </div>
+            </TooltipTrigger>
+            {(isContentEmpty() ? t('Content should not be empty') : '') && <TooltipContent side="left">{isContentEmpty() ? t('Content should not be empty') : ''}</TooltipContent>}
           </Tooltip>
-          <Tooltip title={isContentEmpty() ? t('Content should not be empty') : ''} placement="left">
-            <div>
-              <MenuItem onClick={() => (useXtmOne ? handleAgentAction('summarize') : handleAskAi('summarize'))} disabled={isContentEmpty()}>
-                {t('Summarize')}
-              </MenuItem>
-            </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('summarize') : handleAskAi('summarize'))} disabled={isContentEmpty()}>
+                  {t('Summarize')}
+                </MenuItem>
+              </div>
+            </TooltipTrigger>
+            {(isContentEmpty() ? t('Content should not be empty') : '') && <TooltipContent side="left">{isContentEmpty() ? t('Content should not be empty') : ''}</TooltipContent>}
           </Tooltip>
-          <Tooltip title={isContentEmpty() ? t('Content should not be empty') : ''} placement="left">
-            <div>
-              <MenuItem onClick={() => (useXtmOne ? handleAgentAction('explain') : handleAskAi('explain', false))} disabled={isContentEmpty()}>
-                {t('Explain')}
-              </MenuItem>
-            </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('explain') : handleAskAi('explain', false))} disabled={isContentEmpty()}>
+                  {t('Explain')}
+                </MenuItem>
+              </div>
+            </TooltipTrigger>
+            {(isContentEmpty() ? t('Content should not be empty') : '') && <TooltipContent side="left">{isContentEmpty() ? t('Content should not be empty') : ''}</TooltipContent>}
           </Tooltip>
         </Menu>
         <ResponseDialog
@@ -607,6 +626,9 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
         {renderButton()}
       </div>
     );
+  }
+  if (externalTrigger) {
+    return renderButton();
   }
   return (
     <InputAdornment

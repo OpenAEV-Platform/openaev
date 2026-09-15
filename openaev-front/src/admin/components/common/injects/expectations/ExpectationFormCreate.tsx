@@ -15,12 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@filigran/design-system';
-import { Alert, Button, TextField as MuiTextField, TextField, Typography } from '@mui/material';
+import { Alert, Button, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import { type LoggedHelper } from '../../../../../actions/helper';
+import TextFieldFds from '../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
 import ScaleBar from '../../../../../components/scalebar/ScaleBar';
@@ -155,7 +156,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   }, [watchType, initialType, setValue]);
 
   return (
-    <form id="expectationForm" onSubmit={handleSubmitWithoutPropagation}>
+    <form noValidate id="expectationForm" onSubmit={handleSubmitWithoutPropagation}>
       <div>
         <Select
           value={expectationType}
@@ -184,50 +185,44 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
             {infoMessage(getValues().expectation_type, t)}
           </Alert>
         )}
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
+        required
         label={t('Name')}
         className={classes.marginTop_2}
         error={!!errors.expectation_name}
         helperText={errors.expectation_name?.message}
-        slotProps={{
-          htmlInput: { ...register('expectation_name') },
-          inputLabel: { required: true },
-        }}
+        {...{ ...register('expectation_name') }}
       />
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Description')}
         className={classes.marginTop_2}
         multiline
         error={!!errors.expectation_description}
         helperText={errors.expectation_description?.message}
-        slotProps={{ htmlInput: { ...register('expectation_description') } }}
+        {...{ ...register('expectation_description') }}
       />
       {(watchType !== 'VULNERABILITY') && (
         <div className={classes.duration}>
           <div className={classes.trigger}>
             {t('Expiration time')}
           </div>
-          <TextField
-            variant="standard"
+          <TextFieldFds
+            fullWidth={false}
             type="number"
             label={t('Days')}
             style={{ width: '20%' }}
-            slotProps={{ htmlInput: { ...register('expiration_time_days', { valueAsNumber: true }) } }}
+            {...{ ...register('expiration_time_days', { valueAsNumber: true }) }}
           />
-          <TextField
-            variant="standard"
-            slotProps={{ htmlInput: { ...register('expiration_time_hours', { valueAsNumber: true }) } }}
+          <TextFieldFds
+            fullWidth={false}
+            {...{ ...register('expiration_time_hours', { valueAsNumber: true }) }}
             type="number"
             label={t('Hours')}
             style={{ width: '20%' }}
           />
-          <TextField
-            variant="standard"
-            slotProps={{ htmlInput: { ...register('expiration_time_minutes', { valueAsNumber: true }) } }}
+          <TextFieldFds
+            fullWidth={false}
+            {...{ ...register('expiration_time_minutes', { valueAsNumber: true }) }}
             type="number"
             label={t('Minutes')}
             style={{ width: '20%' }}
@@ -239,9 +234,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         <Typography variant="h4">{t('Scores')}</Typography>
         <ScaleBar expectationType={watchType} expectationExpectedScore={watch('expectation_score')} />
       </div>
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Success score')}
         type="number"
         className={classes.marginTop_2}
@@ -249,12 +242,10 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         helperText={
           errors.expectation_score?.message
         }
-        slotProps={{
-          htmlInput: {
-            ...register('expectation_score', { valueAsNumber: true }),
-            min: 0,
-            max: 100,
-          },
+        {...{
+          ...register('expectation_score', { valueAsNumber: true }),
+          min: 0,
+          max: 100,
         }}
       />
       {isTechnicalExpectation(watchType) && (

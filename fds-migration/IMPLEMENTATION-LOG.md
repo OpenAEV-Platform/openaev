@@ -523,3 +523,92 @@ in filigran-design-system).
   An E2E assertion that read the line count instead of the arrangement failed on
   exactly this and was corrected, not the layout.
 - Friction / process feedback: none upstream.
+
+## 2026-09-14 — Form-field wave: SearchField, Input, Textarea, Checkbox
+
+- Branch: fds/form-fields-adoption (PR target design-system/current).
+- Inventory by the TypeScript compiler API (1 522 files, 1 438 resolved JSX sites),
+  cross-checked by an import-alias pass that agreed on every line: 97 MUI
+  `TextField` sites (4 of them the product wrappers carrying 186 fields), 43 MUI
+  `Checkbox` sites, 3 search fields, 0 MUI `Radio` left.
+- Wrapper first: `components/fields/TextFieldFds.tsx` binds the library `Input`
+  and `Textarea` for both form libraries; the four existing wrappers
+  (`TextFieldController`, `OldTextField`, `TextField`, `SearchFilter`) and the
+  checkbox controller now render the library. Direct MUI sites were converted by a
+  codemod (attribute mapping, `inputProps`/`slotProps.htmlInput` → spread,
+  `InputLabelProps.required` → `required`), then reviewed.
+- Elevation: drawers carry `layer-2` plus the three input aliases on the paper
+  (`utils/fdsLayer.ts`, same mechanism as the sibling product's decision
+  "elevation-layer-compensation"). Measured in the drawer, dark mode: header
+  #070d18 → #101b33, body #0f1d34 → #13213e, library field #13213e (invisible on
+  its paper) → #0c1527.
+- `required`: the library sets the native attribute; measured on the asset-group
+  form, the browser blocked the submit with its own message and the schema error
+  never showed. `noValidate` was added to every form that hosts a converted
+  required field (36 forms); re-measured: the schema message shows, no native block.
+- Arbitrated in this wave (product decisions, not defects): boxed field style
+  everywhere including the public login page; fixed-width search without focus
+  growth; the library stepper on all number fields; `resize="none"` on every
+  textarea; the info tooltip next to the label; the square library box on the two
+  selection cards; the 255-character counter to be activated where a `maxLength` was
+  declared and ignored before — that field is one of the eight held for #52, so
+  the counter lands with that ruling.
+- Held (each with a `fds:keep-mui` comment and a LIBRARY-FEEDBACK entry): two
+  `type="time"` fields (#49), one text suffix (#50), one textarea action button
+  (#51), the eight "Ask AI" name fields (#52), and the twelve fields plus one box
+  on AI/EE-only screens, deferred until the EE chips are migrated.
+- Gates: check-ts 0, lint 0 warnings, unit tests at the 81-Cron baseline (58
+  files passed, 1 failed = Cron), conformity green, i18n-checker green. E2E
+  selectors re-pointed for the library DOM (`Name*` → `Name`, search field →
+  `searchbox`, a third helper-text shape in `MuiFormHelpers`).
+
+## 2026-09-15 — Form-field wave, second pass: bump, held fields released, EE marker
+
+- Library pin `3426fc3` → `4b54adb` (PR #224 only: `endText` and `endIcon.disabled`).
+  Diff of the two installed `dist/` trees: Input, its meta and the type
+  declarations, nothing else.
+- Released from hold: the eight Ask AI name fields (library Input, the Ask AI
+  action on the end slot, disabled outside the Enterprise Edition; the Ask AI
+  component gained an external-trigger mode) and the regex-flags field
+  (`endText="/gm"`, read as the field's description). LIBRARY-FEEDBACK #50 and
+  #52 closed.
+- Remaining MUI text fields are outlined and painted from the library input
+  tokens (theme override, as the sibling product), so the two time fields sit on
+  the same surface as their neighbours.
+- Review findings fixed: the held name field had lost its form ref; outlined
+  labels centred for 36px; drawer headers without bottom rule; accordions in
+  drawers on the drawer surface; the assistant counter on the library number
+  field (its own ± buttons removed, arbitrated).
+- Enterprise Edition marker: the product `EEChip` renders the library Chip in
+  its `ee` severity and small size; tooltip kept on the library Tooltip (the
+  trigger's own click is kept off a plain marker); the two library chips already
+  in place take the small size. On the five sites where the marker sat inside a
+  tab, a card or a menu entry that already opens the licence dialog, it is
+  informational: a button inside a button is invalid markup and nothing is lost
+  (checked handler by handler). Self-hiding when the licence is active: not
+  adopted, by arbitration.
+
+## 2026-09-15 — Visual passes and the tooltip wave
+
+- Two visual passes, measured before and after on the rebuilt bundle: native
+  time and date glyphs follow the colour scheme; list search fields share the
+  36px toolbar height; 8px between the filter popover fields and between the
+  pagination control and the actions; 16px between a breadcrumb and the toolbar
+  (the toolbar no longer pulls itself up); every date picker outlined and
+  painted by the theme (the MUI X picker draws its own outlined input, hence a
+  `MuiPickersOutlinedInput` override and the type augmentation allowed in the
+  lint config); dialogs back to the theme paper colour, iso the sibling product;
+  report structure blocks one layer above the drawer with the input aliases, the
+  title label left of its field (LIBRARY-FEEDBACK #53), destructive remove button;
+  the e-mail warning block framed; the facet sidebar card scrolls inside its frame.
+- E2E: the arguments validation test blurs the focused key field before saving.
+  The library input forwards the form ref, so the new row really receives
+  focus; the blur validation then moved the save button under the click and the
+  submit handler never ran (proved with a probe on the trace).
+- Tooltips: 283 sites converted by codemod and 25 by hand to the compound
+  library Tooltip, one provider at the root; MUI `arrow`, `enterDelay`,
+  `slotProps` surfaces dropped (the status chip's paper-like bubble and the
+  widget title's info-coloured bubble now take the library surface; the tag
+  tooltip keeps its text transform, not its first-letter rule). Two sites kept
+  on MUI with a reason. Eight tests wrap their render in the provider; a hover
+  test covers the converted custom tooltip.

@@ -1,6 +1,6 @@
-import { Paper } from '@filigran/design-system';
+import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, Close, FileDownloadOutlined, InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Chip, IconButton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ChangeEvent, type KeyboardEvent, useMemo, useRef, useState } from 'react';
 
@@ -131,22 +131,26 @@ const ScopeInventoryBox = ({
         onClick={() => inputRef.current?.focus()}
       >
         {chips.length > 0 && (
-          <Tooltip title={t('Clear all')}>
-            <IconButton
-              size="small"
-              color="primary"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClearAll();
-              }}
-              sx={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-              }}
-            >
-              <Close fontSize="small" />
-            </IconButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton
+                aria-label={t('Clear all')}
+                size="small"
+                color="primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClearAll();
+                }}
+                sx={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 4,
+                }}
+              >
+                <Close fontSize="small" />
+              </IconButton>
+            </TooltipTrigger>
+            <TooltipContent>{t('Clear all')}</TooltipContent>
           </Tooltip>
         )}
         {chips.map(chip => (

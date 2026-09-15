@@ -1,22 +1,8 @@
-import {
-  Select,
-  SelectContent,
-  SelectHelperText,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-  Switch,
-} from '@filigran/design-system';
+import { Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-material';
-import {
-  Box,
-  IconButton,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+// fds:keep-mui the event condition value field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
+import { Box, IconButton, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
 
@@ -203,16 +189,16 @@ const EventConditionRow: FunctionComponent<Props> = ({
                 >
                   <span style={{ flex: 1 }}>{formatConditionKeyLabel(key)}</span>
                   {keyProviders.length > 0 && (
-                    <Tooltip
-                      title={buildProviderTooltip(key)}
-                      placement="right"
-                    >
-                      <InfoOutlined sx={{
-                        fontSize: 16,
-                        color: 'info.main',
-                        flexShrink: 0,
-                      }}
-                      />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoOutlined sx={{
+                          fontSize: 16,
+                          color: 'info.main',
+                          flexShrink: 0,
+                        }}
+                        />
+                      </TooltipTrigger>
+                      {buildProviderTooltip(key) && <TooltipContent side="right">{buildProviderTooltip(key)}</TooltipContent>}
                     </Tooltip>
                   )}
                 </SelectItem>
@@ -276,32 +262,35 @@ const EventConditionRow: FunctionComponent<Props> = ({
       }}
       >
         {showCaseSensitive && (
-          <Tooltip title={condition.caseSensitive ? t('Case-sensitive') : t('Case-insensitive')}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-            }}
-            >
-              {/* The visible "Aa" is a caption beside the control, and the
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+              }}
+              >
+                {/* The visible "Aa" is a caption beside the control, and the
                   tooltip text follows the state — neither can be the name, so
                   the switch carries a stable one of its own. */}
-              <Switch
-                aria-label={t('Case-sensitive')}
-                checked={condition.caseSensitive}
-                onCheckedChange={handleCaseSensitiveToggle}
-                disabled={readOnly}
-              />
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {t('Aa')}
-              </Typography>
-            </div>
+                <Switch
+                  aria-label={t('Case-sensitive')}
+                  checked={condition.caseSensitive}
+                  onCheckedChange={handleCaseSensitiveToggle}
+                  disabled={readOnly}
+                />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {t('Aa')}
+                </Typography>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>{condition.caseSensitive ? t('Case-sensitive') : t('Case-insensitive')}</TooltipContent>
           </Tooltip>
         )}
 

@@ -69,7 +69,7 @@ const TenantSwitcher: FunctionComponent<TenantSwitcherProps> = ({ navOpen }) => 
     return (
       <NavbarItem asChild tooltipLabel={displayName}>
         <button type="button" onClick={openUpsellDialog} data-testid="tenant-switcher">
-          {triggerRow(<Chip label={t('EE')} severity="ee" />)}
+          {triggerRow(<Chip label={t('EE')} severity="ee" size="sm" />)}
         </button>
       </NavbarItem>
     );

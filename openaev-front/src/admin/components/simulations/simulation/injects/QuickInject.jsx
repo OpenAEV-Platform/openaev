@@ -469,10 +469,8 @@ class QuickInjectComponent extends Component {
                   )
                 : (
                     <OldTextField
-                      variant="standard"
                       key={field.key}
                       name={field.key}
-                      fullWidth={true}
                       multiline={true}
                       rows={10}
                       label={t(field.label)}
@@ -483,10 +481,8 @@ class QuickInjectComponent extends Component {
             case 'number':
               return (
                 <OldTextField
-                  variant="standard"
                   key={field.key}
                   name={field.key}
-                  fullWidth={true}
                   type="number"
                   label={t(field.label)}
                   style={{ marginTop: theme.spacing(2.5) }}
@@ -565,9 +561,7 @@ class QuickInjectComponent extends Component {
                                   )}
                                 </OldSelectField>
                                 <OldTextField
-                                  variant="standard"
                                   name={`${name}.key`}
-                                  fullWidth={true}
                                   label={t('Key')}
                                   style={{ marginRight: theme.spacing(2.5) }}
                                   disabled={isDisabled}
@@ -597,9 +591,7 @@ class QuickInjectComponent extends Component {
                                       </OldSelectField>
                                     ) : (
                                       <OldTextField
-                                        variant="standard"
                                         name={`${name}.value`}
-                                        fullWidth={true}
                                         label={t('Value')}
                                         style={{ marginRight: theme.spacing(2.5) }}
                                         disabled={isDisabled}
@@ -726,10 +718,8 @@ class QuickInjectComponent extends Component {
             default:
               return (
                 <OldTextField
-                  variant="standard"
                   key={field.key}
                   name={field.key}
-                  fullWidth={true}
                   label={t(field.label)}
                   style={{ marginTop: theme.spacing(2.5) }}
                   disabled={isDisabled}

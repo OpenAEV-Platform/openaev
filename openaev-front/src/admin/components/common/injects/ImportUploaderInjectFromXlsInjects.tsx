@@ -1,23 +1,7 @@
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxControls,
-  ComboboxField,
-  ComboboxHelperText,
-  ComboboxInput,
-  ComboboxLabel,
-  ComboboxTrigger,
-  Select,
-  SelectContent,
-  SelectHelperText,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@filigran/design-system';
+import { Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxHelperText, ComboboxInput, ComboboxLabel, ComboboxTrigger, Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { TableViewOutlined } from '@mui/icons-material';
-import { Alert, Box, Button, Tooltip } from '@mui/material';
+import { Alert, Box, Button } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { InformationOutline } from 'mdi-material-ui';
 import moment from 'moment-timezone';
@@ -364,15 +348,18 @@ const ImportUploaderInjectFromXlsInjects: FunctionComponent<Props> = ({
                       label: (
                         <Box display="flex" alignItems="center">
                           {t('Start date')}
-                          <Tooltip title={t('The imported file contains absolute dates (ex.: 9h30). A starting date must be provided for the Scenario to be build')}>
-                            <InformationOutline
-                              fontSize="small"
-                              color="primary"
-                              style={{
-                                marginLeft: 4,
-                                cursor: 'default',
-                              }}
-                            />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <InformationOutline
+                                fontSize="small"
+                                color="primary"
+                                style={{
+                                  marginLeft: 4,
+                                  cursor: 'default',
+                                }}
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent>{t('The imported file contains absolute dates (ex.: 9h30). A starting date must be provided for the Scenario to be build')}</TooltipContent>
                           </Tooltip>
                         </Box>
                       ),

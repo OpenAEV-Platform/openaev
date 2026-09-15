@@ -1,4 +1,5 @@
-import { Chip, Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
 
@@ -41,23 +42,29 @@ const ItemTenants: FunctionComponent<Props> = ({ tenants, limit = 3 }) => {
     }}
     >
       {visibleTenants.map(tenant => (
-        <Tooltip key={tenant.tenant_id} title={tenant.tenant_name ?? ''}>
-          <Chip
-            variant="outlined"
-            size="small"
-            label={truncate(tenant.tenant_name ?? '', 15)}
-            sx={chipSx}
-          />
+        <Tooltip key={tenant.tenant_id}>
+          <TooltipTrigger asChild>
+            <Chip
+              variant="outlined"
+              size="small"
+              label={truncate(tenant.tenant_name ?? '', 15)}
+              sx={chipSx}
+            />
+          </TooltipTrigger>
+          {(tenant.tenant_name ?? '') && <TooltipContent>{tenant.tenant_name ?? ''}</TooltipContent>}
         </Tooltip>
       ))}
       {remainingCount > 0 && (
-        <Tooltip title={tooltipLabel}>
-          <Chip
-            variant="outlined"
-            size="small"
-            label={`+${remainingCount}`}
-            sx={chipSx}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Chip
+              variant="outlined"
+              size="small"
+              label={`+${remainingCount}`}
+              sx={chipSx}
+            />
+          </TooltipTrigger>
+          {tooltipLabel && <TooltipContent>{tooltipLabel}</TooltipContent>}
         </Tooltip>
       )}
     </div>

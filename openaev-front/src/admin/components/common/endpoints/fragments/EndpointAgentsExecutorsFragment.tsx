@@ -1,4 +1,4 @@
-import { Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 
 import type { ExecutorHelper } from '../../../../../actions/executors/executor-helper';
 import { useFormatter } from '../../../../../components/i18n';
@@ -35,23 +35,26 @@ const EndpointActiveFragment = (props: Props) => {
 
           if (count > 0) {
             return (
-              <Tooltip key={executorType} title={`${base.executor_name} : ${count}`} arrow>
-                <div style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                }}
-                >
-                  <img
-                    src={buildTenantApiPath(`/api/images/executors/icons/${executorType}`)}
-                    alt={executorType}
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 4,
-                      marginRight: 10,
-                    }}
-                  />
-                </div>
+              <Tooltip key={executorType}>
+                <TooltipTrigger asChild>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                  }}
+                  >
+                    <img
+                      src={buildTenantApiPath(`/api/images/executors/icons/${executorType}`)}
+                      alt={executorType}
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 4,
+                        marginRight: 10,
+                      }}
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>{`${base.executor_name} : ${count}`}</TooltipContent>
               </Tooltip>
             );
           } else {

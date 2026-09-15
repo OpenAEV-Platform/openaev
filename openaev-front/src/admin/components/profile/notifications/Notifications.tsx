@@ -1,17 +1,6 @@
+import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CheckCircleOutlined, DeleteOutlined, NotificationsOutlined, UnpublishedOutlined } from '@mui/icons-material';
-import {
-  Badge,
-  Button,
-  Checkbox,
-  Chip,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Tooltip,
-} from '@mui/material';
+import { Badge, Button, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -194,24 +183,27 @@ const Notifications = () => {
       label: 'Trigger name',
       isSortable: true,
       value: (notification: NotificationOutput) => (
-        <Tooltip title={notification.notification_name ?? '-'}>
-          <Chip
-            style={{
-              fontSize: 12,
-              height: 20,
-              width: 140,
-              borderRadius: 4,
-            }}
-            color={notification.notification_type === 'LIVE' ? 'warning' : 'secondary'}
-            variant="outlined"
-            label={notification.notification_name ?? '-'}
-            onClick={(event) => {
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Chip
+              style={{
+                fontSize: 12,
+                height: 20,
+                width: 140,
+                borderRadius: 4,
+              }}
+              color={notification.notification_type === 'LIVE' ? 'warning' : 'secondary'}
+              variant="outlined"
+              label={notification.notification_name ?? '-'}
+              onClick={(event) => {
               // Quick filter on the trigger: only this trigger's notifications.
-              event.preventDefault();
-              event.stopPropagation();
-              queryableHelpers.filterHelpers.handleAddSingleValueFilter('notification_name', notification.notification_name ?? '');
-            }}
-          />
+                event.preventDefault();
+                event.stopPropagation();
+                queryableHelpers.filterHelpers.handleAddSingleValueFilter('notification_name', notification.notification_name ?? '');
+              }}
+            />
+          </TooltipTrigger>
+          {(notification.notification_name ?? '-') && <TooltipContent>{notification.notification_name ?? '-'}</TooltipContent>}
         </Tooltip>
       ),
     },
@@ -254,10 +246,9 @@ const Notifications = () => {
         >
           <ListItemIcon style={{ minWidth: 40 }}>
             <Checkbox
-              edge="start"
+              aria-label={t('Select all')}
               checked={selectAll}
-              disableRipple
-              onChange={handleToggleSelectAll}
+              onCheckedChange={handleToggleSelectAll}
             />
           </ListItemIcon>
           {numberOfSelectedElements > 0 ? (
@@ -314,25 +305,32 @@ const Notifications = () => {
                   disablePadding
                   secondaryAction={(
                     <>
-                      <Tooltip title={notification.notification_is_read ? t('Mark as unread') : t('Mark as read')}>
-                        <IconButton
-                          onClick={() => onToggleRead(notification)}
-                          size="small"
-                          color={notification.notification_is_read ? 'primary' : 'success'}
-                        >
-                          {notification.notification_is_read
-                            ? <UnpublishedOutlined fontSize="small" />
-                            : <CheckCircleOutlined fontSize="small" />}
-                        </IconButton>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <IconButton
+                            onClick={() => onToggleRead(notification)}
+                            size="small"
+                            color={notification.notification_is_read ? 'primary' : 'success'}
+                          >
+                            {notification.notification_is_read
+                              ? <UnpublishedOutlined fontSize="small" />
+                              : <CheckCircleOutlined fontSize="small" />}
+                          </IconButton>
+                        </TooltipTrigger>
+                        <TooltipContent>{notification.notification_is_read ? t('Mark as unread') : t('Mark as read')}</TooltipContent>
                       </Tooltip>
-                      <Tooltip title={t('Delete')}>
-                        <IconButton
-                          onClick={() => setNotificationToDelete(notification)}
-                          size="small"
-                          color="error"
-                        >
-                          <DeleteOutlined fontSize="small" />
-                        </IconButton>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <IconButton
+                            aria-label={t('Delete')}
+                            onClick={() => setNotificationToDelete(notification)}
+                            size="small"
+                            color="error"
+                          >
+                            <DeleteOutlined fontSize="small" />
+                          </IconButton>
+                        </TooltipTrigger>
+                        <TooltipContent>{t('Delete')}</TooltipContent>
                       </Tooltip>
                     </>
                   )}
@@ -352,12 +350,11 @@ const Notifications = () => {
                       onClick={event => onToggleEntity(notification, event)}
                     >
                       <Checkbox
-                        edge="start"
+                        aria-label={notification.notification_name}
                         checked={
                           (selectAll && !(notification.notification_id in (deSelectedElements || {})))
                           || notification.notification_id in (selectedElements || {})
                         }
-                        disableRipple
                       />
                     </ListItemIcon>
                     <ListItemIcon>

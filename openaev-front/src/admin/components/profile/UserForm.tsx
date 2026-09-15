@@ -60,6 +60,7 @@ const UserForm: FunctionComponent<UserFormProps> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="userForm"
         onSubmit={handleSubmitWithoutPropagation}
         style={{

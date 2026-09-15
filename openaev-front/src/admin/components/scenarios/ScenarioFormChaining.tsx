@@ -8,15 +8,7 @@ import {
 } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ExpandMore } from '@mui/icons-material';
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Button,
-  MenuItem,
-  TextField as MuiTextField,
-  Typography,
-} from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Button, MenuItem, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -26,6 +18,7 @@ import type { LoggedHelper } from '../../../actions/helper';
 import SelectField from '../../../components/fields/SelectField';
 import TagField from '../../../components/fields/TagField';
 import TextField from '../../../components/fields/TextField';
+import TextFieldFds from '../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { type PlatformSettings, type ScenarioInput } from '../../../utils/api-types';
@@ -98,6 +91,7 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
   return (
     <>
       <form
+        noValidate
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -115,13 +109,11 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
         </Typography>
         <>
           <TextField
-            variant="standard"
-            fullWidth
+            required
             label={t('Name')}
             error={!!errors.scenario_name}
             helperText={errors.scenario_name?.message}
-            inputProps={register('scenario_name')}
-            InputLabelProps={{ required: true }}
+            {...register('scenario_name')}
             control={control}
             setValue={setValue}
             askAi={true}
@@ -211,14 +203,12 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
             />
           </div>
           <TextField
-            variant="standard"
-            fullWidth
             multiline
             rows={5}
             label={t('Description')}
             error={!!errors.scenario_description}
             helperText={errors.scenario_description?.message}
-            inputProps={register('scenario_description')}
+            {...register('scenario_description')}
             control={control}
             setValue={setValue}
             askAi={true}
@@ -263,20 +253,16 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
               gap: theme.spacing(2),
             }}
             >
-              <MuiTextField
-                variant="standard"
-                fullWidth
+              <TextFieldFds
                 label={t('Sender email address')}
                 value={settings.default_mailer ?? ''}
                 disabled
               />
-              <MuiTextField
-                variant="standard"
-                fullWidth
+              <TextFieldFds
                 label={t('Sender email from')}
                 error={!!errors.scenario_mail_from_name}
                 helperText={errors.scenario_mail_from_name?.message}
-                slotProps={{ htmlInput: register('scenario_mail_from_name') }}
+                {...register('scenario_mail_from_name')}
                 disabled={disabled}
               />
               <Controller
@@ -324,22 +310,18 @@ const ScenarioFormChaining: FunctionComponent<Props> = ({
                   );
                 }}
               />
-              <MuiTextField
-                variant="standard"
-                fullWidth
+              <TextFieldFds
                 label={t('Messages header')}
                 error={!!errors.scenario_message_header}
                 helperText={errors.scenario_message_header?.message}
-                slotProps={{ htmlInput: register('scenario_message_header') }}
+                {...register('scenario_message_header')}
                 disabled={disabled}
               />
-              <MuiTextField
-                variant="standard"
-                fullWidth
+              <TextFieldFds
                 label={t('Messages footer')}
                 error={!!errors.scenario_message_footer}
                 helperText={errors.scenario_message_footer?.message}
-                slotProps={{ htmlInput: register('scenario_message_footer') }}
+                {...register('scenario_message_footer')}
                 disabled={disabled}
               />
             </AccordionDetails>

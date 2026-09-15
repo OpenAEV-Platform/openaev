@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ContentCopyOutlined, OpenInNewOutlined } from '@mui/icons-material';
-import { Button, IconButton, Tooltip, Typography } from '@mui/material';
+import { Button, IconButton, Typography } from '@mui/material';
 
 import { SECTION_LABEL_SX } from '../../../components/common/detail/detailStyles';
 import Paper from '../../../components/common/Paper';
@@ -62,14 +63,17 @@ const XtmOneMcpAccess = () => {
         >
           {mcpEndpointUrl}
         </pre>
-        <Tooltip title={t('Copy MCP endpoint URL')}>
-          <IconButton
-            size="small"
-            aria-label={t('Copy MCP endpoint URL')}
-            onClick={() => copyToClipboard(t, mcpEndpointUrl)}
-          >
-            <ContentCopyOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton
+              size="small"
+              aria-label={t('Copy MCP endpoint URL')}
+              onClick={() => copyToClipboard(t, mcpEndpointUrl)}
+            >
+              <ContentCopyOutlined fontSize="small" />
+            </IconButton>
+          </TooltipTrigger>
+          <TooltipContent>{t('Copy MCP endpoint URL')}</TooltipContent>
         </Tooltip>
       </div>
       <Typography variant="body2" style={{ marginTop: 20 }}>

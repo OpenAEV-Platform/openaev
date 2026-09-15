@@ -42,6 +42,13 @@
   background-image: none;
 }
 
+/* An accordion inside a drawer is a section of the form, not a raised panel:
+ * it takes the drawer's surface instead of MUI's paper. */
+.fds-drawer-surface .MuiAccordion-root {
+  background-color: transparent;
+  background-image: none;
+}
+
 /* Filter popover, from the design node 7346:48677.
  *
  * The intent is SEPARATION, not an absolute ordering: the panel detaches from

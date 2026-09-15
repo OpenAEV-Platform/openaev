@@ -1,20 +1,6 @@
-import {
-  ButtonGroup,
-  ButtonGroupItem,
-  Paper,
-} from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { BarChartOutlined, KeyboardArrowRight, MailOutlined, ReorderOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Chip,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemSecondaryAction,
-  ListItemText,
-  Tooltip,
-} from '@mui/material';
+import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 import { useDispatch } from 'react-redux';
@@ -215,11 +201,17 @@ const Mails = () => {
             onValueChange={handleViewModeChange}
             aria-label={t('View mode')}
           >
-            <Tooltip title={t('List view')}>
-              <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ReorderOutlined fontSize="small" />} />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ReorderOutlined fontSize="small" />} />
+              </TooltipTrigger>
+              <TooltipContent>{t('List view')}</TooltipContent>
             </Tooltip>
-            <Tooltip title={t('Distribution view')}>
-              <ButtonGroupItem value="distribution" aria-label={t('Distribution view')} icon={<BarChartOutlined fontSize="small" />} />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ButtonGroupItem value="distribution" aria-label={t('Distribution view')} icon={<BarChartOutlined fontSize="small" />} />
+              </TooltipTrigger>
+              <TooltipContent>{t('Distribution view')}</TooltipContent>
             </Tooltip>
           </ButtonGroup>
         </div>

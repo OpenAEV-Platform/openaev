@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined, HelpCenterOutlined } from '@mui/icons-material';
-import { Box, SvgIcon, Tooltip, Typography } from '@mui/material';
+import { Box, SvgIcon, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { LogoFiligranIcon } from 'filigran-icon';
 import { type ReactNode } from 'react';
@@ -217,17 +218,20 @@ const CatalogConnectorLine = ({ connector, footerAction }: Props) => {
             />
           )}
         </Box>
-        <Tooltip title={connector.title} placement="bottom-start">
-          <Typography
-            sx={{
-              fontSize: 13,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {connector.title}
-          </Typography>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Typography
+              sx={{
+                fontSize: 13,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {connector.title}
+            </Typography>
+          </TooltipTrigger>
+          {connector.title && <TooltipContent side="bottom" align="start">{connector.title}</TooltipContent>}
         </Tooltip>
       </Box>
       {/* Type column. */}
@@ -264,20 +268,25 @@ const CatalogConnectorLine = ({ connector, footerAction }: Props) => {
       </Box>
       {/* Support column: same semantics as the card badge. */}
       <Box sx={cellSx('support')}>
-        <Tooltip title={connector.verified ? t('Supported by Filigran') : t('Supported by Community')}>
-          {connector.verified ? (
-            <SvgIcon
-              component={LogoFiligranIcon}
-              inheritViewBox
-              color="primary"
-              sx={{ fontSize: 18 }}
-            />
-          ) : (
-            <GroupsOutlined
-              color="disabled"
-              sx={{ fontSize: 18 }}
-            />
-          )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              {connector.verified ? (
+                <SvgIcon
+                  component={LogoFiligranIcon}
+                  inheritViewBox
+                  color="primary"
+                  sx={{ fontSize: 18 }}
+                />
+              ) : (
+                <GroupsOutlined
+                  color="disabled"
+                  sx={{ fontSize: 18 }}
+                />
+              )}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{connector.verified ? t('Supported by Filigran') : t('Supported by Community')}</TooltipContent>
         </Tooltip>
       </Box>
       {/* Action column: deploy button or instance status. */}

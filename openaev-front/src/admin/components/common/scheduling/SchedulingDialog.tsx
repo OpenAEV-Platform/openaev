@@ -485,7 +485,7 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                           fullWidth: true,
                           error: !!fieldState.error,
                           helperText: fieldState.error?.message,
-                          variant: 'standard',
+                          variant: 'outlined',
                         },
                       }}
                       label={t('Start date')}
@@ -507,7 +507,7 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
                             fullWidth: true,
                             error: !!fieldState.error,
                             helperText: fieldState.error?.message,
-                            variant: 'standard',
+                            variant: 'outlined',
                           },
                         }}
                         label={t('End date (optional)')}

@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
 
@@ -226,7 +227,14 @@ const ScoreExplainerDialog: FunctionComponent<Props> = ({
                       {row.valueLabel}
                     </Typography>
                   </Box>
-                  {row.tooltip ? <Tooltip title={row.tooltip}>{bar}</Tooltip> : bar}
+                  {row.tooltip
+                    ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>{bar}</TooltipTrigger>
+                          <TooltipContent>{row.tooltip}</TooltipContent>
+                        </Tooltip>
+                      )
+                    : bar}
                   {row.sublabel && (
                     <Typography
                       variant="caption"

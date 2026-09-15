@@ -90,6 +90,7 @@ const CustomDashboardForm: FunctionComponent<Props> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="customDashboardForm"
         style={{
           display: 'flex',

@@ -1,4 +1,5 @@
-import { Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useContext } from 'react';
 import { useNavigate } from 'react-router';
@@ -53,10 +54,13 @@ const CustomDashboardEditHeader: FunctionComponent = () => {
         marginBottom: theme.spacing(2),
       }}
       >
-        <Tooltip title={customDashboard.custom_dashboard_name}>
-          <Typography variant="h1">
-            {truncate(customDashboard.custom_dashboard_name, 80)}
-          </Typography>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Typography variant="h1">
+              {truncate(customDashboard.custom_dashboard_name, 80)}
+            </Typography>
+          </TooltipTrigger>
+          {customDashboard.custom_dashboard_name && <TooltipContent>{customDashboard.custom_dashboard_name}</TooltipContent>}
         </Tooltip>
         <div style={{
           display: 'flex',

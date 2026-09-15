@@ -1,5 +1,5 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowDropDownOutlined, ArrowDropUpOutlined } from '@mui/icons-material';
-import { Tooltip } from '@mui/material';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -68,8 +68,11 @@ const SortHeadersComponentV2: FunctionComponent<Props> = ({
           ...style,
         }}
       >
-        <Tooltip title={t(header.label)}>
-          <div className={classes.headerItemText}>{t(header.label)}</div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={classes.headerItemText}>{t(header.label)}</div>
+          </TooltipTrigger>
+          <TooltipContent>{t(header.label)}</TooltipContent>
         </Tooltip>
       </div>
     );

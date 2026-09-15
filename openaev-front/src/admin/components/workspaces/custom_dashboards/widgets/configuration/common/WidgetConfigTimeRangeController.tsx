@@ -75,7 +75,7 @@ const WidgetConfigTimeRangeController = () => {
                       fullWidth: true,
                       error: !!fieldState.error,
                       helperText: fieldState.error?.message,
-                      variant: 'standard',
+                      variant: 'outlined',
                     },
                   }}
                 />
@@ -96,7 +96,7 @@ const WidgetConfigTimeRangeController = () => {
                       fullWidth: true,
                       error: !!fieldState.error,
                       helperText: fieldState.error?.message,
-                      variant: 'standard',
+                      variant: 'outlined',
                     },
                   }}
                 />

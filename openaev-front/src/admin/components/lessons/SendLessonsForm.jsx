@@ -37,9 +37,7 @@ class SendLessonsFormComponent extends Component {
         {({ handleSubmit, submitting, errors }) => (
           <form id="sendLessonsForm" onSubmit={handleSubmit}>
             <OldTextField
-              variant="standard"
               name="subject"
-              fullWidth
               label={t('Subject')}
               style={{ marginTop: 20 }}
             />

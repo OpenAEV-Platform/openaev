@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Card, CardActionArea, CardContent, Stack, Tooltip, Typography } from '@mui/material';
+import { Card, CardActionArea, CardContent, Stack, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -165,18 +166,21 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
           >
             {/* Info affordance: sits above the action area so hovering it shows the
                 explanation without triggering the card selection. */}
-            <Tooltip title={option.description} placement="top">
-              <InfoOutlined
-                sx={{
-                  position: 'absolute',
-                  top: theme.spacing(1),
-                  right: theme.spacing(1),
-                  zIndex: 1,
-                  fontSize: 18,
-                  color: 'text.secondary',
-                  cursor: 'help',
-                }}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <InfoOutlined
+                  sx={{
+                    position: 'absolute',
+                    top: theme.spacing(1),
+                    right: theme.spacing(1),
+                    zIndex: 1,
+                    fontSize: 18,
+                    color: 'text.secondary',
+                    cursor: 'help',
+                  }}
+                />
+              </TooltipTrigger>
+              {option.description && <TooltipContent side="top">{option.description}</TooltipContent>}
             </Tooltip>
             <CardActionArea
               onClick={() => handleCardClick(option.type)}
@@ -203,7 +207,7 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
                   <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
                     {option.title}
                   </Typography>
-                  {isChaining && !isEnterpriseEdition && <EEChip clickable />}
+                  {isChaining && !isEnterpriseEdition && <EEChip />}
                 </Stack>
                 {/* Illustrative workflow diagram (crisp inline SVG). */}
                 <Stack sx={{

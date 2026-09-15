@@ -1,5 +1,5 @@
 import { CancelOutlined } from '@mui/icons-material';
-import { Box, IconButton, Skeleton, TextField } from '@mui/material';
+import { Box, IconButton, Skeleton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -11,6 +11,7 @@ import FilterChips from '../../../../../../components/common/queryable/filter/Fi
 import { availableOperators, buildFilter } from '../../../../../../components/common/queryable/filter/FilterUtils';
 import { buildSearchPagination } from '../../../../../../components/common/queryable/QueryableUtils';
 import { useQueryable } from '../../../../../../components/common/queryable/useQueryableWithLocalStorage';
+import TextFieldFds from '../../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../../components/i18n';
 import { type FilterGroup, type PropertySchemaDTO } from '../../../../../../utils/api-types';
 import { type GroupOption } from '../../../../../../utils/Option';
@@ -166,9 +167,7 @@ const WidgetSeriesSelection: FunctionComponent<{
           </div>
         )}
       <Box padding={2}>
-        <TextField
-          variant="standard"
-          fullWidth
+        <TextFieldFds
           label={t('Label (entities)')}
           value={label}
           onChange={e => onChangeLabel(e.target.value)}

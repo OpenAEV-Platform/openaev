@@ -1,12 +1,6 @@
-import { ButtonGroup, ButtonGroupItem } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowBackOutlined, GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
-import {
-  Box,
-  IconButton,
-  Skeleton,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, IconButton, Skeleton, Typography } from '@mui/material';
 import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type AttackPatternHelper } from '../../../../../actions/attack_patterns/attackpattern-helper';
@@ -235,10 +229,13 @@ const InjectContractPicker: FunctionComponent<Props> = ({
       }}
       >
         {onBack && (
-          <Tooltip title={t('Back')}>
-            <IconButton onClick={onBack} aria-label={t('Back')} size="small">
-              <ArrowBackOutlined fontSize="small" />
-            </IconButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton onClick={onBack} aria-label={t('Back')} size="small">
+                <ArrowBackOutlined fontSize="small" />
+              </IconButton>
+            </TooltipTrigger>
+            <TooltipContent>{t('Back')}</TooltipContent>
           </Tooltip>
         )}
         <Typography variant="h1" sx={{ margin: 0 }}>
@@ -282,11 +279,17 @@ const InjectContractPicker: FunctionComponent<Props> = ({
                 onValueChange={handleViewMode}
                 style={{ marginLeft: 1.5 }}
               >
-                <Tooltip title={t('Grid view')}>
-                  <ButtonGroupItem value="grid" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ButtonGroupItem value="grid" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Grid view')}</TooltipContent>
                 </Tooltip>
-                <Tooltip title={t('List view')}>
-                  <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ReorderOutlined fontSize="small" />} />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ReorderOutlined fontSize="small" />} />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('List view')}</TooltipContent>
                 </Tooltip>
               </ButtonGroup>
             )}

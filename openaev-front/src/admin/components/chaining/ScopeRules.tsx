@@ -1,4 +1,4 @@
-import { Paper } from '@filigran/design-system';
+import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   BlockOutlined,
   DnsOutlined,
@@ -9,7 +9,7 @@ import {
   PublicOutlined,
   TaskAltOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Chip, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Chip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
 import { type ReactElement, useState } from 'react';
@@ -170,14 +170,17 @@ const ScopeColumn = ({
             }}
           />
           {infoTooltip && (
-            <Tooltip title={infoTooltip}>
-              <InfoOutlined
-                color="primary"
-                sx={{
-                  fontSize: 16,
-                  cursor: 'pointer',
-                }}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <InfoOutlined
+                  color="primary"
+                  sx={{
+                    fontSize: 16,
+                    cursor: 'pointer',
+                  }}
+                />
+              </TooltipTrigger>
+              {infoTooltip && <TooltipContent>{infoTooltip}</TooltipContent>}
             </Tooltip>
           )}
         </Box>

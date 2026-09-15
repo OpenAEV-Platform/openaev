@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { BlockOutlined, GppMaybeOutlined, HelpOutlineOutlined, KeyboardArrowRight, ShieldOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -138,8 +139,11 @@ const SecurityPlatformDetail: FunctionComponent = () => {
       value: (expectation: EsInjectExpectation) => {
         const title = expectation.inject_title || expectation.base_representative || t('Unknown');
         return (
-          <Tooltip title={expectation.inject_expectation_description || title} placement="bottom-start">
-            <span>{title}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>{title}</span>
+            </TooltipTrigger>
+            {(expectation.inject_expectation_description || title) && <TooltipContent side="bottom" align="start">{expectation.inject_expectation_description || title}</TooltipContent>}
           </Tooltip>
         );
       },

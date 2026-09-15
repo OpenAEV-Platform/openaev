@@ -1,5 +1,5 @@
-import { Paper } from '@filigran/design-system';
-import { Box, Paper as MuiPaper, Tooltip, Typography } from '@mui/material';
+import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Paper as MuiPaper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -251,8 +251,11 @@ export const HeroStat = ({ icon: Icon, label, value, color, to }: {
         >
           {isCompacted
             ? (
-                <Tooltip title={(value as number).toLocaleString()}>
-                  <span>{displayValue}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>{displayValue}</span>
+                  </TooltipTrigger>
+                  {(value as number).toLocaleString() && <TooltipContent>{(value as number).toLocaleString()}</TooltipContent>}
                 </Tooltip>
               )
             : displayValue}
@@ -397,23 +400,26 @@ export const DetailHero = ({ icon: Icon, iconNode, overline, title, chips, actio
               {overline}
             </Typography>
           )}
-          <Tooltip title={title} placement="bottom-start">
-            <Typography
-              variant="h1"
-              sx={{
-                margin: 0,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                // Shrink the anchor to the actual title width (capped at the
-                // column) so the tooltip sits under the text instead of the
-                // center of a full-width block.
-                width: 'fit-content',
-                maxWidth: '100%',
-              }}
-            >
-              {title}
-            </Typography>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Typography
+                variant="h1"
+                sx={{
+                  margin: 0,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  // Shrink the anchor to the actual title width (capped at the
+                  // column) so the tooltip sits under the text instead of the
+                  // center of a full-width block.
+                  width: 'fit-content',
+                  maxWidth: '100%',
+                }}
+              >
+                {title}
+              </Typography>
+            </TooltipTrigger>
+            {title && <TooltipContent side="bottom" align="start">{title}</TooltipContent>}
           </Tooltip>
           {chips && (
             <Box sx={{

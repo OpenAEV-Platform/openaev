@@ -231,6 +231,7 @@ const AssetForm: FunctionComponent<Props> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="assetForm"
         style={{
           display: 'flex',
@@ -240,8 +241,8 @@ const AssetForm: FunctionComponent<Props> = ({
         }}
         onSubmit={handleSubmitWithoutPropagation}
       >
-        <TextFieldController variant="standard" required name="asset_name" label={t('Name')} />
-        <TextFieldController variant="standard" name="asset_description" label={t('Description')} multiline rows={2} />
+        <TextFieldController required name="asset_name" label={t('Name')} />
+        <TextFieldController name="asset_description" label={t('Description')} multiline rows={2} />
 
         {subcategoryItems.length > 0 && (
           <SelectFieldController
@@ -269,11 +270,11 @@ const AssetForm: FunctionComponent<Props> = ({
         )}
 
         {showHostname && (
-          <TextFieldController variant="standard" name="asset_hostname" label={t('Hostname')} />
+          <TextFieldController name="asset_hostname" label={t('Hostname')} />
         )}
 
         {def.fields.url !== 'hidden' && (
-          <TextFieldController variant="standard" name="asset_url" label={t('URL')} required={def.fields.url === 'required'} />
+          <TextFieldController name="asset_url" label={t('URL')} required={def.fields.url === 'required'} />
         )}
 
         {def.fields.cloud && (
@@ -293,10 +294,10 @@ const AssetForm: FunctionComponent<Props> = ({
               gap: theme.spacing(2),
             }}
             >
-              <TextFieldController variant="standard" name="asset_cloud_region" label={t('Region')} />
-              <TextFieldController variant="standard" name="asset_metadata.cloud_account_id" label={t('Account ID')} />
+              <TextFieldController name="asset_cloud_region" label={t('Region')} />
+              <TextFieldController name="asset_metadata.cloud_account_id" label={t('Account ID')} />
             </div>
-            <TextFieldController variant="standard" name="asset_metadata.cloud_resource_id" label={t('Resource ID / ARN')} />
+            <TextFieldController name="asset_metadata.cloud_resource_id" label={t('Resource ID / ARN')} />
           </>
         )}
 
@@ -325,7 +326,7 @@ const AssetForm: FunctionComponent<Props> = ({
         )}
 
         {def.fields.metadataFields.map(field => (
-          <TextFieldController key={field.key} variant="standard" name={`asset_metadata.${field.key}`} label={t(field.label)} />
+          <TextFieldController key={field.key} name={`asset_metadata.${field.key}`} label={t(field.label)} />
         ))}
 
         <SelectFieldController name="asset_criticality" label={t('Criticality')} items={criticalityItems} />

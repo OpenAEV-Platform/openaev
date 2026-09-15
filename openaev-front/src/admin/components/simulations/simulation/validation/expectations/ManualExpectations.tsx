@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AssignmentTurnedIn, ExpandMore, PersonOutlined } from '@mui/icons-material';
-import { Accordion, AccordionDetails, AccordionSummary, Alert, AlertTitle, Chip, Divider, List, ListItemButton, ListItemIcon, ListItemText, Tooltip, Typography } from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert, AlertTitle, Chip, Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import * as R from 'ramda';
 import { type FunctionComponent, type SyntheticEvent, useContext, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -147,10 +148,13 @@ const ManualExpectations: FunctionComponent<Props> = ({
             <ListItemText
               primary={(
                 <div className={classes.container}>
-                  <Tooltip title={expectations[0].inject_expectation_description}>
-                    <span>
-                      {expectations[0].inject_expectation_name ?? 'Manual Expectation'}
-                    </span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        {expectations[0].inject_expectation_name ?? 'Manual Expectation'}
+                      </span>
+                    </TooltipTrigger>
+                    {expectations[0].inject_expectation_description && <TooltipContent>{expectations[0].inject_expectation_description}</TooltipContent>}
                   </Tooltip>
                   <div className={classes.chip}>
                     <Chip

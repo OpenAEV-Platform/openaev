@@ -1,4 +1,6 @@
 import { alpha, buttonClasses, darken, lighten, type ThemeOptions } from '@mui/material';
+// Type-only: declares the MUI X picker keys used in `components` below.
+import type {} from '@mui/x-date-pickers/themeAugmentation';
 
 import LogoCollapsed from '../static/images/logo_dark.png';
 import LogoText from '../static/images/logo_text_dark.png';
@@ -501,8 +503,69 @@ const ThemeDark = (
       defaultProps: { variant: 'standard' },
       styleOverrides: { root: { color: text_color } },
     },
+    MuiInputLabel: {
+      styleOverrides: {
+        outlined: {
+          // MUI centres the un-shrunk label for its own 56px box; ours is 36px, so
+          // its 16px put the label on the bottom edge. 8px centres it in 36px.
+          'transform': 'translate(12px, 8px) scale(1)',
+          '&.MuiInputLabel-shrink': { transform: 'translate(14px, -9px) scale(0.75)' },
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          // The custom property, not the static hex: an outlined field inside a
+          // drawer or popover must pick up that surface's own layer.
+          'backgroundColor': 'var(--bg-input-default)',
+          // Geometry borrowed from the library `Input`; paint only, no behaviour.
+          'borderRadius': 'var(--radius-sm)',
+          'minHeight': 36,
+          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-hover)' },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-focus)' },
+          '&.Mui-error .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-error)' },
+          // Transparent with a disabled border, as the library `Input` does.
+          '&.Mui-disabled': {
+            'backgroundColor': 'transparent',
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-elevation-disabled)' },
+          },
+        },
+        // 8px lands the single-line row on the library's 36px height; MUI's own
+        // 16.5px makes a 54px row.
+        input: {
+          'padding': '8px 8px 8px 12px',
+          // The browser draws the clock and calendar glyphs of native date and time
+          // fields from the colour scheme, not from the text colour.
+          '&[type="time"], &[type="date"], &[type="datetime-local"]': { colorScheme: 'dark' },
+        },
+      },
+    },
+    // The date picker draws its own outlined input (MUI X), so the same paint as above.
+    MuiPickersOutlinedInput: {
+      styleOverrides: {
+        root: {
+          'backgroundColor': 'var(--bg-input-default)',
+          'borderRadius': 'var(--radius-sm)',
+          'minHeight': 36,
+          'padding': '0 8px 0 12px',
+          '& .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+          '&:hover .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-hover)' },
+          '&.Mui-focused .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-focus)' },
+          '&.Mui-error .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-error)' },
+          '&.Mui-disabled': {
+            'backgroundColor': 'transparent',
+            '& .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-elevation-disabled)' },
+          },
+        },
+        sectionsContainer: { padding: '8px 0' },
+      },
+    },
     MuiTextField: {
-      defaultProps: { variant: 'standard' },
+      // Every remaining MUI field is outlined, so it can carry the library
+      // field background.
+      defaultProps: { variant: 'outlined' },
       styleOverrides: {
         root: {
           'color': text_color,

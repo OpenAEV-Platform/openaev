@@ -1,20 +1,6 @@
-import {
-  Paper,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-  Switch,
-} from '@filigran/design-system';
+import { Paper, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { HourglassEmptyOutlined, InfoOutlined, SpeedOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Divider,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, Divider, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ReactNode } from 'react';
 
@@ -70,14 +56,17 @@ const LimitSection = ({ icon, title, tooltip, enabled, onToggle, children }: Lim
         <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
           {title}
         </Typography>
-        <Tooltip title={tooltip}>
-          <InfoOutlined
-            color="primary"
-            sx={{
-              fontSize: 16,
-              cursor: 'pointer',
-            }}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <InfoOutlined
+              color="primary"
+              sx={{
+                fontSize: 16,
+                cursor: 'pointer',
+              }}
+            />
+          </TooltipTrigger>
+          {tooltip && <TooltipContent>{tooltip}</TooltipContent>}
         </Tooltip>
         {/* The section title is a sibling Typography, not a <label> bound to
             the control, so the switch carries its own name. */}

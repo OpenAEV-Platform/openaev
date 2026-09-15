@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
@@ -136,7 +137,9 @@ const ability = { can: () => false } as unknown as AppAbility;
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <ThemeProvider theme={createTheme()}>
-    <AbilityContext.Provider value={ability}>{children}</AbilityContext.Provider>
+    <TooltipProvider>
+      <AbilityContext.Provider value={ability}>{children}</AbilityContext.Provider>
+    </TooltipProvider>
   </ThemeProvider>
 );
 

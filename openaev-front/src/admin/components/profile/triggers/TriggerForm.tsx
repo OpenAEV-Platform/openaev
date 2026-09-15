@@ -17,11 +17,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@filigran/design-system';
+// fds:keep-mui the time-of-day field needs `type="time"`, which the library Input does not offer — LIBRARY-FEEDBACK #49
 import { Button, TextField } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
 
 import { searchNotificationTriggers } from '../../../../actions/notifications/notification-trigger-actions';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { type FilterGroup, type NotificationTriggerInput, type NotificationTriggerOutput } from '../../../../utils/api-types';
 import NotifierField from './NotifierField';
@@ -127,9 +129,7 @@ const TriggerForm: FunctionComponent<Props> = ({
 
   return (
     <form id="triggerForm" onSubmit={handleSubmit}>
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Name')}
         value={name}
         onChange={e => setName(e.target.value)}
@@ -288,7 +288,6 @@ const TriggerForm: FunctionComponent<Props> = ({
           )}
           {period !== 'HOUR' && (
             <TextField
-              variant="standard"
               fullWidth
               type="time"
               label={t('Time (UTC)')}

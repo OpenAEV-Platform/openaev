@@ -1,4 +1,5 @@
-import { Box, Chip, CircularProgress, Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Chip, CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
@@ -120,10 +121,13 @@ const ItemBooleanComponent = (props) => {
   const { tooltip } = props;
   if (tooltip) {
     return (
-      <Tooltip title={tooltip}>
-        <Box component="span" sx={{ display: 'inline-block' }}>
-          <RenderChip {...props} />
-        </Box>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Box component="span" sx={{ display: 'inline-block' }}>
+            <RenderChip {...props} />
+          </Box>
+        </TooltipTrigger>
+        {tooltip && <TooltipContent>{tooltip}</TooltipContent>}
       </Tooltip>
     );
   }

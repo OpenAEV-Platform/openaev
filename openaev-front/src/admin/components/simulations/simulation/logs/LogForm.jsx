@@ -36,15 +36,11 @@ class LogFormComponent extends Component {
         {({ handleSubmit, form, values, submitting, pristine }) => (
           <form id="logForm" onSubmit={handleSubmit}>
             <OldTextField
-              variant="standard"
               name="log_title"
-              fullWidth={true}
               label={t('Title')}
             />
             <OldTextField
-              variant="standard"
               name="log_content"
-              fullWidth={true}
               multiline={true}
               rows={2}
               label={t('Description')}

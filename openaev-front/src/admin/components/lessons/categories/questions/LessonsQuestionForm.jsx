@@ -35,22 +35,16 @@ const LessonsQuestionForm = (props) => {
       {({ handleSubmit, submitting, errors }) => (
         <form id="lessonsQuestionForm" onSubmit={handleSubmit}>
           <OldTextField
-            variant="standard"
             name="lessons_question_content"
-            fullWidth
             label={t('Content')}
           />
           <OldTextField
-            variant="standard"
             name="lessons_question_explanation"
-            fullWidth
             label={t('Explanation')}
             style={{ marginTop: 20 }}
           />
           <OldTextField
-            variant="standard"
             name="lessons_question_order"
-            fullWidth
             label={t('Order')}
             type="number"
             style={{ marginTop: 20 }}

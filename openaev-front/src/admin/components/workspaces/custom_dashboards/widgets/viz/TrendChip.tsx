@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { TrendingDownOutlined, TrendingFlatOutlined, TrendingUpOutlined } from '@mui/icons-material';
-import { Box, Tooltip } from '@mui/material';
+import { Box } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -71,8 +72,9 @@ const TrendChip: FunctionComponent<Props> = ({ difference, previous }) => {
   }
 
   return (
-    <Tooltip title={t('was previously', { previous_number: previous.toLocaleString() })}>
-      {chip}
+    <Tooltip>
+      <TooltipTrigger asChild>{chip}</TooltipTrigger>
+      <TooltipContent>{t('was previously', { previous_number: previous.toLocaleString() })}</TooltipContent>
     </Tooltip>
   );
 };

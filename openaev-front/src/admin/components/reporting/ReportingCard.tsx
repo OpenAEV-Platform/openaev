@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FileDownloadOutlined } from '@mui/icons-material';
-import { Box, Chip, IconButton, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, IconButton, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -72,19 +73,23 @@ const ReportingCard: FunctionComponent<Props> = ({ reporting, onUpdate, onDelete
         }}
       >
         {downloadable && (
-          <Tooltip title={t('Download latest generation')}>
-            <IconButton
-              size="small"
-              color="primary"
-              // Programmatic download instead of an <a href>: the card itself is
-              // an anchor, and the wrapper's preventDefault() (needed to cancel
-              // the card navigation) would also cancel a nested link's default.
-              // The endpoint replies Content-Disposition: attachment, so
-              // assigning the URL downloads without leaving the page.
-              onClick={() => window.location.assign(downloadReportingGenerationUrl(generation.reporting_generation_id))}
-            >
-              <FileDownloadOutlined fontSize="small" />
-            </IconButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton
+                aria-label={t('Download latest generation')}
+                size="small"
+                color="primary"
+                // Programmatic download instead of an <a href>: the card itself is
+                // an anchor, and the wrapper's preventDefault() (needed to cancel
+                // the card navigation) would also cancel a nested link's default.
+                // The endpoint replies Content-Disposition: attachment, so
+                // assigning the URL downloads without leaving the page.
+                onClick={() => window.location.assign(downloadReportingGenerationUrl(generation.reporting_generation_id))}
+              >
+                <FileDownloadOutlined fontSize="small" />
+              </IconButton>
+            </TooltipTrigger>
+            <TooltipContent>{t('Download latest generation')}</TooltipContent>
           </Tooltip>
         )}
         <ReportingPopover reporting={reporting} onUpdate={onUpdate} onDelete={onDelete} />
@@ -113,20 +118,23 @@ const ReportingCard: FunctionComponent<Props> = ({ reporting, onUpdate, onDelete
         >
           <ContextIcon />
         </Box>
-        <Tooltip title={reporting.reporting_name}>
-          <Typography sx={{
-            fontSize: 14,
-            fontWeight: 600,
-            lineHeight: 1.35,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            wordBreak: 'break-word',
-          }}
-          >
-            {reporting.reporting_name}
-          </Typography>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Typography sx={{
+              fontSize: 14,
+              fontWeight: 600,
+              lineHeight: 1.35,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              wordBreak: 'break-word',
+            }}
+            >
+              {reporting.reporting_name}
+            </Typography>
+          </TooltipTrigger>
+          {reporting.reporting_name && <TooltipContent>{reporting.reporting_name}</TooltipContent>}
         </Tooltip>
       </Box>
 

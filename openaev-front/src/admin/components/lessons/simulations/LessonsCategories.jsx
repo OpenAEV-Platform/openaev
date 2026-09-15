@@ -1,6 +1,6 @@
-import { Paper } from '@filigran/design-system';
+import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { BallotOutlined, CastForEducationOutlined, HelpOutlined } from '@mui/icons-material';
-import { Box, Chip, LinearProgress, List, ListItem, ListItemButton, ListItemText, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, LinearProgress, List, ListItem, ListItemButton, ListItemText, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { useContext } from 'react';
@@ -337,23 +337,26 @@ const LessonsCategories = ({
                   {category.lessons_category_teams.map((teamId) => {
                     const team = teamsMap[teamId];
                     return (
-                      <Tooltip key={teamId} title={team?.team_name || ''}>
-                        <Chip
-                          onDelete={
-                            isReport || !permissions.canManage
-                              ? undefined
-                              : () => handleUpdateTeams(
-                                  category.lessonscategory_id,
-                                  R.filter(
-                                    n => n !== teamId,
-                                    category.lessons_category_teams,
-                                  ),
-                                )
-                          }
-                          label={truncate(team?.team_name || '', 30)}
-                          icon={<CastForEducationOutlined />}
-                          sx={{ borderRadius: 1 }}
-                        />
+                      <Tooltip key={teamId}>
+                        <TooltipTrigger asChild>
+                          <Chip
+                            onDelete={
+                              isReport || !permissions.canManage
+                                ? undefined
+                                : () => handleUpdateTeams(
+                                    category.lessonscategory_id,
+                                    R.filter(
+                                      n => n !== teamId,
+                                      category.lessons_category_teams,
+                                    ),
+                                  )
+                            }
+                            label={truncate(team?.team_name || '', 30)}
+                            icon={<CastForEducationOutlined />}
+                            sx={{ borderRadius: 1 }}
+                          />
+                        </TooltipTrigger>
+                        {(team?.team_name || '') && <TooltipContent>{team?.team_name || ''}</TooltipContent>}
                       </Tooltip>
                     );
                   })}
