@@ -91,7 +91,9 @@ class AuditLoggerTagTest extends IntegrationTest {
   class TagLifecycleAudit {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TAGS})
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_TAGS},
+        autoJoinDefaultTenant = true)
     void given_newTagCreation_should_logUpdateScope() throws Exception {
       // Arrange
       long sizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
