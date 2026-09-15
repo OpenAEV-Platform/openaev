@@ -264,7 +264,7 @@ public class ExecutorApi extends RestBehavior {
         TENANT_AGENT_URI + "/executable/openaev/{platform}/{architecture}"
       },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
   public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevAgentExecutable(
       TxCtx ctx,
       @Parameter(
@@ -334,7 +334,7 @@ public class ExecutorApi extends RestBehavior {
         TENANT_AGENT_URI + "/package/openaev/{platform}/{architecture}/{installationMode}"
       },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
   public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevAgentPackage(
       TxCtx ctx,
       @Parameter(
