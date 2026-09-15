@@ -12,10 +12,20 @@ const NMAP_TCP_CONNECT_SCAN = 'Nmap - TCP Connect Scan';
 
 const createChainedScenario = async (page: Page, name: string): Promise<void> => {
   await page.goto(tenantUrl('/admin/scenarios'));
-  await page.getByRole('button', {
-    name: 'Create',
+  const createButton = page.getByTestId('button-create');
+  const drawerTitle = page.getByRole('heading', {
+    name: 'Create a new scenario',
     exact: true,
-  }).click();
+  });
+  await expect(async () => {
+    if (!await drawerTitle.isVisible().catch(() => false)) {
+      await createButton.click();
+    }
+    await expect(drawerTitle).toBeVisible({ timeout: 5_000 });
+  }).toPass({
+    intervals: [1_000],
+    timeout: 60_000,
+  });
   await page.getByRole('button', {
     name: 'Chained scenario',
     exact: true,
