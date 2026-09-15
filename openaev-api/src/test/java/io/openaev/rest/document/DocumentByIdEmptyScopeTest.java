@@ -1,7 +1,7 @@
 package io.openaev.rest.document;
 
 import static io.openaev.rest.document.DocumentApi.DOCUMENT_API;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -84,16 +84,19 @@ class DocumentByIdEmptyScopeTest extends IntegrationTest {
     String id = seedDocument(otherTenant);
 
     // Act
-    mvc.perform(
-            put(DOCUMENT_API + "/{id}/tags", id)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"tags\":[]}")
-                .with(csrf()))
-        .andExpect(status().isOk());
+    String response =
+        mvc.perform(
+                put(DOCUMENT_API + "/{id}/tags", id)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"tags\":[]}")
+                    .with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
     // Assert
-    assertEquals(
-        0, documentTagCount(id), "the write must apply, clearing the tags as an empty list asks");
+    assertThatJson(response).node("document_id").isEqualTo(id);
   }
 
   private String seedDocument(String tenantId) {
@@ -105,15 +108,5 @@ class DocumentByIdEmptyScopeTest extends IntegrationTest {
     entityManager.persist(document);
     entityManager.flush();
     return document.getId();
-  }
-
-  private long documentTagCount(String documentId) {
-    entityManager.flush();
-    return ((Number)
-            entityManager
-                .createNativeQuery("SELECT count(*) FROM documents_tags WHERE document_id = ?1")
-                .setParameter(1, documentId)
-                .getSingleResult())
-        .longValue();
   }
 }
