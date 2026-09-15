@@ -173,7 +173,6 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
 
     stepRun.setStatus(StepStatus.RUN);
     stepService.saveStep(stepRun);
-    System.out.println("RUN - " + stepRun.getId() + " - " + stepRun.getInput());
   }
 
   // -- EXTERNAL UPDATE EVENTS --
