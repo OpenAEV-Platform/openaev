@@ -43,8 +43,8 @@ class ThreatArsenalHelper {
     await form.selectDomain('Endpoint');
     await form.switchToCommandsTab();
     await form.selectCommandType('Command Line');
-    await form.selectPlatform(platform);
     await form.selectExecutor(resolvedExecutor);
+    await form.selectPlatform(platform);
     await form.commandField.fill(command);
     if (textOutput) {
       await form.addTextOutput(textOutput.name, textOutput.key, textOutput.rule);

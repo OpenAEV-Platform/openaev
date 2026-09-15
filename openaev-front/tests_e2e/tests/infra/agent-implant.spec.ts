@@ -1,21 +1,13 @@
-import { execSync } from 'node:child_process';
-import os from 'node:os';
-
 import { expect } from '@playwright/test';
 
 import { test } from '../../fixtures';
+import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
+import { installAgent } from '../../utils/agent';
+import { AUTH_FILE } from '../../utils/constants';
 import { tenantUrl } from '../../utils/url';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:8080';
 const ADMIN_TOKEN = process.env.OPENAEV_ADMIN_TOKEN!;
-
-const getOsPlatform = (): string => {
-  switch (os.platform()) {
-    case 'win32': return 'Windows';
-    case 'darwin': return 'MacOS';
-    default: return 'Linux';
-  }
-};
 
 test.describe('Agent implant registration', () => {
   let hostname: string;
@@ -23,62 +15,25 @@ test.describe('Agent implant registration', () => {
 
   test.beforeAll(async ({ browser }) => {
     expect(ADMIN_TOKEN, 'OPENAEV_ADMIN_TOKEN must be set').toBeTruthy();
-    hostname = os.hostname().toLowerCase();
-    const platform = getOsPlatform();
+    const installedAgent = await installAgent(browser);
+    hostname = installedAgent.hostname;
 
-    // Create an authenticated page to navigate the UI
     const context = await browser.newContext({
-      storageState: 'tests_e2e/.auth/user.json',
+      storageState: AUTH_FILE,
       baseURL: APP_URL,
     });
-    const page = await context.newPage();
 
-    // Navigate to the agents page and open the first executor (OpenAEV Agent)
-    await page.goto(tenantUrl('/admin/agents'));
-    await page.waitForURL('**/agents**');
-    await page.getByRole('button', { name: /Install/i }).first().click();
-
-    // Select the platform matching the current OS
-    await page.getByText(`Install ${platform} agent`).click();
-
-    // Grab the install command from the <pre> block
-    const preBlock = page.locator('pre').first();
-    await expect(preBlock).not.toBeEmpty();
-    const installCommand = (await preBlock.textContent())!;
-
-    // Create the threat arsenal payload (Command Line for Linux)
-    await page.goto(tenantUrl('/admin'));
-    await page.getByRole('menuitem', { name: 'Threat Arsenal' }).click();
-    await page.waitForURL('**/threat-arsenal**');
-    await page.getByTestId('button-create').click();
-    await expect(page.getByRole('textbox', { name: 'Name*' })).toBeVisible();
-
-    // Fill General tab
-    await page.getByRole('textbox', { name: 'Name*' }).fill(payloadName);
-
-    // Switch to Commands tab
-    await page.getByRole('tab', { name: 'Commands' }).click();
-    await page.getByRole('combobox', { name: 'Type *' }).click();
-    await page.getByRole('option', { name: 'Command Line' }).click();
-    await page.getByRole('combobox', { name: 'Platforms' }).click();
-    await page.getByRole('option', { name: 'Linux' }).click();
-    await page.keyboard.press('Escape');
-    await page.getByRole('combobox', { name: 'Executor *' }).click();
-    await page.getByRole('option', { name: 'bash' }).click();
-    await page.locator('textarea[name="command_content"]').fill('echo \'this a test\'');
-
-    // Save the payload
-    await page.getByRole('tab', { name: 'General' }).click();
-    await page.getByRole('button', { name: 'Create' }).click();
-    await expect(page.getByText('The element has been successfully created')).toBeVisible();
-
-    await context.close();
-
-    // Execute the install command
-    execSync(installCommand, {
-      stdio: 'inherit',
-      timeout: 60_000,
-    });
+    try {
+      const page = await context.newPage();
+      await page.goto(tenantUrl('/admin'));
+      await new ThreatArsenalHelper(page).createCommandLinePayload({
+        name: payloadName,
+        command: 'echo \'this is a test\'',
+        platform: installedAgent.platform,
+      });
+    } finally {
+      await context.close();
+    }
   });
 
   test('installed agent registers an endpoint', async ({ page }) => {
