@@ -76,6 +76,7 @@ const ReportingCard: FunctionComponent<Props> = ({ reporting, onUpdate, onDelete
           <Tooltip>
             <TooltipTrigger asChild>
               <IconButton
+                aria-label={t('Download latest generation')}
                 size="small"
                 color="primary"
                 // Programmatic download instead of an <a href>: the card itself is

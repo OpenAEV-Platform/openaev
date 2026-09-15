@@ -134,6 +134,7 @@ const ScopeInventoryBox = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <IconButton
+                aria-label={t('Clear all')}
                 size="small"
                 color="primary"
                 onClick={(e) => {

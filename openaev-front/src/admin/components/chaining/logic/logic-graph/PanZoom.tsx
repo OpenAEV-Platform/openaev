@@ -332,7 +332,7 @@ const PanZoom = ({
       >
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton size="small" sx={controlButtonSx} onClick={() => zoomByButton(ZOOM_STEP)}>
+            <IconButton aria-label={t('Zoom in')} size="small" sx={controlButtonSx} onClick={() => zoomByButton(ZOOM_STEP)}>
               <AddOutlined fontSize="small" />
             </IconButton>
           </TooltipTrigger>
@@ -340,7 +340,7 @@ const PanZoom = ({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton size="small" sx={controlButtonSx} onClick={() => zoomByButton(1 / ZOOM_STEP)}>
+            <IconButton aria-label={t('Zoom out')} size="small" sx={controlButtonSx} onClick={() => zoomByButton(1 / ZOOM_STEP)}>
               <RemoveOutlined fontSize="small" />
             </IconButton>
           </TooltipTrigger>
@@ -348,7 +348,7 @@ const PanZoom = ({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton size="small" sx={controlButtonSx} onClick={fit}>
+            <IconButton aria-label={t('Fit to view')} size="small" sx={controlButtonSx} onClick={fit}>
               <CenterFocusStrongOutlined fontSize="small" />
             </IconButton>
           </TooltipTrigger>
@@ -357,7 +357,7 @@ const PanZoom = ({
         {onAutoLayout && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <IconButton size="small" sx={controlButtonSx} onClick={onAutoLayout}>
+              <IconButton aria-label={t('Auto-organize')} size="small" sx={controlButtonSx} onClick={onAutoLayout}>
                 <AccountTreeOutlined fontSize="small" />
               </IconButton>
             </TooltipTrigger>

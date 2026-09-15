@@ -247,6 +247,7 @@ const Reportings = () => {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <IconButton
+                                  aria-label={t('Download latest generation')}
                                   size="small"
                                   color="primary"
                                   component="a"

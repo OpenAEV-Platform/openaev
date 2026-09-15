@@ -864,6 +864,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
+                      aria-label={t('Delete')}
                       color="error"
                       onClick={() => {
                         deleteParent(parent);
@@ -978,6 +979,7 @@ const InjectChainsForm: FunctionComponent<Props> = ({ values, form, injects, isD
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
+                      aria-label={t('Delete')}
                       color="error"
                       onClick={() => {
                         deleteChildren(children);

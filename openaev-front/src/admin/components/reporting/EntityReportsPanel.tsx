@@ -330,6 +330,7 @@ const EntityReportsPanel: FunctionComponent<Props> = ({ contextType, contextId, 
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <IconButton
+                          aria-label={t('Download latest generation')}
                           size="small"
                           color="primary"
                           component="a"

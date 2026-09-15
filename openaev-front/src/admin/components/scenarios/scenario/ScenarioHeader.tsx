@@ -836,6 +836,7 @@ const ScenarioHeader = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
+                      aria-label={t('Preview challenges page')}
                       size="small"
                       color="primary"
                       component={Link}
@@ -864,7 +865,7 @@ const ScenarioHeader = ({
                   />
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <IconButton size="small" color="primary" onClick={() => setOpenScheduling(true)}>
+                      <IconButton aria-label={t('Scheduling')} size="small" color="primary" onClick={() => setOpenScheduling(true)}>
                         <UpdateOutlined fontSize="small" />
                       </IconButton>
                     </TooltipTrigger>
@@ -876,6 +877,7 @@ const ScenarioHeader = ({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <IconButton
+                          aria-label={t('Scenario assistant')}
                           size="small"
                           color="primary"
                           onClick={() => navigate(`/admin/scenarios/${scenarioId}/assistant`)}

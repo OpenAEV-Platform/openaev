@@ -285,6 +285,7 @@ const GraphTriggerCard = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <IconButton
+                aria-label={t('Add an action gated by this trigger')}
                 size="small"
                 onPointerDown={e => e.stopPropagation()}
                 onClick={(e) => {

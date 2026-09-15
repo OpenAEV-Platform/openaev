@@ -253,7 +253,7 @@ const ReportingGenerationsTab: FunctionComponent<Props> = ({ generations, onRelo
                 ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <IconButton size="small" color="primary" onClick={() => setGenerationToDelete(generation)}>
+                        <IconButton aria-label={t('Delete')} size="small" color="primary" onClick={() => setGenerationToDelete(generation)}>
                           <DeleteOutlined fontSize="small" />
                         </IconButton>
                       </TooltipTrigger>

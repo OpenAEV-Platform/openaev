@@ -80,7 +80,7 @@ const ParametersTab = () => {
                 />
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <IconButton color="error" onClick={() => remove(index)}>
+                    <IconButton aria-label={t('Delete')} color="error" onClick={() => remove(index)}>
                       <DeleteOutlined fontSize="small" />
                     </IconButton>
                   </TooltipTrigger>

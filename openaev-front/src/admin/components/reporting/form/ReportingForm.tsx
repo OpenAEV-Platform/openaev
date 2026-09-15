@@ -645,7 +645,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                               <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <IconButton size="small" color="error" onClick={() => removeModule(index)}>
+                                  <IconButton aria-label={t('Remove')} size="small" color="error" onClick={() => removeModule(index)}>
                                     <DeleteOutlined fontSize="small" />
                                   </IconButton>
                                 </TooltipTrigger>
@@ -682,7 +682,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                             </Box>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <IconButton size="small" color="error" onClick={() => removeModule(index)}>
+                                <IconButton aria-label={t('Remove')} size="small" color="error" onClick={() => removeModule(index)}>
                                   <DeleteOutlined fontSize="small" />
                                 </IconButton>
                               </TooltipTrigger>

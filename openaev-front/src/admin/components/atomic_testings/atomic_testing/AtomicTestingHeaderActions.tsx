@@ -286,7 +286,7 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
       {canManage && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton size="small" color="primary" onClick={() => setOpenScheduling(true)}>
+            <IconButton aria-label={t('Scheduling')} size="small" color="primary" onClick={() => setOpenScheduling(true)}>
               <UpdateOutlined fontSize="small" />
             </IconButton>
           </TooltipTrigger>

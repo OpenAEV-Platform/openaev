@@ -173,7 +173,7 @@ const RulesContractContent: FunctionComponent<Props> = ({
             </Typography>
             <Tooltip>
               <TooltipTrigger asChild>
-                <IconButton color="error" onClick={handleClickOpenAlertDelete}>
+                <IconButton aria-label={t('Delete')} color="error" onClick={handleClickOpenAlertDelete}>
                   <DeleteOutlined fontSize="small" />
                 </IconButton>
               </TooltipTrigger>

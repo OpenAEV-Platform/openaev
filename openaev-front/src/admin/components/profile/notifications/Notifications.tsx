@@ -322,6 +322,7 @@ const Notifications = () => {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <IconButton
+                            aria-label={t('Delete')}
                             onClick={() => setNotificationToDelete(notification)}
                             size="small"
                             color="error"

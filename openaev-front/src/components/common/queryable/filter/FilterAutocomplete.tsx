@@ -119,6 +119,8 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
           <IconButton
             size="md"
             priority="tertiary"
+            // The button keeps its 36px; the field to its left is the part that compresses.
+            className="shrink-0"
             data-testid="clear-filters"
             aria-label={t('Clear filters')}
             onClick={handleClearFilters}

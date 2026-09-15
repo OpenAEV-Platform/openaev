@@ -44,7 +44,7 @@ const TimelineControlsComponent = ({ scaleIndex, onScaleChange, onMouseEnter, on
       >
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton size="small" onClick={() => reactFlow.fitView({ duration: 500 })}>
+            <IconButton aria-label={t('Fit view')} size="small" onClick={() => reactFlow.fitView({ duration: 500 })}>
               <CropFreeOutlined fontSize="small" />
             </IconButton>
           </TooltipTrigger>
@@ -52,7 +52,7 @@ const TimelineControlsComponent = ({ scaleIndex, onScaleChange, onMouseEnter, on
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton size="small" onClick={() => reactFlow.zoomIn({ duration: 200 })}>
+            <IconButton aria-label={t('Zoom in')} size="small" onClick={() => reactFlow.zoomIn({ duration: 200 })}>
               <AddOutlined fontSize="small" />
             </IconButton>
           </TooltipTrigger>
@@ -60,7 +60,7 @@ const TimelineControlsComponent = ({ scaleIndex, onScaleChange, onMouseEnter, on
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton size="small" onClick={() => reactFlow.zoomOut({ duration: 200 })}>
+            <IconButton aria-label={t('Zoom out')} size="small" onClick={() => reactFlow.zoomOut({ duration: 200 })}>
               <RemoveOutlined fontSize="small" />
             </IconButton>
           </TooltipTrigger>

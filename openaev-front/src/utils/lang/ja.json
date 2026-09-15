@@ -3194,6 +3194,7 @@
   "Score trends": "Score trends",
   "Score vulnerability expectations against detected findings to track exposure.": "検出されたファインディングと照合して脆弱性期待値を採点し、エクスポージャーを追跡します。",
   "Scores": "スコア",
+  "Scroll to bottom": "一番下へスクロール",
   "Search": "検索",
   "Search a technique": "テクニックを検索",
   "Search across OpenAEV": "OpenAEV全体を検索",

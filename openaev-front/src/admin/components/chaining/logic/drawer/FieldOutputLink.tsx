@@ -142,7 +142,7 @@ const FieldOutputLink: FunctionComponent<Props> = ({
                   </Button>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <IconButton size="small" onClick={() => onUnlink(fieldKey)}>
+                      <IconButton aria-label={t('Unlink')} size="small" onClick={() => onUnlink(fieldKey)}>
                         <LinkOff fontSize="small" />
                       </IconButton>
                     </TooltipTrigger>

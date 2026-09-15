@@ -306,7 +306,7 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                           <>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <IconButton size="small" color="primary" onClick={() => setDrawer(schedule)}>
+                                <IconButton aria-label={t('Update')} size="small" color="primary" onClick={() => setDrawer(schedule)}>
                                   <EditOutlined fontSize="small" />
                                 </IconButton>
                               </TooltipTrigger>
@@ -314,7 +314,7 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                             </Tooltip>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <IconButton size="small" color="primary" onClick={() => setScheduleToDelete(schedule)}>
+                                <IconButton aria-label={t('Delete')} size="small" color="primary" onClick={() => setScheduleToDelete(schedule)}>
                                   <DeleteOutlined fontSize="small" />
                                 </IconButton>
                               </TooltipTrigger>

@@ -263,6 +263,7 @@ const ReportingPage = () => {
             <Tooltip>
               <TooltipTrigger asChild>
                 <IconButton
+                  aria-label={`${t('Download latest generation')} (${latestDownloadable.reporting_generation_format ?? ''})`}
                   color="primary"
                   component="a"
                   href={downloadReportingGenerationUrl(latestDownloadable.reporting_generation_id)}

@@ -104,6 +104,7 @@ const Terminal = ({ lines, maxHeight = 400 }: TerminalProps) => {
       <Tooltip>
         <TooltipTrigger asChild>
           <IconButton
+            aria-label={t('Scroll to bottom')}
             size="small"
             onClick={scrollToBottom}
             sx={{

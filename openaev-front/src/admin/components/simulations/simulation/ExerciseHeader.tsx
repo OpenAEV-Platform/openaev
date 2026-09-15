@@ -594,6 +594,7 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
+                      aria-label={t('Preview challenges page')}
                       size="small"
                       color="primary"
                       component={Link}

@@ -234,6 +234,7 @@ const DefaultHomeDashboard = () => {
         <Tooltip>
           <TooltipTrigger asChild>
             <IconButton
+              aria-label={t('Refresh')}
               size="small"
               color="primary"
               onClick={() => setRefreshCount(c => c + 1)}

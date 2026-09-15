@@ -239,6 +239,7 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <IconButton
+                      aria-label={t('Preview')}
                       size="small"
                       color="primary"
                       component={Link}

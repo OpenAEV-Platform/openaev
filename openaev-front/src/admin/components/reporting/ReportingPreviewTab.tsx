@@ -51,7 +51,7 @@ const ReportingPreviewTab: FunctionComponent<Props> = ({ reportingId, refreshTok
         </Typography>
         <Tooltip>
           <TooltipTrigger asChild>
-            <IconButton size="small" color="primary" onClick={() => setPreviewKey(key => key + 1)}>
+            <IconButton aria-label={t('Refresh preview')} size="small" color="primary" onClick={() => setPreviewKey(key => key + 1)}>
               <RefreshOutlined fontSize="small" />
             </IconButton>
           </TooltipTrigger>
