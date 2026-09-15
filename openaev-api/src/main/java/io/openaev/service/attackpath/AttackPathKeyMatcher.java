@@ -86,8 +86,10 @@ public final class AttackPathKeyMatcher {
     }
     return switch (key.operator() == null ? "" : key.operator()) {
       case "IS_NOT_NULL" -> !candidate.isBlank();
-      case "EQ" -> key.value() != null && key.value().equals(candidate);
-      case "IN" -> matchesIn(candidate, key.value());
+      // rawValue, not value: the serialized value of a secret-bearing key is masked, so
+      // comparing it would never match the cleartext the finding carries.
+      case "EQ" -> key.rawValue() != null && key.rawValue().equals(candidate);
+      case "IN" -> matchesIn(candidate, key.rawValue());
       default -> false;
     };
   }

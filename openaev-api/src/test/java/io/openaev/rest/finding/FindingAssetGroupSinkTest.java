@@ -1,6 +1,7 @@
 package io.openaev.rest.finding;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -197,12 +198,19 @@ class FindingAssetGroupSinkTest extends IntegrationTest {
         "finding_assets must still hold the linked asset, for the same reason and on the other"
             + " activated table: "
             + body);
-    assertEquals(
-        List.of(assetId),
-        json.read("$.finding_asset_groups[0].asset_group_assets"),
-        "each asset group must still carry its own asset ids: they are a lazy collection on the"
-            + " activated assets table, serialized by MultiIdListSerializer after the transaction"
-            + " closes, so initialising the groups alone leaves this array empty: "
+    // The third assertion of #7856 checked $.finding_asset_groups[0].asset_group_assets, the asset
+    // ids nested one level below. That level no longer exists in this payload: the endpoint returns
+    // FindingOutput, whose asset groups are AssetGroupSimple - id and name - which is what
+    // AggregatedFindingOutput already returned to the findings list, and all the frontend reads.
+    // The nested array is therefore not empty but absent, and its fail-closed detector has nothing
+    // left to detect. The two assertions above keep the guard where it still applies, and they
+    // remain meaningful: the mapper reads both collections, so a scope regression would empty them
+    // exactly as before.
+    assertFalse(
+        json.read("$.finding_asset_groups[0]", java.util.Map.class)
+            .containsKey("asset_group_assets"),
+        "the finding payload must not carry the nested asset ids: the list and the detail endpoints"
+            + " agree on AssetGroupSimple, and a divergence here would be a contract regression: "
             + body);
   }
 }

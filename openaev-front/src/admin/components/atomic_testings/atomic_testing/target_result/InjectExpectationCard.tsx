@@ -101,6 +101,8 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
     ? (injectExpectation.inject_expectation_results ?? []).filter(result => (result.result ?? '').trim().length > 0)
     : [];
 
+  const showMissingSecurityPlatformMessage = injectExpectation.inject_expectation_collector_missing_at_init;
+
   const entries = [{
     label: t('Update'),
     action: () => onOpenEditInjectExpectationResultResult((injectExpectation?.inject_expectation_results || [])[0], injectExpectation),
@@ -445,6 +447,22 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
           )
         )
       }
+
+      {showMissingSecurityPlatformMessage && (
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          marginTop: 2,
+          color: 'text.secondary',
+        }}
+        >
+          <AddModeratorOutlined sx={{ fontSize: 18 }} />
+          <Typography variant="body2">
+            {t('No automated security platform detected')}
+          </Typography>
+        </Box>
+      )}
     </Paper>
   );
 };
