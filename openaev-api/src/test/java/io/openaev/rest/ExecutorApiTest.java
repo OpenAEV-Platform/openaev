@@ -605,6 +605,35 @@ public class ExecutorApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
           .andExpect(status().isForbidden());
     }
+
+    @Test
+    @DisplayName(
+        "Given a user with the AGENT_RUNTIME_ACCESS capability, should allow the executable download")
+    @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
+    void givenUserWithAgentRuntimeAccess_shouldAllowExecutableDownload() throws Exception {
+      mvc.perform(
+              get("/api/agent/executable/openaev/%s/%s"
+                      .formatted(
+                          Endpoint.PLATFORM_TYPE.Linux.name(),
+                          Endpoint.PLATFORM_ARCH.x86_64.name()))
+                  .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+          .andExpect(status().is2xxSuccessful());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a user with the AGENT_RUNTIME_ACCESS capability, should allow the package download")
+    @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
+    void givenUserWithAgentRuntimeAccess_shouldAllowPackageDownload() throws Exception {
+      mvc.perform(
+              get("/api/agent/package/openaev/%s/%s/%s"
+                      .formatted(
+                          Endpoint.PLATFORM_TYPE.Windows.name(),
+                          Endpoint.PLATFORM_ARCH.x86_64.name(),
+                          EndpointService.SERVICE))
+                  .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+          .andExpect(status().is2xxSuccessful());
+    }
   }
 
   @Nested
