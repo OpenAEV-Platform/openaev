@@ -2004,6 +2004,7 @@
   "Install the agent as a user or a system service. This installation requires local administrator privileges.": "Установите агент в качестве пользователя или системной службы. Для этой установки требуются права локального администратора.",
   "Install the agent using your own user account.": "Установите агент, используя собственную учетную запись пользователя.",
   "Install Windows Agent": "Установка агента Windows",
+  "INSTALL_AGENT": "Установка агента",
   "Installation Instructions": "Инструкции по установке",
   "Installation path": "Путь установки",
   "Installing it as a system grants system-wide privileges.": "Установка в качестве системы дает общесистемные привилегии.",
