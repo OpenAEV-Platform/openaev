@@ -33,7 +33,6 @@ const useStyles = makeStyles<{ topPagination?: boolean }>()((theme, props) => ({
   },
   topPagination: { display: 'block' },
   parameters: {
-    marginTop: -10,
     display: props.topPagination ? 'block' : 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',

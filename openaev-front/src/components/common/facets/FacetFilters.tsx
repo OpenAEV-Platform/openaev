@@ -143,15 +143,16 @@ export const FacetSidebar = ({ sections }: FacetSidebarProps) => {
         position: 'sticky',
         top: theme.spacing(2),
         alignSelf: 'flex-start',
-        maxHeight: `calc(100vh - ${theme.spacing(20)})`,
-        overflowY: 'auto',
       }}
     >
+      {/* The card scrolls inside its own frame, so its border and radius stay whole. */}
       <div style={{
         display: 'flex',
         flexDirection: 'column',
         gap: theme.spacing(2),
         padding: theme.spacing(2),
+        maxHeight: `calc(100vh - ${theme.spacing(20)})`,
+        overflowY: 'auto',
         borderRadius: theme.shape.borderRadius,
         border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
         backgroundColor: theme.palette.background.paper,

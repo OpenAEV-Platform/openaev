@@ -3,7 +3,6 @@ import type React from 'react';
 import { useEffect, useState } from 'react';
 import { type FunctionComponent } from 'react';
 
-import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../utils/fdsLayer';
 import { useFormatter } from '../i18n';
 import Transition from './Transition';
 
@@ -72,18 +71,7 @@ const DialogConfirmation: FunctionComponent<DialogConfirmationProps> = ({
     <DialogMUI
       open={open}
       onClose={handleClose}
-      // Same surface as the shared Dialog: layer class and input aliases on the paper.
-      slotProps={{
-        paper: {
-          elevation: 1,
-          className: fdsLayerClass(SURFACE_LAYER),
-          sx: {
-            ...layerInputVars,
-            backgroundColor: 'var(--bg-elevation-default)',
-            backgroundImage: 'none',
-          },
-        },
-      }}
+      slotProps={{ paper: { elevation: 1 } }}
       slots={{ transition: Transition }}
     >
       <DialogContent>

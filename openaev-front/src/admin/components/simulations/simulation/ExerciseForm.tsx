@@ -234,7 +234,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
                 minDateTime={new Date()}
                 slotProps={{
                   textField: {
-                    variant: 'standard',
+                    variant: 'outlined',
                     fullWidth: true,
                     style: { marginTop: 20 },
                     error: !!errors.exercise_start_date,

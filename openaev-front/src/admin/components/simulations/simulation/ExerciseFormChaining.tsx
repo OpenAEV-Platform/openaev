@@ -352,9 +352,12 @@ const ExerciseForm: FunctionComponent<Props> = ({
             <Alert
               severity="warning"
               variant="outlined"
-              style={{
-                position: 'relative',
-                border: 'none',
+              sx={{
+                'position': 'relative',
+                'border': '1px solid',
+                'borderColor': 'warning.main',
+                'borderRadius': 1,
+                '& .MuiAlert-icon': { color: 'warning.main' },
               }}
             >
               <AlertTitle>

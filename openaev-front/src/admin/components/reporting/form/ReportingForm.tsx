@@ -13,7 +13,7 @@ import { DeleteOutlined, DragIndicatorOutlined, RestartAltOutlined } from '@mui/
 import { Box, Button, FormHelperText, IconButton, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
-import { Controller, FormProvider, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
+import { Controller, FormProvider, type SubmitHandler, useFieldArray, useForm, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
 
 import { type LoggedHelper } from '../../../../actions/helper';
@@ -24,6 +24,7 @@ import MarkDownFieldController from '../../../../components/fields/MarkDownField
 import SelectFieldController from '../../../../components/fields/SelectFieldController';
 import SwitchFieldController from '../../../../components/fields/SwitchFieldController';
 import TextFieldController from '../../../../components/fields/TextFieldController';
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import {
@@ -147,6 +148,41 @@ interface Props {
  * branding and - on creation only - an optional first schedule (schedules are
  * then managed from the report detail page).
  */
+/** The optional title, its label on the left: the row stays one line high. */
+const ModuleTitleField = ({ id, name }: {
+  id: string;
+  name: `modules.${number}.module_title`;
+}) => {
+  const { t } = useFormatter();
+  const { control } = useFormContext<ReportingFormValues>();
+  return (
+    <Box sx={{
+      flex: 1,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1,
+    }}
+    >
+      <Typography
+        component="label"
+        htmlFor={id}
+        variant="body2"
+        sx={{
+          color: 'text.secondary',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {t('Custom title (optional)')}
+      </Typography>
+      <Controller
+        control={control}
+        name={name}
+        render={({ field }) => <TextFieldFds {...field} id={id} value={field.value ?? ''} />}
+      />
+    </Box>
+  );
+};
+
 const ReportingForm: FunctionComponent<Props> = ({
   onSubmit,
   handleClose,
@@ -583,8 +619,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                       >
                         <Box sx={{
                           display: 'flex',
-                          // The title field carries its label above: the row aligns on the input line.
-                          alignItems: 'flex-end',
+                          alignItems: 'center',
                           gap: 1,
                         }}
                         >
@@ -612,42 +647,57 @@ const ReportingForm: FunctionComponent<Props> = ({
                           >
                             {`${index + 1}. ${t(MODULE_TYPE_LABELS[type])}`}
                           </Typography>
-                          <Box sx={{ flex: 1 }}>
-                            <TextFieldController
-                              name={`modules.${index}.module_title`}
-                              label={t('Custom title (optional)')}
-                              noHelperText
-                            />
-                          </Box>
-                          <Tooltip title={t('Remove')}>
-                            <IconButton size="small" color="error" onClick={() => removeModule(index)}>
-                              <DeleteOutlined fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                          {/* The kill chain section carries two fields: they get their own row below. */}
+                          {type !== 'MITRE_COVERAGE' && (
+                            <>
+                              <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
+                              <Tooltip title={t('Remove')}>
+                                <IconButton size="small" color="error" onClick={() => removeModule(index)}>
+                                  <DeleteOutlined fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
                         </Box>
+                        {type === 'MITRE_COVERAGE' && (
+                          <Box sx={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 1,
+                          }}
+                          >
+                            <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
+                            <Box sx={{ flex: 1 }}>
+                              <Controller
+                                control={control}
+                                name={`modules.${index}.kill_chains`}
+                                render={({ field: killChains }) => (
+                                  <ReportingAutocompleteField
+                                    multiple
+                                    label={t('Kill chains')}
+                                    labelPosition="left"
+                                    options={killChainOptions}
+                                    value={killChains.value}
+                                    onChange={killChains.onChange}
+                                    onInputChange={() => {}}
+                                    helperText={t('Leave empty to cover all kill chains.')}
+                                  />
+                                )}
+                              />
+                            </Box>
+                            <Tooltip title={t('Remove')}>
+                              <IconButton size="small" color="error" onClick={() => removeModule(index)}>
+                                <DeleteOutlined fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        )}
                         {type === 'CUSTOM_MARKDOWN' && (
                           <MarkDownFieldController
                             name={`modules.${index}.content`}
                             label={t('Content')}
                             style={{ marginTop: theme.spacing(1) }}
                             inInject={false}
-                          />
-                        )}
-                        {type === 'MITRE_COVERAGE' && (
-                          <Controller
-                            control={control}
-                            name={`modules.${index}.kill_chains`}
-                            render={({ field }) => (
-                              <ReportingAutocompleteField
-                                multiple
-                                label={t('Kill chains')}
-                                options={killChainOptions}
-                                value={field.value}
-                                onChange={field.onChange}
-                                onInputChange={() => {}}
-                                helperText={t('Leave empty to cover all kill chains.')}
-                              />
-                            )}
                           />
                         )}
                       </FdsPaper>

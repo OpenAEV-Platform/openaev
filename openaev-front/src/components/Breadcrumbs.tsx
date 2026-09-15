@@ -23,11 +23,11 @@ interface BreadcrumbsProps {
 const useStyles = makeStyles()(() => ({
   breadcrumbsList: {
     marginTop: -5,
-    marginBottom: 15,
+    marginBottom: 16,
   },
   breadcrumbsObject: {
     marginTop: -5,
-    marginBottom: 15,
+    marginBottom: 16,
   },
   breadcrumbsStandard: { marginTop: -5 },
 }));
