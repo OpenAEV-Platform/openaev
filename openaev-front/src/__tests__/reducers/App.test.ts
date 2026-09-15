@@ -41,6 +41,23 @@ describe('app reducer DATA_FETCH_ERROR', () => {
     expect(next.get('tenantAccessDenied')).toBe(true);
   });
 
+  it('flags tenant access denied when the error shape is axios-like (nested response)', () => {
+    const state = Map({ logged: {} });
+    const next = appReducer(state, {
+      type: Constants.DATA_FETCH_ERROR,
+      payload: {
+        response: {
+          status: '403',
+          data: {
+            message: 'TENANT_ACCESS_DENIED',
+          },
+        },
+      },
+    });
+    expect(next.get('logged')).toBeNull();
+    expect(next.get('tenantAccessDenied')).toBe(true);
+  });
+
   it('leaves the state untouched for other 403s (e.g. the generic CSRF retry one)', () => {
     const state = Map({ logged: { user: 'u1' } });
     const next = appReducer(state, {
