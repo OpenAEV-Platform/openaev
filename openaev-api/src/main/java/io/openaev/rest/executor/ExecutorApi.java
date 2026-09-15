@@ -451,4 +451,24 @@ public class ExecutorApi extends RestBehavior {
             TenantContext.getCurrentTenant());
     return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body(installCommand);
   }
+
+  @Operation(
+      summary = "Retrieve the OpenAEV Agent installer token",
+      description =
+          "Returns the tenant's service-account token, used to authenticate the copy-pasteable "
+              + "curl/iwr installer command against the (now capability-gated) installer endpoint.")
+  @Transactional(readOnly = true)
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved the token."),
+        @ApiResponse(responseCode = "404", description = "Token not found."),
+      })
+  @GetMapping(
+      value = {AGENT_URI + "/installer/openaev/token", TENANT_AGENT_URI + "/installer/openaev/token"})
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
+  public @ResponseBody ResponseEntity<String> getOpenAevAgentInstallerToken(TxCtx ctx) {
+    String token =
+        privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+    return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body(token);
+  }
 }
