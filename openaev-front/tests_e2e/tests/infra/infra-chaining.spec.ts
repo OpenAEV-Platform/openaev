@@ -26,7 +26,7 @@ const createChainedScenario = async (page: Page, name: string): Promise<void> =>
     intervals: [1_000],
     timeout: 60_000,
   });
-  await page.getByRole('heading', {
+  await page.getByRole('button', {
     name: 'Chained scenario',
     exact: true,
   }).click();
