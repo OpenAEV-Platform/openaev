@@ -1,5 +1,6 @@
 import { AutoAwesomeOutlined } from '@mui/icons-material';
 import { LoadingButton } from '@mui/lab';
+// fds:keep-mui the AI generation fields stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, SvgIcon, TextField, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
