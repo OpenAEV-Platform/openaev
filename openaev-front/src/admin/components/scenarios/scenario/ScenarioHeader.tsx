@@ -1,3 +1,4 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   AutoAwesome,
@@ -17,7 +18,7 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
+import { alpha, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type Dispatch, type ReactNode, type SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -624,25 +625,90 @@ const ScenarioHeader = ({
         </Button>
         {/* Even while scheduled, allow a one-off manual run outside
             the recurrence - compact icon so it stays secondary to Stop. */}
-        <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch now')}>
-          <Box component="span" sx={{ display: 'inline-flex' }}>
-            <IconButton
-              size="small"
-              color="primary"
-              onClick={handleLaunchNormal}
-              disabled={isScopeMissing}
-              data-testid="scenario-launch-now-button"
-            >
-              <PlayArrowOutlined fontSize="small" />
-            </IconButton>
-          </Box>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Box component="span" sx={{ display: 'inline-flex' }}>
+              <IconButton
+                size="small"
+                color="primary"
+                onClick={handleLaunchNormal}
+                disabled={isScopeMissing}
+                data-testid="scenario-launch-now-button"
+              >
+                <PlayArrowOutlined fontSize="small" />
+              </IconButton>
+            </Box>
+          </TooltipTrigger>
+          <TooltipContent>{isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch now')}</TooltipContent>
         </Tooltip>
       </>
     );
   } else if (isAutonomousModeEnabled) {
     launchActions = (
       <>
-        <Tooltip title={normalLaunchTitle}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Box component="span" sx={{ display: 'inline-flex' }}>
+              <Button
+                startIcon={<PlayArrowOutlined />}
+                variant="contained"
+                color="primary"
+                size="small"
+                onClick={handleLaunchNormal}
+                disabled={isScopeMissing}
+                data-testid="scenario-launch-button"
+              >
+                {t('Normal')}
+              </Button>
+            </Box>
+          </TooltipTrigger>
+          {normalLaunchTitle && <TooltipContent>{normalLaunchTitle}</TooltipContent>}
+        </Tooltip>
+        {/* Autonomous is an XTM One-driven EE feature: hidden entirely when XTM One is unavailable
+            (only Normal remains), and shown as an EE call-to-action when the platform is not
+            Enterprise (the EE chip + the dialog raised by openAiDrawerOrEE). */}
+        {isXtmOneReady && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Box
+                component="span"
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                }}
+              >
+                <Button
+                  startIcon={<AutoAwesome />}
+                  variant="contained"
+                  size="small"
+                  onClick={() => openAiDrawerOrEE('launch')}
+                  data-testid="scenario-launch-autonomous-button"
+                  sx={{
+                    'whiteSpace': 'nowrap',
+                    'backgroundColor': theme.palette.ai.main,
+                    'color': theme.palette.ai.contrastText,
+                    '&:hover': { backgroundColor: theme.palette.ai.dark },
+                  }}
+                >
+                  {t('Autonomous')}
+                </Button>
+                {!isEnterpriseEdition && <EEChip />}
+              </Box>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isRunSettled
+                ? t('Relaunch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')
+                : t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </>
+    );
+  } else {
+    launchActions = (
+      <Tooltip>
+        <TooltipTrigger asChild>
           <Box component="span" sx={{ display: 'inline-flex' }}>
             <Button
               startIcon={<PlayArrowOutlined />}
@@ -653,63 +719,11 @@ const ScenarioHeader = ({
               disabled={isScopeMissing}
               data-testid="scenario-launch-button"
             >
-              {t('Normal')}
+              {t('Launch')}
             </Button>
           </Box>
-        </Tooltip>
-        {/* Autonomous is an XTM One-driven EE feature: hidden entirely when XTM One is unavailable
-            (only Normal remains), and shown as an EE call-to-action when the platform is not
-            Enterprise (the EE chip + the dialog raised by openAiDrawerOrEE). */}
-        {isXtmOneReady && (
-          <Tooltip title={isRunSettled
-            ? t('Relaunch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')
-            : t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}
-          >
-            <Box
-              component="span"
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.5,
-              }}
-            >
-              <Button
-                startIcon={<AutoAwesome />}
-                variant="contained"
-                size="small"
-                onClick={() => openAiDrawerOrEE('launch')}
-                data-testid="scenario-launch-autonomous-button"
-                sx={{
-                  'whiteSpace': 'nowrap',
-                  'backgroundColor': theme.palette.ai.main,
-                  'color': theme.palette.ai.contrastText,
-                  '&:hover': { backgroundColor: theme.palette.ai.dark },
-                }}
-              >
-                {t('Autonomous')}
-              </Button>
-              {!isEnterpriseEdition && <EEChip />}
-            </Box>
-          </Tooltip>
-        )}
-      </>
-    );
-  } else {
-    launchActions = (
-      <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : ''}>
-        <Box component="span" sx={{ display: 'inline-flex' }}>
-          <Button
-            startIcon={<PlayArrowOutlined />}
-            variant="contained"
-            color="primary"
-            size="small"
-            onClick={handleLaunchNormal}
-            disabled={isScopeMissing}
-            data-testid="scenario-launch-button"
-          >
-            {t('Launch')}
-          </Button>
-        </Box>
+        </TooltipTrigger>
+        {(isScopeMissing ? t('A chained scenario requires a defined scope.') : '') && <TooltipContent>{isScopeMissing ? t('A chained scenario requires a defined scope.') : ''}</TooltipContent>}
       </Tooltip>
     );
   }
@@ -745,19 +759,22 @@ const ScenarioHeader = ({
               {autonomousRun && (
                 <AutonomousRunStatusChip status={autonomousRun.autonomous_run_status} />
               )}
-              <Tooltip title={scheduleLabel ?? ''}>
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label={isScheduled ? t('Scheduled') : t('Not scheduled')}
-                  sx={{
-                    borderRadius: 1,
-                    height: 22,
-                    fontSize: 11,
-                    color: isScheduled ? theme.palette.success.main : theme.palette.text.disabled,
-                    borderColor: isScheduled ? alpha(theme.palette.success.main, 0.4) : theme.palette.divider,
-                  }}
-                />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={isScheduled ? t('Scheduled') : t('Not scheduled')}
+                    sx={{
+                      borderRadius: 1,
+                      height: 22,
+                      fontSize: 11,
+                      color: isScheduled ? theme.palette.success.main : theme.palette.text.disabled,
+                      borderColor: isScheduled ? alpha(theme.palette.success.main, 0.4) : theme.palette.divider,
+                    }}
+                  />
+                </TooltipTrigger>
+                {(scheduleLabel ?? '') && <TooltipContent>{scheduleLabel ?? ''}</TooltipContent>}
               </Tooltip>
             </>
           )}
@@ -781,20 +798,23 @@ const ScenarioHeader = ({
                   overflow) so teams/players setup is discoverable, with an
                   explicit tooltip describing what it configures. */}
               {canOpenConfiguration && (
-                <Tooltip title={t('Configure the teams, players and audience targeted by this scenario')}>
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    size="small"
-                    startIcon={<TuneOutlined />}
-                    onClick={() => {
-                      setConfigurationInitialTab(ScenarioConfigurationTab.TEAMS);
-                      setOpenConfiguration(true);
-                    }}
-                    data-testid="scenario-configuration-button"
-                  >
-                    {t('Configuration')}
-                  </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      size="small"
+                      startIcon={<TuneOutlined />}
+                      onClick={() => {
+                        setConfigurationInitialTab(ScenarioConfigurationTab.TEAMS);
+                        setOpenConfiguration(true);
+                      }}
+                      data-testid="scenario-configuration-button"
+                    >
+                      {t('Configuration')}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Configure the teams, players and audience targeted by this scenario')}</TooltipContent>
                 </Tooltip>
               )}
               {/* Dismissed drift downgraded to a discreet icon after Configuration -
@@ -813,16 +833,19 @@ const ScenarioHeader = ({
               {/* Visible as soon as one inject uses a challenge - opens the
                   player-facing challenges page in a new tab. */}
               {hasChallenges && (
-                <Tooltip title={t('Preview challenges page')}>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    component={Link}
-                    to={`/admin/scenarios/${scenarioId}/challenges`}
-                    target="_blank"
-                  >
-                    <EmojiEventsOutlined fontSize="small" />
-                  </IconButton>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      component={Link}
+                      to={`/admin/scenarios/${scenarioId}/challenges`}
+                      target="_blank"
+                    >
+                      <EmojiEventsOutlined fontSize="small" />
+                    </IconButton>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Preview challenges page')}</TooltipContent>
                 </Tooltip>
               )}
               {/* Entity-scoped reports - self-hides without the reporting
@@ -839,23 +862,29 @@ const ScenarioHeader = ({
                     resourceId={scenarioId}
                     resourceName={scenario.scenario_name}
                   />
-                  <Tooltip title={t('Scheduling')}>
-                    <IconButton size="small" color="primary" onClick={() => setOpenScheduling(true)}>
-                      <UpdateOutlined fontSize="small" />
-                    </IconButton>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <IconButton size="small" color="primary" onClick={() => setOpenScheduling(true)}>
+                        <UpdateOutlined fontSize="small" />
+                      </IconButton>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('Scheduling')}</TooltipContent>
                   </Tooltip>
                   {/* Guided scenario building (matrix coverage + inject generation),
                       not an AI-only feature - hence primary color, no sparkles. */}
                   {!isScenarioChaining && (
-                    <Tooltip title={t('Scenario assistant')}>
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        onClick={() => navigate(`/admin/scenarios/${scenarioId}/assistant`)}
-                        data-testid="scenario-assistant-button"
-                      >
-                        <DashboardCustomizeOutlined fontSize="small" />
-                      </IconButton>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => navigate(`/admin/scenarios/${scenarioId}/assistant`)}
+                          data-testid="scenario-assistant-button"
+                        >
+                          <DashboardCustomizeOutlined fontSize="small" />
+                        </IconButton>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('Scenario assistant')}</TooltipContent>
                     </Tooltip>
                   )}
                 </>
@@ -878,35 +907,39 @@ const ScenarioHeader = ({
                   unless XTM One is available, and an EE call-to-action (EE chip + EE dialog via
                   openAiDrawerOrEE) when the platform is not Enterprise. */}
               {canManage && isAutonomousModeEnabled && !isRunActive && isXtmOneReady && (
-                <Tooltip title={hasExistingLogic
-                  ? t('Rebuild with AI - refine this scenario\'s existing logic (keep it and continue) or rebuild it from scratch')
-                  : t('AI builder - let the orchestrator author this scenario\'s logic; save it for later or build it now (nothing runs while building)')}
-                >
-                  <Box
-                    component="span"
-                    sx={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                    }}
-                  >
-                    <IconButton
-                      size="small"
-                      onClick={() => openAiDrawerOrEE('build')}
-                      aria-label={hasExistingLogic ? t('Rebuild with AI') : t('AI builder')}
-                      data-testid="scenario-plan-with-ai-button"
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Box
+                      component="span"
                       sx={{
-                        'color': theme.palette.ai.main,
-                        '&:hover': {
-                          color: theme.palette.ai.dark,
-                          backgroundColor: alpha(theme.palette.ai.main, 0.08),
-                        },
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 0.5,
                       }}
                     >
-                      <AutoFixHigh fontSize="small" />
-                    </IconButton>
-                    {!isEnterpriseEdition && <EEChip />}
-                  </Box>
+                      <IconButton
+                        size="small"
+                        onClick={() => openAiDrawerOrEE('build')}
+                        aria-label={hasExistingLogic ? t('Rebuild with AI') : t('AI builder')}
+                        data-testid="scenario-plan-with-ai-button"
+                        sx={{
+                          'color': theme.palette.ai.main,
+                          '&:hover': {
+                            color: theme.palette.ai.dark,
+                            backgroundColor: alpha(theme.palette.ai.main, 0.08),
+                          },
+                        }}
+                      >
+                        <AutoFixHigh fontSize="small" />
+                      </IconButton>
+                      {!isEnterpriseEdition && <EEChip />}
+                    </Box>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {hasExistingLogic
+                      ? t('Rebuild with AI - refine this scenario\'s existing logic (keep it and continue) or rebuild it from scratch')
+                      : t('AI builder - let the orchestrator author this scenario\'s logic; save it for later or build it now (nothing runs while building)')}
+                  </TooltipContent>
                 </Tooltip>
               )}
               {/* Launch actions (suppressed while a run is active - the lifecycle controls own the

@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DeleteOutlined, ExpandMore } from '@mui/icons-material';
-import { Accordion, AccordionActions, AccordionDetails, AccordionSummary, Badge, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Tooltip, Typography } from '@mui/material';
+import { Accordion, AccordionActions, AccordionDetails, AccordionSummary, Badge, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, Typography } from '@mui/material';
 import { CogOutline, InformationOutline } from 'mdi-material-ui';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { Controller, type FieldArrayWithId, useFieldArray, type UseFieldArrayRemove, type UseFormReturn } from 'react-hook-form';
@@ -170,10 +171,13 @@ const RulesContractContent: FunctionComponent<Props> = ({
               {' '}
               {injectorContractLabel ?? t('New representation')}
             </Typography>
-            <Tooltip title={t('Delete')}>
-              <IconButton color="error" onClick={handleClickOpenAlertDelete}>
-                <DeleteOutlined fontSize="small" />
-              </IconButton>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <IconButton color="error" onClick={handleClickOpenAlertDelete}>
+                  <DeleteOutlined fontSize="small" />
+                </IconButton>
+              </TooltipTrigger>
+              <TooltipContent>{t('Delete')}</TooltipContent>
             </Tooltip>
           </div>
         </AccordionSummary>
@@ -192,16 +196,19 @@ const RulesContractContent: FunctionComponent<Props> = ({
               error={!!methods.formState.errors.import_mapper_inject_importers?.[index]?.inject_importer_type_value}
               helperText={methods.formState.errors.import_mapper_inject_importers?.[index]?.inject_importer_type_value?.message}
             />
-            <Tooltip
-              title={t(
-                'This word will match in the specified column to determine the inject',
-              )}
-            >
-              <InformationOutline
-                fontSize="medium"
-                color="primary"
-                style={{ cursor: 'default' }}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <InformationOutline
+                  fontSize="medium"
+                  color="primary"
+                  style={{ cursor: 'default' }}
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                {t(
+                  'This word will match in the specified column to determine the inject',
+                )}
+              </TooltipContent>
             </Tooltip>
           </div>
 
@@ -318,16 +325,19 @@ const RulesContractContent: FunctionComponent<Props> = ({
                                 style={{ marginTop: 10 }}
                                 {...methods.register(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${currentRuleIndex}.rule_attribute_additional_config.timePattern`)}
                               />
-                              <Tooltip
-                                title={t(
-                                  'By default we accept iso date (YYYY-MM-DD hh:mm:ss[.mmm]TZD), but you can specify your own date format in ISO notation (for instance DD.MM.YYYY hh\'h\'mm)',
-                                )}
-                              >
-                                <InformationOutline
-                                  fontSize="medium"
-                                  color="primary"
-                                  style={{ cursor: 'default' }}
-                                />
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <InformationOutline
+                                    fontSize="medium"
+                                    color="primary"
+                                    style={{ cursor: 'default' }}
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t(
+                                    'By default we accept iso date (YYYY-MM-DD hh:mm:ss[.mmm]TZD), but you can specify your own date format in ISO notation (for instance DD.MM.YYYY hh\'h\'mm)',
+                                  )}
+                                </TooltipContent>
                               </Tooltip>
                             </div>
                           )}
@@ -344,16 +354,19 @@ const RulesContractContent: FunctionComponent<Props> = ({
                                 style={{ marginTop: 10 }}
                                 {...methods.register(`import_mapper_inject_importers.${index}.inject_importer_rule_attributes.${currentRuleIndex}.rule_attribute_additional_config.allTeamsValue`)}
                               />
-                              <Tooltip
-                                title={t(
-                                  'Value that signifies all teams are targeted. A regex can be used.',
-                                )}
-                              >
-                                <InformationOutline
-                                  fontSize="medium"
-                                  color="primary"
-                                  style={{ cursor: 'default' }}
-                                />
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <InformationOutline
+                                    fontSize="medium"
+                                    color="primary"
+                                    style={{ cursor: 'default' }}
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t(
+                                    'Value that signifies all teams are targeted. A regex can be used.',
+                                  )}
+                                </TooltipContent>
                               </Tooltip>
                             </div>
                           )}

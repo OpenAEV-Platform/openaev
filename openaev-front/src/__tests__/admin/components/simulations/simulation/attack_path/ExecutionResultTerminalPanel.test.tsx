@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -42,12 +43,14 @@ vi.mock('../../../../../../admin/components/findings/FindingList', () => ({ defa
 
 const renderPanel = (detail: AttackPathExecutionDetailDTO, endpointLabel?: string) => render(
   <ThemeProvider theme={createTheme()}>
-    <ExecutionResultTerminalPanel
-      loading={false}
-      detail={detail}
-      onClose={() => {}}
-      endpointLabel={endpointLabel}
-    />
+    <TooltipProvider>
+      <ExecutionResultTerminalPanel
+        loading={false}
+        detail={detail}
+        onClose={() => {}}
+        endpointLabel={endpointLabel}
+      />
+    </TooltipProvider>
   </ThemeProvider>,
 );
 

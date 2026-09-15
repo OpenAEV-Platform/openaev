@@ -1,5 +1,5 @@
-import { Checkbox } from '@filigran/design-system';
-import { Box, Card, CardActionArea, Chip, Tooltip, Typography } from '@mui/material';
+import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Card, CardActionArea, Chip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useMemo } from 'react';
 
@@ -178,22 +178,25 @@ const InjectContractCard: FunctionComponent<Props> = ({
           '& .MuiCardActionArea-focusHighlight': { background: 'transparent' },
         }}
       >
-        <Tooltip title={name} enterDelay={500}>
-          <Typography
-            sx={{
-              fontSize: 13.5,
-              fontWeight: 600,
-              lineHeight: 1.35,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              wordBreak: 'break-word',
-              minHeight: 36,
-            }}
-          >
-            {name}
-          </Typography>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Typography
+              sx={{
+                fontSize: 13.5,
+                fontWeight: 600,
+                lineHeight: 1.35,
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                wordBreak: 'break-word',
+                minHeight: 36,
+              }}
+            >
+              {name}
+            </Typography>
+          </TooltipTrigger>
+          {name && <TooltipContent>{name}</TooltipContent>}
         </Tooltip>
 
         <Box sx={{
@@ -228,17 +231,20 @@ const InjectContractCard: FunctionComponent<Props> = ({
             />
           )}
           {domains.length > 1 && (
-            <Tooltip title={domains.slice(1).map(d => d.domain_name).join(', ')}>
-              <Chip
-                size="small"
-                label={`+${domains.length - 1}`}
-                variant="outlined"
-                sx={{
-                  height: 20,
-                  fontSize: 10.5,
-                  borderRadius: 0.75,
-                }}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Chip
+                  size="small"
+                  label={`+${domains.length - 1}`}
+                  variant="outlined"
+                  sx={{
+                    height: 20,
+                    fontSize: 10.5,
+                    borderRadius: 0.75,
+                  }}
+                />
+              </TooltipTrigger>
+              {domains.slice(1).map(d => d.domain_name).join(', ') && <TooltipContent>{domains.slice(1).map(d => d.domain_name).join(', ')}</TooltipContent>}
             </Tooltip>
           )}
         </Box>
@@ -299,17 +305,20 @@ const InjectContractCard: FunctionComponent<Props> = ({
               />
             ))}
             {externalIds.length > 2 && (
-              <Tooltip title={externalIds.slice(2).join(', ')}>
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  label={`+${externalIds.length - 2}`}
-                  sx={{
-                    height: 20,
-                    fontSize: 10.5,
-                    borderRadius: 0.75,
-                  }}
-                />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={`+${externalIds.length - 2}`}
+                    sx={{
+                      height: 20,
+                      fontSize: 10.5,
+                      borderRadius: 0.75,
+                    }}
+                  />
+                </TooltipTrigger>
+                {externalIds.slice(2).join(', ') && <TooltipContent>{externalIds.slice(2).join(', ')}</TooltipContent>}
               </Tooltip>
             )}
           </Box>

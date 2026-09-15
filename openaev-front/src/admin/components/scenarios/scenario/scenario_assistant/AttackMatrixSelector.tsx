@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CheckOutlined } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
 
@@ -213,20 +214,23 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
                       },
                     }}
                   >
-                    <Tooltip title={technique.attack_pattern_name} enterDelay={500}>
-                      <Typography sx={{
-                        fontSize: 11.5,
-                        fontWeight: isSelected ? 600 : 500,
-                        lineHeight: 1.3,
-                        color: 'text.primary',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      }}
-                      >
-                        {technique.attack_pattern_name}
-                      </Typography>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Typography sx={{
+                          fontSize: 11.5,
+                          fontWeight: isSelected ? 600 : 500,
+                          lineHeight: 1.3,
+                          color: 'text.primary',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                        >
+                          {technique.attack_pattern_name}
+                        </Typography>
+                      </TooltipTrigger>
+                      {technique.attack_pattern_name && <TooltipContent>{technique.attack_pattern_name}</TooltipContent>}
                     </Tooltip>
                     <Box sx={{
                       display: 'flex',
@@ -248,24 +252,27 @@ const AttackMatrixSelector: FunctionComponent<Props> = ({
                         {technique.attack_pattern_external_id}
                       </Typography>
                       {arsenalCount > 0 && (
-                        <Tooltip title={t('{count} actions available', { count: arsenalCount })}>
-                          <Box
-                            component="span"
-                            sx={{
-                              flexShrink: 0,
-                              fontSize: 9.5,
-                              fontWeight: 600,
-                              lineHeight: '16px',
-                              minWidth: 18,
-                              textAlign: 'center',
-                              paddingInline: 0.5,
-                              borderRadius: '4px',
-                              color: accent,
-                              backgroundColor: alpha(accent, 0.14),
-                            }}
-                          >
-                            {arsenalCount}
-                          </Box>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Box
+                              component="span"
+                              sx={{
+                                flexShrink: 0,
+                                fontSize: 9.5,
+                                fontWeight: 600,
+                                lineHeight: '16px',
+                                minWidth: 18,
+                                textAlign: 'center',
+                                paddingInline: 0.5,
+                                borderRadius: '4px',
+                                color: accent,
+                                backgroundColor: alpha(accent, 0.14),
+                              }}
+                            >
+                              {arsenalCount}
+                            </Box>
+                          </TooltipTrigger>
+                          <TooltipContent>{t('{count} actions available', { count: arsenalCount })}</TooltipContent>
                         </Tooltip>
                       )}
                     </Box>

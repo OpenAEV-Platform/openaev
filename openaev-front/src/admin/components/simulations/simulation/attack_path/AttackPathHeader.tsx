@@ -1,15 +1,4 @@
-import {
-  ButtonGroup,
-  ButtonGroupItem,
-  Combobox,
-  ComboboxContent,
-  ComboboxControls,
-  ComboboxField,
-  ComboboxInput,
-  ComboboxLabel,
-  ComboboxTrigger,
-  IconButton,
-} from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxLabel, ComboboxTrigger, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AccountTreeOutlined,
   ArrowBackOutlined,
@@ -23,17 +12,7 @@ import {
   SearchOutlined,
   TableRowsOutlined,
 } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  ButtonBase,
-  CircularProgress,
-  ListItemButton,
-  Paper,
-  Popover,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, Button, ButtonBase, CircularProgress, ListItemButton, Paper, Popover, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, type ReactNode, useState } from 'react';
 
@@ -185,7 +164,14 @@ const HeroStatButton: FunctionComponent<HeroStatButtonProps> = ({
       </Box>
     </ButtonBase>
   );
-  return hint ? <Tooltip title={hint}>{button}</Tooltip> : button;
+  return hint
+    ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{button}</TooltipTrigger>
+          <TooltipContent>{hint}</TooltipContent>
+        </Tooltip>
+      )
+    : button;
 };
 
 interface Props {
@@ -383,51 +369,54 @@ const AttackPathHeader: FunctionComponent<Props> = ({
           once the run is over, the page hero already says "Finished" — repeating it here would be a
           duplicate. */}
       {freshness !== 'finished' && (
-        <Tooltip title={freshnessTitle}>
-          <Box
-            role="status"
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              height: CONTROL_HEIGHT,
-              padding: theme.spacing(0, 1.5),
-              borderRadius: 1,
-              border: `1px solid ${alpha(beaconColor, 0.3)}`,
-              backgroundColor: alpha(beaconColor, 0.08),
-              flexShrink: 0,
-            }}
-          >
-            <Box sx={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              backgroundColor: beaconColor,
-              ...(freshness === 'live'
-                ? {
-                    'animation': 'attack-path-beacon 2s ease-out infinite',
-                    '@keyframes attack-path-beacon': {
-                      '0%': { boxShadow: `0 0 0 0 ${alpha(beaconColor, 0.5)}` },
-                      '100%': { boxShadow: `0 0 0 7px ${alpha(beaconColor, 0)}` },
-                    },
-                    '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
-                  }
-                : {}),
-            }}
-            />
-            <Typography sx={{
-              fontFamily: '"Geologica", sans-serif',
-              fontWeight: 600,
-              fontSize: 11,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: beaconColor,
-              whiteSpace: 'nowrap',
-            }}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Box
+              role="status"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                height: CONTROL_HEIGHT,
+                padding: theme.spacing(0, 1.5),
+                borderRadius: 1,
+                border: `1px solid ${alpha(beaconColor, 0.3)}`,
+                backgroundColor: alpha(beaconColor, 0.08),
+                flexShrink: 0,
+              }}
             >
-              {freshnessLabel}
-            </Typography>
-          </Box>
+              <Box sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: beaconColor,
+                ...(freshness === 'live'
+                  ? {
+                      'animation': 'attack-path-beacon 2s ease-out infinite',
+                      '@keyframes attack-path-beacon': {
+                        '0%': { boxShadow: `0 0 0 0 ${alpha(beaconColor, 0.5)}` },
+                        '100%': { boxShadow: `0 0 0 7px ${alpha(beaconColor, 0)}` },
+                      },
+                      '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+                    }
+                  : {}),
+              }}
+              />
+              <Typography sx={{
+                fontFamily: '"Geologica", sans-serif',
+                fontWeight: 600,
+                fontSize: 11,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: beaconColor,
+                whiteSpace: 'nowrap',
+              }}
+              >
+                {freshnessLabel}
+              </Typography>
+            </Box>
+          </TooltipTrigger>
+          {freshnessTitle && <TooltipContent>{freshnessTitle}</TooltipContent>}
         </Tooltip>
       )}
 
@@ -504,16 +493,16 @@ const AttackPathHeader: FunctionComponent<Props> = ({
             hasPopup
             hint={t('Top chokepoints')}
             labelAdornment={(
-              <Tooltip
-                arrow
-                title={t('Chokepoints rank endpoints by findings weighted by criticality (score = findings × criticality weight), so the top one is the most findings on the most critical endpoint. Click to see how it is computed.')}
-              >
-                <HelpOutline sx={{
-                  fontSize: 13,
-                  color: 'text.disabled',
-                  flexShrink: 0,
-                }}
-                />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpOutline sx={{
+                    fontSize: 13,
+                    color: 'text.disabled',
+                    flexShrink: 0,
+                  }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>{t('Chokepoints rank endpoints by findings weighted by criticality (score = findings × criticality weight), so the top one is the most findings on the most critical endpoint. Click to see how it is computed.')}</TooltipContent>
               </Tooltip>
             )}
           />
@@ -661,43 +650,55 @@ const AttackPathHeader: FunctionComponent<Props> = ({
         onValueChange={v => onViewChange(v as 'graph' | 'table')}
         aria-label={t('View')}
       >
-        <Tooltip title={t('Graph')}>
-          <ButtonGroupItem value="graph" aria-label={t('Graph')} icon={<AccountTreeOutlined fontSize="small" />} />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ButtonGroupItem value="graph" aria-label={t('Graph')} icon={<AccountTreeOutlined fontSize="small" />} />
+          </TooltipTrigger>
+          <TooltipContent>{t('Graph')}</TooltipContent>
         </Tooltip>
-        <Tooltip title={t('Table')}>
-          <ButtonGroupItem value="table" aria-label={t('Table')} icon={<TableRowsOutlined fontSize="small" />} />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ButtonGroupItem value="table" aria-label={t('Table')} icon={<TableRowsOutlined fontSize="small" />} />
+          </TooltipTrigger>
+          <TooltipContent>{t('Table')}</TooltipContent>
         </Tooltip>
       </ButtonGroup>
       {/* Action, not a state — the library's secondary outline is the band's own,
           so it no longer has to be hand-rolled. Only the graph can be rasterized:
           the table has its own CSV export. */}
       {view === 'graph' && onExportPng && (
-        <Tooltip title={t('Export as PNG')}>
-          <span>
-            <IconButton
-              priority="secondary"
-              size="md"
-              aria-label={t('Export as PNG')}
-              icon={exportingPng ? <CircularProgress size={16} /> : <ImageOutlined fontSize="small" />}
-              onClick={onExportPng}
-              disabled={exportingPng}
-            />
-          </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <IconButton
+                priority="secondary"
+                size="md"
+                aria-label={t('Export as PNG')}
+                icon={exportingPng ? <CircularProgress size={16} /> : <ImageOutlined fontSize="small" />}
+                onClick={onExportPng}
+                disabled={exportingPng}
+              />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{t('Export as PNG')}</TooltipContent>
         </Tooltip>
       )}
       {/* An on/off control, not a segment of a group: the pressed state travels
           as `active`, and the name follows it the way the tooltip does. */}
-      <Tooltip title={fullscreen ? t('Exit fullscreen') : t('Fullscreen')}>
-        <span style={{ display: 'inline-flex' }}>
-          <IconButton
-            priority="secondary"
-            size="md"
-            active={fullscreen}
-            aria-label={fullscreen ? t('Exit fullscreen') : t('Fullscreen')}
-            icon={fullscreen ? <FullscreenExitOutlined fontSize="small" /> : <FullscreenOutlined fontSize="small" />}
-            onClick={onToggleFullscreen}
-          />
-        </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span style={{ display: 'inline-flex' }}>
+            <IconButton
+              priority="secondary"
+              size="md"
+              active={fullscreen}
+              aria-label={fullscreen ? t('Exit fullscreen') : t('Fullscreen')}
+              icon={fullscreen ? <FullscreenExitOutlined fontSize="small" /> : <FullscreenOutlined fontSize="small" />}
+              onClick={onToggleFullscreen}
+            />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>{fullscreen ? t('Exit fullscreen') : t('Fullscreen')}</TooltipContent>
       </Tooltip>
     </Paper>
   );

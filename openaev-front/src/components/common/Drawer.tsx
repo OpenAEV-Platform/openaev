@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Close } from '@mui/icons-material';
-import { Chip, Drawer as DrawerMUI, IconButton, type PaperProps, Tooltip, Typography } from '@mui/material';
+import { Chip, Drawer as DrawerMUI, IconButton, type PaperProps, Typography } from '@mui/material';
 import { cloneElement, type CSSProperties, type FunctionComponent, type ReactElement, type ReactNode } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -139,18 +140,21 @@ const Drawer: FunctionComponent<DrawerProps> = ({
       slotProps={{ transition: { appear: true } }}
     >
       <div className={variant === 'full' ? classes.headerFull : classes.header}>
-        <Tooltip title={title}>
-          <Typography
-            variant="h5"
-            noWrap
-            sx={{
-              flex: 1,
-              minWidth: 0,
-              margin: 0,
-            }}
-          >
-            {title}
-          </Typography>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Typography
+              variant="h5"
+              noWrap
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                margin: 0,
+              }}
+            >
+              {title}
+            </Typography>
+          </TooltipTrigger>
+          {title && <TooltipContent>{title}</TooltipContent>}
         </Tooltip>
         <div style={{
           display: 'flex',

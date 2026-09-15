@@ -1,12 +1,6 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  Switch,
-} from '@filigran/design-system';
+import { Select, SelectContent, SelectItem, SelectTrigger, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, InfoOutlined, OpenInNewOutlined, SmartToyOutlined } from '@mui/icons-material';
-import { Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton, Stack, Tooltip, Typography, useMediaQuery } from '@mui/material';
+import { Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton, Stack, Typography, useMediaQuery } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, type ReactNode, useMemo, useState } from 'react';
 
@@ -164,13 +158,16 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
             ))}
           </SelectContent>
         </Select>
-        <Tooltip title={modeHelp(mode)}>
-          <InfoOutlined sx={{
-            fontSize: 14,
-            color: theme.palette.text.secondary,
-            cursor: 'help',
-          }}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <InfoOutlined sx={{
+              fontSize: 14,
+              color: theme.palette.text.secondary,
+              cursor: 'help',
+            }}
+            />
+          </TooltipTrigger>
+          {modeHelp(mode) && <TooltipContent>{modeHelp(mode)}</TooltipContent>}
         </Tooltip>
       </Stack>
     );
@@ -400,8 +397,11 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
 
   const infoIcon = infoTooltip
     ? (
-        <Tooltip title={infoTooltip}>
-          <InfoOutlined fontSize="small" sx={{ color: theme.palette.text.secondary }} />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <InfoOutlined fontSize="small" sx={{ color: theme.palette.text.secondary }} />
+          </TooltipTrigger>
+          {infoTooltip && <TooltipContent>{infoTooltip}</TooltipContent>}
         </Tooltip>
       )
     : null;
@@ -483,10 +483,13 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                 ),
                 modeNode: showModes ? renderModeSelect(orchestrator.id) : null,
                 trailing: (
-                  <Tooltip title={t('The orchestrator is always active - it plans and drives the attack and cannot be disabled.')}>
-                    <span>
-                      <Switch checked disabled aria-label={orchestrator.name} />
-                    </span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <Switch checked disabled aria-label={orchestrator.name} />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('The orchestrator is always active - it plans and drives the attack and cannot be disabled.')}</TooltipContent>
                   </Tooltip>
                 ),
               })}

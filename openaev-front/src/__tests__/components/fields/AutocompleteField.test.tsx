@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ComponentProps, type ReactNode } from 'react';
@@ -26,9 +27,11 @@ const OPTIONS: Option[] = [
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <ThemeProvider theme={theme}>
-    <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
-      {children}
-    </IntlProvider>
+    <TooltipProvider>
+      <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
+        {children}
+      </IntlProvider>
+    </TooltipProvider>
   </ThemeProvider>
 );
 
@@ -93,8 +96,9 @@ describe('AutocompleteField', () => {
       // Act
       // The library owns the option row, so the tooltip anchors INSIDE it. The
       // event is fired on a descendant and bubbles up to that anchor — firing on
-      // the row itself would travel away from it.
-      fireEvent.mouseOver(screen.getByText(OPTIONS[0].label));
+      // the row itself would travel away from it. The library tooltip opens on
+      // pointer movement.
+      fireEvent.pointerMove(screen.getByText(OPTIONS[0].label));
 
       // Assert
       const tooltip = await screen.findByRole('tooltip');

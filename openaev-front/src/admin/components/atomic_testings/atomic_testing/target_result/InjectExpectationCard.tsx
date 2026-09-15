@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddModeratorOutlined, InventoryOutlined, SmartToyOutlined } from '@mui/icons-material';
-import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, IconButton, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useContext } from 'react';
 
@@ -190,26 +191,29 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
             />
           )}
           {injectExpectation.inject_expectation_score !== null && (
-            <Tooltip title={t('Score')}>
-              <Box
-                component="span"
-                sx={{
-                  minWidth: 34,
-                  height: 22,
-                  borderRadius: 1,
-                  paddingInline: 0.75,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: alpha(statusColor, 0.12),
-                  color: statusColor,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {injectExpectation.inject_expectation_score}
-              </Box>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Box
+                  component="span"
+                  sx={{
+                    minWidth: 34,
+                    height: 22,
+                    borderRadius: 1,
+                    paddingInline: 0.75,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: alpha(statusColor, 0.12),
+                    color: statusColor,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {injectExpectation.inject_expectation_score}
+                </Box>
+              </TooltipTrigger>
+              <TooltipContent>{t('Score')}</TooltipContent>
             </Tooltip>
           )}
           {injectExpectation.inject_expectation_score === null && injectExpectation.inject_expectation_created_at && (
@@ -222,16 +226,19 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
 
         {/* Create expectation result */}
         {isManuallyUpdatable && canManage && (
-          <Tooltip title={t('Add a result')}>
-            <IconButton
-              aria-label="Add"
-              size="small"
-              onClick={() => onOpenEditInjectExpectationResultResult(null, injectExpectation)}
-            >
-              {['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(injectExpectation.inject_expectation_type)
-                ? <AddModeratorOutlined color="primary" fontSize="medium" />
-                : <InventoryOutlined color="primary" fontSize="medium" />}
-            </IconButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton
+                aria-label="Add"
+                size="small"
+                onClick={() => onOpenEditInjectExpectationResultResult(null, injectExpectation)}
+              >
+                {['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(injectExpectation.inject_expectation_type)
+                  ? <AddModeratorOutlined color="primary" fontSize="medium" />
+                  : <InventoryOutlined color="primary" fontSize="medium" />}
+              </IconButton>
+            </TooltipTrigger>
+            <TooltipContent>{t('Add a result')}</TooltipContent>
           </Tooltip>
         )}
 
@@ -346,33 +353,39 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
                       </Typography>
                     )}
                     {sourceIp && (
-                      <Tooltip title={sourceUserAgent ?? ''}>
-                        <Typography
-                          component="span"
-                          sx={{
-                            fontSize: 12,
-                            fontFamily: 'Consolas, monaco, monospace',
-                          }}
-                        >
-                          {sourceIp}
-                        </Typography>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Typography
+                            component="span"
+                            sx={{
+                              fontSize: 12,
+                              fontFamily: 'Consolas, monaco, monospace',
+                            }}
+                          >
+                            {sourceIp}
+                          </Typography>
+                        </TooltipTrigger>
+                        {(sourceUserAgent ?? '') && <TooltipContent>{sourceUserAgent ?? ''}</TooltipContent>}
                       </Tooltip>
                     )}
                     {!sourceIp && sourceUserAgent && (
-                      <Tooltip title={sourceUserAgent}>
-                        <Typography
-                          component="span"
-                          sx={{
-                            fontSize: 12,
-                            fontFamily: 'Consolas, monaco, monospace',
-                            maxWidth: 260,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {sourceUserAgent}
-                        </Typography>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Typography
+                            component="span"
+                            sx={{
+                              fontSize: 12,
+                              fontFamily: 'Consolas, monaco, monospace',
+                              maxWidth: 260,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {sourceUserAgent}
+                          </Typography>
+                        </TooltipTrigger>
+                        {sourceUserAgent && <TooltipContent>{sourceUserAgent}</TooltipContent>}
                       </Tooltip>
                     )}
                     {sourceDelay && (
@@ -385,25 +398,28 @@ const InjectExpectationCard = ({ inject, injectExpectation, isAgentless, target 
                       </Typography>
                     )}
                     {sourceAutomation && (
-                      <Tooltip title={sourceAutomation}>
-                        <Box
-                          component="span"
-                          sx={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 0.5,
-                            height: 20,
-                            paddingInline: 0.75,
-                            borderRadius: 1,
-                            backgroundColor: alpha(theme.palette.warning.main, 0.12),
-                            color: theme.palette.warning.main,
-                            fontSize: 11,
-                            fontWeight: 700,
-                          }}
-                        >
-                          <SmartToyOutlined sx={{ fontSize: 13 }} />
-                          {automationLabel}
-                        </Box>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Box
+                            component="span"
+                            sx={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                              height: 20,
+                              paddingInline: 0.75,
+                              borderRadius: 1,
+                              backgroundColor: alpha(theme.palette.warning.main, 0.12),
+                              color: theme.palette.warning.main,
+                              fontSize: 11,
+                              fontWeight: 700,
+                            }}
+                          >
+                            <SmartToyOutlined sx={{ fontSize: 13 }} />
+                            {automationLabel}
+                          </Box>
+                        </TooltipTrigger>
+                        {sourceAutomation && <TooltipContent>{sourceAutomation}</TooltipContent>}
                       </Tooltip>
                     )}
                   </div>

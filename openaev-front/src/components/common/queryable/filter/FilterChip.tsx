@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Cancel } from '@mui/icons-material';
-import { Chip, Tooltip } from '@mui/material';
+import { Chip } from '@mui/material';
 import * as R from 'ramda';
 import { type FunctionComponent, useEffect, useRef, useState } from 'react';
 
@@ -57,8 +58,19 @@ const FilterChip: FunctionComponent<Props> = ({
       <Chip
         variant={chipVariant}
         label={(
-          <Tooltip
-            title={(
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <FilterChipValues
+                  filter={filter}
+                  propertySchema={propertySchema}
+                  handleOpen={handleOpen}
+                  contextId={contextId}
+                  helpers={helpers}
+                />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
               <FilterChipValues
                 filter={filter}
                 propertySchema={propertySchema}
@@ -66,23 +78,16 @@ const FilterChip: FunctionComponent<Props> = ({
                 handleOpen={handleOpen}
                 contextId={contextId}
               />
-            )}
-          >
-            <span>
-              <FilterChipValues
-                filter={filter}
-                propertySchema={propertySchema}
-                handleOpen={handleOpen}
-                contextId={contextId}
-                helpers={helpers}
-              />
-            </span>
+            </TooltipContent>
           </Tooltip>
         )}
         onDelete={handleRemoveFilter}
         deleteIcon={(
-          <Tooltip title={t('Clear all')}>
-            <Cancel />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Cancel />
+            </TooltipTrigger>
+            <TooltipContent>{t('Clear all')}</TooltipContent>
           </Tooltip>
         )}
         sx={{ borderRadius: 1 }}

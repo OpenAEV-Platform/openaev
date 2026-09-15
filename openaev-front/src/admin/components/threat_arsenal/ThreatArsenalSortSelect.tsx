@@ -1,17 +1,6 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@filigran/design-system';
+import { Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowDownwardOutlined, ArrowUpwardOutlined } from '@mui/icons-material';
-import {
-  Box,
-  IconButton,
-  Tooltip,
-} from '@mui/material';
+import { Box, IconButton } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { type SortHelpers } from '../../../components/common/queryable/sort/SortHelpers';
@@ -73,18 +62,21 @@ const ThreatArsenalSortSelect: FunctionComponent<Props> = ({ sortHelpers }) => {
           ))}
         </SelectContent>
       </Select>
-      <Tooltip title={sortAsc ? t('Sort ascending') : t('Sort descending')}>
-        <span>
-          <IconButton
-            size="small"
-            aria-label={sortAsc ? t('Sort ascending') : t('Sort descending')}
-            disabled={value === ''}
-            onClick={() => sortHelpers.handleDirectedSort(value, !sortAsc)}
-            sx={{ color: 'text.secondary' }}
-          >
-            {sortAsc ? <ArrowUpwardOutlined fontSize="small" /> : <ArrowDownwardOutlined fontSize="small" />}
-          </IconButton>
-        </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>
+            <IconButton
+              size="small"
+              aria-label={sortAsc ? t('Sort ascending') : t('Sort descending')}
+              disabled={value === ''}
+              onClick={() => sortHelpers.handleDirectedSort(value, !sortAsc)}
+              sx={{ color: 'text.secondary' }}
+            >
+              {sortAsc ? <ArrowUpwardOutlined fontSize="small" /> : <ArrowDownwardOutlined fontSize="small" />}
+            </IconButton>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>{sortAsc ? t('Sort ascending') : t('Sort descending')}</TooltipContent>
       </Tooltip>
     </Box>
   );

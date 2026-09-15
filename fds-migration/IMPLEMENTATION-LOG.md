@@ -587,3 +587,28 @@ in filigran-design-system).
   informational: a button inside a button is invalid markup and nothing is lost
   (checked handler by handler). Self-hiding when the licence is active: not
   adopted, by arbitration.
+
+## 2026-09-15 — Visual passes and the tooltip wave
+
+- Two visual passes, measured before and after on the rebuilt bundle: native
+  time and date glyphs follow the colour scheme; list search fields share the
+  36px toolbar height; 8px between the filter popover fields and between the
+  pagination control and the actions; 16px between a breadcrumb and the toolbar
+  (the toolbar no longer pulls itself up); every date picker outlined and
+  painted by the theme (the MUI X picker draws its own outlined input, hence a
+  `MuiPickersOutlinedInput` override and the type augmentation allowed in the
+  lint config); dialogs back to the theme paper colour, iso the sibling product;
+  report structure blocks one layer above the drawer with the input aliases, the
+  title label left of its field (LIBRARY-FEEDBACK #53), destructive remove button;
+  the e-mail warning block framed; the facet sidebar card scrolls inside its frame.
+- E2E: the arguments validation test blurs the focused key field before saving.
+  The library input forwards the form ref, so the new row really receives
+  focus; the blur validation then moved the save button under the click and the
+  submit handler never ran (proved with a probe on the trace).
+- Tooltips: 283 sites converted by codemod and 25 by hand to the compound
+  library Tooltip, one provider at the root; MUI `arrow`, `enterDelay`,
+  `slotProps` surfaces dropped (the status chip's paper-like bubble and the
+  widget title's info-coloured bubble now take the library surface; the tag
+  tooltip keeps its text transform, not its first-letter rule). Two sites kept
+  on MUI with a reason. Eight tests wrap their render in the provider; a hover
+  test covers the converted custom tooltip.

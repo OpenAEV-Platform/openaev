@@ -1,4 +1,5 @@
-import { Breadcrumbs as MUIBreadcrumbs, Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Breadcrumbs as MUIBreadcrumbs, Typography } from '@mui/material';
 import { type CSSProperties, type FunctionComponent } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -47,21 +48,30 @@ const Breadcrumbs: FunctionComponent<BreadcrumbsProps> = ({ elements, variant, s
         const text = truncate(element.label, 26);
         if (element.current) {
           return (
-            <Tooltip key={element.label} title={element.label} aria-label={element.label}>
-              <Typography color="text.primary">{text}</Typography>
+            <Tooltip key={element.label}>
+              <TooltipTrigger asChild>
+                <Typography color="text.primary">{text}</Typography>
+              </TooltipTrigger>
+              <TooltipContent>{element.label}</TooltipContent>
             </Tooltip>
           );
         }
         if (!element.link) {
           return (
-            <Tooltip key={element.label} title={element.label} aria-label={element.label}>
-              <Typography color="inherit">{text}</Typography>
+            <Tooltip key={element.label}>
+              <TooltipTrigger asChild>
+                <Typography color="inherit">{text}</Typography>
+              </TooltipTrigger>
+              <TooltipContent>{element.label}</TooltipContent>
             </Tooltip>
           );
         }
         return (
-          <Tooltip key={element.label} title={element.label} aria-label={element.label}>
-            <Link to={element.link}>{text}</Link>
+          <Tooltip key={element.label}>
+            <TooltipTrigger asChild>
+              <Link to={element.link}>{text}</Link>
+            </TooltipTrigger>
+            <TooltipContent>{element.label}</TooltipContent>
           </Tooltip>
         );
       })}

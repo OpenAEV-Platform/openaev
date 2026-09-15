@@ -1,16 +1,4 @@
-import {
-  Combobox,
-  type ComboboxChangeMeta,
-  ComboboxChips,
-  ComboboxClear,
-  ComboboxContent,
-  ComboboxControls,
-  ComboboxField,
-  ComboboxInput,
-  ComboboxLabel,
-  ComboboxTrigger,
-} from '@filigran/design-system';
-import { Tooltip } from '@mui/material';
+import { Combobox, type ComboboxChangeMeta, ComboboxChips, ComboboxClear, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxLabel, ComboboxTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { type CSSProperties, type FunctionComponent, type ReactNode, useMemo } from 'react';
 
 import { type GroupOption, type Option } from '../../utils/Option';
@@ -171,17 +159,20 @@ const AutocompleteField: FunctionComponent<Props> = (props) => {
     // row element and its accessibility contract. The anchor is given a real box
     // filling the row, since `display: contents` leaves nothing to hover.
     return (
-      <Tooltip title={option.label}>
-        <span
-          style={{
-            display: 'flex',
-            flex: 1,
-            minWidth: 0,
-            alignItems: 'center',
-          }}
-        >
-          {body}
-        </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            style={{
+              display: 'flex',
+              flex: 1,
+              minWidth: 0,
+              alignItems: 'center',
+            }}
+          >
+            {body}
+          </span>
+        </TooltipTrigger>
+        {option.label && <TooltipContent>{option.label}</TooltipContent>}
       </Tooltip>
     );
   };

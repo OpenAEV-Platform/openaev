@@ -1,6 +1,6 @@
-import { Paper } from '@filigran/design-system';
+import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloseOutlined, FullscreenOutlined } from '@mui/icons-material';
-import { Box, Dialog, DialogContent, DialogTitle, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, Dialog, DialogContent, DialogTitle, IconButton, Typography } from '@mui/material';
 import { type ReactNode, useCallback, useState } from 'react';
 
 import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
@@ -125,18 +125,21 @@ const PhishingHtmlPreview = ({ title, iframeTitle, srcDoc, chrome, height = 560 
             {t('Matches what recipients see')}
           </Typography>
           <div style={{ flex: 1 }} />
-          <Tooltip title={t('Fullscreen')}>
-            <IconButton
-              size="small"
-              onClick={openFullscreen}
-              aria-label={t('Fullscreen')}
-              sx={{
-                width: 32,
-                height: 32,
-              }}
-            >
-              <FullscreenOutlined fontSize="small" />
-            </IconButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton
+                size="small"
+                onClick={openFullscreen}
+                aria-label={t('Fullscreen')}
+                sx={{
+                  width: 32,
+                  height: 32,
+                }}
+              >
+                <FullscreenOutlined fontSize="small" />
+              </IconButton>
+            </TooltipTrigger>
+            <TooltipContent>{t('Fullscreen')}</TooltipContent>
           </Tooltip>
         </Box>
         {/* `padding={0}`: the surface frames an iframe that must reach its edges. */}

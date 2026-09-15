@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { VisibilityOutlined } from '@mui/icons-material';
-import { IconButton, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
+import { IconButton, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { green, orange } from '@mui/material/colors';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, useContext, useState } from 'react';
@@ -235,15 +236,18 @@ const Articles: FunctionComponent<Props> = ({ articles }) => {
             divider
             secondaryAction={(
               <>
-                <Tooltip title={t('Preview')}>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    component={Link}
-                    to={previewArticleUrl(article)}
-                  >
-                    <VisibilityOutlined fontSize="small" />
-                  </IconButton>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      component={Link}
+                      to={previewArticleUrl(article)}
+                    >
+                      <VisibilityOutlined fontSize="small" />
+                    </IconButton>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Preview')}</TooltipContent>
                 </Tooltip>
                 <ArticlePopover article={article} onRemoveArticle={undefined} />
               </>

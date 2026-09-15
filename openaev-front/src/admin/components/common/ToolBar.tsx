@@ -1,20 +1,4 @@
-import {
-  Combobox,
-  ComboboxChips,
-  ComboboxClear,
-  ComboboxContent,
-  ComboboxControls,
-  ComboboxField,
-  ComboboxInput,
-  ComboboxLabel,
-  ComboboxTrigger,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@filigran/design-system';
+import { Combobox, ComboboxChips, ComboboxClear, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxLabel, ComboboxTrigger, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AddOutlined,
   BrushOutlined,
@@ -27,13 +11,7 @@ import {
   GroupsOutlined,
   InfoOutlined,
 } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  IconButton,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, Button, IconButton, Typography } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { Component, type ComponentType, type JSX, type ReactNode } from 'react';
 import { connect } from 'react-redux';
@@ -502,78 +480,93 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
           )}
           {customAction && customAction}
           {canExport && (
-            <Tooltip title={t('Export')}>
-              <span>
-                <IconButton
-                  aria-label="export"
-                  disabled={numberOfSelectedElements === 0 || this.state.processing}
-                  onClick={this.handleOpenExport.bind(this)}
-                  color="primary"
-                  size="small"
-                >
-                  <FileDownloadOutlined fontSize="small" />
-                </IconButton>
-              </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <IconButton
+                    aria-label="export"
+                    disabled={numberOfSelectedElements === 0 || this.state.processing}
+                    onClick={this.handleOpenExport.bind(this)}
+                    color="primary"
+                    size="small"
+                  >
+                    <FileDownloadOutlined fontSize="small" />
+                  </IconButton>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('Export')}</TooltipContent>
             </Tooltip>
           )}
           {canUpdate && (
-            <Tooltip title={t('Update')}>
-              <span>
-                <IconButton
-                  aria-label="update"
-                  disabled={numberOfSelectedElements === 0 || this.state.processing}
-                  onClick={this.handleOpenUpdate.bind(this)}
-                  color="primary"
-                  size="small"
-                >
-                  <BrushOutlined fontSize="small" />
-                </IconButton>
-              </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <IconButton
+                    aria-label="update"
+                    disabled={numberOfSelectedElements === 0 || this.state.processing}
+                    onClick={this.handleOpenUpdate.bind(this)}
+                    color="primary"
+                    size="small"
+                  >
+                    <BrushOutlined fontSize="small" />
+                  </IconButton>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('Update')}</TooltipContent>
             </Tooltip>
           )}
           {canTest && (
-            <Tooltip title={t('Test')}>
-              <span>
-                <IconButton
-                  aria-label="test"
-                  disabled={numberOfSelectedElements === 0 || this.state.processing}
-                  onClick={this.handleOpenBulkTest.bind(this)}
-                  color="primary"
-                  size="small"
-                >
-                  <ForwardToInbox fontSize="small" />
-                </IconButton>
-              </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <IconButton
+                    aria-label="test"
+                    disabled={numberOfSelectedElements === 0 || this.state.processing}
+                    onClick={this.handleOpenBulkTest.bind(this)}
+                    color="primary"
+                    size="small"
+                  >
+                    <ForwardToInbox fontSize="small" />
+                  </IconButton>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('Test')}</TooltipContent>
             </Tooltip>
           )}
           {canDelete && (
-            <Tooltip title={t('Delete')}>
-              <span>
-                <IconButton
-                  aria-label="delete"
-                  disabled={numberOfSelectedElements === 0 || this.state.processing}
-                  onClick={this.handleOpenBulkDelete.bind(this)}
-                  color="primary"
-                  size="small"
-                >
-                  <DeleteOutlined fontSize="small" />
-                </IconButton>
-              </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <IconButton
+                    aria-label="delete"
+                    disabled={numberOfSelectedElements === 0 || this.state.processing}
+                    onClick={this.handleOpenBulkDelete.bind(this)}
+                    color="primary"
+                    size="small"
+                  >
+                    <DeleteOutlined fontSize="small" />
+                  </IconButton>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('Delete')}</TooltipContent>
             </Tooltip>
           )}
           {toolTasks.map(toolTask => (
-            <Tooltip key={toolTask.type} title={toolTask.title ?? ''}>
-              <span>
-                <IconButton
-                  aria-label={toolTask.type}
-                  disabled={numberOfSelectedElements === 0 || this.state.processing}
-                  onClick={toolTask.onClick}
-                  color="primary"
-                  size="small"
-                >
-                  {toolTask.icon()}
-                </IconButton>
-              </span>
+            <Tooltip key={toolTask.type}>
+              <TooltipTrigger asChild>
+                <span>
+                  <IconButton
+                    aria-label={toolTask.type}
+                    disabled={numberOfSelectedElements === 0 || this.state.processing}
+                    onClick={toolTask.onClick}
+                    color="primary"
+                    size="small"
+                  >
+                    {toolTask.icon()}
+                  </IconButton>
+                </span>
+              </TooltipTrigger>
+              {(toolTask.title ?? '') && <TooltipContent>{toolTask.title ?? ''}</TooltipContent>}
             </Tooltip>
           ))}
         </Box>

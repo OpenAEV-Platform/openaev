@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, DeleteOutlined } from '@mui/icons-material';
-import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, IconButton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
@@ -77,10 +78,13 @@ const ParametersTab = () => {
                   // Measured at the real render, in the widest locale on screen.
                   style={{ minWidth: 160 }}
                 />
-                <Tooltip title={t('Delete')}>
-                  <IconButton color="error" onClick={() => remove(index)}>
-                    <DeleteOutlined fontSize="small" />
-                  </IconButton>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <IconButton color="error" onClick={() => remove(index)}>
+                      <DeleteOutlined fontSize="small" />
+                    </IconButton>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Delete')}</TooltipContent>
                 </Tooltip>
               </>
 

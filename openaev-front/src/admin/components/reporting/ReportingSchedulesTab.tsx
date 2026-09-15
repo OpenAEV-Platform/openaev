@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, DeleteOutlined, EditOutlined, ScheduleOutlined } from '@mui/icons-material';
-import { Box, Button, Chip, IconButton, List, ListItem, ListItemIcon, ListItemText, Switch, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Chip, IconButton, List, ListItem, ListItemIcon, ListItemText, Switch, Typography } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -288,25 +289,36 @@ const ReportingSchedulesTab: FunctionComponent<Props> = ({ reporting, onChanged,
                     classes={{ root: classes.item }}
                     secondaryAction={(
                       <Box display="flex" alignItems="center" gap={0.5}>
-                        <Tooltip title={schedule.reporting_schedule_enabled ? t('Disable') : t('Enable')}>
-                          <Switch
-                            size="small"
-                            checked={schedule.reporting_schedule_enabled}
-                            disabled={!canManage}
-                            onChange={(_, checked) => toggleEnabled(schedule, checked)}
-                          />
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Switch
+                                size="small"
+                                checked={schedule.reporting_schedule_enabled}
+                                disabled={!canManage}
+                                onChange={(_, checked) => toggleEnabled(schedule, checked)}
+                              />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>{schedule.reporting_schedule_enabled ? t('Disable') : t('Enable')}</TooltipContent>
                         </Tooltip>
                         {canManage && (
                           <>
-                            <Tooltip title={t('Update')}>
-                              <IconButton size="small" color="primary" onClick={() => setDrawer(schedule)}>
-                                <EditOutlined fontSize="small" />
-                              </IconButton>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <IconButton size="small" color="primary" onClick={() => setDrawer(schedule)}>
+                                  <EditOutlined fontSize="small" />
+                                </IconButton>
+                              </TooltipTrigger>
+                              <TooltipContent>{t('Update')}</TooltipContent>
                             </Tooltip>
-                            <Tooltip title={t('Delete')}>
-                              <IconButton size="small" color="primary" onClick={() => setScheduleToDelete(schedule)}>
-                                <DeleteOutlined fontSize="small" />
-                              </IconButton>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <IconButton size="small" color="primary" onClick={() => setScheduleToDelete(schedule)}>
+                                  <DeleteOutlined fontSize="small" />
+                                </IconButton>
+                              </TooltipTrigger>
+                              <TooltipContent>{t('Delete')}</TooltipContent>
                             </Tooltip>
                           </>
                         )}

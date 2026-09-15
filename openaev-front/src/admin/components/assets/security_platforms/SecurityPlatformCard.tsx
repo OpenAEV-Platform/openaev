@@ -1,4 +1,5 @@
-import { Box, Paper, Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -108,18 +109,21 @@ const SecurityPlatformCard: FunctionComponent<Props> = ({
           />
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Tooltip title={securityPlatform.asset_name}>
-            <Typography sx={{
-              fontSize: 14,
-              fontWeight: 600,
-              lineHeight: 1.3,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-            >
-              {securityPlatform.asset_name}
-            </Typography>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Typography sx={{
+                fontSize: 14,
+                fontWeight: 600,
+                lineHeight: 1.3,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              >
+                {securityPlatform.asset_name}
+              </Typography>
+            </TooltipTrigger>
+            {securityPlatform.asset_name && <TooltipContent>{securityPlatform.asset_name}</TooltipContent>}
           </Tooltip>
           <Box sx={{ marginTop: 0.5 }}>
             <ItemSecurityPlatformType type={securityPlatform.security_platform_type} />

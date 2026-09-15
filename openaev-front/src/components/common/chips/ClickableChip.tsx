@@ -1,4 +1,5 @@
-import { Box, Chip, Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Chip } from '@mui/material';
 import { type FunctionComponent, useRef, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -174,16 +175,17 @@ const ClickableChip: FunctionComponent<Props> = ({
 
   return (
     <>
-      <Tooltip
-        title={filterValues(true)}
-      >
-        <Chip
-          variant={chipVariant}
-          label={filterValues(false)}
-          onDelete={onDelete ? handleRemoveFilter : undefined}
-          sx={{ borderRadius: 1 }}
-          ref={chipRef}
-        />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Chip
+            variant={chipVariant}
+            label={filterValues(false)}
+            onDelete={onDelete ? handleRemoveFilter : undefined}
+            sx={{ borderRadius: 1 }}
+            ref={chipRef}
+          />
+        </TooltipTrigger>
+        {filterValues(true) && <TooltipContent>{filterValues(true)}</TooltipContent>}
       </Tooltip>
       {chipRef?.current
         && (

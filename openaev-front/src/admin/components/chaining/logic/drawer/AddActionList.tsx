@@ -1,6 +1,6 @@
-import { Checkbox } from '@filigran/design-system';
+import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { HelpOutlineOutlined } from '@mui/icons-material';
-import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -122,8 +122,11 @@ const AddActionList = ({
       label: 'Name',
       isSortable: true,
       value: (action: ThreatArsenalAction) => (
-        <Tooltip title={tPick(action.action_labels)}>
-          <span>{tPick(action.action_labels)}</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>{tPick(action.action_labels)}</span>
+          </TooltipTrigger>
+          {tPick(action.action_labels) && <TooltipContent>{tPick(action.action_labels)}</TooltipContent>}
         </Tooltip>
       ),
     },

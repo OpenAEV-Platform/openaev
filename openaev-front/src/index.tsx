@@ -8,6 +8,7 @@ import '@filigran/design-system/dist/index.css';
 import './static/css/index.css';
 import './static/css/design-system-host.css';
 
+import { TooltipProvider } from '@filigran/design-system';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -18,7 +19,10 @@ if (container) {
   const root = createRoot(container);
   root.render(
     <StrictMode>
-      <App />
+      {/* One provider for every library tooltip; 200ms is the delay the first converted sites chose. */}
+      <TooltipProvider delayDuration={200}>
+        <App />
+      </TooltipProvider>
     </StrictMode>,
   );
 }

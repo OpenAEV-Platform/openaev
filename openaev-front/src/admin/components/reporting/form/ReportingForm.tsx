@@ -1,16 +1,8 @@
-import {
-  Checkbox,
-  Paper as FdsPaper,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-} from '@filigran/design-system';
+import { Checkbox, Paper as FdsPaper, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { DeleteOutlined, DragIndicatorOutlined, RestartAltOutlined } from '@mui/icons-material';
-import { Box, Button, FormHelperText, IconButton, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { Box, Button, FormHelperText, IconButton, Paper, Step, StepLabel, Stepper, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import { Controller, FormProvider, type SubmitHandler, useFieldArray, useForm, useFormContext } from 'react-hook-form';
@@ -651,10 +643,13 @@ const ReportingForm: FunctionComponent<Props> = ({
                           {type !== 'MITRE_COVERAGE' && (
                             <>
                               <ModuleTitleField id={`${field.id}-title`} name={`modules.${index}.module_title`} />
-                              <Tooltip title={t('Remove')}>
-                                <IconButton size="small" color="error" onClick={() => removeModule(index)}>
-                                  <DeleteOutlined fontSize="small" />
-                                </IconButton>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <IconButton size="small" color="error" onClick={() => removeModule(index)}>
+                                    <DeleteOutlined fontSize="small" />
+                                  </IconButton>
+                                </TooltipTrigger>
+                                <TooltipContent>{t('Remove')}</TooltipContent>
                               </Tooltip>
                             </>
                           )}
@@ -685,10 +680,13 @@ const ReportingForm: FunctionComponent<Props> = ({
                                 )}
                               />
                             </Box>
-                            <Tooltip title={t('Remove')}>
-                              <IconButton size="small" color="error" onClick={() => removeModule(index)}>
-                                <DeleteOutlined fontSize="small" />
-                              </IconButton>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <IconButton size="small" color="error" onClick={() => removeModule(index)}>
+                                  <DeleteOutlined fontSize="small" />
+                                </IconButton>
+                              </TooltipTrigger>
+                              <TooltipContent>{t('Remove')}</TooltipContent>
                             </Tooltip>
                           </Box>
                         )}
@@ -728,24 +726,27 @@ const ReportingForm: FunctionComponent<Props> = ({
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               {t('Theme')}
             </Typography>
-            <Tooltip title={t('Switching the theme resets the colors to the platform defaults of that theme.')}>
-              <ToggleButtonGroup
-                exclusive
-                size="small"
-                color="primary"
-                value={field.value}
-                onChange={(_, value: ReportingThemeMode | null) => {
-                  if (!value || value === field.value) return;
-                  field.onChange(value);
-                  // The palettes are theme-specific: carrying dark colors into
-                  // light mode (or vice versa) would produce unreadable reports.
-                  resetBrandingColors(value);
-                }}
-                sx={{ display: 'flex' }}
-              >
-                <ToggleButton value="LIGHT" sx={{ flex: 1 }}>{t('Light')}</ToggleButton>
-                <ToggleButton value="DARK" sx={{ flex: 1 }}>{t('Dark')}</ToggleButton>
-              </ToggleButtonGroup>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ToggleButtonGroup
+                  exclusive
+                  size="small"
+                  color="primary"
+                  value={field.value}
+                  onChange={(_, value: ReportingThemeMode | null) => {
+                    if (!value || value === field.value) return;
+                    field.onChange(value);
+                    // The palettes are theme-specific: carrying dark colors into
+                    // light mode (or vice versa) would produce unreadable reports.
+                    resetBrandingColors(value);
+                  }}
+                  sx={{ display: 'flex' }}
+                >
+                  <ToggleButton value="LIGHT" sx={{ flex: 1 }}>{t('Light')}</ToggleButton>
+                  <ToggleButton value="DARK" sx={{ flex: 1 }}>{t('Dark')}</ToggleButton>
+                </ToggleButtonGroup>
+              </TooltipTrigger>
+              <TooltipContent>{t('Switching the theme resets the colors to the platform defaults of that theme.')}</TooltipContent>
             </Tooltip>
           </div>
         )}

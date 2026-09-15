@@ -1,15 +1,6 @@
-import { ButtonGroup, ButtonGroupItem } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AnalyticsOutlined, GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
-import {
-  Box,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Skeleton,
-  Tooltip,
-} from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { type CSSProperties, useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -114,11 +105,17 @@ const CustomDashboards = () => {
       onValueChange={handleViewModeChange}
       aria-label={t('View mode')}
     >
-      <Tooltip title={t('Cards view')}>
-        <ButtonGroupItem value="cards" aria-label={t('Cards view')} icon={<GridViewOutlined fontSize="small" />} />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <ButtonGroupItem value="cards" aria-label={t('Cards view')} icon={<GridViewOutlined fontSize="small" />} />
+        </TooltipTrigger>
+        <TooltipContent>{t('Cards view')}</TooltipContent>
       </Tooltip>
-      <Tooltip title={t('List view')}>
-        <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+        </TooltipTrigger>
+        <TooltipContent>{t('List view')}</TooltipContent>
       </Tooltip>
     </ButtonGroup>
   );

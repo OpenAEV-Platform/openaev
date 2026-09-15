@@ -1,4 +1,5 @@
-import { alpha, Chip, Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { alpha, Chip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -43,7 +44,14 @@ const ExecutionRanChip: FunctionComponent<Props> = ({ status, label, tooltip }) 
     />
   );
 
-  return tooltip ? <Tooltip title={tooltip}>{chip}</Tooltip> : chip;
+  return tooltip
+    ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{chip}</TooltipTrigger>
+          <TooltipContent>{tooltip}</TooltipContent>
+        </Tooltip>
+      )
+    : chip;
 };
 
 export default ExecutionRanChip;

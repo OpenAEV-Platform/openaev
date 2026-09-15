@@ -1,6 +1,6 @@
-import { Checkbox } from '@filigran/design-system';
+import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AutoAwesome, PlayCircleOutlineOutlined } from '@mui/icons-material';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import { List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type CSSProperties, type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router';
@@ -244,13 +244,19 @@ const SimulationList: FunctionComponent<Props> = ({
                   <ListItemIcon>
                     {exercise.exercise_autonomous
                       ? (
-                          <Tooltip title={t('Autonomous (AI-driven) run')}>
-                            <AutoAwesome sx={{ color: theme.palette.ai?.main ?? theme.palette.primary.main }} />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <AutoAwesome sx={{ color: theme.palette.ai?.main ?? theme.palette.primary.main }} />
+                            </TooltipTrigger>
+                            <TooltipContent>{t('Autonomous (AI-driven) run')}</TooltipContent>
                           </Tooltip>
                         )
                       : (
-                          <Tooltip title={t('Normal (operator-driven) simulation')}>
-                            <PlayCircleOutlineOutlined color="primary" />
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <PlayCircleOutlineOutlined color="primary" />
+                            </TooltipTrigger>
+                            <TooltipContent>{t('Normal (operator-driven) simulation')}</TooltipContent>
                           </Tooltip>
                         )}
                   </ListItemIcon>

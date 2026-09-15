@@ -1,6 +1,6 @@
-import { Checkbox } from '@filigran/design-system';
+import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { LocalPoliceOutlined, LockOutlined } from '@mui/icons-material';
-import { Box, Divider, Tooltip } from '@mui/material';
+import { Box, Divider } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Controller, type FieldValues, type Path, useFormContext, useWatch } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -135,14 +135,17 @@ function CapabilitiesTab<T extends FieldValues>({ capabilities, capability, fiel
           <LocalPoliceOutlined sx={{ opacity: capability.capability_checkable ? 1 : 0.5 }} />
           {t(capability.capability_value)}
           {isCapabilityRestricted && (
-            <Tooltip title={t('The current user does not have this capability: it can only be removed, not granted')}>
-              <LockOutlined
-                sx={{
-                  ml: theme.spacing(0.5),
-                  fontSize: theme.typography.body1.fontSize,
-                  color: 'text.disabled',
-                }}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <LockOutlined
+                  sx={{
+                    ml: theme.spacing(0.5),
+                    fontSize: theme.typography.body1.fontSize,
+                    color: 'text.disabled',
+                  }}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{t('The current user does not have this capability: it can only be removed, not granted')}</TooltipContent>
             </Tooltip>
           )}
         </Box>

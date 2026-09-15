@@ -1,4 +1,5 @@
-﻿import { Chip, Tooltip } from '@mui/material';
+﻿import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip } from '@mui/material';
 import { isImmutable } from 'immutable';
 import * as PropTypes from 'prop-types';
 import { useMemo } from 'react';
@@ -83,17 +84,20 @@ const ItemTags = (props) => {
       {visibleTags.length > 0 ? (
         visibleTags.map(tag => (
           <span key={tag.tag_id}>
-            <Tooltip title={tag.tag_name}>
-              <Chip
-                variant="outlined"
-                classes={{ root: style }}
-                label={truncate(tag.tag_name, truncateLimit)}
-                style={{
-                  color: tag.tag_color,
-                  borderColor: tag.tag_color,
-                  backgroundColor: hexToRGB(tag.tag_color),
-                }}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Chip
+                  variant="outlined"
+                  classes={{ root: style }}
+                  label={truncate(tag.tag_name, truncateLimit)}
+                  style={{
+                    color: tag.tag_color,
+                    borderColor: tag.tag_color,
+                    backgroundColor: hexToRGB(tag.tag_color),
+                  }}
+                />
+              </TooltipTrigger>
+              {tag.tag_name && <TooltipContent>{tag.tag_name}</TooltipContent>}
             </Tooltip>
           </span>
         ))
@@ -102,12 +106,15 @@ const ItemTags = (props) => {
       )}
 
       {remainingTagsCount > 0 && (
-        <Tooltip title={tooltipLabel}>
-          <Chip
-            variant="outlined"
-            classes={{ root: style }}
-            label={`+${remainingTagsCount}`}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Chip
+              variant="outlined"
+              classes={{ root: style }}
+              label={`+${remainingTagsCount}`}
+            />
+          </TooltipTrigger>
+          {tooltipLabel && <TooltipContent>{tooltipLabel}</TooltipContent>}
         </Tooltip>
       )}
     </div>

@@ -1,6 +1,7 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { InfoOutlined } from '@mui/icons-material';
-import { AccordionDetails, Button, Tooltip, Typography } from '@mui/material';
+import { AccordionDetails, Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FormEvent, useMemo } from 'react';
 import { FormProvider, type SubmitHandler, useFieldArray, useForm } from 'react-hook-form';
@@ -291,12 +292,15 @@ const ConnectorInstanceForm = ({
               field={formatCatalogConnectorConfigurationToObject(definition, index, true)}
               readOnly={disabled}
             />
-            <Tooltip title={definition.connector_configuration_description}>
-              <InfoOutlined
-                color="primary"
-                fontSize="small"
-                sx={{ mt: '25px' }}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <InfoOutlined
+                  color="primary"
+                  fontSize="small"
+                  sx={{ mt: '25px' }}
+                />
+              </TooltipTrigger>
+              {definition.connector_configuration_description && <TooltipContent>{definition.connector_configuration_description}</TooltipContent>}
             </Tooltip>
           </div>
         ))}
@@ -332,11 +336,14 @@ const ConnectorInstanceForm = ({
                       field={formatCatalogConnectorConfigurationToObject(definition, index, false)}
                       readOnly={disabled}
                     />
-                    <Tooltip title={definition.connector_configuration_description}>
-                      <InfoOutlined
-                        fontSize="small"
-                        color="primary"
-                      />
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoOutlined
+                          fontSize="small"
+                          color="primary"
+                        />
+                      </TooltipTrigger>
+                      {definition.connector_configuration_description && <TooltipContent>{definition.connector_configuration_description}</TooltipContent>}
                     </Tooltip>
                   </div>
                 ))}

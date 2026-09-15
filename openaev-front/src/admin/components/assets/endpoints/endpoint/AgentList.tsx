@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DevicesOtherOutlined } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode } from 'react';
 
@@ -135,18 +136,21 @@ const AgentList: FunctionComponent<Props> = ({ agents }) => {
                 flex: 1,
               }}
               >
-                <Tooltip title={agent.agent_executed_by_user ?? ''}>
-                  <Typography sx={{
-                    fontSize: 15,
-                    fontWeight: 600,
-                    lineHeight: 1.35,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                  >
-                    {agent.agent_executed_by_user}
-                  </Typography>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Typography sx={{
+                      fontSize: 15,
+                      fontWeight: 600,
+                      lineHeight: 1.35,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                    >
+                      {agent.agent_executed_by_user}
+                    </Typography>
+                  </TooltipTrigger>
+                  {(agent.agent_executed_by_user ?? '') && <TooltipContent>{agent.agent_executed_by_user ?? ''}</TooltipContent>}
                 </Tooltip>
                 <Box sx={{
                   display: 'flex',

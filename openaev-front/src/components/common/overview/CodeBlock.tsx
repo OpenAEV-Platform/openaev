@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ContentCopyOutlined } from '@mui/icons-material';
-import { Box, Button, Tooltip } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -66,27 +67,30 @@ const CodeBlock: FunctionComponent<Props> = ({ content, language }) => {
       >
         {value}
       </Box>
-      <Tooltip title={t('Copy to clipboard')}>
-        <Button
-          size="small"
-          aria-label={t('Copy to clipboard')}
-          onClick={(event) => {
-            event.stopPropagation();
-            copyToClipboard(t, value);
-          }}
-          sx={{
-            'position': 'absolute',
-            'top': language ? 32 : 6,
-            'right': 6,
-            'minWidth': 0,
-            'padding': 0.75,
-            'borderRadius': 1,
-            'backgroundColor': alpha(theme.palette.background.paper, 0.6),
-            '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.16) },
-          }}
-        >
-          <ContentCopyOutlined fontSize="small" sx={{ color: 'primary.main' }} />
-        </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            size="small"
+            aria-label={t('Copy to clipboard')}
+            onClick={(event) => {
+              event.stopPropagation();
+              copyToClipboard(t, value);
+            }}
+            sx={{
+              'position': 'absolute',
+              'top': language ? 32 : 6,
+              'right': 6,
+              'minWidth': 0,
+              'padding': 0.75,
+              'borderRadius': 1,
+              'backgroundColor': alpha(theme.palette.background.paper, 0.6),
+              '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.16) },
+            }}
+          >
+            <ContentCopyOutlined fontSize="small" sx={{ color: 'primary.main' }} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{t('Copy to clipboard')}</TooltipContent>
       </Tooltip>
     </Box>
   );

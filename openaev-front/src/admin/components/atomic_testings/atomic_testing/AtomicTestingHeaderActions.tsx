@@ -1,6 +1,6 @@
-import { Checkbox } from '@filigran/design-system';
+import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { PlayArrowOutlined, SettingsOutlined, Stop, TrackChangesOutlined, UpdateOutlined } from '@mui/icons-material';
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Tooltip } from '@mui/material';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -284,10 +284,13 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
         entityName={injectResultOverview.inject_title}
       />
       {canManage && (
-        <Tooltip title={t('Scheduling')}>
-          <IconButton size="small" color="primary" onClick={() => setOpenScheduling(true)}>
-            <UpdateOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton size="small" color="primary" onClick={() => setOpenScheduling(true)}>
+              <UpdateOutlined fontSize="small" />
+            </IconButton>
+          </TooltipTrigger>
+          <TooltipContent>{t('Scheduling')}</TooltipContent>
         </Tooltip>
       )}
       {/* Dismissed drift downgraded to a discreet icon within the compact icon

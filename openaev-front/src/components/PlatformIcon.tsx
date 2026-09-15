@@ -1,3 +1,4 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AndroidOutlined,
   DevicesOtherOutlined,
@@ -8,7 +9,7 @@ import {
   type SvgIconComponent,
   ViewInArOutlined,
 } from '@mui/icons-material';
-import { type PaletteMode, Tooltip } from '@mui/material';
+import { type PaletteMode } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -107,7 +108,14 @@ const PlatformIcon: FunctionComponent<PlatformIconProps> = ({ platform, width, b
     return null;
   }
   if (tooltip) {
-    return <Tooltip title={platform}>{rendered}</Tooltip>;
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">{rendered}</span>
+        </TooltipTrigger>
+        <TooltipContent>{platform}</TooltipContent>
+      </Tooltip>
+    );
   }
   return rendered;
 };

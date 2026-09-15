@@ -1,13 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CrisisAlertOutlined, DescriptionOutlined, EmojiEventsOutlined, SportsScoreOutlined } from '@mui/icons-material';
-import {
-  Avatar,
-  Card,
-  CardActions,
-  CardContent,
-  CardHeader,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Avatar, Card, CardActions, CardContent, CardHeader, Typography } from '@mui/material';
 import { type ReactNode } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -88,25 +81,34 @@ const ChallengeCard = ({ challenge, showTags = false, clickable = false, onClick
       <CardActions classes={{ root: classes.iconInfo }}>
         {showTags && (challenge.challenge_tags?.length ?? 0) > 0 && <ItemTags variant="list" tags={challenge.challenge_tags} />}
 
-        <Tooltip title={t('Score')}>
-          <span className={classes.metric} style={{ marginLeft: 'auto' }}>
-            <SportsScoreOutlined fontSize="small" color="primary" />
-            <Typography color="primary" variant="body2">{challenge.challenge_score ?? 0}</Typography>
-          </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={classes.metric} style={{ marginLeft: 'auto' }}>
+              <SportsScoreOutlined fontSize="small" color="primary" />
+              <Typography color="primary" variant="body2">{challenge.challenge_score ?? 0}</Typography>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{t('Score')}</TooltipContent>
         </Tooltip>
-        <Tooltip title={attempt === undefined ? t('Max number of attempts') : t('Attempts used out of the maximum')}>
-          <span className={classes.metric}>
-            <CrisisAlertOutlined fontSize="small" color="primary" />
-            <Typography color="primary" variant="body2">
-              {attempt === undefined ? maxAttempts : `${attempt}/${maxAttempts}`}
-            </Typography>
-          </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={classes.metric}>
+              <CrisisAlertOutlined fontSize="small" color="primary" />
+              <Typography color="primary" variant="body2">
+                {attempt === undefined ? maxAttempts : `${attempt}/${maxAttempts}`}
+              </Typography>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{attempt === undefined ? t('Max number of attempts') : t('Attempts used out of the maximum')}</TooltipContent>
         </Tooltip>
-        <Tooltip title={t('Documents')}>
-          <span className={classes.metric}>
-            <DescriptionOutlined fontSize="small" color="primary" />
-            <Typography color="primary" variant="body2">{challenge.challenge_documents?.length ?? 0}</Typography>
-          </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={classes.metric}>
+              <DescriptionOutlined fontSize="small" color="primary" />
+              <Typography color="primary" variant="body2">{challenge.challenge_documents?.length ?? 0}</Typography>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{t('Documents')}</TooltipContent>
         </Tooltip>
       </CardActions>
     </Card>

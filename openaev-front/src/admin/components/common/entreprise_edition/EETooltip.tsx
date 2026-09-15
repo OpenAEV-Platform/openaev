@@ -1,3 +1,4 @@
+// fds:keep-mui the Enterprise Edition upsell tooltip stays out of this wave by ruling
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip } from '@mui/material';
 import { type ReactElement, useContext, useState } from 'react';
 

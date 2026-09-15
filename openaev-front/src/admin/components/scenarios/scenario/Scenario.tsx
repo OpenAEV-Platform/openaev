@@ -1,6 +1,6 @@
-import { Paper } from '@filigran/design-system';
+import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AutoAwesome, LayersClearOutlined, PlayArrowOutlined, RocketLaunchOutlined } from '@mui/icons-material';
-import { Avatar, Box, Button, IconButton, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, Button, IconButton, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import * as R from 'ramda';
 import { type Dispatch, type SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from 'react';
@@ -369,17 +369,21 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
                   operators who can manage the scenario, and only once the run has settled - an active
                   run is stopped from the header / reasoning panel, not cleared from here. */}
               {canManageScenario && !isRunActive && (
-                <Tooltip title={autonomousRun.autonomous_run_plan_mode
-                  ? t('Clear the AI plan outcome and return to the normal overview')
-                  : t('Clear the autonomous run outcome and return to the normal overview')}
-                >
-                  <IconButton
-                    size="small"
-                    onClick={() => setClearOutcomeOpen(true)}
-                    aria-label={t('Clear AI outcome')}
-                  >
-                    <LayersClearOutlined fontSize="small" />
-                  </IconButton>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <IconButton
+                      size="small"
+                      onClick={() => setClearOutcomeOpen(true)}
+                      aria-label={t('Clear AI outcome')}
+                    >
+                      <LayersClearOutlined fontSize="small" />
+                    </IconButton>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {autonomousRun.autonomous_run_plan_mode
+                      ? t('Clear the AI plan outcome and return to the normal overview')
+                      : t('Clear the autonomous run outcome and return to the normal overview')}
+                  </TooltipContent>
                 </Tooltip>
               )}
             </Box>
@@ -437,54 +441,60 @@ const Scenario = ({ setOpenInstantiateSimulationAndStart, autonomousRun = null, 
               flexWrap: 'wrap',
             }}
             >
-              <Tooltip title={isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch a normal, operator-driven simulation from this scenario')}>
-                <Box component="span" sx={{ display: 'inline-flex' }}>
-                  <Button
-                    startIcon={<PlayArrowOutlined />}
-                    variant="contained"
-                    color="primary"
-                    disabled={isScopeMissing}
-                    onClick={() => setOpenInstantiateSimulationAndStart(true)}
-                  >
-                    {t('Normal')}
-                  </Button>
-                </Box>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Box component="span" sx={{ display: 'inline-flex' }}>
+                    <Button
+                      startIcon={<PlayArrowOutlined />}
+                      variant="contained"
+                      color="primary"
+                      disabled={isScopeMissing}
+                      onClick={() => setOpenInstantiateSimulationAndStart(true)}
+                    >
+                      {t('Normal')}
+                    </Button>
+                  </Box>
+                </TooltipTrigger>
+                <TooltipContent>{isScopeMissing ? t('A chained scenario requires a defined scope.') : t('Launch a normal, operator-driven simulation from this scenario')}</TooltipContent>
               </Tooltip>
               {/* Autonomous is an XTM One-driven EE feature: hidden when XTM One is unavailable (only
                   the Normal CTA remains), and an EE call-to-action when the platform is not
                   Enterprise (EE chip + EE dialog instead of routing to the launch drawer). */}
               {isXtmOneReady && (
-                <Tooltip title={t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}>
-                  <Box
-                    component="span"
-                    sx={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                    }}
-                  >
-                    <Button
-                      startIcon={<AutoAwesome />}
-                      variant="contained"
-                      onClick={() => {
-                        if (!isEnterpriseEdition) {
-                          setEEFeatureDetectedInfo(t('Autonomous attack path'));
-                          openEnterpriseEditionDialog();
-                          return;
-                        }
-                        navigate(`/admin/scenarios/${scenarioId}?openAiLaunch=true`);
-                      }}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Box
+                      component="span"
                       sx={{
-                        'whiteSpace': 'nowrap',
-                        'backgroundColor': theme.palette.ai.main,
-                        'color': theme.palette.ai.contrastText,
-                        '&:hover': { backgroundColor: theme.palette.ai.dark },
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 0.5,
                       }}
                     >
-                      {t('Autonomous')}
-                    </Button>
-                    {!isEnterpriseEdition && <EEChip />}
-                  </Box>
+                      <Button
+                        startIcon={<AutoAwesome />}
+                        variant="contained"
+                        onClick={() => {
+                          if (!isEnterpriseEdition) {
+                            setEEFeatureDetectedInfo(t('Autonomous attack path'));
+                            openEnterpriseEditionDialog();
+                            return;
+                          }
+                          navigate(`/admin/scenarios/${scenarioId}?openAiLaunch=true`);
+                        }}
+                        sx={{
+                          'whiteSpace': 'nowrap',
+                          'backgroundColor': theme.palette.ai.main,
+                          'color': theme.palette.ai.contrastText,
+                          '&:hover': { backgroundColor: theme.palette.ai.dark },
+                        }}
+                      >
+                        {t('Autonomous')}
+                      </Button>
+                      {!isEnterpriseEdition && <EEChip />}
+                    </Box>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Launch in autonomous mode - configure the objective, agents and scope, then let the orchestrator drive and adapt from live findings')}</TooltipContent>
                 </Tooltip>
               )}
             </Box>

@@ -1,4 +1,5 @@
-import { Chip, Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -49,15 +50,18 @@ const CVSSBadge: FunctionComponent<CvssBadgeProps> = ({ score, variant }) => {
 
   const { severity, color } = getSeverityAndColor(score);
   return (
-    <Tooltip title={`${t('CVSS score')}: ${score.toFixed(1)}`}>
-      <Chip
-        classes={{ root: variant === 'inList' ? classes.chipInList : classes.chip }}
-        sx={{
-          backgroundColor: hexToRGB(color, 0.08),
-          color,
-        }}
-        label={`${score.toFixed(1)} ${t(SEVERITY_LABELS[severity])}`}
-      />
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Chip
+          classes={{ root: variant === 'inList' ? classes.chipInList : classes.chip }}
+          sx={{
+            backgroundColor: hexToRGB(color, 0.08),
+            color,
+          }}
+          label={`${score.toFixed(1)} ${t(SEVERITY_LABELS[severity])}`}
+        />
+      </TooltipTrigger>
+      <TooltipContent>{`${t('CVSS score')}: ${score.toFixed(1)}`}</TooltipContent>
     </Tooltip>
   );
 };

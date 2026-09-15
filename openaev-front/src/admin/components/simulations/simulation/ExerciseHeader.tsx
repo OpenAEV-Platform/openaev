@@ -1,3 +1,4 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   AutoAwesome,
   CancelOutlined,
@@ -16,17 +17,7 @@ import {
   TuneOutlined,
   UpdateOutlined,
 } from '@mui/icons-material';
-import {
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  IconButton,
-  Tooltip,
-} from '@mui/material';
+import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -131,21 +122,22 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       case 'SCHEDULED': {
         if (permissions.canLaunch) {
           return (
-            <Tooltip
-              title={isScopeMissing ? t('A chained simulation requires a defined scope.') : ''}
-            >
-              <span style={{ display: 'inline-flex' }}>
-                <Button
-                  startIcon={<PlayArrowOutlined />}
-                  variant="contained"
-                  size="small"
-                  color="primary"
-                  onClick={() => setOpenChangeStatus('RUNNING')}
-                  disabled={isLoading || isScopeMissing}
-                >
-                  {t('Start now')}
-                </Button>
-              </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span style={{ display: 'inline-flex' }}>
+                  <Button
+                    startIcon={<PlayArrowOutlined />}
+                    variant="contained"
+                    size="small"
+                    color="primary"
+                    onClick={() => setOpenChangeStatus('RUNNING')}
+                    disabled={isLoading || isScopeMissing}
+                  >
+                    {t('Start now')}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {(isScopeMissing ? t('A chained simulation requires a defined scope.') : '') && <TooltipContent>{isScopeMissing ? t('A chained simulation requires a defined scope.') : ''}</TooltipContent>}
             </Tooltip>
           );
         }
@@ -563,21 +555,22 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   overflow) so teams/players setup is discoverable, with an
                   explicit tooltip describing what it configures. */}
               {canOpenConfiguration && (
-                <Tooltip
-                  title={t('Configure the teams, players and audience involved in this simulation')}
-                >
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    size="small"
-                    startIcon={<TuneOutlined />}
-                    onClick={() => {
-                      setConfigurationInitialTab(SimulationConfigurationTab.TEAMS);
-                      setOpenConfiguration(true);
-                    }}
-                  >
-                    {t('Configuration')}
-                  </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      size="small"
+                      startIcon={<TuneOutlined />}
+                      onClick={() => {
+                        setConfigurationInitialTab(SimulationConfigurationTab.TEAMS);
+                        setOpenConfiguration(true);
+                      }}
+                    >
+                      {t('Configuration')}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Configure the teams, players and audience involved in this simulation')}</TooltipContent>
                 </Tooltip>
               )}
               {/* Dismissed drift downgraded to a discreet icon after Configuration -
@@ -598,31 +591,37 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
               {/* Visible as soon as one inject uses a challenge - opens the
                   player-facing challenges page in a new tab. */}
               {hasChallenges && (
-                <Tooltip title={t('Preview challenges page')}>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    component={Link}
-                    to={`/admin/simulations/${exerciseId}/challenges`}
-                    target="_blank"
-                  >
-                    <EmojiEventsOutlined fontSize="small" />
-                  </IconButton>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      component={Link}
+                      to={`/admin/simulations/${exerciseId}/challenges`}
+                      target="_blank"
+                    >
+                      <EmojiEventsOutlined fontSize="small" />
+                    </IconButton>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Preview challenges page')}</TooltipContent>
                 </Tooltip>
               )}
               {permissions.canManage && !isAutonomous && (
                 <>
-                  <Tooltip title={t('Modify the scheduling')}>
-                    <span style={{ display: 'inline-flex' }}>
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        onClick={() => setOpenDateDialog(true)}
-                        disabled={exercise.exercise_status !== 'SCHEDULED'}
-                      >
-                        <UpdateOutlined fontSize="small" />
-                      </IconButton>
-                    </span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span style={{ display: 'inline-flex' }}>
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => setOpenDateDialog(true)}
+                          disabled={exercise.exercise_status !== 'SCHEDULED'}
+                        >
+                          <UpdateOutlined fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('Modify the scheduling')}</TooltipContent>
                   </Tooltip>
                 </>
               )}
@@ -646,30 +645,33 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                   (pause / resume / stop / steer) lives; once stopped, relaunch happens from the
                   scenario's Normal / Autonomous launch buttons - there is no restart. */}
               {parentScenarioId && (
-                <Tooltip title={parentScenario?.scenario_name ?? t('Parent scenario')}>
-                  <span style={{ display: 'inline-flex' }}>
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      size="small"
-                      startIcon={<RouteOutlined />}
-                      component={canAccessParentScenario ? Link : 'button'}
-                      to={canAccessParentScenario ? `${SCENARIO_BASE_URL}/${parentScenarioId}` : undefined}
-                      disabled={!canAccessParentScenario}
-                      sx={{ maxWidth: 220 }}
-                    >
-                      <Box
-                        component="span"
-                        sx={{
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span style={{ display: 'inline-flex' }}>
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        size="small"
+                        startIcon={<RouteOutlined />}
+                        component={canAccessParentScenario ? Link : 'button'}
+                        to={canAccessParentScenario ? `${SCENARIO_BASE_URL}/${parentScenarioId}` : undefined}
+                        disabled={!canAccessParentScenario}
+                        sx={{ maxWidth: 220 }}
                       >
-                        {parentScenario?.scenario_name ?? t('Parent scenario')}
-                      </Box>
-                    </Button>
-                  </span>
+                        <Box
+                          component="span"
+                          sx={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {parentScenario?.scenario_name ?? t('Parent scenario')}
+                        </Box>
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  {(parentScenario?.scenario_name ?? t('Parent scenario')) && <TooltipContent>{parentScenario?.scenario_name ?? t('Parent scenario')}</TooltipContent>}
                 </Tooltip>
               )}
               {/* Entity-scoped reports - self-hides without the reporting access capability. Kept

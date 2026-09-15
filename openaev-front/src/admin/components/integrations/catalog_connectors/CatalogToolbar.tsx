@@ -1,15 +1,5 @@
-import {
-  ButtonGroup,
-  ButtonGroupItem,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
-import { Tooltip } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -111,11 +101,17 @@ const CatalogToolbar = ({ keyword, onSearch, searchResetKey, sort, onSortChange,
         aria-label={t('View mode')}
         style={{ backgroundColor: theme.palette.background.paper }}
       >
-        <Tooltip title={t('Cards view')}>
-          <ButtonGroupItem value="cards" aria-label={t('Cards view')} data-testid="marketplace-view-cards" icon={<GridViewOutlined fontSize="small" />} />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ButtonGroupItem value="cards" aria-label={t('Cards view')} data-testid="marketplace-view-cards" icon={<GridViewOutlined fontSize="small" />} />
+          </TooltipTrigger>
+          <TooltipContent>{t('Cards view')}</TooltipContent>
         </Tooltip>
-        <Tooltip title={t('List view')}>
-          <ButtonGroupItem value="list" aria-label={t('List view')} data-testid="marketplace-view-list" icon={<ViewListOutlined fontSize="small" />} />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ButtonGroupItem value="list" aria-label={t('List view')} data-testid="marketplace-view-list" icon={<ViewListOutlined fontSize="small" />} />
+          </TooltipTrigger>
+          <TooltipContent>{t('List view')}</TooltipContent>
         </Tooltip>
       </ButtonGroup>
     </div>

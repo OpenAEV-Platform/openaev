@@ -1,4 +1,4 @@
-import { Paper } from '@filigran/design-system';
+import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   ArrowBackOutlined,
   AutoAwesomeOutlined,
@@ -7,17 +7,7 @@ import {
   TrackChangesOutlined,
   TuneOutlined,
 } from '@mui/icons-material';
-import {
-  alpha,
-  Box,
-  Button,
-  IconButton,
-  SvgIcon,
-  ToggleButton,
-  ToggleButtonGroup,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { alpha, Box, Button, IconButton, SvgIcon, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { SelectGroup } from 'mdi-material-ui';
@@ -109,10 +99,13 @@ const TargetRow: FunctionComponent<{
       >
         {label}
       </Typography>
-      <Tooltip title={removeLabel}>
-        <IconButton size="small" aria-label={removeLabel} onClick={onRemove}>
-          <CloseOutlined sx={{ fontSize: 16 }} />
-        </IconButton>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <IconButton size="small" aria-label={removeLabel} onClick={onRemove}>
+            <CloseOutlined sx={{ fontSize: 16 }} />
+          </IconButton>
+        </TooltipTrigger>
+        {removeLabel && <TooltipContent>{removeLabel}</TooltipContent>}
       </Tooltip>
     </Box>
   );
@@ -244,10 +237,13 @@ const ScenarioAssistant: FunctionComponent = () => {
         gap: 1,
       }}
       >
-        <Tooltip title={t('Back')}>
-          <IconButton onClick={() => navigate(listUrl)} aria-label={t('Back')} size="small">
-            <ArrowBackOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton onClick={() => navigate(listUrl)} aria-label={t('Back')} size="small">
+              <ArrowBackOutlined fontSize="small" />
+            </IconButton>
+          </TooltipTrigger>
+          <TooltipContent>{t('Back')}</TooltipContent>
         </Tooltip>
         <Typography variant="h1" sx={{ margin: 0 }}>
           {t('Scenario assistant')}

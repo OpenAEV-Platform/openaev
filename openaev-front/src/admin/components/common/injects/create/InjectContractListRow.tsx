@@ -1,6 +1,6 @@
-import { Checkbox } from '@filigran/design-system';
+import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { KeyboardArrowRight } from '@mui/icons-material';
-import { Box, Chip, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type MouseEvent, useMemo } from 'react';
 
@@ -126,19 +126,22 @@ const InjectContractListRow: FunctionComponent<Props> = ({
         />
       </Box>
 
-      <Tooltip title={name} enterDelay={500}>
-        <Typography
-          variant="body2"
-          sx={{
-            fontWeight: 600,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            minWidth: 0,
-          }}
-        >
-          {name}
-        </Typography>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              minWidth: 0,
+            }}
+          >
+            {name}
+          </Typography>
+        </TooltipTrigger>
+        {name && <TooltipContent>{name}</TooltipContent>}
       </Tooltip>
 
       <Box sx={{
@@ -194,17 +197,20 @@ const InjectContractListRow: FunctionComponent<Props> = ({
           />
         ))}
         {externalIds.length > 2 && (
-          <Tooltip title={externalIds.slice(2).join(', ')}>
-            <Chip
-              size="small"
-              variant="outlined"
-              label={`+${externalIds.length - 2}`}
-              sx={{
-                height: 20,
-                fontSize: 10.5,
-                borderRadius: 0.75,
-              }}
-            />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Chip
+                size="small"
+                variant="outlined"
+                label={`+${externalIds.length - 2}`}
+                sx={{
+                  height: 20,
+                  fontSize: 10.5,
+                  borderRadius: 0.75,
+                }}
+              />
+            </TooltipTrigger>
+            {externalIds.slice(2).join(', ') && <TooltipContent>{externalIds.slice(2).join(', ')}</TooltipContent>}
           </Tooltip>
         )}
       </Box>

@@ -1,14 +1,5 @@
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxControls,
-  ComboboxField,
-  ComboboxInput,
-  ComboboxTrigger,
-  IconButton,
-} from '@filigran/design-system';
+import { Combobox, ComboboxContent, ComboboxControls, ComboboxField, ComboboxInput, ComboboxTrigger, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FilterListOffOutlined } from '@mui/icons-material';
-import { Tooltip } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -123,15 +114,18 @@ const FilterAutocomplete: FunctionComponent<Props> = ({
           <ComboboxContent />
         </Combobox>
       </div>
-      <Tooltip title={t('Clear filters')}>
-        <IconButton
-          size="md"
-          priority="tertiary"
-          data-testid="clear-filters"
-          aria-label={t('Clear filters')}
-          onClick={handleClearFilters}
-          icon={<FilterListOffOutlined fontSize="small" />}
-        />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <IconButton
+            size="md"
+            priority="tertiary"
+            data-testid="clear-filters"
+            aria-label={t('Clear filters')}
+            onClick={handleClearFilters}
+            icon={<FilterListOffOutlined fontSize="small" />}
+          />
+        </TooltipTrigger>
+        <TooltipContent>{t('Clear filters')}</TooltipContent>
       </Tooltip>
     </div>
   );

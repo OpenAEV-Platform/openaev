@@ -1,14 +1,6 @@
-import {
-  ButtonGroup,
-  ButtonGroupItem,
-  Paper,
-} from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DarkModeOutlined, ImageOutlined, LightModeOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ReactNode, useCallback, useContext, useState } from 'react';
 import { useParams } from 'react-router';
@@ -251,11 +243,17 @@ const Channel = () => {
                 // and its buttons are capped to it: a taller control overflows
                 // the row and eats into the 8px gap below.
               >
-                <Tooltip title={t('Dark theme')}>
-                  <ButtonGroupItem value="dark" aria-label={t('Dark theme')} icon={<DarkModeOutlined fontSize="small" />} />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ButtonGroupItem value="dark" aria-label={t('Dark theme')} icon={<DarkModeOutlined fontSize="small" />} />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Dark theme')}</TooltipContent>
                 </Tooltip>
-                <Tooltip title={t('Light theme')}>
-                  <ButtonGroupItem value="light" aria-label={t('Light theme')} icon={<LightModeOutlined fontSize="small" />} />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ButtonGroupItem value="light" aria-label={t('Light theme')} icon={<LightModeOutlined fontSize="small" />} />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Light theme')}</TooltipContent>
                 </Tooltip>
               </ButtonGroup>
             )}

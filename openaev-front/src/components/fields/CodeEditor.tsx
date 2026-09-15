@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ContentCopyOutlined } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -149,32 +150,35 @@ const CodeEditor: FunctionComponent<Props> = ({
           </Box>
           <div style={{ flex: 1 }} />
           {headerAction}
-          <Tooltip title={t('Copy to clipboard')}>
-            <Box
-              component="button"
-              type="button"
-              aria-label={t('Copy to clipboard')}
-              onClick={() => copyToClipboard(t, value ?? '')}
-              sx={{
-                'display': 'flex',
-                'alignItems': 'center',
-                'justifyContent': 'center',
-                'width': 24,
-                'height': 24,
-                'padding': 0,
-                'border': 0,
-                'borderRadius': 0.5,
-                'cursor': 'pointer',
-                'color': 'text.secondary',
-                'backgroundColor': 'transparent',
-                '&:hover': {
-                  color: 'primary.main',
-                  backgroundColor: alpha(theme.palette.primary.main, 0.12),
-                },
-              }}
-            >
-              <ContentCopyOutlined sx={{ fontSize: 15 }} />
-            </Box>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Box
+                component="button"
+                type="button"
+                aria-label={t('Copy to clipboard')}
+                onClick={() => copyToClipboard(t, value ?? '')}
+                sx={{
+                  'display': 'flex',
+                  'alignItems': 'center',
+                  'justifyContent': 'center',
+                  'width': 24,
+                  'height': 24,
+                  'padding': 0,
+                  'border': 0,
+                  'borderRadius': 0.5,
+                  'cursor': 'pointer',
+                  'color': 'text.secondary',
+                  'backgroundColor': 'transparent',
+                  '&:hover': {
+                    color: 'primary.main',
+                    backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                  },
+                }}
+              >
+                <ContentCopyOutlined sx={{ fontSize: 15 }} />
+              </Box>
+            </TooltipTrigger>
+            <TooltipContent>{t('Copy to clipboard')}</TooltipContent>
           </Tooltip>
         </Box>
 

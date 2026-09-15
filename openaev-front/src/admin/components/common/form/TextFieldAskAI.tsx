@@ -1,24 +1,5 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@filigran/design-system';
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  InputAdornment,
-  Menu,
-  MenuItem,
-  SvgIcon,
-  TextField,
-  Tooltip,
-} from '@mui/material';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Menu, MenuItem, SvgIcon, TextField } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { LogoXtmOneIcon } from 'filigran-icon';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useState } from 'react';
@@ -290,47 +271,65 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
               {t('Generate an article')}
             </MenuItem>
           )}
-          <Tooltip title={isContentEmpty() ? t('Content should not be empty') : ''} placement="left">
-            <div>
-              <MenuItem onClick={() => (useXtmOne ? handleAgentAction('spelling') : handleAskAi('spelling'))} disabled={isContentEmpty()}>
-                {t('Fix spelling & grammar')}
-              </MenuItem>
-            </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('spelling') : handleAskAi('spelling'))} disabled={isContentEmpty()}>
+                  {t('Fix spelling & grammar')}
+                </MenuItem>
+              </div>
+            </TooltipTrigger>
+            {(isContentEmpty() ? t('Content should not be empty') : '') && <TooltipContent side="left">{isContentEmpty() ? t('Content should not be empty') : ''}</TooltipContent>}
           </Tooltip>
-          <Tooltip title={isContentEmpty() ? t('Content should not be empty') : ''} placement="left">
-            <div>
-              <MenuItem onClick={() => (useXtmOne ? handleAgentAction('shorter') : handleAskAi('shorter'))} disabled={isContentEmpty()}>
-                {t('Make it shorter')}
-              </MenuItem>
-            </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('shorter') : handleAskAi('shorter'))} disabled={isContentEmpty()}>
+                  {t('Make it shorter')}
+                </MenuItem>
+              </div>
+            </TooltipTrigger>
+            {(isContentEmpty() ? t('Content should not be empty') : '') && <TooltipContent side="left">{isContentEmpty() ? t('Content should not be empty') : ''}</TooltipContent>}
           </Tooltip>
-          <Tooltip title={isContentEmpty() ? t('Content should not be empty') : ''} placement="left">
-            <div>
-              <MenuItem onClick={() => (useXtmOne ? handleAgentAction('longer') : handleAskAi('longer'))} disabled={isContentEmpty()}>
-                {t('Make it longer')}
-              </MenuItem>
-            </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('longer') : handleAskAi('longer'))} disabled={isContentEmpty()}>
+                  {t('Make it longer')}
+                </MenuItem>
+              </div>
+            </TooltipTrigger>
+            {(isContentEmpty() ? t('Content should not be empty') : '') && <TooltipContent side="left">{isContentEmpty() ? t('Content should not be empty') : ''}</TooltipContent>}
           </Tooltip>
-          <Tooltip title={isContentEmpty() ? t('Content should not be empty') : ''} placement="left">
-            <div>
-              <MenuItem onClick={() => (useXtmOne ? handleAgentAction('tone') : handleOpenToneOptions())} disabled={isContentEmpty()}>
-                {t('Change tone')}
-              </MenuItem>
-            </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('tone') : handleOpenToneOptions())} disabled={isContentEmpty()}>
+                  {t('Change tone')}
+                </MenuItem>
+              </div>
+            </TooltipTrigger>
+            {(isContentEmpty() ? t('Content should not be empty') : '') && <TooltipContent side="left">{isContentEmpty() ? t('Content should not be empty') : ''}</TooltipContent>}
           </Tooltip>
-          <Tooltip title={isContentEmpty() ? t('Content should not be empty') : ''} placement="left">
-            <div>
-              <MenuItem onClick={() => (useXtmOne ? handleAgentAction('summarize') : handleAskAi('summarize'))} disabled={isContentEmpty()}>
-                {t('Summarize')}
-              </MenuItem>
-            </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('summarize') : handleAskAi('summarize'))} disabled={isContentEmpty()}>
+                  {t('Summarize')}
+                </MenuItem>
+              </div>
+            </TooltipTrigger>
+            {(isContentEmpty() ? t('Content should not be empty') : '') && <TooltipContent side="left">{isContentEmpty() ? t('Content should not be empty') : ''}</TooltipContent>}
           </Tooltip>
-          <Tooltip title={isContentEmpty() ? t('Content should not be empty') : ''} placement="left">
-            <div>
-              <MenuItem onClick={() => (useXtmOne ? handleAgentAction('explain') : handleAskAi('explain', false))} disabled={isContentEmpty()}>
-                {t('Explain')}
-              </MenuItem>
-            </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <MenuItem onClick={() => (useXtmOne ? handleAgentAction('explain') : handleAskAi('explain', false))} disabled={isContentEmpty()}>
+                  {t('Explain')}
+                </MenuItem>
+              </div>
+            </TooltipTrigger>
+            {(isContentEmpty() ? t('Content should not be empty') : '') && <TooltipContent side="left">{isContentEmpty() ? t('Content should not be empty') : ''}</TooltipContent>}
           </Tooltip>
         </Menu>
         <ResponseDialog

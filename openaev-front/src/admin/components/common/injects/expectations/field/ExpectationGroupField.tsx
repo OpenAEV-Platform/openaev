@@ -1,6 +1,6 @@
-import { Radio, RadioGroup } from '@filigran/design-system';
+import { Radio, RadioGroup, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { FormLabel, Tooltip } from '@mui/material';
+import { FormLabel } from '@mui/material';
 import { type FunctionComponent, useId } from 'react';
 import { type Control, Controller } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -39,16 +39,19 @@ const ExpectationGroupField: FunctionComponent<Props> = ({
         <div className={classes.marginTop_2}>
           <FormLabel className={classes.container} id={validationModeLabelId}>
             {t('Validation mode')}
-            <Tooltip
-              title={isTechnicalExpectation
-                ? t('An isolated asset is considered as a group of one asset')
-                : t('An isolated player is considered as a group of one player')}
-            >
-              <InfoOutlined
-                fontSize="small"
-                color="primary"
-                style={{ marginTop: 8 }}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <InfoOutlined
+                  fontSize="small"
+                  color="primary"
+                  style={{ marginTop: 8 }}
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                {isTechnicalExpectation
+                  ? t('An isolated asset is considered as a group of one asset')
+                  : t('An isolated player is considered as a group of one player')}
+              </TooltipContent>
             </Tooltip>
           </FormLabel>
           <RadioGroup

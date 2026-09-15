@@ -1,4 +1,5 @@
-import { Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import moment from 'moment-timezone';
 import { type SyntheticEvent, useMemo, useState } from 'react';
@@ -207,38 +208,41 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
       }}
       >
         {canMigrate && <MigrateButton onMigrateBtnClick={e => onMigrateBtnClick(e, deployed)} />}
-        <Tooltip title={diskTooltip}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing(0.75),
-            minWidth: 0,
-          }}
-          >
-            <span style={{
-              width: 8,
-              height: 8,
-              flexShrink: 0,
-              borderRadius: '50%',
-              backgroundColor: diskColor,
-              boxShadow: `0 0 6px ${diskColor}`,
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing(0.75),
+              minWidth: 0,
             }}
-            />
-            {lastSeen && (
-              <Typography
-                variant="body2"
-                sx={{
-                  fontSize: 11,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  color: 'text.secondary',
-                }}
-              >
-                {moment(lastSeen).fromNow()}
-              </Typography>
-            )}
-          </div>
+            >
+              <span style={{
+                width: 8,
+                height: 8,
+                flexShrink: 0,
+                borderRadius: '50%',
+                backgroundColor: diskColor,
+                boxShadow: `0 0 6px ${diskColor}`,
+              }}
+              />
+              {lastSeen && (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontSize: 11,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    color: 'text.secondary',
+                  }}
+                >
+                  {moment(lastSeen).fromNow()}
+                </Typography>
+              )}
+            </div>
+          </TooltipTrigger>
+          {diskTooltip && <TooltipContent>{diskTooltip}</TooltipContent>}
         </Tooltip>
         <ConnectorStatus variant={started ? 'started' : 'stopped'} />
       </div>

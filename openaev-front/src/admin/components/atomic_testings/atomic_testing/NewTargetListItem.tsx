@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { OpenInNewOutlined } from '@mui/icons-material';
-import { IconButton, ListItemButton, Tooltip, Typography } from '@mui/material';
+import { IconButton, ListItemButton, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Link } from 'react-router';
 
@@ -62,19 +63,22 @@ const NewTargetListItem: React.FC<Props> = ({ onClick, target, selected }) => {
         {target?.target_name}
       </Typography>
       {overviewUrl && (
-        <Tooltip title={overviewLabel}>
-          <IconButton
-            className="target-open-overview"
-            size="small"
-            // Real router link so ctrl/cmd+click opens the overview in a new tab;
-            // stopPropagation keeps the row's select-target click from firing.
-            component={Link}
-            to={overviewUrl}
-            onClick={event => event.stopPropagation()}
-            aria-label={overviewLabel}
-          >
-            <OpenInNewOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton
+              className="target-open-overview"
+              size="small"
+              // Real router link so ctrl/cmd+click opens the overview in a new tab;
+              // stopPropagation keeps the row's select-target click from firing.
+              component={Link}
+              to={overviewUrl}
+              onClick={event => event.stopPropagation()}
+              aria-label={overviewLabel}
+            >
+              <OpenInNewOutlined fontSize="small" />
+            </IconButton>
+          </TooltipTrigger>
+          {overviewLabel && <TooltipContent>{overviewLabel}</TooltipContent>}
         </Tooltip>
       )}
       <NewAtomicTestingResult target={target} />

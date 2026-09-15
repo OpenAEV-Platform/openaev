@@ -1,17 +1,6 @@
-import { ButtonGroup, ButtonGroupItem } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FileDownloadOutlined, GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Chip,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Skeleton,
-  Tooltip,
-} from '@mui/material';
+import { Box, Chip, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
 import { FileChartOutline } from 'mdi-material-ui';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -147,11 +136,17 @@ const Reportings = () => {
       onValueChange={handleViewModeChange}
       aria-label={t('View mode')}
     >
-      <Tooltip title={t('Cards view')}>
-        <ButtonGroupItem value="cards" aria-label={t('Cards view')} icon={<GridViewOutlined fontSize="small" />} />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <ButtonGroupItem value="cards" aria-label={t('Cards view')} icon={<GridViewOutlined fontSize="small" />} />
+        </TooltipTrigger>
+        <TooltipContent>{t('Cards view')}</TooltipContent>
       </Tooltip>
-      <Tooltip title={t('List view')}>
-        <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+        </TooltipTrigger>
+        <TooltipContent>{t('List view')}</TooltipContent>
       </Tooltip>
     </ButtonGroup>
   );
@@ -249,15 +244,18 @@ const Reportings = () => {
                       secondaryAction={(
                         <Box display="flex" alignItems="center">
                           {downloadable && (
-                            <Tooltip title={t('Download latest generation')}>
-                              <IconButton
-                                size="small"
-                                color="primary"
-                                component="a"
-                                href={downloadReportingGenerationUrl(generation.reporting_generation_id)}
-                              >
-                                <FileDownloadOutlined fontSize="small" />
-                              </IconButton>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  component="a"
+                                  href={downloadReportingGenerationUrl(generation.reporting_generation_id)}
+                                >
+                                  <FileDownloadOutlined fontSize="small" />
+                                </IconButton>
+                              </TooltipTrigger>
+                              <TooltipContent>{t('Download latest generation')}</TooltipContent>
                             </Tooltip>
                           )}
                           <ReportingPopover

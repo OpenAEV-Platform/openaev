@@ -2403,3 +2403,13 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **Product need.** Eight name fields carry an "Ask AI" trigger drawn by a product component that owns its button, its menu and its dialogs, and shows a disabled state with its own tooltip outside the Enterprise Edition. It cannot be dropped into the slot as-is; the product-side path is to split that component so the library draws the button and the menus anchor to it. Those eight fields stay on MUI until that split is ruled and done.
 
 **The request.** A way to render a consumer trigger in the end slot while keeping the library's geometry and tones — the same `asChild` idiom the library uses elsewhere — or an explicit statement that composite triggers belong outside the field.
+
+## 53. `Input` has no `labelPosition`
+
+**Status.** Open. Worked around in the product.
+
+**Measured.** `Combobox` accepts `labelPosition: "top" | "left" | "none"`; `Input` and `Textarea` only draw their `label` above the control (checked in the installed `dist/index.d.ts` at the pinned commit).
+
+**Product need.** The report structure rows carry one optional title per section on a single line: the label must sit left of the field so the row stays one line high next to its remove button. The product draws its own `<label htmlFor>` beside a label-less `Input` for now.
+
+**The request.** The same `labelPosition` on `Input` and `Textarea` as on `Combobox`, so a form row can keep the library label, its required marker and its tones when the label sits left.

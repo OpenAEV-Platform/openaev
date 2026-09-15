@@ -1,4 +1,5 @@
-﻿import { Chip, Tooltip } from '@mui/material';
+﻿import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip } from '@mui/material';
 import { type FunctionComponent, type ReactElement } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -45,19 +46,22 @@ const ItemStatus: FunctionComponent<ItemStatusProps> = ({
   const classStyle = computeStatusStyle(status);
 
   return (
-    <Tooltip title={tooltipLabel ?? label}>
-      <Chip
-        classes={{ root: style }}
-        style={classStyle}
-        label={label}
-        icon={icon}
-        sx={icon ? {
-          '& .MuiChip-icon': {
-            color: 'inherit',
-            marginLeft: '8px',
-          },
-        } : undefined}
-      />
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Chip
+          classes={{ root: style }}
+          style={classStyle}
+          label={label}
+          icon={icon}
+          sx={icon ? {
+            '& .MuiChip-icon': {
+              color: 'inherit',
+              marginLeft: '8px',
+            },
+          } : undefined}
+        />
+      </TooltipTrigger>
+      {(tooltipLabel ?? label) && <TooltipContent>{tooltipLabel ?? label}</TooltipContent>}
     </Tooltip>
   );
 };

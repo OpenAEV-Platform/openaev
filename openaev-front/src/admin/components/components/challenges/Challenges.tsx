@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { RowingOutlined } from '@mui/icons-material';
-import { Chip, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Tooltip } from '@mui/material';
+import { Chip, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText } from '@mui/material';
 import { type CSSProperties, useContext } from 'react';
 import { Link, useLocation } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -259,22 +260,22 @@ const Challenges = () => {
                         }
 
                         return (
-                          <Tooltip
-                            key={exercise.exercise_id}
-                            title={exercise.exercise_name}
-                          >
-                            <Chip
-                              icon={<RowingOutlined style={{ fontSize: 12 }} />}
-                              classes={{ root: classes.exercise }}
-                              variant="outlined"
-                              label={exercise.exercise_name}
-                              component={Link}
-                              clickable
-                              to={`/admin/simulations/${exercise.exercise_id}`}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                              }}
-                            />
+                          <Tooltip key={exercise.exercise_id}>
+                            <TooltipTrigger asChild>
+                              <Chip
+                                icon={<RowingOutlined style={{ fontSize: 12 }} />}
+                                classes={{ root: classes.exercise }}
+                                variant="outlined"
+                                label={exercise.exercise_name}
+                                component={Link}
+                                clickable
+                                to={`/admin/simulations/${exercise.exercise_id}`}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                }}
+                              />
+                            </TooltipTrigger>
+                            {exercise.exercise_name && <TooltipContent>{exercise.exercise_name}</TooltipContent>}
                           </Tooltip>
                         );
                       })

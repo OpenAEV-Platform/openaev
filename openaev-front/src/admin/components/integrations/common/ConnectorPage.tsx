@@ -1,4 +1,5 @@
-import { Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import moment from 'moment-timezone';
 import { type ReactNode, useContext, useState } from 'react';
@@ -175,40 +176,50 @@ const ConnectorPage = ({ extraInfoComponent }: { extraInfoComponent?: ReactNode 
                 return liveliness.started ? 'started' : 'stopped';
               })()}
             />
-            <Tooltip title={(() => {
-              if (liveliness.builtIn) return t('Runs inside the platform');
-              if (liveliness.lastSeen) return `${t('Last Seen')}: ${nsdt(liveliness.lastSeen)}`;
-              return t('Never updated');
-            })()}
-            >
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing(0.75),
-              }}
-              >
-                <span style={{
-                  width: 8,
-                  height: 8,
-                  flexShrink: 0,
-                  borderRadius: '50%',
-                  backgroundColor: liveliness.healthy ? theme.palette.success.main : theme.palette.error.main,
-                  boxShadow: `0 0 6px ${liveliness.healthy ? theme.palette.success.main : theme.palette.error.main}`,
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: theme.spacing(0.75),
                 }}
-                />
-                {liveliness.lastSeen && (
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontSize: 11,
-                      whiteSpace: 'nowrap',
-                      color: 'text.secondary',
-                    }}
-                  >
-                    {moment(liveliness.lastSeen).fromNow()}
-                  </Typography>
-                )}
-              </div>
+                >
+                  <span style={{
+                    width: 8,
+                    height: 8,
+                    flexShrink: 0,
+                    borderRadius: '50%',
+                    backgroundColor: liveliness.healthy ? theme.palette.success.main : theme.palette.error.main,
+                    boxShadow: `0 0 6px ${liveliness.healthy ? theme.palette.success.main : theme.palette.error.main}`,
+                  }}
+                  />
+                  {liveliness.lastSeen && (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontSize: 11,
+                        whiteSpace: 'nowrap',
+                        color: 'text.secondary',
+                      }}
+                    >
+                      {moment(liveliness.lastSeen).fromNow()}
+                    </Typography>
+                  )}
+                </div>
+              </TooltipTrigger>
+              {(() => {
+                if (liveliness.builtIn) return t('Runs inside the platform');
+                if (liveliness.lastSeen) return `${t('Last Seen')}: ${nsdt(liveliness.lastSeen)}`;
+                return t('Never updated');
+              })() && (
+                <TooltipContent>
+                  {(() => {
+                    if (liveliness.builtIn) return t('Runs inside the platform');
+                    if (liveliness.lastSeen) return `${t('Last Seen')}: ${nsdt(liveliness.lastSeen)}`;
+                    return t('Never updated');
+                  })()}
+                </TooltipContent>
+              )}
             </Tooltip>
           </div>
         )}
