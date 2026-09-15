@@ -38,6 +38,8 @@ export interface TextFieldFdsProps {
   'startIcon'?: InputProps['startIcon'];
   'endIcon'?: InputProps['endIcon'];
   'infoTooltip'?: ReactNode;
+  /** Unit or suffix drawn inside the field, read as its description. */
+  'endText'?: string;
 }
 
 const resolveErrorMessage = (error: boolean | string | undefined, helperText: ReactNode) => {
@@ -65,6 +67,7 @@ const TextFieldFds = forwardRef<Control, TextFieldFdsProps>(({
   startIcon,
   endIcon,
   infoTooltip,
+  endText,
   ...control
 }, ref) => {
   const errorMessage = resolveErrorMessage(error, helperText);
@@ -116,6 +119,7 @@ const TextFieldFds = forwardRef<Control, TextFieldFdsProps>(({
         startIcon={startIcon}
         endIcon={endIcon}
         infoTooltip={infoTooltip}
+        endText={endText}
       />
     </div>
   );

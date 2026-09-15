@@ -1,13 +1,16 @@
-// fds:keep-mui the Ask AI adornment is a product component the library's end slot cannot host yet; decision pending, see LIBRARY-FEEDBACK #52
-import { TextField as MuiTextField } from '@mui/material';
+import { SvgIcon } from '@mui/material';
+import { LogoXtmOneIcon } from 'filigran-icon';
+import { useState } from 'react';
 import { type Control, type FieldValues, type UseFormSetValue, useWatch } from 'react-hook-form';
 
 import TextFieldAskAI from '../../admin/components/common/form/TextFieldAskAI';
+import useAskAiAvailability from '../../admin/components/common/form/useAskAiAvailability';
+import { useFormatter } from '../i18n';
 import TextFieldFds, { type TextFieldFdsProps } from './TextFieldFds';
 
 export type TextFieldProps<TFieldValues extends FieldValues = FieldValues>
   = TextFieldFdsProps & {
-    /** Show the AskAI adornment that lets the user transform the field via XTM One. */
+    /** Show the AskAI action that lets the user transform the field via XTM One. */
     askAi?: boolean;
     /** react-hook-form `control` — required to watch the field value when `askAi` is enabled. */
     control?: Control<TFieldValues>;
@@ -21,6 +24,9 @@ const TextField = <TFieldValues extends FieldValues = FieldValues>({
   setValue,
   ...props
 }: TextFieldProps<TFieldValues>) => {
+  const { t } = useFormatter();
+  const { hidden: askAiHidden, isAvailable: askAiAvailable } = useAskAiAvailability();
+  const [askAiAnchor, setAskAiAnchor] = useState<HTMLElement | null>(null);
   const fieldName = props.name;
   const watchedValue = useWatch({
     // `name` is keyed off the underlying form so we widen here; runtime safety is enforced by the
@@ -31,65 +37,42 @@ const TextField = <TFieldValues extends FieldValues = FieldValues>({
   });
 
   const currentValue: unknown = fieldName ? watchedValue : undefined;
-
-  if (askAi && fieldName && setValue) {
-    // react-hook-form's `register` hands its `ref` through props (React 19); MUI takes it as `inputRef`.
-    const {
-      ref, name, onChange, onBlur, label, required, error, helperText, multiline, rows, style, type, disabled, id, defaultValue,
-      maxLength: _maxLength,
-      ...rest
-    } = props as typeof props & { ref?: React.Ref<HTMLInputElement> };
-    return (
-      <MuiTextField
-        variant="outlined"
-        fullWidth
-        label={required ? `${label}*` : label}
-        error={typeof error === 'string' ? true : !!error}
-        helperText={typeof error === 'string' ? error : helperText}
-        multiline={multiline}
-        rows={rows}
-        style={style}
-        type={type}
-        disabled={disabled}
-        id={id}
-        defaultValue={defaultValue}
-        inputRef={ref}
-        inputProps={{
-          name,
-          onChange,
-          onBlur,
-          ...('data-testid' in rest ? { 'data-testid': rest['data-testid'] } : {}),
-        }}
-        value={currentValue ?? undefined}
-        slotProps={{
-          input: {
-            endAdornment: (
-              <TextFieldAskAI
-                variant="text"
-                currentValue={typeof currentValue === 'string' ? currentValue : ''}
-                setFieldValue={(val: string) => (setValue as UseFormSetValue<FieldValues>)(
-                  fieldName,
-                  val,
-                  {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  },
-                )}
-                format="text"
-                disabled={disabled}
-              />
-            ),
-          },
-        }}
-      />
-    );
-  }
+  const withAskAi = Boolean(askAi && fieldName && setValue && !askAiHidden);
 
   return (
-    <TextFieldFds
-      {...props}
-      value={control && fieldName ? (currentValue as string | undefined) ?? '' : props.value}
-    />
+    <>
+      <TextFieldFds
+        {...props}
+        value={control && fieldName ? (currentValue as string | undefined) ?? '' : props.value}
+        endIcon={withAskAi
+          ? {
+              type: 'iconButton',
+              icon: <SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />,
+              label: t('Ask AI'),
+              disabled: !askAiAvailable,
+              onClick: event => setAskAiAnchor(event.currentTarget),
+            }
+          : props.endIcon}
+      />
+      {withAskAi && (
+        <TextFieldAskAI
+          variant="text"
+          currentValue={typeof currentValue === 'string' ? currentValue : ''}
+          setFieldValue={(val: string) => (setValue as UseFormSetValue<FieldValues>)(
+            fieldName as string,
+            val,
+            {
+              shouldDirty: true,
+              shouldValidate: true,
+            },
+          )}
+          format="text"
+          disabled={props.disabled}
+          triggerAnchor={askAiAnchor}
+          onTriggerClose={() => setAskAiAnchor(null)}
+        />
+      )}
+    </>
   );
 };
 

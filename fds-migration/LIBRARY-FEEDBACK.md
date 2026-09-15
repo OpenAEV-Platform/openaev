@@ -2378,6 +2378,8 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 
 ## 50. No slot for a text adornment (unit, prefix, suffix)
 
+**Status.** **Fixed upstream by library PR #224** (`endText`, read through `aria-describedby`), shipped in pin `4b54adb7f30d8bae322a7a9c150989149ced27ef` and adopted on the regex-flags field. Measured on the installed build: the unit is not `aria-hidden` and the value's padding reads `calc(24.875px + var(--spacing) * 3)` for `/gm`.
+
 **Measured.** `endIcon` is `{ type: "iconButton", … } | { type: "icon", icon }`; the decorative branch is `aria-hidden` and `pointer-events-none`, `startIcon` is decorative only. Nothing in `Input` or `Textarea` can place a *text* next to the value.
 
 **Product need.** One field shows the regular-expression flags `/gm` after the pattern (`ContractOutputElementCard.tsx`). Putting that text in the decorative icon slot would hide it from assistive technology, so it is not done. The site keeps its MUI field until this is ruled (product question open) or the library offers a text slot.
@@ -2393,6 +2395,8 @@ Raised during: the **form-field wave** (SearchField, Input, Textarea, Checkbox),
 **The request.** Either an `endIcon` on `Textarea` mirroring `Input`'s, or a documented "actions next to the label" pattern so consumers converge on one placement.
 
 ## 52. `endIcon` cannot host a consumer-owned trigger
+
+**Status.** **Closed by product refactor plus library PR #224.** The Ask AI component now exposes an external-trigger mode (the library's end-slot button opens its menu) and the library's `endIcon` gained its own `disabled`, so the button reads as unavailable outside the Enterprise Edition while the field stays editable. The eight name fields are converted; only the EE tooltip on the disabled button is gone, by arbitration.
 
 **Measured.** The interactive branch of `endIcon` takes `icon`, `label` and `onClick`, and the library renders the `IconButton` itself; there is no `asChild`, no render prop, no node slot.
 

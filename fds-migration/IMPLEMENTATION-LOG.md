@@ -561,3 +561,29 @@ in filigran-design-system).
   files passed, 1 failed = Cron), conformity green, i18n-checker green. E2E
   selectors re-pointed for the library DOM (`Name*` → `Name`, search field →
   `searchbox`, a third helper-text shape in `MuiFormHelpers`).
+
+## 2026-09-15 — Form-field wave, second pass: bump, held fields released, EE marker
+
+- Library pin `3426fc3` → `4b54adb` (PR #224 only: `endText` and `endIcon.disabled`).
+  Diff of the two installed `dist/` trees: Input, its meta and the type
+  declarations, nothing else.
+- Released from hold: the eight Ask AI name fields (library Input, the Ask AI
+  action on the end slot, disabled outside the Enterprise Edition; the Ask AI
+  component gained an external-trigger mode) and the regex-flags field
+  (`endText="/gm"`, read as the field's description). LIBRARY-FEEDBACK #50 and
+  #52 closed.
+- Remaining MUI text fields are outlined and painted from the library input
+  tokens (theme override, as the sibling product), so the two time fields sit on
+  the same surface as their neighbours.
+- Review findings fixed: the held name field had lost its form ref; outlined
+  labels centred for 36px; drawer headers without bottom rule; accordions in
+  drawers on the drawer surface; the assistant counter on the library number
+  field (its own ± buttons removed, arbitrated).
+- Enterprise Edition marker: the product `EEChip` renders the library Chip in
+  its `ee` severity and small size; tooltip kept on the library Tooltip (the
+  trigger's own click is kept off a plain marker); the two library chips already
+  in place take the small size. On the five sites where the marker sat inside a
+  tab, a card or a menu entry that already opens the licence dialog, it is
+  informational: a button inside a button is invalid markup and nothing is lost
+  (checked handler by handler). Self-hiding when the licence is active: not
+  adopted, by arbitration.

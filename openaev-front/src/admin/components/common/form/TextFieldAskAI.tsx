@@ -58,6 +58,13 @@ interface TextFieldAskAiProps {
   inInject?: boolean;
   context?: string;
   inArticle?: boolean;
+  /**
+   * External trigger mode: the host draws the button (the library field's end slot) and
+   * hands its anchor here; this component then renders only the menu and its dialogs.
+   * `undefined` keeps the built-in button.
+   */
+  triggerAnchor?: HTMLElement | null;
+  onTriggerClose?: () => void;
 }
 
 const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
@@ -70,8 +77,11 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
   inInject,
   context,
   inArticle,
+  triggerAnchor,
+  onTriggerClose,
 }) => {
   const theme = useTheme();
+  const externalTrigger = triggerAnchor !== undefined;
   const { t } = useFormatter();
   const { isValidated: isEnterpriseEdition } = useEnterpriseEdition();
   const { enabled, configured, xtmOneConfigured } = useAI();
@@ -117,7 +127,14 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
       open: false,
       anchorEl: null,
     });
+    onTriggerClose?.();
   };
+  const menuState = externalTrigger
+    ? {
+        open: Boolean(triggerAnchor),
+        anchorEl: triggerAnchor ?? null,
+      }
+    : menuOpen;
   const handleOpenToneOptions = () => {
     handleCloseMenu();
     setOpenToneOptions(true);
@@ -234,31 +251,33 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
     const isAvailable = isEnterpriseEdition && enabled && (configured || xtmOneConfigured);
     return (
       <>
-        <EETooltip
-          forAi
-          title={`${t('Ask AI')}${!isAvailable ? ' (EE)' : ''}`}
-        >
-          <span>
-            <IconButton
-              size="medium"
-              onClick={event =>
-                (isAvailable ? handleOpenMenu(event) : null)}
-              disabled={disabled || !isAvailable}
-              style={{
-                marginTop: -4,
-                color: isAvailable
-                  ? theme.palette.ai.main
-                  : theme.palette.action.disabled,
-              }}
-            >
-              <SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />
-            </IconButton>
-          </span>
-        </EETooltip>
+        {!externalTrigger && (
+          <EETooltip
+            forAi
+            title={`${t('Ask AI')}${!isAvailable ? ' (EE)' : ''}`}
+          >
+            <span>
+              <IconButton
+                size="medium"
+                onClick={event =>
+                  (isAvailable ? handleOpenMenu(event) : null)}
+                disabled={disabled || !isAvailable}
+                style={{
+                  marginTop: -4,
+                  color: isAvailable
+                    ? theme.palette.ai.main
+                    : theme.palette.action.disabled,
+                }}
+              >
+                <SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />
+              </IconButton>
+            </span>
+          </EETooltip>
+        )}
         <Menu
           id="menu-appbar"
-          anchorEl={menuOpen.anchorEl}
-          open={menuOpen.open}
+          anchorEl={menuState.anchorEl}
+          open={menuState.open}
           onClose={handleCloseMenu}
         >
           {inInject && (
@@ -607,6 +626,9 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
         {renderButton()}
       </div>
     );
+  }
+  if (externalTrigger) {
+    return renderButton();
   }
   return (
     <InputAdornment

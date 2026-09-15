@@ -1,6 +1,4 @@
 import { Icon } from '@filigran/design-system';
-// fds:keep-mui one site needs a text suffix inside the field (`endAdornmentLabel`); the library has no text slot — LIBRARY-FEEDBACK #50
-import { InputAdornment, TextField as MuiTextField } from '@mui/material';
 import { type CSSProperties, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -21,7 +19,7 @@ interface Props {
   defaultValue?: string;
   noHelperText?: boolean;
   writeOnly?: boolean;
-  /** Text suffix drawn inside the field. Keeps the MUI field until the library offers a text slot. */
+  /** Unit or suffix drawn inside the field (library `endText`). */
   endAdornmentLabel?: string;
 }
 
@@ -69,26 +67,6 @@ const TextFieldController = ({
           setIsOriginalValue(false);
         };
 
-        if (endAdornmentLabel) {
-          return (
-            <MuiTextField
-              {...field}
-              type={type}
-              label={required ? `${label}*` : label}
-              fullWidth
-              variant="outlined"
-              onChange={handleChange}
-              error={!!error}
-              helperText={!noHelperText && error ? error.message : null}
-              disabled={disabled}
-              placeholder={placeholder}
-              style={style}
-              value={field.value}
-              slotProps={{ input: { endAdornment: <InputAdornment position="end">{endAdornmentLabel}</InputAdornment> } }}
-            />
-          );
-        }
-
         return (
           <TextFieldFds
             {...field}
@@ -104,6 +82,7 @@ const TextFieldController = ({
             placeholder={placeholder}
             style={style}
             value={isMasked ? DOTS : field.value}
+            endText={endAdornmentLabel}
             endIcon={type === 'password'
               ? {
                   type: 'iconButton',
