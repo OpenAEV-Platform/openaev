@@ -524,6 +524,8 @@ public class StepService {
                         "Error creating step (READY) from step (TEMPLATE). Step ID: "
                             + template.getId()));
     stepReady = saveStep(stepReady);
+
+    System.out.println("READY - " + stepReady.getId() + " - " + stepReady.getInput());
     linkBatchConditions(batch, stepReady);
     return stepReady;
   }
