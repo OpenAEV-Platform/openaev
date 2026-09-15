@@ -54,7 +54,7 @@ const FilterChipPopover: FunctionComponent<Props> = ({
     const operators = availableOperators(propertySchema);
     return (
       <>
-        <div style={{ marginBottom: 15 }}>
+        <div>
           <Select
             value={filter.operator ?? operators[0]}
             onValueChange={handleChangeOperator}

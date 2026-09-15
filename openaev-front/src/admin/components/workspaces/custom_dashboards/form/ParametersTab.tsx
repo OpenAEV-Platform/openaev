@@ -33,6 +33,7 @@ const ParametersTab = () => {
       <div style={{
         display: 'flex',
         alignItems: 'center',
+        gap: theme.spacing(0.5),
       }}
       >
         <Typography variant="h3" sx={{ m: 0 }}>
@@ -54,7 +55,8 @@ const ParametersTab = () => {
               key={field.id}
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                // Labels sit above the fields: the row aligns on the inputs, not on the blocks' centre.
+                alignItems: 'flex-end',
                 gap: theme.spacing(2),
               }}
             >

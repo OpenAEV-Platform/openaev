@@ -34,6 +34,7 @@ import {
   type TenantSettingsOutput,
   type ThemeInput,
 } from '../../../../utils/api-types';
+import { layerInputVars } from '../../../../utils/fdsLayer';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { type Option } from '../../../../utils/Option';
@@ -569,16 +570,21 @@ const ReportingForm: FunctionComponent<Props> = ({
                         ref={draggableProvided.innerRef}
                         {...draggableProvided.draggableProps}
                         padding={8}
+                        // One layer above the drawer's surface, like the sibling product's confidence
+                        // block; the input aliases follow the layer.
+                        elevation={3}
                         style={{
                           display: 'flex',
                           flexDirection: 'column',
                           gap: 8,
                           marginBottom: 8,
+                          ...layerInputVars,
                         }}
                       >
                         <Box sx={{
                           display: 'flex',
-                          alignItems: 'center',
+                          // The title field carries its label above: the row aligns on the input line.
+                          alignItems: 'flex-end',
                           gap: 1,
                         }}
                         >
@@ -614,7 +620,7 @@ const ReportingForm: FunctionComponent<Props> = ({
                             />
                           </Box>
                           <Tooltip title={t('Remove')}>
-                            <IconButton size="small" color="primary" onClick={() => removeModule(index)}>
+                            <IconButton size="small" color="error" onClick={() => removeModule(index)}>
                               <DeleteOutlined fontSize="small" />
                             </IconButton>
                           </Tooltip>

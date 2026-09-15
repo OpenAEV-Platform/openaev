@@ -15,11 +15,11 @@ const renderSearch = (props: Partial<React.ComponentProps<typeof SearchInput>> =
 );
 
 describe('SearchFilter', () => {
-  it('renders the library search field with a compact size for the small variant', () => {
+  it('renders the library search field at the toolbar height for the small variant', () => {
     renderSearch({ variant: 'small' });
     const box = screen.getByRole('searchbox', { name: 'Search these results' });
     expect(box).toHaveAttribute('placeholder', 'Search these results...');
-    expect(screen.getByRole('search', { name: 'Search these results' }).className).toContain('h-7');
+    expect(screen.getByRole('search', { name: 'Search these results' }).className).toContain('h-9');
     expect(document.querySelector('.MuiTextField-root')).toBeNull();
   });
 

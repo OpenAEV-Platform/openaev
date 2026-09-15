@@ -1,4 +1,6 @@
 import { alpha, buttonClasses, darken, lighten, type ThemeOptions } from '@mui/material';
+// Type-only: declares the MUI X picker keys used in `components` below.
+import type {} from '@mui/x-date-pickers/themeAugmentation';
 
 import LogoCollapsed from '../static/images/logo_light.png';
 import LogoText from '../static/images/logo_text_light.png';
@@ -535,7 +537,32 @@ const ThemeLight = (
         },
         // 8px lands the single-line row on the library's 36px height; MUI's own
         // 16.5px makes a 54px row.
-        input: { padding: '8px 8px 8px 12px' },
+        input: {
+          'padding': '8px 8px 8px 12px',
+          // The browser draws the clock and calendar glyphs of native date and time
+          // fields from the colour scheme, not from the text colour.
+          '&[type="time"], &[type="date"], &[type="datetime-local"]': { colorScheme: 'light' },
+        },
+      },
+    },
+    // The date picker draws its own outlined input (MUI X), so the same paint as above.
+    MuiPickersOutlinedInput: {
+      styleOverrides: {
+        root: {
+          'backgroundColor': 'var(--bg-input-default)',
+          'borderRadius': 'var(--radius-sm)',
+          'minHeight': 36,
+          'padding': '0 8px 0 12px',
+          '& .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+          '&:hover .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-hover)' },
+          '&.Mui-focused .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-focus)' },
+          '&.Mui-error .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-error)' },
+          '&.Mui-disabled': {
+            'backgroundColor': 'transparent',
+            '& .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-elevation-disabled)' },
+          },
+        },
+        sectionsContainer: { padding: '8px 0' },
       },
     },
     MuiTextField: {

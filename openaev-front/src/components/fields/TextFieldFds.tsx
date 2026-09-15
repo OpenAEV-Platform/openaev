@@ -73,10 +73,16 @@ const TextFieldFds = forwardRef<Control, TextFieldFdsProps>(({
   const errorMessage = resolveErrorMessage(error, helperText);
   const stringValue = value === undefined ? undefined : String(value ?? '');
   const stringDefault = defaultValue === undefined ? undefined : String(defaultValue);
-  const rootStyle: CSSProperties = {
-    display: fullWidth ? undefined : 'inline-flex',
-    ...style,
-  };
+  // MUI's `fullWidth` made the field take its row's width; a block wrapper alone lets a flex row shrink it.
+  const rootStyle: CSSProperties = fullWidth
+    ? {
+        width: '100%',
+        ...style,
+      }
+    : {
+        display: 'inline-flex',
+        ...style,
+      };
 
   if (multiline) {
     // MUI's `multiline` without `rows` grows from one line; the library needs `minRows` to do the same.

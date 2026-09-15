@@ -143,7 +143,7 @@ export default [
             {
               group: [
                 '@mui/material/*', '!@mui/material/locale', '!@mui/material/styles', '!@mui/material/colors', '!@mui/material/transitions',
-                '@mui/x-date-pickers/*', '!@mui/x-date-pickers/AdapterDateFns',
+                '@mui/x-date-pickers/*', '!@mui/x-date-pickers/AdapterDateFns', '!@mui/x-date-pickers/themeAugmentation',
                 '@mui/icons-material/*',
                 '@mui/lab/*',
               ],

@@ -7,7 +7,7 @@ interface Props {
   keyword?: string;
   onChange?: (value?: string) => void;
   onSubmit?: (value?: string) => void;
-  /** `small` and `thin` take the library's compact size; anything else the default one. */
+  /** `thin` takes the library's compact size; `small` and the default share the 36px of the toolbar fields next to them. */
   variant?: string;
   fullWidth?: boolean;
   placeholder?: string;
@@ -75,7 +75,7 @@ const SearchInput: FunctionComponent<Props> = ({
     <SearchField
       aria-label={placeholder ?? t('Search these results')}
       placeholder={placeholder ?? `${t('Search these results')}...`}
-      size={variant === 'small' || variant === 'thin' ? 'sm' : 'md'}
+      size={variant === 'thin' ? 'sm' : 'md'}
       fullWidth={fullWidth}
       name="keyword"
       value={value}

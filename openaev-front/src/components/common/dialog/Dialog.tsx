@@ -2,6 +2,7 @@ import { Close } from '@mui/icons-material';
 import { Box, type Breakpoint, Dialog as MuiDialog, DialogActions, DialogContent, DialogTitle, IconButton } from '@mui/material';
 import { type FunctionComponent, type ReactElement, type ReactNode } from 'react';
 
+import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../../utils/fdsLayer';
 import Transition from '../Transition';
 
 interface DialogProps {
@@ -35,7 +36,18 @@ const Dialog: FunctionComponent<DialogProps> = ({
       fullWidth
       maxWidth={maxWidth}
       slots={{ transition: Transition }}
-      slotProps={{ paper: { elevation: 1 } }}
+      // A dialog is a layer-2 surface like a drawer: the layer class and the input aliases go on the paper.
+      slotProps={{
+        paper: {
+          elevation: 1,
+          className: fdsLayerClass(SURFACE_LAYER),
+          sx: {
+            ...layerInputVars,
+            backgroundColor: 'var(--bg-elevation-default)',
+            backgroundImage: 'none',
+          },
+        },
+      }}
     >
       {title && (
         <DialogTitle>
