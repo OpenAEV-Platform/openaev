@@ -12,6 +12,10 @@ import org.springframework.stereotype.Component;
 @Getter
 @ConfigurationProperties(prefix = "openaev.ratelimit")
 public class RateLimitConfig {
+  @JsonProperty("enabled")
+  @Value("${openaev.ratelimit.enabled:#{true}}")
+  private Boolean enabled;
+
   @JsonProperty("store_backend")
   @Value("${openaev.ratelimit.store-backend:" + IN_MEMORY_STRING + "}")
   private RateLimitStoreBackend storeBackend;

@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.ratelimit.config.RateLimitConfig;
+import io.openaev.utils.mockConfig.WithMockRateLimitConfig;
 import io.openaev.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
+@WithMockRateLimitConfig(enabled = true)
 public class RateLimitIntegrationTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private RateLimitConfig rateLimitConfig;
