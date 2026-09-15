@@ -26,23 +26,26 @@ public final class TenantUriUtils {
       Pattern.compile("^" + TENANT_BASE_PATH + "(" + UUID_REGEX + ")(?:/|$)");
 
   public Optional<String> getTenantIdFromRequestUrl(HttpServletRequest request) {
+    // getRequestURI() includes the servlet context path, so strip it first to keep the anchored
+    // /api/tenants/ checks working for deployments served under a non-root context path.
+    String uri = pathWithoutContext(request);
+
+    // Only the tenant-prefixed route (/api/tenants/{tenantId}/...) names a request tenant. A
+    // {tenantId} path variable on any other mapping (the public phishing tracking route
+    // /api/phishing/tracking/{tenantId}/...) is a handler parameter, not a scope selector, so it
+    // must not be read as the request tenant: the anchored fallback below already restricts the
+    // match this way, and this first branch matches it.
     Object pathVariablesAttribute =
         request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
-    if (pathVariablesAttribute instanceof Map<?, ?> pathVariables
+    if (isTenantPrefixed(uri)
+        && pathVariablesAttribute instanceof Map<?, ?> pathVariables
         && pathVariables.get(TENANT_ID_PATH_VARIABLE) instanceof String tenantId) {
       return Optional.of(tenantId);
     }
 
     // Fallback for callers running before handler mapping populated the path variables
     // (e.g. authentication filters): parse the tenant id straight from the request URI.
-    // getRequestURI() includes the servlet context path, so strip it first to keep the
-    // anchored pattern working for deployments served under a non-root context path.
-    String uri = request.getRequestURI();
-    if (!StringUtils.isBlank(uri)) {
-      String contextPath = request.getContextPath();
-      if (!StringUtils.isBlank(contextPath) && uri.startsWith(contextPath)) {
-        uri = uri.substring(contextPath.length());
-      }
+    if (uri != null) {
       Matcher matcher = tenantPattern.matcher(uri);
       if (matcher.find()) {
         return Optional.of(matcher.group(1));
@@ -50,5 +53,21 @@ public final class TenantUriUtils {
     }
 
     return Optional.empty();
+  }
+
+  private static boolean isTenantPrefixed(String uri) {
+    return uri != null && uri.startsWith(TENANT_BASE_PATH);
+  }
+
+  private static String pathWithoutContext(HttpServletRequest request) {
+    String uri = request.getRequestURI();
+    if (StringUtils.isBlank(uri)) {
+      return null;
+    }
+    String contextPath = request.getContextPath();
+    if (!StringUtils.isBlank(contextPath) && uri.startsWith(contextPath)) {
+      return uri.substring(contextPath.length());
+    }
+    return uri;
   }
 }

@@ -19,9 +19,10 @@ import org.springframework.web.servlet.HandlerMapping;
  * TxCtxArgumentResolver#runTenantScope} does for the v2 {@code app.current_tenants} GUC.
  *
  * <p>Why an interceptor and not per-method: the callbacks ride the legacy NON-prefixed route
- * ({@code /api/autonomous-runs/**}), which {@link TenantInterceptor} (registered only for {@code
- * /api/tenants/**}) never covers, so on that route the v1 ThreadLocal is unset and {@code
- * HibernateFilterTransactionAspect} falls back to {@link
+ * ({@code /api/autonomous-runs/**}). {@link TenantInterceptor} covers the whole {@code /api/**}
+ * surface, but deliberately leaves the ambient tenant to this interceptor for the verified service
+ * identity on these run-scoped callbacks (it adopts no client header there), so without it the v1
+ * ThreadLocal is unset and {@code HibernateFilterTransactionAspect} falls back to {@link
  * io.openaev.database.model.Tenant#DEFAULT_TENANT_UUID}. A run owned by a non-default tenant would
  * then record its v2 state correctly (its {@code TxCtx} is run-derived) yet silently read/write
  * NOTHING through the v1 filter: an empty attack-path state read (so the orchestrator re-authors

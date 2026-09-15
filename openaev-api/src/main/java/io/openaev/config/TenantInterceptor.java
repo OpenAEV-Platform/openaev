@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.MethodParameter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -45,12 +46,15 @@ import org.springframework.web.servlet.AsyncHandlerInterceptor;
  * a client-supplied header.
  *
  * <p>The regular-route header is also NOT adopted for the verified XTM One cross-platform service
- * identity ({@link XtmJwksExtractor#CROSS_PLATFORM_ATTRIBUTE}). Its tenant is run-authoritative,
+ * identity ({@link XtmJwksExtractor#CROSS_PLATFORM_ATTRIBUTE}) when the handler derives its scope
+ * from the parent run (a {@code @RunTenantScope} parameter): that tenant is run-authoritative,
  * derived from the {@code {runId}} by {@link OrchestratorRunTenantInterceptor}, and must never come
- * from a client-supplied header; this mirrors {@link TxCtxArgumentResolver}, which keeps the
- * service caller on the run-derived scope. The two interceptors therefore act on disjoint callers
- * on the autonomous route (service identity vs non-service header caller), so the ambient tenant is
- * the same regardless of their registration order.
+ * from a client-supplied header. This mirrors {@link TxCtxArgumentResolver}, which diverts the
+ * service caller to the run-derived scope only on such a handler and otherwise resolves its {@code
+ * TxCtx} from the header through the caller-authorized path. On the run-scoped callbacks the two
+ * interceptors therefore act on disjoint callers (service identity vs non-service header caller),
+ * so the ambient tenant is the same regardless of their registration order; on any other handler a
+ * service caller is treated like any authenticated caller for the header, so v1 and v2 agree.
  *
  * <p>{@link AsyncHandlerInterceptor} (not just {@code HandlerInterceptor}): on an async dispatch
  * (e.g. a {@code StreamingResponseBody} endpoint) the initial servlet thread exits through {@link
@@ -99,9 +103,9 @@ public class TenantInterceptor implements AsyncHandlerInterceptor {
    * the response is marked {@code Vary: X-Tenant-Ids} because the header then influences it.
    *
    * <p>The header is NOT adopted, and the ambient tenant is left untouched, for: the verified
-   * cross-platform service identity (its tenant is run-authoritative, set by {@link
-   * OrchestratorRunTenantInterceptor}); a handler that manages the tenant resource itself (it
-   * addresses its target through the path, not the header, so a create/list must not take an
+   * cross-platform service identity on a run-scoped handler (its tenant is run-authoritative, set
+   * by {@link OrchestratorRunTenantInterceptor}); a handler that manages the tenant resource itself
+   * (it addresses its target through the path, not the header, so a create/list must not take an
    * unvalidated ambient tenant from the header); zero, blank or several ids (a tenant-unaware
    * client sending no header keeps working, and a multi-tenant read stays a v2-only scope); and an
    * anonymous caller, mirroring {@link TxCtxArgumentResolver}, which ignores {@code X-Tenant-Ids}
@@ -109,7 +113,13 @@ public class TenantInterceptor implements AsyncHandlerInterceptor {
    */
   private void applySingleHeaderTenant(
       HttpServletRequest request, HttpServletResponse response, Object handler) {
-    if (isCrossPlatformServiceCaller(request)) {
+    // Skip only the run-authoritative service callback: the verified cross-platform service
+    // identity on a handler whose TxCtx is derived from the parent run (@RunTenantScope), where
+    // TxCtxArgumentResolver ignores the header too and OrchestratorRunTenantInterceptor sets the
+    // run's tenant. On any other handler a verified service caller is treated like any
+    // authenticated caller for the header, exactly as the resolver resolves its TxCtx from the
+    // header through the caller-authorized path (membership-validated below).
+    if (isCrossPlatformServiceCaller(request) && hasRunTenantScope(handler)) {
       return;
     }
     if (targetsTenantResource(handler)) {
@@ -145,6 +155,24 @@ public class TenantInterceptor implements AsyncHandlerInterceptor {
    */
   private static boolean isCrossPlatformServiceCaller(HttpServletRequest request) {
     return Boolean.TRUE.equals(request.getAttribute(XtmJwksExtractor.CROSS_PLATFORM_ATTRIBUTE));
+  }
+
+  /**
+   * Whether the target handler derives its tenant scope from the parent run rather than the
+   * request, i.e. it has a {@code @RunTenantScope}-annotated parameter. Mirrors {@link
+   * TxCtxArgumentResolver#resolveArgument}, which diverts a verified service identity to the
+   * run-derived scope only on such a parameter (and only with no path tenant, always the case on
+   * this regular-route branch); every other handler keeps the caller-authorized header resolution.
+   */
+  private static boolean hasRunTenantScope(Object handler) {
+    if (handler instanceof HandlerMethod handlerMethod) {
+      for (MethodParameter parameter : handlerMethod.getMethodParameters()) {
+        if (parameter.hasParameterAnnotation(RunTenantScope.class)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /** Validates that an authenticated, non-anonymous caller belongs to the given tenant. */
