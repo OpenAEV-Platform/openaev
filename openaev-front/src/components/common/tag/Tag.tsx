@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloseOutlined } from '@mui/icons-material';
-import { alpha, Chip, type ChipProps, lighten, type SxProps, type Theme, Tooltip, useTheme } from '@mui/material';
+import { alpha, Chip, type ChipProps, lighten, type SxProps, type Theme, useTheme } from '@mui/material';
 import type React from 'react';
 import { type CSSProperties, type ReactElement } from 'react';
 
@@ -102,19 +103,11 @@ const Tag = ({
   }
 
   return (
-    <Tooltip
-      title={tooltipTitle ?? label}
-      placement="bottom-start"
-      slotProps={{
-        tooltip: {
-          sx: {
-            'textTransform': labelTextTransform,
-            '&::first-letter': { textTransform: labelTextTransform },
-          },
-        },
-      }}
-    >
-      {chip}
+    <Tooltip>
+      <TooltipTrigger asChild>{chip}</TooltipTrigger>
+      <TooltipContent side="bottom" align="start" style={{ textTransform: labelTextTransform }}>
+        {tooltipTitle ?? label}
+      </TooltipContent>
     </Tooltip>
   );
 };

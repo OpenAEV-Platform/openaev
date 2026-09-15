@@ -1,9 +1,20 @@
-import { Autocomplete as MuiAutocomplete, Box, TextField } from '@mui/material';
-import { type CSSProperties, type FunctionComponent, type ReactNode } from 'react';
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
+import { type FunctionComponent, type ReactNode } from 'react';
 import { type GlobalError } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import { type Option } from '../../utils/Option';
+import { useFormatter } from '../i18n';
 
 const useStyles = makeStyles()(() => ({
   icon: {
@@ -15,7 +26,6 @@ const useStyles = makeStyles()(() => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
 }));
 
 interface Props {
@@ -26,7 +36,6 @@ interface Props {
   icon?: ReactNode;
   error?: GlobalError;
   placeholder?: string;
-  style?: CSSProperties;
   disabled?: boolean;
   required?: boolean;
 }
@@ -44,50 +53,47 @@ const EntityMultiSelectField: FunctionComponent<Props> = ({
   icon,
   error,
   placeholder = '',
-  style,
   disabled = false,
   required = false,
 }) => {
   const { classes } = useStyles();
+  const { t } = useFormatter();
 
   return (
-    <MuiAutocomplete
+    <Combobox<Option>
       multiple
-      fullWidth
-      size="small"
-      selectOnFocus
-      autoHighlight
-      clearOnBlur={false}
-      clearOnEscape={false}
-      disableClearable
       disabled={disabled}
-      slotProps={{ paper: { elevation: 2 } }}
+      required={required}
+      error={!!error}
       options={options}
       value={options.filter(option => fieldValue.includes(option.id))}
-      onChange={(_, newValue) => fieldOnChange(newValue.map(option => option.id))}
-      getOptionLabel={option => option.label}
-      isOptionEqualToValue={(option, value) => option.id === value.id}
-      renderOption={(props, option) => (
-        <Box component="li" {...props} key={option.id}>
+      onValueChange={value => fieldOnChange((value as Option[]).map(option => option.id))}
+      getOptionLabel={option => option.label ?? ''}
+      isOptionEqualToValue={(option, v) => option.id === v.id}
+      // The MUI field carried `disableClearable` AND hid the clear indicator
+      // through a `classes` override — two ways of saying the same thing.
+      clearable={false}
+      // `clearOnBlur={false}` on the MUI field: the typed text survives a blur
+      // instead of being re-synced from the selection.
+      keepInputOnBlur
+      renderOption={option => (
+        <>
           {icon && <div className={classes.icon}>{icon}</div>}
           <div className={classes.text}>{option.label}</div>
-        </Box>
+        </>
       )}
-      renderInput={params => (
-        <TextField
-          {...params}
-          label={label}
-          variant="standard"
-          placeholder={placeholder}
-          fullWidth
-          required={required}
-          error={!!error}
-          helperText={error?.message}
-        />
-      )}
-      classes={{ clearIndicator: classes.autoCompleteIndicator }}
-      style={style}
-    />
+    >
+      <ComboboxLabel>{label}</ComboboxLabel>
+      <ComboboxField>
+        <ComboboxChips />
+        <ComboboxInput placeholder={placeholder} />
+        <ComboboxControls>
+          <ComboboxTrigger />
+        </ComboboxControls>
+      </ComboboxField>
+      <ComboboxContent emptyMessage={t('No available options')} />
+      {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+    </Combobox>
   );
 };
 

@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloseOutlined, DeleteOutlined, MovieFilterOutlined } from '@mui/icons-material';
-import { Box, Button, IconButton, Slide, Tooltip, Typography } from '@mui/material';
+import { Box, Button, IconButton, Slide, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -109,15 +110,18 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
             </Button>
           )}
 
-          <Tooltip title={t('Clear selection')}>
-            <IconButton
-              size="small"
-              onClick={onClear}
-              aria-label={t('Clear selection')}
-              sx={{ color: 'text.secondary' }}
-            >
-              <CloseOutlined fontSize="small" />
-            </IconButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton
+                size="small"
+                onClick={onClear}
+                aria-label={t('Clear selection')}
+                sx={{ color: 'text.secondary' }}
+              >
+                <CloseOutlined fontSize="small" />
+              </IconButton>
+            </TooltipTrigger>
+            <TooltipContent>{t('Clear selection')}</TooltipContent>
           </Tooltip>
         </Box>
       </Box>

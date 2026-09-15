@@ -62,6 +62,7 @@ const TenantParametersForm: FunctionComponent<TenantParametersFormProps> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="tenantParametersForm"
         onSubmit={handleSubmitWithoutPropagation}
         style={{

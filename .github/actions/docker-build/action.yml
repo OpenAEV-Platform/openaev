@@ -51,6 +51,16 @@ inputs:
       is then handed to downstream jobs as an artifact only.
     required: false
     default: "true"
+  fds-git-token:
+    description: >
+      PAT with read access to XTM-Foundation/filigran-design-system
+      (secrets.FDS_GIT_TOKEN). openaev-front consumes that private repository as
+      a direct git dependency, and the Dockerfiles built here run `yarn install`
+      inside the image, so the credential must cross the image boundary as a
+      BuildKit build secret — the runner's own git configuration does not.
+      A composite action cannot read the `secrets` context, so every caller
+      must pass this explicitly.
+    required: true
 
 outputs:
   digest:
@@ -139,6 +149,11 @@ runs:
         platforms: ${{ inputs.platform }}
         push: false
         pull: true
+        # Mounted for the single `RUN` that installs openaev-front's dependencies
+        # and stored in no layer. See .github/actions/setup-fds-auth for the
+        # runner-side equivalent.
+        secrets: |
+          fds_git_token=${{ inputs.fds-git-token }}
         outputs: |
           type=oci,dest=${{ steps.names.outputs.artifact_name }}.tar,name=${{ inputs.tags }}
         labels: ${{ inputs.labels }}

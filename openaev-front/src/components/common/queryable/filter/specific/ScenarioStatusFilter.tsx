@@ -1,4 +1,17 @@
-import { Autocomplete, MenuItem, Select, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
 
 import { SCENARIO_NOT_SCHEDULED_STATUS, SCENARIO_SCHEDULED_STATUS } from '../../../../../admin/components/scenarios/scenario/ScenarioStatus';
@@ -41,39 +54,37 @@ const ScenarioStatusFilter: FunctionComponent<{
 
   return (
     <>
-      <Select
-        value={operators[0]}
-        label="Operator"
-        fullWidth
-        style={{ marginBottom: 15 }}
-      >
-        {operators.map(value => (
-          <MenuItem key={value} value={value}>
-            {t(OperatorKeyValues[value])}
-          </MenuItem>
-        ))}
-      </Select>
-      <Autocomplete
-        selectOnFocus
+      <div style={{ marginBottom: 15 }}>
+        <Select value={operators[0]}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {operators.map(value => (
+              <SelectItem key={value} value={value}>
+                {t(OperatorKeyValues[value])}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <Combobox<Option>
         openOnFocus
-        autoHighlight
-        noOptionsText={t('No available options')}
         options={options}
+        value={options.find(opt => filter.values?.includes(opt.id)) ?? null}
+        onValueChange={newValue => onChange(newValue as Option | null)}
         getOptionLabel={option => option.label ?? ''}
         isOptionEqualToValue={(option, v) => option.id === v.id}
-        value={options.find(opt => filter.values?.includes(opt.id)) || null}
-        onChange={(_event, newValue) => {
-          onChange(newValue);
-        }}
-        renderInput={paramsInput => (
-          <TextField
-            {...paramsInput}
-            label={t(propertySchema.schema_property_name)}
-            variant="outlined"
-            size="small"
-          />
-        )}
-      />
+      >
+        <ComboboxLabel>{t(propertySchema.schema_property_name)}</ComboboxLabel>
+        <ComboboxField>
+          <ComboboxInput />
+          <ComboboxControls>
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent emptyMessage={t('No available options')} />
+      </Combobox>
     </>
   );
 };

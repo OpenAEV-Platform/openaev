@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { BoltOutlined, HourglassEmptyOutlined, PendingActionsOutlined, TaskAltOutlined } from '@mui/icons-material';
-import { Box, LinearProgress, List, ListItem, ListItemButton, Paper, Typography } from '@mui/material';
+import { Box, LinearProgress, List, ListItem, ListItemButton, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ComponentType, type FunctionComponent, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -66,6 +67,10 @@ const injectIconFor = (inject: InjectStore) => (
 
 // One lane of the live board: accent-tinted header with a count badge and a
 // capped, internally scrollable body.
+// A column header, NOT a section title: it sits inside the surface and carries
+// an icon, a count and an accent band the library's `title` slot cannot hold.
+// Do not "harmonise" it onto the library header — that drops those three.
+// PAPER-GAP-INVENTORY §23 records the distinction and why this stays.
 const BoardColumn = ({ icon: Icon, label, count, accent, children }: {
   icon: ComponentType<{ sx?: object }>;
   label: string;
@@ -76,12 +81,11 @@ const BoardColumn = ({ icon: Icon, label, count, accent, children }: {
   const theme = useTheme();
   return (
     <Paper
-      variant="outlined"
-      sx={{
+      padding={0}
+      style={{
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        borderRadius: 1,
         minHeight: COLUMN_MIN_HEIGHT,
         maxHeight: COLUMN_MAX_HEIGHT,
       }}

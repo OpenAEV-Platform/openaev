@@ -1,11 +1,14 @@
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+} from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ExpandMore } from '@mui/icons-material';
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Alert, AlertTitle, Autocomplete, Button, Chip, GridLegacy, MenuItem, TextField as MuiTextField, Typography,
-} from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert, AlertTitle, Button, GridLegacy, MenuItem, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useState } from 'react';
@@ -16,6 +19,7 @@ import type { LoggedHelper } from '../../../../actions/helper';
 import SelectField from '../../../../components/fields/SelectField';
 import TagField from '../../../../components/fields/TagField';
 import TextField from '../../../../components/fields/TextField';
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type CreateExerciseInput, type PlatformSettings } from '../../../../utils/api-types';
@@ -99,6 +103,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
 
   return (
     <form
+      noValidate
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -116,13 +121,11 @@ const ExerciseForm: FunctionComponent<Props> = ({
       </Typography>
 
       <TextField
-        variant="standard"
-        fullWidth
+        required
         label={t('Name')}
         error={!!errors.exercise_name}
         helperText={errors.exercise_name?.message}
-        inputProps={register('exercise_name')}
-        InputLabelProps={{ required: true }}
+        {...register('exercise_name')}
         control={control}
         setValue={setValue}
         askAi={true}
@@ -212,14 +215,12 @@ const ExerciseForm: FunctionComponent<Props> = ({
         </GridLegacy>
       </GridLegacy>
       <TextField
-        variant="standard"
-        fullWidth
         multiline
         rows={2}
         label={t('Description')}
         error={!!errors.exercise_description}
         helperText={errors.exercise_description?.message}
-        inputProps={register('exercise_description')}
+        {...register('exercise_description')}
         control={control}
         setValue={setValue}
         askAi={true}
@@ -290,20 +291,16 @@ const ExerciseForm: FunctionComponent<Props> = ({
             gap: theme.spacing(2),
           }}
           >
-            <MuiTextField
-              variant="standard"
-              fullWidth
+            <TextFieldFds
               label={t('Sender email address')}
               value={settings.default_mailer ?? ''}
               disabled
             />
-            <MuiTextField
-              variant="standard"
-              fullWidth
+            <TextFieldFds
               label={t('Sender email from')}
               error={!!errors.exercise_mail_from_name}
               helperText={errors.exercise_mail_from_name?.message}
-              inputProps={register('exercise_mail_from_name')}
+              {...register('exercise_mail_from_name')}
               disabled={disabled}
             />
 
@@ -312,81 +309,73 @@ const ExerciseForm: FunctionComponent<Props> = ({
               name="exercise_mails_reply_to"
               render={({ field, fieldState }) => {
                 return (
-                  <Autocomplete
+                  <Combobox<string>
                     multiple
-                    id="email-reply-to-input"
-                    freeSolo
+                    // No `onOpenChange` beside it: nothing can move the panel, so none is
+                    // mounted and Enter/ArrowDown keep their native meaning in the input.
                     open={false}
                     options={[]}
-                    value={field.value}
-                    onChange={() => {
-                      if (undefined !== field.value && inputValue !== '' && !field.value.includes(inputValue)) {
-                        field.onChange([...(field.value || []), inputValue.trim()]);
+                    value={field.value ?? []}
+                    allowCustomValue
+                    createValueFromInput={input => input.trim()}
+                    getOptionLabel={email => email}
+                    isOptionEqualToValue={(a, b) => a === b}
+                    inputValue={inputValue}
+                    onInputChange={(newInputValue, meta) => {
+                      if (meta.cause === 'type') {
+                        setInputValue(newInputValue);
                       }
                     }}
-                    onBlur={field.onBlur}
-                    inputValue={inputValue}
-                    onInputChange={(_event, newInputValue) => {
-                      setInputValue(newInputValue);
+                    onValueChange={(next) => {
+                      // Every value reaching here was typed, the list being empty by design.
+                      const emails = (next as string[]).map(email => email.trim()).filter(email => email !== '');
+                      field.onChange(Array.from(new Set(emails)));
+                      // MUI cleared the text itself through its `reset` cause; the
+                      // library reports causes instead, so the commit clears it here.
+                      setInputValue('');
                     }}
-                    disableClearable={true}
-                    renderTags={(tags: string[], getTagProps) => tags.map((email: string, index: number) => {
-                      return (
-                        <Chip
-                          variant="outlined"
-                          label={email}
-                          {...getTagProps({ index })}
-                          key={email}
-                          style={{ borderRadius: 4 }}
-                          onDelete={() => {
-                            const newValue = [...(field.value || [])];
-                            newValue.splice(index, 1);
-                            field.onChange(newValue);
-                          }}
-                        />
-                      );
-                    })}
-                    renderInput={params => (
-                      <MuiTextField
-                        {...params}
-                        variant="standard"
-                        label={t('Reply to')}
-                        error={!!fieldState.error}
-                        helperText={errors.exercise_mails_reply_to?.find ? errors.exercise_mails_reply_to?.find(value => value != null)?.message ?? '' : ''}
-                      />
-                    )}
-                  />
+                    clearable={false}
+                    error={!!fieldState.error}
+                  >
+                    <ComboboxLabel>{t('Reply to')}</ComboboxLabel>
+                    <ComboboxField>
+                      <ComboboxChips />
+                      <ComboboxInput id="email-reply-to-input" onBlur={field.onBlur} />
+                    </ComboboxField>
+                    <ComboboxHelperText>
+                      {errors.exercise_mails_reply_to?.find ? errors.exercise_mails_reply_to?.find(value => value != null)?.message ?? '' : ''}
+                    </ComboboxHelperText>
+                  </Combobox>
                 );
               }}
             />
             <Alert
               severity="warning"
               variant="outlined"
-              style={{
-                position: 'relative',
-                border: 'none',
+              sx={{
+                'position': 'relative',
+                'border': '1px solid',
+                'borderColor': 'warning.main',
+                'borderRadius': 1,
+                '& .MuiAlert-icon': { color: 'warning.main' },
               }}
             >
               <AlertTitle>
                 {t('If you remove the default email address, the email reception for this simulation / scenario will be disabled.')}
               </AlertTitle>
             </Alert>
-            <MuiTextField
-              variant="standard"
-              fullWidth
+            <TextFieldFds
               label={t('Messages header')}
               error={!!errors.exercise_message_header}
               helperText={errors.exercise_message_header?.message}
-              inputProps={register('exercise_message_header')}
+              {...register('exercise_message_header')}
               disabled={disabled}
             />
-            <MuiTextField
-              variant="standard"
-              fullWidth
+            <TextFieldFds
               label={t('Messages footer')}
               error={!!errors.exercise_message_footer}
               helperText={errors.exercise_message_footer?.message}
-              inputProps={register('exercise_message_footer')}
+              {...register('exercise_message_footer')}
               disabled={disabled}
             />
           </AccordionDetails>

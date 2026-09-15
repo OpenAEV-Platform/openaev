@@ -1,6 +1,6 @@
-import { GridLegacy, Paper } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { GridLegacy } from '@mui/material';
 import { type FunctionComponent } from 'react';
-import { makeStyles } from 'tss-react/mui';
 
 import { fetchPlatformParameters, updatePlatformPolicies } from '../../../../actions/Application';
 import { type LoggedHelper } from '../../../../actions/helper';
@@ -15,18 +15,7 @@ import { SETTINGS_LABEL } from '../../nav/config/settings.config';
 import SecurityMenu from '../SecurityMenu';
 import PolicyForm from './PolicyForm';
 
-const useStyles = makeStyles()(theme => ({
-  paper: {
-    height: '100%',
-    minHeight: '100%',
-    margin: '10px 0 0 0',
-    padding: 20,
-    borderRadius: theme.borderRadius,
-  },
-}));
-
 const Policies: FunctionComponent = () => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const { t } = useFormatter();
   const { settings }: { settings: PlatformSettings } = useHelper((helper: LoggedHelper) => ({ settings: helper.getPlatformSettings() }));
@@ -56,7 +45,14 @@ const Policies: FunctionComponent = () => {
         />
         <GridLegacy item={true} xs={6} style={{ marginTop: 30 }}>
           <SectionLabel>{t('Login messages')}</SectionLabel>
-          <Paper classes={{ root: classes.paper }} variant="outlined">
+          <Paper
+            padding={16}
+            style={{
+              height: '100%',
+              minHeight: '100%',
+              margin: '10px 0 0 0',
+            }}
+          >
             <PolicyForm onSubmit={onUpdate} initialValues={initialValues}></PolicyForm>
           </Paper>
         </GridLegacy>

@@ -1,6 +1,6 @@
 import { ArrowDropDownOutlined, ArrowDropUpOutlined, AttachmentOutlined } from '@mui/icons-material';
 import {
-  Box, Button,
+  Button,
   Grid, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -40,7 +40,6 @@ const useStyles = makeStyles()(() => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { '& .MuiAutocomplete-clearIndicator': { display: 'none' } },
   itemHead: {
     paddingLeft: 10,
     textTransform: 'uppercase',
@@ -235,7 +234,6 @@ const ArticleForm = ({
         render={({ field: { onChange, value }, fieldState }) => {
           return (
             <AutocompleteField
-              variant="standard"
               label={t('Channel')}
               multiple={false}
               options={sortedChannels}
@@ -245,15 +243,14 @@ const ArticleForm = ({
               }}
               style={{ width: '100%' }}
               error={!!fieldState.error}
-              renderOption={(renderProps, option) => (
-                <Box component="li" {...renderProps} key={option.id}>
+              renderOption={option => (
+                <>
                   <div className={classes.icon}>
                     <ChannelIcon type={(option as ArticleChannel).type} />
                   </div>
                   <div className={classes.text}>{t(option.label)}</div>
-                </Box>
+                </>
               )}
-              className={classes.autoCompleteIndicator}
             />
           );
         }}

@@ -127,7 +127,7 @@ const SecurityMenuComponent: FunctionComponent = () => {
       path: `${SECURITY_BASE}/tenants`,
       icon: () => (<HomeWorkOutlined />),
       label: 'Tenants',
-      chip: !isEnterpriseEdition ? (<EEChip clickable />) : undefined,
+      chip: !isEnterpriseEdition ? (<EEChip />) : undefined,
       onClick: !isEnterpriseEdition ? () => openDialog() : undefined,
     });
   }

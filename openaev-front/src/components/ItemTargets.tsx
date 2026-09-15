@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { DnsOutlined, Groups3Outlined, PersonOutlined, SmartToyOutlined } from '@mui/icons-material';
-import { Chip, Tooltip } from '@mui/material';
+import { Chip } from '@mui/material';
 import { SelectGroup } from 'mdi-material-ui';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -152,29 +153,38 @@ const ItemTargets: FunctionComponent<Props> = ({
         const link = getTargetLink?.(target);
         return (
           <span key={index}>
-            <Tooltip title={target.target_name}>
-              <Chip
-                variant="outlined"
-                key={target.target_id}
-                classes={{ root: link ? cx(classes.target, classes.clickable) : classes.target }}
-                icon={getIcon(target)}
-                label={truncate(target.target_name!, truncateLimit)}
-                {...(link
-                  ? {
-                      component: Link,
-                      to: link,
-                      clickable: true,
-                    }
-                  : {})}
-              />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Chip
+                  variant="outlined"
+                  key={target.target_id}
+                  classes={{ root: link ? cx(classes.target, classes.clickable) : classes.target }}
+                  icon={getIcon(target)}
+                  label={truncate(target.target_name!, truncateLimit)}
+                  {...(link
+                    ? {
+                        component: Link,
+                        to: link,
+                        clickable: true,
+                      }
+                    : {})}
+                />
+              </TooltipTrigger>
+              {target.target_name && <TooltipContent>{target.target_name}</TooltipContent>}
             </Tooltip>
           </span>
         );
       })}
       {remainingTargetsCount && remainingTargetsCount > 0 && (
-        <Tooltip
-          slotProps={{ tooltip: { sx: { maxWidth: 480 } } }}
-          title={(
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Chip
+              variant="outlined"
+              classes={{ root: classes.target }}
+              label={`+${remainingTargetsCount}`}
+            />
+          </TooltipTrigger>
+          <TooltipContent>
             <>
               <table className={classes.tooltipTable}>
                 <thead>
@@ -203,13 +213,7 @@ const ItemTargets: FunctionComponent<Props> = ({
                 </div>
               )}
             </>
-          )}
-        >
-          <Chip
-            variant="outlined"
-            classes={{ root: classes.target }}
-            label={`+${remainingTargetsCount}`}
-          />
+          </TooltipContent>
         </Tooltip>
       )}
     </div>

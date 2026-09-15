@@ -1,5 +1,5 @@
 import { RichTextEditor } from '@filigran/rich-text-editor';
-import { Button, GridLegacy, Switch, TextField as MUITextField, Typography } from '@mui/material';
+import { Button, GridLegacy, Switch, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import * as PropTypes from 'prop-types';
 import * as R from 'ramda';
@@ -8,6 +8,7 @@ import { Field, Form } from 'react-final-form';
 
 import DomainsAutocompleteField from '../../../../../components/DomainsAutocompleteField.tsx';
 import OldTextField from '../../../../../components/fields/OldTextField';
+import TextFieldFds from '../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../components/i18n';
 import OldAttackPatternField from '../../../../../components/OldAttackPatternField';
 import { useHelper } from '../../../../../store';
@@ -53,9 +54,7 @@ const InjectorContractForm = (props) => {
               />
             )
           : (
-              <MUITextField
-                variant="standard"
-                fullWidth={true}
+              <TextFieldFds
                 multiline={true}
                 rows={10}
                 style={{ marginTop: 5 }}
@@ -68,9 +67,7 @@ const InjectorContractForm = (props) => {
             );
       case 'number':
         return (
-          <MUITextField
-            variant="standard"
-            fullWidth={true}
+          <TextFieldFds
             type="number"
             style={{ marginTop: 5 }}
             value={!R.isNil(fields[field.key]?.defaultValue) ? fields[field.key].defaultValue : field.defaultValue}
@@ -82,9 +79,7 @@ const InjectorContractForm = (props) => {
         );
       default:
         return (
-          <MUITextField
-            variant="standard"
-            fullWidth={true}
+          <TextFieldFds
             style={{ marginTop: 5 }}
             value={!R.isNil(fields[field.key]?.defaultValue) ? fields[field.key].defaultValue : field.defaultValue}
             onChange={event => setFields({
@@ -111,7 +106,6 @@ const InjectorContractForm = (props) => {
         <form id="injectorContractCustomForm" onSubmit={handleSubmit}>
           <OldTextField
             name="injector_contract_name"
-            fullWidth={true}
             label={t('Name')}
           />
           <OldAttackPatternField

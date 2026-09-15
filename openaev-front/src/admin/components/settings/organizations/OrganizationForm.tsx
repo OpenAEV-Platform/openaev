@@ -48,15 +48,11 @@ const OrganizationForm: FunctionComponent<Props> = ({
       {({ handleSubmit, form, values, submitting, pristine }) => (
         <form id="organizationForm" onSubmit={handleSubmit}>
           <OldTextField
-            variant="standard"
             name="organization_name"
-            fullWidth
             label={t('Name')}
           />
           <OldTextField
-            variant="standard"
             name="organization_description"
-            fullWidth
             multiline
             rows={2}
             label={t('Description')}

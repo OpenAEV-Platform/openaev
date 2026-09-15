@@ -42,7 +42,7 @@ const GeneralFormTab = ({ editing = false }: Props) => {
       <TextFieldController name="vulnerability_external_id" label={t('VULNERABILITY ID')} required disabled={editing} />
       <TextFieldController name="vulnerability_cvss_v31" label={t('CVSS Version 3.1')} required type="number" disabled={editing} />
 
-      <TextFieldController variant="standard" name="vulnerability_description" label={t('Description')} multiline rows={5} />
+      <TextFieldController name="vulnerability_description" label={t('Description')} multiline rows={5} />
 
       {/* QUICK INFO */}
       <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Quick Info')}</Typography>

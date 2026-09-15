@@ -1,5 +1,6 @@
-import { Close, SearchOutlined } from '@mui/icons-material';
-import { Alert, Box, IconButton, Pagination, Paper, TextField, Typography } from '@mui/material';
+import { Paper, SearchField } from '@filigran/design-system';
+import { Close } from '@mui/icons-material';
+import { Alert, Box, IconButton, Pagination, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
 import FindingIcon from '../../../../../components/FindingIcon';
@@ -53,8 +54,11 @@ const CategoryFindingsPanel = ({
   const { t } = useFormatter();
 
   return (
+    // `padding={0}`: the padding lives in the header and body rows below, which
+    // also carry the full-width divider between them — moving it up to the
+    // surface would pull that divider in (PAPER-GAP-INVENTORY §5.5).
     <Paper
-      variant="outlined"
+      padding={0}
       style={{
         flex: 1,
         minWidth: 0,
@@ -105,23 +109,14 @@ const CategoryFindingsPanel = ({
         minHeight: 0,
       }}
       >
-        <TextField
-          size="small"
+        <SearchField
+          aria-label={t('Search')}
+          size="sm"
           fullWidth
           value={search}
           onChange={e => onSearchChange(e.target.value)}
+          onClear={() => onSearchChange('')}
           placeholder={t('Search')}
-          InputProps={{
-            startAdornment: (
-              <SearchOutlined
-                fontSize="small"
-                sx={{
-                  mr: 0.5,
-                  color: 'text.secondary',
-                }}
-              />
-            ),
-          }}
         />
         {loading && (
           <Box sx={{ minHeight: 120 }}>

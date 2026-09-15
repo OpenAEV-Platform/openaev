@@ -1,3 +1,4 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   ArrowDownwardOutlined,
   ArrowForwardOutlined,
@@ -5,8 +6,7 @@ import {
   InfoOutlined,
   OpenInFullOutlined,
 } from '@mui/icons-material';
-import { Box, darken, IconButton, Tooltip, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Box, IconButton, Typography } from '@mui/material';
 import { type ReactNode, useContext } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
@@ -29,8 +29,6 @@ interface WidgetTitleProps {
 
 const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, handleWidgetDelete, vizData, rightSlot }: WidgetTitleProps) => {
   const { t } = useFormatter();
-  const theme = useTheme();
-  const darkerInfoStyle = darken(theme.palette.info.main, 0.7);
 
   const { customDashboardParameters, customDashboard } = useContext(CustomDashboardContext);
 
@@ -111,12 +109,6 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
   const isSecurityCoverage = widget.widget_type === 'security-coverage';
   const numberTooltipContent = isNumberWidget ? buildNumberTooltipContent() : null;
 
-  const tooltipSx = {
-    bgcolor: darkerInfoStyle,
-    color: theme.palette.getContrastText(darkerInfoStyle),
-    boxShadow: theme.shadows[1],
-  };
-
   return (
     <div
       style={{
@@ -149,18 +141,17 @@ const WidgetTitle = ({ widget, setFullscreen, readOnly, handleWidgetUpdate, hand
       </Typography>
       {rightSlot}
       {isNumberWidget && numberTooltipContent && (
-        <Tooltip
-          title={numberTooltipContent}
-          placement="right"
-          slotProps={{ tooltip: { sx: tooltipSx } }}
-        >
-          <InfoOutlined
-            sx={{
-              fontSize: 16,
-              marginLeft: 0.5,
-            }}
-            color="primary"
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <InfoOutlined
+              sx={{
+                fontSize: 16,
+                marginLeft: 0.5,
+              }}
+              color="primary"
+            />
+          </TooltipTrigger>
+          {numberTooltipContent && <TooltipContent side="right">{numberTooltipContent}</TooltipContent>}
         </Tooltip>
       )}
       {isSecurityCoverage && (

@@ -1,5 +1,6 @@
+import { Checkbox, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloudUploadOutlined, HelpOutlineOutlined, TrackChangesOutlined } from '@mui/icons-material';
-import { Box, Checkbox, List, ListItem, ListItemButton, ListItemIcon, ListItemText, ToggleButton, Tooltip } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, type FunctionComponent, type ReactElement, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
@@ -293,18 +294,17 @@ const InjectResultList: FunctionComponent<Props> = ({
         topBarButtons={showActions ? (
           <Box display="flex" gap={1} alignItems="center">
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
-              <Tooltip title={t('inject_import_json_action')}>
-                <ToggleButton
-                  value="import"
-                  aria-label="import"
-                  size="small"
-                  onClick={handleOpenJsonImportDialog}
-                >
-                  <CloudUploadOutlined
-                    color="primary"
-                    fontSize="small"
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <IconButton
+                    priority="secondary"
+                    size="md"
+                    aria-label={t('inject_import_json_action')}
+                    icon={<CloudUploadOutlined fontSize="small" />}
+                    onClick={handleOpenJsonImportDialog}
                   />
-                </ToggleButton>
+                </TooltipTrigger>
+                <TooltipContent>{t('inject_import_json_action')}</TooltipContent>
               </Tooltip>
             </Can>
             {createButton}
@@ -329,10 +329,9 @@ const InjectResultList: FunctionComponent<Props> = ({
           {bulkDeleteEnabled && (
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
               />
             </ListItemIcon>
           )}
@@ -393,12 +392,11 @@ const InjectResultList: FunctionComponent<Props> = ({
                           onClick={event => onToggleEntity(injectResultOutput, event)}
                         >
                           <Checkbox
-                            edge="start"
+                            aria-label={injectResultOutput.inject_title}
                             checked={
                               (selectAll && !(injectResultOutput.inject_id in (deSelectedElements || {})))
                               || injectResultOutput.inject_id in (selectedElements || {})
                             }
-                            disableRipple
                           />
                         </ListItemIcon>
                       )}

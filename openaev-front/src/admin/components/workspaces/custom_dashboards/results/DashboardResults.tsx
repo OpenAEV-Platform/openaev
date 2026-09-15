@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowBackOutlined } from '@mui/icons-material';
-import { IconButton, Tooltip, Typography } from '@mui/material';
+import { IconButton, Typography } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
@@ -338,10 +339,13 @@ const DashboardResults = () => {
           marginBottom: 16,
         }}
       >
-        <Tooltip title={t('Back')}>
-          <IconButton onClick={() => navigate(backUrl)} aria-label={t('Back')} size="small">
-            <ArrowBackOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton onClick={() => navigate(backUrl)} aria-label={t('Back')} size="small">
+              <ArrowBackOutlined fontSize="small" />
+            </IconButton>
+          </TooltipTrigger>
+          <TooltipContent>{t('Back')}</TooltipContent>
         </Tooltip>
         <Typography variant="h1" sx={{ margin: 0 }}>
           {widgetTitle}

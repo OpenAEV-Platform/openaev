@@ -1,10 +1,20 @@
+import {
+  Select,
+  SelectContent,
+  SelectHelperText,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, MenuItem, TextField } from '@mui/material';
+import { Button } from '@mui/material';
 import { type FunctionComponent } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import TagField from '../../../../components/fields/TagField';
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { type AiTargetInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
@@ -103,10 +113,8 @@ const AiTargetForm: FunctionComponent<Props> = ({
   });
 
   return (
-    <form id="aiTargetForm" onSubmit={handleSubmit(onSubmit)}>
-      <TextField
-        variant="standard"
-        fullWidth
+    <form noValidate id="aiTargetForm" onSubmit={handleSubmit(onSubmit)}>
+      <TextFieldFds
         label={t('Name')}
         style={{ marginTop: 10 }}
         error={!!errors.asset_name}
@@ -119,69 +127,79 @@ const AiTargetForm: FunctionComponent<Props> = ({
         name="ai_target_provider"
         rules={{ required: true }}
         render={({ field }) => (
-          <TextField
-            select
-            variant="standard"
-            fullWidth
-            value={field.value}
-            label={t('Provider')}
-            style={{ marginTop: 20 }}
-            error={!!errors.ai_target_provider}
-            helperText={errors.ai_target_provider?.message}
-            {...register('ai_target_provider')}
-            required
-          >
-            {PROVIDERS.map(provider => (
-              <MenuItem key={provider} value={provider}>{PROVIDER_LABELS[provider]}</MenuItem>
-            ))}
-          </TextField>
+          <div style={{ marginTop: 20 }}>
+            <Select
+              value={field.value ?? ''}
+              onValueChange={field.onChange}
+              name={field.name}
+              error={!!errors.ai_target_provider}
+              required
+            >
+              <SelectLabel required>{t('Provider')}</SelectLabel>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('Provider')} />
+              </SelectTrigger>
+              <SelectContent>
+                {PROVIDERS.map(provider => (
+                  <SelectItem key={provider} value={provider}>{PROVIDER_LABELS[provider]}</SelectItem>
+                ))}
+              </SelectContent>
+              {errors.ai_target_provider?.message ? <SelectHelperText>{errors.ai_target_provider?.message}</SelectHelperText> : null}
+            </Select>
+          </div>
         )}
       />
       <Controller
         control={control}
         name="ai_target_modality"
         render={({ field }) => (
-          <TextField
-            select
-            variant="standard"
-            fullWidth
-            value={field.value ?? 'TEXT'}
-            label={t('Modality')}
-            style={{ marginTop: 20 }}
-            error={!!errors.ai_target_modality}
-            helperText={errors.ai_target_modality?.message}
-            {...register('ai_target_modality')}
-          >
-            {MODALITIES.map(modality => (
-              <MenuItem key={modality} value={modality}>{t(MODALITY_LABEL_KEYS[modality])}</MenuItem>
-            ))}
-          </TextField>
+          <div style={{ marginTop: 20 }}>
+            <Select
+              value={field.value ?? 'TEXT'}
+              onValueChange={field.onChange}
+              name={field.name}
+              error={!!errors.ai_target_modality}
+            >
+              <SelectLabel>{t('Modality')}</SelectLabel>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('Modality')} />
+              </SelectTrigger>
+              <SelectContent>
+                {MODALITIES.map(modality => (
+                  <SelectItem key={modality} value={modality}>{t(MODALITY_LABEL_KEYS[modality])}</SelectItem>
+                ))}
+              </SelectContent>
+              {errors.ai_target_modality?.message ? <SelectHelperText>{errors.ai_target_modality?.message}</SelectHelperText> : null}
+            </Select>
+          </div>
         )}
       />
       <Controller
         control={control}
         name="asset_criticality"
         render={({ field }) => (
-          <TextField
-            select
-            variant="standard"
-            fullWidth
-            value={field.value ?? 'UNKNOWN'}
-            label={t('Criticality')}
-            style={{ marginTop: 20 }}
-            error={!!errors.asset_criticality}
-            helperText={errors.asset_criticality?.message}
-            {...register('asset_criticality')}
-          >
-            {CRITICALITY_OPTIONS.map(criticality => (
-              <MenuItem key={criticality} value={criticality}>{t(humanizeEnum(criticality))}</MenuItem>
-            ))}
-          </TextField>
+          <div style={{ marginTop: 20 }}>
+            <Select
+              value={field.value ?? 'UNKNOWN'}
+              onValueChange={field.onChange}
+              name={field.name}
+              error={!!errors.asset_criticality}
+            >
+              <SelectLabel>{t('Criticality')}</SelectLabel>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('Criticality')} />
+              </SelectTrigger>
+              <SelectContent>
+                {CRITICALITY_OPTIONS.map(criticality => (
+                  <SelectItem key={criticality} value={criticality}>{t(humanizeEnum(criticality))}</SelectItem>
+                ))}
+              </SelectContent>
+              {errors.asset_criticality?.message ? <SelectHelperText>{errors.asset_criticality?.message}</SelectHelperText> : null}
+            </Select>
+          </div>
         )}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Endpoint URL')}
         placeholder="https://api.openai.com/v1"
         style={{ marginTop: 20 }}
@@ -189,9 +207,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         helperText={errors.ai_target_endpoint?.message}
         {...register('ai_target_endpoint')}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Model')}
         placeholder="gpt-4o"
         style={{ marginTop: 20 }}
@@ -199,9 +215,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         helperText={errors.ai_target_model?.message}
         {...register('ai_target_model')}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         multiline
         rows={3}
         label={t('System prompt (optional)')}
@@ -210,9 +224,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         helperText={errors.ai_target_system_prompt?.message}
         {...register('ai_target_system_prompt')}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         type="password"
         label={t('API token (optional)')}
         style={{ marginTop: 20 }}
@@ -223,9 +235,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         }
         {...register('ai_target_token')}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         multiline
         rows={2}
         label={t('Description')}

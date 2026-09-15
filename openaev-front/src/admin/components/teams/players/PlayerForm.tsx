@@ -1,5 +1,5 @@
-import { InfoOutlined } from '@mui/icons-material';
-import { Button, InputAdornment, Tooltip } from '@mui/material';
+import { Icon, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@filigran/design-system';
+import { Button } from '@mui/material';
 import { type FunctionComponent, useContext } from 'react';
 import { Form } from 'react-final-form';
 import { z } from 'zod';
@@ -29,6 +29,16 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
 }) => {
   // Standard hooks
   const { t } = useFormatter();
+  const phoneTooltip = (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span tabIndex={0} aria-label={t('Information')}><Icon name="info" size={16} aria-hidden /></span>
+        </TooltipTrigger>
+        <TooltipContent><span style={{ whiteSpace: 'pre-line' }}>{t('phone_number_tooltip')}</span></TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
   const ability = useContext(AbilityContext);
 
   const playerFormSchemaValidation = z.object({
@@ -65,23 +75,17 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
       {({ handleSubmit, form, values, submitting, pristine }) => (
         <form id="playerForm" onSubmit={handleSubmit}>
           <OldTextField
-            variant="standard"
             name="user_email"
-            fullWidth
             label={t('Email address')}
             disabled={editing}
           />
           <OldTextField
-            variant="standard"
             name="user_firstname"
-            fullWidth
             label={t('Firstname')}
             style={{ marginTop: 20 }}
           />
           <OldTextField
-            variant="standard"
             name="user_lastname"
-            fullWidth
             label={t('Lastname')}
             style={{ marginTop: 20 }}
           />
@@ -97,41 +101,19 @@ const PlayerForm: FunctionComponent<PlayerFormProps> = ({
             setFieldValue={form.mutators.setValue}
           />
           <OldTextField
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="start">
-                  <Tooltip title={<span style={{ whiteSpace: 'pre-line' }}>{t('phone_number_tooltip')}</span>}>
-                    <InfoOutlined />
-                  </Tooltip>
-                </InputAdornment>
-              ),
-            }}
-            variant="standard"
+            infoTooltip={phoneTooltip}
             name="user_phone"
-            fullWidth
             label={t('Phone number (mobile)')}
             style={{ marginTop: 20 }}
           />
           <OldTextField
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="start">
-                  <Tooltip title={<span style={{ whiteSpace: 'pre-line' }}>{t('phone_number_tooltip')}</span>}>
-                    <InfoOutlined />
-                  </Tooltip>
-                </InputAdornment>
-              ),
-            }}
-            variant="standard"
+            infoTooltip={phoneTooltip}
             name="user_phone2"
-            fullWidth
             label={t('Phone number (landline)')}
             style={{ marginTop: 20 }}
           />
           <OldTextField
-            variant="standard"
             name="user_pgp_key"
-            fullWidth
             multiline
             rows={5}
             label={t('PGP public key')}

@@ -107,11 +107,7 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
             <Box display="flex" alignItems="center">
               {t('Remediations')}
               {!isValidatedEnterpriseEdition && (
-                <EEChip
-                  style={{ marginLeft: theme.spacing(1) }}
-                  clickable
-                  featureDetectedInfo={t('Remediation')}
-                />
+                <EEChip style={{ marginLeft: theme.spacing(1) }} />
               )}
             </Box>
           )}

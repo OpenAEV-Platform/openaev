@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { KeyboardArrowDownOutlined, KeyboardArrowUpOutlined } from '@mui/icons-material';
-import { Box, Button, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type CSSProperties, useState } from 'react';
 
@@ -112,26 +113,29 @@ const TraceMessage = ({ traces, variant = 'boxed' }: Props) => {
                 marginBottom: theme.spacing(0.5),
               }}
               >
-                <Tooltip title={tooltip ? t(tooltip) : ''} disableHoverListener={!tooltip} arrow>
-                  <Box
-                    component="span"
-                    sx={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      paddingInline: 0.75,
-                      paddingBlock: 0.125,
-                      borderRadius: 0.5,
-                      backgroundColor: alpha(color, 0.12),
-                      color,
-                      fontSize: 10.5,
-                      fontWeight: 700,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      cursor: tooltip ? 'help' : 'default',
-                    }}
-                  >
-                    {label}
-                  </Box>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Box
+                      component="span"
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        paddingInline: 0.75,
+                        paddingBlock: 0.125,
+                        borderRadius: 0.5,
+                        backgroundColor: alpha(color, 0.12),
+                        color,
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        cursor: tooltip ? 'help' : 'default',
+                      }}
+                    >
+                      {label}
+                    </Box>
+                  </TooltipTrigger>
+                  {tooltip && <TooltipContent>{t(tooltip)}</TooltipContent>}
                 </Tooltip>
                 <Typography
                   component="span"

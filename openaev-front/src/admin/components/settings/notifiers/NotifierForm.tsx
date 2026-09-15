@@ -1,7 +1,16 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { AddOutlined, DeleteOutlined } from '@mui/icons-material';
-import { Button, IconButton, MenuItem, TextField, Typography } from '@mui/material';
+import { Button, IconButton, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useState } from 'react';
 
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { type NotifierInput, type NotifierOutput } from '../../../../utils/api-types';
 
@@ -83,50 +92,47 @@ const NotifierForm: FunctionComponent<Props> = ({
 
   return (
     <form id="notifierForm" onSubmit={handleSubmit}>
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Name')}
         value={name}
         onChange={e => setName(e.target.value)}
         error={!!nameError}
         helperText={nameError}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Description')}
         value={description}
         onChange={e => setDescription(e.target.value)}
         style={{ marginTop: 20 }}
       />
-      <TextField
-        variant="standard"
-        fullWidth
-        select
-        label={t('Type')}
-        value={type}
-        onChange={e => setType(e.target.value as typeof type)}
-        style={{ marginTop: 20 }}
-        disabled={editing}
-      >
-        {NOTIFIER_TYPES.map((option) => {
-          const labels: Record<string, string> = {
-            EMAIL: 'Email',
-            WEBHOOK: 'Webhook',
-          };
-          return (
-            <MenuItem key={option} value={option}>
-              {t(labels[option])}
-            </MenuItem>
-          );
-        })}
-      </TextField>
+      <div style={{ marginTop: 20 }}>
+        <Select
+          value={type}
+          onValueChange={next => setType(next as typeof type)}
+          disabled={editing}
+        >
+          <SelectLabel>{t('Type')}</SelectLabel>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder={t('Type')} />
+          </SelectTrigger>
+          <SelectContent>
+            {NOTIFIER_TYPES.map((option) => {
+              const labels: Record<string, string> = {
+                EMAIL: 'Email',
+                WEBHOOK: 'Webhook',
+              };
+              return (
+                <SelectItem key={option} value={option}>
+                  {t(labels[option])}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
       {type === 'EMAIL' && (
         <>
-          <TextField
-            variant="standard"
-            fullWidth
+          <TextFieldFds
             label={t('Subject template')}
             value={subject}
             onChange={e => setSubject(e.target.value)}
@@ -134,9 +140,7 @@ const NotifierForm: FunctionComponent<Props> = ({
             // eslint-disable-next-line no-template-curly-in-string
             placeholder="[OpenAEV] ${notification_name}"
           />
-          <TextField
-            variant="standard"
-            fullWidth
+          <TextFieldFds
             multiline
             minRows={6}
             label={t('Body template (FreeMarker, empty = default template)')}
@@ -148,9 +152,7 @@ const NotifierForm: FunctionComponent<Props> = ({
       )}
       {type === 'WEBHOOK' && (
         <>
-          <TextField
-            variant="standard"
-            fullWidth
+          <TextFieldFds
             label={t('URL')}
             value={url}
             onChange={e => setUrl(e.target.value)}
@@ -158,19 +160,22 @@ const NotifierForm: FunctionComponent<Props> = ({
             error={!!urlError}
             helperText={urlError}
           />
-          <TextField
-            variant="standard"
-            fullWidth
-            select
-            label={t('Verb')}
-            value={verb}
-            onChange={e => setVerb(e.target.value)}
-            style={{ marginTop: 20 }}
-          >
-            {['POST', 'PUT', 'GET', 'DELETE'].map(option => (
-              <MenuItem key={option} value={option}>{option}</MenuItem>
-            ))}
-          </TextField>
+          <div style={{ marginTop: 20 }}>
+            <Select
+              value={verb}
+              onValueChange={next => setVerb(next)}
+            >
+              <SelectLabel>{t('Verb')}</SelectLabel>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={t('Verb')} />
+              </SelectTrigger>
+              <SelectContent>
+                {['POST', 'PUT', 'GET', 'DELETE'].map(option => (
+                  <SelectItem key={option} value={option}>{option}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <Typography variant="h5" style={{ marginTop: 20 }}>{t('Headers')}</Typography>
           {headers.map((header, index) => (
             // eslint-disable-next-line react/no-array-index-key
@@ -182,8 +187,8 @@ const NotifierForm: FunctionComponent<Props> = ({
                 alignItems: 'end',
               }}
             >
-              <TextField
-                variant="standard"
+              <TextFieldFds
+                fullWidth={false}
                 label={t('Key')}
                 value={header.key}
                 onChange={e => setHeaders(headers.map((existing, i) => (i === index
@@ -194,8 +199,8 @@ const NotifierForm: FunctionComponent<Props> = ({
                   : existing)))}
                 style={{ flex: 1 }}
               />
-              <TextField
-                variant="standard"
+              <TextFieldFds
+                fullWidth={false}
                 label={t('Value')}
                 value={header.value}
                 onChange={e => setHeaders(headers.map((existing, i) => (i === index
@@ -226,9 +231,7 @@ const NotifierForm: FunctionComponent<Props> = ({
           >
             {t('Add header')}
           </Button>
-          <TextField
-            variant="standard"
-            fullWidth
+          <TextFieldFds
             multiline
             minRows={6}
             label={t('Body template (FreeMarker, empty = default JSON payload)')}

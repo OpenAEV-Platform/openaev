@@ -1,5 +1,5 @@
+import { ButtonGroup, ButtonGroupItem, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { BarChartOutlined, ReorderOutlined, ViewTimelineOutlined } from '@mui/icons-material';
-import { ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { type FunctionComponent, useContext } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -40,52 +40,53 @@ const InjectsListButtons: FunctionComponent<Props> = ({
     <div className={classes.container}>
       {hasImportModesEnabled()
         && permissions.canManage && <InjectImportMenu onImportedInjects={onImportedInjects} />}
-      <ToggleButtonGroup
-        size="small"
-        exclusive
+      <ButtonGroup
+        size="md"
         style={{ float: 'right' }}
         aria-label="Change view mode"
+        value={viewModeContext}
+        onValueChange={next => setViewMode?.(next as typeof viewModeContext)}
       >
         {(!!setViewMode && availableButtons.includes('list'))
           && (
-            <Tooltip title={t('List view')}>
-              <ToggleButton
-                value="list"
-                onClick={() => setViewMode('list')}
-                selected={viewModeContext === 'list'}
-                aria-label="List view mode"
-              >
-                <ReorderOutlined fontSize="small" color={viewModeContext === 'list' ? 'inherit' : 'primary'} />
-              </ToggleButton>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ButtonGroupItem
+                  value="list"
+                  aria-label="List view mode"
+                  icon={<ReorderOutlined fontSize="small" />}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{t('List view')}</TooltipContent>
             </Tooltip>
           )}
         {(!!setViewMode && availableButtons.includes('chain'))
           && (
-            <Tooltip title={t('Interactive view')}>
-              <ToggleButton
-                value="chain"
-                onClick={() => setViewMode('chain')}
-                selected={viewModeContext === 'chain'}
-                aria-label="Interactive view mode"
-              >
-                <ViewTimelineOutlined fontSize="small" color={viewModeContext === 'chain' ? 'inherit' : 'primary'} />
-              </ToggleButton>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ButtonGroupItem
+                  value="chain"
+                  aria-label="Interactive view mode"
+                  icon={<ViewTimelineOutlined fontSize="small" />}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{t('Interactive view')}</TooltipContent>
             </Tooltip>
           )}
         {(!!setViewMode && availableButtons.includes('distribution'))
           && (
-            <Tooltip title={t('Distribution view')}>
-              <ToggleButton
-                value="distribution"
-                onClick={() => setViewMode('distribution')}
-                selected={viewModeContext === 'distribution'}
-                aria-label="Distribution view mode"
-              >
-                <BarChartOutlined fontSize="small" color={viewModeContext === 'distribution' ? 'inherit' : 'primary'} />
-              </ToggleButton>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ButtonGroupItem
+                  value="distribution"
+                  aria-label="Distribution view mode"
+                  icon={<BarChartOutlined fontSize="small" />}
+                />
+              </TooltipTrigger>
+              <TooltipContent>{t('Distribution view')}</TooltipContent>
             </Tooltip>
           )}
-      </ToggleButtonGroup>
+      </ButtonGroup>
     </div>
   );
 };

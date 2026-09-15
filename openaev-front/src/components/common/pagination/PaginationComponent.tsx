@@ -1,4 +1,4 @@
-import { Button, Chip, TablePagination, ToggleButtonGroup } from '@mui/material';
+import { Box, Button, Chip, TablePagination } from '@mui/material';
 import { type ChangeEvent, cloneElement, type MouseEvent as ReactMouseEvent, type ReactElement, useEffect, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
@@ -22,7 +22,6 @@ const useStyles = makeStyles()(() => ({
     alignItems: 'center',
   },
   parameters: {
-    marginTop: -10,
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -221,11 +220,17 @@ const PaginationComponent = <T extends object>({
               />
             )}
             {topRightSlot}
+            {/* A plain row of actions: this was a ToggleButtonGroup used as a frame,
+                which announced a group of choices that never existed. */}
             {!disablePagination && (
-              <ToggleButtonGroup value="fake" exclusive>
+              <Box sx={{
+                display: 'flex',
+                gap: 1,
+              }}
+              >
                 {exportProps && <ExportButton totalElements={totalElements} exportProps={exportProps} />}
                 {!!component && component}
-              </ToggleButtonGroup>
+              </Box>
             )}
             {createButton}
           </div>

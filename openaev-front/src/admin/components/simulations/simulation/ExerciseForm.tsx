@@ -1,5 +1,13 @@
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+} from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete, Button, Chip, GridLegacy, MenuItem, TextField as MuiTextField, Typography } from '@mui/material';
+import { Button, GridLegacy, MenuItem, Typography } from '@mui/material';
 import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers';
 import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
@@ -9,6 +17,7 @@ import type { LoggedHelper } from '../../../../actions/helper';
 import SelectField from '../../../../components/fields/SelectField';
 import TagField from '../../../../components/fields/TagField';
 import TextField from '../../../../components/fields/TextField';
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import { type CreateExerciseInput, type PlatformSettings } from '../../../../utils/api-types';
@@ -93,7 +102,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
   });
 
   return (
-    <form id="exerciseForm" onSubmit={handleSubmit(onSubmit)}>
+    <form noValidate id="exerciseForm" onSubmit={handleSubmit(onSubmit)}>
       <Typography
         variant="h2"
         gutterBottom
@@ -103,14 +112,12 @@ const ExerciseForm: FunctionComponent<Props> = ({
       </Typography>
 
       <TextField
-        variant="standard"
-        fullWidth
+        required
         label={t('Name')}
         style={{ marginTop: 20 }}
         error={!!errors.exercise_name}
         helperText={errors.exercise_name?.message}
-        inputProps={register('exercise_name')}
-        InputLabelProps={{ required: true }}
+        {...register('exercise_name')}
         control={control}
         setValue={setValue}
         askAi={true}
@@ -204,15 +211,13 @@ const ExerciseForm: FunctionComponent<Props> = ({
         </GridLegacy>
       </GridLegacy>
       <TextField
-        variant="standard"
-        fullWidth
         multiline
         rows={2}
         label={t('Description')}
         style={{ marginTop: 20 }}
         error={!!errors.exercise_description}
         helperText={errors.exercise_description?.message}
-        inputProps={register('exercise_description')}
+        {...register('exercise_description')}
         control={control}
         setValue={setValue}
         askAi={true}
@@ -229,7 +234,7 @@ const ExerciseForm: FunctionComponent<Props> = ({
                 minDateTime={new Date()}
                 slotProps={{
                   textField: {
-                    variant: 'standard',
+                    variant: 'outlined',
                     fullWidth: true,
                     style: { marginTop: 20 },
                     error: !!errors.exercise_start_date,
@@ -276,23 +281,19 @@ const ExerciseForm: FunctionComponent<Props> = ({
             {t('Emails and SMS')}
           </Typography>
 
-          <MuiTextField
-            variant="standard"
-            fullWidth
+          <TextFieldFds
             label={t('Sender email address')}
             style={{ marginTop: 20 }}
             value={settings.default_mailer ?? ''}
             disabled
           />
 
-          <MuiTextField
-            variant="standard"
-            fullWidth
+          <TextFieldFds
             label={t('Sender email from')}
             style={{ marginTop: 20 }}
             error={!!errors.exercise_mail_from_name}
             helperText={errors.exercise_mail_from_name?.message}
-            inputProps={register('exercise_mail_from_name')}
+            {...register('exercise_mail_from_name')}
             disabled={disabled}
           />
 
@@ -301,72 +302,62 @@ const ExerciseForm: FunctionComponent<Props> = ({
             name="exercise_mails_reply_to"
             render={({ field, fieldState }) => {
               return (
-                <Autocomplete
-                  multiple
-                  id="email-reply-to-input"
-                  freeSolo
-                  open={false}
-                  options={[]}
-                  value={field.value}
-                  onChange={() => {
-                    if (undefined !== field.value && inputValue !== '' && !field.value.includes(inputValue)) {
-                      field.onChange([...(field.value || []), inputValue.trim()]);
-                    }
-                  }}
-                  onBlur={field.onBlur}
-                  inputValue={inputValue}
-                  onInputChange={(_event, newInputValue) => {
-                    setInputValue(newInputValue);
-                  }}
-                  disableClearable={true}
-                  renderTags={(tags: string[], getTagProps) => tags.map((email: string, index: number) => {
-                    return (
-                      <Chip
-                        variant="outlined"
-                        label={email}
-                        {...getTagProps({ index })}
-                        key={email}
-                        style={{ borderRadius: 4 }}
-                        onDelete={() => {
-                          const newValue = [...(field.value || [])];
-                          newValue.splice(index, 1);
-                          field.onChange(newValue);
-                        }}
-                      />
-                    );
-                  })}
-                  renderInput={params => (
-                    <MuiTextField
-                      {...params}
-                      variant="standard"
-                      label={t('Reply to')}
-                      style={{ marginTop: 20 }}
-                      error={!!fieldState.error}
-                      helperText={errors.exercise_mails_reply_to?.find ? errors.exercise_mails_reply_to?.find(value => value != null)?.message ?? '' : ''}
-                    />
-                  )}
-                />
+                <div style={{ marginTop: 20 }}>
+                  <Combobox<string>
+                    multiple
+                    // No `onOpenChange` beside it: nothing can move the panel, so none is
+                    // mounted and Enter/ArrowDown keep their native meaning in the input.
+                    open={false}
+                    options={[]}
+                    value={field.value ?? []}
+                    allowCustomValue
+                    createValueFromInput={input => input.trim()}
+                    getOptionLabel={email => email}
+                    isOptionEqualToValue={(a, b) => a === b}
+                    inputValue={inputValue}
+                    onInputChange={(newInputValue, meta) => {
+                      if (meta.cause === 'type') {
+                        setInputValue(newInputValue);
+                      }
+                    }}
+                    onValueChange={(next) => {
+                      // Every value reaching here was typed, the list being empty by design.
+                      const emails = (next as string[]).map(email => email.trim()).filter(email => email !== '');
+                      field.onChange(Array.from(new Set(emails)));
+                      // MUI cleared the text itself through its `reset` cause; the
+                      // library reports causes instead, so the commit clears it here.
+                      setInputValue('');
+                    }}
+                    clearable={false}
+                    error={!!fieldState.error}
+                  >
+                    <ComboboxLabel>{t('Reply to')}</ComboboxLabel>
+                    <ComboboxField>
+                      <ComboboxChips />
+                      <ComboboxInput id="email-reply-to-input" onBlur={field.onBlur} />
+                    </ComboboxField>
+                    <ComboboxHelperText>
+                      {errors.exercise_mails_reply_to?.find ? errors.exercise_mails_reply_to?.find(value => value != null)?.message ?? '' : ''}
+                    </ComboboxHelperText>
+                  </Combobox>
+                </div>
               );
             }}
           />
-          <MuiTextField
-            variant="standard"
-            fullWidth
+          <TextFieldFds
             label={t('Messages header')}
             style={{ marginTop: 20 }}
             error={!!errors.exercise_message_header}
             helperText={errors.exercise_message_header?.message}
-            inputProps={register('exercise_message_header')}
+            {...register('exercise_message_header')}
             disabled={disabled}
           />
-          <MuiTextField
-            variant="standard"
-            fullWidth
+          <TextFieldFds
             label={t('Messages footer')}
             style={{ marginTop: 20 }}
             error={!!errors.exercise_message_footer}
             helperText={errors.exercise_message_footer?.message}
-            inputProps={register('exercise_message_footer')}
+            {...register('exercise_message_footer')}
             disabled={disabled}
           />
         </>

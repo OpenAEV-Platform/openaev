@@ -1,5 +1,6 @@
+import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { PlayArrowOutlined, SettingsOutlined, Stop, TrackChangesOutlined, UpdateOutlined } from '@mui/icons-material';
-import { Alert, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogContentText, FormControlLabel, IconButton, Tooltip } from '@mui/material';
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -233,21 +234,13 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
               style={{ marginTop: theme.spacing(1) }}
             >
               {t('The expectations of this atomic testing no longer match the validation requirements defined by its action.')}
-              <FormControlLabel
-                sx={{
-                  display: 'flex',
-                  marginTop: 0.5,
-                }}
-                control={(
-                  <Checkbox
-                    size="small"
-                    checked={realignOnRelaunch}
-                    onChange={event => setRealignOnRelaunch(event.target.checked)}
-                  />
-                )}
-                label={t('Realign expectations to the current action before relaunching')}
-                slotProps={{ typography: { variant: 'body2' } }}
-              />
+              <div style={{ marginTop: theme.spacing(0.5) }}>
+                <Checkbox
+                  checked={realignOnRelaunch}
+                  onCheckedChange={checked => setRealignOnRelaunch(checked === true)}
+                  label={t('Realign expectations to the current action before relaunching')}
+                />
+              </div>
             </Alert>
           )}
         </DialogContent>
@@ -291,10 +284,13 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
         entityName={injectResultOverview.inject_title}
       />
       {canManage && (
-        <Tooltip title={t('Scheduling')}>
-          <IconButton size="small" color="primary" onClick={() => setOpenScheduling(true)}>
-            <UpdateOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton aria-label={t('Scheduling')} size="small" color="primary" onClick={() => setOpenScheduling(true)}>
+              <UpdateOutlined fontSize="small" />
+            </IconButton>
+          </TooltipTrigger>
+          <TooltipContent>{t('Scheduling')}</TooltipContent>
         </Tooltip>
       )}
       {/* Dismissed drift downgraded to a discreet icon within the compact icon

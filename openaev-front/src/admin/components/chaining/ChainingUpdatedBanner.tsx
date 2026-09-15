@@ -25,6 +25,10 @@ const ChainingUpdatedBanner = ({ updatedAssets }: ChainingUpdatedBannerProps) =>
   }
 
   return (
+    // Stays on MUI: the warning-tinted linear gradient is what makes this a
+    // banner rather than a panel, and the library Paper paints no gradient
+    // (fds-migration/LIBRARY-FEEDBACK.md 29). Same exclusion as the
+    // getting-started hero and DetailHero.
     <Paper
       variant="outlined"
       sx={{

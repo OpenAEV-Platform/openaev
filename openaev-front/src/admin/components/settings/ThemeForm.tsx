@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, TextField as MuiTextField } from '@mui/material';
+import { Button } from '@mui/material';
 import { type FunctionComponent, useEffect } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 import { z } from 'zod';
 
 import ColorPickerField from '../../../components/ColorPickerField';
+import TextFieldFds from '../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../components/i18n';
 import { type ThemeInput } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/permissionsContext';
@@ -80,11 +81,8 @@ const ThemeForm: FunctionComponent<Props> = ({
 
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Background color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
         error={!!errors.background_color}
         helperText={errors.background_color && errors.background_color?.message}
         control={control}
@@ -93,11 +91,8 @@ const ThemeForm: FunctionComponent<Props> = ({
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Paper color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
         error={!!errors.paper_color}
         helperText={errors.paper_color && errors.paper_color?.message}
         control={control}
@@ -106,11 +101,8 @@ const ThemeForm: FunctionComponent<Props> = ({
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Navigation color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
         error={!!errors.navigation_color}
         helperText={errors.navigation_color && errors.navigation_color?.message}
         control={control}
@@ -119,11 +111,8 @@ const ThemeForm: FunctionComponent<Props> = ({
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Primary color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
         error={!!errors.primary_color}
         helperText={errors.primary_color && errors.primary_color?.message}
         control={control}
@@ -132,11 +121,8 @@ const ThemeForm: FunctionComponent<Props> = ({
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Secondary color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
         error={!!errors.secondary_color}
         helperText={errors.secondary_color && errors.secondary_color?.message}
         control={control}
@@ -145,62 +131,50 @@ const ThemeForm: FunctionComponent<Props> = ({
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Accent color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
         error={!!errors.accent_color}
         helperText={errors.accent_color && errors.accent_color?.message}
         control={control}
         name="accent_color"
         disabled={canNotManage}
       />
-      <MuiTextField
+      <TextFieldFds
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Logo URL')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
+
         error={!!errors.logo_url}
         helperText={errors.logo_url && errors.logo_url?.message}
-        inputProps={register('logo_url')}
+        {...register('logo_url')}
         disabled={canNotManage}
       />
-      <MuiTextField
+      <TextFieldFds
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Logo URL (collapsed)')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
+
         error={!!errors.logo_url_collapsed}
         helperText={errors.logo_url_collapsed && errors.logo_url_collapsed?.message}
-        inputProps={register('logo_url_collapsed')}
+        {...register('logo_url_collapsed')}
         disabled={canNotManage}
       />
-      <MuiTextField
+      <TextFieldFds
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Logo URL (login)')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
+
         error={!!errors.logo_login_url}
         helperText={errors.logo_login_url && errors.logo_login_url?.message}
-        inputProps={register('logo_login_url')}
+        {...register('logo_login_url')}
         disabled={canNotManage}
       />
       {/* Login page aside customization (aligned with OpenCTI):
           priority is image > gradient > color > default Filigran gradient. */}
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Login aside color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
         error={!!errors.login_aside_color}
         helperText={errors.login_aside_color && errors.login_aside_color?.message}
         control={control}
@@ -209,11 +183,8 @@ const ThemeForm: FunctionComponent<Props> = ({
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Login aside gradient start color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
         error={!!errors.login_aside_gradient_start}
         helperText={errors.login_aside_gradient_start && errors.login_aside_gradient_start?.message}
         control={control}
@@ -222,26 +193,21 @@ const ThemeForm: FunctionComponent<Props> = ({
       />
       <ColorPickerField
         className={classes.field}
-        variant="standard"
-        fullWidth
         label={t('Login aside gradient end color')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
         error={!!errors.login_aside_gradient_end}
         helperText={errors.login_aside_gradient_end && errors.login_aside_gradient_end?.message}
         control={control}
         name="login_aside_gradient_end"
         disabled={canNotManage}
       />
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Login aside image URL')}
         placeholder={t('Default')}
-        slotProps={{ inputLabel: { shrink: true } }}
+
         error={!!errors.login_aside_image}
         helperText={errors.login_aside_image && errors.login_aside_image?.message}
-        inputProps={register('login_aside_image')}
+        {...register('login_aside_image')}
         disabled={canNotManage}
       />
 

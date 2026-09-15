@@ -1,4 +1,5 @@
-import { Box, Paper, Tooltip, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Box, Paper, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Fragment, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -173,9 +174,15 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
       />
     );
     return (
-      <Tooltip
-        key={occurrence.finding_id}
-        title={(
+      <Tooltip key={occurrence.finding_id}>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">
+            {link
+              ? <Link to={link} style={{ display: 'flex' }}>{marker}</Link>
+              : marker}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
           <Fragment>
             {occurrence.finding_inject?.inject_title ?? '-'}
             <br />
@@ -198,11 +205,7 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
               </span>
             )}
           </Fragment>
-        )}
-      >
-        {link
-          ? <Link to={link} style={{ display: 'flex' }}>{marker}</Link>
-          : marker}
+        </TooltipContent>
       </Tooltip>
     );
   };
@@ -249,15 +252,18 @@ const FindingOccurrencesTimeline = ({ searchFindings, finding }: Props) => {
               }}
             >
               {overflow > 0 && (
-                <Tooltip title={t('{count} more occurrences in this time bucket', { count: overflow })}>
-                  <Typography sx={{
-                    fontSize: 10,
-                    fontWeight: 600,
-                    color: 'text.secondary',
-                  }}
-                  >
-                    {`+${overflow}`}
-                  </Typography>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Typography sx={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: 'text.secondary',
+                    }}
+                    >
+                      {`+${overflow}`}
+                    </Typography>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('{count} more occurrences in this time bucket', { count: overflow })}</TooltipContent>
                 </Tooltip>
               )}
               {visible.map(occurrence => dot(occurrence))}

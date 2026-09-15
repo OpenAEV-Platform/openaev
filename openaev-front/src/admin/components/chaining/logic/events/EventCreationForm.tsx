@@ -188,7 +188,6 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
             label={t('Name')}
             required
             disabled={readOnly}
-            variant="standard"
           />
 
           <TextFieldController
@@ -197,7 +196,6 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
             multiline
             rows={3}
             disabled={readOnly}
-            variant="standard"
           />
 
           <Box sx={{ mt: 2 }}>

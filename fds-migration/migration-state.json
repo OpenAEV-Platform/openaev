@@ -1,0 +1,391 @@
+{
+  "__generated": "Skeleton scaffolded once by pnpm generate:fds-migration --product openaev --write-to-product (filigran-design-system repo) — created only if missing, never overwritten on re-run. Fields below are then maintained by agents during the pilot (wiredFiles/forbiddenPatterns as theme files are wired, migratedZones/lastReconciled during the reconciliation loop).",
+  "product": "openaev",
+  "frontDir": "openaev-front",
+  "generatedBridgeFiles": [
+    "src/components/fds-tokens.generated.ts"
+  ],
+  "wiredFiles": [
+    {
+      "file": "openaev-front/src/components/ThemeDark.ts",
+      "mustImport": "fds-tokens.generated"
+    },
+    {
+      "file": "openaev-front/src/components/ThemeLight.ts",
+      "mustImport": "fds-tokens.generated"
+    }
+  ],
+  "forbiddenPatterns": [
+    {
+      "file": "openaev-front/src/components/ThemeDark.ts",
+      "pattern": "00f1bd",
+      "reason": "Old drifted literal (1-2 hex digits off --color-filigran-tonic-primary). Was EE_COLOR/secondary/gradient.main/xtmhub.main. Its presence means the §B recalibration (TOKEN-MAPPING.md) was reverted."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeDark.ts",
+      "pattern": "0f1e38",
+      "reason": "Old hand-copied accent value (pre-FDS, pre-OpenCTI-alignment). Its presence means the §C alignment was reverted."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeDark.ts",
+      "pattern": "09101e",
+      "reason": "Old hand-copied paper value (pre-FDS, pre-OpenCTI-alignment)."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeDark.ts",
+      "pattern": "070d19",
+      "reason": "Old hand-copied background/nav value (pre-FDS, pre-OpenCTI-alignment)."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeLight.ts",
+      "pattern": "001bda",
+      "reason": "Old typo'd primary value (a instead of b before --darkblue-600, FDS.scalars post lib#32). Explicitly NOT --color-filigran-brand-primary (#0015a8) -- see TOKEN-MAPPING.md, that would be a real visual change reserved for a future design decision."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeLight.ts",
+      "pattern": "0c7e69",
+      "reason": "Old hand-copied secondary/EE_COLOR value (pre-FDS, pre-OpenCTI-alignment)."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeLight.ts",
+      "pattern": "dfdfdf",
+      "reason": "Old hand-copied accent value (pre-FDS, pre-OpenCTI-alignment)."
+    },
+    {
+      "file": "openaev-front/src/components/ThemeLight.ts",
+      "pattern": "f8f8f8",
+      "reason": "Old hand-copied background value (pre-FDS, pre-OpenCTI-alignment)."
+    }
+  ],
+  "libComponentUsage": [
+    {
+      "component": "Paper",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library",
+        "no-hardcoded-padding"
+      ],
+      "reason": "Paper pilot wave 1, warm-up lot — the lessons surfaces. Fully migrated files: both guards apply. LessonsObjectives and CrysisIntensity left this list in the header wave: they no longer own a surface, ConfigurationSection does, and it is guarded here in their place — coverage moved, not dropped.",
+      "files": [
+        "openaev-front/src/admin/components/common/ConfigurationSection.tsx",
+        "openaev-front/src/admin/components/lessons/simulations/LessonsCategories.jsx",
+        "openaev-front/src/admin/components/lessons/simulations/Lessons.tsx",
+        "openaev-front/src/admin/components/lessons/scenarios/LessonsCategories.jsx",
+        "openaev-front/src/admin/components/lessons/scenarios/Lessons.tsx"
+      ]
+    },
+    {
+      "component": "Paper",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "no-hardcoded-padding"
+      ],
+      "reason": "Paper pilot wave 1, pilot lot — Section, InformationGrid and SectionBlock drive 106 usages across 33 files and are migrated. `imported-from-library` is deliberately NOT armed on this ONE file: DetailHero legitimately stays on MUI (accent gradient + transparent fill, semi-transparent exclusion, PAPER-GAP-INVENTORY.md §4), so the file imports both Papers on purpose and the guard, which is file-granular, would report a fallback that is not one. Arming it here would mean either a permanent false red or dodging it with an import style chosen to fool the check — neither is acceptable. Gap raised upstream as LIBRARY-FEEDBACK #31. Re-arm this guard the day DetailHero migrates.",
+      "files": [
+        "openaev-front/src/components/common/detail/EntityDetailCommon.tsx"
+      ]
+    },
+    {
+      "component": "Input",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Form-field wave: every text, password and number field reaches the library Input through one product wrapper (TextFieldFds), which owns label, error, helper and the root that carries `style`. Both form libraries in use (react-hook-form, react-final-form) and the direct call sites go through it.",
+      "files": [
+        "openaev-front/src/components/fields/TextFieldFds.tsx"
+      ]
+    },
+    {
+      "component": "Textarea",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Form-field wave: the multiline branch of the same wrapper. `resize` is pinned to none on every site, as arbitrated; `rows` and autosize (`minRows`/`maxRows`) replay the previous heights.",
+      "files": [
+        "openaev-front/src/components/fields/TextFieldFds.tsx"
+      ]
+    },
+    {
+      "component": "SearchField",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Form-field wave: the shared list search (SearchFilter) and the two ad hoc search fields join the top bar on the library SearchField. Fixed width and no focus growth, as arbitrated.",
+      "files": [
+        "openaev-front/src/admin/components/nav/TopBar.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/attack_path/CategoryFindingsPanel.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/bulk/ThreatArsenalScenarioUpdateComponent.tsx",
+        "openaev-front/src/components/SearchFilter.tsx"
+      ]
+    },
+    {
+      "component": "Checkbox",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Selection boxes in list rows, table cells, the grants matrices and the two selection cards, plus the react-hook-form and react-final-form controllers. Label-less boxes carry an aria-label; the boxes that only mirror a row's state are `presentational`. The 16px target size is the arbitration recorded in LIBRARY-FEEDBACK #46.",
+      "files": [
+        "openaev-front/src/admin/components/assets/asset_groups/AssetGroups.tsx",
+        "openaev-front/src/admin/components/assets/credentials/Credentials.tsx",
+        "openaev-front/src/admin/components/assets/endpoints/Endpoints.tsx",
+        "openaev-front/src/admin/components/atomic_testings/InjectResultList.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/AtomicTestingHeaderActions.tsx",
+        "openaev-front/src/admin/components/chaining/logic/drawer/AddActionList.tsx",
+        "openaev-front/src/admin/components/common/injects/Injects.tsx",
+        "openaev-front/src/admin/components/common/injects/create/InjectContractCard.tsx",
+        "openaev-front/src/admin/components/common/injects/create/InjectContractListRow.tsx",
+        "openaev-front/src/admin/components/components/phishing/email_templates/PhishingEmailTemplates.tsx",
+        "openaev-front/src/admin/components/components/phishing/landing_pages/PhishingLandingPages.tsx",
+        "openaev-front/src/admin/components/components/teams/Teams.tsx",
+        "openaev-front/src/admin/components/profile/notifications/Notifications.tsx",
+        "openaev-front/src/admin/components/profile/triggers/TriggerForm.tsx",
+        "openaev-front/src/admin/components/reporting/form/ReportingForm.tsx",
+        "openaev-front/src/admin/components/scenarios/ScenarioForm.tsx",
+        "openaev-front/src/admin/components/scenarios/Scenarios.tsx",
+        "openaev-front/src/admin/components/settings/groups/tenant_groups/grants/atomic_testings/useAtomicTestingGrant.tsx",
+        "openaev-front/src/admin/components/settings/groups/tenant_groups/grants/scenarios/useScenarioGrant.tsx",
+        "openaev-front/src/admin/components/settings/groups/tenant_groups/grants/simulations/useSimulationGrant.tsx",
+        "openaev-front/src/admin/components/settings/groups/tenant_groups/grants/threat_arsenals/useThreatArsenalGrant.tsx",
+        "openaev-front/src/admin/components/settings/roles/CapabilitiesTab.tsx",
+        "openaev-front/src/admin/components/simulations/SimulationList.tsx",
+        "openaev-front/src/admin/components/teams/OrganizationsList.tsx",
+        "openaev-front/src/admin/components/teams/Players.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenal.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalCard.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalListRow.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/configuration/list/WidgetColumnsCustomizationInput.tsx",
+        "openaev-front/src/components/CheckboxField.jsx",
+        "openaev-front/src/components/PaginatedListLoader.tsx",
+        "openaev-front/src/components/common/ClickableList.tsx",
+        "openaev-front/src/components/common/SelectListPicker.tsx",
+        "openaev-front/src/components/common/export/ExportOptionsDialog.tsx",
+        "openaev-front/src/components/fields/CheckboxFieldController.tsx",
+        "openaev-front/src/public/components/login/Login.tsx"
+      ]
+    },
+    {
+      "component": "Tooltip",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library"
+      ],
+      "reason": "Every informational tooltip: the compound Tooltip, TooltipTrigger (asChild on the existing element) and TooltipContent, one TooltipProvider at the application root (200ms). Disabled controls and library chips get a span host. A tooltip whose text may be empty renders its content conditionally. Two sites stay on MUI with a `fds:keep-mui` reason: the Enterprise Edition upsell tooltip (by ruling) and the causal-graph card popover (controlled rich card with per-caller surface).",
+      "files": [
+        "openaev-front/src/admin/components/ariane/AskArianeButton.tsx",
+        "openaev-front/src/admin/components/ariane/CtemCommandCenterButton.tsx",
+        "openaev-front/src/admin/components/assets/ExpectationList.tsx",
+        "openaev-front/src/admin/components/assets/PostureScore.tsx",
+        "openaev-front/src/admin/components/assets/PostureScoreCell.tsx",
+        "openaev-front/src/admin/components/assets/asset_groups/DynamicAssetField.tsx",
+        "openaev-front/src/admin/components/assets/credentials/CredentialStatusChip.tsx",
+        "openaev-front/src/admin/components/assets/endpoints/EndpointsPicker.tsx",
+        "openaev-front/src/admin/components/assets/endpoints/endpoint/AgentList.tsx",
+        "openaev-front/src/admin/components/assets/security_platforms/SecurityPlatformCard.tsx",
+        "openaev-front/src/admin/components/assets/security_platforms/SecurityPlatformDetail.tsx",
+        "openaev-front/src/admin/components/assets/security_platforms/SecurityPlatforms.tsx",
+        "openaev-front/src/admin/components/atomic_testings/InjectResultList.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/AtomicTestingHeaderActions.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/AtomicTestingResult.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/InjectHero.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/InjectScoreTiles.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/NewAtomicTestingResult.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/NewTargetListItem.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/target_result/InjectExpectationCard.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/target_result/InjectExpectationResultList.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/target_result/TargetResultAlertNumber.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/target_result/TargetResultsHeader.tsx",
+        "openaev-front/src/admin/components/atomic_testings/atomic_testing/target_result/TargetResultsTimeline.tsx",
+        "openaev-front/src/admin/components/autonomous/AutonomousAgentsSelector.tsx",
+        "openaev-front/src/admin/components/chaining/ScopeExecutionLimits.tsx",
+        "openaev-front/src/admin/components/chaining/ScopeForm.tsx",
+        "openaev-front/src/admin/components/chaining/ScopeInventoryBox.tsx",
+        "openaev-front/src/admin/components/chaining/ScopeRules.tsx",
+        "openaev-front/src/admin/components/chaining/ScopeVariables.tsx",
+        "openaev-front/src/admin/components/chaining/logic/drawer/ActionScopeChips.tsx",
+        "openaev-front/src/admin/components/chaining/logic/drawer/AddActionList.tsx",
+        "openaev-front/src/admin/components/chaining/logic/drawer/FieldOutputLink.tsx",
+        "openaev-front/src/admin/components/chaining/logic/events/EventConditionRow.tsx",
+        "openaev-front/src/admin/components/chaining/logic/logic-graph/GraphTriggerCard.tsx",
+        "openaev-front/src/admin/components/chaining/logic/logic-graph/PanZoom.tsx",
+        "openaev-front/src/admin/components/common/EngineTypeSelection.tsx",
+        "openaev-front/src/admin/components/common/ToolBar.tsx",
+        "openaev-front/src/admin/components/common/articles/Articles.tsx",
+        "openaev-front/src/admin/components/common/challenges/ChallengeCard.tsx",
+        "openaev-front/src/admin/components/common/domains/ExpectationPercentResultByType.tsx",
+        "openaev-front/src/admin/components/common/endpoints/fragments/EndpointAgentsExecutorsFragment.tsx",
+        "openaev-front/src/admin/components/common/entreprise_edition/EEChip.tsx",
+        "openaev-front/src/admin/components/common/form/TextFieldAskAI.tsx",
+        "openaev-front/src/admin/components/common/injects/ImportUploaderInjectFromXlsInjects.tsx",
+        "openaev-front/src/admin/components/common/injects/InjectChainsForm.tsx",
+        "openaev-front/src/admin/components/common/injects/InjectImportMenu.tsx",
+        "openaev-front/src/admin/components/common/injects/InjectorContract.jsx",
+        "openaev-front/src/admin/components/common/injects/InjectsListButtons.tsx",
+        "openaev-front/src/admin/components/common/injects/create/InjectContractCard.tsx",
+        "openaev-front/src/admin/components/common/injects/create/InjectContractListRow.tsx",
+        "openaev-front/src/admin/components/common/injects/create/InjectContractPicker.tsx",
+        "openaev-front/src/admin/components/common/injects/create/InjectSelectionBar.tsx",
+        "openaev-front/src/admin/components/common/injects/expectations/ExpectationsDriftIndicator.tsx",
+        "openaev-front/src/admin/components/common/injects/expectations/field/ExpectationGroupField.tsx",
+        "openaev-front/src/admin/components/common/injects/form/InjectContentForm.tsx",
+        "openaev-front/src/admin/components/common/injects/form/teams/InjectTeamsList.tsx",
+        "openaev-front/src/admin/components/common/injects/status/traces/TraceMessage.tsx",
+        "openaev-front/src/admin/components/common/injects/status/traces/TraceStatusChip.tsx",
+        "openaev-front/src/admin/components/components/challenges/Challenges.tsx",
+        "openaev-front/src/admin/components/components/channels/Channel.tsx",
+        "openaev-front/src/admin/components/components/documents/Documents.tsx",
+        "openaev-front/src/admin/components/components/phishing/PhishingHtmlPreview.tsx",
+        "openaev-front/src/admin/components/components/phishing/landing_pages/PhishingLandingPage.tsx",
+        "openaev-front/src/admin/components/components/phishing/landing_pages/PhishingLandingPageHeader.tsx",
+        "openaev-front/src/admin/components/default_dashboard/DefaultHomeDashboard.tsx",
+        "openaev-front/src/admin/components/findings/FindingList.tsx",
+        "openaev-front/src/admin/components/findings/FindingOccurrences.tsx",
+        "openaev-front/src/admin/components/findings/FindingOccurrencesTimeline.tsx",
+        "openaev-front/src/admin/components/injects/InjectTestReplayAll.tsx",
+        "openaev-front/src/admin/components/integrations/catalog_connectors/CatalogConnectorCard.tsx",
+        "openaev-front/src/admin/components/integrations/catalog_connectors/CatalogConnectorLine.tsx",
+        "openaev-front/src/admin/components/integrations/catalog_connectors/CatalogToolbar.tsx",
+        "openaev-front/src/admin/components/integrations/common/ConnectorCatalogInfo.tsx",
+        "openaev-front/src/admin/components/integrations/common/ConnectorPage.tsx",
+        "openaev-front/src/admin/components/integrations/common/DeployButton.tsx",
+        "openaev-front/src/admin/components/integrations/common/MigrateButton.tsx",
+        "openaev-front/src/admin/components/integrations/connector_instance/ConnectorInstanceForm.tsx",
+        "openaev-front/src/admin/components/integrations/deployed/DeployedConnectors.tsx",
+        "openaev-front/src/admin/components/lessons/scenarios/LessonsCategories.jsx",
+        "openaev-front/src/admin/components/lessons/simulations/LessonsCategories.jsx",
+        "openaev-front/src/admin/components/nav/BulkOperationsIndicator.tsx",
+        "openaev-front/src/admin/components/nav/TopBar.tsx",
+        "openaev-front/src/admin/components/nav/TopBarNotifications.tsx",
+        "openaev-front/src/admin/components/payloads/PayloadDeprecatedChip.tsx",
+        "openaev-front/src/admin/components/payloads/PayloadStatusComponent.tsx",
+        "openaev-front/src/admin/components/profile/XtmOneMcpAccess.tsx",
+        "openaev-front/src/admin/components/profile/notifications/Notifications.tsx",
+        "openaev-front/src/admin/components/profile/triggers/TriggerFilterField.tsx",
+        "openaev-front/src/admin/components/profile/triggers/TriggerSubscribeButton.tsx",
+        "openaev-front/src/admin/components/reporting/EntityReportsPanel.tsx",
+        "openaev-front/src/admin/components/reporting/ReportingCard.tsx",
+        "openaev-front/src/admin/components/reporting/ReportingFragments.tsx",
+        "openaev-front/src/admin/components/reporting/ReportingGenerationsTab.tsx",
+        "openaev-front/src/admin/components/reporting/ReportingPage.tsx",
+        "openaev-front/src/admin/components/reporting/ReportingPreviewTab.tsx",
+        "openaev-front/src/admin/components/reporting/ReportingSchedulesTab.tsx",
+        "openaev-front/src/admin/components/reporting/Reportings.tsx",
+        "openaev-front/src/admin/components/reporting/form/ReportingForm.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/Scenario.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/ScenarioHeader.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/scenario_assistant/AttackMatrixSelector.tsx",
+        "openaev-front/src/admin/components/scenarios/scenario/scenario_assistant/ScenarioAssistant.tsx",
+        "openaev-front/src/admin/components/settings/data_ingestion/xls_mapper/RulesContractContent.tsx",
+        "openaev-front/src/admin/components/settings/groups/GroupManageRoles.tsx",
+        "openaev-front/src/admin/components/settings/roles/CapabilitiesTab.tsx",
+        "openaev-front/src/admin/components/settings/sessions/SessionsTable.tsx",
+        "openaev-front/src/admin/components/simulations/SimulationList.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/ExerciseDatePopover.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/ExerciseHeader.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/SecurityPlatformIndicator.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/attack_path/AttackPathHeader.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/attack_path/AttackPathLegend.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/attack_path/ExecutionRanChip.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/attack_path/FindingDetailPanel.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/attack_path/canvas/AttackPathCanvas.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/attack_path/canvas/cards/ActionCard.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/attack_path/canvas/cards/EndpointClusterCard.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/attack_path/canvas/cards/FindingCard.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/attack_path/canvas/cards/FindingClusterCard.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/attack_path/canvas/cards/FindingTypeCard.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/attack_path/canvas/cards/TargetCard.tsx",
+        "openaev-front/src/admin/components/simulations/simulation/mails/Mails.jsx",
+        "openaev-front/src/admin/components/simulations/simulation/validation/expectations/ManualExpectations.tsx",
+        "openaev-front/src/admin/components/teams/players/PlayerForm.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ImportUploaderThreatArsenal.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenal.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalActionOverview.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalCard.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalExecutionModeCardComponent.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalListRow.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalSelectionBar.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/ThreatArsenalSortSelect.tsx",
+        "openaev-front/src/admin/components/threat_arsenal/form/DetectionRemediationInfo.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/CustomDashboardCard.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/CustomDashboardEditHeader.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/CustomDashboards.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/form/ParametersTab.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/results/DashboardResults.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/results/resultsListConfig.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/WidgetTitle.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/AttackPatternBox.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/NumberWidget.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/TrendChip.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/command_center/CommandCenterWidget.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/command_center/ExposureConsole.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/domains/SecurityDomainCardWidget.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/list/elements/InjectExpectationSourceFragment.tsx",
+        "openaev-front/src/admin/components/workspaces/custom_dashboards/widgets/viz/list/elements/ListColumnConfig.tsx",
+        "openaev-front/src/components/AttackPatternChip.tsx",
+        "openaev-front/src/components/Breadcrumbs.tsx",
+        "openaev-front/src/components/ContextLink.tsx",
+        "openaev-front/src/components/CustomTooltip.jsx",
+        "openaev-front/src/components/CvssBadge.tsx",
+        "openaev-front/src/components/FindingIcon.tsx",
+        "openaev-front/src/components/ItemBoolean.jsx",
+        "openaev-front/src/components/ItemDomains.tsx",
+        "openaev-front/src/components/ItemStatus.tsx",
+        "openaev-front/src/components/ItemTags.jsx",
+        "openaev-front/src/components/ItemTargets.tsx",
+        "openaev-front/src/components/PayloadIcon.tsx",
+        "openaev-front/src/components/PlatformIcon.tsx",
+        "openaev-front/src/components/ScoreExplainerDialog.tsx",
+        "openaev-front/src/components/TruncatedText.jsx",
+        "openaev-front/src/components/chained_timeline/TimelineControls.tsx",
+        "openaev-front/src/components/chained_timeline/TimelineInjectNode.tsx",
+        "openaev-front/src/components/common/ButtonCreate.tsx",
+        "openaev-front/src/components/common/ButtonPopover.tsx",
+        "openaev-front/src/components/common/Drawer.tsx",
+        "openaev-front/src/components/common/EllipsisTooltip.tsx",
+        "openaev-front/src/components/common/ExportButton.tsx",
+        "openaev-front/src/components/common/ImportUploader.tsx",
+        "openaev-front/src/components/common/chips/ClickableChip.tsx",
+        "openaev-front/src/components/common/detail/EntityDetailCommon.tsx",
+        "openaev-front/src/components/common/detail/KillChainTimeline.tsx",
+        "openaev-front/src/components/common/list/fragments/AssetTypeFragment.tsx",
+        "openaev-front/src/components/common/list/fragments/DateFragment.tsx",
+        "openaev-front/src/components/common/list/fragments/EndpointActiveFragment.tsx",
+        "openaev-front/src/components/common/list/fragments/EndpointAgentsPrivilegeFragment.tsx",
+        "openaev-front/src/components/common/overview/CodeBlock.tsx",
+        "openaev-front/src/components/common/queryable/filter/FilterAutocomplete.tsx",
+        "openaev-front/src/components/common/queryable/filter/FilterChip.tsx",
+        "openaev-front/src/components/common/queryable/sort/SortHeadersComponentV2.tsx",
+        "openaev-front/src/components/common/tag/Tag.tsx",
+        "openaev-front/src/components/common/terminal/Terminal.tsx",
+        "openaev-front/src/components/fields/AddressesFieldComponent.tsx",
+        "openaev-front/src/components/fields/AutocompleteField.tsx",
+        "openaev-front/src/components/fields/CodeEditor.tsx",
+        "openaev-front/src/components/items/ItemTenants.tsx"
+      ]
+    }
+  ],
+  "migratedZones": [
+    "palette.primary",
+    "palette.secondary / EE_COLOR / palette.gradient.main / palette.xtmhub.main (unified on --color-filigran-tonic-primary both modes -- xtmhub.main has a live consumer, GradientButton.tsx, same 'end-gradient' pattern flagged by the OpenCTI pilot)",
+    "palette.background.default (dark background.nav rides along for free, same constant)",
+    "palette.background.paper (+ paperInCard dark, code dark via THEME_*_ACCENT)",
+    "palette.background.accent (dark) / background.code (both modes) via THEME_*_ACCENT -- NOT the same as the standalone light background.accent literal, see notMigrated",
+    "palette.background.secondary (newly wired -- was declared in Theme.ts but never assigned before this lot)",
+    "MuiCssBaseline html/body background (newly wired two-stop gradient, ISO OpenCTI's getAppBodyGradientEndColor pattern -- OpenAEV previously had zero gradient, flat fill only; found during the Phase 5 review)"
+  ],
+  "notMigrated": [
+    "palette.background.accent (light, standalone '#d3eaff' literal, ItemCopy.tsx/AttackPatternBox.tsx) -- no FDS token match on either OpenCTI or OpenAEV side, genuine cross-product gap, see TOKEN-MAPPING.md §3.5 and the Figma backlog",
+    "palette.severity.* (7 levels) -- explicit design decision deferred to the product owners; a portable 5/7-level mapping already validated by the OpenCTI pilot is documented (not applied) in TOKEN-MAPPING.md §4",
+    "THEME_LIGHT_DEFAULT_NAV -- FDS token identified (--bg-elevation-heading-layer-0, #f2f2f3) but deliberately NOT applied pending explicit sign-off (the '7th item', a real visible white -> pale-gray delta outside the originally arbitrated list) -- see TOKEN-MAPPING.md §1",
+    "palette.designSystem (full DesignSystemPalette type, Theme.ts) -- dead code (0 consumers), explicitly left unresurrected, arbitrated (option 2); see TOKEN-MAPPING.md §5 and PR #5204/#5523 history",
+    "palette.background.gradient.{start,end} / palette.leftBar.* -- dead code, 0 consumers, left as-is",
+    "borderRadius / typography / spacing -- out of scope for this color-only lot (borderRadius: 4 already numerically matches --radius-sm, not wired symbolically)"
+  ],
+  "knownCaveats": [
+    "Unlike OpenCTI, OpenAEV's DB-backed theme override (Setting entity, no dedicated Theme table, no built_in flag) has every platform_light_theme/platform_dark_theme field null in this environment (verified via GET /api/settings/public) -- so these FDS values are immediately live with no separate DB row update required. Re-verify this assumption if a real deployment has ever had an admin populate a custom theme through Settings -> Themes."
+  ],
+  "lastReconciled": null
+}

@@ -1,5 +1,6 @@
+import { Checkbox } from '@filigran/design-system';
 import { HelpOutlineOutlined } from '@mui/icons-material';
-import { Box, Checkbox, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Box, Chip, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import * as R from 'ramda';
 import { type CSSProperties, type FunctionComponent, lazy, Suspense, type SyntheticEvent, useContext, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -578,10 +579,9 @@ const Injects: FunctionComponent<Props> = ({
           >
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                aria-label={t('Select all')}
                 checked={selectAll}
-                disableRipple
-                onChange={handleToggleSelectAll}
+                onCheckedChange={handleToggleSelectAll}
                 disabled={typeof handleToggleSelectAll !== 'function'}
               />
             </ListItemIcon>
@@ -657,13 +657,12 @@ const Injects: FunctionComponent<Props> = ({
                             : onToggleEntity(inject, event))}
                         >
                           <Checkbox
-                            edge="start"
+                            aria-label={inject.inject_title}
                             checked={
                               (selectAll && !(inject.inject_id
                                 in (deSelectedElements || {})))
                                 || inject.inject_id in (selectedElements || {})
                             }
-                            disableRipple
                           />
                         </ListItemIcon>
                         <ListItemIcon style={{ paddingTop: 5 }}>

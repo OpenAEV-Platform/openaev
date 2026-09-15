@@ -68,7 +68,6 @@ const CustomDashboardAutocompleteField = ({ label, value, onChange, required = f
       options={options}
       onChange={v => onChange(v ?? '')}
       onInputChange={searchDashboardOptions}
-      variant="standard"
       disabled={disabled}
     />
   );

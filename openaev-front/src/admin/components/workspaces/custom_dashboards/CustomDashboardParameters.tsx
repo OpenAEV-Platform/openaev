@@ -61,6 +61,7 @@ const CustomDashboardParameters: FunctionComponent = () => {
             value={paramOption?.value}
             onChange={newValue => handleParametersValue(p.custom_dashboards_parameter_id, newValue ?? '')}
             searchOptionsConfig={paramOption?.searchOptionsConfig}
+            placeholder={p.custom_dashboards_parameter_name}
           />
         )];
       }
@@ -93,6 +94,9 @@ const CustomDashboardParameters: FunctionComponent = () => {
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 330px))',
       gap: theme.spacing(2),
+      // Each field is label-above-input; without this the grid stretches them to
+      // the tallest row and their inputs stop lining up.
+      alignItems: 'start',
     }}
     >
       {paramsFields.length > 0 && paramsFields}

@@ -1,5 +1,5 @@
+import { IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { CloudUploadOutlined } from '@mui/icons-material';
-import { ToggleButton, Tooltip } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
 import { importThreatArsenalAction } from '../../../actions/threat_arsenals/threatArsenal-actions';
@@ -26,16 +26,20 @@ const ImportUploaderThreatArsenal: FunctionComponent<Props> = ({ onImport }) => 
 
   return (
     <>
-      <ToggleButton
-        value="import"
-        aria-label={t('Import actions')}
-        size="small"
-        onClick={handleOpen}
-      >
-        <Tooltip title={t('Import actions')}>
-          <CloudUploadOutlined color="primary" fontSize="small" />
-        </Tooltip>
-      </ToggleButton>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span style={{ display: 'inline-flex' }}>
+            <IconButton
+              priority="secondary"
+              size="md"
+              aria-label={t('Import actions')}
+              icon={<CloudUploadOutlined fontSize="small" />}
+              onClick={handleOpen}
+            />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>{t('Import actions')}</TooltipContent>
+      </Tooltip>
       <DragAndDropImportDialog
         open={open}
         onClose={handleClose}

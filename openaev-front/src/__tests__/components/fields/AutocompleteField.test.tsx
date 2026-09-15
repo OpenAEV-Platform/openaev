@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ComponentProps, type ReactNode } from 'react';
@@ -26,9 +27,11 @@ const OPTIONS: Option[] = [
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <ThemeProvider theme={theme}>
-    <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
-      {children}
-    </IntlProvider>
+    <TooltipProvider>
+      <IntlProvider locale="en" defaultLocale="en" onError={() => {}}>
+        {children}
+      </IntlProvider>
+    </TooltipProvider>
   </ThemeProvider>
 );
 
@@ -64,7 +67,8 @@ describe('AutocompleteField', () => {
       // Assert
       const options = screen.getAllByRole('option');
       expect(options).toHaveLength(OPTIONS.length);
-      options.forEach(option => expect(option.querySelector('input[type="checkbox"]')).not.toBeNull());
+      // The box is the library's own: a presentational <span>, not an <input>.
+      options.forEach(option => expect(option.querySelector('span.box-border')).not.toBeNull());
       const keyWarnings = consoleError.mock.calls.filter(call => String(call[0]).includes('key'));
       expect(keyWarnings).toHaveLength(0);
     });
@@ -90,7 +94,11 @@ describe('AutocompleteField', () => {
       renderField({ open: true });
 
       // Act
-      fireEvent.mouseOver(screen.getAllByRole('option')[0]);
+      // The library owns the option row, so the tooltip anchors INSIDE it. The
+      // event is fired on a descendant and bubbles up to that anchor — firing on
+      // the row itself would travel away from it. The library tooltip opens on
+      // pointer movement.
+      fireEvent.pointerMove(screen.getByText(OPTIONS[0].label));
 
       // Assert
       const tooltip = await screen.findByRole('tooltip');

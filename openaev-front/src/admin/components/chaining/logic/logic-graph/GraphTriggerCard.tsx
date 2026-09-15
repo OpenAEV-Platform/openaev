@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, BoltOutlined, MoreVert } from '@mui/icons-material';
-import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, IconButton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode, useState } from 'react';
 
@@ -8,7 +9,6 @@ import NodePopover from '../chaining_flow/nodes/NodePopover';
 import LogicNodeTooltip, { type TooltipRow } from '../chaining_flow/NodeTooltip';
 import { formatConditionKeyLabel } from '../events/event-types';
 import GraphCardTooltip from './GraphCardTooltip';
-import graphTooltipSlotProps from './graphTooltipSlotProps';
 
 export interface GraphTriggerCardProps {
   id: string;
@@ -242,68 +242,75 @@ const GraphTriggerCard = ({
         )}
 
         {!readOnly && onConnectStart && (
-          <Tooltip title={t('Drag onto an action to gate it with this trigger')} slotProps={graphTooltipSlotProps}>
-            <Box
-              onPointerDown={e => onConnectStart(id, 'trigger', e)}
-              onClick={e => e.stopPropagation()}
-              sx={{
-                'position': 'absolute',
-                'right': -11,
-                'top': '50%',
-                'transform': 'translateY(-50%)',
-                'zIndex': 3,
-                'width': 16,
-                'height': 16,
-                'borderRadius': '50%',
-                'cursor': 'grab',
-                'display': 'flex',
-                'alignItems': 'center',
-                'justifyContent': 'center',
-                'backgroundColor': theme.palette.background.paper,
-                'border': `2px solid ${theme.palette.warning.main}`,
-                'boxShadow': theme.shadows[1],
-                'touchAction': 'none',
-                '&:hover': { backgroundColor: theme.palette.warning.main },
-                '&:active': { cursor: 'grabbing' },
-              }}
-            >
-              <Box sx={{
-                width: 5,
-                height: 5,
-                borderRadius: '50%',
-                backgroundColor: theme.palette.warning.main,
-              }}
-              />
-            </Box>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Box
+                onPointerDown={e => onConnectStart(id, 'trigger', e)}
+                onClick={e => e.stopPropagation()}
+                sx={{
+                  'position': 'absolute',
+                  'right': -11,
+                  'top': '50%',
+                  'transform': 'translateY(-50%)',
+                  'zIndex': 3,
+                  'width': 16,
+                  'height': 16,
+                  'borderRadius': '50%',
+                  'cursor': 'grab',
+                  'display': 'flex',
+                  'alignItems': 'center',
+                  'justifyContent': 'center',
+                  'backgroundColor': theme.palette.background.paper,
+                  'border': `2px solid ${theme.palette.warning.main}`,
+                  'boxShadow': theme.shadows[1],
+                  'touchAction': 'none',
+                  '&:hover': { backgroundColor: theme.palette.warning.main },
+                  '&:active': { cursor: 'grabbing' },
+                }}
+              >
+                <Box sx={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: '50%',
+                  backgroundColor: theme.palette.warning.main,
+                }}
+                />
+              </Box>
+            </TooltipTrigger>
+            <TooltipContent>{t('Drag onto an action to gate it with this trigger')}</TooltipContent>
           </Tooltip>
         )}
 
         {!readOnly && onAddAction && (
-          <Tooltip title={t('Add an action gated by this trigger')} slotProps={graphTooltipSlotProps}>
-            <IconButton
-              size="small"
-              onPointerDown={e => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddAction(id);
-              }}
-              sx={{
-                'position': 'absolute',
-                'bottom': -13,
-                'left': '50%',
-                'transform': 'translateX(-50%)',
-                'zIndex': 3,
-                'width': 22,
-                'height': 22,
-                'padding': 0,
-                'color': theme.palette.primary.contrastText,
-                'backgroundColor': theme.palette.primary.main,
-                'boxShadow': theme.shadows[2],
-                '&:hover': { backgroundColor: theme.palette.primary.dark },
-              }}
-            >
-              <AddOutlined sx={{ fontSize: 15 }} />
-            </IconButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton
+                aria-label={t('Add an action gated by this trigger')}
+                size="small"
+                onPointerDown={e => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddAction(id);
+                }}
+                sx={{
+                  'position': 'absolute',
+                  'bottom': -13,
+                  'left': '50%',
+                  'transform': 'translateX(-50%)',
+                  'zIndex': 3,
+                  'width': 22,
+                  'height': 22,
+                  'padding': 0,
+                  'color': theme.palette.primary.contrastText,
+                  'backgroundColor': theme.palette.primary.main,
+                  'boxShadow': theme.shadows[2],
+                  '&:hover': { backgroundColor: theme.palette.primary.dark },
+                }}
+              >
+                <AddOutlined sx={{ fontSize: 15 }} />
+              </IconButton>
+            </TooltipTrigger>
+            <TooltipContent>{t('Add an action gated by this trigger')}</TooltipContent>
           </Tooltip>
         )}
 

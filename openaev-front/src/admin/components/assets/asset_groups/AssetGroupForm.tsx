@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, TextField } from '@mui/material';
+import { Button } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { emptyFilterGroup } from '../../../../components/common/queryable/filter/FilterUtils';
 import TagField from '../../../../components/fields/TagField';
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { type AssetGroupInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
@@ -57,27 +58,23 @@ const AssetGroupForm: FunctionComponent<Props> = ({
   };
 
   return (
-    <form id="assetGroupId" onSubmit={handleSubmitWithoutPropagation}>
-      <TextField
-        variant="standard"
-        fullWidth
+    <form noValidate id="assetGroupId" onSubmit={handleSubmitWithoutPropagation}>
+      <TextFieldFds
+        required
         label={t('Name')}
         style={{ marginTop: 10 }}
         error={!!errors.asset_group_name}
         helperText={errors.asset_group_name?.message}
-        inputProps={register('asset_group_name')}
-        InputLabelProps={{ required: true }}
+        {...register('asset_group_name')}
       />
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         multiline
         rows={2}
         label={t('Description')}
         style={{ marginTop: 20 }}
         error={!!errors.asset_group_description}
         helperText={errors.asset_group_description?.message}
-        inputProps={register('asset_group_description')}
+        {...register('asset_group_description')}
       />
 
       <Controller

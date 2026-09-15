@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, CenterFocusStrongOutlined, RemoveOutlined } from '@mui/icons-material';
-import { Box, IconButton, Tooltip } from '@mui/material';
+import { Box, IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { toBlob } from 'html-to-image';
 import {
@@ -14,7 +15,6 @@ import {
 } from 'react';
 
 import { useFormatter } from '../../../../../../components/i18n';
-import graphTooltipSlotProps from '../../../../chaining/logic/logic-graph/graphTooltipSlotProps';
 import {
   AP_FLOW_NODE_TYPE,
   type AttackPathFlowEdge,
@@ -959,39 +959,48 @@ const AttackPathCanvas = ({
           boxShadow: theme.shadows[3],
         }}
       >
-        <Tooltip title={t('Zoom in')} placement="right" slotProps={graphTooltipSlotProps}>
-          <IconButton
-            size="small"
-            aria-label={t('Zoom in')}
-            sx={controlButtonSx}
-            onClick={() => zoomByButton(ZOOM_STEP)}
-          >
-            <AddOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton
+              size="small"
+              aria-label={t('Zoom in')}
+              sx={controlButtonSx}
+              onClick={() => zoomByButton(ZOOM_STEP)}
+            >
+              <AddOutlined fontSize="small" />
+            </IconButton>
+          </TooltipTrigger>
+          <TooltipContent side="right">{t('Zoom in')}</TooltipContent>
         </Tooltip>
-        <Tooltip title={t('Zoom out')} placement="right" slotProps={graphTooltipSlotProps}>
-          <IconButton
-            size="small"
-            aria-label={t('Zoom out')}
-            sx={controlButtonSx}
-            onClick={() => zoomByButton(1 / ZOOM_STEP)}
-          >
-            <RemoveOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton
+              size="small"
+              aria-label={t('Zoom out')}
+              sx={controlButtonSx}
+              onClick={() => zoomByButton(1 / ZOOM_STEP)}
+            >
+              <RemoveOutlined fontSize="small" />
+            </IconButton>
+          </TooltipTrigger>
+          <TooltipContent side="right">{t('Zoom out')}</TooltipContent>
         </Tooltip>
-        <Tooltip title={t('Fit to view')} placement="right" slotProps={graphTooltipSlotProps}>
-          <IconButton
-            size="small"
-            aria-label={t('Fit to view')}
-            sx={controlButtonSx}
-            onClick={() => {
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton
+              size="small"
+              aria-label={t('Fit to view')}
+              sx={controlButtonSx}
+              onClick={() => {
               // A user asking for the big picture holds it: pursuit backs off for the manual pause.
-              markManual();
-              fitAll();
-            }}
-          >
-            <CenterFocusStrongOutlined fontSize="small" />
-          </IconButton>
+                markManual();
+                fitAll();
+              }}
+            >
+              <CenterFocusStrongOutlined fontSize="small" />
+            </IconButton>
+          </TooltipTrigger>
+          <TooltipContent side="right">{t('Fit to view')}</TooltipContent>
         </Tooltip>
       </Box>
 

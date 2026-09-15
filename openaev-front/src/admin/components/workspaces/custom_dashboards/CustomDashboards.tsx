@@ -1,6 +1,7 @@
+import { ButtonGroup, ButtonGroupItem, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AnalyticsOutlined, GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
-import { type CSSProperties, type SyntheticEvent, useCallback, useMemo, useState } from 'react';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
+import { type CSSProperties, useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -89,8 +90,8 @@ const CustomDashboards = () => {
   );
 
   const [viewMode, setViewMode] = useState<ViewMode>(readViewMode);
-  const handleViewModeChange = (_: SyntheticEvent, value: ViewMode | null) => {
-    if (!value) return;
+  const handleViewModeChange = (next: string) => {
+    const value = next as ViewMode;
     setViewMode(value);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, value);
@@ -98,25 +99,25 @@ const CustomDashboards = () => {
   };
 
   const viewSwitcher = (
-    <ToggleButtonGroup
+    <ButtonGroup
       value={viewMode}
-      exclusive
-      size="small"
-      onChange={handleViewModeChange}
+      size="md"
+      onValueChange={handleViewModeChange}
       aria-label={t('View mode')}
-      sx={{ '& .MuiToggleButton-root.Mui-selected .MuiSvgIcon-root': { color: 'primary.main' } }}
     >
-      <ToggleButton value="cards" aria-label={t('Cards view')}>
-        <Tooltip title={t('Cards view')}>
-          <GridViewOutlined fontSize="small" />
-        </Tooltip>
-      </ToggleButton>
-      <ToggleButton value="list" aria-label={t('List view')}>
-        <Tooltip title={t('List view')}>
-          <ViewListOutlined fontSize="small" />
-        </Tooltip>
-      </ToggleButton>
-    </ToggleButtonGroup>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <ButtonGroupItem value="cards" aria-label={t('Cards view')} icon={<GridViewOutlined fontSize="small" />} />
+        </TooltipTrigger>
+        <TooltipContent>{t('Cards view')}</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+        </TooltipTrigger>
+        <TooltipContent>{t('List view')}</TooltipContent>
+      </Tooltip>
+    </ButtonGroup>
   );
 
   const renderCards = () => {
@@ -174,14 +175,20 @@ const CustomDashboards = () => {
         topBarButtons={(
           <Box display="flex" gap={1} alignItems="center">
             {viewSwitcher}
-            <ToggleButtonGroup value="fake" exclusive>
+            {/* A plain row of actions: this was a ToggleButtonGroup used as a frame,
+                which announced a group of choices that never existed. */}
+            <Box sx={{
+              display: 'flex',
+              gap: 1,
+            }}
+            >
               <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
                 <ImportUploaderJsonApiComponent
                   title={t('Import a custom dashboard')}
                   uploadFn={importCustomDashboard}
                 />
               </Can>
-            </ToggleButtonGroup>
+            </Box>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.DASHBOARDS}>
               <CustomDashboardCreation />
             </Can>

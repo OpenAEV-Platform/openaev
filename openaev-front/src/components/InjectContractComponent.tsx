@@ -1,4 +1,13 @@
-import { Autocomplete, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { type FieldError } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
@@ -82,51 +91,49 @@ const InjectContractComponent: FunctionComponent<Props> = ({
   const [value, setValue] = useState<string | null | undefined>(fieldValue ?? '');
 
   return (
-    <Autocomplete
-      selectOnFocus
-      openOnFocus
-      autoHighlight
-      noOptionsText={t('No available options')}
-      getOptionLabel={option => tPick(option.injector_contract_labels)}
-      renderInput={
-        params => (
-          <TextField
-            {...params}
-            label={t(label)}
-            style={{ marginTop: 20 }}
-            variant="outlined"
-            size="small"
-            slotProps={{ inputLabel: { required: true } }}
-            error={!!error}
-            helperText={error?.message}
-          />
-        )
-      }
-      options={contracts}
-      value={contracts.find(i => i.injector_contract_id === value) ?? null}
-      onChange={(_event, injectorContract) => {
-        setValue(injectorContract?.injector_contract_id);
-        onChange(injectorContract?.injector_contract_id);
-      }}
-      onInputChange={(_, inputValue) => searchContract(inputValue)}
-      renderOption={(props, option) => (
-        <li {...props}>
-          <div className={classes.icon}>
-            <InjectIcon
-              type={
-                option.injector_contract_payload
-                  ? (option.injector_contract_payload?.payload_collector_type ?? option.injector_contract_payload?.payload_type)
-                  : option.injector_contract_injector_type
-              }
-              isPayload={isNotEmptyField(option.injector_contract_payload)}
-            />
-          </div>
-          <div className={classes.text}>
-            {tPick(option.injector_contract_labels)}
-          </div>
-        </li>
-      )}
-    />
+    <div style={{ marginTop: 20 }}>
+      <Combobox
+        openOnFocus
+        required
+        error={!!error}
+        options={contracts}
+        value={contracts.find(i => i.injector_contract_id === value) ?? null}
+        onValueChange={(injectorContract) => {
+          const next = injectorContract as typeof contracts[number] | null;
+          setValue(next?.injector_contract_id);
+          onChange(next?.injector_contract_id);
+        }}
+        onInputChange={inputValue => searchContract(inputValue)}
+        getOptionLabel={option => tPick(option.injector_contract_labels)}
+        renderOption={option => (
+          <>
+            <div className={classes.icon}>
+              <InjectIcon
+                type={
+                  option.injector_contract_payload
+                    ? (option.injector_contract_payload?.payload_collector_type ?? option.injector_contract_payload?.payload_type)
+                    : option.injector_contract_injector_type
+                }
+                isPayload={isNotEmptyField(option.injector_contract_payload)}
+              />
+            </div>
+            <div className={classes.text}>
+              {tPick(option.injector_contract_labels)}
+            </div>
+          </>
+        )}
+      >
+        <ComboboxLabel>{t(label)}</ComboboxLabel>
+        <ComboboxField>
+          <ComboboxInput />
+          <ComboboxControls>
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent emptyMessage={t('No available options')} />
+        {error?.message ? <ComboboxHelperText>{error.message}</ComboboxHelperText> : null}
+      </Combobox>
+    </div>
   );
 };
 

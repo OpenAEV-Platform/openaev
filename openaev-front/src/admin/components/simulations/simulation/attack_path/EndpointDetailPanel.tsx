@@ -1,5 +1,6 @@
+import { Paper, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { Close } from '@mui/icons-material';
-import { Alert, Box, Button, IconButton, MenuItem, Pagination, Paper, Select, Typography } from '@mui/material';
+import { Alert, Box, Button, IconButton, Pagination, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
@@ -43,17 +44,19 @@ const PageSizeSelect = ({ value, onChange }: {
   const { t } = useFormatter();
   return (
     <Select
-      size="small"
-      variant="standard"
-      value={value}
-      onChange={e => onChange(Number(e.target.value))}
-      sx={{ fontSize: 12 }}
+      value={String(value)}
+      onValueChange={next => onChange(Number(next))}
     >
-      {PAGE_SIZE_OPTIONS.map(size => (
-        <MenuItem key={size} value={size} sx={{ fontSize: 12 }}>
-          {t('{count} / page', { count: size })}
-        </MenuItem>
-      ))}
+      <SelectTrigger>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {PAGE_SIZE_OPTIONS.map(size => (
+          <SelectItem key={size} value={String(size)}>
+            {t('{count} / page', { count: size })}
+          </SelectItem>
+        ))}
+      </SelectContent>
     </Select>
   );
 };
@@ -129,8 +132,11 @@ const EndpointDetailPanel = ({
   const [findingsPageSize, setFindingsPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   return (
+    // `padding={0}`: the padding lives in the header and body rows below, which
+    // also carry the full-width divider between them — moving it up to the
+    // surface would pull that divider in (PAPER-GAP-INVENTORY §5.5).
     <Paper
-      variant="outlined"
+      padding={0}
       style={{
         flex: 1,
         minWidth: 0,

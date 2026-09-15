@@ -1,19 +1,17 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Close } from '@mui/icons-material';
-import { Chip, Drawer as DrawerMUI, IconButton, type PaperProps, Tooltip, Typography } from '@mui/material';
+import { Chip, Drawer as DrawerMUI, IconButton, type PaperProps, Typography } from '@mui/material';
 import { cloneElement, type CSSProperties, type FunctionComponent, type ReactElement, type ReactNode } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { computeBannerSettings } from '../../public/components/systembanners/utils';
 import { getSeverityAndColor } from '../../utils/Colors';
+import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../utils/fdsLayer';
 import useAuth from '../../utils/hooks/useAuth';
 
-// Byte-for-byte mirror of OpenCTI's Drawer surfaces (see opencti-front
-// src/private/components/common/drawer/Drawer.tsx):
-//  - the MUI Paper keeps `background.paper` + the elevation-1 overlay,
-//  - the header sits on `background.nav` (the darkest navy band),
-//  - the body container sits on `background.drawer` (the LIGHTER navy blue).
-// The body must be lighter than the header, exactly like OpenCTI - inheriting
-// `background.paper` on the body made it darker than the header before.
+// Same surfaces as the sibling product's Drawer: the paper is a layer-2 surface
+// (`layer-2` + the three input aliases, see utils/fdsLayer.ts), the header sits on
+// the heading token and the body on the default token of that layer.
 const useStyles = makeStyles()(theme => ({
   drawerPaperHalf: {
     minHeight: '100vh',
@@ -39,12 +37,10 @@ const useStyles = makeStyles()(theme => ({
       duration: theme.transitions.duration.enteringScreen,
     }),
   },
-  // Aligned with OpenCTI's DrawerHeader: title on the left, actions + close on
-  // the right, over the darkest `background.nav` band with a subtle separator.
+  // Title on the left, actions + close on the right, over the heading band.
   header: {
-    backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.nav,
+    backgroundColor: 'var(--bg-elevation-heading)',
     padding: theme.spacing(2, 3),
-    borderBottom: `1px solid ${theme.palette.divider}`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -52,8 +48,7 @@ const useStyles = makeStyles()(theme => ({
     flexShrink: 0,
   },
   headerFull: {
-    backgroundColor: theme.palette.mode === 'light' ? theme.palette.background.default : theme.palette.background.nav,
-    borderBottom: `1px solid ${theme.palette.divider}`,
+    backgroundColor: 'var(--bg-elevation-heading)',
     padding: theme.spacing(2, 3),
     display: 'flex',
     alignItems: 'center',
@@ -61,12 +56,12 @@ const useStyles = makeStyles()(theme => ({
     gap: theme.spacing(1),
     flexShrink: 0,
   },
-  // The scrollable body content: the lighter navy blue OpenCTI uses for drawers.
+  // The scrollable body content.
   // `flex: 1` makes it fill the paper height BELOW the header without adding the
   // header's height on top of a `100%` min-height (which produced a phantom
   // scrollbar that scrolled by exactly the header height).
   container: {
-    backgroundColor: theme.palette.background.drawer,
+    backgroundColor: 'var(--bg-elevation-default)',
     flex: 1,
     padding: '10px 20px 20px 20px',
   },
@@ -129,11 +124,12 @@ const Drawer: FunctionComponent<DrawerProps> = ({
         // gap above it.
         'zIndex': 1202,
         '& .MuiDrawer-paper': {
+          ...layerInputVars,
           top: bannerHeightNumber,
           minHeight: `calc(100vh - ${bannerHeightNumber}px)`,
         },
       }}
-      classes={{ paper: variant === 'full' ? classes.drawerPaperFull : classes.drawerPaperHalf }}
+      classes={{ paper: `fds-drawer-surface ${fdsLayerClass(SURFACE_LAYER)} ${variant === 'full' ? classes.drawerPaperFull : classes.drawerPaperHalf}` }}
       onClose={handleClose}
       PaperProps={PaperProps}
       ModalProps={{ disableEnforceFocus }}
@@ -144,18 +140,21 @@ const Drawer: FunctionComponent<DrawerProps> = ({
       slotProps={{ transition: { appear: true } }}
     >
       <div className={variant === 'full' ? classes.headerFull : classes.header}>
-        <Tooltip title={title}>
-          <Typography
-            variant="h5"
-            noWrap
-            sx={{
-              flex: 1,
-              minWidth: 0,
-              margin: 0,
-            }}
-          >
-            {title}
-          </Typography>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Typography
+              variant="h5"
+              noWrap
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                margin: 0,
+              }}
+            >
+              {title}
+            </Typography>
+          </TooltipTrigger>
+          {title && <TooltipContent>{title}</TooltipContent>}
         </Tooltip>
         <div style={{
           display: 'flex',

@@ -1,4 +1,5 @@
 import { Clear } from '@mui/icons-material';
+// fds:keep-mui the AI assistant field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
 import {
   Box,
   Button,

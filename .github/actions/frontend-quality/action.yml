@@ -3,6 +3,11 @@ description: >
   Run TypeScript checks, ESLint, i18n validation, and Vitest unit tests.
   Uploads coverage report as an artifact.
 
+inputs:
+  fds-git-token:
+    description: "PAT with read access to XTM-Foundation/filigran-design-system (secrets.FDS_GIT_TOKEN)."
+    required: true
+
 runs:
   using: composite
   steps:
@@ -25,6 +30,9 @@ runs:
         key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-yarn-
+    - uses: ./.github/actions/setup-fds-auth
+      with:
+        token: ${{ inputs.fds-git-token }}
     - name: Install dependencies
       run: yarn install --immutable
       shell: bash

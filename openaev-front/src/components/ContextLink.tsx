@@ -1,4 +1,5 @@
-import { Chip, Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip } from '@mui/material';
 import { type FunctionComponent, type ReactElement } from 'react';
 import { Link } from 'react-router';
 
@@ -30,26 +31,29 @@ const ContextLink: FunctionComponent<Props> = ({
   variant = 'list',
 }) => {
   return (
-    <Tooltip title={title}>
-      <Chip
-        variant="outlined"
-        clickable
-        component={Link}
-        to={url}
-        icon={icon}
-        label={truncate(title, 30)}
-        sx={{
-          'fontSize': 12,
-          'height': variant === 'field' ? 25 : 20,
-          'borderRadius': 1,
-          'maxWidth': '100%',
-          '& .MuiChip-icon': { fontSize: '1rem' },
-          '&:hover': {
-            borderColor: 'primary.main',
-            color: 'primary.main',
-          },
-        }}
-      />
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Chip
+          variant="outlined"
+          clickable
+          component={Link}
+          to={url}
+          icon={icon}
+          label={truncate(title, 30)}
+          sx={{
+            'fontSize': 12,
+            'height': variant === 'field' ? 25 : 20,
+            'borderRadius': 1,
+            'maxWidth': '100%',
+            '& .MuiChip-icon': { fontSize: '1rem' },
+            '&:hover': {
+              borderColor: 'primary.main',
+              color: 'primary.main',
+            },
+          }}
+        />
+      </TooltipTrigger>
+      {title && <TooltipContent>{title}</TooltipContent>}
     </Tooltip>
   );
 };

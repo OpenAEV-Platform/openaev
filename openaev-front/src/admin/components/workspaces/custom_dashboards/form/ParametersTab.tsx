@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, DeleteOutlined } from '@mui/icons-material';
-import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, IconButton, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
@@ -33,6 +34,7 @@ const ParametersTab = () => {
       <div style={{
         display: 'flex',
         alignItems: 'center',
+        gap: theme.spacing(0.5),
       }}
       >
         <Typography variant="h3" sx={{ m: 0 }}>
@@ -54,7 +56,8 @@ const ParametersTab = () => {
               key={field.id}
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                // Labels sit above the fields: the row aligns on the inputs, not on the blocks' centre.
+                alignItems: 'flex-end',
                 gap: theme.spacing(2),
               }}
             >
@@ -62,7 +65,6 @@ const ParametersTab = () => {
                 <TextFieldController
                   name={`custom_dashboard_parameters.${index}.custom_dashboards_parameter_name`}
                   label={t('Parameter Name')}
-                  variant="standard"
                   required
                   noHelperText
                 />
@@ -71,11 +73,18 @@ const ParametersTab = () => {
                   label={t('Parameter Type')}
                   items={items}
                   required
+                  // The field shrank to its trigger's content — 100px — while the
+                  // label needs 107px of text and wrapped onto a second line.
+                  // Measured at the real render, in the widest locale on screen.
+                  style={{ minWidth: 160 }}
                 />
-                <Tooltip title={t('Delete')}>
-                  <IconButton color="error" onClick={() => remove(index)}>
-                    <DeleteOutlined fontSize="small" />
-                  </IconButton>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <IconButton aria-label={t('Delete')} color="error" onClick={() => remove(index)}>
+                      <DeleteOutlined fontSize="small" />
+                    </IconButton>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Delete')}</TooltipContent>
                 </Tooltip>
               </>
 

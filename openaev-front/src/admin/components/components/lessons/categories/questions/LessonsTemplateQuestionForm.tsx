@@ -51,7 +51,7 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
   });
 
   return (
-    <form id="lessonsTemplateQuestionForm" onSubmit={handleSubmit(onSubmit)}>
+    <form noValidate id="lessonsTemplateQuestionForm" onSubmit={handleSubmit(onSubmit)}>
       <div style={{
         display: 'flex',
         flexDirection: 'column',
@@ -59,33 +59,27 @@ const LessonsTemplateQuestionForm: FunctionComponent<Props> = ({
       }}
       >
         <TextField
-          variant="standard"
-          fullWidth
+          required
           label={t('Content')}
           error={!!errors.lessons_template_question_content}
           helperText={errors.lessons_template_question_content?.message}
-          inputProps={register('lessons_template_question_content')}
-          InputLabelProps={{ required: true }}
+          {...register('lessons_template_question_content')}
           control={control}
         />
         <TextField
-          variant="standard"
-          fullWidth
           label={t('Explanation')}
           error={!!errors.lessons_template_question_explanation}
           helperText={errors.lessons_template_question_explanation?.message}
-          inputProps={register('lessons_template_question_explanation')}
+          {...register('lessons_template_question_explanation')}
           control={control}
         />
         <TextField
-          variant="standard"
-          fullWidth
+          required
           label={t('Order')}
           error={!!errors.lessons_template_question_order}
           helperText={errors.lessons_template_question_order?.message}
-          inputProps={register('lessons_template_question_order')}
+          {...register('lessons_template_question_order')}
           type="number"
-          InputLabelProps={{ required: true }}
           control={control}
         />
       </div>

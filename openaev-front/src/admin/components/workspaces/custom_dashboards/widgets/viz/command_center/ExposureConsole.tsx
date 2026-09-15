@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined } from '@mui/icons-material';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type KeyboardEvent, memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 
@@ -414,54 +415,57 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
         </svg>
       </Box>
 
-      <Tooltip title={t('Exposure score {score} / 100 - click to understand how it is computed', { score: Math.round(score) })}>
-        <Box
-          className="noDrag"
-          onClick={() => setExplainOpen(true)}
-          {...explainA11yProps}
-          sx={{
-            'display': 'inline-flex',
-            'alignItems': 'center',
-            'gap': 0.75,
-            'paddingInline': 1,
-            'height': 22,
-            'borderRadius': 999,
-            'cursor': 'pointer',
-            'border': `1px solid ${alpha(color, 0.3)}`,
-            'background': alpha(color, 0.1),
-            'transition': 'background-color 0.15s ease',
-            '&:hover': { background: alpha(color, 0.2) },
-          }}
-        >
-          <Box sx={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: color,
-            boxShadow: `0 0 6px ${color}`,
-          }}
-          />
-          <Typography sx={{
-            fontSize: 10,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color,
-          }}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Box
+            className="noDrag"
+            onClick={() => setExplainOpen(true)}
+            {...explainA11yProps}
+            sx={{
+              'display': 'inline-flex',
+              'alignItems': 'center',
+              'gap': 0.75,
+              'paddingInline': 1,
+              'height': 22,
+              'borderRadius': 999,
+              'cursor': 'pointer',
+              'border': `1px solid ${alpha(color, 0.3)}`,
+              'background': alpha(color, 0.1),
+              'transition': 'background-color 0.15s ease',
+              '&:hover': { background: alpha(color, 0.2) },
+            }}
           >
-            {band.label}
-          </Typography>
-          <Typography sx={{
-            fontSize: 10,
-            color: 'text.secondary',
-          }}
-          >
-            {(() => {
-              if (gaps === 0 && validations === 0) return t('No validations yet');
-              if (gaps === 0) return t('All controls holding');
-              return t('{count} gaps to remediate', { count: compactNumber(gaps) });
-            })()}
-          </Typography>
-        </Box>
+            <Box sx={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: color,
+              boxShadow: `0 0 6px ${color}`,
+            }}
+            />
+            <Typography sx={{
+              fontSize: 10,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color,
+            }}
+            >
+              {band.label}
+            </Typography>
+            <Typography sx={{
+              fontSize: 10,
+              color: 'text.secondary',
+            }}
+            >
+              {(() => {
+                if (gaps === 0 && validations === 0) return t('No validations yet');
+                if (gaps === 0) return t('All controls holding');
+                return t('{count} gaps to remediate', { count: compactNumber(gaps) });
+              })()}
+            </Typography>
+          </Box>
+        </TooltipTrigger>
+        <TooltipContent>{t('Exposure score {score} / 100 - click to understand how it is computed', { score: Math.round(score) })}</TooltipContent>
       </Tooltip>
 
       <Dialog
@@ -585,30 +589,34 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
                         })}
                       </Typography>
                     </Box>
-                    <Tooltip title={t('{stopped} stopped - {breached} breached', {
-                      stopped: p.success.toLocaleString(),
-                      breached: p.failed.toLocaleString(),
-                    })}
-                    >
-                      <Box sx={{
-                        display: 'flex',
-                        height: 8,
-                        borderRadius: 999,
-                        overflow: 'hidden',
-                        background: theme.palette.action.hover,
-                      }}
-                      >
+                    <Tooltip>
+                      <TooltipTrigger asChild>
                         <Box sx={{
-                          width: `${100 - breachPct}%`,
-                          background: theme.palette.success.main,
+                          display: 'flex',
+                          height: 8,
+                          borderRadius: 999,
+                          overflow: 'hidden',
+                          background: theme.palette.action.hover,
                         }}
-                        />
-                        <Box sx={{
-                          width: `${breachPct}%`,
-                          background: theme.palette.error.main,
-                        }}
-                        />
-                      </Box>
+                        >
+                          <Box sx={{
+                            width: `${100 - breachPct}%`,
+                            background: theme.palette.success.main,
+                          }}
+                          />
+                          <Box sx={{
+                            width: `${breachPct}%`,
+                            background: theme.palette.error.main,
+                          }}
+                          />
+                        </Box>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {t('{stopped} stopped - {breached} breached', {
+                          stopped: p.success.toLocaleString(),
+                          breached: p.failed.toLocaleString(),
+                        })}
+                      </TooltipContent>
                     </Tooltip>
                   </Box>
                 );

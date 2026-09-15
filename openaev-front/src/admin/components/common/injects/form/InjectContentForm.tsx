@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { HelpOutlineOutlined, RotateLeftOutlined } from '@mui/icons-material';
-import { Button, IconButton, InputLabel, Tooltip } from '@mui/material';
+import { Button, IconButton, InputLabel } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useContext, useState } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
@@ -252,18 +253,21 @@ const InjectContentForm = ({
       title: t('Inject data'),
       helper: t('The content and targets specific to this inject.'),
       titleAdornment: canResetDefaults && (
-        <Tooltip title={t('Reset to default values')}>
-          <span>
-            <IconButton
-              color="primary"
-              disabled={enhancedFieldsMapByType.get('expectation')?.readOnly || readOnly}
-              onClick={resetDefaultValue}
-              size="small"
-              sx={{ borderRadius: 1 }}
-            >
-              <RotateLeftOutlined fontSize="small" />
-            </IconButton>
-          </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <IconButton
+                color="primary"
+                disabled={enhancedFieldsMapByType.get('expectation')?.readOnly || readOnly}
+                onClick={resetDefaultValue}
+                size="small"
+                sx={{ borderRadius: 1 }}
+              >
+                <RotateLeftOutlined fontSize="small" />
+              </IconButton>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{t('Reset to default values')}</TooltipContent>
         </Tooltip>
       ),
       action: (

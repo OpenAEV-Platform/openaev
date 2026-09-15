@@ -1,19 +1,8 @@
+import { Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import { DeleteOutline, DragHandleOutlined, InfoOutlined } from '@mui/icons-material';
-import {
-  Box,
-  FormControl,
-  FormHelperText,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
-  type SelectChangeEvent,
-  Switch,
-  TextField,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+// fds:keep-mui the event condition value field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
+import { Box, IconButton, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo } from 'react';
 
@@ -101,8 +90,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
     );
   };
 
-  const handleFieldChange = (e: SelectChangeEvent<ConditionKeyType>) => {
-    const newField = e.target.value;
+  const handleFieldChange = (newField: ConditionKeyType) => {
     // The new field may not support the current operator (e.g. "greater than" on a text field)
     const newOperator = resolveOperator(newField, condition.operator);
     onUpdate({
@@ -114,8 +102,7 @@ const EventConditionRow: FunctionComponent<Props> = ({
     });
   };
 
-  const handleOperatorChange = (e: SelectChangeEvent<ComparisonOperator>) => {
-    const newOp = e.target.value;
+  const handleOperatorChange = (newOp: ComparisonOperator) => {
     onUpdate({
       ...condition,
       operator: newOp,
@@ -179,75 +166,74 @@ const EventConditionRow: FunctionComponent<Props> = ({
       </span>
 
       {/* Field to check */}
-      <FormControl size="small" sx={{ minWidth: 140 }}>
-        <InputLabel>{t('Field to Check')}</InputLabel>
-        <Select<ConditionKeyType>
-          label={t('Field to Check')}
+      <div style={{ minWidth: 140 }}>
+        <Select
           value={condition.field}
-          onChange={handleFieldChange}
+          onValueChange={value => handleFieldChange(value as ConditionKeyType)}
           disabled={readOnly || isArgumentTypesUnavailable}
-          renderValue={val => formatConditionKeyLabel(val)}
+          // The library declares `error` once on the root and propagates it by
+          // context; main's `<FormHelperText error>` said the same thing locally.
+          error={!isLoadingArgumentTypes && !!argumentTypesError}
         >
+          <SelectLabel>{t('Field to Check')}</SelectLabel>
+          <SelectTrigger style={{ minWidth: 140 }}>
+            <span>{formatConditionKeyLabel(condition.field)}</span>
+          </SelectTrigger>
+          <SelectContent>
+            {!isLoadingArgumentTypes && !argumentTypesError && conditionKeyTypes.map((key) => {
+              const keyProviders = providers[key] ?? [];
+              return (
+                <SelectItem
+                  key={key}
+                  value={key}
+                >
+                  <span style={{ flex: 1 }}>{formatConditionKeyLabel(key)}</span>
+                  {keyProviders.length > 0 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoOutlined sx={{
+                          fontSize: 16,
+                          color: 'info.main',
+                          flexShrink: 0,
+                        }}
+                        />
+                      </TooltipTrigger>
+                      {buildProviderTooltip(key) && <TooltipContent side="right">{buildProviderTooltip(key)}</TooltipContent>}
+                    </Tooltip>
+                  )}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
           {isLoadingArgumentTypes && (
-            <MenuItem disabled>{t('Loading argument types...')}</MenuItem>
+            <SelectHelperText>{t('Loading argument types...')}</SelectHelperText>
           )}
           {!isLoadingArgumentTypes && argumentTypesError && (
-            <MenuItem disabled>{t('Failed to load argument types')}</MenuItem>
+            <SelectHelperText>{t('Failed to load argument types')}</SelectHelperText>
           )}
-          {!isLoadingArgumentTypes && !argumentTypesError && conditionKeyTypes.map((key) => {
-            const keyProviders = providers[key] ?? [];
-            return (
-              <MenuItem
-                key={key}
-                value={key}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                }}
-              >
-                <span style={{ flex: 1 }}>{formatConditionKeyLabel(key)}</span>
-                {keyProviders.length > 0 && (
-                  <Tooltip
-                    title={buildProviderTooltip(key)}
-                    placement="right"
-                  >
-                    <InfoOutlined sx={{
-                      fontSize: 16,
-                      color: 'info.main',
-                      flexShrink: 0,
-                    }}
-                    />
-                  </Tooltip>
-                )}
-              </MenuItem>
-            );
-          })}
         </Select>
-        {isLoadingArgumentTypes && (
-          <FormHelperText sx={floatingHelperTextSx}>{t('Loading argument types...')}</FormHelperText>
-        )}
-        {!isLoadingArgumentTypes && argumentTypesError && (
-          <FormHelperText error sx={floatingHelperTextSx}>{t('Failed to load argument types')}</FormHelperText>
-        )}
-      </FormControl>
+      </div>
 
       {/* Operator */}
-      <FormControl size="small" sx={{ minWidth: 130 }}>
-        <InputLabel>{t('Operator')}</InputLabel>
-        <Select<ComparisonOperator>
-          label={t('Operator')}
+      <div style={{ minWidth: 130 }}>
+        <Select
           value={condition.operator}
-          onChange={handleOperatorChange}
+          onValueChange={value => handleOperatorChange(value as ComparisonOperator)}
           disabled={readOnly}
         >
-          {operatorOptions.map(op => (
-            <MenuItem key={op} value={op}>
-              {t(OPERATOR_LABELS[op])}
-            </MenuItem>
-          ))}
+          <SelectLabel>{t('Operator')}</SelectLabel>
+          <SelectTrigger style={{ minWidth: 130 }}>
+            <SelectValue placeholder={t('Operator')} />
+          </SelectTrigger>
+          <SelectContent>
+            {operatorOptions.map(op => (
+              <SelectItem key={op} value={op}>
+                {t(OPERATOR_LABELS[op])}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
-      </FormControl>
+      </div>
 
       {/* Expected value */}
       {showValue && (
@@ -276,30 +262,35 @@ const EventConditionRow: FunctionComponent<Props> = ({
       }}
       >
         {showCaseSensitive && (
-          <Tooltip title={condition.caseSensitive ? t('Case-sensitive') : t('Case-insensitive')}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-            }}
-            >
-              <Switch
-                size="small"
-                checked={condition.caseSensitive}
-                onChange={handleCaseSensitiveToggle}
-                color="primary"
-                disabled={readOnly}
-              />
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                }}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+              }}
               >
-                {t('Aa')}
-              </Typography>
-            </div>
+                {/* The visible "Aa" is a caption beside the control, and the
+                  tooltip text follows the state — neither can be the name, so
+                  the switch carries a stable one of its own. */}
+                <Switch
+                  aria-label={t('Case-sensitive')}
+                  checked={condition.caseSensitive}
+                  onCheckedChange={handleCaseSensitiveToggle}
+                  disabled={readOnly}
+                />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {t('Aa')}
+                </Typography>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>{condition.caseSensitive ? t('Case-sensitive') : t('Case-insensitive')}</TooltipContent>
           </Tooltip>
         )}
 

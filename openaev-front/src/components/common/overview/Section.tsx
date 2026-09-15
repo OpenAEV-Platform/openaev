@@ -1,3 +1,4 @@
+import { Paper } from '@filigran/design-system';
 import { ExpandLessOutlined, ExpandMoreOutlined } from '@mui/icons-material';
 import { Box, Button, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -32,15 +33,11 @@ const Section: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   return (
-    <Box
-      component="section"
+    <Paper
+      as="section"
       id={id}
-      sx={{
-        border: `1px solid ${theme.palette.divider}`,
-        borderRadius: 1,
-        backgroundColor: alpha(theme.palette.background.paper, 0.5),
-        overflow: 'hidden',
-      }}
+      padding={0}
+      style={{ overflow: 'hidden' }}
     >
       <Box sx={{
         display: 'flex',
@@ -95,7 +92,7 @@ const Section: FunctionComponent<Props> = ({
           {children}
         </Box>
       )}
-    </Box>
+    </Paper>
   );
 };
 

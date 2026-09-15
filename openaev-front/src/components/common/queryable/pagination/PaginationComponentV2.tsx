@@ -24,6 +24,8 @@ const useStyles = makeStyles<{ topPagination?: boolean }>()((theme, props) => ({
   topbar: {
     display: 'flex',
     alignItems: 'center',
+    // The pagination control and the action buttons are two groups: 8px between them.
+    gap: theme.spacing(1),
     // The primary actions (pagination + create button) must never be the part
     // that gives way when the toolbar runs out of width (#7340): the filter
     // row on the left is the one that compresses.
@@ -31,7 +33,6 @@ const useStyles = makeStyles<{ topPagination?: boolean }>()((theme, props) => ({
   },
   topPagination: { display: 'block' },
   parameters: {
-    marginTop: -10,
     display: props.topPagination ? 'block' : 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',

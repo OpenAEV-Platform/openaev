@@ -1,8 +1,26 @@
-import { Autocomplete, MenuItem, TextField } from '@mui/material';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+  Select,
+  SelectContent,
+  SelectHelperText,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
+import { Box } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { type Control, Controller, useFormContext, type UseFormSetValue, useWatch } from 'react-hook-form';
 
 import { engineSchemas } from '../../../../../../../actions/schema/schema-action';
+import TextFieldFds from '../../../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../../../components/i18n';
 import { type PropertySchemaDTO, type Widget } from '../../../../../../../utils/api-types';
 import { type WidgetInputWithoutLayout } from '../../../../../../../utils/api-types-custom';
@@ -149,21 +167,24 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
             control={control}
             name="widget_config.mode"
             render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                select
-                variant="standard"
-                fullWidth
-                label={t('Mode')}
-                sx={{ mt: 2 }}
-                value={field.value ?? ''}
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message}
-                onChange={e => setModeAndConfigType(e.target.value)}
-                required
-              >
-                {availableModes.map(mode => <MenuItem key={mode} value={mode}>{t(mode)}</MenuItem>)}
-              </TextField>
+              <div style={{ marginTop: 16 }}>
+                <Select
+                  value={field.value ?? ''}
+                  onValueChange={setModeAndConfigType}
+                  error={!!fieldState.error}
+                  required
+                  name={field.name}
+                >
+                  <SelectLabel required>{t('Mode')}</SelectLabel>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={t('Mode')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableModes.map(mode => <SelectItem key={mode} value={mode}>{t(mode)}</SelectItem>)}
+                  </SelectContent>
+                  {fieldState.error?.message ? <SelectHelperText>{fieldState.error?.message}</SelectHelperText> : null}
+                </Select>
+              </div>
             )}
           />
         )}
@@ -173,13 +194,11 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
           name="widget_config.limit"
           defaultValue={10}
           render={({ field, fieldState }) => (
-            <TextField
+            <TextFieldFds
               {...field}
-              variant="standard"
-              fullWidth
               type="number"
               label={t('Number of results')}
-              sx={{ mt: 2 }}
+              style={{ marginTop: 16 }}
               value={field.value}
               onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
               error={!!fieldState.error}
@@ -196,27 +215,28 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
             name={mode === 'temporal' ? 'widget_config.date_attribute' : 'widget_config.field'}
             render={({ field, fieldState }) => {
               return (
-                <Autocomplete
-                  options={fieldOptions}
-                  groupBy={option => option.group}
-                  value={fieldOptions.find(o => o.id === field.value) ?? null}
-                  onChange={(_, value) => field.onChange(value?.id)}
-                  getOptionLabel={option => option.label ?? ''}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  renderInput={params => (
-                    <TextField
-                      {...params}
-                      label={mode === 'temporal' ? t('Date attribute') : t('Breakdown by')}
-                      variant="standard"
-                      fullWidth
-                      sx={{ mt: 2 }}
-                      error={!!fieldState.error}
-                      helperText={fieldState.error?.message}
-                      required
-                    />
-                  )}
-                  freeSolo={false}
-                />
+                <Box sx={{ mt: 2 }}>
+                  <Combobox
+                    options={fieldOptions}
+                    groupBy={option => option.group}
+                    value={fieldOptions.find(o => o.id === field.value) ?? null}
+                    onValueChange={value => field.onChange((value as { id: string } | null)?.id)}
+                    getOptionLabel={option => option.label ?? ''}
+                    isOptionEqualToValue={(option, value) => option.id === value.id}
+                    required
+                    error={!!fieldState.error}
+                  >
+                    <ComboboxLabel>{mode === 'temporal' ? t('Date attribute') : t('Breakdown by')}</ComboboxLabel>
+                    <ComboboxField>
+                      <ComboboxInput />
+                      <ComboboxControls>
+                        <ComboboxTrigger />
+                      </ComboboxControls>
+                    </ComboboxField>
+                    <ComboboxContent />
+                    {fieldState.error?.message ? <ComboboxHelperText>{fieldState.error.message}</ComboboxHelperText> : null}
+                  </Combobox>
+                </Box>
               );
             }}
           />
@@ -226,25 +246,28 @@ const HistogramParameters = ({ widgetType, control, setValue }: Props) => {
           control={control}
           name="widget_config.interval"
           render={({ field, fieldState }) => (
-            <TextField
-              {...field}
-              select
-              variant="standard"
-              fullWidth
-              label={t('Interval')}
-              sx={{ mt: 2 }}
-              value={field.value ?? ''}
-              onChange={e => field.onChange(e.target.value)}
-              error={!!fieldState.error}
-              helperText={fieldState.error?.message}
-              required
-            >
-              <MenuItem value="day">{t('Day')}</MenuItem>
-              <MenuItem value="week">{t('Week')}</MenuItem>
-              <MenuItem value="month">{t('Month')}</MenuItem>
-              <MenuItem value="quarter">{t('Quarter')}</MenuItem>
-              <MenuItem value="year">{t('Year')}</MenuItem>
-            </TextField>
+            <div style={{ marginTop: 16 }}>
+              <Select
+                value={field.value ?? ''}
+                onValueChange={field.onChange}
+                error={!!fieldState.error}
+                required
+                name={field.name}
+              >
+                <SelectLabel required>{t('Interval')}</SelectLabel>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t('Interval')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="day">{t('Day')}</SelectItem>
+                  <SelectItem value="week">{t('Week')}</SelectItem>
+                  <SelectItem value="month">{t('Month')}</SelectItem>
+                  <SelectItem value="quarter">{t('Quarter')}</SelectItem>
+                  <SelectItem value="year">{t('Year')}</SelectItem>
+                </SelectContent>
+                {fieldState.error?.message ? <SelectHelperText>{fieldState.error?.message}</SelectHelperText> : null}
+              </Select>
+            </div>
           )}
         />
       )}

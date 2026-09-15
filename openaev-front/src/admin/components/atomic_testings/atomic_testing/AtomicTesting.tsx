@@ -1,4 +1,5 @@
-import { Box, Grid, Paper, Tab, Tabs } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { Box, Grid, Tab, Tabs } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type SyntheticEvent, useContext, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -24,10 +25,6 @@ const useStyles = makeStyles()({
     textTransform: 'uppercase',
     borderRadius: 4,
     width: 180,
-  },
-  paper: {
-    padding: 15,
-    borderRadius: 4,
   },
   dividerL: {
     position: 'absolute',
@@ -365,7 +362,7 @@ const AtomicTesting = () => {
         }}
       >
         <SectionLabel>{t('Targets')}</SectionLabel>
-        <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
+        <Paper padding={16} style={{ flex: 1 }}>
           {allTargetsChecked ? (
             <>
               <Tabs
@@ -419,7 +416,7 @@ const AtomicTesting = () => {
           </Box>
         )}
         {!selectedTarget && (
-          <Paper classes={{ root: classes.paper }} variant="outlined" sx={{ flex: 1 }}>
+          <Paper padding={16} style={{ flex: 1 }}>
             {/* While the target probes or the target page are still loading, no
                 target is selected yet: show the results skeleton instead of
                 flashing "No target data available." before the data lands. */}

@@ -1,87 +1,95 @@
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+  IconButton,
+} from '@filigran/design-system';
 import { AddOutlined } from '@mui/icons-material';
-import { Autocomplete as MuiAutocomplete, IconButton, TextField } from '@mui/material';
 import { Field } from 'react-final-form';
 
 const renderAutocomplete = ({
   label,
   placeholder,
-  input: { onChange, value, ...inputProps },
+  input: { onChange, value, onBlur, name },
   meta: { touched, invalid, error },
-  fullWidth,
   style,
   openCreate,
-  InputLabelProps,
-  ...others
+  options = [],
+  multiple = false,
+  freeSolo = false,
+  disableClearable = false,
+  disabled = false,
+  onKeyDown,
+  renderOption,
 }) => {
-  // react-final-form represents an empty field as '' while MUI expects null
-  // (single) or an array (multiple). Passing '' through used to be compensated
-  // by an isOptionEqualToValue that returned true for empty values, which made
-  // MUI mark EVERY option as selected when the field had no value.
+  // react-final-form represents an empty field as '' while the field expects
+  // null (single) or an array (multiple).
   let normalizedValue = value;
-  if (others.multiple) {
+  if (multiple) {
     normalizedValue = Array.isArray(value) ? value : [];
   } else if (value === '' || value === undefined) {
     normalizedValue = null;
   }
   return (
-    <div style={{ position: 'relative' }}>
-      <MuiAutocomplete
-        label={label}
+    <div style={style}>
+      <Combobox
+        multiple={multiple}
+        disabled={disabled}
+        options={options}
+        value={normalizedValue}
         selectOnFocus
-        autoHighlight
-        clearOnBlur={false}
-        clearOnEscape={false}
-        disableClearable
-        slotProps={{ paper: { elevation: 2 } }}
-        onInputChange={(_event, inputValue) => {
-          if (others.freeSolo) {
+        clearable={!disableClearable}
+        allowCustomValue={freeSolo}
+        createValueFromInput={freeSolo ? input => input : undefined}
+        getOptionLabel={option => (typeof option === 'string' ? option : option?.label ?? '')}
+        isOptionEqualToValue={(option, val) => option?.id === val?.id}
+        error={touched && invalid}
+        onInputChange={(inputValue, meta) => {
+          if (freeSolo && meta.cause === 'type') {
             onChange(inputValue);
           }
         }}
-        onChange={(_event, newValue) => {
+        onValueChange={(newValue) => {
           onChange(newValue);
         }}
-        {...inputProps}
-        value={normalizedValue}
-        {...others}
-        isOptionEqualToValue={(option, val) => option?.id === val?.id}
-        renderInput={params => (
-          <TextField
-            {...params}
-            InputLabelProps={InputLabelProps}
-            variant={others.variant || 'standard'}
-            label={label}
+        renderOption={renderOption}
+      >
+        <ComboboxLabel>{label}</ComboboxLabel>
+        <ComboboxField
+          adornment={typeof openCreate === 'function'
+            ? (
+                <IconButton
+                  size="sm"
+                  priority="tertiary"
+                  onClick={() => openCreate()}
+                  aria-label={label}
+                  icon={<AddOutlined fontSize="small" />}
+                />
+              )
+            : undefined}
+        >
+          {multiple && <ComboboxChips />}
+          <ComboboxInput
+            name={name}
             placeholder={placeholder}
-            fullWidth={fullWidth}
-            style={style}
-            error={touched && invalid}
-            helperText={touched && error}
-            InputProps={{
-              ...params.InputProps,
-              endAdornment: (
-                <>
-                  {
-                    typeof openCreate === 'function' && (
-                      <IconButton
-                        style={{
-                          position: 'absolute',
-                          // Clearable fields render the MUI clear icon just left of the
-                          // popup indicator, so the create button moves one slot further.
-                          right: others.disableClearable === false ? '65px' : '35px',
-                        }}
-                        onClick={() => openCreate()}
-                      >
-                        <AddOutlined />
-                      </IconButton>
-                    )
-                  }
-                  {params.InputProps.endAdornment}
-                </>
-              ),
-            }}
+            onBlur={onBlur}
+            onKeyDown={onKeyDown}
           />
-        )}
-      />
+          <ComboboxControls>
+            {!disableClearable && <ComboboxClear />}
+            <ComboboxTrigger />
+          </ComboboxControls>
+        </ComboboxField>
+        <ComboboxContent />
+        {touched && error ? <ComboboxHelperText>{error}</ComboboxHelperText> : null}
+      </Combobox>
     </div>
   );
 };

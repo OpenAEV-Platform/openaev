@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
@@ -136,7 +137,9 @@ const ability = { can: () => false } as unknown as AppAbility;
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <ThemeProvider theme={createTheme()}>
-    <AbilityContext.Provider value={ability}>{children}</AbilityContext.Provider>
+    <TooltipProvider>
+      <AbilityContext.Provider value={ability}>{children}</AbilityContext.Provider>
+    </TooltipProvider>
   </ThemeProvider>
 );
 
@@ -394,7 +397,7 @@ describe('SimulationAttackPath findings drawer + cross-focus', () => {
     expect(await screen.findByText(/Executions/)).toBeTruthy();
 
     // Toggle to the table view; the graph is replaced by the sortable endpoint table.
-    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
 
     // The single exposed endpoint (score 1) is listed with its friendly hostname and total findings,
     // and the CSV export action is available. The hostname appears twice on purpose here: the table
@@ -489,7 +492,7 @@ describe('SimulationAttackPath live delta updates', () => {
     // re-read. The only two snapshot reads are the seeds — collapsed, then the full projection the
     // causal overlay merges in (fetched even for a run absent from the summary list, which is how a
     // view opened before the first execution still gets its chain).
-    fireEvent.click(screen.getByRole('button', { name: 'Table' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
     expect(screen.getByText('CORP-OTHER')).toBeTruthy();
     expect(mocks.fetchAttackPathGraph.mock.calls.map(c => c[1])).toEqual(['collapsed', 'full']);
   });

@@ -1,3 +1,4 @@
+// fds:keep-mui the AI terms checkbox stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
 import { Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, Typography } from '@mui/material';
 import type React from 'react';
 import { useContext, useState } from 'react';

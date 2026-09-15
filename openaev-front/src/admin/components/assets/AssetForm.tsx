@@ -1,5 +1,15 @@
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxHelperText,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Autocomplete, Button, TextField } from '@mui/material';
+import { Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type SyntheticEvent } from 'react';
 import {
@@ -99,23 +109,32 @@ const CloudNativeTypeField: FunctionComponent = () => {
       name="asset_cloud_native_type"
       control={control}
       render={({ field, fieldState: { error } }) => (
-        <Autocomplete
-          freeSolo
+        <Combobox<string>
+          allowCustomValue
+          createValueFromInput={input => input}
           options={suggestions}
           value={field.value ?? ''}
-          onChange={(_, value) => field.onChange(value ?? '')}
-          onInputChange={(_, value) => field.onChange(value ?? '')}
-          renderInput={params => (
-            <TextField
-              {...params}
-              variant="standard"
-              required
-              label={t('Native type')}
-              error={!!error}
-              helperText={error ? error.message : t('e.g. ec2_instance, s3_bucket, lambda_function')}
-            />
-          )}
-        />
+          onValueChange={value => field.onChange((value as string | null) ?? '')}
+          onInputChange={(value, meta) => {
+            // MUI fed every keystroke straight into the form; the cause keeps a
+            // programmatic reset from doing the same.
+            if (meta.cause === 'type') field.onChange(value ?? '');
+          }}
+          required
+          error={!!error}
+        >
+          <ComboboxLabel>{t('Native type')}</ComboboxLabel>
+          <ComboboxField>
+            <ComboboxInput />
+            <ComboboxControls>
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+          <ComboboxHelperText>
+            {error ? error.message : t('e.g. ec2_instance, s3_bucket, lambda_function')}
+          </ComboboxHelperText>
+        </Combobox>
       )}
     />
   );
@@ -212,6 +231,7 @@ const AssetForm: FunctionComponent<Props> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="assetForm"
         style={{
           display: 'flex',
@@ -221,8 +241,8 @@ const AssetForm: FunctionComponent<Props> = ({
         }}
         onSubmit={handleSubmitWithoutPropagation}
       >
-        <TextFieldController variant="standard" required name="asset_name" label={t('Name')} />
-        <TextFieldController variant="standard" name="asset_description" label={t('Description')} multiline rows={2} />
+        <TextFieldController required name="asset_name" label={t('Name')} />
+        <TextFieldController name="asset_description" label={t('Description')} multiline rows={2} />
 
         {subcategoryItems.length > 0 && (
           <SelectFieldController
@@ -250,11 +270,11 @@ const AssetForm: FunctionComponent<Props> = ({
         )}
 
         {showHostname && (
-          <TextFieldController variant="standard" name="asset_hostname" label={t('Hostname')} />
+          <TextFieldController name="asset_hostname" label={t('Hostname')} />
         )}
 
         {def.fields.url !== 'hidden' && (
-          <TextFieldController variant="standard" name="asset_url" label={t('URL')} required={def.fields.url === 'required'} />
+          <TextFieldController name="asset_url" label={t('URL')} required={def.fields.url === 'required'} />
         )}
 
         {def.fields.cloud && (
@@ -274,10 +294,10 @@ const AssetForm: FunctionComponent<Props> = ({
               gap: theme.spacing(2),
             }}
             >
-              <TextFieldController variant="standard" name="asset_cloud_region" label={t('Region')} />
-              <TextFieldController variant="standard" name="asset_metadata.cloud_account_id" label={t('Account ID')} />
+              <TextFieldController name="asset_cloud_region" label={t('Region')} />
+              <TextFieldController name="asset_metadata.cloud_account_id" label={t('Account ID')} />
             </div>
-            <TextFieldController variant="standard" name="asset_metadata.cloud_resource_id" label={t('Resource ID / ARN')} />
+            <TextFieldController name="asset_metadata.cloud_resource_id" label={t('Resource ID / ARN')} />
           </>
         )}
 
@@ -306,7 +326,7 @@ const AssetForm: FunctionComponent<Props> = ({
         )}
 
         {def.fields.metadataFields.map(field => (
-          <TextFieldController key={field.key} variant="standard" name={`asset_metadata.${field.key}`} label={t(field.label)} />
+          <TextFieldController key={field.key} name={`asset_metadata.${field.key}`} label={t(field.label)} />
         ))}
 
         <SelectFieldController name="asset_criticality" label={t('Criticality')} items={criticalityItems} />

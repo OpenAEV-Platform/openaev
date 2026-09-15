@@ -341,6 +341,7 @@ const CredentialForm: FunctionComponent<Props> = ({
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="credentialForm"
         style={{
           display: 'flex',
@@ -350,7 +351,6 @@ const CredentialForm: FunctionComponent<Props> = ({
         onSubmit={handleSubmitWithoutPropagation}
       >
         <TextFieldController
-          variant="standard"
           name="credential_name"
           label={t('Name')}
           required
@@ -358,7 +358,6 @@ const CredentialForm: FunctionComponent<Props> = ({
         />
 
         <TextFieldController
-          variant="standard"
           name="credential_description"
           label={t('Description')}
           multiline

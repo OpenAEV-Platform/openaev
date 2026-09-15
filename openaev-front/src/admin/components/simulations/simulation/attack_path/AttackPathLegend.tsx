@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { Box, Divider, IconButton, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Divider, IconButton, Paper, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useRef, useState } from 'react';
 
@@ -189,17 +190,20 @@ const AttackPathLegend = ({ collapseSignal }: Props) => {
         }}
         >
           {verdictColors.map(c => (
-            <Tooltip key={c.label} title={c.label}>
-              <Box
-                component="span"
-                sx={{
-                  width: 12,
-                  height: 12,
-                  flex: '0 0 auto',
-                  borderRadius: '50%',
-                  background: c.color,
-                }}
-              />
+            <Tooltip key={c.label}>
+              <TooltipTrigger asChild>
+                <Box
+                  component="span"
+                  sx={{
+                    width: 12,
+                    height: 12,
+                    flex: '0 0 auto',
+                    borderRadius: '50%',
+                    background: c.color,
+                  }}
+                />
+              </TooltipTrigger>
+              {c.label && <TooltipContent>{c.label}</TooltipContent>}
             </Tooltip>
           ))}
         </Box>

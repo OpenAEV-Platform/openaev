@@ -5,11 +5,11 @@ class TopBarPage {
   }
 
   getAccountMenu() {
-    return this.page.getByLabel('account-menu');
+    return this.page.getByTestId('account-menu');
   }
 
   getLogoutEntryMenu() {
-    return this.page.getByLabel('logout-item');
+    return this.page.getByTestId('logout-item');
   }
 }
 

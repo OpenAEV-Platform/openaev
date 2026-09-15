@@ -1,8 +1,10 @@
+import { Paper } from '@filigran/design-system';
 import { OpenInNew } from '@mui/icons-material';
-import { Box, Button, Link as MUILink, Paper, Skeleton, Typography } from '@mui/material';
+import { Box, Button, Link as MUILink, Skeleton, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { makeStyles } from 'tss-react/mui';
 
 import { searchScenarios } from '../../../actions/scenarios/scenario-actions';
 import { buildFilter } from '../../../components/common/queryable/filter/FilterUtils';
@@ -21,25 +23,32 @@ import GettingStartedSectionHeader from './GettingStartedSectionHeader';
 // A starter-pack scenario rendered as a marketplace card: category + severity
 // header band, clamped title, expandable description, platforms / tags meta
 // row and the launch CTA.
+// The hover lives in a class rather than in `style`: a pseudo-selector cannot
+// be written inline, and a class adds no DOM level.
+const useStyles = makeStyles()(theme => ({
+  carte: {
+    'transition': 'transform 150ms ease, border-color 150ms ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      borderColor: alpha(theme.palette.primary.main, 0.45),
+    },
+  },
+}));
+
 const ScenarioCard = ({ scenario }: { scenario: Scenario }) => {
+  const { classes } = useStyles();
   const { t } = useFormatter();
   const theme = useTheme();
 
   return (
     <Paper
-      variant="outlined"
+      padding={0}
       data-testid="getting-started-scenario-card"
-      sx={{
-        'display': 'flex',
-        'flexDirection': 'column',
-        'borderRadius': 1,
-        'overflow': 'hidden',
-        'transition': 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
-        '&:hover': {
-          transform: 'translateY(-2px)',
-          borderColor: alpha(theme.palette.primary.main, 0.45),
-          boxShadow: `0 8px 24px ${alpha('#000000', 0.35)}`,
-        },
+      className={classes.carte}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
       <Box sx={{

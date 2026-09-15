@@ -1,4 +1,5 @@
-import { Chip, Tooltip } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Chip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { makeStyles } from 'tss-react/mui';
 
@@ -34,13 +35,16 @@ const AssetTypeFragment = (props: Props) => {
   // applications are persisted as endpoints - so it is used as a last-resort fallback only.
   const label = props.category ? t(humanizeEnum(props.category)) : props.type;
   return (
-    <Tooltip title={label}>
-      <Chip
-        variant="outlined"
-        className={classes.typeChip}
-        icon={<AssetCategoryIcon category={props.category} sx={{ fontSize: 14 }} />}
-        label={label}
-      />
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Chip
+          variant="outlined"
+          className={classes.typeChip}
+          icon={<AssetCategoryIcon category={props.category} sx={{ fontSize: 14 }} />}
+          label={label}
+        />
+      </TooltipTrigger>
+      {label && <TooltipContent>{label}</TooltipContent>}
     </Tooltip>
   );
 };

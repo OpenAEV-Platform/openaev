@@ -1,6 +1,6 @@
 import { SettingsOutlined } from '@mui/icons-material';
 
-import { type LeftMenuItem } from '../../../../components/common/menu/leftmenu/leftmenu-model';
+import { type NavMenuItem } from '../../../../components/common/menu/navbar/nav-menu-model';
 import { type AppAbility } from '../../../../utils/permissions/ability';
 import { ACTIONS, type Actions, SUBJECTS, type Subjects } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
@@ -67,7 +67,7 @@ export const canAccessTenantSettings = (ability: AppAbility): boolean => {
   return ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_SETTINGS);
 };
 
-const settingsEntries = (ability: AppAbility): LeftMenuItem[] => {
+const settingsEntries = (ability: AppAbility): NavMenuItem[] => {
   const hasTenantSettingsAccess = canAccessTenantSettings(ability);
   const canAccessTenantUsers = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
   const canAccessPlatformSettings = ability.can(ACTIONS.ACCESS, SUBJECTS.PLATFORM_SETTINGS);

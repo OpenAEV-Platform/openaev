@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, CropFreeOutlined, RemoveOutlined } from '@mui/icons-material';
-import { Box, Divider, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import { Box, Divider, IconButton, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Panel, useReactFlow } from '@xyflow/react';
 import { memo } from 'react';
@@ -41,48 +42,60 @@ const TimelineControlsComponent = ({ scaleIndex, onScaleChange, onMouseEnter, on
           boxShadow: `0 4px 14px ${alpha(theme.palette.common.black, 0.3)}`,
         }}
       >
-        <Tooltip title={t('Fit view')}>
-          <IconButton size="small" onClick={() => reactFlow.fitView({ duration: 500 })}>
-            <CropFreeOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton aria-label={t('Fit view')} size="small" onClick={() => reactFlow.fitView({ duration: 500 })}>
+              <CropFreeOutlined fontSize="small" />
+            </IconButton>
+          </TooltipTrigger>
+          <TooltipContent>{t('Fit view')}</TooltipContent>
         </Tooltip>
-        <Tooltip title={t('Zoom in')}>
-          <IconButton size="small" onClick={() => reactFlow.zoomIn({ duration: 200 })}>
-            <AddOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton aria-label={t('Zoom in')} size="small" onClick={() => reactFlow.zoomIn({ duration: 200 })}>
+              <AddOutlined fontSize="small" />
+            </IconButton>
+          </TooltipTrigger>
+          <TooltipContent>{t('Zoom in')}</TooltipContent>
         </Tooltip>
-        <Tooltip title={t('Zoom out')}>
-          <IconButton size="small" onClick={() => reactFlow.zoomOut({ duration: 200 })}>
-            <RemoveOutlined fontSize="small" />
-          </IconButton>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton aria-label={t('Zoom out')} size="small" onClick={() => reactFlow.zoomOut({ duration: 200 })}>
+              <RemoveOutlined fontSize="small" />
+            </IconButton>
+          </TooltipTrigger>
+          <TooltipContent>{t('Zoom out')}</TooltipContent>
         </Tooltip>
         <Divider orientation="vertical" flexItem sx={{ marginInline: 0.5 }} />
-        <Tooltip title={t('Time scale')}>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={scaleIndex}
-            sx={{
-              'height': 28,
-              '& .MuiToggleButton-root': {
-                paddingInline: 1,
-                fontSize: 11,
-                fontWeight: 600,
-                lineHeight: 1,
-              },
-            }}
-          >
-            {TIME_SCALES.map((scale, index) => (
-              <ToggleButton
-                key={scale.label}
-                value={index}
-                onClick={() => onScaleChange(index)}
-                aria-label={scale.label}
-              >
-                {scale.label}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={scaleIndex}
+              sx={{
+                'height': 28,
+                '& .MuiToggleButton-root': {
+                  paddingInline: 1,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  lineHeight: 1,
+                },
+              }}
+            >
+              {TIME_SCALES.map((scale, index) => (
+                <ToggleButton
+                  key={scale.label}
+                  value={index}
+                  onClick={() => onScaleChange(index)}
+                  aria-label={scale.label}
+                >
+                  {scale.label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </TooltipTrigger>
+          <TooltipContent>{t('Time scale')}</TooltipContent>
         </Tooltip>
       </Box>
     </Panel>

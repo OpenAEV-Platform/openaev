@@ -34,6 +34,7 @@ const ChallengeTryForm: FunctionComponent<Props> = ({ handleClose, onSubmit }) =
   return (
     <FormProvider {...methods}>
       <form
+        noValidate
         id="challengeForm"
         style={{
           display: 'flex',
@@ -44,7 +45,6 @@ const ChallengeTryForm: FunctionComponent<Props> = ({ handleClose, onSubmit }) =
         onSubmit={handleSubmit(onSubmit)}
       >
         <TextFieldController
-          variant="standard"
           required
           name="challenge_value"
           label={t('Flag')}

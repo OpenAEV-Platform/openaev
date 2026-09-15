@@ -1,24 +1,27 @@
 import { alpha, buttonClasses, darken, lighten, type ThemeOptions } from '@mui/material';
+// Type-only: declares the MUI X picker keys used in `components` below.
+import type {} from '@mui/x-date-pickers/themeAugmentation';
 
 import LogoCollapsed from '../static/images/logo_dark.png';
 import LogoText from '../static/images/logo_text_dark.png';
 import { hexToRGB } from '../utils/Colors';
 import { fileUri } from '../utils/Environment';
+import { FDS } from './fds-tokens.generated';
 import { FONT_FAMILY_CODE, INLINE_CONTROL_HEIGHT, type LabelColor, LabelColorDict } from './Theme';
 
 // Aligned with OpenCTI's dark theme (opencti-front/src/components/ThemeDark.ts):
 // same default palette, typography, and component overrides, so both platforms
 // share a single visual language. OpenAEV-specific tokens (labelChipMap,
 // xtmhub, widgets, background.code / paperInCard) are kept on top.
-const EE_COLOR = '#00f18d';
+const EE_COLOR = FDS.colors.dark['--color-filigran-tonic-primary'];
 
-export const THEME_DARK_DEFAULT_BACKGROUND = '#070d19';
-const THEME_DARK_DEFAULT_BODY_END_GRADIENT = '#08101D';
-const THEME_DARK_DEFAULT_PRIMARY = '#0fbcff';
-const THEME_DARK_DEFAULT_SECONDARY = '#00f18d';
-const THEME_DARK_DEFAULT_ACCENT = '#0f1e38';
-const THEME_DARK_DEFAULT_PAPER = '#09101e';
-const THEME_DARK_DEFAULT_NAV = '#070d19';
+export const THEME_DARK_DEFAULT_BACKGROUND = FDS.colors.dark['--bg-elevation-default-layer-0'];
+const THEME_DARK_DEFAULT_BODY_END_GRADIENT = FDS.colors.dark['--bg-elevation-default-layer-0-gradient'];
+const THEME_DARK_DEFAULT_PRIMARY = FDS.colors.dark['--color-filigran-brand-primary'];
+const THEME_DARK_DEFAULT_SECONDARY = EE_COLOR;
+const THEME_DARK_DEFAULT_ACCENT = FDS.colors.dark['--bg-elevation-default-layer-3'];
+const THEME_DARK_DEFAULT_PAPER = FDS.colors.dark['--bg-elevation-default-layer-1'];
+const THEME_DARK_DEFAULT_NAV = FDS.colors.dark['--bg-elevation-heading-layer-0'];
 const THEME_DARK_DEFAULT_TEXT = '#F2F2F3';
 export const THEME_DARK_DIALOG_BACKGROUND = '#0F1D34';
 
@@ -43,9 +46,8 @@ const ThemeDark = (
   logo: logo || fileUri(LogoText),
   logo_collapsed: logo_collapsed || fileUri(LogoCollapsed),
   borderRadius: 4,
-  // OpenCTI-aligned top bar height (68px): every toolbar spacer in the app
-  // follows it through theme.mixins.toolbar.
-  mixins: { toolbar: { minHeight: 68 } },
+  // Header height read from the library's own custom property, so the spacer cannot drift from the bar.
+  mixins: { toolbar: { minHeight: 'var(--fds-header-height, 68px)' } },
   palette: {
     mode: 'dark',
     common: {
@@ -72,10 +74,10 @@ const ThemeDark = (
     warning: { main: '#ffa726' },
     primary: {
       main: primary || THEME_DARK_DEFAULT_PRIMARY,
-      light: primary ? alpha(primary, 0.08) : '#B2ECFF',
+      light: primary ? alpha(primary, 0.08) : FDS.colors.dark['--color-filigran-brand-secondary'],
     },
     secondary: { main: secondary || THEME_DARK_DEFAULT_SECONDARY },
-    gradient: { main: '#00f18d' },
+    gradient: { main: EE_COLOR },
     border: {
       primary: hexToRGB(primary || THEME_DARK_DEFAULT_PRIMARY, 0.3),
       secondary: '#424751',
@@ -113,7 +115,7 @@ const ThemeDark = (
       background: hexToRGB(EE_COLOR, 0.2),
       lightBackground: hexToRGB(EE_COLOR, 0.08),
     },
-    xtmhub: { main: '#00f1bd' },
+    xtmhub: { main: EE_COLOR },
     background: {
       default: background || THEME_DARK_DEFAULT_BACKGROUND,
       paper: paper || THEME_DARK_DEFAULT_PAPER,
@@ -121,9 +123,10 @@ const ThemeDark = (
       accent: accent || THEME_DARK_DEFAULT_ACCENT,
       shadow: 'rgba(200, 200, 200, 0.15)',
       // the only way for now to know if we should apply the paper color or not
+      // fds-migration/TOKEN-MAPPING.md § D — token value, main's custom-paper behaviour kept.
       secondary: paper === THEME_DARK_DEFAULT_PAPER
-        ? '#0C1524'
-        : (paper ?? '#0C1524'),
+        ? FDS.colors.dark['--bg-elevation-highlight-layer-0']
+        : (paper ?? FDS.colors.dark['--bg-elevation-highlight-layer-0']),
       // Compare the RESOLVED nav (param is null when no custom theme is set), so
       // the default install gets the lighter '#0f1d34' drawer blue instead of
       // darken('#0f1d34', 0.5) - the latter made every drawer body near-black.
@@ -158,8 +161,8 @@ const ThemeDark = (
       medium: '#E1B823',
       low: '#16AD34',
       info: '#1565c0',
-      none: '#424242',
-      default: '#1C2F49',
+      none: FDS.colors.dark['--color-feedback-neutral-primary'],
+      default: FDS.colors.dark['--color-feedback-neutral-primary'],
     },
     designSystem: {
       primary: {
@@ -183,17 +186,33 @@ const ThemeDark = (
         dark: '#5E1AD5',
       },
       background: {
-        main: '#070D19',
-        bg1: '#0C1524',
-        bg2: '#0D182A',
-        bg3: '#253348',
-        bg4: '#1C2F49',
-        disabled: '#363B46',
+        main: THEME_DARK_DEFAULT_BACKGROUND,
+        // bg1-bg4/disabled: resolved in § 9 on the matching elevation layer (bgN → layer-(N-1);
+        // lib gap-fix lib#52). bg2 had a live consumer (the legacy LeftMenu.tsx separator) when
+        // this mapping was arbitrated; that menu is now the design system's Navbar, which owns its
+        // own separator colour, so bg2 has no consumer left. The delta was confirmed imperceptible
+        // either way, see § 9 proof table.
+        bg1: FDS.colors.dark['--bg-elevation-default-layer-0'],
+        bg2: FDS.colors.dark['--bg-elevation-default-layer-1'],
+        bg3: FDS.colors.dark['--bg-elevation-default-layer-2'],
+        bg4: FDS.colors.dark['--bg-elevation-default-layer-3'],
+        disabled: FDS.colors.dark['--bg-elevation-disabled'],
+      },
+      entities: {
+        allThreats: FDS.colors.dark['--color-entities-all-threats'],
+        analyses: FDS.colors.dark['--color-entities-analyses'],
+        arsenal: FDS.colors.dark['--color-entities-arsenal'],
+        cases: FDS.colors.dark['--color-entities-cases'],
+        events: FDS.colors.dark['--color-entities-events'],
+        location: FDS.colors.dark['--color-entities-location'],
+        observations: FDS.colors.dark['--color-entities-observations'],
+        techniques: FDS.colors.dark['--color-entities-techniques'],
+        victimology: FDS.colors.dark['--color-entities-victimology'],
       },
       border: {
-        main: '#2B3447',
-        border1: '#424751',
-        border2: '#1C253A',
+        main: FDS.colors.dark['--border-elevation-default'],
+        border1: FDS.colors.dark['--border-elevation-subtle'],
+        border2: FDS.colors.dark['--border-elevation-subtle'],
       },
       gradient: {
         background: 'linear-gradient(100.35deg, #070D19 0%, #08101d 100%)',
@@ -201,6 +220,11 @@ const ThemeDark = (
         focus: 'linear-gradient(90deg, #0FBCFF -3.68%, #00F1BD 106.62%)',
       },
       alert: {
+        neutral: {
+          primary: FDS.colors.dark['--color-feedback-neutral-primary'],
+          secondary: FDS.colors.dark['--color-feedback-neutral-secondary'],
+          secondaryTransparency30: FDS.colors.dark['--color-feedback-neutral-secondary-transparency-30'],
+        },
         info: {
           primary: '#4DCCFF',
           secondary: '#004C66',
@@ -223,6 +247,12 @@ const ThemeDark = (
           secondary: '#881106',
         },
       },
+      // fds-migration/TOKEN-MAPPING.md § 4 — grey/darkBlue/turquoise/green/red retokenized on scalar
+      // ramps (mode-invariant, hence FDS.scalars). blue.500/900: resolved in § 9 on
+      // --color-feedback-info-secondary-transparency-30 (mode-dependent color token, not a scalar —
+      // both keys collapse to the same semi-transparent value; ⚠ semantic change if ever consumed:
+      // was two distinct opaque colors, now one alpha overlay. 0 consumers confirmed, lib gap-fix
+      // lib#52).
       tertiary: {
         grey: {
           400: '#95969D',
@@ -230,8 +260,8 @@ const ThemeDark = (
           800: '#313235',
         },
         blue: {
-          500: '#0099CC',
-          900: '#003242',
+          500: FDS.colors.dark['--color-feedback-info-secondary-transparency-30'],
+          900: FDS.colors.dark['--color-feedback-info-secondary-transparency-30'],
         },
         darkBlue: {
           300: '#7587FF',
@@ -473,8 +503,69 @@ const ThemeDark = (
       defaultProps: { variant: 'standard' },
       styleOverrides: { root: { color: text_color } },
     },
+    MuiInputLabel: {
+      styleOverrides: {
+        outlined: {
+          // MUI centres the un-shrunk label for its own 56px box; ours is 36px, so
+          // its 16px put the label on the bottom edge. 8px centres it in 36px.
+          'transform': 'translate(12px, 8px) scale(1)',
+          '&.MuiInputLabel-shrink': { transform: 'translate(14px, -9px) scale(0.75)' },
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          // The custom property, not the static hex: an outlined field inside a
+          // drawer or popover must pick up that surface's own layer.
+          'backgroundColor': 'var(--bg-input-default)',
+          // Geometry borrowed from the library `Input`; paint only, no behaviour.
+          'borderRadius': 'var(--radius-sm)',
+          'minHeight': 36,
+          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-hover)' },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-focus)' },
+          '&.Mui-error .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-error)' },
+          // Transparent with a disabled border, as the library `Input` does.
+          '&.Mui-disabled': {
+            'backgroundColor': 'transparent',
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'var(--border-elevation-disabled)' },
+          },
+        },
+        // 8px lands the single-line row on the library's 36px height; MUI's own
+        // 16.5px makes a 54px row.
+        input: {
+          'padding': '8px 8px 8px 12px',
+          // The browser draws the clock and calendar glyphs of native date and time
+          // fields from the colour scheme, not from the text colour.
+          '&[type="time"], &[type="date"], &[type="datetime-local"]': { colorScheme: 'dark' },
+        },
+      },
+    },
+    // The date picker draws its own outlined input (MUI X), so the same paint as above.
+    MuiPickersOutlinedInput: {
+      styleOverrides: {
+        root: {
+          'backgroundColor': 'var(--bg-input-default)',
+          'borderRadius': 'var(--radius-sm)',
+          'minHeight': 36,
+          'padding': '0 8px 0 12px',
+          '& .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+          '&:hover .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-hover)' },
+          '&.Mui-focused .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-focus)' },
+          '&.Mui-error .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-input-error)' },
+          '&.Mui-disabled': {
+            'backgroundColor': 'transparent',
+            '& .MuiPickersOutlinedInput-notchedOutline': { borderColor: 'var(--border-elevation-disabled)' },
+          },
+        },
+        sectionsContainer: { padding: '8px 0' },
+      },
+    },
     MuiTextField: {
-      defaultProps: { variant: 'standard' },
+      // Every remaining MUI field is outlined, so it can carry the library
+      // field background.
+      defaultProps: { variant: 'outlined' },
       styleOverrides: {
         root: {
           'color': text_color,

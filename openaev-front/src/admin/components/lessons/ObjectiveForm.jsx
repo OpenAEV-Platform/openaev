@@ -35,24 +35,18 @@ class ObjectiveFormComponent extends Component {
         {({ handleSubmit, submitting, pristine }) => (
           <form id="objectiveForm" onSubmit={handleSubmit}>
             <OldTextField
-              variant="standard"
               name="objective_title"
-              fullWidth
               label={t('Title')}
             />
             <OldTextField
-              variant="standard"
               name="objective_description"
-              fullWidth
               multiline
               rows={2}
               label={t('Description')}
               style={{ marginTop: 20 }}
             />
             <OldTextField
-              variant="standard"
               name="objective_priority"
-              fullWidth
               label={t('Priority')}
               style={{ marginTop: 20 }}
               type="number"

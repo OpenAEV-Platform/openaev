@@ -27,24 +27,18 @@ class PasswordFormComponent extends Component {
         {({ handleSubmit, pristine, submitting }) => (
           <form id="passwordForm" onSubmit={handleSubmit}>
             <OldTextField
-              variant="standard"
               name="user_current_password"
-              fullWidth={true}
               type="password"
               label={t('Current password')}
             />
             <OldTextField
-              variant="standard"
               name="user_plain_password"
-              fullWidth={true}
               type="password"
               label={t('New password')}
               style={{ marginTop: 20 }}
             />
             <OldTextField
-              variant="standard"
               name="password_confirmation"
-              fullWidth={true}
               type="password"
               label={t('Confirmation')}
               style={{ marginTop: 20 }}

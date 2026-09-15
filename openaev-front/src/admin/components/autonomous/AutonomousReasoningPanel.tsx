@@ -1,3 +1,4 @@
+import { Radio, RadioGroup } from '@filigran/design-system';
 import {
   AutoAwesome,
   ErrorOutline,
@@ -6,9 +7,11 @@ import {
   SendOutlined,
   WarningAmber,
 } from '@mui/icons-material';
-import { Box, Chip, CircularProgress, FormControlLabel, IconButton, Radio, RadioGroup, Stack, TextField, Typography } from '@mui/material';
+// fds:keep-mui the autonomous composer field stay on MUI until the AI/EE screens wave (deferred by ruling, IMPLEMENTATION-LOG.md 2026-09-15)
+import { Box, Chip, CircularProgress, IconButton, Stack, TextField, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { makeStyles } from 'tss-react/mui';
 
 import {
   addAutonomousDirective,
@@ -157,6 +160,24 @@ interface AutonomousReasoningPanelProps {
  * (pause / resume / stop) live in the hero, not here, so operators keep the same control surface as
  * a normal run.
  */
+
+// The choice rows keep the accent border and fill the MUI control drew. The
+// accent is a runtime colour, so the hover shade travels as a CSS variable.
+// `marginTop` comes from main's own `sx` on the group.
+const useStyles = makeStyles()(theme => ({
+  choices: {
+    gap: theme.spacing(0.75),
+    marginTop: theme.spacing(1),
+  },
+  choice: {
+    'borderRadius': theme.spacing(1.5),
+    'border': '1px solid transparent',
+    'padding': theme.spacing(0.5, 1, 0.5, 0.5),
+    'transition': theme.transitions.create(['border-color', 'background-color']),
+    '&:hover': { borderColor: 'var(--choice-hover)' },
+  },
+}));
+
 const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps> = ({
   run: initialRun,
   onRunUpdate,
@@ -166,6 +187,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
   readOnly = false,
 }) => {
   const theme = useTheme();
+  const { classes } = useStyles();
   const { t, nsdt } = useFormatter();
   const { settings } = useAuth();
   // Slide the panel left by exactly the width the Ask Ariane sidebar pushes the main content, so the
@@ -1133,44 +1155,27 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
                         hidden in observe-only mode - they answer from the parent scenario). */}
                     {hasChoices && !readOnly && (
                       <RadioGroup
+                        aria-label={t('Response choices')}
                         value={selectedChoice ?? ''}
-                        onChange={event => setSelectedChoice(event.target.value)}
-                        sx={{
-                          gap: 0.75,
-                          marginTop: 1,
-                        }}
+                        onValueChange={setSelectedChoice}
+                        className={classes.choices}
                       >
                         {questionChoices.map((choice) => {
                           const isSelected = selectedChoice === choice.id;
                           return (
-                            <FormControlLabel
+                            <div
                               key={choice.id}
-                              value={choice.id}
-                              control={(
-                                <Radio
-                                  size="small"
-                                  sx={{
-                                    'color': accent,
-                                    '&.Mui-checked': { color: accent },
-                                  }}
-                                />
-                              )}
-                              label={choice.label}
-                              sx={{
-                                'margin': 0,
-                                'alignItems': 'flex-start',
-                                'borderRadius': 1.5,
-                                'border': `1px solid ${isSelected ? accent : theme.palette.divider}`,
-                                'backgroundColor': isSelected ? alpha(accent, 0.08) : theme.palette.background.paper,
-                                'padding': theme.spacing(0.5, 1, 0.5, 0.5),
-                                'transition': theme.transitions.create(['border-color', 'background-color']),
-                                '&:hover': { borderColor: alpha(accent, 0.6) },
-                                '& .MuiFormControlLabel-label': {
-                                  fontSize: '0.8125rem',
-                                  paddingTop: '5px',
-                                },
+                              className={classes.choice}
+                              style={{
+                                borderColor: isSelected ? accent : theme.palette.divider,
+                                // main paints the unselected rows on the paper colour
+                                // (was `transparent`); kept.
+                                backgroundColor: isSelected ? alpha(accent, 0.08) : theme.palette.background.paper,
+                                ['--choice-hover' as string]: alpha(accent, 0.6),
                               }}
-                            />
+                            >
+                              <Radio value={choice.id} label={choice.label} />
+                            </div>
                           );
                         })}
                       </RadioGroup>

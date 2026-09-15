@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined, InfoOutlined } from '@mui/icons-material';
-import { Box, Chip, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, Typography } from '@mui/material';
 
 import { useFormatter } from '../../../../../components/i18n';
 import type { ScopeAssetOutput, ScopeTeamOutput } from '../../../../../utils/api-types';
@@ -30,8 +31,11 @@ const ActionScopeChips = ({ isPayload, assets, teams = [], allTeams = false }: A
     <InjectFormSection
       title={title}
       titleAdornment={(
-        <Tooltip title={tooltip}>
-          <InfoOutlined fontSize="small" color="info" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <InfoOutlined fontSize="small" color="info" />
+          </TooltipTrigger>
+          {tooltip && <TooltipContent>{tooltip}</TooltipContent>}
         </Tooltip>
       )}
     >

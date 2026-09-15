@@ -216,7 +216,6 @@ const LessonsPreview = (props) => {
                                 label={t('Comment (optional)')}
                                 multiline
                                 rows={2}
-                                fullWidth
                               />
                             </GridLegacy>
                             <GridLegacy item xs={3}>
@@ -228,7 +227,6 @@ const LessonsPreview = (props) => {
                                 name={`${question.lessonsquestion_id}_negative`}
                                 label={t('Comment (optional)')}
                                 multiline
-                                fullWidth
                                 rows={2}
                               />
                             </GridLegacy>

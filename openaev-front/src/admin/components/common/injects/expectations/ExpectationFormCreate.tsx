@@ -1,9 +1,27 @@
-import { Alert, Box, Button, InputLabel, MenuItem, Select as MUISelect, TextField as MuiTextField, TextField, Typography } from '@mui/material';
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxLabel,
+  ComboboxTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
+import { Alert, Button, Typography } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent, useEffect, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { makeStyles } from 'tss-react/mui';
 
 import { type LoggedHelper } from '../../../../../actions/helper';
+import TextFieldFds from '../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../components/i18n';
 import ItemSecurityPlatformType from '../../../../../components/ItemSecurityPlatformType';
 import ScaleBar from '../../../../../components/scalebar/ScaleBar';
@@ -138,24 +156,25 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
   }, [watchType, initialType, setValue]);
 
   return (
-    <form id="expectationForm" onSubmit={handleSubmitWithoutPropagation}>
+    <form noValidate id="expectationForm" onSubmit={handleSubmitWithoutPropagation}>
       <div>
-        <InputLabel id="input-type">{t('Type')}</InputLabel>
-        <MUISelect
-          labelId="input-type"
+        <Select
           value={expectationType}
-          onChange={(event) => {
-            const selectedType = event.target.value;
+          onValueChange={(next) => {
+            const selectedType = next;
             setExpectationType(selectedType);
             setValue('expectation_type', selectedType, { shouldValidate: true });
           }}
-          variant="standard"
-          fullWidth
           error={!!errors.expectation_type}
-          inputProps={register('expectation_type')}
         >
-          {availableTypes.map(type => (<MenuItem key={type} value={type}>{t(type)}</MenuItem>))}
-        </MUISelect>
+          <SelectLabel>{t('Type')}</SelectLabel>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {availableTypes.map(type => (<SelectItem key={type} value={type}>{t(type)}</SelectItem>))}
+          </SelectContent>
+        </Select>
       </div>
       {(watchType === 'ARTICLE' || watchType === 'CHALLENGE')
         && (
@@ -166,50 +185,44 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
             {infoMessage(getValues().expectation_type, t)}
           </Alert>
         )}
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
+        required
         label={t('Name')}
         className={classes.marginTop_2}
         error={!!errors.expectation_name}
         helperText={errors.expectation_name?.message}
-        slotProps={{
-          htmlInput: { ...register('expectation_name') },
-          inputLabel: { required: true },
-        }}
+        {...{ ...register('expectation_name') }}
       />
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Description')}
         className={classes.marginTop_2}
         multiline
         error={!!errors.expectation_description}
         helperText={errors.expectation_description?.message}
-        slotProps={{ htmlInput: { ...register('expectation_description') } }}
+        {...{ ...register('expectation_description') }}
       />
       {(watchType !== 'VULNERABILITY') && (
         <div className={classes.duration}>
           <div className={classes.trigger}>
             {t('Expiration time')}
           </div>
-          <TextField
-            variant="standard"
+          <TextFieldFds
+            fullWidth={false}
             type="number"
             label={t('Days')}
             style={{ width: '20%' }}
-            slotProps={{ htmlInput: { ...register('expiration_time_days', { valueAsNumber: true }) } }}
+            {...{ ...register('expiration_time_days', { valueAsNumber: true }) }}
           />
-          <TextField
-            variant="standard"
-            slotProps={{ htmlInput: { ...register('expiration_time_hours', { valueAsNumber: true }) } }}
+          <TextFieldFds
+            fullWidth={false}
+            {...{ ...register('expiration_time_hours', { valueAsNumber: true }) }}
             type="number"
             label={t('Hours')}
             style={{ width: '20%' }}
           />
-          <TextField
-            variant="standard"
-            slotProps={{ htmlInput: { ...register('expiration_time_minutes', { valueAsNumber: true }) } }}
+          <TextFieldFds
+            fullWidth={false}
+            {...{ ...register('expiration_time_minutes', { valueAsNumber: true }) }}
             type="number"
             label={t('Minutes')}
             style={{ width: '20%' }}
@@ -221,9 +234,7 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         <Typography variant="h4">{t('Scores')}</Typography>
         <ScaleBar expectationType={watchType} expectationExpectedScore={watch('expectation_score')} />
       </div>
-      <MuiTextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Success score')}
         type="number"
         className={classes.marginTop_2}
@@ -231,58 +242,45 @@ const ExpectationFormCreate: FunctionComponent<Props> = ({
         helperText={
           errors.expectation_score?.message
         }
-        slotProps={{
-          htmlInput: {
-            ...register('expectation_score', { valueAsNumber: true }),
-            min: 0,
-            max: 100,
-          },
+        {...{
+          ...register('expectation_score', { valueAsNumber: true }),
+          min: 0,
+          max: 100,
         }}
       />
       {isTechnicalExpectation(watchType) && (
         <div className={classes.marginTop_2}>
-          <InputLabel id="expected-platforms-label" shrink>
-            {t('Expected security platforms')}
-          </InputLabel>
           <Controller
             name="expectation_expected_security_platform_types"
             control={control}
             render={({ field }) => (
-              <MUISelect
-                labelId="expected-platforms-label"
+              <Combobox<string>
                 multiple
-                displayEmpty
-                variant="standard"
-                fullWidth
+                options={SECURITY_PLATFORM_TYPES}
                 value={field.value ?? []}
-                onChange={event => field.onChange(event.target.value)}
-                renderValue={(selected) => {
-                  const values = selected as string[];
-                  if (values.length === 0) {
-                    return (
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        {t('Any security platform')}
-                      </Typography>
-                    );
-                  }
-                  return (
-                    <Box sx={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 0.5,
-                    }}
-                    >
-                      {values.map(type => <ItemSecurityPlatformType key={type} type={type} />)}
-                    </Box>
-                  );
-                }}
+                onValueChange={next => field.onChange(next as string[])}
+                getOptionLabel={type => type}
+                isOptionEqualToValue={(a, b) => a === b}
+                renderOption={type => <ItemSecurityPlatformType type={type} />}
+                clearable={false}
               >
-                {SECURITY_PLATFORM_TYPES.map(type => (
-                  <MenuItem key={type} value={type}>
-                    <ItemSecurityPlatformType type={type} />
-                  </MenuItem>
-                ))}
-              </MUISelect>
+                <ComboboxLabel>{t('Expected security platforms')}</ComboboxLabel>
+                <ComboboxField>
+                  <ComboboxChips />
+                  {/* An empty selection used to read "Any security platform" in
+                      the trigger; with chips the same sentence is the input's
+                      placeholder, so it shows exactly when nothing is chosen. */}
+                  <ComboboxInput
+                    name={field.name}
+                    placeholder={t('Any security platform')}
+                  />
+                  <ComboboxControls>
+                    <ComboboxClear />
+                    <ComboboxTrigger />
+                  </ComboboxControls>
+                </ComboboxField>
+                <ComboboxContent />
+              </Combobox>
             )}
           />
         </div>

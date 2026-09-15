@@ -1,5 +1,6 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { AddOutlined, CloseOutlined } from '@mui/icons-material';
-import { Box, Button, IconButton, Slide, Tooltip, Typography } from '@mui/material';
+import { Box, Button, IconButton, Slide, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -93,33 +94,39 @@ const InjectSelectionBar: FunctionComponent<Props> = ({
           gap: 1,
         }}
         >
-          <Tooltip title={t('Bulk select lets you add multiple injects. They\'ll show as "missing content" until configured')}>
-            <Button
-              color="primary"
-              variant="contained"
-              size="small"
-              startIcon={<AddOutlined fontSize="small" />}
-              onClick={onAdd}
-              sx={{
-                borderRadius: 1,
-                textTransform: 'none',
-                fontWeight: 600,
-                paddingInline: 2,
-              }}
-            >
-              {count === 1 ? t('Add 1 inject') : t('Add {count} injects', { count })}
-            </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                color="primary"
+                variant="contained"
+                size="small"
+                startIcon={<AddOutlined fontSize="small" />}
+                onClick={onAdd}
+                sx={{
+                  borderRadius: 1,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  paddingInline: 2,
+                }}
+              >
+                {count === 1 ? t('Add 1 inject') : t('Add {count} injects', { count })}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('Bulk select lets you add multiple injects. They\'ll show as "missing content" until configured')}</TooltipContent>
           </Tooltip>
 
-          <Tooltip title={t('Clear selection')}>
-            <IconButton
-              size="small"
-              onClick={onClear}
-              aria-label={t('Clear selection')}
-              sx={{ color: 'text.secondary' }}
-            >
-              <CloseOutlined fontSize="small" />
-            </IconButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton
+                size="small"
+                onClick={onClear}
+                aria-label={t('Clear selection')}
+                sx={{ color: 'text.secondary' }}
+              >
+                <CloseOutlined fontSize="small" />
+              </IconButton>
+            </TooltipTrigger>
+            <TooltipContent>{t('Clear selection')}</TooltipContent>
           </Tooltip>
         </Box>
       </Box>

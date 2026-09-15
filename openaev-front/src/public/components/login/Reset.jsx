@@ -1,4 +1,5 @@
-import { Button, Paper } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { Button } from '@mui/material';
 import { useState } from 'react';
 import { Form } from 'react-final-form';
 import { useDispatch } from 'react-redux';
@@ -52,7 +53,7 @@ const Reset = ({ onCancel }) => {
   const onGoToValidateToken = () => setStep(STEP_VALIDATE_TOKEN);
   return (
     <div className={classes.container}>
-      <Paper variant="outlined">
+      <Paper padding={0}>
         <div style={{ padding: 15 }}>
           {step === STEP_ASK_RESET && (
             <Form
@@ -64,9 +65,7 @@ const Reset = ({ onCancel }) => {
                   <OldTextField
                     name="username"
                     type="text"
-                    variant="standard"
                     label={t('Email address')}
-                    fullWidth={true}
                     style={{ marginTop: 5 }}
                   />
                   <div style={{
@@ -107,9 +106,7 @@ const Reset = ({ onCancel }) => {
                   <OldTextField
                     name="code"
                     type="text"
-                    variant="standard"
                     label={t('Enter code')}
-                    fullWidth={true}
                     style={{ marginTop: 5 }}
                   />
                   <Button
@@ -135,17 +132,13 @@ const Reset = ({ onCancel }) => {
                   <OldTextField
                     name="password"
                     type="password"
-                    variant="standard"
                     label={t('Password')}
-                    fullWidth={true}
                     style={{ marginTop: 5 }}
                   />
                   <OldTextField
                     name="password_validation"
                     type="password"
-                    variant="standard"
                     label={t('Password validation')}
-                    fullWidth={true}
                     style={{ marginTop: 5 }}
                   />
                   <Button

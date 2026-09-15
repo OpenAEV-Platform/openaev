@@ -1,6 +1,7 @@
+import { ButtonGroup, ButtonGroupItem, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ArrowBackOutlined, GridViewOutlined, ReorderOutlined } from '@mui/icons-material';
-import { Box, IconButton, Skeleton, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import { type FunctionComponent, type SyntheticEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { Box, IconButton, Skeleton, Typography } from '@mui/material';
+import { type FunctionComponent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type AttackPatternHelper } from '../../../../../actions/attack_patterns/attackpattern-helper';
 import { fetchAttackPatterns } from '../../../../../actions/AttackPattern';
@@ -110,7 +111,8 @@ const InjectContractPicker: FunctionComponent<Props> = ({
     const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
     return stored === 'list' ? 'list' : 'grid';
   });
-  const handleViewMode = (_: SyntheticEvent, mode: 'grid' | 'list' | null) => {
+  const handleViewMode = (next: string) => {
+    const mode = next as 'grid' | 'list';
     if (mode) {
       setViewMode(mode);
       localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
@@ -227,10 +229,13 @@ const InjectContractPicker: FunctionComponent<Props> = ({
       }}
       >
         {onBack && (
-          <Tooltip title={t('Back')}>
-            <IconButton onClick={onBack} aria-label={t('Back')} size="small">
-              <ArrowBackOutlined fontSize="small" />
-            </IconButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <IconButton onClick={onBack} aria-label={t('Back')} size="small">
+                <ArrowBackOutlined fontSize="small" />
+              </IconButton>
+            </TooltipTrigger>
+            <TooltipContent>{t('Back')}</TooltipContent>
           </Tooltip>
         )}
         <Typography variant="h1" sx={{ margin: 0 }}>
@@ -268,24 +273,25 @@ const InjectContractPicker: FunctionComponent<Props> = ({
             queryableHelpers={queryableHelpers}
             attackPatterns={attackPatterns}
             topBarButtons={(
-              <ToggleButtonGroup
-                size="small"
-                exclusive
+              <ButtonGroup
+                size="md"
                 value={viewMode}
-                onChange={handleViewMode}
-                sx={{ marginLeft: 1.5 }}
+                onValueChange={handleViewMode}
+                style={{ marginLeft: 1.5 }}
               >
-                <Tooltip title={t('Grid view')}>
-                  <ToggleButton value="grid" aria-label={t('Grid view')}>
-                    <GridViewOutlined fontSize="small" />
-                  </ToggleButton>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ButtonGroupItem value="grid" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Grid view')}</TooltipContent>
                 </Tooltip>
-                <Tooltip title={t('List view')}>
-                  <ToggleButton value="list" aria-label={t('List view')}>
-                    <ReorderOutlined fontSize="small" />
-                  </ToggleButton>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ReorderOutlined fontSize="small" />} />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('List view')}</TooltipContent>
                 </Tooltip>
-              </ToggleButtonGroup>
+              </ButtonGroup>
             )}
           />
 

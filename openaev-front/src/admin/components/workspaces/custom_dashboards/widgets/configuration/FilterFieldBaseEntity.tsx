@@ -1,7 +1,12 @@
 import {
-  MenuItem,
-  TextField,
-} from '@mui/material';
+  Select,
+  SelectContent,
+  SelectHelperText,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { engineSchemas } from '../../../../../../actions/schema/schema-action';
@@ -47,23 +52,29 @@ const FilterFieldBaseEntity: FunctionComponent<Props> = ({
   }
 
   return (
-    <TextField
-      select
-      variant="standard"
-      fullWidth
-      label={t('Entity type')}
-      value={value}
-      error={error}
-      helperText={error ? t('Should at least select one dimension') : ''}
-      onChange={e => onChange(e.target.value)}
-      required
-    >
-      {entityOptions.map(option => (
-        <MenuItem key={option.id} value={option.id}>
-          {t(option.label)}
-        </MenuItem>
-      ))}
-    </TextField>
+    // The library Select renders no wrapper of its own (LIBRARY-FEEDBACK 43), so
+    // in a flex row its label and its trigger would become two separate items.
+    <div style={{ minWidth: 200 }}>
+      <Select
+        value={value ?? ''}
+        onValueChange={next => onChange(next)}
+        error={error}
+        required={true}
+      >
+        <SelectLabel required>{t('Entity type')}</SelectLabel>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder={t('Entity type')} />
+        </SelectTrigger>
+        <SelectContent>
+          {entityOptions.map(option => (
+            <SelectItem key={option.id} value={option.id}>
+              {t(option.label)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+        {error ? <SelectHelperText>{t('Should at least select one dimension')}</SelectHelperText> : null}
+      </Select>
+    </div>
   );
 };
 

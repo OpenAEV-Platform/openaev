@@ -1,14 +1,6 @@
+import { Checkbox } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import {
-  Checkbox,
-  IconButton,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Skeleton,
-  type SvgIconProps,
-} from '@mui/material';
+import { IconButton, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton, type SvgIconProps } from '@mui/material';
 import { type ComponentType, type CSSProperties, type FunctionComponent } from 'react';
 
 import { type Header } from './common/SortHeadersList';
@@ -60,10 +52,9 @@ const PaginatedListLoader: FunctionComponent<Props> = ({
           {withCheckbox && (
             <ListItemIcon style={{ minWidth: 40 }}>
               <Checkbox
-                edge="start"
+                presentational
                 checked={false}
                 disabled
-                disableRipple
               />
             </ListItemIcon>
           )}

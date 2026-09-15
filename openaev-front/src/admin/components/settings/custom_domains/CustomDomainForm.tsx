@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, TextField } from '@mui/material';
+import { Button } from '@mui/material';
 import { type FunctionComponent, type SyntheticEvent } from 'react';
 import { type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../components/i18n';
 import { type CustomDomainInput } from '../../../../utils/api-types';
 import { zodImplement } from '../../../../utils/Zod';
@@ -42,9 +43,7 @@ const CustomDomainForm: FunctionComponent<Props> = ({ onSubmit }) => {
 
   return (
     <form id="customDomainForm" onSubmit={handleSubmitWithoutPropagation}>
-      <TextField
-        variant="standard"
-        fullWidth
+      <TextFieldFds
         label={t('Domain')}
         placeholder="security.acme.com"
         error={!!errors.custom_domain_hostname}
@@ -52,7 +51,7 @@ const CustomDomainForm: FunctionComponent<Props> = ({ onSubmit }) => {
           errors.custom_domain_hostname?.message
           ?? t('The hostname your recipients will see, e.g. security.acme.com')
         }
-        inputProps={{ 'data-testid': 'custom-domain-hostname' }}
+        {...{ 'data-testid': 'custom-domain-hostname' }}
         {...register('custom_domain_hostname')}
       />
       <div style={{

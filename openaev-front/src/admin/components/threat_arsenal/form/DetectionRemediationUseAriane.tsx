@@ -133,13 +133,15 @@ const DetectionRemediationUseAriane = ({
         onClick={handleClick}
         aria-label={xtmOneConfigured ? t('Generate with AI') : t('Use Ariane')}
         startIcon={<SvgIcon component={LogoXtmOneIcon} fontSize="small" inheritViewBox />}
-        endIcon={isEnterpriseEdition ? undefined : <span><EEChip /></span>}
+        endIcon={isEnterpriseEdition ? undefined : <EEChip />}
         disabled={disabled || loading || (!!xtmOneConfigured && !selectedAgent)}
         sx={{
-          height: 36,
-          whiteSpace: 'nowrap',
-          color: actionColor,
-          borderColor: actionBorderColor,
+          'height': 36,
+          'whiteSpace': 'nowrap',
+          // The marker is a flex item of the end slot: centred on the label, not on a line box.
+          '& .MuiButton-endIcon': { alignItems: 'center' },
+          'color': actionColor,
+          'borderColor': actionBorderColor,
         }}
       >
         {xtmOneConfigured ? t('Generate with AI') : t('Use Ariane')}

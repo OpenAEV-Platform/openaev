@@ -1,17 +1,6 @@
+import { Paper, Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Switch, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { HourglassEmptyOutlined, InfoOutlined, SpeedOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Divider,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  type SelectChangeEvent,
-  Switch,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, Divider, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ReactNode } from 'react';
 
@@ -67,16 +56,26 @@ const LimitSection = ({ icon, title, tooltip, enabled, onToggle, children }: Lim
         <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
           {title}
         </Typography>
-        <Tooltip title={tooltip}>
-          <InfoOutlined
-            color="primary"
-            sx={{
-              fontSize: 16,
-              cursor: 'pointer',
-            }}
-          />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <InfoOutlined
+              color="primary"
+              sx={{
+                fontSize: 16,
+                cursor: 'pointer',
+              }}
+            />
+          </TooltipTrigger>
+          {tooltip && <TooltipContent>{tooltip}</TooltipContent>}
         </Tooltip>
-        <Switch checked={enabled} onChange={onToggle} sx={{ ml: 'auto' }} />
+        {/* The section title is a sibling Typography, not a <label> bound to
+            the control, so the switch carries its own name. */}
+        <Switch
+          aria-label={title}
+          checked={enabled}
+          onCheckedChange={onToggle}
+          style={{ marginLeft: 'auto' }}
+        />
       </Box>
       <Box sx={{
         display: 'grid',
@@ -111,14 +110,14 @@ const ScopeExecutionLimits = ({ workflowConfiguration, onUpdate, autonomous = fa
 
   const handleToggleTimeout = () => onUpdate({ workflow_configuration_timeout_enabled: !timeoutEnabled });
 
-  const handleHoursChange = (event: SelectChangeEvent<number>) => {
-    const newHours = Number(event.target.value);
+  const handleHoursChange = (value: string) => {
+    const newHours = Number(value);
     const currentMinutes = newHours === 0 && minutes === 0 ? 1 : minutes;
     onUpdate({ workflow_configuration_timeout_seconds: (newHours * 3600) + (currentMinutes * 60) });
   };
 
-  const handleTimeoutMinutesChange = (event: SelectChangeEvent<number>) => {
-    const newMinutes = Number(event.target.value);
+  const handleTimeoutMinutesChange = (value: string) => {
+    const newMinutes = Number(value);
     if (hours === 0 && newMinutes === 0) return;
     onUpdate({ workflow_configuration_timeout_seconds: (hours * 3600) + (newMinutes * 60) });
   };
@@ -140,26 +139,25 @@ const ScopeExecutionLimits = ({ workflowConfiguration, onUpdate, autonomous = fa
     });
   };
 
-  const handleMaxAttemptsChange = (event: SelectChangeEvent<number>) => {
+  const handleMaxAttemptsChange = (value: string) => {
     onUpdate({
-      workflow_configuration_max_attempts: Number(event.target.value),
+      workflow_configuration_max_attempts: Number(value),
       workflow_configuration_max_temporal_rate_seconds: maxTemporalRateSeconds,
     });
   };
 
-  const handleRateMinutesChange = (event: SelectChangeEvent<number>) => {
+  const handleRateMinutesChange = (value: string) => {
     onUpdate({
-      workflow_configuration_max_temporal_rate_seconds: Number(event.target.value) * 60,
+      workflow_configuration_max_temporal_rate_seconds: Number(value) * 60,
       workflow_configuration_max_attempts: maxAttempts,
     });
   };
 
   return (
     <Paper
-      variant="outlined"
-      sx={{
+      padding={16}
+      style={{
         height: '100%',
-        p: theme.spacing(2),
         display: 'grid',
         gap: theme.spacing(2),
         alignContent: 'start',
@@ -174,22 +172,32 @@ const ScopeExecutionLimits = ({ workflowConfiguration, onUpdate, autonomous = fa
         enabled={timeoutEnabled}
         onToggle={handleToggleTimeout}
       >
-        <FormControl size="small" disabled={!timeoutEnabled}>
-          <InputLabel sx={{ color: theme.palette.grey['500'] }}>{t('Hours')}</InputLabel>
-          <Select value={hours} label={t('Hours')} onChange={handleHoursChange}>
-            {Array.from({ length: hoursOptionCount }, (_, i) => (
-              <MenuItem key={i} value={i}>{String(i).padStart(2, '0')}</MenuItem>
-            ))}
+        <div>
+          <Select value={String(hours)} onValueChange={handleHoursChange} disabled={!timeoutEnabled}>
+            <SelectLabel>{t('Hours')}</SelectLabel>
+            <SelectTrigger>
+              <SelectValue placeholder={t('Hours')} />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: hoursOptionCount }, (_, i) => (
+                <SelectItem key={i} value={String(i)}>{String(i).padStart(2, '0')}</SelectItem>
+              ))}
+            </SelectContent>
           </Select>
-        </FormControl>
-        <FormControl size="small" disabled={!timeoutEnabled}>
-          <InputLabel sx={{ color: theme.palette.grey['500'] }}>{t('Minutes')}</InputLabel>
-          <Select value={minutes} label={t('Minutes')} onChange={handleTimeoutMinutesChange}>
-            {Array.from({ length: 60 - minMinutes }, (_, i) => i + minMinutes).map(i => (
-              <MenuItem key={i} value={i}>{String(i).padStart(2, '0')}</MenuItem>
-            ))}
+        </div>
+        <div>
+          <Select value={String(minutes)} onValueChange={handleTimeoutMinutesChange} disabled={!timeoutEnabled}>
+            <SelectLabel>{t('Minutes')}</SelectLabel>
+            <SelectTrigger>
+              <SelectValue placeholder={t('Minutes')} />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 60 - minMinutes }, (_, i) => i + minMinutes).map(i => (
+                <SelectItem key={i} value={String(i)}>{String(i).padStart(2, '0')}</SelectItem>
+              ))}
+            </SelectContent>
           </Select>
-        </FormControl>
+        </div>
       </LimitSection>
 
       {/* The per-step rate limit paces the manual chaining engine; on an autonomous run the AI
@@ -205,22 +213,32 @@ const ScopeExecutionLimits = ({ workflowConfiguration, onUpdate, autonomous = fa
             enabled={rateLimitEnabled}
             onToggle={handleToggleRateLimit}
           >
-            <FormControl size="small" disabled={!rateLimitEnabled}>
-              <InputLabel sx={{ color: theme.palette.grey['500'] }}>{t('Max Attempts')}</InputLabel>
-              <Select value={maxAttempts} label={t('Max Attempts')} onChange={handleMaxAttemptsChange}>
-                {Array.from({ length: 99 }, (_, i) => (
-                  <MenuItem key={i + 1} value={i + 1}>{String(i + 1).padStart(2, '0')}</MenuItem>
-                ))}
+            <div>
+              <Select value={String(maxAttempts)} onValueChange={handleMaxAttemptsChange} disabled={!rateLimitEnabled}>
+                <SelectLabel>{t('Max Attempts')}</SelectLabel>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('Max Attempts')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 99 }, (_, i) => (
+                    <SelectItem key={i + 1} value={String(i + 1)}>{String(i + 1).padStart(2, '0')}</SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
-            </FormControl>
-            <FormControl size="small" disabled={!rateLimitEnabled}>
-              <InputLabel sx={{ color: theme.palette.grey['500'] }}>{t('Minutes')}</InputLabel>
-              <Select value={rateMinutes} label={t('Minutes')} onChange={handleRateMinutesChange}>
-                {Array.from({ length: 59 }, (_, i) => (
-                  <MenuItem key={i + 1} value={i + 1}>{String(i + 1).padStart(2, '0')}</MenuItem>
-                ))}
+            </div>
+            <div>
+              <Select value={String(rateMinutes)} onValueChange={handleRateMinutesChange} disabled={!rateLimitEnabled}>
+                <SelectLabel>{t('Minutes')}</SelectLabel>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('Minutes')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 59 }, (_, i) => (
+                    <SelectItem key={i + 1} value={String(i + 1)}>{String(i + 1).padStart(2, '0')}</SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
-            </FormControl>
+            </div>
           </LimitSection>
         </>
       )}

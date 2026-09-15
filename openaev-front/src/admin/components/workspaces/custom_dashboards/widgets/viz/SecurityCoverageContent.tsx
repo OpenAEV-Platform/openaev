@@ -1,4 +1,11 @@
-import { Box, MenuItem, Select, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@filigran/design-system';
+import { Box, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, memo, useCallback, useMemo } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -226,22 +233,17 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetCon
             >
               <Typography sx={OVERLINE_SX}>{t('Kill chain')}</Typography>
               <Select
-                size="small"
-                variant="standard"
-                disableUnderline
                 value={activeKillChain ?? ''}
-                onChange={e => setSelectedKillChain(e.target.value)}
-                sx={{
-                  'minWidth': 170,
-                  'fontFamily': '"Geologica", sans-serif',
-                  'fontWeight': 600,
-                  'fontSize': 15,
-                  '& .MuiSelect-select': { paddingBottom: 0 },
-                }}
+                onValueChange={next => setSelectedKillChain(next)}
               >
-                {killChains.map(chain => (
-                  <MenuItem key={chain} value={chain}>{killChainLabel(chain)}</MenuItem>
-                ))}
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {killChains.map(chain => (
+                    <SelectItem key={chain} value={chain}>{killChainLabel(chain)}</SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </Box>
           )}

@@ -59,7 +59,7 @@ const CreateArticle: FunctionComponent<CreateArticleProps> = ({
   return (
     <>
       {/* Same compact creation button whether standalone or in a picker header. */}
-      <ButtonCreate onClick={handleOpenCreate} label={t('Create an article')} />
+      <ButtonCreate size="sm" onClick={handleOpenCreate} label={t('Create an article')} />
       <Dialog
         open={openCreate}
         slots={{ transition: Transition }}
@@ -71,7 +71,7 @@ const CreateArticle: FunctionComponent<CreateArticleProps> = ({
         <DialogTitle>{t('Create a new media pressure article')}</DialogTitle>
         <DialogContent style={{ overflowX: 'hidden' }}>
           <FormProvider {...methods}>
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form noValidate onSubmit={handleSubmit(onSubmit)}>
               <ArticleForm
                 editing={false}
                 handleClose={handleClose}

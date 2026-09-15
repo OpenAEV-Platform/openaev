@@ -1,5 +1,6 @@
+import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { InfoOutlined, LibraryBooksOutlined, OpenInNewOutlined, VerifiedOutlined } from '@mui/icons-material';
-import { Box, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type ComponentType, type ReactNode } from 'react';
 
@@ -142,14 +143,7 @@ const ConnectorCatalogInfo = ({ catalogConnector }: Props) => {
       }}
       >
         <Typography sx={SECTION_LABEL_SX}>{t('Description')}</Typography>
-        <Paper
-          variant="outlined"
-          sx={{
-            padding: 2,
-            borderRadius: 1,
-            flex: 1,
-          }}
-        >
+        <Paper padding={16} style={{ flex: 1 }}>
           <Typography
             variant="body1"
             sx={{
@@ -168,14 +162,12 @@ const ConnectorCatalogInfo = ({ catalogConnector }: Props) => {
       >
         <Typography sx={SECTION_LABEL_SX}>{t('Basic Information')}</Typography>
         <Paper
-          variant="outlined"
-          sx={{
-            padding: 2,
-            borderRadius: 1,
+          padding={16}
+          style={{
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            gap: 2.5,
+            gap: 20,
           }}
         >
           {catalogConnector.catalog_connector_container_version && (
@@ -184,16 +176,18 @@ const ConnectorCatalogInfo = ({ catalogConnector }: Props) => {
               title={t('Catalog version')}
               caption={catalogConnector.catalog_connector_container_version}
               endAdornment={(
-                <Tooltip title={t('Version referenced in the integration catalog. The running instance may use a different version if it was manually overridden.')}>
-                  {/* tabIndex makes the icon keyboard-focusable; the Tooltip
-                      title doubles as its accessible name (MUI default). */}
-                  <InfoOutlined
-                    tabIndex={0}
-                    sx={{
-                      fontSize: theme.typography.h6.fontSize,
-                      color: 'text.secondary',
-                    }}
-                  />
+                <Tooltip>
+                  {/* tabIndex makes the icon keyboard-focusable; the tooltip text is its description. */}
+                  <TooltipTrigger asChild>
+                    <InfoOutlined
+                      tabIndex={0}
+                      sx={{
+                        fontSize: theme.typography.h6.fontSize,
+                        color: 'text.secondary',
+                      }}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Version referenced in the integration catalog. The running instance may use a different version if it was manually overridden.')}</TooltipContent>
                 </Tooltip>
               )}
             />

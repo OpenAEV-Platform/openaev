@@ -1,6 +1,14 @@
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxControls,
+  ComboboxField,
+  ComboboxInput,
+  ComboboxTrigger,
+} from '@filigran/design-system';
 import { LabelOutlined } from '@mui/icons-material';
-import { Autocomplete, Box, Chip, TextField } from '@mui/material';
-import { type FunctionComponent } from 'react';
+import { Box, Chip } from '@mui/material';
+import { type FunctionComponent, useState } from 'react';
 
 import { type TagHelper } from '../../../../actions/tags/tag-helper';
 import { useFormatter } from '../../../../components/i18n';
@@ -23,6 +31,13 @@ const TagsFilter: FunctionComponent<Props> = ({
   onClearTag,
   fullWidth = false,
 }) => {
+  // The library Combobox is always controlled ("there is no uncontrolled mode"),
+  // so the field's own transient selection now lives here — it is what the
+  // uncontrolled MUI Autocomplete used to keep internally.
+  const [selected, setSelected] = useState<Option | null>(null);
+  // The component holds the input's text itself: clearing `value` alone does not
+  // clear the text the library wrote there when the option was picked.
+  const [inputValue, setInputValue] = useState('');
   const { t } = useFormatter();
   const { tags } = useHelper((helper: TagHelper) => ({ tags: helper.getTags() }));
 
@@ -37,56 +52,77 @@ const TagsFilter: FunctionComponent<Props> = ({
 
   return (
     <>
-      <Autocomplete<Option>
-        sx={{
-          width: fullWidth ? '100%' : 250,
-          flexShrink: 0,
-        }}
-        selectOnFocus
-        openOnFocus
-        autoSelect={false}
-        autoHighlight
-        size="small"
-        options={tagsOptions}
-        onChange={(_event, value, reason) => {
-          // When removing, a null change is fired
-          // We handle directly the remove through the chip deletion.
-          if (value !== null) onAddTag(value);
-          if (reason === 'clear' && fullWidth) onClearTag?.();
-        }}
-        isOptionEqualToValue={(option, value) => option.id === value?.id}
-        renderOption={(props, option) => (
-          <Box component="li" {...props} key={option.id}>
-            <Box
-              sx={{
-                paddingTop: '4px',
+      <div style={{
+        width: fullWidth ? '100%' : 250,
+        flexShrink: 0,
+      }}
+      >
+        <Combobox<Option>
+          labelPosition="none"
+          openOnFocus
+          options={tagsOptions}
+          value={selected}
+          inputValue={inputValue}
+          onInputChange={(next, meta) => {
+            if (meta.cause === 'type') {
+              setInputValue(next);
+            }
+          }}
+          onValueChange={(next) => {
+            // The library types this callback for both modes; this field is
+            // single, so the value is one option or nothing.
+            const value = next as Option | null;
+            // MUI reported a `clear` reason here; in single mode a cleared field
+            // is exactly a null value, so the two paths stay distinguishable.
+            if (value !== null) {
+              onAddTag(value);
+            } else if (fullWidth) {
+              onClearTag?.();
+            }
+            // The chosen tag leaves the field for the chip row below, so the
+            // field holds nothing and shows its placeholder again.
+            setSelected(null);
+            setInputValue('');
+          }}
+          getOptionLabel={option => option.label}
+          // The library Combobox hands this an empty string before anything is
+          // picked — a runtime shape its own type does not describe, which is why
+          // the guard is a truthiness test and not a comparison to ''.
+          isOptionEqualToValue={(option, value) => !value || option.id === value.id}
+          renderOption={option => (
+            <>
+              {/* The tint comes from the tag's own data and stays on the glyph. */}
+              <div style={{
+                paddingTop: 4,
                 display: 'inline-block',
                 color: option.color,
               }}
-            >
-              <LabelOutlined />
-            </Box>
-            <Box
-              sx={{
+              >
+                <LabelOutlined />
+              </div>
+              <div style={{
                 display: 'inline-block',
                 flexGrow: 1,
-                marginLeft: '10px',
+                marginLeft: 10,
               }}
-            >
-              {option.label}
-            </Box>
-          </Box>
-        )}
-        renderInput={params => (
-          <TextField
-            {...params}
-            label={t('Tags')}
-            size="small"
-            fullWidth
-            variant="outlined"
-          />
-        )}
-      />
+              >
+                {option.label}
+              </div>
+            </>
+          )}
+        >
+          <ComboboxField>
+            <ComboboxInput
+              placeholder={t('Tags')}
+              aria-label={t('Tags')}
+            />
+            <ComboboxControls>
+              <ComboboxTrigger />
+            </ComboboxControls>
+          </ComboboxField>
+          <ComboboxContent />
+        </Combobox>
+      </div>
       {!fullWidth && (
         <Box
           component="div"

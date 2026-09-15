@@ -1,6 +1,11 @@
 name: Frontend Build
 description: Install frontend dependencies, build production bundle, and upload artifact
 
+inputs:
+  fds-git-token:
+    description: "PAT with read access to XTM-Foundation/filigran-design-system (secrets.FDS_GIT_TOKEN)."
+    required: true
+
 runs:
   using: composite
   steps:
@@ -23,6 +28,9 @@ runs:
         key: ${{ runner.os }}-yarn-${{ hashFiles('openaev-front/yarn.lock') }}
         restore-keys: |
           ${{ runner.os }}-yarn-
+    - uses: ./.github/actions/setup-fds-auth
+      with:
+        token: ${{ inputs.fds-git-token }}
     - name: Install dependencies
       run: |
         for attempt in 1 2; do

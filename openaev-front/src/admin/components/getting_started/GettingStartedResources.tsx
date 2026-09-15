@@ -1,8 +1,10 @@
+import { Paper } from '@filigran/design-system';
 import { AutoAwesomeOutlined, MenuBookOutlined, OpenInNew } from '@mui/icons-material';
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { Github, Slack } from 'mdi-material-ui';
-import { type ComponentType } from 'react';
+import { type ComponentType, type CSSProperties } from 'react';
+import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../components/i18n';
 import { XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
@@ -16,31 +18,41 @@ interface Resource {
   href: string;
 }
 
+// The lift and the tinted border on hover. The tint is per-resource, so it
+// travels as a custom property rather than as a generated class per colour.
+const useStyles = makeStyles()({
+  card: {
+    'display': 'flex',
+    'alignItems': 'flex-start',
+    'gap': 12,
+    'textDecoration': 'none',
+    'transition': 'transform 150ms ease, border-color 150ms ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      borderColor: 'var(--resource-hover-border)',
+    },
+  },
+});
+
 // A single external resource rendered as a clickable card: framed icon,
 // title, one-line description, and an unobtrusive external-link affordance.
 const ResourceCard = ({ resource }: { resource: Resource }) => {
   const Icon = resource.icon;
+  const { classes } = useStyles();
 
   return (
+    // `as="a"` keeps the surface itself the link — href, target and rel land on
+    // a real anchor, so cmd-click and the new tab are unchanged (measured).
+    // Iso with the MUI card it replaces: 4px radius, 16px padding, 12px gap and
+    // the same border, which the sx was already borrowing from the library.
     <Paper
-      variant="outlined"
-      component="a"
+      as="a"
       href={resource.href}
       target="_blank"
       rel="noopener noreferrer"
-      sx={{
-        'display': 'flex',
-        'alignItems': 'flex-start',
-        'gap': 1.5,
-        'padding': 2,
-        'borderRadius': 1,
-        'textDecoration': 'none',
-        'transition': 'transform 150ms ease, border-color 150ms ease',
-        '&:hover': {
-          transform: 'translateY(-2px)',
-          borderColor: alpha(resource.color, 0.45),
-        },
-      }}
+      padding={16}
+      className={classes.card}
+      style={{ '--resource-hover-border': alpha(resource.color, 0.45) } as CSSProperties}
     >
       <Box sx={{
         display: 'flex',

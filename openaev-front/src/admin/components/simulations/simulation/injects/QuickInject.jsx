@@ -1,3 +1,4 @@
+import { Switch } from '@filigran/design-system';
 import {
   ArrowDropDownOutlined,
   ArrowDropUpOutlined,
@@ -9,8 +10,6 @@ import {
 } from '@mui/icons-material';
 import {
   Button,
-  FormControlLabel,
-  FormGroup,
   IconButton,
   InputLabel,
   List,
@@ -20,7 +19,6 @@ import {
   ListItemSecondaryAction,
   ListItemText,
   MenuItem,
-  Switch,
   Typography,
 } from '@mui/material';
 import arrayMutators from 'final-form-arrays';
@@ -471,10 +469,8 @@ class QuickInjectComponent extends Component {
                   )
                 : (
                     <OldTextField
-                      variant="standard"
                       key={field.key}
                       name={field.key}
-                      fullWidth={true}
                       multiline={true}
                       rows={10}
                       label={t(field.label)}
@@ -485,10 +481,8 @@ class QuickInjectComponent extends Component {
             case 'number':
               return (
                 <OldTextField
-                  variant="standard"
                   key={field.key}
                   name={field.key}
-                  fullWidth={true}
                   type="number"
                   label={t(field.label)}
                   style={{ marginTop: theme.spacing(2.5) }}
@@ -567,9 +561,7 @@ class QuickInjectComponent extends Component {
                                   )}
                                 </OldSelectField>
                                 <OldTextField
-                                  variant="standard"
                                   name={`${name}.key`}
-                                  fullWidth={true}
                                   label={t('Key')}
                                   style={{ marginRight: theme.spacing(2.5) }}
                                   disabled={isDisabled}
@@ -599,9 +591,7 @@ class QuickInjectComponent extends Component {
                                       </OldSelectField>
                                     ) : (
                                       <OldTextField
-                                        variant="standard"
                                         name={`${name}.value`}
-                                        fullWidth={true}
                                         label={t('Value')}
                                         style={{ marginRight: theme.spacing(2.5) }}
                                         disabled={isDisabled}
@@ -728,10 +718,8 @@ class QuickInjectComponent extends Component {
             default:
               return (
                 <OldTextField
-                  variant="standard"
                   key={field.key}
                   name={field.key}
-                  fullWidth={true}
                   label={t(field.label)}
                   style={{ marginTop: theme.spacing(2.5) }}
                   disabled={isDisabled}
@@ -931,22 +919,14 @@ class QuickInjectComponent extends Component {
                     <Typography variant="h2" style={{ float: 'left' }}>
                       {t('Targeted teams')}
                     </Typography>
-                    <FormGroup
-                      row={true}
-                      classes={{ root: classes.allTeams }}
-                    >
-                      <FormControlLabel
-                        control={(
-                          <Switch
-                            checked={allTeams}
-                            onChange={this.toggleAll.bind(this)}
-                            color="primary"
-                            disabled={isDisabled}
-                          />
-                        )}
+                    <div className={classes.allTeams}>
+                      <Switch
+                        checked={allTeams}
+                        onCheckedChange={this.toggleAll.bind(this)}
+                        disabled={isDisabled}
                         label={<strong>{t('All teams')}</strong>}
                       />
-                    </FormGroup>
+                    </div>
                     <div className="clearfix" />
                     <List>
                       <ListItem

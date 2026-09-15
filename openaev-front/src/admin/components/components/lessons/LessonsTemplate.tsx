@@ -1,5 +1,6 @@
+import { Paper } from '@filigran/design-system';
 import { SchoolOutlined } from '@mui/icons-material';
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useParams } from 'react-router';
 
@@ -24,15 +25,13 @@ const LessonsTemplateEmptyState = ({ lessonsTemplateId }: { lessonsTemplateId: s
   const accent = theme.palette.primary.main;
   return (
     <Paper
-      variant="outlined"
-      sx={{
-        borderRadius: 1,
+      padding={32}
+      style={{
         borderStyle: 'dashed',
-        padding: 6,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 1.5,
+        gap: 12,
         textAlign: 'center',
       }}
     >

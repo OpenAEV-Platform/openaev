@@ -1,3 +1,4 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import {
   BoltOutlined,
   BugReportOutlined,
@@ -7,7 +8,7 @@ import {
   MovieFilterOutlined,
   NumbersOutlined,
 } from '@mui/icons-material';
-import { Box, Button, Tooltip } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Binoculars, SelectGroup } from 'mdi-material-ui';
 import { type FunctionComponent, memo, type ReactElement, useCallback, useContext, useMemo } from 'react';
@@ -119,23 +120,26 @@ const NumberWidget: FunctionComponent<Props> = ({ widgetId, widgetConfig, data }
       >
         {visual.icon}
       </Box>
-      <Tooltip title={data.interval_count != null ? data.interval_count.toLocaleString() : ''}>
-        <Button
-          onClick={onClick}
-          variant="text"
-          className="noDrag"
-          sx={{
-            fontSize: 36,
-            height: 46,
-            fontWeight: 500,
-            fontFamily: '"Geologica", sans-serif',
-            padding: 0,
-            minWidth: 0,
-            color: 'text.primary',
-          }}
-        >
-          {data.interval_count != null ? compactNumber(Math.round(animatedCount)) : '-'}
-        </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            onClick={onClick}
+            variant="text"
+            className="noDrag"
+            sx={{
+              fontSize: 36,
+              height: 46,
+              fontWeight: 500,
+              fontFamily: '"Geologica", sans-serif',
+              padding: 0,
+              minWidth: 0,
+              color: 'text.primary',
+            }}
+          >
+            {data.interval_count != null ? compactNumber(Math.round(animatedCount)) : '-'}
+          </Button>
+        </TooltipTrigger>
+        {(data.interval_count != null ? data.interval_count.toLocaleString() : '') && <TooltipContent>{data.interval_count != null ? data.interval_count.toLocaleString() : ''}</TooltipContent>}
       </Tooltip>
       <TrendChip
         difference={data.difference_count ?? 0}

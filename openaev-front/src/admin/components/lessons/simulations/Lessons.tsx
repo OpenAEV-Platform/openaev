@@ -1,3 +1,4 @@
+import { Paper, Switch } from '@filigran/design-system';
 import { BallotOutlined, ContactMailOutlined, ContentPasteGoOutlined, DeleteSweepOutlined, SendOutlined, SpeakerNotesOutlined, SportsScoreOutlined, VisibilityOutlined } from '@mui/icons-material';
 import {
   Alert,
@@ -8,18 +9,13 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  FormControlLabel,
-  Paper,
-  Switch,
-  Typography,
-  useTheme,
 } from '@mui/material';
 import * as R from 'ramda';
 import { type FunctionComponent, useContext, useEffect, useState } from 'react';
 
 import { fetchLessonsTemplates } from '../../../../actions/Lessons';
-import { SECTION_LABEL_SX } from '../../../../components/common/detail/detailStyles';
 import { Field, HeroStat, HeroStats, InformationGrid, Section } from '../../../../components/common/detail/EntityDetailCommon';
+import LibHeaderRow from '../../../../components/common/LibHeaderRow';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type Inject, type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type LessonsSendInput, type LessonsTemplate, type Objective, type Team, type User } from '../../../../utils/api-types';
@@ -81,7 +77,6 @@ const Lessons: FunctionComponent<Props> = ({
   usersMap,
 }) => {
   // Standard hooks
-  const theme = useTheme();
   const { t, nsdt } = useFormatter();
   const dispatch = useAppDispatch();
   const { permissions } = useContext(PermissionsContext);
@@ -149,13 +144,9 @@ const Lessons: FunctionComponent<Props> = ({
     }}
     >
       {/* Headline metrics */}
-      <Paper
-        variant="outlined"
-        sx={{
-          padding: 2,
-          borderRadius: 1,
-        }}
-      >
+      {/* padding=16 (iso): HeroStat's right gutter is structural (the separator),
+          so it stays — PAPER-GAP-INVENTORY §5.3. */}
+      <Paper padding={16}>
         <HeroStats>
           <HeroStat
             icon={SportsScoreOutlined}
@@ -211,16 +202,11 @@ const Lessons: FunctionComponent<Props> = ({
         <InformationGrid title={t('Parameters')}>
           {permissions.canManage && (
             <Field label={t('Questionnaire mode')}>
-              <FormControlLabel
-                control={(
-                  <Switch
-                    disabled={source.lessons_anonymized}
-                    checked={source.lessons_anonymized}
-                    onChange={() => setOpenAnonymize(true)}
-                    name="anonymized"
-                    size="small"
-                  />
-                )}
+              <Switch
+                name="anonymized"
+                disabled={source.lessons_anonymized}
+                checked={source.lessons_anonymized}
+                onCheckedChange={() => setOpenAnonymize(true)}
                 label={t('Anonymize answers')}
               />
             </Field>
@@ -318,6 +304,7 @@ const Lessons: FunctionComponent<Props> = ({
           title={t('Objectives')}
           count={objectives.length}
           action={source.isUpdatable ? <CreateObjective /> : undefined}
+          withSurface
         >
           <LessonsObjectives
             objectives={objectives}
@@ -325,53 +312,44 @@ const Lessons: FunctionComponent<Props> = ({
             source={source}
           />
         </ConfigurationSection>
-        <ConfigurationSection title={t('Crisis intensity (injects by hour)')}>
+        <ConfigurationSection title={t('Crisis intensity (injects by hour)')} withSurface>
           <CrysisIntensity injects={injects} />
         </ConfigurationSection>
       </Box>
 
       {/* Categories and questions */}
       <section>
-        <header style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: theme.spacing(1),
-          marginBottom: theme.spacing(1.5),
-        }}
+        <LibHeaderRow
+          title={t('Categories and questions')}
+          action={(
+            <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
+              <CreateLessonsCategory />
+            </Can>
+          )}
         >
-          <Typography sx={{
-            ...SECTION_LABEL_SX,
-            marginBottom: 0,
-          }}
-          >
-            {t('Categories and questions')}
-          </Typography>
-          <div style={{ flex: 1 }} />
-          <Can I={ACTIONS.MANAGE} a={SUBJECTS.LESSONS_LEARNED}>
-            <CreateLessonsCategory />
-          </Can>
-        </header>
-        {lessonsCategories.length === 0 ? (
-          <Paper
-            variant="outlined"
-            sx={{ borderRadius: 1 }}
-          >
-            <LessonsPlaceholder
-              icon={BallotOutlined}
-              message={t('No lessons learned categories yet. Apply a template or create a category to build the questionnaire.')}
+          {lessonsCategories.length === 0 ? (
+          /* padding=32 carried by the Paper, and the placeholder's own 32px
+             dropped HERE, at the call site: the shared component keeps its
+             default rendering for its other consumers — PAPER-GAP-INVENTORY §5.6. */
+            <Paper padding={32}>
+              <LessonsPlaceholder
+                disablePadding
+                icon={BallotOutlined}
+                message={t('No lessons learned categories yet. Apply a template or create a category to build the questionnaire.')}
+              />
+            </Paper>
+          ) : (
+            <LessonsCategories
+              lessonsCategories={lessonsCategories}
+              lessonsAnswers={lessonsAnswers}
+              setSelectedQuestion={setSelectedQuestion}
+              lessonsQuestions={lessonsQuestions}
+              teamsMap={teamsMap}
+              teams={teams}
+              isReport={false}
             />
-          </Paper>
-        ) : (
-          <LessonsCategories
-            lessonsCategories={lessonsCategories}
-            lessonsAnswers={lessonsAnswers}
-            setSelectedQuestion={setSelectedQuestion}
-            lessonsQuestions={lessonsQuestions}
-            teamsMap={teamsMap}
-            teams={teams}
-            isReport={false}
-          />
-        )}
+          )}
+        </LibHeaderRow>
       </section>
 
       {/* Dialogs */}

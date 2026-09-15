@@ -1,4 +1,5 @@
-import { alpha, Chip, Tooltip, type TooltipProps, Typography } from '@mui/material';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { alpha, Chip, type TooltipProps, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -19,35 +20,18 @@ const StatusTooltip: FunctionComponent<StatusTooltipProps> = ({ title, descripti
   const theme = useTheme();
 
   return (
-    <Tooltip
-      arrow
-      title={(
-        <div style={{ padding: theme.spacing(0.5) }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: theme.typography.fontWeightBold }}>
-            {title}
-          </Typography>
-          <Typography variant="body2">
-            {description}
-          </Typography>
-        </div>
-      )}
-      slotProps={{
-        tooltip: {
-          sx: {
-            backgroundColor: theme.palette.background.paper,
-            border: `1px solid ${theme.palette.divider}`,
-            maxWidth: 400,
-          },
-        },
-        arrow: {
-          sx: {
-            'color': theme.palette.background.paper,
-            '&::before': { border: `1px solid ${theme.palette.divider}` },
-          },
-        },
-      }}
-    >
-      {children}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex">{children}</span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <Typography variant="subtitle2" sx={{ fontWeight: theme.typography.fontWeightBold }}>
+          {title}
+        </Typography>
+        <Typography variant="body2">
+          {description}
+        </Typography>
+      </TooltipContent>
     </Tooltip>
   );
 };

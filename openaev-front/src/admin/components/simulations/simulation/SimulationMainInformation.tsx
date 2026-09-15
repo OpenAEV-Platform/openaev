@@ -1,4 +1,5 @@
-import { Box, Paper } from '@mui/material';
+import { Paper } from '@filigran/design-system';
+import { Box } from '@mui/material';
 import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
@@ -86,14 +87,7 @@ const SimulationMainInformation: FunctionComponent<Props> = ({ exercise, embedde
   }
 
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        padding: 2,
-        borderRadius: 1,
-        height: '100%',
-      }}
-    >
+    <Paper padding={16} style={{ height: '100%' }}>
       {content}
     </Paper>
   );

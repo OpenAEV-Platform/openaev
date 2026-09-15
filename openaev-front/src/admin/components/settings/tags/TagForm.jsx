@@ -33,13 +33,11 @@ class TagFormComponent extends Component {
           <form id="tagForm" onSubmit={handleSubmit}>
             <OldTextField
               name="tag_name"
-              fullWidth
               label={t('Value')}
               style={{ marginTop: 10 }}
             />
             <DeprecatedColorPickerField
               name="tag_color"
-              fullWidth
               label={t('Color')}
               style={{ marginTop: 20 }}
             />

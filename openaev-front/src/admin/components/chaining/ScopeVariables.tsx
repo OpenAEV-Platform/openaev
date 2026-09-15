@@ -1,12 +1,6 @@
+import { Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Add, DataObjectOutlined, DeleteOutlined } from '@mui/icons-material';
-import {
-  Box,
-  Chip,
-  IconButton,
-  Paper,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Box, Chip, IconButton, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { useState } from 'react';
 
@@ -55,14 +49,13 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
 
   return (
     <Paper
-      variant="outlined"
-      sx={{
+      padding={16}
+      style={{
         height: '100%',
         display: 'grid',
         gridTemplateRows: 'min-content 1fr',
-        gap: 1.5,
+        gap: 12,
         minHeight: 168,
-        p: theme.spacing(2),
       }}
     >
       {/* Header */}
@@ -176,15 +169,18 @@ const ScopeVariables = ({ workflowConfiguration, onUpdate }: ScopeVariablesProps
                 >
                   {variable.scope_variable_description ?? '—'}
                 </Typography>
-                <Tooltip key={`del-${variable.scope_variable_id}`} title={t('Delete variable')}>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={() => handleDelete(variable.scope_variable_id)}
-                    aria-label={t('Delete variable')}
-                  >
-                    <DeleteOutlined fontSize="small" />
-                  </IconButton>
+                <Tooltip key={`del-${variable.scope_variable_id}`}>
+                  <TooltipTrigger asChild>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDelete(variable.scope_variable_id)}
+                      aria-label={t('Delete variable')}
+                    >
+                      <DeleteOutlined fontSize="small" />
+                    </IconButton>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Delete variable')}</TooltipContent>
                 </Tooltip>
               </>
             ))}

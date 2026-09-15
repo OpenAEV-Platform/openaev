@@ -8,9 +8,8 @@ import useAuth from '../../../utils/hooks/useAuth';
 import { isNotEmptyField } from '../../../utils/utils';
 import { useFormatter } from '../../i18n';
 
-// Height of the top AppBar toolbar (see TopBar.tsx). The right menu paper is
-// offset below it so it never renders over the header.
-const TOPBAR_HEIGHT = 68;
+// The library publishes the header height; the fallback applies only if its stylesheet failed to load.
+const HEADER_HEIGHT = 'var(--fds-header-height, 68px)';
 
 export interface RightMenuEntry {
   path: string;
@@ -36,8 +35,8 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header }) => {
 
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
-  // The header occupies the top banner (if any) plus the fixed AppBar toolbar.
-  const topOffset = bannerHeightNumber + TOPBAR_HEIGHT;
+  // Banner plus header bar, kept as a CSS expression so the library's height stays the single source.
+  const topOffset = `calc(${bannerHeightNumber}px + ${HEADER_HEIGHT})`;
 
   return (
     <Drawer
@@ -48,7 +47,7 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header }) => {
         '& .MuiDrawer-paper': {
           width: 200,
           top: topOffset,
-          height: `calc(100% - ${topOffset}px)`,
+          height: `calc(100% - ${topOffset})`,
           backgroundColor: theme.palette.background.nav,
         },
       }}
