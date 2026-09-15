@@ -150,22 +150,22 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 
 - With a classic authentication, you can use either ElasticSearch or OpenSearch as an engine.
 
-| Parameter              | Environment variable   | Default value         | Description                                                                                    |
-|:--------------------------|:--------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------|
-| engine.engine-aws-mode | ENGINE_ENGINE_AWS_MODE | no                    | Classic authentication (no)                                                                    |
-| engine.engine-selector | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use for storage and search (`elk` for ElasticSearch and `opensearch` for OpenSearch) |
-| engine.url             | ENGINE_URL             | http://localhost:9200 | URL of the ElasticSearch database                                                              |
-| engine.username        | ENGINE_USERNAME        |                       | This parameter is optional. Login for the database                                             |
-| engine.password        | ENGINE_PASSWORD        |                       | This parameter is optional. Password for the database                                          |
+| Parameter              | Environment variable   | Default value         | Description                                                                                                                            |
+|:--------------------------|:--------------------------|:--------------------------|:---------------------------------------------------------------------------------------------------------------------------------------|
+| engine.engine-aws-mode | ENGINE_ENGINE_AWS_MODE | no                    | Classic authentication (no)                                                                                                            |
+| engine.engine-selector | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use for storage and search (`elk` for ElasticSearch 8 -default-, `elk9` for Elasticsearch 9 and `opensearch` for OpenSearch) |
+| engine.url             | ENGINE_URL             | http://localhost:9200 | URL of the ElasticSearch database                                                                                                      |
+| engine.username        | ENGINE_USERNAME        |                       | This parameter is optional. Login for the database                                                                                     |
+| engine.password        | ENGINE_PASSWORD        |                       | This parameter is optional. Password for the database                                                                                  |
 
 - With AWS SigV4 authentication, you can use Amazon OpenSearch or Amazon OpenSearch Serverless as an engine.
 
-| Parameter                | Environment variable     | Default value         | Description                                                                                                |
-|:----------------------------|:----------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------------------|
-| engine.engine-aws-mode   | ENGINE_ENGINE_AWS_MODE   |                       | Whether to use AWS SigV4 authentication Amazon OpenSearch or Amazon OpenSearch Serverless (`es` or `aoss`) |
-| engine.engine-selector   | ENGINE_ENGINE_SELECTOR   |                       | Engine to use for storage and search (`opensearch` for OpenSearch)                                         |
-| engine.engine-aws-host   | ENGINE_ENGINE_AWS_HOST   |                       | URL of the OpenSearch database, no http(s) prefix                                                          |
-| engine.engine-aws-region | ENGINE_ENGINE_AWS_REGION |                       | Example: eu-west-3                                                                                         |
+| Parameter                    | Environment variable     | Default value         | Description                                                                                                |
+|:-----------------------------|:-------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------------------|
+| engine.engine-aws-mode       | ENGINE_ENGINE_AWS_MODE   |                       | Whether to use AWS SigV4 authentication Amazon OpenSearch or Amazon OpenSearch Serverless (`es` or `aoss`) |
+| engine.engine-selector       | ENGINE_ENGINE_SELECTOR   |                       | Engine to use for storage and search (`opensearch` for OpenSearch)                                         |
+| engine.engine-aws-host       | ENGINE_ENGINE_AWS_HOST   |                       | URL of the OpenSearch database, no http(s) prefix                                                          |
+| engine.engine-aws-region     | ENGINE_ENGINE_AWS_REGION |                       | Example: eu-west-3                                                                                         |
 
 !!! tip "Adding the needed authorization to AWS OpenSearch"
 

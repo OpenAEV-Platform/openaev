@@ -5,7 +5,6 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
-import co.elastic.clients.util.VisibleForTesting;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
@@ -66,6 +65,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -112,7 +112,7 @@ public class InjectApi extends RestBehavior {
   private final PreviewFeatureService previewFeatureService;
 
   // For testing purpose, we add a setter
-  @Setter private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
+  @Getter @Setter private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
 
   @PostConstruct
   public void init() throws IOException, TimeoutException {
@@ -702,10 +702,5 @@ public class InjectApi extends RestBehavior {
     }
 
     return documentService.documentsForPayload(payloadId);
-  }
-
-  @VisibleForTesting
-  public BatchQueueService<InjectExecutionCallback> getInjectTraceQueueService() {
-    return injectTraceQueueService;
   }
 }

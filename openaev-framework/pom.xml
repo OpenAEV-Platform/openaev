@@ -64,7 +64,7 @@
                     <annotationProcessorPaths>
                         <path>
                             <groupId>io.openaev</groupId>
-                            <artifactId>openaev-annotation-processor</artifactId>
+                            <artifactId>openaev-build-services</artifactId>
                             <version>${project.parent.version}</version>
                         </path>
                         <path>

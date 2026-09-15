@@ -149,6 +149,7 @@ nav:
         - URL access token enforcement for email links: deployment/breaking-changes/2.260622.0-url-access-token-enforcement.md
         - Injector contract expectation format: deployment/breaking-changes/MigrationVersion-injector-contract-expectation-format.md
         - Tenant users, groups and roles capabilities: deployment/breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md
+        - Elasticsearch 9: deployment/breaking-changes/MigrationVersion-elasticsearch-9.md
   - User Guide:
     - Getting started: usage/getting-started.md
     - Foundations:

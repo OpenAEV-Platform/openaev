@@ -8,11 +8,16 @@
         <version>3.260904.0</version>
     </parent>
 
-    <artifactId>openaev-annotation-processor</artifactId>
-    <name>OpenAEV annotation processor</name>
-    <description>Compile-time annotation processors for OpenAEV</description>
+    <artifactId>openaev-build-services</artifactId>
+    <name>OpenAEV Build Services</name>
+    <description>Compile-time services for OpenAEV</description>
 
     <dependencies>
+        <dependency>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>3.6.2</version>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

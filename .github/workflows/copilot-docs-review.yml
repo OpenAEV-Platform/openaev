@@ -81,7 +81,7 @@ jobs:
               /\.eslintrc/, /\.prettierrc/, /spotless/, /\.editorconfig/,
               /AGENTS\.md$/, /CLAUDE\.md$/, /CONTRIBUTING\.md$/,
               /CODE_OF_CONDUCT\.md$/, /SECURITY\.md$/, /README\.md$/,
-              /openaev-annotation-processor\//, /openaev-maven-plugin\//,
+              /openaev-build-services\//, /openaev-maven-plugin\//,
               /openaev-dev\//, /\.run\.xml$/,
             ];
 
