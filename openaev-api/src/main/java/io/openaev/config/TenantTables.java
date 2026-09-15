@@ -48,6 +48,14 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
   private static final Set<String> SELF_ISOLATED_TABLES =
       Set.of("attackpath_graph_version", "tenants");
 
+  /**
+   * The self-isolated tables, exposed so tooling that must leave them out (a schema-wide sweep, a
+   * detector attaching to every tenant table) derives the set from here rather than restating it.
+   */
+  public static Set<String> selfIsolatedTables() {
+    return SELF_ISOLATED_TABLES;
+  }
+
   public enum Family {
     NONE,
     STRICT,
