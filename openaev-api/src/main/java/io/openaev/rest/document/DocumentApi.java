@@ -485,11 +485,11 @@ public class DocumentApi extends RestBehavior {
    * check, not a tenant compare: without this guard a caller scoped to one tenant could reach or
    * modify another tenant's document by id.
    *
-   * <p>A request that narrows to an explicit tenant set (a path tenant) is held to it. A request
-   * with no scope at all (no selector and no membership, for example an admin without membership
-   * used by existing tests) falls back to the ambient tenant, the same boundary the Hibernate
-   * {@code tenantFilter} applies to such requests, so unscoped and same-tenant callers keep today's
-   * behaviour. A document with no tenant is a platform asset with no boundary and is always
+   * <p>A request that narrows to an explicit tenant set (a path tenant, or an {@code X-Tenant-Ids}
+   * selector) is held to it. A request with no scope at all (an empty {@code TxCtx}, which on the
+   * non-prefixed route is a caller with no tenant membership and no selector) keeps today's
+   * behaviour: the check is not applied, so a by-id read or write behaves exactly as it did before
+   * this guard. A document with no tenant is a platform asset with no boundary and is always
    * allowed.
    */
   private void assertDocumentInRequestScope(TxCtx ctx, Document document) {
@@ -499,10 +499,9 @@ public class DocumentApi extends RestBehavior {
     }
     Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
     if (scope.isEmpty()) {
-      String ambient = TenantContext.getCurrentTenant();
-      scope = ambient == null ? Set.of() : Set.of(ambient);
+      return;
     }
-    if (!scope.isEmpty() && !scope.contains(tenant.getId())) {
+    if (!scope.contains(tenant.getId())) {
       throw new ElementNotFoundException("Document not found");
     }
   }
