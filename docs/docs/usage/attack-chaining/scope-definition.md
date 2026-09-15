@@ -1,7 +1,9 @@
 # Scope Definition
 
 The scope of a chained Scenario or Simulation defines which Assets the Chaining Engine is allowed to target, and the
-operational boundaries (timeout, rate limit) that keep an automated run safe. This page details the **Scope** tab.
+operational boundaries (timeout, rate limit) that keep an automated run safe. OpenAEV also exports and imports this
+scope definition for chained Scenarios and Simulations so teams, players, and other scope targets stay linked across
+environments. This page details the **Scope** tab.
 
 ## What is a scope?
 
