@@ -11,13 +11,14 @@ const EEChip = ({ clickable = false, featureDetectedInfo = null, style = {} }: {
 }) => {
   const { t } = useFormatter();
   const { isValidated: isEnterpriseEdition, openDialog, setEEFeatureDetectedInfo } = useEnterpriseEdition();
-  if (featureDetectedInfo) {
-    setEEFeatureDetectedInfo(featureDetectedInfo);
-  }
+  // The feature context is recorded when the dialog is asked for, not during render.
   const onClick = clickable && !isEnterpriseEdition
     ? (event: MouseEvent<HTMLElement>) => {
         event.preventDefault();
         event.stopPropagation();
+        if (featureDetectedInfo) {
+          setEEFeatureDetectedInfo(featureDetectedInfo);
+        }
         openDialog();
       }
     : undefined;
