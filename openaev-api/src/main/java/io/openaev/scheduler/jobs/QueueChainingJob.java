@@ -9,6 +9,7 @@ import io.openaev.database.model.Workflow;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.service.chaining.StepDelayQueueService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.chaining.WorkflowService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -58,12 +59,19 @@ public class QueueChainingJob implements Job {
             // branch, and the delayed inject fires with no per-asset target. No exception, no log.
             String tenantId = tenantOf(stepDelayQueue);
             if (tenantId == null) {
+              // Cleared, not left alone. Every entry shares this transaction, so the PREVIOUS
+              // entry's scope is still set here: doing nothing would process a tenant-less entry
+              // under another tenant's scope and read that tenant's rows. Missing() denies every
+              // row instead, which is the degraded read the warning describes.
+              //
               // Processed anyway rather than skipped: dropping a queued step would be the same
-              // silent loss this scoping exists to prevent, and a run with no simulation has no
-              // tenant to scope to. The warning is what makes the degraded read visible.
+              // silent loss this scoping exists to prevent.
+              TenantContext.clearCurrentTenant();
+              tenantTx.setScopeOnCurrentTransaction(TxCtx.missing());
               log.warn(
-                  "[Chaining] Delayed step {} has no simulation tenant, so it is processed with no"
-                      + " tenant scope: any read of an activated table will come back empty.",
+                  "[Chaining] Delayed step {} has no simulation or scenario tenant, so it is"
+                      + " processed with no tenant scope: any read of an activated table will come"
+                      + " back empty.",
                   stepDelayQueue.getId());
             } else {
               TenantContext.setCurrentTenant(tenantId);
@@ -79,7 +87,9 @@ public class QueueChainingJob implements Job {
               log.info(
                   "[Chaining] Deleting all delayed steps for workflow run {} as it has ended.",
                   stepDelayQueue.getWorkflowRun().getId());
-              stepDelayQueueService.deleteAllByWorkflowRun(stepDelayQueue.getWorkflowRun());
+              stepDelayQueueService.deleteAllByWorkflowRun(
+                  stepDelayQueue.getWorkflowRun(),
+                  WorkflowEndService.WORKFLOW_END_CAUSE.NO_MORE_PROGRESS);
               continue;
             }
 

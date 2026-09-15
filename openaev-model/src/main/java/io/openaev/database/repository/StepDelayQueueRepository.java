@@ -29,5 +29,5 @@ public interface StepDelayQueueRepository extends JpaRepository<StepDelayQueue, 
 
   List<StepDelayQueue> findAllByWorkflowRun(Workflow workflowRun);
 
-  void deleteAllByWorkflowRun(Workflow workflowRun);
+  int deleteAllByWorkflowRun(Workflow workflowRun);
 }
