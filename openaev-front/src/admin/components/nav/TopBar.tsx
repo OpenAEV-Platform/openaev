@@ -12,6 +12,7 @@ import { computeBannerSettings } from '../../../public/components/systembanners/
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
+import useCapabilityGrants from '../../../utils/hooks/useCapabilityGrants';
 import AskArianeButton from '../ariane/AskArianeButton';
 import AskArianePanel from '../ariane/AskArianePanel';
 import CtemCommandCenterButton from '../ariane/CtemCommandCenterButton';
@@ -38,6 +39,7 @@ const TopBar: FunctionComponent = () => {
   const { t } = useFormatter();
   const { settings } = useAuth();
   const { bannerHeightNumber } = computeBannerSettings(settings);
+  const { holdsCapability } = useCapabilityGrants();
   const dispatch = useAppDispatch();
   const [navOpen, setNavOpen] = useState(
     localStorage.getItem('navOpen') === 'true',
@@ -182,16 +184,18 @@ const TopBar: FunctionComponent = () => {
                 </IconButton>
               </Tooltip>
               <TopBarNotifications iconButtonSx={topBarIconButtonSx} />
-              <Tooltip title={t('Install simulation agents')}>
-                <IconButton
-                  aria-haspopup="true"
-                  component={Link}
-                  to="/admin/agents"
-                  sx={topBarIconButtonSx(location.pathname === '/admin/agents')}
-                >
-                  <ImportantDevicesOutlined fontSize="medium" />
-                </IconButton>
-              </Tooltip>
+              {holdsCapability('INSTALL_AGENT') && (
+                <Tooltip title={t('Install simulation agents')}>
+                  <IconButton
+                    aria-haspopup="true"
+                    component={Link}
+                    to="/admin/agents"
+                    sx={topBarIconButtonSx(location.pathname === '/admin/agents')}
+                  >
+                    <ImportantDevicesOutlined fontSize="medium" />
+                  </IconButton>
+                </Tooltip>
+              )}
               <IconButton
                 aria-owns={menuOpen.open ? 'menu-appbar' : undefined}
                 aria-haspopup="true"

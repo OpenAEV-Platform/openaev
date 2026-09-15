@@ -264,7 +264,7 @@ public class ExecutorApi extends RestBehavior {
         TENANT_AGENT_URI + "/executable/openaev/{platform}/{architecture}"
       },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-  @AccessControl(skipRBAC = true)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
   public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevAgentExecutable(
       TxCtx ctx,
       @Parameter(
@@ -334,7 +334,7 @@ public class ExecutorApi extends RestBehavior {
         TENANT_AGENT_URI + "/package/openaev/{platform}/{architecture}/{installationMode}"
       },
       produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-  @AccessControl(skipRBAC = true)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
   public @ResponseBody ResponseEntity<InputStreamResource> getOpenAevAgentPackage(
       TxCtx ctx,
       @Parameter(
@@ -415,7 +415,7 @@ public class ExecutorApi extends RestBehavior {
         AGENT_URI + "/installer/openaev/{platform}/{installationMode}",
         TENANT_AGENT_URI + "/installer/openaev/{platform}/{installationMode}"
       })
-  @AccessControl(skipRBAC = true)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstaller(
       TxCtx ctx,
       @Parameter(
@@ -450,5 +450,25 @@ public class ExecutorApi extends RestBehavior {
             serviceName,
             TenantContext.getCurrentTenant());
     return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body(installCommand);
+  }
+
+  @Operation(
+      summary = "Retrieve the OpenAEV Agent installer token",
+      description =
+          "Returns the tenant's service-account token, used to authenticate the copy-pasteable "
+              + "curl/iwr installer command against the (now capability-gated) installer endpoint.")
+  @Transactional(readOnly = true)
+  @ApiResponses(
+      value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved the token."),
+        @ApiResponse(responseCode = "404", description = "Token not found."),
+      })
+  @GetMapping(
+      value = {AGENT_URI + "/installer/openaev/token", TENANT_AGENT_URI + "/installer/openaev/token"})
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
+  public @ResponseBody ResponseEntity<String> getOpenAevAgentInstallerToken(TxCtx ctx) {
+    String token =
+        privilegeService.getTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant());
+    return ResponseEntity.ok().contentType(MediaType.TEXT_PLAIN).body(token);
   }
 }

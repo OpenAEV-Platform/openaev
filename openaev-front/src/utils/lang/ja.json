@@ -2004,6 +2004,7 @@
   "Install the agent as a user or a system service. This installation requires local administrator privileges.": "ユーザまたはシステムサービスとしてエージェントをインストールします。このインストールにはローカル管理者権限が必要です。",
   "Install the agent using your own user account.": "自分のユーザーアカウントを使ってエージェントをインストールします。",
   "Install Windows Agent": "Windows エージェントのインストール",
+  "INSTALL_AGENT": "エージェントのインストール",
   "Installation Instructions": "インストール手順",
   "Installation path": "インストールパス",
   "Installing it as a system grants system-wide privileges.": "システムとしてインストールすると、システム全体の権限が付与されます。",

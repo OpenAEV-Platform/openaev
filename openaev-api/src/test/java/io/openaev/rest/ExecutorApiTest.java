@@ -21,6 +21,7 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.service.EndpointService;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.HashUtils;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -69,6 +70,7 @@ public class ExecutorApiTest extends IntegrationTest {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TestUserHolder testUserHolder;
   @Autowired private EntityManager entityManager;
+  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
 
   @BeforeEach
   void setUp() {
@@ -397,6 +399,7 @@ public class ExecutorApiTest extends IntegrationTest {
     @ParameterizedTest(
         name = "GET package for platform \"{0}\" arch \"{1}\" install type \"{2}\" should fail ")
     @MethodSource("platformArchCombinationsFailure")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.AGENT_RUNTIME_ACCESS})
     public void given_platformAndArch_then_downloadOutcomeFailure(
         String platform,
         String arch,
@@ -448,6 +451,7 @@ public class ExecutorApiTest extends IntegrationTest {
     @ParameterizedTest(
         name = "GET package for platform \"{0}\" arch \"{1}\" install type \"{2}\" should succeed ")
     @MethodSource("platformArchCombinationsSuccess")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.AGENT_RUNTIME_ACCESS})
     public void given_platformAndArch_then_downloadOutcomeSuccess(
         String platform, String arch, String installType) throws Exception {
 
@@ -495,6 +499,7 @@ public class ExecutorApiTest extends IntegrationTest {
     @ParameterizedTest(
         name = "GET package for platform \"{0}\" arch \"{1}\" install type \"{2}\" should fail")
     @MethodSource("installationModeFailure")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.AGENT_RUNTIME_ACCESS})
     public void given_platformAndArchAndBadInstallMode_then_downloadOutcomeFailure(
         String platform, String arch, String installType) throws Exception {
 
@@ -523,6 +528,7 @@ public class ExecutorApiTest extends IntegrationTest {
 
     @ParameterizedTest(name = "GET executable for platform \"{0}\" arch \"{1}\" should succeed ")
     @MethodSource("platformArchCombinationsExecutableSuccess")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.AGENT_RUNTIME_ACCESS})
     public void given_platformAndArch_then_downloadExecutableSucceeds(String platform, String arch)
         throws Exception {
       byte[] agentBytes =
@@ -560,6 +566,7 @@ public class ExecutorApiTest extends IntegrationTest {
 
     @ParameterizedTest(name = "GET executable for platform \"{0}\" arch \"{1}\" should fail ")
     @MethodSource("platformArchCombinationsExecutableFailure")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.AGENT_RUNTIME_ACCESS})
     public void given_platformAndArch_then_downloadExecutableFails(String platform, String arch) {
       assertThatThrownBy(
               () ->
@@ -568,6 +575,106 @@ public class ExecutorApiTest extends IntegrationTest {
                           .contentType(MediaType.APPLICATION_OCTET_STREAM_VALUE)
                           .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE)))
           .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName(
+        "Given a user without the AGENT_RUNTIME_ACCESS capability, should reject the executable download")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS})
+    void givenUserWithoutAgentRuntimeAccess_shouldRejectExecutableDownload() throws Exception {
+      mvc.perform(
+              get("/api/agent/executable/openaev/%s/%s"
+                      .formatted(
+                          Endpoint.PLATFORM_TYPE.Linux.name(),
+                          Endpoint.PLATFORM_ARCH.x86_64.name()))
+                  .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a user without the AGENT_RUNTIME_ACCESS capability, should reject the package download")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS})
+    void givenUserWithoutAgentRuntimeAccess_shouldRejectPackageDownload() throws Exception {
+      mvc.perform(
+              get("/api/agent/package/openaev/%s/%s/%s"
+                      .formatted(
+                          Endpoint.PLATFORM_TYPE.Windows.name(),
+                          Endpoint.PLATFORM_ARCH.x86_64.name(),
+                          EndpointService.SERVICE))
+                  .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a user with the AGENT_RUNTIME_ACCESS capability, should allow the executable download")
+    @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
+    void givenUserWithAgentRuntimeAccess_shouldAllowExecutableDownload() throws Exception {
+      mvc.perform(
+              get("/api/agent/executable/openaev/%s/%s"
+                      .formatted(
+                          Endpoint.PLATFORM_TYPE.Linux.name(),
+                          Endpoint.PLATFORM_ARCH.x86_64.name()))
+                  .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+          .andExpect(status().is2xxSuccessful());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a user with the AGENT_RUNTIME_ACCESS capability, should allow the package download")
+    @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
+    void givenUserWithAgentRuntimeAccess_shouldAllowPackageDownload() throws Exception {
+      mvc.perform(
+              get("/api/agent/package/openaev/%s/%s/%s"
+                      .formatted(
+                          Endpoint.PLATFORM_TYPE.Windows.name(),
+                          Endpoint.PLATFORM_ARCH.x86_64.name(),
+                          EndpointService.SERVICE))
+                  .accept(MediaType.APPLICATION_OCTET_STREAM_VALUE))
+          .andExpect(status().is2xxSuccessful());
+    }
+  }
+
+  @Nested
+  @DisplayName("Agent installer command")
+  class GetOpenAevAgentInstaller {
+
+    /**
+     * Bootstraps the service-account user + token for the given tenant. Required to reach a
+     * 2xx response, since {@code EndpointService.generateInstallCommand} looks up the
+     * service-account token.
+     */
+    private void ensureServiceAccount(String tenantId) {
+      serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+      entityManager.flush();
+      entityManager.clear();
+    }
+
+    @Test
+    @DisplayName(
+        "Given a user without the INSTALL_AGENT capability, should reject the installer command request")
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS})
+    void givenUserWithoutInstallAgentCapability_shouldRejectInstallerCommand() throws Exception {
+      mvc.perform(
+              get("/api/agent/installer/openaev/%s/%s"
+                      .formatted(Endpoint.PLATFORM_TYPE.Windows.name(), EndpointService.SERVICE))
+                  .accept(MediaType.TEXT_PLAIN_VALUE))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a user with the INSTALL_AGENT capability, should return the installer command")
+    @WithMockUser(withCapabilities = {Capability.INSTALL_AGENT})
+    void givenUserWithInstallAgentCapability_shouldReturnInstallerCommand() throws Exception {
+      ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
+
+      mvc.perform(
+              get("/api/agent/installer/openaev/%s/%s"
+                      .formatted(Endpoint.PLATFORM_TYPE.Linux.name(), EndpointService.SERVICE))
+                  .accept(MediaType.TEXT_PLAIN_VALUE))
+          .andExpect(status().is2xxSuccessful());
     }
   }
 
