@@ -281,6 +281,7 @@ runs:
         mvn -B -ntp -pl openaev-api test
         -Dmaven.compiler.skip=true
         ${{ steps.suite.outputs.surefire_arg }}
+        ${{ steps.tenant.outputs.args }}
     - name: Diagnose surefire dump files (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       if: ${{ failure() && steps.run-tests.outcome == 'failure' }}
       shell: bash
@@ -297,7 +298,6 @@ runs:
             echo "::endgroup::"
           done
         fi
-        ${{ steps.tenant.outputs.args }}
 
     - name: Summarise the multi-tenancy shadow run
       if: ${{ !cancelled() && inputs.tenant-mode != '' }}
