@@ -1094,8 +1094,7 @@ public class ConditionService {
         workflowStateService.loadOrBuildLocalState(stepTemplate, workflowRun);
 
     WorkflowStateEntries emptyEntries =
-        new WorkflowStateEntries(
-            new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+        new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
 
     WorkflowStateEntries localEntries =
         localState != null ? deserializeEntries(localState.getEntries()) : emptyEntries;

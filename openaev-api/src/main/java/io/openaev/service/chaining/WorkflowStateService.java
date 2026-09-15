@@ -626,8 +626,7 @@ public class WorkflowStateService {
   }
 
   private static WorkflowStateEntries createInitialEntries() {
-    return new WorkflowStateEntries(
-        new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+    return new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
   }
 
   /**

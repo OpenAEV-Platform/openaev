@@ -170,7 +170,7 @@ class WorkflowStateServiceTest {
       inputs.add(input);
 
       WorkflowStateEntries stateEntries =
-          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>(), Set.of(key));
+          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>());
 
       // Act
       workflowStateService.newOutput(stateEntries, output, path, key);
@@ -194,7 +194,7 @@ class WorkflowStateServiceTest {
       inputs.add(input);
 
       WorkflowStateEntries stateEntries =
-          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>(), Set.of(key));
+          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>());
 
       // Act
       workflowStateService.newOutput(stateEntries, output, path, key);
@@ -278,7 +278,7 @@ class WorkflowStateServiceTest {
       inputs.add(input);
 
       WorkflowStateEntries stateEntries =
-          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>(), Set.of(key));
+          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>());
 
       // Act
       workflowStateService.newOutput(stateEntries, output, path, key);
@@ -300,7 +300,7 @@ class WorkflowStateServiceTest {
       inputs.add(input);
 
       WorkflowStateEntries stateEntries =
-          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>(), Set.of(key));
+          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>());
 
       // Act
       workflowStateService.newOutput(stateEntries, output, path, key);
@@ -322,7 +322,7 @@ class WorkflowStateServiceTest {
       inputs.add(input);
 
       WorkflowStateEntries stateEntries =
-          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>(), Set.of(key));
+          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>());
 
       // Act
       workflowStateService.newOutput(stateEntries, output, path, key);
@@ -344,7 +344,7 @@ class WorkflowStateServiceTest {
       inputs.add(input);
 
       WorkflowStateEntries stateEntries =
-          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>(), Set.of(key));
+          new WorkflowStateEntries(inputs, new ArrayList<>(), new HashSet<>());
 
       // Act
       workflowStateService.newOutput(stateEntries, output, path, key);
@@ -371,8 +371,7 @@ class WorkflowStateServiceTest {
       Workflow workflow = Workflow.builder().id(workflowId).build();
 
       WorkflowStateEntries initialEntries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
       WorkflowState globalState =
           WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
 
@@ -447,8 +446,7 @@ class WorkflowStateServiceTest {
       Workflow workflow = Workflow.builder().id(workflowId).build();
 
       WorkflowStateEntries initialEntries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
       WorkflowState globalState =
           WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
 
@@ -491,8 +489,7 @@ class WorkflowStateServiceTest {
       Workflow workflow = Workflow.builder().id(workflowId).build();
 
       WorkflowStateEntries initialEntries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
       WorkflowState globalState =
           WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
 
@@ -543,8 +540,7 @@ class WorkflowStateServiceTest {
       Workflow workflow = Workflow.builder().id(workflowId).build();
 
       WorkflowStateEntries initialEntries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
       WorkflowState globalState =
           WorkflowState.builder().entries(gson.toJson(initialEntries)).build();
 
@@ -621,15 +617,13 @@ class WorkflowStateServiceTest {
 
       // Global state — empty
       WorkflowStateEntries globalEntries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
       WorkflowState globalState =
           WorkflowState.builder().entries(gson.toJson(globalEntries)).build();
 
       // Local state for step — empty
       WorkflowStateEntries localEntries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
       WorkflowState localState =
           WorkflowState.builder()
               .stepTemplate(stepTemplate)
@@ -715,8 +709,7 @@ class WorkflowStateServiceTest {
           Workflow.builder().id(workflowId).workflowTemplate(workflowTemplate).build();
 
       WorkflowStateEntries globalEntries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
       WorkflowState globalState =
           WorkflowState.builder().entries(gson.toJson(globalEntries)).build();
 
@@ -796,8 +789,7 @@ class WorkflowStateServiceTest {
       preExistingCorrelated.add(existingTuple);
 
       WorkflowStateEntries localEntries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), preExistingCorrelated, new HashSet<>(), new HashSet<>());
+          new WorkflowStateEntries(new ArrayList<>(), preExistingCorrelated, new HashSet<>());
       WorkflowState localState =
           WorkflowState.builder()
               .stepTemplate(stepTemplate)
@@ -806,8 +798,7 @@ class WorkflowStateServiceTest {
               .build();
 
       WorkflowStateEntries globalEntries =
-          new WorkflowStateEntries(
-              new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new HashSet<>());
+          new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
       WorkflowState globalState =
           WorkflowState.builder().entries(gson.toJson(globalEntries)).build();
 
