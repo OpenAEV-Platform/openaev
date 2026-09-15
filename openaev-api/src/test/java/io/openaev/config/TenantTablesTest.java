@@ -136,6 +136,14 @@ class TenantTablesTest {
   }
 
   @Test
+  @DisplayName("the self-isolated set is the tenant registry and the self-predicated graph version")
+  void selfIsolatedTablesAreExposedForDerivation() {
+    assertEquals(
+        Set.of(tableOf(AttackPathGraphVersion.class), tableOf(Tenant.class)),
+        TenantTables.selfIsolatedTables());
+  }
+
+  @Test
   @DisplayName("'*' alongside a table name fails fast rather than guessing which one wins")
   void restrictToRejectsAllStrictMixedWithTableNames() {
     assertThrows(
