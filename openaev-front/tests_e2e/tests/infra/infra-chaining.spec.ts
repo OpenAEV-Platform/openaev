@@ -247,7 +247,7 @@ test.describe.serial('Infrastructure - chaining', () => {
         name: 'Terminal view',
         exact: true,
       }).click();
-      await expect(page.getByText(resultToken, { exact: false })).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText(resultToken, { exact: false }).first()).toBeVisible({ timeout: 10_000 });
 
       await target.click();
       await expect(page.getByTitle(resultToken, { exact: true })).toBeVisible({ timeout: 10_000 });

@@ -102,6 +102,8 @@ class ThreatArsenalFormComponent {
     const regexGroupValue = this.page.getByPlaceholder('$1');
     await expect(regexGroupValue, 'Output type "Text" was not applied').toBeVisible();
     await regexGroupValue.fill('$1');
+    // Without this the parser extracts the value but never raises a finding.
+    await this.page.locator(`[name="${outputPrefix}.contract_output_element_is_finding"]`).check();
   }
 
   async selectDomain(domains: string | string[]) {
