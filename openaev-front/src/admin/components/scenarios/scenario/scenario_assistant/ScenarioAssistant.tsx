@@ -1,11 +1,9 @@
 import { Paper } from '@filigran/design-system';
 import {
-  AddOutlined,
   ArrowBackOutlined,
   AutoAwesomeOutlined,
   CloseOutlined,
   DevicesOtherOutlined,
-  RemoveOutlined,
   TrackChangesOutlined,
   TuneOutlined,
 } from '@mui/icons-material';
@@ -15,7 +13,6 @@ import {
   Button,
   IconButton,
   SvgIcon,
-  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
@@ -34,6 +31,7 @@ import { playInjectsAssistantForScenario } from '../../../../../actions/Inject';
 import { fetchInjectorsContracts } from '../../../../../actions/InjectorContracts';
 import { fetchKillChainPhases } from '../../../../../actions/KillChainPhase';
 import LoaderDialog from '../../../../../components/common/loader/LoaderDialog';
+import TextFieldFds from '../../../../../components/fields/TextFieldFds';
 import { useFormatter } from '../../../../../components/i18n';
 import PlatformIcon from '../../../../../components/PlatformIcon';
 import SearchInput from '../../../../../components/SearchFilter';
@@ -415,49 +413,20 @@ const ScenarioAssistant: FunctionComponent = () => {
 
             <Box>
               <Typography variant="h3" sx={{ marginBottom: 0.5 }}>{t('Number of injects by TTP')}</Typography>
-              <Box sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-              }}
-              >
-                <IconButton
-                  size="small"
-                  aria-label={t('Decrease')}
-                  disabled={injectsByTtp <= MIN_INJECTS_BY_TTP}
-                  onClick={() => setInjectsByTtp(v => Math.max(MIN_INJECTS_BY_TTP, v - 1))}
-                  sx={{ border: `1px solid ${theme.palette.divider}` }}
-                >
-                  <RemoveOutlined fontSize="small" />
-                </IconButton>
-                <TextField
-                  value={injectsByTtp}
-                  size="small"
-                  type="number"
-                  onChange={(event) => {
-                    const next = Number(event.target.value);
-                    if (Number.isNaN(next)) return;
-                    setInjectsByTtp(Math.min(MAX_INJECTS_BY_TTP, Math.max(MIN_INJECTS_BY_TTP, next)));
-                  }}
-                  slotProps={{
-                    htmlInput: {
-                      min: MIN_INJECTS_BY_TTP,
-                      max: MAX_INJECTS_BY_TTP,
-                      style: { textAlign: 'center' },
-                    },
-                  }}
-                  sx={{ width: 72 }}
-                />
-                <IconButton
-                  size="small"
-                  aria-label={t('Increase')}
-                  disabled={injectsByTtp >= MAX_INJECTS_BY_TTP}
-                  onClick={() => setInjectsByTtp(v => Math.min(MAX_INJECTS_BY_TTP, v + 1))}
-                  sx={{ border: `1px solid ${theme.palette.divider}` }}
-                >
-                  <AddOutlined fontSize="small" />
-                </IconButton>
-              </Box>
+              <TextFieldFds
+                aria-label={t('Number of injects by TTP')}
+                type="number"
+                fullWidth={false}
+                style={{ width: 72 }}
+                value={injectsByTtp}
+                min={MIN_INJECTS_BY_TTP}
+                max={MAX_INJECTS_BY_TTP}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  if (Number.isNaN(next)) return;
+                  setInjectsByTtp(Math.min(MAX_INJECTS_BY_TTP, Math.max(MIN_INJECTS_BY_TTP, next)));
+                }}
+              />
             </Box>
 
             <Box sx={{

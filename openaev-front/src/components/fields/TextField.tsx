@@ -33,7 +33,12 @@ const TextField = <TFieldValues extends FieldValues = FieldValues>({
   const currentValue: unknown = fieldName ? watchedValue : undefined;
 
   if (askAi && fieldName && setValue) {
-    const { name, onChange, onBlur, label, required, error, helperText, multiline, rows, style, type, disabled, id, defaultValue, maxLength: _maxLength, ...rest } = props;
+    // react-hook-form's `register` hands its `ref` through props (React 19); MUI takes it as `inputRef`.
+    const {
+      ref, name, onChange, onBlur, label, required, error, helperText, multiline, rows, style, type, disabled, id, defaultValue,
+      maxLength: _maxLength,
+      ...rest
+    } = props as typeof props & { ref?: React.Ref<HTMLInputElement> };
     return (
       <MuiTextField
         variant="outlined"
@@ -48,6 +53,7 @@ const TextField = <TFieldValues extends FieldValues = FieldValues>({
         disabled={disabled}
         id={id}
         defaultValue={defaultValue}
+        inputRef={ref}
         inputProps={{
           name,
           onChange,

@@ -504,6 +504,16 @@ const ThemeLight = (
       defaultProps: { variant: 'standard' },
       styleOverrides: { root: { color: text_color } },
     },
+    MuiInputLabel: {
+      styleOverrides: {
+        outlined: {
+          // MUI centres the un-shrunk label for its own 56px box; ours is 36px, so
+          // its 16px put the label on the bottom edge. 8px centres it in 36px.
+          'transform': 'translate(12px, 8px) scale(1)',
+          '&.MuiInputLabel-shrink': { transform: 'translate(14px, -9px) scale(0.75)' },
+        },
+      },
+    },
     MuiOutlinedInput: {
       styleOverrides: {
         root: {

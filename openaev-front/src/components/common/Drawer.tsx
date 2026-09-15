@@ -36,12 +36,10 @@ const useStyles = makeStyles()(theme => ({
       duration: theme.transitions.duration.enteringScreen,
     }),
   },
-  // Title on the left, actions + close on the right, over the heading band with a
-  // subtle separator.
+  // Title on the left, actions + close on the right, over the heading band.
   header: {
     backgroundColor: 'var(--bg-elevation-heading)',
     padding: theme.spacing(2, 3),
-    borderBottom: `1px solid ${theme.palette.divider}`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -50,7 +48,6 @@ const useStyles = makeStyles()(theme => ({
   },
   headerFull: {
     backgroundColor: 'var(--bg-elevation-heading)',
-    borderBottom: `1px solid ${theme.palette.divider}`,
     padding: theme.spacing(2, 3),
     display: 'flex',
     alignItems: 'center',
