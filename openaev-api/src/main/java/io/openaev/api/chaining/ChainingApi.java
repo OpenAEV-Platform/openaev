@@ -35,7 +35,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
@@ -153,29 +152,6 @@ public class ChainingApi extends RestBehavior {
     }
   }
 
-  @PostMapping(SIMULATION_URI + "/{simulationId}")
-  @AccessControl(
-      resourceId = "#simulationId",
-      actionPerformed = Action.DUPLICATE,
-      resourceType = ResourceType.SIMULATION,
-      isEnterpriseEdition = true)
-  @Transactional(rollbackFor = Exception.class)
-  public Exercise duplicateExercise(TxCtx ctx, @PathVariable @NotBlank final String simulationId)
-      throws ChainingException {
-
-    Exercise simulation = exerciseService.getDuplicateExercise(simulationId);
-    Optional<Workflow> workflowOpt =
-        workflowService.findWorkflowTemplateBySimulationId(simulationId);
-    if (workflowOpt.isEmpty())
-      throw new ChainingException("No workflow TEMPLATE found. Simulation ID: " + simulationId);
-
-    Workflow workflowFrom = workflowOpt.get();
-    Workflow workflowTo = workflowService.duplicateSimulation(simulationId, simulation);
-    stepService.copyStepTemplate(workflowFrom, workflowTo);
-
-    return simulation;
-  }
-
   // CREATE SCENARIO
   @PostMapping(SCENARIO_URI)
   @Transactional
@@ -238,27 +214,5 @@ public class ChainingApi extends RestBehavior {
       stepService.createStepTemplates(workflow, List.of(step));
       // Todo return Action, Event and Link
     }
-  }
-
-  @PostMapping(SCENARIO_URI + "/{scenarioId}")
-  @Transactional
-  @AccessControl(
-      resourceId = "#scenarioId",
-      actionPerformed = Action.DUPLICATE,
-      resourceType = ResourceType.SCENARIO,
-      isEnterpriseEdition = true)
-  public Scenario duplicateScenarioChaining(
-      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
-
-    Scenario scenario = scenarioService.getDuplicateScenario(scenarioId);
-    Optional<Workflow> workflowOpt = workflowService.findWorkflowTemplateByScenarioId(scenarioId);
-    if (workflowOpt.isEmpty())
-      throw new ChainingException("No workflow TEMPLATE found. Scenario ID: " + scenarioId);
-
-    Workflow workflowFrom = workflowOpt.get();
-    Workflow workflowTo = workflowService.duplicateScenario(scenarioId, scenario);
-    stepService.copyStepTemplate(workflowFrom, workflowTo);
-
-    return scenario;
   }
 }
