@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { type UserType } from '../../../../../actions/users/users-helper';
 import ActionButtons from '../../../../../components/common/ActionButtons';
 import OrganizationFieldController from '../../../../../components/fields/OrganizationFieldController';
+import PhoneFieldController from '../../../../../components/fields/PhoneFieldController';
 import TagFieldController from '../../../../../components/fields/TagFieldController';
 import TenantFieldController from '../../../../../components/fields/TenantFieldController';
 import TextFieldController from '../../../../../components/fields/TextFieldController';
@@ -102,8 +103,8 @@ const UserForm: FunctionComponent<UserFormProps> = ({
         {type === 'PLATFORM' && <TenantFieldController name="user_tenants" label="Tenants" />}
         {type !== 'PLATFORM' && <OrganizationFieldController name="user_organization" label={t('Organization')} />}
         {type !== 'PLATFORM' && <TagFieldController name="user_tags" label={t('Tags')} />}
-        <TextFieldController name="user_phone" label={t('Phone number (mobile)')} />
-        <TextFieldController name="user_phone2" label={t('Phone number (landline)')} />
+        <PhoneFieldController name="user_phone" label={t('Phone number (mobile)')} />
+        <PhoneFieldController name="user_phone2" label={t('Phone number (landline)')} />
         <TextFieldController name="user_pgp_key" label={t('PGP public key')} multiline rows={5} />
         <div style={{ alignSelf: 'flex-end' }}>
           <ActionButtons

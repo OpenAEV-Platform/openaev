@@ -10,6 +10,7 @@ import {
 interface Country {
   code: string;
   name: string;
+  dialCode: string;
 }
 
 type Countries = Country[];
@@ -115,6 +116,44 @@ export const countryOption = (iso3: string | undefined) => {
     id: country.code,
     label: country.name,
   } as Option;
+};
+
+export interface DialCodeOption extends Option { dialCode: string }
+
+const DIAL_CODE_OPTIONS: readonly DialCodeOption[] = countries.map(n => ({
+  id: n.code,
+  label: n.name,
+  dialCode: n.dialCode,
+}));
+
+const DIAL_CODE_OPTIONS_BY_ID = new Map(DIAL_CODE_OPTIONS.map(option => [option.id, option]));
+
+const DIAL_CODE_OPTIONS_BY_LENGTH_DESC = [...DIAL_CODE_OPTIONS].sort((a, b) => b.dialCode.length - a.dialCode.length);
+
+export const dialCodeOptions = (): readonly DialCodeOption[] => DIAL_CODE_OPTIONS;
+
+export const dialCodeOption = (iso3: string | undefined): DialCodeOption | undefined => (iso3 ? DIAL_CODE_OPTIONS_BY_ID.get(iso3) : undefined);
+
+/**
+ * Splits a phone number into its dial code country and its national part.
+ * Longest dial codes are matched first so "+1684" wins over "+1".
+ */
+export const splitPhoneNumber = (
+  phoneNumber: string | undefined,
+): {
+  country?: DialCodeOption;
+  nationalNumber: string;
+} => {
+  if (!phoneNumber) {
+    return { nationalNumber: '' };
+  }
+  const country = DIAL_CODE_OPTIONS_BY_LENGTH_DESC.find(o => phoneNumber.startsWith(o.dialCode));
+  return {
+    country,
+    nationalNumber: country
+      ? phoneNumber.slice(country.dialCode.length)
+      : phoneNumber,
+  };
 };
 
 export const tenantOptions = (
