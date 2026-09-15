@@ -306,6 +306,14 @@ public enum Capability {
   DELETE_SECURITY_PLATFORMS(
       MANAGE_SECURITY_PLATFORMS, pair(ResourceType.SECURITY_PLATFORM, Action.DELETE)),
 
+  // Agent installation (F408690-14 quick fix: the agent installer command embeds a service-account
+  // bearer token, so it must not be reachable by unauthenticated/uncapable users).
+  INSTALL_AGENT(
+      null,
+      CapabilityGroup.TARGETS,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.AGENT_INSTALLER, Action.READ)),
+
   // Platform Settings
   ACCESS_PLATFORM_SETTINGS(
       null,

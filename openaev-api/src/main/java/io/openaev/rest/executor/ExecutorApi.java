@@ -415,7 +415,7 @@ public class ExecutorApi extends RestBehavior {
         AGENT_URI + "/installer/openaev/{platform}/{installationMode}",
         TENANT_AGENT_URI + "/installer/openaev/{platform}/{installationMode}"
       })
-  @AccessControl(skipRBAC = true)
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstaller(
       TxCtx ctx,
       @Parameter(
