@@ -213,7 +213,18 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
   }
 
   private void markVaryByTenantHeader(NativeWebRequest webRequest) {
-    HttpServletResponse response = webRequest.getNativeResponse(HttpServletResponse.class);
+    markVaryByTenantHeader(webRequest.getNativeResponse(HttpServletResponse.class));
+  }
+
+  /**
+   * Adds {@code Vary: X-Tenant-Ids} so a shared cache never serves one tenant's response to another
+   * for the same URL. Shared with {@link TenantInterceptor}, which adopts the same header as the
+   * ambient tenant on the regular route: whenever the header can influence a response it must vary
+   * by it, whether the influence comes through a {@code TxCtx} parameter here or through the
+   * ambient {@link io.openaev.context.TenantContext} the interceptor sets on a v1 handler that
+   * takes no {@code TxCtx}.
+   */
+  static void markVaryByTenantHeader(HttpServletResponse response) {
     if (response != null) {
       response.addHeader(HttpHeaders.VARY, TENANT_IDS_HEADER);
     }

@@ -7,6 +7,7 @@ import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.TenantAccessDeniedException;
+import io.openaev.security.token.XtmJwksExtractor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Optional;
@@ -19,15 +20,37 @@ import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.AsyncHandlerInterceptor;
 
 /**
- * Interceptor that automatically extracts the {@code tenantId} path variable from any request
- * matching {@code /api/tenants/{tenantId}/**}, validates the authenticated user belongs to that
- * tenant, and sets it in the {@link TenantContext}.
+ * Interceptor that sets the ambient {@link TenantContext} for an API request from one of two
+ * sources, so the v1 mechanisms still reading it (Hibernate {@code tenantFilter}, {@code
+ * TenantBaseListener} stamping, MinIO object paths, {@code findByIdAndTenantId} lookups) run under
+ * the same tenant the request is scoped to instead of falling back to the default tenant.
+ *
+ * <ul>
+ *   <li><b>Tenant-prefixed route</b> ({@code /api/tenants/{tenantId}/**}): the URL names the
+ *       tenant. The authenticated user's membership is validated, then the tenant becomes the
+ *       ambient one.
+ *   <li><b>Regular route</b>: when there is no path tenant and {@code X-Tenant-Ids} names exactly
+ *       one tenant, that id is validated exactly like a path tenant and becomes the ambient one,
+ *       and the response is marked {@code Vary: X-Tenant-Ids}. Zero, blank or several ids, and
+ *       anonymous callers, leave the ambient tenant untouched.
+ * </ul>
  *
  * <p>The membership check is skipped for endpoints operating on the tenant resource itself (i.e.
  * annotated with {@code @AccessControl(resourceType = TENANT)}, such as tenant
- * update/delete/reactivate). For those, the {@code tenantId} is the managed target rather than a
- * scope the caller must belong to; authorization is enforced by the RBAC capability check ({@code
- * MANAGE_TENANTS}/{@code DELETE_TENANTS}) in the {@code AccessControlAspect}.
+ * update/delete/reactivate). On the prefixed route the {@code tenantId} is the managed target
+ * rather than a scope the caller must belong to; authorization is enforced by the RBAC capability
+ * check ({@code MANAGE_TENANTS}/{@code DELETE_TENANTS}) in the {@code AccessControlAspect}. On the
+ * regular route such a handler addresses its target through the path, not the header, so the header
+ * is not adopted at all: a create/list of tenants must not take an unvalidated ambient tenant from
+ * a client-supplied header.
+ *
+ * <p>The regular-route header is also NOT adopted for the verified XTM One cross-platform service
+ * identity ({@link XtmJwksExtractor#CROSS_PLATFORM_ATTRIBUTE}). Its tenant is run-authoritative,
+ * derived from the {@code {runId}} by {@link OrchestratorRunTenantInterceptor}, and must never come
+ * from a client-supplied header; this mirrors {@link TxCtxArgumentResolver}, which keeps the
+ * service caller on the run-derived scope. The two interceptors therefore act on disjoint callers
+ * on the autonomous route (service identity vs non-service header caller), so the ambient tenant is
+ * the same regardless of their registration order.
  *
  * <p>{@link AsyncHandlerInterceptor} (not just {@code HandlerInterceptor}): on an async dispatch
  * (e.g. a {@code StreamingResponseBody} endpoint) the initial servlet thread exits through {@link
@@ -49,7 +72,7 @@ public class TenantInterceptor implements AsyncHandlerInterceptor {
     if (pathTenant.isPresent()) {
       applyPathTenant(pathTenant.get(), handler);
     } else {
-      applySingleHeaderTenant(request, handler);
+      applySingleHeaderTenant(request, response, handler);
     }
     return true;
   }
@@ -72,16 +95,26 @@ public class TenantInterceptor implements AsyncHandlerInterceptor {
    * {@code tenantFilter}, {@code TenantBaseListener}, MinIO object paths, {@code
    * findByIdAndTenantId} lookups) follow the same tenant the v2 request scope does, instead of
    * running in the default tenant while the request is scoped to another. The single id is
-   * validated exactly like a path tenant, with the same {@link TenantAccessDeniedException} and the
-   * same exemption for handlers that manage the tenant resource.
+   * validated exactly like a path tenant, with the same {@link TenantAccessDeniedException}, and
+   * the response is marked {@code Vary: X-Tenant-Ids} because the header then influences it.
    *
-   * <p>Zero, blank or several ids leave the ambient tenant untouched (the default): a
-   * tenant-unaware client sending no header keeps working, and a multi-tenant read of several ids
-   * stays a v2-only scope. An anonymous caller is left untouched too, mirroring {@link
-   * TxCtxArgumentResolver}, which ignores {@code X-Tenant-Ids} for an anonymous caller (only a
-   * path-addressed tenant is a well-formed anonymous request).
+   * <p>The header is NOT adopted, and the ambient tenant is left untouched, for: the verified
+   * cross-platform service identity (its tenant is run-authoritative, set by {@link
+   * OrchestratorRunTenantInterceptor}); a handler that manages the tenant resource itself (it
+   * addresses its target through the path, not the header, so a create/list must not take an
+   * unvalidated ambient tenant from the header); zero, blank or several ids (a tenant-unaware
+   * client sending no header keeps working, and a multi-tenant read stays a v2-only scope); and an
+   * anonymous caller, mirroring {@link TxCtxArgumentResolver}, which ignores {@code X-Tenant-Ids}
+   * for an anonymous caller (only a path-addressed tenant is a well-formed anonymous request).
    */
-  private void applySingleHeaderTenant(HttpServletRequest request, Object handler) {
+  private void applySingleHeaderTenant(
+      HttpServletRequest request, HttpServletResponse response, Object handler) {
+    if (isCrossPlatformServiceCaller(request)) {
+      return;
+    }
+    if (targetsTenantResource(handler)) {
+      return;
+    }
     Set<String> headerTenants =
         TxCtxArgumentResolver.parseTenantIdsHeader(
             request.getHeader(TxCtxArgumentResolver.TENANT_IDS_HEADER));
@@ -95,13 +128,23 @@ public class TenantInterceptor implements AsyncHandlerInterceptor {
       return;
     }
     String tenantId = headerTenants.iterator().next();
-    if (!targetsTenantResource(handler)) {
-      OpenAEVPrincipal principal = (OpenAEVPrincipal) authentication.getPrincipal();
-      if (!tenantMembershipCacheManager.existsByUserIdAndTenantId(principal.getId(), tenantId)) {
-        throw new TenantAccessDeniedException(tenantId);
-      }
+    OpenAEVPrincipal principal = (OpenAEVPrincipal) authentication.getPrincipal();
+    if (!tenantMembershipCacheManager.existsByUserIdAndTenantId(principal.getId(), tenantId)) {
+      throw new TenantAccessDeniedException(tenantId);
     }
+    // The header influenced the ambient tenant, so the response must vary by it, the same contract
+    // TxCtxArgumentResolver applies on a TxCtx parameter, extended here to a v1 handler with none.
+    TxCtxArgumentResolver.markVaryByTenantHeader(response);
     TenantContext.setCurrentTenant(tenantId);
+  }
+
+  /**
+   * Whether this request authenticated as the XTM One cross-platform service identity. The marker
+   * is a server-side request attribute set exclusively by {@link XtmJwksExtractor} after full JWT
+   * validation; a client cannot supply it.
+   */
+  private static boolean isCrossPlatformServiceCaller(HttpServletRequest request) {
+    return Boolean.TRUE.equals(request.getAttribute(XtmJwksExtractor.CROSS_PLATFORM_ATTRIBUTE));
   }
 
   /** Validates that an authenticated, non-anonymous caller belongs to the given tenant. */

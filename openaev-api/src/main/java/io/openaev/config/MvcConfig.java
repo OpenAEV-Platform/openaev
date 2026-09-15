@@ -43,20 +43,21 @@ public class MvcConfig implements WebMvcConfigurer {
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {
-    // Covers the tenant-prefixed route (the path names the tenant) and the regular route (a single
-    // X-Tenant-Ids id becomes the ambient tenant, so v1 mechanisms follow the header the same way
-    // the path does). The non-prefixed autonomous-runs callback is excluded: its v1 TenantContext
-    // is derived from the run id by OrchestratorRunTenantInterceptor alone, which relies on nothing
-    // else setting the ThreadLocal on that route.
-    registry
-        .addInterceptor(tenantInterceptor)
-        .addPathPatterns("/api/**")
-        .excludePathPatterns("/api/autonomous-runs/**");
+    // Covers the whole API: the tenant-prefixed route (the path names the tenant) and the regular
+    // route (a single X-Tenant-Ids id becomes the ambient tenant, so v1 mechanisms follow the
+    // header the same way the path does). It runs on /api/autonomous-runs/** too, but leaves the
+    // ambient tenant alone for the verified cross-platform service identity, whose tenant is
+    // run-authoritative and set by OrchestratorRunTenantInterceptor below; an operator call on that
+    // route (a normal user with one header id) still gets the header tenant, so it is no longer
+    // stuck on the default tenant.
+    registry.addInterceptor(tenantInterceptor).addPathPatterns("/api/**");
     // Bridges the legacy v1 TenantContext for the orchestrator callbacks on the non-prefixed
     // autonomous route (the prefixed route names its tenant and is caller-scoped). Without it, the
-    // 8 callbacks that read/write v1 @Filter entities (Exercise, Team, Finding, Inject, Endpoint)
-    // silently hit the DEFAULT tenant for a run owned by a non-default tenant. See
-    // OrchestratorRunTenantInterceptor for why v1 must be established at request entry.
+    // callbacks that read/write v1 @Filter entities (Exercise, Team, Finding, Inject, Endpoint)
+    // silently hit the DEFAULT tenant for a run owned by a non-default tenant. Registered after
+    // TenantInterceptor, but the two act on disjoint callers on this route (service identity here,
+    // non-service header caller in TenantInterceptor), so the run's tenant is the final ambient one
+    // regardless of order. See OrchestratorRunTenantInterceptor for why v1 must be set at entry.
     registry
         .addInterceptor(orchestratorRunTenantInterceptor)
         .addPathPatterns("/api/autonomous-runs/**");
