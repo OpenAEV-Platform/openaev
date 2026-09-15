@@ -53,6 +53,13 @@ A request can name the tenants it wants to work with in two ways:
 If the request names no tenant, the scope defaults to every tenant the caller is a member of.
 Naming a tenant outside the caller's memberships is rejected.
 
+On the regular path, a request that names exactly one tenant in `X-Tenant-Ids` also gets that tenant
+as its ambient tenant, the same one the `/api/tenants/{tenantId}/...` path sets. This keeps the
+legacy mechanisms that still read the ambient tenant (the Hibernate `tenantFilter`, entity tenant
+stamping, object-storage paths) on the tenant the request is scoped to, rather than the default
+tenant. Several ids or no header leave the ambient tenant at the default, so a tenant-unaware client
+is unaffected.
+
 The resolved scope becomes a `TxCtx` parameter on the controller handler. A dedicated argument
 resolver (`TxCtxArgumentResolver`) builds it from the request; you never construct it yourself in
 a controller:

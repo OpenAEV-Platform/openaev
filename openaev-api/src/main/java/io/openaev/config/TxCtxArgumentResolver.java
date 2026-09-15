@@ -193,14 +193,23 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
     // No path tenant: the X-Tenant-Ids header can influence the scope, so the response must vary by
     // it. A shared cache must never serve one tenant's response to another for the same URL.
     markVaryByTenantHeader(webRequest);
-    String header = webRequest.getHeader(TENANT_IDS_HEADER);
-    if (header != null && !header.isBlank()) {
-      return Arrays.stream(header.split(","))
-          .map(String::trim)
-          .filter(id -> !id.isEmpty())
-          .collect(Collectors.toCollection(LinkedHashSet::new));
+    return parseTenantIdsHeader(webRequest.getHeader(TENANT_IDS_HEADER));
+  }
+
+  /**
+   * Parses the {@code X-Tenant-Ids} header value into an ordered set of tenant ids:
+   * comma-separated, each id trimmed, blanks dropped, order preserved. An absent or blank header
+   * yields an empty set. Shared with {@link TenantInterceptor}, which reads the same header to set
+   * the ambient tenant, so both routes read the selector identically.
+   */
+  static Set<String> parseTenantIdsHeader(String header) {
+    if (header == null || header.isBlank()) {
+      return Set.of();
     }
-    return Set.of();
+    return Arrays.stream(header.split(","))
+        .map(String::trim)
+        .filter(id -> !id.isEmpty())
+        .collect(Collectors.toCollection(LinkedHashSet::new));
   }
 
   private void markVaryByTenantHeader(NativeWebRequest webRequest) {

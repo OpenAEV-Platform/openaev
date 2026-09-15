@@ -9,6 +9,8 @@ import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.TenantAccessDeniedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -43,27 +45,76 @@ public class TenantInterceptor implements AsyncHandlerInterceptor {
   @Override
   public boolean preHandle(
       HttpServletRequest request, HttpServletResponse response, Object handler) {
-    tenantUriUtils
-        .getTenantIdFromRequestUrl(request)
-        .ifPresent(
-            tenantId -> {
-              if (!targetsTenantResource(handler)) {
-                // Validate the authenticated user belongs to this tenant
-                Authentication authentication =
-                    SecurityContextHolder.getContext().getAuthentication();
-                if (authentication != null
-                    && authentication.isAuthenticated()
-                    && !ANONYMOUS_USER.equals(authentication.getPrincipal())) {
-                  OpenAEVPrincipal principal = (OpenAEVPrincipal) authentication.getPrincipal();
-                  if (!tenantMembershipCacheManager.existsByUserIdAndTenantId(
-                      principal.getId(), tenantId)) {
-                    throw new TenantAccessDeniedException(tenantId);
-                  }
-                }
-              }
-              TenantContext.setCurrentTenant(tenantId);
-            });
+    Optional<String> pathTenant = tenantUriUtils.getTenantIdFromRequestUrl(request);
+    if (pathTenant.isPresent()) {
+      applyPathTenant(pathTenant.get(), handler);
+    } else {
+      applySingleHeaderTenant(request, handler);
+    }
     return true;
+  }
+
+  /**
+   * Tenant-prefixed route: the URL names the tenant. An authenticated caller's membership is
+   * validated (except on handlers that manage the tenant resource itself), then the tenant becomes
+   * the ambient one.
+   */
+  private void applyPathTenant(String tenantId, Object handler) {
+    if (!targetsTenantResource(handler)) {
+      requireMembershipForAuthenticatedCaller(tenantId);
+    }
+    TenantContext.setCurrentTenant(tenantId);
+  }
+
+  /**
+   * Regular route: when there is no path tenant and {@code X-Tenant-Ids} names exactly one tenant,
+   * adopt it as the ambient {@link TenantContext} so the v1 mechanisms still reading it (Hibernate
+   * {@code tenantFilter}, {@code TenantBaseListener}, MinIO object paths, {@code
+   * findByIdAndTenantId} lookups) follow the same tenant the v2 request scope does, instead of
+   * running in the default tenant while the request is scoped to another. The single id is
+   * validated exactly like a path tenant, with the same {@link TenantAccessDeniedException} and the
+   * same exemption for handlers that manage the tenant resource.
+   *
+   * <p>Zero, blank or several ids leave the ambient tenant untouched (the default): a
+   * tenant-unaware client sending no header keeps working, and a multi-tenant read of several ids
+   * stays a v2-only scope. An anonymous caller is left untouched too, mirroring {@link
+   * TxCtxArgumentResolver}, which ignores {@code X-Tenant-Ids} for an anonymous caller (only a
+   * path-addressed tenant is a well-formed anonymous request).
+   */
+  private void applySingleHeaderTenant(HttpServletRequest request, Object handler) {
+    Set<String> headerTenants =
+        TxCtxArgumentResolver.parseTenantIdsHeader(
+            request.getHeader(TxCtxArgumentResolver.TENANT_IDS_HEADER));
+    if (headerTenants.size() != 1) {
+      return;
+    }
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (authentication == null
+        || !authentication.isAuthenticated()
+        || ANONYMOUS_USER.equals(authentication.getPrincipal())) {
+      return;
+    }
+    String tenantId = headerTenants.iterator().next();
+    if (!targetsTenantResource(handler)) {
+      OpenAEVPrincipal principal = (OpenAEVPrincipal) authentication.getPrincipal();
+      if (!tenantMembershipCacheManager.existsByUserIdAndTenantId(principal.getId(), tenantId)) {
+        throw new TenantAccessDeniedException(tenantId);
+      }
+    }
+    TenantContext.setCurrentTenant(tenantId);
+  }
+
+  /** Validates that an authenticated, non-anonymous caller belongs to the given tenant. */
+  private void requireMembershipForAuthenticatedCaller(String tenantId) {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (authentication != null
+        && authentication.isAuthenticated()
+        && !ANONYMOUS_USER.equals(authentication.getPrincipal())) {
+      OpenAEVPrincipal principal = (OpenAEVPrincipal) authentication.getPrincipal();
+      if (!tenantMembershipCacheManager.existsByUserIdAndTenantId(principal.getId(), tenantId)) {
+        throw new TenantAccessDeniedException(tenantId);
+      }
+    }
   }
 
   /**
