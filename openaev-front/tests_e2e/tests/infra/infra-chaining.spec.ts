@@ -1,9 +1,14 @@
 import { expect, type Page } from '@playwright/test';
 
 import { test } from '../../fixtures';
+import CatalogPage from '../../model/integrations/CatalogPage';
+import InjectorInstancePage from '../../model/integrations/InjectorInstancePage';
+import InjectorsListPage from '../../model/integrations/InjectorsListPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
 import { installAgent, waitForRegisteredAgent } from '../../utils/agent';
 import { tenantUrl } from '../../utils/url';
+
+const NMAP_TCP_CONNECT_SCAN = 'Nmap - TCP Connect Scan';
 
 const createChainedScenario = async (page: Page, name: string): Promise<void> => {
   await page.goto(tenantUrl('/admin/scenarios'));
@@ -106,6 +111,46 @@ const addPayloadActionGatedByTrigger = async (page: Page, payloadName: string): 
   })).toBeVisible();
 };
 
+const deployNmapInjector = async (page: Page, name: string): Promise<void> => {
+  const catalogPage = new CatalogPage(page);
+  await page.goto(tenantUrl('/admin/integrations/available'));
+  await catalogPage.waitForLoad();
+  await catalogPage.searchConnector('Nmap');
+  await catalogPage.clickDeployOnConnector('Nmap');
+  await catalogPage.fillDisplayName(name);
+  await catalogPage.submitInstall();
+
+  const injectorsListPage = new InjectorsListPage(page);
+  await page.goto(tenantUrl('/admin/integrations/deployed'));
+  await injectorsListPage.waitForLoad();
+  await injectorsListPage.waitForConnectorToAppear(name);
+  await injectorsListPage.clickOnInjector(name);
+
+  const injectorInstancePage = new InjectorInstancePage(page);
+  await injectorInstancePage.waitForLoad();
+  await injectorInstancePage.clickStart();
+  await injectorInstancePage.waitForStarted();
+};
+
+const addNmapAction = async (page: Page, hostname: string): Promise<void> => {
+  await page.getByRole('button', {
+    name: 'Add component',
+    exact: true,
+  }).click();
+  await page.getByRole('button', { name: /^Action\s/ }).click();
+  await page.getByText(NMAP_TCP_CONNECT_SCAN, { exact: true }).click();
+  await expect(page.getByText('Initial Target', { exact: true })).toBeVisible();
+  await expect(page.getByText(hostname, { exact: true })).toBeVisible();
+  await page.getByRole('button', {
+    name: 'Save',
+    exact: true,
+  }).click();
+  await expect(page.getByRole('button', {
+    name: 'Add component',
+    exact: true,
+  })).toBeVisible();
+};
+
 const launchScenario = async (page: Page): Promise<string> => {
   await page.getByRole('button', {
     name: 'Normal',
@@ -194,6 +239,52 @@ test.describe.serial('Infrastructure - chaining', () => {
 
       await target.click();
       await expect(page.getByTitle(resultToken, { exact: true })).toBeVisible({ timeout: 10_000 });
+    }).toPass({
+      intervals: [10_000],
+      timeout: 300_000,
+    });
+  });
+
+  test('runs Nmap against the scoped agent endpoint and displays scan findings', async ({ page }) => {
+    test.setTimeout(420_000);
+
+    await waitForRegisteredAgent(page, hostname);
+    const nmapInjectorName = `E2E Nmap ${Date.now()}`;
+    const nmapScenarioName = `E2E Nmap Chaining ${Date.now()}`;
+
+    await deployNmapInjector(page, nmapInjectorName);
+    await createChainedScenario(page, nmapScenarioName);
+    await addEndpointToScope(page, hostname);
+    await page.getByRole('tab', {
+      name: 'Logic',
+      exact: true,
+    }).click();
+    await addNmapAction(page, hostname);
+    const simulationUrl = await launchScenario(page);
+
+    await expect(async () => {
+      await page.goto(simulationUrl);
+
+      const target = page.getByText(hostname, { exact: true }).first();
+      const nmapAction = page.getByText(NMAP_TCP_CONNECT_SCAN, { exact: true }).first();
+      await expect(target).toBeVisible({ timeout: 10_000 });
+      await expect(nmapAction).toBeVisible({ timeout: 10_000 });
+
+      await nmapAction.click();
+      const execution = page.getByRole('button', { name: new RegExp(NMAP_TCP_CONNECT_SCAN, 'i') }).last();
+      await expect(execution).toBeVisible({ timeout: 10_000 });
+      await execution.click();
+      await page.getByRole('tab', {
+        name: 'Execution details',
+        exact: true,
+      }).click();
+      await expect(page.getByText(/nmap\s+-Pn\s+-sT/i)).toBeVisible({ timeout: 10_000 });
+
+      await page.getByRole('tab', {
+        name: 'Findings',
+        exact: true,
+      }).click();
+      await expect(page.getByText(/portscan|port/i).first()).toBeVisible({ timeout: 10_000 });
     }).toPass({
       intervals: [10_000],
       timeout: 300_000,

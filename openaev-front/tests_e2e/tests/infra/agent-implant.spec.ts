@@ -50,7 +50,8 @@ test.describe('Agent implant registration', () => {
     await page.goto(tenantUrl('/admin'));
     await page.getByRole('menuitem', { name: 'Threat Arsenal' }).click();
     await page.waitForURL('**/threat-arsenal**');
-    await page.getByRole('button', { name: 'Add' }).click();
+    await page.getByTestId('button-create').click();
+    await expect(page.getByRole('textbox', { name: 'Name*' })).toBeVisible();
 
     // Fill General tab
     await page.getByRole('textbox', { name: 'Name*' }).fill(payloadName);
