@@ -269,6 +269,39 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
 
   @Test
   @DisplayName(
+      "POST create as the verified service identity with one header id it belongs to stamps that"
+          + " tenant: a plain-TxCtx handler is caller-authorized from the header, not run-scoped")
+  void createViaServiceIdentityWithHeaderStampsHeaderTenant() throws Exception {
+    // AutonomousRunApi#create takes a plain TxCtx (not @RunTenantScope): TxCtxArgumentResolver
+    // resolves its scope from X-Tenant-Ids through the caller-authorized path even for the verified
+    // service identity, so the interceptor must mirror that and set the SAME ambient tenant. The
+    // auto-provisioned scenario (a v1 entity stamped from the ambient tenant) then lands in the
+    // header tenant and the run attribution validates. Before the service-caller gate was narrowed
+    // to run-scoped handlers, the interceptor skipped every service caller here, the ambient stayed
+    // default, the scenario landed in the default tenant, and attributeRunTenant refused (400: the
+    // default tenant is outside the {tenantA} request scope) - the v1/v2 split this closes.
+    String response =
+        mvc.perform(
+                asVerifiedServiceIdentity(post(PLAIN))
+                    .with(csrf())
+                    .header("X-Tenant-Ids", tenantA)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"objective\": \"Own the file server\", \"plan_mode\": true}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.autonomous_run_id").exists())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String createdRunId = JsonPath.read(response, "$.autonomous_run_id");
+
+    assertThat(rawTenantId("autonomous_runs", "autonomous_run_id", createdRunId))
+        .isEqualTo(tenantA);
+    assertThat(rawTenantId("autonomous_events", "autonomous_event_run_id", createdRunId))
+        .isEqualTo(tenantA);
+  }
+
+  @Test
+  @DisplayName(
       "POST event as the verified service identity with a single header id it is NOT a member of"
           + " still records the event, stamped from the parent run (the header is never adopted)")
   void recordEventFromServiceIdentityWithNonMemberHeaderStampsParentRunTenant() throws Exception {

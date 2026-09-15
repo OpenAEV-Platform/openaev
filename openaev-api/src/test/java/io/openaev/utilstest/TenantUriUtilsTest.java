@@ -88,12 +88,25 @@ public class TenantUriUtilsTest {
   @DisplayName("When there is URI_TEMPLATE_VARIABLES_ATTRIBUTE")
   public class WithUriTemplateAttributes {
     @Test
-    @DisplayName("given tenant part is found, then return tenantId")
+    @DisplayName("given tenant part is found on the tenant-prefixed route, then return tenantId")
     void given_tenantPartIsFound_then_returnTenantId() {
+      when(mockRequest.getRequestURI()).thenReturn(generateTenantUri(tenantId, "/x"));
       when(mockRequest.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE))
           .thenReturn(Map.of(TENANT_ID_PATH_VARIABLE, tenantId));
       assertThat(tenantUriUtils.getTenantIdFromRequestUrl(mockRequest))
           .isEqualTo(Optional.of(tenantId));
+    }
+
+    @Test
+    @DisplayName(
+        "given a tenantId path variable on a non-tenant-prefixed route (public phishing tracking),"
+            + " then return empty: it is a handler parameter, not a request tenant")
+    void given_tenantPartOnNonPrefixedRoute_then_returnEmpty() {
+      when(mockRequest.getRequestURI())
+          .thenReturn("/api/phishing/tracking/" + tenantId + "/o/some-token");
+      when(mockRequest.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE))
+          .thenReturn(Map.of(TENANT_ID_PATH_VARIABLE, tenantId));
+      assertThat(tenantUriUtils.getTenantIdFromRequestUrl(mockRequest)).isEmpty();
     }
 
     @Test
