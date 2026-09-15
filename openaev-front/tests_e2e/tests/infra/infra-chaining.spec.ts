@@ -24,6 +24,14 @@ const openChainedScenario = async (page: Page, request: APIRequestContext, name:
   })).toBeVisible();
 };
 
+// These selects are built from a bare InputLabel with no labelId, so the label
+// is not programmatically tied to the combobox and getByLabel cannot find it.
+const muiSelect = (page: Page, label: string) => page
+  .locator('.MuiFormControl-root')
+  .filter({ hasText: label })
+  .getByRole('combobox')
+  .first();
+
 const addEndpointToScope = async (page: Page, hostname: string): Promise<void> => {
   await page.getByRole('tab', {
     name: 'Scope',
@@ -46,7 +54,7 @@ const addEndpointToScope = async (page: Page, hostname: string): Promise<void> =
     name: 'Define scope',
     exact: true,
   }).click();
-  await expect(page.getByText(hostname, { exact: true })).toBeVisible();
+  await expect(page.getByText(hostname, { exact: true }).first()).toBeVisible();
 };
 
 const addPayloadAction = async (page: Page, payloadName: string): Promise<void> => {
@@ -74,12 +82,12 @@ const addTextTrigger = async (page: Page, name: string, value: string): Promise<
   await page.getByRole('button', { name: /^Event\s/ }).click();
   // The field is required, so its accessible name carries a trailing asterisk.
   await page.locator('[name="event_name"]').fill(name);
-  await page.getByLabel('Field to Check', { exact: true }).click();
+  await muiSelect(page, 'Field to Check').click();
   await page.getByRole('option', {
     name: 'Text',
     exact: true,
   }).click();
-  await page.getByLabel('Operator', { exact: true }).click();
+  await muiSelect(page, 'Operator').click();
   await page.getByRole('option', {
     name: 'Equals',
     exact: true,
@@ -89,7 +97,7 @@ const addTextTrigger = async (page: Page, name: string, value: string): Promise<
     name: 'Add trigger',
     exact: true,
   }).click();
-  await expect(page.getByText(name, { exact: true })).toBeVisible();
+  await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
 };
 
 const addPayloadActionGatedByTrigger = async (page: Page, payloadName: string): Promise<void> => {
@@ -137,7 +145,7 @@ const addNmapAction = async (page: Page, hostname: string): Promise<void> => {
   await page.getByRole('button', { name: /^Action\s/ }).click();
   await page.getByText(NMAP_TCP_CONNECT_SCAN, { exact: true }).click();
   await expect(page.getByText('Initial Target', { exact: true })).toBeVisible();
-  await expect(page.getByText(hostname, { exact: true })).toBeVisible();
+  await expect(page.getByText(hostname, { exact: true }).first()).toBeVisible();
   await page.getByRole('button', {
     name: 'Save',
     exact: true,
