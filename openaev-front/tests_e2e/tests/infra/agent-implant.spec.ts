@@ -1,23 +1,26 @@
 import { expect } from '@playwright/test';
 
 import { test } from '../../fixtures';
+import EndpointListPage from '../../model/assets/EndpointListPage';
+import AtomicTestingFormComponent from '../../model/atomic-testings/AtomicTestingFormComponent';
+import AtomicTestingListPage from '../../model/atomic-testings/AtomicTestingListPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
 import { installAgent } from '../../utils/agent';
 import { AUTH_FILE } from '../../utils/constants';
 import { tenantUrl } from '../../utils/url';
 
-const APP_URL = process.env.APP_URL ?? 'http://localhost:8080';
-const ADMIN_TOKEN = process.env.OPENAEV_ADMIN_TOKEN!;
+const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
 
-test.describe('Agent implant registration', () => {
+test.describe.serial('Agent implant registration', () => {
   let hostname: string;
-  const payloadName = `E2E Payload ${Date.now()}`;
+  const echoToken = `e2e-${Date.now()}`;
+  const payloadName = `E2E Payload ${echoToken}`;
 
   test.beforeAll(async ({ browser }) => {
-    expect(ADMIN_TOKEN, 'OPENAEV_ADMIN_TOKEN must be set').toBeTruthy();
     const installedAgent = await installAgent(browser);
     hostname = installedAgent.hostname;
 
+    // Create an authenticated page to navigate the UI
     const context = await browser.newContext({
       storageState: AUTH_FILE,
       baseURL: APP_URL,
@@ -26,9 +29,10 @@ test.describe('Agent implant registration', () => {
     try {
       const page = await context.newPage();
       await page.goto(tenantUrl('/admin'));
-      await new ThreatArsenalHelper(page).createCommandLinePayload({
+      const threatArsenalHelper = new ThreatArsenalHelper(page);
+      await threatArsenalHelper.createCommandLinePayload({
         name: payloadName,
-        command: 'echo \'this is a test\'',
+        command: `echo ${echoToken}`,
         platform: installedAgent.platform,
       });
     } finally {
@@ -37,71 +41,57 @@ test.describe('Agent implant registration', () => {
   });
 
   test('installed agent registers an endpoint', async ({ page }) => {
-    // Poll the endpoints API until the agent registers (up to 150 s)
+    // Poll the endpoints UI until the agent registers (up to 150 s)
     await expect(async () => {
-      const res = await page.request.get(`${APP_URL}/api/endpoints`, { headers: { Authorization: `Bearer ${ADMIN_TOKEN}` } });
-      expect(res.ok()).toBeTruthy();
-      const endpoints: { endpoint_hostname: string }[] = await res.json();
-      const match = endpoints.some(
-        e => e.endpoint_hostname.toLowerCase() === hostname,
-      );
-      expect(match, `No endpoint with hostname "${hostname}" found yet`).toBeTruthy();
+      await page.goto(tenantUrl('/admin/assets'));
+      const endpointList = new EndpointListPage(page);
+      await endpointList.waitForLoad();
+      await expect(endpointList.getEndpointByHostname(hostname)).toBeVisible();
     }).toPass({
       intervals: [5_000],
       timeout: 150_000,
     });
-
-    // Verify the endpoint is visible in the UI
-    await page.goto(tenantUrl('/admin/assets/endpoints'));
-    await page.waitForURL('**/assets/endpoints**');
-
-    const endpointRow = page.getByRole('listitem').filter({ hasText: hostname });
-    await expect(endpointRow).toBeVisible();
   });
 
   test('create and launch atomic test with payload on registered endpoint', async ({ page }) => {
     // Navigate to Atomic Testings
     await page.goto(tenantUrl('/admin/atomic_testings'));
-    await page.waitForURL('**/atomic_testings**');
+    const atomicTestingList = new AtomicTestingListPage(page);
+    await atomicTestingList.waitForLoad();
+    await atomicTestingList.openCreateAtomicTesting();
 
-    // Open the create atomic test drawer
-    await page.getByRole('button', { name: 'Create' }).click();
-
-    // Search and select the payload we created
-    await page.getByPlaceholder('Search').first().fill(payloadName);
-    await page.getByText(payloadName).first().click();
-
-    // Add the registered endpoint as a target
-    await page.getByText('Modify assets').click();
-    await page.getByText(hostname, { exact: false }).first().click();
-    await page.getByRole('button', { name: 'Submit' }).click();
-
-    // Submit the atomic test creation
-    await page.getByRole('button', { name: 'Create' }).click();
-
-    // Wait for navigation to the atomic testing detail page
-    await page.waitForURL('**/atomic_testings/**');
+    // Fill and submit the atomic test form
+    const atomicTestingForm = new AtomicTestingFormComponent(page);
+    await atomicTestingForm.searchAndSelectPayload(payloadName);
+    await atomicTestingForm.selectAsset(hostname);
+    await atomicTestingForm.submit();
 
     // Launch the atomic test
-    await page.getByRole('button', { name: /Launch now/i }).click();
-    // Confirm the launch dialog
-    await page.getByRole('button', { name: /Launch/i }).last().click();
+    await atomicTestingForm.launch();
 
-    // Navigate to the "Inject Execution details" tab to see traces
-    await page.getByRole('tab', { name: /Execution details/i }).click();
+    // In the redesigned atomic-testing detail the right-hand "Results by target"
+    // panel is populated only once a target is selected in the left "Targets"
+    // panel, and a page reload clears that selection. So on every poll iteration
+    // we reload, (re-)open the Endpoints tab, select the endpoint row and check
+    // whether the agent's execution traces have arrived yet (up to 240s).
+    const endpointsTab = page.getByRole('tab', { name: 'Endpoints' });
+    const endpointRow = page.getByRole('button', { name: new RegExp(hostname, 'i') });
+    const spawnTrace = page.getByText('Implant spawn by the agent');
 
-    // Wait for the agent to execute and send back results (up to 120s)
     await expect(async () => {
       await page.reload();
-      await page.getByRole('tab', { name: /Execution details/i }).click();
-      const traces = page.getByText('Traces');
-      await expect(traces).toBeVisible();
-      // Verify that execution traces contain content (not just the heading)
-      const traceContent = page.locator('text=SUCCESS').or(page.locator('text=FAILED'));
-      await expect(traceContent.first()).toBeVisible();
+      if (await endpointsTab.isVisible().catch(() => false)) {
+        await endpointsTab.click();
+      }
+      await endpointRow.first().click();
+      // The START trace is only rendered once the agent has executed and reported.
+      await expect(spawnTrace).toBeVisible({ timeout: 5_000 });
     }).toPass({
       intervals: [10_000],
-      timeout: 120_000,
+      timeout: 240_000,
     });
+
+    // Verify the attack command trace contains the echo output in stdout
+    await expect(page.getByText(new RegExp(`"stdout":".*${echoToken}`))).toBeVisible();
   });
 });

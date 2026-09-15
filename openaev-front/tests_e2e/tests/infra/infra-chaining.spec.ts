@@ -1,5 +1,6 @@
-import { expect, type Page } from '@playwright/test';
+import { type APIRequestContext, expect, type Page } from '@playwright/test';
 
+import ScenarioApiHelpers from '../../api-helpers/ScenarioApiHelpers';
 import { test } from '../../fixtures';
 import CatalogPage from '../../model/integrations/CatalogPage';
 import InjectorInstancePage from '../../model/integrations/InjectorInstancePage';
@@ -10,32 +11,17 @@ import { tenantUrl } from '../../utils/url';
 
 const NMAP_TCP_CONNECT_SCAN = 'Nmap - TCP Connect Scan';
 
-const createChainedScenario = async (page: Page, name: string): Promise<void> => {
-  await page.goto(tenantUrl('/admin/scenarios'));
-  const createButton = page.getByTestId('button-create');
-  const drawerTitle = page.getByRole('heading', {
-    name: 'Create a new scenario',
+// The creation drawer only renders its form once an engine card is picked, and
+// chaining is gated behind Enterprise Edition. Creating the scenario over the
+// API keeps this suite focused on the chaining behaviour it actually asserts.
+const openChainedScenario = async (page: Page, request: APIRequestContext, name: string): Promise<void> => {
+  const scenario = await new ScenarioApiHelpers(request).createScenario(name, true);
+  expect(scenario.scenario_id, `Scenario "${name}" was not created`).toBeTruthy();
+  await page.goto(tenantUrl(`/admin/scenarios/${scenario.scenario_id}`));
+  await expect(page.getByRole('tab', {
+    name: 'Logic',
     exact: true,
-  });
-  await expect(async () => {
-    if (!await drawerTitle.isVisible().catch(() => false)) {
-      await createButton.click();
-    }
-    await expect(drawerTitle).toBeVisible({ timeout: 5_000 });
-  }).toPass({
-    intervals: [1_000],
-    timeout: 60_000,
-  });
-  await page.getByRole('button', {
-    name: 'Chained scenario',
-    exact: true,
-  }).click();
-  await page.getByLabel('Name', { exact: true }).fill(name);
-  await page.getByRole('button', {
-    name: 'Create',
-    exact: true,
-  }).last().click();
-  await page.waitForURL(/\/admin\/scenarios\/[0-9a-f-]+(?:\?.*)?$/);
+  })).toBeVisible();
 };
 
 const addEndpointToScope = async (page: Page, hostname: string): Promise<void> => {
@@ -86,7 +72,8 @@ const addTextTrigger = async (page: Page, name: string, value: string): Promise<
     exact: true,
   }).click();
   await page.getByRole('button', { name: /^Event\s/ }).click();
-  await page.getByLabel('Name', { exact: true }).fill(name);
+  // The field is required, so its accessible name carries a trailing asterisk.
+  await page.locator('[name="event_name"]').fill(name);
   await page.getByLabel('Field to Check', { exact: true }).click();
   await page.getByRole('option', {
     name: 'Text',
@@ -190,7 +177,7 @@ test.describe.serial('Infrastructure - chaining', () => {
     platform = installedAgent.platform;
   });
 
-  test('runs an output-triggered action chain and displays the resulting finding', async ({ page }) => {
+  test('runs an output-triggered action chain and displays the resulting finding', async ({ page, request }) => {
     test.setTimeout(420_000);
 
     await waitForRegisteredAgent(page, hostname);
@@ -216,7 +203,7 @@ test.describe.serial('Infrastructure - chaining', () => {
       },
     });
 
-    await createChainedScenario(page, scenarioName);
+    await openChainedScenario(page, request, scenarioName);
     await addEndpointToScope(page, hostname);
     await page.getByRole('tab', {
       name: 'Logic',
@@ -255,7 +242,7 @@ test.describe.serial('Infrastructure - chaining', () => {
     });
   });
 
-  test('runs Nmap against the scoped agent endpoint and displays scan findings', async ({ page }) => {
+  test('runs Nmap against the scoped agent endpoint and displays scan findings', async ({ page, request }) => {
     test.setTimeout(420_000);
 
     await waitForRegisteredAgent(page, hostname);
@@ -263,7 +250,7 @@ test.describe.serial('Infrastructure - chaining', () => {
     const nmapScenarioName = `E2E Nmap Chaining ${Date.now()}`;
 
     await deployNmapInjector(page, nmapInjectorName);
-    await createChainedScenario(page, nmapScenarioName);
+    await openChainedScenario(page, request, nmapScenarioName);
     await addEndpointToScope(page, hostname);
     await page.getByRole('tab', {
       name: 'Logic',

@@ -117,17 +117,17 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
     title: string;
     description: string;
   }> = [
-      {
-        type: 'chaining',
-        title: t(isSimulation ? 'chaining.chaining-simulation.title' : 'chaining.chaining-scenario.title'),
-        description: t('chaining.chaining-scenario.description'),
-      },
-      {
-        type: 'time-based',
-        title: t(isSimulation ? 'chaining.chaining-timebased-simulation.title' : 'chaining.chaining-timebased.title'),
-        description: t('chaining.chaining-timebased.description'),
-      },
-    ];
+    {
+      type: 'chaining',
+      title: t(isSimulation ? 'chaining.chaining-simulation.title' : 'chaining.chaining-scenario.title'),
+      description: t('chaining.chaining-scenario.description'),
+    },
+    {
+      type: 'time-based',
+      title: t(isSimulation ? 'chaining.chaining-timebased-simulation.title' : 'chaining.chaining-timebased.title'),
+      description: t('chaining.chaining-timebased.description'),
+    },
+  ];
 
   const handleCardClick = (type: NonNullable<EngineType>) => {
     if (type === 'chaining' && !isEnterpriseEdition) {
@@ -179,7 +179,6 @@ const EngineTypeSelection: FunctionComponent<EngineTypeSelectionProps> = ({
               />
             </Tooltip>
             <CardActionArea
-              aria-label={option.title}
               onClick={() => handleCardClick(option.type)}
               sx={{
                 height: '100%',
