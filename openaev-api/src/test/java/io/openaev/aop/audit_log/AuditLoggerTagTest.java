@@ -94,7 +94,7 @@ class AuditLoggerTagTest extends IntegrationTest {
     @WithMockUser(
         withCapabilities = {Capability.MANAGE_TAGS},
         autoJoinDefaultTenant = true)
-    void given_newTagCreation_should_logUpdateScope() throws Exception {
+    void given_newTagCreation_should_logCreateScope() throws Exception {
       // Arrange
       long sizeBefore = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
       TagCreateInput input = new TagCreateInput();
@@ -113,11 +113,11 @@ class AuditLoggerTagTest extends IntegrationTest {
       String newContent =
           assertAuditLogContainsNewContent(
               sizeBefore,
-              "\"event_scope\" : \"update\"",
+              "\"event_scope\" : \"create\"",
               "\"method\" : \"POST\"",
               "\"url\" : \"http://localhost/api/tags\"",
               "\"entity_type\" : \"Tag\"");
-      assertThat(newContent).contains("\"message\" : \"updates Tag\"");
+      assertThat(newContent).contains("\"message\" : \"creates Tag\"");
     }
 
     @Test
