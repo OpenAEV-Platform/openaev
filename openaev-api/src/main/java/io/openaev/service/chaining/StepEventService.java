@@ -173,6 +173,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
 
     stepRun.setStatus(StepStatus.RUN);
     stepService.saveStep(stepRun);
+    System.out.println("RUN - " + stepRun.getId() + " - " + stepRun.getInput());
   }
 
   // -- EXTERNAL UPDATE EVENTS --
@@ -221,7 +222,19 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
   private void processExternalUpdateEvent(ExternalUpdateEvent stepEvent) {
     Step stepRun;
     try {
-      stepRun = stepService.findByIdAndStatus(stepEvent.getStepId(), StepStatus.RUN);
+      stepRun = stepService.findById(stepEvent.getStepId());
+      if (stepRun.getStatus() == StepStatus.END) {
+        log.info(
+            "[Chaining] Update consume: Step already in END state. Step ID: {}",
+            stepEvent.getStepId());
+        return;
+      } else if (stepRun.getStatus() != StepStatus.RUN) {
+        log.error(
+            "[Chaining] Update consume: Step not in RUN or END state. Step ID: {}, Current Status: {}",
+            stepEvent.getStepId(),
+            stepRun.getStatus());
+        return;
+      }
     } catch (ElementNotFoundException e) {
       // Todo: system notif queue fail + system log for step + status FAIL
       log.error(
