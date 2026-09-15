@@ -1,8 +1,10 @@
 package io.openaev.service.chaining;
 
-import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Workflow;
@@ -22,24 +24,22 @@ class StepDelayQueueServiceTest {
   @InjectMocks private StepDelayQueueService stepDelayQueueService;
 
   @Test
-  void pushStepTemplateIntoStepDelayQueue_shouldSaveEntity() {
+  void pushStepTemplateIntoStepDelayQueue_shouldUpsertEntity() {
+    // Arrange
     Step stepTemplate = mock(Step.class);
     Workflow workflowRun = mock(Workflow.class);
     Instant now = Instant.now();
     Instant goal = now.plusMillis(5000);
+    when(stepTemplate.getId()).thenReturn("step-id");
+    when(workflowRun.getId()).thenReturn("workflow-id");
 
+    // Act
     stepDelayQueueService.pushStepTemplateIntoStepDelayQueue(
         stepTemplate, now, "input", 5000L, workflowRun, goal);
 
+    // Assert
     verify(stepDelayQueueRepository)
-        .save(
-            argThat(
-                entry ->
-                    entry.getInput().equals("input")
-                        && entry.getDelay().equals(5000L)
-                        && entry.getNow().equals(now)
-                        && entry.getGoal().equals(goal)
-                        && entry.getStepTemplate().equals(stepTemplate)
-                        && entry.getWorkflowRun().equals(workflowRun)));
+        .upsertByWorkflowRunStepTemplateAndInput(
+            any(), eq("input"), eq(now), eq(goal), eq(5000L), eq("step-id"), eq("workflow-id"));
   }
 }
