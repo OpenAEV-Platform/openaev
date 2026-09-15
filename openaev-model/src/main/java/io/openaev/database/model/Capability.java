@@ -508,7 +508,8 @@ public enum Capability {
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.JOB, Action.READ),
       pair(ResourceType.JOB, Action.WRITE),
-      pair(ResourceType.AGENT, Action.CREATE));
+      pair(ResourceType.AGENT, Action.CREATE),
+      pair(ResourceType.AGENT, Action.READ));
 
   private record ResourceTypeActionPair(ResourceType resource, Action action) {}
 
