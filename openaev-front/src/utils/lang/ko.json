@@ -2625,6 +2625,7 @@
   "No technique was exercised over the selected time range.": "No technique was exercised over the selected time range.",
   "No tenant": "Tenant 없음",
   "No tenant assigned": "할당된 테넌트 없음",
+  "Tenant access denied": "테넌트 접근 거부됨",
   "No tenant available": "사용 가능한 Tenant가 없습니다",
   "No tenant available — using default tenant as fallback": "Tenant를 사용할 수 없음 - 기본 Tenant를 폴백으로 사용 중입니다",
   "No tenant selected": "선택한 Tenant가 없습니다",

@@ -2625,6 +2625,7 @@
   "No technique was exercised over the selected time range.": "No technique was exercised over the selected time range.",
   "No tenant": "No tenant",
   "No tenant assigned": "No tenant assigned",
+  "Tenant access denied": "Tenant access denied",
   "No tenant available": "No tenant available",
   "No tenant available — using default tenant as fallback": "No tenant available — using default tenant as fallback",
   "No tenant selected": "No tenant selected",
