@@ -1,0 +1,109 @@
+{
+  "attributes" : {
+    "type" : {
+      "type" : "string_t",
+      "description" : "The job trigger type, normalized to the caption of the <code>type_id</code> value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "recommended",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "user" : {
+      "type" : "object_t",
+      "description" : "The user that pertains to the job trigger. Can be populated when the <code>Event (3)</code> type that bounds to specific user is used.",
+      "requirement" : "optional",
+      "caption" : "User",
+      "object_type" : "user",
+      "object_name" : "User"
+    },
+    "properties" : {
+      "type" : "object_t",
+      "description" : "The list of properties associated with the trigger.<br>Can be used to describe time boundaries of the job, amount of repetitions or when the job should be activated or expired.",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "Properties",
+      "object_type" : "key_value_object",
+      "object_name" : "Key:Value object"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The job is triggered when the specific event occurs. The <code>properties</code> attribute should be populated with respective event sources and identifiers.",
+          "caption" : "Event"
+        },
+        "0" : {
+          "description" : "The trigger is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The job is triggered on a system boot.",
+          "caption" : "Boot"
+        },
+        "2" : {
+          "description" : "The job is triggered on a specific schedule. Properties should be populated with respective time bounds.",
+          "caption" : "Schedule"
+        },
+        "99" : {
+          "description" : "The job trigger is unmapped. See the <code>type</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The job trigger type, i.e. the condition that must be met for the job to perform its action.",
+      "requirement" : "required",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "event_codes" : {
+      "type" : "string_t",
+      "description" : "Event identifiers that pertain to the job trigger. Should be populated when the <code>Event (3)</code> type is specified.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Event Codes",
+      "type_name" : "String"
+    },
+    "last_run_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the job was last run.",
+      "requirement" : "recommended",
+      "caption" : "Last Run",
+      "type_name" : "Timestamp"
+    },
+    "log_sources" : {
+      "type" : "string_t",
+      "description" : "A collection of log systems or components that pertain to the job trigger. Should be populated when the <code>Event (3)</code> type is specified.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Log Sources",
+      "type_name" : "String"
+    },
+    "next_run_time" : {
+      "type" : "timestamp_t",
+      "description" : "The time when the job will next be run.",
+      "requirement" : "optional",
+      "caption" : "Next Run",
+      "type_name" : "Timestamp"
+    },
+    "last_run_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the job was last run.",
+      "requirement" : "optional",
+      "caption" : "Last Run",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "next_run_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The time when the job will next be run.",
+      "requirement" : "optional",
+      "caption" : "Next Run",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "job_trigger",
+  "description" : "The condition or event that, when met, will initiate the job to perform specified actions.",
+  "caption" : "Job Trigger",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}

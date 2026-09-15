@@ -1,0 +1,225 @@
+{
+  "attributes" : {
+    "location" : {
+      "type" : "object_t",
+      "description" : "The geographical location associated with a user. This is typically the user's usual work location.",
+      "requirement" : "optional",
+      "caption" : "Geo Location",
+      "object_type" : "location",
+      "object_name" : "Geo Location"
+    },
+    "labels" : {
+      "type" : "string_t",
+      "description" : "The labels associated with the user. For example in AD this could be the <code>userType</code>, <code>employeeType</code>. For example: <code>Member, Employee</code>.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Labels",
+      "type_name" : "String"
+    },
+    "manager" : {
+      "type" : "object_t",
+      "description" : "The user's manager. This helps in understanding an org hierarchy. This should only ever be populated once in an event. I.e. there should not be a manager's manager in an event.",
+      "requirement" : "optional",
+      "caption" : "Manager",
+      "object_type" : "user",
+      "object_name" : "User"
+    },
+    "tags" : {
+      "type" : "object_t",
+      "description" : "The list of tags; <code>{key:value}</code> pairs associated to the user.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Tags",
+      "object_type" : "key_value_object",
+      "object_name" : "Key:Value object"
+    },
+    "cost_center" : {
+      "type" : "string_t",
+      "description" : "The cost center associated with the user.",
+      "requirement" : "optional",
+      "caption" : "Cost Center",
+      "type_name" : "String"
+    },
+    "created_time" : {
+      "type" : "timestamp_t",
+      "description" : "The timestamp when the user was created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "type_name" : "Timestamp"
+    },
+    "deleted_time" : {
+      "type" : "timestamp_t",
+      "description" : "The timestamp when the user was deleted. In Active Directory (AD), when a user is deleted they are moved to a temporary container and then removed after 30 days. So, this field can be populated even after a user is deleted for the next 30 days.",
+      "requirement" : "optional",
+      "caption" : "Deleted Time",
+      "type_name" : "Timestamp"
+    },
+    "department" : {
+      "type" : "string_t",
+      "description" : "The name of the department in which the user works.",
+      "requirement" : "optional",
+      "caption" : "Department",
+      "type_name" : "String"
+    },
+    "display_name" : {
+      "type" : "string_t",
+      "description" : "The display name of the LDAP person. According to RFC 2798, this is the preferred name of a person to be used when displaying entries.",
+      "references" : [ {
+        "description" : "RFC 2798",
+        "url" : "https://www.rfc-editor.org/rfc/rfc2798.html#section-2.3"
+      }, {
+        "description" : "Microsoft AD Schema",
+        "url" : "https://learn.microsoft.com/en-us/windows/win32/adschema/a-displayname"
+      } ],
+      "requirement" : "optional",
+      "caption" : "Display Name",
+      "type_name" : "String"
+    },
+    "email_addrs" : {
+      "type" : "email_t",
+      "description" : "A list of additional email addresses for the user.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Email Addresses",
+      "type_name" : "Email Address"
+    },
+    "employee_uid" : {
+      "type" : "string_t",
+      "description" : "The employee identifier assigned to the user by the organization.",
+      "requirement" : "optional",
+      "caption" : "Employee ID",
+      "type_name" : "String"
+    },
+    "given_name" : {
+      "type" : "string_t",
+      "description" : "The given or first name of the user.",
+      "requirement" : "optional",
+      "caption" : "Given Name",
+      "type_name" : "String"
+    },
+    "hire_time" : {
+      "type" : "timestamp_t",
+      "description" : "The timestamp when the user was or will be hired by the organization.",
+      "requirement" : "optional",
+      "caption" : "Hire Time",
+      "type_name" : "Timestamp"
+    },
+    "job_title" : {
+      "type" : "string_t",
+      "description" : "The user's job title.",
+      "requirement" : "optional",
+      "caption" : "Job Title",
+      "type_name" : "String"
+    },
+    "last_login_time" : {
+      "type" : "timestamp_t",
+      "description" : "The last time when the user logged in.",
+      "requirement" : "optional",
+      "caption" : "Last Login",
+      "type_name" : "Timestamp"
+    },
+    "ldap_cn" : {
+      "type" : "string_t",
+      "description" : "The LDAP and X.500 <code>commonName</code> attribute, typically the full name of the person. For example, <code>John Doe</code>.",
+      "requirement" : "optional",
+      "caption" : "LDAP Common Name",
+      "type_name" : "String"
+    },
+    "ldap_dn" : {
+      "type" : "string_t",
+      "description" : "The X.500 Distinguished Name (DN) is a structured string that uniquely identifies an entry, such as a user, in an X.500 directory service For example, <code>cn=John Doe,ou=People,dc=example,dc=com</code>.",
+      "requirement" : "optional",
+      "caption" : "LDAP Distinguished Name",
+      "type_name" : "String"
+    },
+    "leave_time" : {
+      "type" : "timestamp_t",
+      "description" : "The timestamp when the user left or will be leaving the organization.",
+      "requirement" : "optional",
+      "caption" : "Leave Time",
+      "type_name" : "Timestamp"
+    },
+    "modified_time" : {
+      "type" : "timestamp_t",
+      "description" : "The timestamp when the user entry was last modified.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "type_name" : "Timestamp"
+    },
+    "office_location" : {
+      "type" : "string_t",
+      "description" : "The primary office location associated with the user. This could be any string and isn't a specific address. For example, <code>South East Virtual</code>.",
+      "requirement" : "optional",
+      "caption" : "Office Location",
+      "type_name" : "String"
+    },
+    "phone_number" : {
+      "type" : "string_t",
+      "description" : "The telephone number of the user. Corresponds to the LDAP <code>Telephone-Number</code> CN.",
+      "requirement" : "optional",
+      "caption" : "Telephone Number",
+      "type_name" : "String"
+    },
+    "surname" : {
+      "type" : "string_t",
+      "description" : "The last or family name for the user.",
+      "requirement" : "optional",
+      "caption" : "Surname",
+      "type_name" : "String"
+    },
+    "created_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The timestamp when the user was created.",
+      "requirement" : "optional",
+      "caption" : "Created Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "deleted_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The timestamp when the user was deleted. In Active Directory (AD), when a user is deleted they are moved to a temporary container and then removed after 30 days. So, this field can be populated even after a user is deleted for the next 30 days.",
+      "requirement" : "optional",
+      "caption" : "Deleted Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "hire_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The timestamp when the user was or will be hired by the organization.",
+      "requirement" : "optional",
+      "caption" : "Hire Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "last_login_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The last time when the user logged in.",
+      "requirement" : "optional",
+      "caption" : "Last Login",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "leave_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The timestamp when the user left or will be leaving the organization.",
+      "requirement" : "optional",
+      "caption" : "Leave Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "modified_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The timestamp when the user entry was last modified.",
+      "requirement" : "optional",
+      "caption" : "Modified Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "ldap_person",
+  "description" : "The additional LDAP attributes that describe a person.",
+  "extends" : "object",
+  "caption" : "LDAP Person",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}

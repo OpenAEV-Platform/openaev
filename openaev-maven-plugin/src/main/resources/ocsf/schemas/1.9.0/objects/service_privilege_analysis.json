@@ -1,0 +1,83 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The service or namespace identifier. Examples: <code>s3</code>, <code>ec2</code> (AWS); <code>Microsoft.Storage</code> (Azure); <code>storage</code> (GCP).",
+      "requirement" : "required",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "all_privileges_unused" : {
+      "type" : "boolean_t",
+      "description" : "Indicates whether all privileges within this service are unused.",
+      "requirement" : "optional",
+      "caption" : "All Privileges Unused",
+      "type_name" : "Boolean"
+    },
+    "analyzed_privileges_count" : {
+      "type" : "integer_t",
+      "description" : "The total count of privileges analyzed within this service.",
+      "requirement" : "optional",
+      "caption" : "Analyzed Privileges Count",
+      "type_name" : "Integer"
+    },
+    "execute_count" : {
+      "type" : "integer_t",
+      "description" : "The count of execute-type privileges within this service.",
+      "requirement" : "optional",
+      "caption" : "Execute Privilege Count",
+      "type_name" : "Integer"
+    },
+    "last_used_time" : {
+      "type" : "timestamp_t",
+      "description" : "The most recent time any privilege in this service was used.",
+      "requirement" : "optional",
+      "caption" : "Last Used Time",
+      "type_name" : "Timestamp"
+    },
+    "privilege_attack_info_list" : {
+      "type" : "object_t",
+      "description" : "The list of privilege-to-attack mappings for this service.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Privilege Attack Info List",
+      "object_type" : "privilege_attack_info",
+      "object_name" : "Privilege Attack Info"
+    },
+    "read_count" : {
+      "type" : "integer_t",
+      "description" : "The count of read-type privileges within this service.",
+      "requirement" : "optional",
+      "caption" : "Read Privilege Count",
+      "type_name" : "Integer"
+    },
+    "unused_privileges_count" : {
+      "type" : "integer_t",
+      "description" : "The count of unused privileges within this service.",
+      "requirement" : "optional",
+      "caption" : "Unused Privileges Count",
+      "type_name" : "Integer"
+    },
+    "write_count" : {
+      "type" : "integer_t",
+      "description" : "The count of write-type privileges within this service.",
+      "requirement" : "optional",
+      "caption" : "Write Privilege Count",
+      "type_name" : "Integer"
+    },
+    "last_used_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The most recent time any privilege in this service was used.",
+      "requirement" : "optional",
+      "caption" : "Last Used Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "service_privilege_analysis",
+  "description" : "The Service Privilege Analysis object describes privilege analysis results for a single cloud service or resource namespace. It provides metrics on privilege usage, counts by type, and mappings to potential attack techniques.",
+  "extends" : "object",
+  "caption" : "Service Privilege Analysis",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}

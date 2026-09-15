@@ -1,0 +1,1881 @@
+[ {
+  "name" : "logger",
+  "description" : "The Logger object represents the device and product where events are stored with times for receipt and transmission.  This may be at the source device where the event occurred, a remote scanning device, intermediate hops, or the ultimate destination.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Logger",
+  "profiles" : [ "container", "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "authorization",
+  "description" : "The Authorization Result object provides details about the authorization outcome and associated policies related to activity.",
+  "extends" : "object",
+  "caption" : "Authorization Result",
+  "_links" : [ ]
+}, {
+  "name" : "dns_resource_record",
+  "description" : "The DNS Resource Record object represents a single resource record as defined in RFC 1035. It is used in the Answer, Authority, and Additional sections of a DNS message.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "RFC 1035 — DNS Implementation and Specification.",
+    "url" : "https://www.rfc-editor.org/rfc/rfc1035.txt"
+  } ],
+  "caption" : "DNS Resource Record",
+  "_links" : [ ]
+}, {
+  "name" : "file",
+  "description" : "The File object represents the metadata associated with a file stored in a computer system. It encompasses information about the file itself, including its attributes, properties, and organizational details.",
+  "extends" : "_entity",
+  "constraints" : { },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:File",
+    "url" : "https://next.d3fend.mitre.org/dao/artifact/d3f:File/"
+  } ],
+  "caption" : "File",
+  "profiles" : [ "container", "data_classification", "datetime" ],
+  "_links" : [ ],
+  "observable" : 24
+}, {
+  "name" : "cwe",
+  "description" : "The CWE object represents a weakness in a software system that can be exploited by a threat actor to perform an attack. The CWE object is based on the Common Weakness Enumeration (CWE) catalog.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "Common Weakness Enumeration (CWE)",
+    "url" : "https://cwe.mitre.org/"
+  } ],
+  "caption" : "CWE",
+  "_links" : [ ]
+}, {
+  "name" : "unmanned_system_operating_area",
+  "description" : "The Unmanned System Operating Area object describes details about a precise area of operations for a UAS flight or mission.",
+  "extends" : "location",
+  "constraints" : {
+    "at_least_one" : [ "city", "country", "postal_code", "region" ]
+  },
+  "caption" : "Unmanned System Operating Area",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ],
+  "observable" : 26
+}, {
+  "name" : "additional_restriction",
+  "description" : "The Additional Restriction object describes supplementary access controls and guardrails that constrain or limit granted permissions beyond the primary policy. These restrictions are typically applied through hierarchical policy frameworks, organizational controls, or conditional access mechanisms. Examples include AWS Service Control Policies (SCPs), Resource Control Policies (RCPs), Azure Management Group policies, GCP Organization policies, conditional access policies, IP restrictions, time-based constraints, and MFA requirements.",
+  "extends" : "object",
+  "caption" : "Additional Restriction",
+  "_links" : [ ]
+}, {
+  "name" : "technique",
+  "description" : "The MITRE Technique object describes the ATT&CK® or ATLAS™ Technique ID and/or name associated to an attack.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "ATT&CK® Matrix",
+    "url" : "https://attack.mitre.org"
+  }, {
+    "description" : "ATLAS™ Matrix",
+    "url" : "https://atlas.mitre.org/matrices/ATLAS"
+  } ],
+  "caption" : "MITRE Technique",
+  "_links" : [ ]
+}, {
+  "name" : "display",
+  "description" : "The Display object contains information about the physical or virtual display connected to a computer system.",
+  "extends" : "object",
+  "caption" : "Display",
+  "_links" : [ ]
+}, {
+  "name" : "firewall_rule",
+  "description" : "The Firewall Rule object represents a specific rule within a firewall policy or event. It contains information about a rule's configuration, properties, and associated actions that define how network traffic is handled by the firewall.",
+  "extends" : "rule",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Firewall Rule",
+  "_links" : [ ]
+}, {
+  "name" : "edge",
+  "description" : "Represents a connection or relationship between two nodes in a graph.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "JSON graph specification.",
+    "url" : "https://github.com/jsongraph/json-graph-specification/"
+  } ],
+  "caption" : "Edge",
+  "_links" : [ ]
+}, {
+  "name" : "win_service",
+  "description" : "The Windows Service object describes a Windows service.",
+  "extension" : "win",
+  "extends" : "service",
+  "constraints" : {
+    "at_least_one" : [ "cmd_line", "service_category_id", "service_dependencies", "service_error_control_id", "service_start_name", "service_start_type_id", "service_type_id" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:ServiceApplication.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:ServiceApplication/"
+  } ],
+  "extension_id" : 2,
+  "caption" : "Windows Service",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "finding_info",
+  "description" : "The Finding Information object describes metadata related to a security finding generated by a security tool or system.",
+  "extends" : "object",
+  "caption" : "Finding Information",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "ja4_fingerprint",
+  "description" : "The JA4+ fingerprint object provides detailed fingerprint information about various aspects of network traffic which is both machine and human readable.",
+  "extends" : "object",
+  "caption" : "JA4+ Fingerprint",
+  "_links" : [ ]
+}, {
+  "name" : "gpu_info",
+  "description" : "The GPU information object contains attributes describing graphical processing hardware.",
+  "extends" : "object",
+  "caption" : "GPU Information",
+  "_links" : [ ]
+}, {
+  "name" : "api",
+  "description" : "The API, or Application Programming Interface, object represents  information pertaining to an API request and response.",
+  "extends" : "object",
+  "caption" : "API",
+  "_links" : [ ]
+}, {
+  "name" : "privilege_info",
+  "description" : "The Privilege Info object describes information about a specific privilege, action, or permission. It captures the privilege name, type, usage status, and when it was last used.",
+  "extends" : "object",
+  "caption" : "Privilege Info",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "session",
+  "description" : "The Session object describes details about an authenticated session. e.g. Session Creation Time, Session Issuer.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Session",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:Session/"
+  } ],
+  "caption" : "Session",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "actor",
+  "description" : "The Actor object contains details about the user, role, application, service, or process that initiated or performed a specific activity. Note that Actor is not the threat actor of a campaign but may be part of a campaign. When the initiator of the activity is an autonomous AI agent, apply the <code>ai_operation</code> profile and populate <code>ai_operation.ai_agent</code> rather than describing the agent here.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "process", "user", "iam_role", "invoked_by", "session", "application", "app_name", "app_uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Agent.",
+    "url" : "https://next.d3fend.mitre.org/agent/d3f:Agent/"
+  } ],
+  "caption" : "Actor",
+  "profiles" : [ "cloud", "container", "data_classification", "linux/linux_users", "macos/macos_users" ],
+  "_links" : [ ]
+}, {
+  "name" : "email",
+  "description" : "The Email object describes the email metadata such as sender, recipients, and direction, and can include embedded URLs and files.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "from", "to" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Email.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:Email/"
+  } ],
+  "caption" : "Email",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ],
+  "observable" : 22
+}, {
+  "name" : "classifier_details",
+  "description" : "The Classifier Details object describes details about the classifier used for data classification.",
+  "extends" : "object",
+  "caption" : "Classifier Details",
+  "_links" : [ ]
+}, {
+  "name" : "analytic",
+  "description" : "The Analytic object contains details about the analytic technique used to analyze and derive insights from the data or information that led to the creation of a finding or conclusion.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Analytic",
+  "_links" : [ ]
+}, {
+  "name" : "container",
+  "description" : "The Container object describes an instance of a specific container. A container is a prepackaged, portable system image that runs isolated on an existing system using a container runtime like containerd.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "uid", "name" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:ContainerProcess.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:ContainerProcess/"
+  } ],
+  "caption" : "Container",
+  "_links" : [ ],
+  "observable" : 27
+}, {
+  "name" : "cloud",
+  "description" : "The Cloud object describes the cloud computing environment where an event or finding originated. It provides comprehensive context about the cloud infrastructure, including the cloud service provider, account or subscription details, organizational structure, geographic regions, availability zones, and logical partitions.",
+  "extends" : "object",
+  "caption" : "Cloud",
+  "_links" : [ ]
+}, {
+  "name" : "managed_entity",
+  "description" : "The Managed Entity object describes the type and version of an entity, such as a user, device, or policy.  For types in the <code>type_id</code> enum list, an associated attribute should be populated.  If the type of entity is not in the <code>type_id</code> list, information can be put into the <code>data</code> attribute, <code>type_id</code> should be 'Other' and the <code>type</code> attribute should label the entity type.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid", "device", "group", "org", "policy", "user" ]
+  },
+  "caption" : "Managed Entity",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "download_info",
+  "description" : "The Download Info object contains metadata pertaining to a downloaded file.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "src_endpoint", "src_url", "type_id" ]
+  },
+  "references" : [ {
+    "description" : "File download metadata on Windows",
+    "url" : "https://en.wikipedia.org/wiki/Mark_of_the_Web"
+  }, {
+    "description" : "File download metadata on macOS",
+    "url" : "https://developer.apple.com/documentation/coreservices/kmditemwherefroms?language=objc"
+  } ],
+  "caption" : "Download Info",
+  "profiles" : [ "container" ],
+  "_links" : [ ]
+}, {
+  "name" : "cvss",
+  "description" : "The Common Vulnerability Scoring System (CVSS) object provides a way to capture the principal characteristics of a vulnerability and produce a numerical score reflecting its severity.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "Common Vulnerability Scoring System (CVSS)",
+    "url" : "https://www.first.org/cvss/"
+  } ],
+  "caption" : "CVSS Score",
+  "_links" : [ ]
+}, {
+  "name" : "permission_analysis_result",
+  "description" : "The Permission Analysis object describes analysis results of permissions, policies directly associated with an identity (user, role, or service account). This evaluates what permissions an identity has been granted through attached policies, which privileges are actively used versus unused, and identifies potential over-privileged access. Use this for identity-centric security assessments such as privilege audits, dormant permission discovery, and least-privilege compliance analysis.",
+  "extends" : "object",
+  "caption" : "Permission Analysis Result",
+  "_links" : [ ]
+}, {
+  "name" : "environment_variable",
+  "description" : "An environment variable.",
+  "extends" : "object",
+  "caption" : "Environment Variable",
+  "_links" : [ ]
+}, {
+  "name" : "cpu_info",
+  "description" : "The CPU information object contains attributes describing a physical CPU package installed in the device.",
+  "extends" : "object",
+  "caption" : "CPU Information",
+  "_links" : [ ]
+}, {
+  "name" : "security_state",
+  "description" : "The Security State object describes the security related state of a managed entity.",
+  "extends" : "object",
+  "caption" : "Security State",
+  "_links" : [ ]
+}, {
+  "name" : "attack",
+  "description" : "The Attack object describes the tactic, technique, sub-technique & mitigation associated to an attack.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "tactic", "technique", "sub_technique" ]
+  },
+  "references" : [ {
+    "description" : "ATT&CK® Matrix",
+    "url" : "https://attack.mitre.org"
+  }, {
+    "description" : "ATLAS™ Matrix",
+    "url" : "https://atlas.mitre.org/matrices/ATLAS"
+  } ],
+  "caption" : "Attack Tactics & Techniques",
+  "_links" : [ ]
+}, {
+  "name" : "prev_event",
+  "description" : "The Previous Event object references the previous event in a chain of events. Refer to specific usage.",
+  "extends" : "object",
+  "caption" : "Previous Event",
+  "_links" : [ ]
+}, {
+  "name" : "scan",
+  "description" : "The Scan object describes characteristics of a proactive scan.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Scan",
+  "_links" : [ ]
+}, {
+  "name" : "clipboard",
+  "description" : "The Clipboard object represents an endpoint clipboard and its contents.",
+  "extends" : "object",
+  "caption" : "Clipboard",
+  "_links" : [ ]
+}, {
+  "name" : "timespan",
+  "description" : "The Time Span object represents different time period durations. If a timespan is fractional, i.e. crosses one period, e.g. a week and 3 days, more than one may be populated since each member is of integral type. In that case <code>type_id</code> if present should be set to <code>Other.</code><P>A timespan may also be defined by its time interval boundaries, <code>start_time</code> and <code>end_time</code>.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "duration", "duration_days", "duration_hours", "duration_mins", "duration_months", "duration_secs", "duration_weeks", "duration_years", "end_time", "start_time" ]
+  },
+  "caption" : "Time Span",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "mitigation",
+  "description" : "The MITRE Mitigation object describes the ATT&CK® or ATLAS™ Mitigation ID and/or name that is associated to an attack.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "ATT&CK® Matrix",
+    "url" : "https://attack.mitre.org"
+  }, {
+    "description" : "ATLAS™ Matrix",
+    "url" : "https://atlas.mitre.org/matrices/ATLAS"
+  }, {
+    "description" : "ATT&CK® Mitigation to D3FEND™ Technique Mappings",
+    "url" : "https://d3fend.mitre.org/mappings/attack-mitigations/"
+  } ],
+  "caption" : "MITRE Mitigation",
+  "_links" : [ ]
+}, {
+  "name" : "osint",
+  "description" : "The OSINT (Open Source Intelligence) object contains details related to an indicator such as the indicator itself, related indicators, geolocation, registrar information, subdomains, analyst commentary, and other contextual information. This information can be used to further enrich a detection or finding by providing decisioning support to other analysts and engineers.",
+  "extends" : "object",
+  "caption" : "OSINT",
+  "profiles" : [ "container", "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "job",
+  "description" : "The Job object provides information about a scheduled job or task, including its name, command line, and state. It encompasses attributes that describe the properties and status of the scheduled job.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "name", "type_id" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:ScheduledJob.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:ScheduledJob/"
+  } ],
+  "caption" : "Job",
+  "profiles" : [ "container", "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "data_security",
+  "description" : "The Data Security object describes the characteristics, techniques and content of a Data Loss Prevention (DLP), Data Loss Detection (DLD), Data Classification, or similar tools' finding, alert, or detection mechanism(s).",
+  "extends" : "data_classification",
+  "constraints" : {
+    "at_least_one" : [ "data_lifecycle_state_id", "detection_pattern", "detection_system_id", "policy" ]
+  },
+  "caption" : "Data Security",
+  "_links" : [ ]
+}, {
+  "name" : "job_action",
+  "description" : "The action that will be performed by the job when certain conditions are met.",
+  "caption" : "Job Action",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "scim",
+  "description" : "The System for Cross-domain Identity Management (SCIM) Configuration object provides a structured set of attributes related to SCIM protocols used for identity provisioning and management across cloud-based platforms. It standardizes user and group provisioning details, enabling identity synchronization and lifecycle management with compatible Identity Providers (IdPs) and applications. SCIM is defined in RFC 7634.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "System for Cross-domain Identity Management (SCIM)",
+    "url" : "https://datatracker.ietf.org/doc/html/rfc7643"
+  } ],
+  "caption" : "SCIM",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "request",
+  "description" : "The Request Elements object describes characteristics of an API request.",
+  "extends" : "object",
+  "caption" : "Request Elements",
+  "_links" : [ ]
+}, {
+  "name" : "process",
+  "description" : "The Process object describes a running instance of a launched program.",
+  "extends" : "process_entity",
+  "constraints" : {
+    "at_least_one" : [ "pid", "uid", "cpid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Process",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:Process/"
+  } ],
+  "caption" : "Process",
+  "profiles" : [ "container", "data_classification", "datetime", "linux/linux_users", "macos/macos_users" ],
+  "_links" : [ ],
+  "observable" : 25
+}, {
+  "name" : "related_event",
+  "description" : "The Related Event object describes an event or another finding related to a finding. It may or may not be an OCSF event.",
+  "extends" : "object",
+  "caption" : "Related Event/Finding",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "epss",
+  "description" : "The Exploit Prediction Scoring System (EPSS) object describes the estimated probability a vulnerability will be exploited. EPSS is a community-driven effort to combine descriptive information about vulnerabilities (CVEs) with evidence of actual exploitation in-the-wild.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "Exploit Prediction Scoring System (EPSS)",
+    "url" : "https://www.first.org/epss/"
+  } ],
+  "caption" : "EPSS",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "http_request",
+  "description" : "The HTTP Request object represents the attributes of a request made to a web server. It encapsulates the details and metadata associated with an HTTP request, including the request method, headers, URL, query parameters, body content, and other relevant information.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:OutboundInternetNetworkTraffic.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:OutboundInternetNetworkTraffic/"
+  } ],
+  "caption" : "HTTP Request",
+  "_links" : [ ]
+}, {
+  "name" : "application",
+  "description" : "An Application describes the details for an inventoried application as reported by an Application Security tool or other Developer-centric tooling. Applications can be defined as Kubernetes resources, Containerized resources, or application hosting-specific cloud sources such as AWS Elastic BeanStalk, AWS Lightsail, or Azure Logic Apps.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "uid", "name" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Application.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:Application/"
+  } ],
+  "caption" : "Application",
+  "profiles" : [ "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "reputation",
+  "description" : "The Reputation object describes the reputation/risk score of an entity (e.g. device, user, domain).",
+  "extends" : "object",
+  "caption" : "Reputation",
+  "_links" : [ ]
+}, {
+  "name" : "database",
+  "description" : "The database object is used for databases which are typically datastore services that contain an organized collection of structured and unstructured data or a types of data.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Database.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:Database/"
+  } ],
+  "caption" : "Database",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "tsig",
+  "description" : "The TSIG (Transaction Signature) object represents a TSIG resource record as defined in RFC 2845. TSIG uses a shared secret key and one-way hash function to authenticate DNS messages. Per RFC 2845, at most one TSIG record is permitted per DNS message.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "algorithm", "key_name", "error_id" ]
+  },
+  "references" : [ {
+    "description" : "RFC 2845 — Secret Key Transaction Authentication for DNS (TSIG).",
+    "url" : "https://www.rfc-editor.org/rfc/rfc2845"
+  } ],
+  "caption" : "TSIG",
+  "_links" : [ ]
+}, {
+  "name" : "check",
+  "description" : "The check object defines a specific, testable compliance verification point that evaluates a target device against a standard, framework, or custom requirement. While checks are typically associated with formal standards (like CIS, NIST, or ISO), they can also represent custom or organizational requirements. When mapped to controls, checks can evaluate specific control_parameters to determine compliance status, but neither the control mapping nor control_parameters are required for a valid check.",
+  "extends" : "object",
+  "caption" : "Check",
+  "profiles" : [ "cloud", "container", "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "delegation",
+  "description" : "A durable authorization context that a principal issues to a delegate (e.g., an application, automated process, service account, or AI agent), representing delegated authority to act on the principal's behalf. Persists independently of any single trace, session, or workflow instance, so the same delegation can be referenced across many events. The principal and delegate themselves are identified by the other objects on the event carrying this delegation, such as <code>actor.user</code> or <code>actor.iam_role</code> for the principal and <code>ai_operation.ai_agent</code> for an AI delegate. The <code>delegation</code> object itself only carries the durable identifiers used to correlate across those events. Delegations reference a parent via <code>parent_uid</code>, forming a directed acyclic graph (DAG) of re-delegations that supports lineage queries across the chain of authority. This authority graph is distinct from any agent instantiation or orchestration hierarchy, which may or may not coincide with it.",
+  "extends" : "object",
+  "caption" : "Delegation",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "endpoint_connection",
+  "description" : "The Endpoint Connection object contains information detailing a connection attempt to an endpoint.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "network_endpoint", "code" ]
+  },
+  "caption" : "Endpoint Connection",
+  "profiles" : [ "container" ],
+  "_links" : [ ]
+}, {
+  "name" : "auth_factor",
+  "description" : "An Authentication Factor object describes a category of methods used for identity verification in an authentication attempt.",
+  "extends" : "object",
+  "caption" : "Authentication Factor",
+  "profiles" : [ "container" ],
+  "_links" : [ ]
+}, {
+  "name" : "sso",
+  "description" : "The Single Sign-On (SSO) object provides a structure for normalizing SSO attributes, configuration, and/or settings from Identity Providers.",
+  "extends" : "object",
+  "caption" : "SSO",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "fingerprint",
+  "description" : "The Fingerprint object provides detailed information about a fingerprint, which is a compact representation of data used to identify a longer piece of information, such as a public key, file content, or application implementation. It contains the algorithm or scheme and value of the fingerprint, enabling efficient and reliable identification of the associated data.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:DigitalFingerprint.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:DigitalFingerprint/"
+  } ],
+  "caption" : "Fingerprint",
+  "_links" : [ ],
+  "observable" : 30
+}, {
+  "name" : "ticket",
+  "description" : "The Ticket object represents ticket in the customer's IT Service Management (ITSM) systems like ServiceNow, Jira, etc.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "src_url", "uid" ]
+  },
+  "caption" : "Ticket",
+  "_links" : [ ]
+}, {
+  "name" : "remediation",
+  "description" : "The Remediation object describes the recommended remediation steps to address identified issue(s).",
+  "extends" : "object",
+  "caption" : "Remediation",
+  "profiles" : [ "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "databucket",
+  "description" : "The databucket object is a basic container that holds data, typically organized through the use of data partitions.",
+  "extends" : "_resource",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:CloudStorage.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:CloudStorage/"
+  } ],
+  "caption" : "Databucket",
+  "profiles" : [ "cloud", "container", "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "metric",
+  "description" : "The Metric object defines a simple name/value pair entity for a metric.",
+  "extends" : "object",
+  "caption" : "Metric",
+  "_links" : [ ]
+}, {
+  "name" : "access_analysis_result",
+  "description" : "The Access Analysis Result object describes access relationships and pathways between identities, resources, focusing on who can access what and through which mechanisms. This evaluates access levels (read/write/admin), access types (direct, cross-account, public, federated), and the conditions under which access is granted. Use this for resource-centric security assessments such as external access discovery, public exposure analysis, etc.",
+  "extends" : "object",
+  "caption" : "Access Analysis Result",
+  "_links" : [ ]
+}, {
+  "name" : "token",
+  "description" : "The Token object is the base object for representing tokens, API keys, and authentication credentials used across different contexts. This object provides common attributes for all token types, including protocol-specific authentication tokens (Kerberos, OIDC, SAML) and API/client tokens used for service authentication. When to use this object: Use the base <code>token</code> object directly in API activity events to represent API tokens, client tokens, or API keys used to authenticate API requests. Examples include: Okta API tokens, Microsoft Entra ID Application Registration client secrets, Stripe API keys, AWS API keys. When NOT to use this object: Do NOT use the base <code>token</code> object for protocol-specific authentication tokens in authentication events - use <code>authentication_token</code> instead (which extends this object). Do NOT use <code>token</code> for tracking credential lifecycle and usage patterns - use <code>programmatic_credential</code> instead.",
+  "extends" : "object",
+  "caption" : "Token",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "ai_model",
+  "description" : "The AI Model object describes the characteristics of an AI/ML model. Examples include language models like GPT-4, embedding models like text-embedding-ada-002, and computer vision models like CLIP.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "AI Model Registry and Documentation Standards",
+    "url" : "https://huggingface.co/docs/hub/models"
+  }, {
+    "description" : "OpenAI Model Documentation",
+    "url" : "https://platform.openai.com/docs/models"
+  } ],
+  "caption" : "AI Model",
+  "_links" : [ ]
+}, {
+  "name" : "campaign",
+  "description" : "Campaign represent organized efforts by threat actors to achieve malicious objectives over a period, often characterized by shared tactics, techniques, and procedures (TTPs).",
+  "extends" : "object",
+  "caption" : "Campaign",
+  "_links" : [ ]
+}, {
+  "name" : "package",
+  "description" : "The Software Package object describes details about a software package.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:SoftwarePackage.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:SoftwarePackage/"
+  } ],
+  "caption" : "Software Package",
+  "_links" : [ ]
+}, {
+  "name" : "programmatic_credential",
+  "description" : "The Programmatic Credential object describes service-specific credentials used for direct API access and system integration. These credentials are typically issued by individual services or platforms for accessing their APIs and resources, focusing on credential lifecycle management and usage tracking. Examples include API keys, service account keys, client certificates, and vendor-specific access tokens.",
+  "extends" : "object",
+  "caption" : "Programmatic Credential",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "anomaly_analysis",
+  "description" : "Describes the analysis of activity patterns and anomalies of target entities to identify potential security threats, performance issues, or other deviations from established baselines. This includes monitoring and analyzing user interactions, API usage, resource utilization, access patterns and other measured indicators.",
+  "caption" : "Anomaly Analysis",
+  "_links" : [ ]
+}, {
+  "name" : "san",
+  "description" : "The Subject Alternative name (SAN) object describes a SAN secured by a digital certificate",
+  "extends" : "object",
+  "caption" : "Subject Alternative Name",
+  "_links" : [ ]
+}, {
+  "name" : "feature",
+  "description" : "The Feature object provides information about the software product feature that generated a specific event. It encompasses details related to the capabilities, components, user interface (UI) design, and performance upgrades associated with the feature.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Feature",
+  "_links" : [ ]
+}, {
+  "name" : "ai_agent",
+  "description" : "An autonomous AI agent that performs tasks under delegated authority. Distinguished from the OCSF agent object (which describes security sensors such as EDR and DLP tools) and from human principals. An AI agent has a stable logical identity across runs and a restart-sensitive instance identity. The agent owns its model; the ai_model attribute captures which model was backing the agent at the time of action.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "AI Agent",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "table",
+  "description" : "The table object represents a table within a structured relational database or datastore, which contains columns and rows of data that are able to be create, updated, deleted and queried.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Table",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "kb_article",
+  "description" : "The KB Article object contains metadata that describes the patch or update.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "uid", "src_url" ]
+  },
+  "caption" : "KB Article",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "cis_benchmark_result",
+  "description" : "The CIS Benchmark Result object contains information as defined by the Center for Internet Security (CIS) benchmark result. CIS Benchmarks are a collection of best practices for securely configuring IT systems, software, networks, and cloud infrastructure.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "CIS Benchmarks",
+    "url" : "https://www.cisecurity.org/cis-benchmarks/"
+  } ],
+  "caption" : "CIS Benchmark Result",
+  "profiles" : [ "data_classification" ],
+  "@deprecated" : {
+    "message" : "Use the <code>compliance.checks</code> attribute instead.",
+    "since" : "1.5.0",
+    "superseded_by" : [ "compliance.checks" ]
+  },
+  "_links" : [ ]
+}, {
+  "name" : "service_privilege_analysis",
+  "description" : "The Service Privilege Analysis object describes privilege analysis results for a single cloud service or resource namespace. It provides metrics on privilege usage, counts by type, and mappings to potential attack techniques.",
+  "extends" : "object",
+  "caption" : "Service Privilege Analysis",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "assessment",
+  "description" : "The Assessment object describes a point-in-time assessment, check, or evaluation of a specific configuration or signal against an asset, entity, person, or otherwise. For example, this can encapsulate <code>os_signals</code> from CrowdStrike Falcon Zero Trust Assessments, or account for <code>Datastore</code> configurations from Cyera, or capture details of Microsoft Intune configuration policies.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Assessment",
+  "_links" : [ ]
+}, {
+  "name" : "key_value_object",
+  "description" : "A generic object allowing to define a <code>{key:value}</code> pair.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "value", "values" ]
+  },
+  "caption" : "Key:Value object",
+  "_links" : [ ]
+}, {
+  "name" : "observable",
+  "description" : "The observable object is a pivot element that contains related information found in many places in the event.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "OCSF Observables Article",
+    "url" : "https://github.com/ocsf/ocsf-docs/blob/main/articles/defining-and-using-observables.md"
+  } ],
+  "caption" : "Observable",
+  "_links" : [ ]
+}, {
+  "name" : "endpoint",
+  "description" : "The Endpoint object describes a physical or virtual device that connects to and exchanges information with a computer network. Some examples of endpoints are mobile devices, desktop computers, virtual machines, embedded devices, and servers. Internet-of-Things devices—like cameras, lighting, refrigerators, security systems, smart speakers, and thermostats—are also endpoints.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "ip", "uid", "name", "hostname", "instance_uid", "interface_uid", "interface_name" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Host.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:ComputerNetworkNode/"
+  } ],
+  "caption" : "Endpoint",
+  "profiles" : [ "container" ],
+  "_links" : [ ],
+  "observable" : 20
+}, {
+  "name" : "email_auth",
+  "description" : "The Email Authentication object describes the Sender Policy Framework (SPF), DomainKeys Identified Mail (DKIM) and Domain-based Message Authentication, Reporting and Conformance (DMARC) attributes of an email.",
+  "extends" : "object",
+  "caption" : "Email Authentication",
+  "_links" : [ ]
+}, {
+  "name" : "job_trigger",
+  "description" : "The condition or event that, when met, will initiate the job to perform specified actions.",
+  "caption" : "Job Trigger",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "trace",
+  "description" : "The trace object contains information about a distributed trace,  which is crucial for observability. Traces are made up of one or more spans, which are individual units of work in application activity. Traces track the journey of a request as it moves through various services in a system, capturing key details like timing, status, and dependencies at each step. Traces provide insights into system performance, helping to identify latency, bottlenecks, and issues in complex, distributed environments.",
+  "extends" : "object",
+  "caption" : "Trace",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "iam_role",
+  "description" : "The IAM Role object describes permission characteristics (or privileges) associated with a user or group of users as security principals against one or more resources. In some cases only the name or ID of the role is known hence other attributes are optional. In some systems a user or group of users can have multiple roles, imparting the union of privileges to the principal. In some systems the role can serve as a temporary security principal without its own credentials on behalf of the actual security principal.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "IAM Role",
+  "profiles" : [ "cloud", "container", "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "graph",
+  "description" : "A graph data structure representation with nodes and edges.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "JSON graph specification.",
+    "url" : "https://github.com/jsongraph/json-graph-specification/"
+  } ],
+  "caption" : "Graph",
+  "_links" : [ ]
+}, {
+  "name" : "vendor_attributes",
+  "description" : "The Vendor Attributes object can be used to represent values of attributes populated by the Vendor/Finding Provider. It can help distinguish between the vendor-provided values and consumer-updated values, of key attributes like <code>severity_id</code>.<br>The original finding producer should not populate this object. It should be populated by consuming systems that support data mutability.",
+  "extends" : "object",
+  "caption" : "Vendor Attributes",
+  "_links" : [ ]
+}, {
+  "name" : "certificate",
+  "description" : "The Digital Certificate, also known as a Public Key Certificate, object contains information about the ownership and usage of a public key. It serves as a means to establish trust in the authenticity and integrity of the public key and the associated entity.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Certificate.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:Certificate/"
+  } ],
+  "caption" : "Digital Certificate",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "enrichment",
+  "description" : "The Enrichment object provides inline enrichment data for specific attributes of interest within an event. It serves as a mechanism to enhance or supplement the information associated with the event by adding additional relevant details or context.",
+  "extends" : "object",
+  "caption" : "Enrichment",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "d3fend",
+  "description" : "The Defensive Countermeasure object describes the tactic & technique associated with a countermeasure.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "d3f_tactic", "d3f_technique" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Matrix",
+    "url" : "https://d3fend.mitre.org"
+  } ],
+  "caption" : "Defensive Countermeasure",
+  "_links" : [ ]
+}, {
+  "name" : "cis_csc",
+  "description" : "The CIS Critical Security Control (CSC) contains information as defined by the Center for Internet Security Critical Security Controls (CIS CSC). Prioritized set of actions to protect your organization and data from cyber-attack vectors.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "CIS Critical Security Controls",
+    "url" : "https://www.cisecurity.org/controls"
+  } ],
+  "caption" : "CIS CSC",
+  "@deprecated" : {
+    "message" : "Use the <code>cis_control</code> object instead.",
+    "since" : "1.5.0",
+    "superseded_by" : [ "cis_control" ]
+  },
+  "_links" : [ ]
+}, {
+  "name" : "win_resource",
+  "description" : "The Windows resource object describes a resource object managed by Windows, such as mutant or timer.",
+  "extension" : "win",
+  "extends" : "_resource",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "extension_id" : 2,
+  "caption" : "Windows Resource",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "sbom",
+  "description" : "The Software Bill of Materials object describes characteristics of a generated SBOM.",
+  "extends" : "object",
+  "caption" : "Software Bill of Materials",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "network_proxy",
+  "description" : "The network proxy endpoint object describes a proxy server, which acts as an intermediary between a client requesting a resource and the server providing that resource.",
+  "extends" : "network_endpoint",
+  "constraints" : {
+    "at_least_one" : [ "ip", "uid", "name", "hostname", "svc_name", "instance_uid", "interface_uid", "interface_name", "domain" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:ProxyServer",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:ProxyServer/"
+  } ],
+  "caption" : "Network Proxy Endpoint",
+  "profiles" : [ "container" ],
+  "_links" : [ ],
+  "observable" : 20
+}, {
+  "name" : "sub_technique",
+  "description" : "The MITRE Sub-technique object describes the ATT&CK® or ATLAS™ Sub-technique ID and/or name associated to an attack.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "ATT&CK® Matrix",
+    "url" : "https://attack.mitre.org"
+  }, {
+    "description" : "ATLAS™ Matrix",
+    "url" : "https://atlas.mitre.org/matrices/ATLAS"
+  } ],
+  "caption" : "MITRE Sub-technique",
+  "_links" : [ ]
+}, {
+  "name" : "http_cookie",
+  "description" : "The HTTP Cookie object, also known as a web cookie or browser cookie, contains details and values pertaining to a small piece of data that a server sends to a user's web browser. This data is then stored by the browser and sent back to the server with subsequent requests, allowing the server to remember and track certain information about the user's browsing session or preferences.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:SessionCookie.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:SessionCookie/"
+  } ],
+  "caption" : "HTTP Cookie",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "analysis_target",
+  "description" : "The analysis target defines the scope of monitored activities, specifying what entity, system or process is analyzed for activity patterns.",
+  "caption" : "Analysis Target",
+  "_links" : [ ]
+}, {
+  "name" : "compliance",
+  "description" : "The Compliance object contains information about Industry and Regulatory Framework standards, controls and requirements or details about custom assessments utilized in a compliance evaluation. Standards define broad security frameworks, controls represent specific security requirements within those frameworks, and checks are the testable verification points used to determine if controls are properly implemented.",
+  "extends" : "object",
+  "caption" : "Compliance",
+  "profiles" : [ "cloud", "container", "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "message_context",
+  "description" : "Communication context for AI system interactions including protocols, roles, clients, and session information for MCP and other AI communication systems.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "application", "service" ]
+  },
+  "references" : [ {
+    "description" : "OWASP AI Security and Privacy Guide - Agent Security",
+    "url" : "https://owasp.org/www-project-ai-security-and-privacy-guide/"
+  }, {
+    "description" : "Model Context Protocol (MCP) Specification",
+    "url" : "https://modelcontextprotocol.io/"
+  } ],
+  "caption" : "Message Context",
+  "profiles" : [ "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "response",
+  "description" : "The Response Elements object describes characteristics of an API response.",
+  "extends" : "object",
+  "caption" : "Response Elements",
+  "_links" : [ ]
+}, {
+  "name" : "dce_rpc",
+  "description" : "The DCE/RPC, or Distributed Computing Environment/Remote Procedure Call, object describes the remote procedure call system for distributed computing environments.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:RemoteProcedureCall.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:RemoteProcedureCall/"
+  } ],
+  "caption" : "DCE/RPC",
+  "_links" : [ ]
+}, {
+  "name" : "long_string",
+  "description" : "This object is a used to capture strings which may be truncated by a security product due to their length.",
+  "extends" : "object",
+  "caption" : "Long String",
+  "_links" : [ ]
+}, {
+  "name" : "reg_value",
+  "description" : "The registry value object describes a Windows registry value.",
+  "extension" : "win",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:WindowsRegistryValue.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:WindowsRegistryValue/"
+  } ],
+  "extension_id" : 2,
+  "caption" : "Registry Value",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ],
+  "observable" : 29
+}, {
+  "name" : "device",
+  "description" : "The Device object represents an addressable computer system or host, which is typically connected to a computer network and participates in the transmission or processing of data within the computer network.",
+  "extends" : "endpoint",
+  "constraints" : {
+    "at_least_one" : [ "ip", "uid", "name", "hostname", "instance_uid", "interface_uid", "interface_name" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Host.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:Host/"
+  } ],
+  "caption" : "Device",
+  "profiles" : [ "container", "datetime" ],
+  "_links" : [ ],
+  "observable" : 20
+}, {
+  "name" : "product",
+  "description" : "The Product object describes characteristics of a software product.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Product",
+  "profiles" : [ "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "kernel_driver",
+  "description" : "The Kernel Extension object describes a kernel driver that has been loaded or unloaded into the operating system (OS) kernel.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:KernelModule",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:KernelModule/"
+  } ],
+  "caption" : "Kernel Extension",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "authentication_token",
+  "description" : "The Authentication Token object extends the base <code>token</code> object and represents standardized authentication tokens, tickets, or assertions that conform to established authentication protocols such as Kerberos, OIDC, and SAML. This object inherits all attributes from <code>token</code> and adds protocol-specific attributes (e.g., <code>kerberos_flags</code>, <code>encryption_details</code>) for authentication events. Use this object in authentication events to represent protocol-specific tokens: Kerberos Ticket Granting Tickets (TGT) and Service Tickets (ST), OIDC Identity Tokens and Refresh Tokens, and SAML Assertions. These tokens are issued by authentication servers and identity providers and carry protocol-specific metadata, lifecycle information, and security attributes defined by their respective specifications. When to use this object: Use <code>authentication_token</code> when representing protocol-specific authentication tokens (type_id values 1-5: Kerberos TGT/ST, OIDC ID/Refresh tokens, SAML assertions) in authentication events. When NOT to use this object: Do NOT use <code>authentication_token</code> for API tokens or client tokens (type_id values 6-7) used in API activity events - use the base <code>token</code> object instead. Do NOT use <code>authentication_token</code> for generic API keys - use the base <code>token</code> object instead.",
+  "extends" : "token",
+  "caption" : "Authentication Token",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "service",
+  "description" : "The Service object describes characteristics of a service, <code> e.g. AWS EC2. </code>",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:ServiceApplication.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:ServiceApplication/"
+  } ],
+  "caption" : "Service",
+  "_links" : [ ]
+}, {
+  "name" : "affected_code",
+  "description" : "The Affected Code object describes details about a code block identified as vulnerable.",
+  "extends" : "object",
+  "caption" : "Affected Code",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "url",
+  "description" : "The Uniform Resource Locator (URL) object describes the characteristics of a URL.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "url_string", "path" ]
+  },
+  "references" : [ {
+    "description" : "Defined in RFC 1738",
+    "url" : "https://datatracker.ietf.org/doc/html/rfc1738"
+  }, {
+    "description" : "D3FEND™ Ontology d3f:URL",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:URL/"
+  } ],
+  "caption" : "Uniform Resource Locator",
+  "_links" : [ ],
+  "observable" : 23
+}, {
+  "name" : "identity_activity_metrics",
+  "description" : "The Identity Activity Metrics object captures usage patterns, authentication activity, credential usage and other metrics for identities across cloud and on-premises environments. Example identities include AWS IAM Users, Roles, Azure AD Principals, GCP Service Accounts, on-premises Active Directory accounts.",
+  "extends" : "object",
+  "caption" : "Identity Activity Metrics",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "function_invocation",
+  "description" : "The Function Invocation object provides details regarding the invocation of a function.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "parameters", "return_value", "error" ]
+  },
+  "caption" : "Function Invocation",
+  "_links" : [ ]
+}, {
+  "name" : "cis_benchmark",
+  "description" : "The CIS Benchmark object describes best practices for securely configuring IT systems, software, networks, and cloud infrastructure as defined by the Center for Internet Security. See also Getting to Know the CIS Benchmarks.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "CIS Benchmarks",
+    "url" : "https://www.cisecurity.org/cis-benchmarks/"
+  }, {
+    "description" : "Getting to Know the CIS Benchmarks",
+    "url" : "https://www.cisecurity.org/insights/blog/getting-to-know-the-cis-benchmarks"
+  } ],
+  "caption" : "CIS Benchmark",
+  "@deprecated" : {
+    "message" : "Use the <code>compliance.checks</code> attribute instead.",
+    "since" : "1.5.0",
+    "superseded_by" : [ "compliance.checks" ]
+  },
+  "_links" : [ ]
+}, {
+  "name" : "idp",
+  "description" : "The Identity Provider object contains detailed information about a provider responsible for creating, maintaining, and managing identity information while offering authentication services to applications. An Identity Provider (IdP) serves as a trusted authority that verifies the identity of users and issues authentication tokens or assertions to enable secure access to applications or services.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Identity Provider",
+  "profiles" : [ "container" ],
+  "_links" : [ ]
+}, {
+  "name" : "malware_scan_info",
+  "description" : "The malware scan information object describes characteristics, metadata of a malware scanning job.",
+  "extends" : "scan",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Malware Scan Info",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "span",
+  "description" : "Represents a single unit of work or operation within a distributed trace. A span typically tracks the execution of a request across a service, capturing important details such as the operation, timestamps, and status. Spans help break down the overall trace into smaller, manageable parts, enabling detailed analysis of the performance and behavior of specific operations within the system. They are crucial for understanding latency, dependencies, and bottlenecks in complex distributed systems.",
+  "extends" : "object",
+  "caption" : "Span",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "reporter",
+  "description" : "The entity from which an event or finding was reported.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "hostname", "ip", "name", "uid" ]
+  },
+  "caption" : "Reporter",
+  "_links" : [ ]
+}, {
+  "name" : "metadata",
+  "description" : "The Metadata object describes the metadata associated with the event.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Metadata",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:Metadata/"
+  } ],
+  "caption" : "Metadata",
+  "profiles" : [ "container", "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "data_classification",
+  "description" : "The Data Classification object includes information about data classification levels and data category types.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "category_id", "confidentiality_id" ]
+  },
+  "caption" : "Data Classification",
+  "_links" : [ ]
+}, {
+  "name" : "aircraft",
+  "description" : "The Aircraft object represents any aircraft or otherwise airborne asset such as an unmanned system, airplane, balloon, spacecraft, or otherwise. The Aircraft object is intended to normalized data captured or otherwise logged from active radar, passive radar, multi-spectral systems, or the Automatic Dependant Broadcast - Surveillance (ADS-B), and/or Mode S systems.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "serial_number", "uid", "uid_alt" ]
+  },
+  "caption" : "Aircraft",
+  "_links" : [ ]
+}, {
+  "name" : "domain_contact",
+  "description" : "The contact information related to a domain registration, e.g., registrant, administrator, abuse, billing, or technical contact.",
+  "extends" : "object",
+  "caption" : "Domain Contact",
+  "_links" : [ ]
+}, {
+  "name" : "observation",
+  "description" : "A record of an observed value or event that captures the timing and frequency of its occurrence. Used to track when values/events were first detected, last detected, and their total occurrence count.",
+  "extends" : "object",
+  "caption" : "Observation",
+  "_links" : [ ]
+}, {
+  "name" : "privilege_attack_info",
+  "description" : "The Privilege Attack Info object groups privileges by the potential attack they could enable. It maps specific privileges to MITRE ATT&CK techniques, helping identify security risks associated with granted permissions.",
+  "extends" : "object",
+  "caption" : "Privilege Attack Info",
+  "_links" : [ ]
+}, {
+  "name" : "group",
+  "description" : "The Group object represents a collection or association of entities, such as users, policies, or devices. It serves as a logical grouping mechanism to organize and manage entities with similar characteristics or permissions within a system or organization, including but not limited to purposes of access control.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:AccessControlGroup.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:AccessControlGroup/"
+  } ],
+  "caption" : "Group",
+  "_links" : [ ]
+}, {
+  "name" : "dns_section",
+  "description" : "The DNS Section object represents a DNS message section that carries supplementary resource records alongside an optional TSIG record. It is used for both the client Additional section (<code>query_additional</code>) and the server Additional section (<code>response_additional</code>) of a DNS message. A DNS message has at most one TSIG record, which authenticates the entire message.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "RFC 1035 — DNS Implementation and Specification.",
+    "url" : "https://www.rfc-editor.org/rfc/rfc1035.txt"
+  }, {
+    "description" : "RFC 2845 — Secret Key Transaction Authentication for DNS (TSIG).",
+    "url" : "https://www.rfc-editor.org/rfc/rfc2845"
+  } ],
+  "caption" : "DNS Section",
+  "_links" : [ ]
+}, {
+  "name" : "network_traffic",
+  "description" : "The Network Traffic object describes characteristics of network traffic over a time period. The metrics represent network data transferred between source and destination during an observation window.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:NetworkTraffic",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:NetworkTraffic/"
+  } ],
+  "caption" : "Network Traffic",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "startup_item",
+  "description" : "The startup item object describes an application component that has associated startup criteria and configurations.",
+  "constraints" : {
+    "just_one" : [ "driver", "job", "process", "win_service" ]
+  },
+  "caption" : "Startup Item",
+  "profiles" : [ "container", "data_classification", "linux/linux_users", "macos/macos_users" ],
+  "_links" : [ ]
+}, {
+  "name" : "vulnerability",
+  "description" : "The vulnerability is an unintended characteristic of a computing component or system configuration that multiplies the risk of an adverse event or a loss occurring either due to accidental exposure, deliberate attack, or conflict with new system components.",
+  "extends" : "object",
+  "constraints" : {
+    "just_one" : [ "advisory", "cve", "cwe" ]
+  },
+  "caption" : "Vulnerability Details",
+  "profiles" : [ "container", "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "query_info",
+  "description" : "The query info object holds information related to data access within a datastore. To access, manipulate, delete, or retrieve data from a datastore, a query must be written using a specific syntax.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Query Information",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "whois",
+  "description" : "The resources of a WHOIS record for a given domain. This can include domain names, IP address blocks, autonomous system information, and/or contact and registration information for a domain.",
+  "extends" : "object",
+  "caption" : "WHOIS",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "resource_details",
+  "description" : "The Resource Details object describes details about a resource (including a user) affected by or related to the activity or finding. The <code>name</code> and/or <code>uid</code> should correspond to the resource for which the details pertain. Use <code>role_id</code> to characterize the role of the resource.",
+  "extends" : "_resource",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Resource Details",
+  "profiles" : [ "cloud", "container", "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "finding",
+  "description" : "The Finding object describes metadata related to a security finding generated by a security tool or system.",
+  "extends" : "object",
+  "caption" : "Finding",
+  "profiles" : [ "data_classification", "datetime" ],
+  "@deprecated" : {
+    "message" : "Use the new <code>finding_info</code> object.",
+    "since" : "1.0.0",
+    "superseded_by" : [ "finding_info" ]
+  },
+  "_links" : [ ]
+}, {
+  "name" : "process_entity",
+  "description" : "The Process Entity object provides critical fields for referencing a process.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "cmd_line", "name", "path", "pid", "uid", "cpid" ]
+  },
+  "caption" : "Process Entity",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "dns_answer",
+  "description" : "The DNS Answer object represents a specific response provided by the Domain Name System (DNS) when querying for information about a domain or performing a DNS operation. It encapsulates the relevant details and data returned by the DNS server in response to a query.",
+  "extends" : "dns_resource_record",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:InboundInternetDNSResponseTraffic.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:InboundInternetDNSResponseTraffic/"
+  }, {
+    "description" : "RFC 1035 — DNS Implementation and Specification.",
+    "url" : "https://www.rfc-editor.org/rfc/rfc1035.txt"
+  } ],
+  "caption" : "DNS Answer",
+  "_links" : [ ]
+}, {
+  "name" : "policy",
+  "description" : "The Policy object describes the policies that are applicable. <p>Policy attributes provide traceability to the operational state of the security product at the time that the event was captured, facilitating forensics, troubleshooting, and policy tuning/adjustments.</p>",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "type", "uid" ]
+  },
+  "caption" : "Policy",
+  "_links" : [ ]
+}, {
+  "name" : "occurrence_details",
+  "description" : "Details about where in the target entity, specified information was discovered. Only the attributes, relevant to the target entity type should be populated.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "cell_name", "column_name", "column_number", "end_line", "json_path", "page_number", "record_index_in_array", "row_number", "start_line" ]
+  },
+  "caption" : "Occurrence Details",
+  "_links" : [ ]
+}, {
+  "name" : "module",
+  "description" : "The Module object describes the attributes of a module.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "load_type_id", "function_name" ]
+  },
+  "caption" : "Module",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "location",
+  "description" : "The Geo Location object describes a geographical location, usually associated with an IP address.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "city", "country", "postal_code", "region" ]
+  },
+  "caption" : "Geo Location",
+  "_links" : [ ],
+  "observable" : 26
+}, {
+  "name" : "packet",
+  "description" : "The Packet object represents a single captured network packet and its associated metadata. It describes where the packet came from, how it is stored or encoded, and how it can be located within a capture file or stream. This object does not interpret protocol content; it only represents the captured packet data and its positioning information.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:NetworkPacket.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:NetworkPacket/"
+  }, {
+    "description" : "D3FEND™ Ontology d3f:PacketCaptureFile.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:PacketCaptureFile/"
+  }, {
+    "description" : "D3FEND™ Ontology d3f:PacketLog.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:PacketLog/"
+  } ],
+  "caption" : "Packet",
+  "_links" : [ ]
+}, {
+  "name" : "ldap_person",
+  "description" : "The additional LDAP attributes that describe a person.",
+  "extends" : "object",
+  "caption" : "LDAP Person",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "evidences",
+  "description" : "A collection of evidence artifacts associated to the activity/activities that triggered a security detection.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "actor", "api", "connection_info", "data", "database", "databucket", "device", "dst_endpoint", "email", "file", "process", "query", "src_endpoint", "url", "user", "job", "script", "reg_key", "reg_value", "win_service" ]
+  },
+  "caption" : "Evidence Artifacts",
+  "profiles" : [ "cloud", "container", "data_classification", "linux/linux_users", "macos/macos_users" ],
+  "_links" : [ ]
+}, {
+  "name" : "kernel",
+  "description" : "The Kernel Resource object provides information about a specific kernel resource, including its name and type. It describes essential attributes associated with a resource managed by the kernel of an operating system.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Kernel",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:Kernel/"
+  } ],
+  "caption" : "Kernel Resource",
+  "_links" : [ ]
+}, {
+  "name" : "network_endpoint",
+  "description" : "The Network Endpoint object describes characteristics of a network endpoint. These can be a source or destination of a network connection.",
+  "extends" : "endpoint",
+  "constraints" : {
+    "at_least_one" : [ "ip", "uid", "name", "hostname", "svc_name", "instance_uid", "interface_uid", "interface_name", "domain" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:ComputerNetworkNode.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:ComputerNetworkNode/"
+  } ],
+  "caption" : "Network Endpoint",
+  "profiles" : [ "container" ],
+  "_links" : [ ],
+  "observable" : 20
+}, {
+  "name" : "cve",
+  "description" : "The Common Vulnerabilities and Exposures (CVE) object represents publicly disclosed cybersecurity vulnerabilities defined in CVE Program catalog (CVE). There is one CVE Record for each vulnerability in the catalog.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "CVE Program catalog",
+    "url" : "https://cve.org/"
+  } ],
+  "caption" : "CVE",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "discovery_details",
+  "description" : "The Discovery Details object describes results of a discovery task/job. Each result may be due to the violation of a <code>rule</code> associated with a <code>policy</code> and have multiple <code>occurrences</code>.",
+  "extends" : "object",
+  "caption" : "Discovery Details",
+  "_links" : [ ]
+}, {
+  "name" : "malware",
+  "description" : "The Malware object describes the classification of known malicious software, which is intentionally designed to cause damage to a computer, server, client, or computer network.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Malware",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "autonomous_system",
+  "description" : "An autonomous system (AS) is a collection of connected Internet Protocol (IP) routing prefixes under the control of one or more network operators on behalf of a single administrative entity or domain that presents a common, clearly defined routing policy to the internet.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "number", "name" ]
+  },
+  "caption" : "Autonomous System",
+  "_links" : [ ]
+}, {
+  "name" : "peripheral_device",
+  "description" : "The peripheral device object describes the properties of external, connectable, and detachable hardware.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Peripheral Device",
+  "_links" : [ ]
+}, {
+  "name" : "rpc_interface",
+  "description" : "The RPC Interface represents the remote procedure call interface used in the DCE/RPC session.",
+  "extends" : "object",
+  "caption" : "RPC Interface",
+  "_links" : [ ]
+}, {
+  "name" : "reg_key",
+  "description" : "The registry key object describes a Windows registry key.",
+  "extension" : "win",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:WindowsRegistryKey.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:WindowsRegistryKey/"
+  } ],
+  "extension_id" : 2,
+  "caption" : "Registry Key",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ],
+  "observable" : 28
+}, {
+  "name" : "unmanned_aerial_system",
+  "description" : "The Unmanned Aerial System object describes the characteristics, Position Location Information (PLI), and other metadata of Unmanned Aerial Systems (UAS) and other unmanned and drone systems used in Remote ID. Remote ID is defined in the Standard Specification for Remote ID and Tracking (ASTM Designation: F3411-22a).",
+  "extends" : "aircraft",
+  "constraints" : {
+    "at_least_one" : [ "name", "serial_number", "uid", "uid_alt" ]
+  },
+  "references" : [ {
+    "description" : "ASTM F3411-22a",
+    "url" : "https://store.astm.org/f3411-22a.html"
+  } ],
+  "caption" : "Unmanned Aerial System",
+  "_links" : [ ]
+}, {
+  "name" : "http_header",
+  "description" : "The HTTP Header object represents the headers sent in an HTTP request or response. HTTP headers are key-value pairs that convey additional information about the HTTP message, including details about the content, caching, authentication, encoding, and other aspects of the communication.",
+  "extends" : "object",
+  "caption" : "HTTP Header",
+  "_links" : [ ]
+}, {
+  "name" : "device_hw_info",
+  "description" : "The Device Hardware Information object contains details and specifications of the physical components that make up a device. This information provides an overview of the hardware capabilities, configuration, and characteristics of the device.",
+  "extends" : "object",
+  "caption" : "Device Hardware Info",
+  "_links" : [ ]
+}, {
+  "name" : "port_info",
+  "description" : "The Port Information object describes a port and its associated protocol details.",
+  "extends" : "object",
+  "caption" : "Port Information",
+  "_links" : [ ]
+}, {
+  "name" : "keyboard_info",
+  "description" : "The Keyboard Information object contains details and attributes related to a computer or device keyboard. It encompasses information that describes the characteristics, capabilities, and configuration of the keyboard.",
+  "extends" : "object",
+  "caption" : "Keyboard Information",
+  "_links" : [ ]
+}, {
+  "name" : "object",
+  "description" : "An unordered collection of attributes. It defines a set of attributes available in all objects. It can be also used as a generic object to log objects that are not otherwise defined by the schema.",
+  "caption" : "Object",
+  "_links" : [ ]
+}, {
+  "name" : "load_balancer",
+  "description" : "The load balancer object describes the load balancer entity and contains additional information regarding the distribution of traffic across a network.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Load Balancer",
+  "profiles" : [ "container" ],
+  "_links" : [ ]
+}, {
+  "name" : "digital_signature",
+  "description" : "The Digital Signature object contains information about the cryptographic mechanism used to verify the authenticity, integrity, and origin of the file or application.",
+  "extends" : "object",
+  "caption" : "Digital Signature",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "user",
+  "description" : "The User object describes the characteristics of a user/person or a security principal.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "account", "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:UserAccount",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:UserAccount/"
+  } ],
+  "caption" : "User",
+  "_links" : [ ],
+  "observable" : 21
+}, {
+  "name" : "kill_chain_phase",
+  "description" : "The Kill Chain Phase object represents a single phase of a cyber attack, including the initial reconnaissance and planning stages up to the final objective of the attacker. It provides a detailed description of each phase and its associated activities within the broader context of a cyber attack.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "Cyber Kill Chain®",
+    "url" : "https://www.lockheedmartin.com/en-us/capabilities/cyber/cyber-kill-chain.html"
+  } ],
+  "caption" : "Kill Chain Phase",
+  "_links" : [ ]
+}, {
+  "name" : "d3f_tactic",
+  "description" : "The Defensive Tactic object describes the tactic ID and/or name that is associated to an attack.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Matrix",
+    "url" : "https://d3fend.mitre.org"
+  } ],
+  "caption" : "Defensive Tactic",
+  "_links" : [ ]
+}, {
+  "name" : "note",
+  "description" : "Represents a note or a comment in the system. Notes can be used to provide additional context, explanations, or observations related to an event, object, or any other entity in the system. They can be created and modified by users to capture important information that may not be directly represented in the structured data.",
+  "extends" : "object",
+  "caption" : "Note",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "dns_query",
+  "description" : "The DNS Query object represents a specific request made to the Domain Name System (DNS) to retrieve information about a domain or perform a DNS operation.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:DNSLookup.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:DNSLookup/"
+  } ],
+  "caption" : "DNS Query",
+  "_links" : [ ]
+}, {
+  "name" : "agent",
+  "description" : "An Agent (also known as a Sensor) is typically installed on an Operating System (OS) and serves as a specialized software component that can be designed to monitor, detect, collect, archive, or take action. These activities and possible actions are defined by the upstream system controlling the Agent and its intended purpose. For instance, an Agent can include Endpoint Detection & Response (EDR) agents, backup/disaster recovery sensors, Application Performance Monitoring or profiling sensors, and similar software.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "uid", "name" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:Sensor.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:Sensor/"
+  } ],
+  "caption" : "Agent",
+  "_links" : [ ]
+}, {
+  "name" : "affected_package",
+  "description" : "The Affected Package object describes details about a software package identified as affected by a vulnerability/vulnerabilities.",
+  "extends" : "package",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:SoftwarePackage.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:SoftwarePackage/"
+  } ],
+  "caption" : "Affected Software Package",
+  "profiles" : [ "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "tls_extension",
+  "description" : "The TLS Extension object describes additional attributes that extend the base Transport Layer Security (TLS) object.",
+  "extends" : "object",
+  "caption" : "TLS Extension",
+  "_links" : [ ]
+}, {
+  "name" : "http_response",
+  "description" : "The HTTP Response object contains detailed information about the response sent from a web server to the requester. It encompasses attributes and metadata that describe the response status, headers, body content, and other relevant information.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:InboundInternetNetworkTraffic.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:InboundInternetNetworkTraffic/"
+  } ],
+  "caption" : "HTTP Response",
+  "_links" : [ ]
+}, {
+  "name" : "clipboard_item",
+  "description" : "A piece of data on the system clipboard.",
+  "extends" : "object",
+  "caption" : "Clipboard Item",
+  "_links" : [ ]
+}, {
+  "name" : "script",
+  "description" : "The Script object describes a script or command that can be executed by a shell, script engine, or interpreter. Examples include Bash, JavsScript, PowerShell, Python, VBScript, etc. Note that the term <em>script</em> here denotes not only a script contained within a file but also a script or command typed interactively by a user, supplied on the command line, or provided by some other file-less mechanism.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:ExecutableScript.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:ExecutableScript/"
+  } ],
+  "caption" : "Script",
+  "profiles" : [ "container", "data_classification" ],
+  "_links" : [ ]
+}, {
+  "name" : "cis_control",
+  "description" : "The CIS Control (aka Critical Security Control) object describes a prioritized set of actions to protect your organization and data from cyber-attack vectors. The CIS Controls are defined by the Center for Internet Security.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "CIS Controls",
+    "url" : "https://www.cisecurity.org/controls"
+  } ],
+  "caption" : "CIS Control",
+  "_links" : [ ]
+}, {
+  "name" : "d3f_technique",
+  "description" : "The Defensive Technique object describes the leaf defensive technique ID and/or name associated to a countermeasure.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Matrix",
+    "url" : "https://d3fend.mitre.org"
+  } ],
+  "caption" : "Defensive Technique",
+  "_links" : [ ]
+}, {
+  "name" : "node",
+  "description" : "Represents a node or a vertex in a graph structure.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "JSON graph specification.",
+    "url" : "https://github.com/jsongraph/json-graph-specification/"
+  } ],
+  "caption" : "Node",
+  "_links" : [ ]
+}, {
+  "name" : "extension",
+  "description" : "The OCSF Schema Extension object provides detailed information about the schema extension used to construct the event. The schema extensions are registered in the <code>extensions.md</code> file.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "OCSF Extensions",
+    "url" : "https://github.com/ocsf/ocsf-schema/blob/main/extensions.md"
+  } ],
+  "caption" : "Schema Extension",
+  "_links" : [ ]
+}, {
+  "name" : "rule",
+  "description" : "The Rule object describes characteristics of a rule associated with a policy or an event.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Rule",
+  "_links" : [ ]
+}, {
+  "name" : "trait",
+  "description" : "Describes a characteristic or feature of an entity that was observed. For example, this object can be used to represent specific characteristics derived from events or findings that can be surfaced as distinguishing traits of the entity in question.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Trait",
+  "_links" : [ ]
+}, {
+  "name" : "web_resource",
+  "description" : "The Web Resource object describes characteristics of a web resource that was affected by the activity/event.",
+  "extends" : "_resource",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:WebResource.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:WebResource/"
+  } ],
+  "caption" : "Web Resource",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "attestation",
+  "description" : "A cryptographic attestation that an event has not been altered since it was produced and was produced by the holder of a verifiable identity, providing integrity, authenticity, and non-repudiation. The attestation is computed over a canonical serialization of the event: the entire event, including the attestation's own <code>authority_uid</code>, <code>chain_uid</code>, and <code>prev_event</code> attributes, and excluding only the attestation's <code>fingerprint</code> and <code>signatures</code>. Because <code>prev_event</code> is inside the serialized content, deleting or altering an event in a chain breaks the fingerprint and signatures of the event that references it. An attestation may carry more than one signature (for example, a co-signature, notary, or witness over the same event). The verifiable identity is a technical credential, such as a key or certificate, and is not an attribution of any person, organization, or state.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "fingerprint", "signatures" ]
+  },
+  "caption" : "Attestation",
+  "_links" : [ ]
+}, {
+  "name" : "query_evidence",
+  "description" : "The specific resulting evidence information that was queried or discovered. When mapping raw telemetry data users should select the appropriate child object that best matches the evidence type as defined by query_type_id.",
+  "constraints" : {
+    "just_one" : [ "connection_info", "file", "folder", "group", "job", "kernel", "module", "network_interfaces", "peripheral_device", "process", "reg_key", "reg_value", "service", "session", "startup_item", "user" ]
+  },
+  "caption" : "Query Evidence",
+  "profiles" : [ "container", "data_classification", "linux/linux_users", "macos/macos_users" ],
+  "_links" : [ ]
+}, {
+  "name" : "sensor_info",
+  "description" : "The Sensor Information object describes a control point sensor that emits data, or originates detections. It can be part of an endpoint or agent running on an OS, a SaaS application, a network device, a Cyber Threat Intelligence (CTI) system, or other detection and enforcement technologies.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Sensor Information",
+  "_links" : [ ]
+}, {
+  "name" : "os",
+  "description" : "The Operating System (OS) object describes characteristics of an OS, such as Linux or Windows.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:OperatingSystem",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:OperatingSystem/"
+  } ],
+  "caption" : "Operating System (OS)",
+  "_links" : [ ]
+}, {
+  "name" : "baseline",
+  "description" : "Describes the baseline or expected behavior of a system, service, or component based on historical observations and measurements. It establishes reference points for comparison to detect anomalies, trends, and deviations from typical patterns.",
+  "extends" : "object",
+  "caption" : "Baseline",
+  "_links" : [ ]
+}, {
+  "name" : "organization",
+  "description" : "The Organization object describes characteristics of an organization or company and its division if any. Additionally, it also describes cloud and Software-as-a-Service (SaaS) logical hierarchies such as AWS Organizations, Google Cloud Organizations, Oracle Cloud Tenancies, and similar constructs.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Organization",
+  "_links" : [ ]
+}, {
+  "name" : "threat_actor",
+  "description" : "Threat actor is responsible for the observed malicious activity.",
+  "extends" : "object",
+  "caption" : "Threat Actor",
+  "_links" : [ ]
+}, {
+  "name" : "software_component",
+  "description" : "The Software Component object describes characteristics of a software component within a software package.",
+  "extends" : "object",
+  "caption" : "Software Component",
+  "_links" : [ ]
+}, {
+  "name" : "tls",
+  "description" : "The Transport Layer Security (TLS) object describes the negotiated TLS protocol used for secure communications over an establish network connection.",
+  "extends" : "object",
+  "caption" : "Transport Layer Security (TLS)",
+  "_links" : [ ]
+}, {
+  "name" : "image",
+  "description" : "The Image object provides a description of a specific Virtual Machine (VM) or Container image.",
+  "extends" : "_entity",
+  "constraints" : { },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:ContainerImage",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:ContainerImage/"
+  } ],
+  "caption" : "Image",
+  "_links" : [ ]
+}, {
+  "name" : "account",
+  "description" : "The Account object contains details about the account that initiated or performed a specific activity within a system or application. Additionally, the Account object refers to logical Cloud and Software-as-a-Service (SaaS) based containers such as AWS Accounts, Azure Subscriptions, Oracle Cloud Compartments, Google Cloud Projects, and otherwise.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:UserAccount.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:UserAccount/"
+  }, {
+    "description" : "D3FEND™ Ontology d3f:CloudUserAccount.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:CloudUserAccount/"
+  } ],
+  "caption" : "Account",
+  "_links" : [ ]
+}, {
+  "name" : "hassh",
+  "description" : "The HASSH object contains SSH network fingerprinting values for specific client/server implementations. It provides a standardized way of identifying and categorizing SSH connections based on their unique characteristics and behavior.",
+  "extends" : "object",
+  "caption" : "HASSH",
+  "_links" : [ ]
+}, {
+  "name" : "transformation_info",
+  "description" : "The transformation_info object represents the mapping or transformation used.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "Transformation Info",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "network_connection_info",
+  "description" : "The Network Connection Information object describes characteristics of an OSI Transport Layer communication, including TCP and UDP.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:NetworkSession",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:NetworkSession/"
+  } ],
+  "caption" : "Network Connection Information",
+  "_links" : [ ]
+}, {
+  "name" : "tactic",
+  "description" : "The MITRE Tactic object describes the ATT&CK® or ATLAS™ Tactic ID and/or name that is associated to an attack.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "references" : [ {
+    "description" : "ATT&CK® Matrix",
+    "url" : "https://attack.mitre.org"
+  }, {
+    "description" : "ATLAS™ Matrix",
+    "url" : "https://atlas.mitre.org/matrices/ATLAS"
+  } ],
+  "caption" : "MITRE Tactic",
+  "_links" : [ ]
+}, {
+  "name" : "anomaly",
+  "description" : "Describes an anomaly or deviation detected in a system. Anomalies are unexpected activity patterns that could indicate potential issues needing attention.",
+  "extends" : "object",
+  "caption" : "Anomaly",
+  "_links" : [ ]
+}, {
+  "name" : "parameter",
+  "description" : "The Parameter object provides details regarding a parameter of a a function.",
+  "extends" : "object",
+  "constraints" : {
+    "at_least_one" : [ "name", "pre_value", "post_value" ]
+  },
+  "caption" : "Parameter",
+  "_links" : [ ]
+}, {
+  "name" : "advisory",
+  "description" : "The Advisory object represents publicly disclosed cybersecurity vulnerabilities defined in a Security advisory. e.g. <code> Microsoft KB Article</code>, <code>Apple Security Advisory</code>, or a <code>GitHub Security Advisory (GHSA)</code>",
+  "extends" : "object",
+  "caption" : "Advisory",
+  "profiles" : [ "data_classification", "datetime" ],
+  "_links" : [ ]
+}, {
+  "name" : "encryption_details",
+  "description" : "Details about the encryption methodology utilized.",
+  "extends" : "object",
+  "caption" : "Encryption Details",
+  "_links" : [ ]
+}, {
+  "name" : "network_interface",
+  "description" : "The Network Interface object describes the type and associated attributes of a physical or virtual network interface.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "ip", "mac", "name", "hostname", "uid" ]
+  },
+  "references" : [ {
+    "description" : "D3FEND™ Ontology d3f:NetworkInterfaceCard.",
+    "url" : "https://d3fend.mitre.org/dao/artifact/d3f:NetworkInterfaceCard/"
+  } ],
+  "caption" : "Network Interface",
+  "_links" : [ ]
+} ]

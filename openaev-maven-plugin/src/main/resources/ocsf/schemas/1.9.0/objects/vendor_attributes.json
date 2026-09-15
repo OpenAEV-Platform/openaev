@@ -1,0 +1,58 @@
+{
+  "attributes" : {
+    "severity" : {
+      "type" : "string_t",
+      "description" : "The finding severity, as reported by the Vendor (Finding Provider). The value should be normalized to the caption of the <code>severity_id</code> value. In the case of 'Other', it is defined by the source.",
+      "requirement" : "optional",
+      "caption" : "Severity",
+      "type_name" : "String"
+    },
+    "severity_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Action is required but the situation is not serious at this time.",
+          "caption" : "Medium"
+        },
+        "6" : {
+          "description" : "An error occurred but it is too late to take remedial action.",
+          "caption" : "Fatal"
+        },
+        "0" : {
+          "description" : "The event/finding severity is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "Informational message. No action required.",
+          "caption" : "Informational"
+        },
+        "2" : {
+          "description" : "The user decides if action is needed.",
+          "caption" : "Low"
+        },
+        "99" : {
+          "description" : "The event/finding severity is not mapped. See the <code>severity</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Action is required immediately.",
+          "caption" : "High"
+        },
+        "5" : {
+          "description" : "Action is required immediately and the scope is broad.",
+          "caption" : "Critical"
+        }
+      },
+      "description" : "The finding severity ID, as reported by the Vendor (Finding Provider).",
+      "requirement" : "optional",
+      "caption" : "Severity ID",
+      "sibling" : "severity",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "vendor_attributes",
+  "description" : "The Vendor Attributes object can be used to represent values of attributes populated by the Vendor/Finding Provider. It can help distinguish between the vendor-provided values and consumer-updated values, of key attributes like <code>severity_id</code>.<br>The original finding producer should not populate this object. It should be populated by consuming systems that support data mutability.",
+  "extends" : "object",
+  "caption" : "Vendor Attributes",
+  "_links" : [ ]
+}

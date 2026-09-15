@@ -1,0 +1,94 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The role name. For example, <code>Power Users</code>.",
+      "requirement" : "recommended",
+      "caption" : "Name",
+      "type_name" : "String",
+      "observable" : 49
+    },
+    "session" : {
+      "type" : "object_t",
+      "description" : "The session where the role is active. Some roles may be temporary and expire when the session expires.",
+      "requirement" : "optional",
+      "caption" : "Session",
+      "object_type" : "session",
+      "object_name" : "Session"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique role identifier. For example, the Windows role SID, or AWS role ARN.",
+      "requirement" : "recommended",
+      "caption" : "Unique ID",
+      "type_name" : "String",
+      "observable" : 50
+    },
+    "resources" : {
+      "type" : "object_t",
+      "description" : "Resources that the role applies to.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Resources Array",
+      "object_type" : "resource_details",
+      "object_name" : "Resource Details"
+    },
+    "account" : {
+      "type" : "object_t",
+      "description" : "The account associated with the role. For example, can be a cross-account role, different from the user or group account, granting access within this account.",
+      "requirement" : "optional",
+      "caption" : "Account",
+      "object_type" : "account",
+      "object_name" : "Account"
+    },
+    "policies" : {
+      "type" : "object_t",
+      "description" : "IAM policies associated with the role.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Policies",
+      "object_type" : "policy",
+      "object_name" : "Policy"
+    },
+    "privileges" : {
+      "type" : "string_t",
+      "description" : "List of privileges assigned to a role.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Privileges",
+      "type_name" : "String"
+    },
+    "programmatic_credentials" : {
+      "type" : "object_t",
+      "description" : "Programmatic credential (API keys, access tokens, certificates, etc) associated with the role.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Programmatic Credentials",
+      "object_type" : "programmatic_credential",
+      "object_name" : "Programmatic Credential"
+    },
+    "uid_alt" : {
+      "type" : "string_t",
+      "description" : "The alternate user identifier. For example, the Active Directory role GUID or the associated LDAP group DN.",
+      "requirement" : "optional",
+      "caption" : "Alternate ID",
+      "type_name" : "String"
+    },
+    "uid_numeric" : {
+      "type" : "long_t",
+      "description" : "The <code>uid</code> attribute in numeric form where applicable.<br><strong>Note:</strong> Producers may populate <code>uid_numeric</code> only in addition to <code>uid</code> and not as an alternative to it.",
+      "requirement" : "optional",
+      "caption" : "Numeric Unique ID",
+      "type_name" : "Long"
+    }
+  },
+  "name" : "iam_role",
+  "description" : "The IAM Role object describes permission characteristics (or privileges) associated with a user or group of users as security principals against one or more resources. In some cases only the name or ID of the role is known hence other attributes are optional. In some systems a user or group of users can have multiple roles, imparting the union of privileges to the principal. In some systems the role can serve as a temporary security principal without its own credentials on behalf of the actual security principal.",
+  "extends" : "_entity",
+  "constraints" : {
+    "at_least_one" : [ "name", "uid" ]
+  },
+  "caption" : "IAM Role",
+  "profiles" : [ "cloud", "container", "data_classification" ],
+  "_links" : [ ]
+}

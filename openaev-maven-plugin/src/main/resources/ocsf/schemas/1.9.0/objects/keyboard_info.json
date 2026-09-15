@@ -1,0 +1,44 @@
+{
+  "attributes" : {
+    "function_keys" : {
+      "type" : "integer_t",
+      "description" : "The number of function keys on client keyboard.",
+      "requirement" : "optional",
+      "caption" : "Function Keys",
+      "type_name" : "Integer"
+    },
+    "ime" : {
+      "type" : "string_t",
+      "description" : "The Input Method Editor (IME) file name.",
+      "requirement" : "optional",
+      "caption" : "IME",
+      "type_name" : "String"
+    },
+    "keyboard_layout" : {
+      "type" : "string_t",
+      "description" : "The keyboard locale identifier name (e.g., en-US).",
+      "requirement" : "optional",
+      "caption" : "Keyboard Layout",
+      "type_name" : "String"
+    },
+    "keyboard_subtype" : {
+      "type" : "integer_t",
+      "description" : "The keyboard numeric code.",
+      "requirement" : "optional",
+      "caption" : "Keyboard Subtype",
+      "type_name" : "Integer"
+    },
+    "keyboard_type" : {
+      "type" : "string_t",
+      "description" : "The keyboard type (e.g., xt, ico).",
+      "requirement" : "optional",
+      "caption" : "Keyboard Type",
+      "type_name" : "String"
+    }
+  },
+  "name" : "keyboard_info",
+  "description" : "The Keyboard Information object contains details and attributes related to a computer or device keyboard. It encompasses information that describes the characteristics, capabilities, and configuration of the keyboard.",
+  "extends" : "object",
+  "caption" : "Keyboard Information",
+  "_links" : [ ]
+}

@@ -1,0 +1,173 @@
+{
+  "boolean_t" : {
+    "values" : [ false, true ],
+    "description" : "Boolean value. One of <code>true</code> or <code>false</code>.",
+    "caption" : "Boolean"
+  },
+  "float_t" : {
+    "description" : "Real floating-point value. For example:<br><code>3.14</code>.",
+    "caption" : "Float"
+  },
+  "integer_t" : {
+    "description" : "Signed integer value.",
+    "caption" : "Integer"
+  },
+  "json_t" : {
+    "description" : "Embedded JSON value. A value can be a string, or a number, or true or false or null, or an object or an array. These structures can be nested.",
+    "references" : [ {
+      "description" : "JSON",
+      "url" : "https://www.json.org"
+    } ],
+    "caption" : "JSON"
+  },
+  "long_t" : {
+    "description" : "8-byte long, signed integer value.",
+    "caption" : "Long"
+  },
+  "string_t" : {
+    "description" : "UTF-8 encoded byte sequence.",
+    "caption" : "String"
+  },
+  "bytestring_t" : {
+    "type" : "string_t",
+    "description" : "Base 64 encoded immutable byte sequence. Traditional Base 64 is preferred but publishers may use URL-safe Base 64 when known to be acceptable to consumers. These encodings are described in RFC 4648.",
+    "regex" : "^(?:(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)|(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2}==|[A-Za-z0-9_-]{3}=))?$",
+    "references" : [ {
+      "description" : "RFC 4648",
+      "url" : "https://www.rfc-editor.org/rfc/rfc4648.html"
+    } ],
+    "caption" : "Byte String",
+    "type_name" : "String"
+  },
+  "datetime_t" : {
+    "type" : "string_t",
+    "description" : "The Internet Date/Time format as defined in RFC 3339. For example:<br><code>2024-09-10T23:20:50.520Z</code>,<br><code>2024-09-10 23:20:50.520789Z</code>.",
+    "regex" : "^\\d{4}-\\d{2}-\\d{2}[Tt]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?([Zz]|[\\+-]\\d{2}:\\d{2})?$",
+    "references" : [ {
+      "description" : "RFC 3339",
+      "url" : "https://www.rfc-editor.org/rfc/rfc3339.html"
+    } ],
+    "caption" : "Datetime",
+    "type_name" : "String"
+  },
+  "email_t" : {
+    "type" : "string_t",
+    "description" : "Email address. For example:<br><code>john_doe@example.com</code>.",
+    "regex" : "^[a-zA-Z0-9!#$%&'*+-/=?^_`{|}~.]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+$",
+    "caption" : "Email Address",
+    "type_name" : "String",
+    "observable" : 5
+  },
+  "file_hash_t" : {
+    "type" : "string_t",
+    "description" : "Fingerprint. A value, in any format, that maps an arbitrarily large data item to a much shorter string that uniquely identifies the original data. Examples include cryptographic hashing of a file, code signing, and Network Protocol Fingerprinting (NPF).<p><b>Note about name.</b> The type name <code>file_hast_t</code> and the caption &quot;Hash&quot; are used for legacy reasons. This type has been generalized from a file hash to a general fingerprint. The existing type name and caption were retained for backwards compatibility.",
+    "caption" : "Hash",
+    "type_name" : "String",
+    "observable" : 8
+  },
+  "file_name_t" : {
+    "type" : "string_t",
+    "description" : "File name. For example:<br><code>text-file.txt</code>.",
+    "caption" : "File Name",
+    "type_name" : "String",
+    "observable" : 7
+  },
+  "file_path_t" : {
+    "type" : "string_t",
+    "description" : "The full path to the file. For example: For example:<br><code>c:\\windows\\system32\\svchost.exe</code>.",
+    "caption" : "File Path",
+    "type_name" : "String",
+    "observable" : 45
+  },
+  "hostname_t" : {
+    "type" : "string_t",
+    "description" : "Unique name assigned to a device connected to a computer network. It may be a fully qualified domain name (FQDN). For example:<br><code>r2-d2.example.com.</code>,<br><code>mx.example.com</code>",
+    "caption" : "Hostname",
+    "type_name" : "String",
+    "observable" : 1
+  },
+  "ip_t" : {
+    "type" : "string_t",
+    "description" : "Internet Protocol address (IP address), in either IPv4 or IPv6 format. For example:<br><code>192.168.200.24</code>, <br> <code>2001:0db8:85a3:0000:0000:8a2e:0370:7334</code>.",
+    "regex" : "((^\\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]).){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\\s*$)|(^\\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:)))(%.+)?\\s*$))",
+    "caption" : "IP Address",
+    "max_len" : 40,
+    "type_name" : "String",
+    "observable" : 2
+  },
+  "mac_t" : {
+    "type" : "string_t",
+    "description" : "Media Access Control (MAC) address. For example:<br><code>18:36:F3:98:4F:9A</code>.",
+    "regex" : "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$",
+    "caption" : "MAC Address",
+    "max_len" : 32,
+    "type_name" : "String",
+    "observable" : 3
+  },
+  "port_t" : {
+    "type" : "integer_t",
+    "description" : "The TCP/UDP port number. For example:<br><code>80</code>,<br><code>22</code>.",
+    "range" : [ 0, 65535 ],
+    "caption" : "Port",
+    "type_name" : "Integer",
+    "observable" : 11
+  },
+  "process_name_t" : {
+    "type" : "string_t",
+    "description" : "Process name. For example:<br><code>Notepad</code>.",
+    "caption" : "Process Name",
+    "type_name" : "String",
+    "observable" : 9
+  },
+  "resource_uid_t" : {
+    "type" : "string_t",
+    "description" : "Resource unique identifier. For example, S3 Bucket name or EC2 Instance ID.",
+    "caption" : "Resource UID",
+    "type_name" : "String",
+    "observable" : 10
+  },
+  "subnet_t" : {
+    "type" : "string_t",
+    "description" : "The subnet represented in a CIDR notation, using the format network_address/prefix_length. The network_address can be in either IPv4 or IPv6 format. The prefix length indicates the number of bits used for the network portion, and the remaining bits are available for host addresses within that subnet. For example:<br><code>192.168.1.0/24</code>,<br><code>2001:0db8:85a3:0000::/64</code>",
+    "caption" : "Subnet",
+    "max_len" : 42,
+    "type_name" : "String",
+    "observable" : 12
+  },
+  "timestamp_t" : {
+    "type" : "long_t",
+    "description" : "The timestamp format is the number of milliseconds since the Epoch 01/01/1970 00:00:00 UTC. For example:<br><code>1618524549901</code>.",
+    "caption" : "Timestamp",
+    "type_name" : "Long"
+  },
+  "url_t" : {
+    "type" : "string_t",
+    "description" : "Uniform Resource Locator (URL) string. For example:<br><code>http://www.example.com/download/trouble.exe</code>.",
+    "caption" : "URL String",
+    "type_name" : "String",
+    "observable" : 6
+  },
+  "username_t" : {
+    "type" : "string_t",
+    "description" : "User name. For example:<br><code>john_doe</code>.",
+    "caption" : "User Name",
+    "type_name" : "String",
+    "observable" : 4
+  },
+  "uuid_t" : {
+    "type" : "string_t",
+    "description" : "128-bit universal unique identifier. For example:<br><code>123e4567-e89b-12d3-a456-42661417400</code>.",
+    "regex" : "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+    "caption" : "UUID",
+    "type_name" : "String"
+  },
+  "reg_key_path_t" : {
+    "type" : "string_t",
+    "description" : "Full path of registry key.",
+    "extension" : "win",
+    "extension_id" : 2,
+    "caption" : "Registry Key Path",
+    "type_name" : "String",
+    "observable" : 46
+  }
+}

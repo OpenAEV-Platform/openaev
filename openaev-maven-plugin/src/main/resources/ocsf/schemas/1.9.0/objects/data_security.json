@@ -1,0 +1,326 @@
+{
+  "attributes" : {
+    "size" : {
+      "type" : "long_t",
+      "description" : "Size of the data classified.",
+      "requirement" : "optional",
+      "caption" : "Size",
+      "type_name" : "Long"
+    },
+    "status" : {
+      "type" : "string_t",
+      "description" : "The resultant status of the classification job normalized to the caption of the <code>status_id</code> value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "recommended",
+      "caption" : "Status",
+      "type_name" : "String"
+    },
+    "total" : {
+      "type" : "integer_t",
+      "description" : "The total count of discovered entities, by the classification job.",
+      "requirement" : "optional",
+      "caption" : "Total",
+      "type_name" : "Integer"
+    },
+    "uid" : {
+      "type" : "string_t",
+      "description" : "The unique identifier of the classification job.",
+      "requirement" : "optional",
+      "caption" : "Unique ID",
+      "type_name" : "String"
+    },
+    "category" : {
+      "type" : "string_t",
+      "description" : "The name of the data classification category that data matched into, e.g. Financial, Personal, Governmental, etc.",
+      "requirement" : "optional",
+      "caption" : "Category",
+      "type_name" : "String"
+    },
+    "pattern_match" : {
+      "type" : "string_t",
+      "description" : "A text, binary, file name, or datastore that matched against a detection rule.",
+      "requirement" : "optional",
+      "caption" : "Pattern Match",
+      "type_name" : "String"
+    },
+    "category_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "Any financially-related sensitive information or Cardholder Data (CHD). E.g., banking account numbers, credit card numbers, International Banking Account Numbers (IBAN), SWIFT codes, etc.",
+          "caption" : "Financial"
+        },
+        "6" : {
+          "description" : "Any sensitive security-related data such as passwords, passkeys, IP addresses, API keys, credentials and similar secrets. E.g., AWS Access Secret Key, SaaS API Keys, user passwords, database credentials, etc.",
+          "caption" : "Security"
+        },
+        "0" : {
+          "description" : "The type is not mapped. See the <code>data_type</code> attribute, which contains a data source specific value.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "Any Personally Identifiable Information (PII), Electronic Personal Health Information (ePHI), or similarly personal information. E.g., full name, home address, date of birth, etc.",
+          "caption" : "Personal"
+        },
+        "2" : {
+          "description" : "Any sensitive government identification number related to a person or other classified material. E.g., Passport numbers, driver license numbers, business identification, taxation identifiers, etc.",
+          "caption" : "Governmental"
+        },
+        "99" : {
+          "description" : "Any other type of data classification or a multi-variate classification made up of several other classification categories.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "Any business-specific sensitive data such as intellectual property, trademarks, copyrights, human resource data, Board of Directors meeting minutes, and similar.",
+          "caption" : "Business"
+        },
+        "5" : {
+          "description" : "Any mission-specific sensitive data for military, law enforcement, or other government agencies such as specifically classified data, weapon systems information, or other planning data.",
+          "caption" : "Military and Law Enforcement"
+        }
+      },
+      "description" : "The normalized identifier of the data classification category.",
+      "requirement" : "recommended",
+      "caption" : "Category ID",
+      "sibling" : "category",
+      "type_name" : "Integer"
+    },
+    "classifier_details" : {
+      "type" : "object_t",
+      "description" : "Describes details about the classifier used for data classification.",
+      "requirement" : "recommended",
+      "caption" : "Classifier Details",
+      "object_type" : "classifier_details",
+      "object_name" : "Classifier Details"
+    },
+    "confidentiality" : {
+      "type" : "string_t",
+      "description" : "The file content confidentiality, normalized to the confidentiality_id value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Confidentiality",
+      "type_name" : "String"
+    },
+    "confidentiality_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "caption" : "Secret"
+        },
+        "6" : {
+          "caption" : "Restricted"
+        },
+        "0" : {
+          "description" : "The confidentiality is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "caption" : "Not Confidential"
+        },
+        "2" : {
+          "caption" : "Confidential"
+        },
+        "99" : {
+          "description" : "The confidentiality is not mapped. See the <code>confidentiality</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "caption" : "Top Secret"
+        },
+        "5" : {
+          "caption" : "Private"
+        }
+      },
+      "description" : "The normalized identifier of the file content confidentiality indicator.",
+      "requirement" : "recommended",
+      "caption" : "Confidentiality ID",
+      "sibling" : "confidentiality",
+      "type_name" : "Integer"
+    },
+    "data_lifecycle_state" : {
+      "type" : "string_t",
+      "description" : "The name of the stage or state that the data was in. E.g., Data-at-Rest, Data-in-Transit, etc.",
+      "requirement" : "optional",
+      "caption" : "Data Lifecycle State",
+      "type_name" : "String"
+    },
+    "data_lifecycle_state_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The data was being processed, accessed, or read by a system, making it active in memory or CPU. E.g., sensitive data in a Business Intelligence tool, ePHI being processed in an EHR application or a user viewing data stored in a spreadsheet or PDF.",
+          "caption" : "Data in-Use"
+        },
+        "0" : {
+          "description" : "The data lifecycle state is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The data was stored on physical or logical media and was not actively moving through the network nor was being processed. E.g., data stored in a database, PDF files in a file share, or EHR records in object storage.",
+          "caption" : "Data at-Rest"
+        },
+        "2" : {
+          "description" : "The data was actively moving through the network or from one physical or logical location to another. E.g., emails being send, data replication or Change Data Capture (CDC) streams, or sensitive data processed on an API.",
+          "caption" : "Data in-Transit"
+        },
+        "99" : {
+          "description" : "The data lifecycle state is not mapped. See the <code>data_lifecycle_state</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The stage or state that the data was in when it was assessed or scanned by a data security tool.",
+      "requirement" : "recommended",
+      "caption" : "Data Lifecycle State ID",
+      "sibling" : "data_lifecycle_state",
+      "type_name" : "Integer"
+    },
+    "detection_pattern" : {
+      "type" : "string_t",
+      "description" : "Specific pattern, algorithm, fingerprint, or model used for detection.",
+      "requirement" : "recommended",
+      "caption" : "Detection Pattern",
+      "type_name" : "String"
+    },
+    "detection_system" : {
+      "type" : "string_t",
+      "description" : "The data security tool or system that the finding, detection, or alert originated from, normalized to the caption of <code>detection_system_id</code>. E.g., Endpoint, Secure Email Gateway, etc.",
+      "requirement" : "optional",
+      "caption" : "Detection System",
+      "type_name" : "String"
+    },
+    "detection_system_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "A Mobile Device Management (MDM) or Enterprise Mobility Management (EMM) tool that can detect sensitive data and/or enforce data security policies on mobile devices (e.g., cellphones, tablets, End User Devices [EUDs]).",
+          "caption" : "Mobile Device Management"
+        },
+        "6" : {
+          "description" : "A Secure Email Gateway (SEG) is any tool that can detect sensitive data and/or enforce data security policies within email systems. E.g., Microsoft Defender for Office, Google Workspaces.",
+          "caption" : "Secure Email Gateway"
+        },
+        "0" : {
+          "description" : "The detection system type is Unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "A dedicated agent or sensor installed on a device, either a dedicated data security tool or an Endpoint Detection & Response (EDR) tool that can detect sensitive data and/or enforce data security policies. E.g., Forcepoint DLP, Symantec DLP, Microsoft Defender for Endpoint (MDE).",
+          "caption" : "Endpoint"
+        },
+        "2" : {
+          "description" : "A Data Loss Prevention (DLP) gateway that is positioned in-line of an information store such as a network share, a database, or otherwise that can detect sensitive data and/or enforce data security policies.",
+          "caption" : "DLP Gateway"
+        },
+        "99" : {
+          "description" : "The detection system type is not mapped. See the <code>detection_system</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        },
+        "4" : {
+          "description" : "A tool that actively identifies and classifies sensitive data in digital media and information stores in accordance with a policy or automated functionality. E.g, Amazon Macie, Microsoft Purview.",
+          "caption" : "Data Discovery & Classification"
+        },
+        "5" : {
+          "description" : "A Secure Web Gateway (SWG) is any tool that can detect sensitive data and/or enforce data security policies at a network-edge such as within a proxy or firewall service.",
+          "caption" : "Secure Web Gateway"
+        },
+        "7" : {
+          "description" : "A Digital Rights Management (DRM) or a dedicated Information Rights Management (IRM) are tools which can detect sensitive data and/or enforce data security policies on digital media via policy or user access rights.",
+          "caption" : "Digital Rights Management"
+        },
+        "8" : {
+          "description" : "A Cloud Access Security Broker (CASB) that can detect sensitive data and/or enforce data security policies in-line to cloud systems such as the public cloud or Software-as-a-Service (SaaS) tool. E.g., Forcepoint CASB, SkyHigh Security.",
+          "caption" : "Cloud Access Security Broker"
+        },
+        "9" : {
+          "description" : "A Database Activity Monitoring (DAM) tool that can detect sensitive data and/or enforce data security policies as part of a dedicated database or warehouse monitoring solution.",
+          "caption" : "Database Activity Monitoring"
+        },
+        "10" : {
+          "description" : "A built in Data Loss Prevention (DLP) or other data security capability within a tool or platform such as an Enterprise Resource Planning (ERP) or Customer Relations Management (CRM) tool that can detect sensitive data and/or enforce data security policies.",
+          "caption" : "Application-Level DLP"
+        },
+        "11" : {
+          "description" : "Any Developer Security tool such as an Infrastructure-as-Code (IAC) security scanner, Secrets Detection, or Secure Software Development Lifecycle (SSDLC) tool that can detect sensitive data and/or enforce data security policies. E.g., TruffleHog, GitGuardian, Git-Secrets.",
+          "caption" : "Developer Security"
+        },
+        "12" : {
+          "description" : "A Data Security Posture Management (DSPM) tool is a continuous monitoring and data discovery solution that can detect sensitive data and/or enforce data security policies for local and cloud environments. E.g., Cyera, Sentra, IBM Polar Security.",
+          "caption" : "Data Security Posture Management"
+        }
+      },
+      "description" : "The normalized identifier of the data security tool or system type from which the finding, detection, or alert originated. When the type is not listed, use <code>99</code> (Other) and populate <code>detection_system</code> with the source-specific label.",
+      "requirement" : "recommended",
+      "caption" : "Detection System ID",
+      "sibling" : "detection_system",
+      "type_name" : "Integer"
+    },
+    "discovery_details" : {
+      "type" : "object_t",
+      "description" : "Details about the data discovered by classification job.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Discovery Details",
+      "object_type" : "discovery_details",
+      "object_name" : "Discovery Details"
+    },
+    "policy" : {
+      "type" : "object_t",
+      "description" : "Details about the policy that triggered the finding.",
+      "requirement" : "recommended",
+      "caption" : "Policy",
+      "object_type" : "policy",
+      "object_name" : "Policy"
+    },
+    "src_url" : {
+      "type" : "url_t",
+      "description" : "The source URL pointing towards the full classification job details.",
+      "requirement" : "optional",
+      "caption" : "Source URL",
+      "type_name" : "URL String"
+    },
+    "status_details" : {
+      "type" : "string_t",
+      "description" : "The contextual description of the <code>status, status_id</code> value.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Status Details",
+      "type_name" : "String"
+    },
+    "status_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "The classification job failed for the evaluated resource.",
+          "caption" : "Fail"
+        },
+        "0" : {
+          "description" : "The status is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "The classification job completed for the evaluated resource.",
+          "caption" : "Complete"
+        },
+        "2" : {
+          "description" : "The classification job partially completed for the evaluated resource.",
+          "caption" : "Partial"
+        },
+        "99" : {
+          "description" : "The classification job type id is not mapped.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized status identifier of the classification job.",
+      "requirement" : "recommended",
+      "caption" : "Status ID",
+      "sibling" : "status",
+      "type_name" : "Integer"
+    }
+  },
+  "name" : "data_security",
+  "description" : "The Data Security object describes the characteristics, techniques and content of a Data Loss Prevention (DLP), Data Loss Detection (DLD), Data Classification, or similar tools' finding, alert, or detection mechanism(s).",
+  "extends" : "data_classification",
+  "constraints" : {
+    "at_least_one" : [ "data_lifecycle_state_id", "detection_pattern", "detection_system_id", "policy" ]
+  },
+  "caption" : "Data Security",
+  "_links" : [ ]
+}

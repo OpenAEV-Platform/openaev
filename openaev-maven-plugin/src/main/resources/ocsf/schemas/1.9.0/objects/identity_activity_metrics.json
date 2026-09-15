@@ -1,0 +1,79 @@
+{
+  "attributes" : {
+    "first_seen_time" : {
+      "type" : "timestamp_t",
+      "description" : "The timestamp when this identity was first observed or created in the system. This helps establish the identity's age and lifecycle stage for risk assessment.",
+      "requirement" : "optional",
+      "caption" : "First Seen",
+      "type_name" : "Timestamp"
+    },
+    "last_authentication_time" : {
+      "type" : "timestamp_t",
+      "description" : "The timestamp when this identity last successfully authenticated to any system or service. This differs from <code>last_seen_time</code> as it specifically tracks authentication events rather than all activities.",
+      "requirement" : "optional",
+      "caption" : "Last Authentication Time",
+      "type_name" : "Timestamp"
+    },
+    "last_seen_time" : {
+      "type" : "timestamp_t",
+      "description" : "The timestamp of the most recent activity performed by this identity, including authentication, resource access, or API calls. This is the most comprehensive indicator of identity usage recency.",
+      "requirement" : "recommended",
+      "caption" : "Last Seen",
+      "type_name" : "Timestamp"
+    },
+    "password_last_used_time" : {
+      "type" : "timestamp_t",
+      "description" : "The timestamp when password-based authentication was last used by this identity. This helps distinguish between password and other authentication methods (MFA, SSO, certificates) and identify password-specific usage patterns.",
+      "requirement" : "optional",
+      "caption" : "Password Last Used Time",
+      "type_name" : "Timestamp"
+    },
+    "programmatic_credentials" : {
+      "type" : "object_t",
+      "description" : "Details about the programmatic credentials associated with this identity, such as API keys, service account keys, access tokens, and client certificates used for automated access.",
+      "is_array" : true,
+      "requirement" : "optional",
+      "caption" : "Programmatic Credentials",
+      "object_type" : "programmatic_credential",
+      "object_name" : "Programmatic Credential"
+    },
+    "first_seen_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The timestamp when this identity was first observed or created in the system. This helps establish the identity's age and lifecycle stage for risk assessment.",
+      "requirement" : "optional",
+      "caption" : "First Seen",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "last_authentication_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The timestamp when this identity last successfully authenticated to any system or service. This differs from <code>last_seen_time</code> as it specifically tracks authentication events rather than all activities.",
+      "requirement" : "optional",
+      "caption" : "Last Authentication Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "last_seen_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The timestamp of the most recent activity performed by this identity, including authentication, resource access, or API calls. This is the most comprehensive indicator of identity usage recency.",
+      "requirement" : "optional",
+      "caption" : "Last Seen",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    },
+    "password_last_used_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The timestamp when password-based authentication was last used by this identity. This helps distinguish between password and other authentication methods (MFA, SSO, certificates) and identify password-specific usage patterns.",
+      "requirement" : "optional",
+      "caption" : "Password Last Used Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "identity_activity_metrics",
+  "description" : "The Identity Activity Metrics object captures usage patterns, authentication activity, credential usage and other metrics for identities across cloud and on-premises environments. Example identities include AWS IAM Users, Roles, Azure AD Principals, GCP Service Accounts, on-premises Active Directory accounts.",
+  "extends" : "object",
+  "caption" : "Identity Activity Metrics",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}

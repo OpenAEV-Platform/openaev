@@ -1,0 +1,44 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The CIS Benchmark name. For example: <i>Ensure mounting of cramfs filesystems is disabled.</i>",
+      "requirement" : "required",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "desc" : {
+      "type" : "string_t",
+      "description" : "The CIS Benchmark description. For example: <i>The cramfs filesystem type is a compressed read-only Linux filesystem embedded in small footprint systems. A cramfs image can be used without having to first decompress the image.</i>",
+      "requirement" : "optional",
+      "caption" : "Description",
+      "type_name" : "String"
+    },
+    "cis_controls" : {
+      "type" : "object_t",
+      "description" : "The CIS Critical Security Controls is a prioritized set of actions to protect your organization and data from cyber-attack vectors.",
+      "is_array" : true,
+      "requirement" : "recommended",
+      "caption" : "CIS Controls",
+      "object_type" : "cis_control",
+      "object_name" : "CIS Control"
+    }
+  },
+  "name" : "cis_benchmark",
+  "description" : "The CIS Benchmark object describes best practices for securely configuring IT systems, software, networks, and cloud infrastructure as defined by the Center for Internet Security. See also Getting to Know the CIS Benchmarks.",
+  "extends" : "object",
+  "references" : [ {
+    "description" : "CIS Benchmarks",
+    "url" : "https://www.cisecurity.org/cis-benchmarks/"
+  }, {
+    "description" : "Getting to Know the CIS Benchmarks",
+    "url" : "https://www.cisecurity.org/insights/blog/getting-to-know-the-cis-benchmarks"
+  } ],
+  "caption" : "CIS Benchmark",
+  "@deprecated" : {
+    "message" : "Use the <code>compliance.checks</code> attribute instead.",
+    "since" : "1.5.0",
+    "superseded_by" : [ "compliance.checks" ]
+  },
+  "_links" : [ ]
+}

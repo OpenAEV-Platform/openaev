@@ -1,0 +1,76 @@
+{
+  "attributes" : {
+    "name" : {
+      "type" : "string_t",
+      "description" : "The name of the privilege, action, or permission. Examples: <code>GetObject</code>, <code>CreateStoreImageTask</code> (AWS); <code>Microsoft.Storage/storageAccounts/read</code> (Azure); <code>storage.objects.get</code> (GCP).",
+      "requirement" : "required",
+      "caption" : "Name",
+      "type_name" : "String"
+    },
+    "type" : {
+      "type" : "string_t",
+      "description" : "The type or category of the privilege, normalized to the caption of the <code>type_id</code> value. In the case of 'Other', it is defined by the event source.",
+      "requirement" : "optional",
+      "caption" : "Type",
+      "type_name" : "String"
+    },
+    "is_unused" : {
+      "type" : "boolean_t",
+      "description" : "Indicates whether the privilege is unused within the analysis timeframe.",
+      "requirement" : "optional",
+      "caption" : "Is Unused",
+      "type_name" : "Boolean"
+    },
+    "type_id" : {
+      "type" : "integer_t",
+      "enum" : {
+        "3" : {
+          "description" : "An execute-type privilege that permits running operations or invoking functions. Examples: <code>lambda:InvokeFunction</code>, <code>Microsoft.Compute/virtualMachines/start/action</code>.",
+          "caption" : "Execute"
+        },
+        "0" : {
+          "description" : "The privilege type is unknown.",
+          "caption" : "Unknown"
+        },
+        "1" : {
+          "description" : "A read-type privilege that permits viewing or retrieving data. Examples: <code>s3:GetObject</code>, <code>Microsoft.Storage/storageAccounts/read</code>, <code>storage.objects.get</code>.",
+          "caption" : "Read"
+        },
+        "2" : {
+          "description" : "A write-type privilege that permits creating, modifying, or deleting data. Examples: <code>s3:PutObject</code>, <code>Microsoft.Storage/storageAccounts/write</code>, <code>storage.objects.create</code>.",
+          "caption" : "Write"
+        },
+        "99" : {
+          "description" : "The privilege type is not mapped. See the <code>type</code> attribute, which contains a data source specific value.",
+          "caption" : "Other"
+        }
+      },
+      "description" : "The normalized type of the privilege.",
+      "requirement" : "optional",
+      "caption" : "Type ID",
+      "sibling" : "type",
+      "type_name" : "Integer"
+    },
+    "last_used_time" : {
+      "type" : "timestamp_t",
+      "description" : "The most recent time this privilege was used.",
+      "requirement" : "optional",
+      "caption" : "Last Used Time",
+      "type_name" : "Timestamp"
+    },
+    "last_used_time_dt" : {
+      "type" : "datetime_t",
+      "description" : "The most recent time this privilege was used.",
+      "requirement" : "optional",
+      "caption" : "Last Used Time",
+      "profiles" : [ "datetime" ],
+      "type_name" : "Datetime"
+    }
+  },
+  "name" : "privilege_info",
+  "description" : "The Privilege Info object describes information about a specific privilege, action, or permission. It captures the privilege name, type, usage status, and when it was last used.",
+  "extends" : "object",
+  "caption" : "Privilege Info",
+  "profiles" : [ "datetime" ],
+  "_links" : [ ]
+}
