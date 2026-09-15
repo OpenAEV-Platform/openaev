@@ -48,9 +48,7 @@ describe('app reducer DATA_FETCH_ERROR', () => {
       payload: {
         response: {
           status: '403',
-          data: {
-            message: 'TENANT_ACCESS_DENIED',
-          },
+          data: { message: 'TENANT_ACCESS_DENIED' },
         },
       },
     });
