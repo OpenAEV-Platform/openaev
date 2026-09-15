@@ -1,5 +1,6 @@
 package io.openaev.rest.document;
 
+import static io.openaev.rest.document.DocumentApi.DOCUMENT_API;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -10,6 +11,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Tenant;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -50,8 +52,7 @@ class DocumentByIdEmptyScopeTest extends IntegrationTest {
     // A bare tenant row, not an onboarded one: onboarding would enroll the platform admin and give
     // the caller a single-tenant scope. Inserting it directly keeps the caller member-less, so a
     // request with no selector resolves an empty scope.
-    Tenant tenant = new Tenant();
-    tenant.setName("doc-empty-scope-" + UUID.randomUUID());
+    Tenant tenant = TenantFixture.getTenant("doc-empty-scope-" + UUID.randomUUID());
     entityManager.persist(tenant);
     entityManager.flush();
     otherTenant = tenant.getId();
@@ -66,26 +67,31 @@ class DocumentByIdEmptyScopeTest extends IntegrationTest {
   @DisplayName(
       "GET by id, non-prefixed route, member-less caller: another tenant's document is still"
           + " returned")
-  void getByIdWithEmptyScopeReturnsTheDocument() throws Exception {
+  void given_emptyRequestScope_should_returnDocumentByIdOnNonPrefixedRoute() throws Exception {
+    // Arrange
     String id = seedDocument(otherTenant);
 
-    mvc.perform(get("/api/documents/{id}", id)).andExpect(status().isOk());
+    // Act & Assert
+    mvc.perform(get(DOCUMENT_API + "/{id}", id)).andExpect(status().isOk());
   }
 
   @Test
   @DisplayName(
       "PUT tags by id, non-prefixed route, member-less caller: another tenant's document is still"
           + " updated")
-  void putTagsByIdWithEmptyScopeStillUpdatesTheDocument() throws Exception {
+  void given_emptyRequestScope_should_updateTagsByIdOnNonPrefixedRoute() throws Exception {
+    // Arrange
     String id = seedDocument(otherTenant);
 
+    // Act
     mvc.perform(
-            put("/api/documents/{id}/tags", id)
+            put(DOCUMENT_API + "/{id}/tags", id)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"tags\":[]}")
                 .with(csrf()))
         .andExpect(status().isOk());
 
+    // Assert
     assertEquals(
         0, documentTagCount(id), "the write must apply, clearing the tags as an empty list asks");
   }

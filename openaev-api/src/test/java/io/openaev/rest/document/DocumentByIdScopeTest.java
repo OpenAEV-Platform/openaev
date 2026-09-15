@@ -1,5 +1,6 @@
 package io.openaev.rest.document;
 
+import static io.openaev.rest.document.DocumentApi.TENANT_DOCUMENT_API;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -19,6 +20,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.service.FileService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ReportingFixture;
+import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -28,6 +30,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -82,276 +85,330 @@ class DocumentByIdScopeTest extends IntegrationTest {
     TenantContext.clearCurrentTenant();
   }
 
-  // region reads
+  @Nested
+  @DisplayName("Reads by id refuse a caller scoped to another tenant")
+  class Reads {
 
-  @Test
-  @DisplayName("GET by id: a caller scoped to another tenant is refused a B document")
-  void getByIdIsRefusedForACallerScopedToAnotherTenant() throws Exception {
-    String id = seedBDocument();
-    String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-get-a").getId();
+    @Test
+    @DisplayName("GET by id: a caller scoped to another tenant is refused a B document")
+    void given_documentOwnedByAnotherTenant_should_return404OnGetById() throws Exception {
+      // Arrange
+      String id = seedBDocument();
+      String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-get-a").getId();
 
-    mvc.perform(get("/api/tenants/{t}/documents/{id}", tenantA, id))
-        .andExpect(status().isNotFound());
+      // Act & Assert
+      mvc.perform(get(TENANT_DOCUMENT_API + "/{id}", tenantA, id)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET by id: the owning tenant still receives the document")
+    void given_documentOwnedByCurrentTenant_should_returnDocumentOnGetById() throws Exception {
+      // Arrange
+      String id = seedBDocument();
+
+      // Act & Assert
+      mvc.perform(get(TENANT_DOCUMENT_API + "/{id}", tenantB, id)).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET tags by id: a caller scoped to another tenant is refused a B document")
+    void given_documentOwnedByAnotherTenant_should_return404OnGetTags() throws Exception {
+      // Arrange
+      String id = seedBDocument();
+      String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-tags-a").getId();
+
+      // Act & Assert
+      mvc.perform(get(TENANT_DOCUMENT_API + "/{id}/tags", tenantA, id))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET tags by id: the owning tenant still receives the tags")
+    void given_documentOwnedByCurrentTenant_should_returnTagsOnGetTags() throws Exception {
+      // Arrange
+      String id = seedBDocument();
+
+      // Act & Assert
+      mvc.perform(get(TENANT_DOCUMENT_API + "/{id}/tags", tenantB, id)).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET relations by id: a caller scoped to another tenant is refused a B document")
+    void given_documentOwnedByAnotherTenant_should_return404OnGetRelations() throws Exception {
+      // Arrange
+      String id = seedBDocument();
+      String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-rel-a").getId();
+
+      // Act & Assert
+      mvc.perform(get(TENANT_DOCUMENT_API + "/{id}/relations", tenantA, id))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET relations by id: the owning tenant still receives the relations")
+    void given_documentOwnedByCurrentTenant_should_returnRelationsOnGetRelations()
+        throws Exception {
+      // Arrange
+      String id = seedBDocument();
+
+      // Act & Assert
+      mvc.perform(get(TENANT_DOCUMENT_API + "/{id}/relations", tenantB, id))
+          .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName(
+        "download by id: a caller scoped to another tenant is refused a B document's bytes")
+    void given_documentOwnedByAnotherTenant_should_return404OnDownload() throws Exception {
+      // Arrange
+      byte[] content = ("owner-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String id = seedBDocumentWithObject(content);
+      String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-dl-a").getId();
+
+      // Act & Assert
+      mvc.perform(get(TENANT_DOCUMENT_API + "/{id}/file", tenantA, id))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("download by id: the owning tenant still receives its bytes")
+    void given_documentOwnedByCurrentTenant_should_returnBytesOnDownload() throws Exception {
+      // Arrange
+      byte[] content = ("owner-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+      String id = seedBDocumentWithObject(content);
+
+      // Act & Assert
+      assertArrayEquals(
+          content,
+          mvc.perform(get(TENANT_DOCUMENT_API + "/{id}/file", tenantB, id))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray(),
+          "the owning tenant must download its own document");
+    }
   }
 
-  @Test
-  @DisplayName("GET by id: the owning tenant still receives the document")
-  void getByIdSucceedsForTheOwningTenant() throws Exception {
-    String id = seedBDocument();
+  @Nested
+  @DisplayName("Writes by id refuse a caller scoped to another tenant and leave the row unchanged")
+  class Writes {
 
-    mvc.perform(get("/api/tenants/{t}/documents/{id}", tenantB, id)).andExpect(status().isOk());
+    @Test
+    @DisplayName(
+        "PUT tags by id: a caller scoped to another tenant is refused and the B document is"
+            + " unchanged")
+    void given_documentOwnedByAnotherTenant_should_return404AndNotAttachTagOnPutTags()
+        throws Exception {
+      // Arrange
+      String id = seedBDocument();
+      String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-puttags-a").getId();
+      String tagId = seedTag(tenantA);
+
+      // Act
+      mvc.perform(
+              put(TENANT_DOCUMENT_API + "/{id}/tags", tenantA, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(tagsBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+
+      // Assert
+      assertEquals(0, documentTagCount(id), "the refused tag write must not attach a tag to B");
+    }
+
+    @Test
+    @DisplayName("PUT tags by id: the owning tenant still updates the tags")
+    void given_documentOwnedByCurrentTenant_should_updateTagsOnPutTags() throws Exception {
+      // Arrange
+      String id = seedBDocument();
+      String tagId = seedTag(tenantB);
+
+      // Act
+      mvc.perform(
+              put(TENANT_DOCUMENT_API + "/{id}/tags", tenantB, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(tagsBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      // Assert
+      assertEquals(1, documentTagCount(id), "the owning tenant must be able to set the tags");
+    }
+
+    @Test
+    @DisplayName(
+        "PUT by id: a caller scoped to another tenant is refused and the B document is unchanged")
+    void given_documentOwnedByAnotherTenant_should_return404AndNotAttachTagOnPut()
+        throws Exception {
+      // Arrange
+      String id = seedBDocument();
+      String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-put-a").getId();
+      String tagId = seedTag(tenantA);
+
+      // Act
+      mvc.perform(
+              put(TENANT_DOCUMENT_API + "/{id}", tenantA, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(updateBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+
+      // Assert
+      assertEquals(0, documentTagCount(id), "the refused update must not attach a tag to B");
+    }
+
+    @Test
+    @DisplayName("PUT by id: the owning tenant still updates the document")
+    void given_documentOwnedByCurrentTenant_should_updateDocumentOnPut() throws Exception {
+      // Arrange
+      String id = seedBDocument();
+      String tagId = seedTag(tenantB);
+
+      // Act
+      mvc.perform(
+              put(TENANT_DOCUMENT_API + "/{id}", tenantB, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(updateBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      // Assert
+      assertEquals(
+          1, documentTagCount(id), "the owning tenant must be able to update the document");
+    }
+
+    @Test
+    @DisplayName("delete by id: a caller scoped to another tenant leaves the B row intact")
+    void given_documentOwnedByAnotherTenant_should_return404AndKeepRowOnDelete() throws Exception {
+      // Arrange
+      String id = seedBDocument();
+      String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-del-a").getId();
+
+      // Act
+      mvc.perform(delete(TENANT_DOCUMENT_API + "/{id}", tenantA, id).with(csrf()))
+          .andExpect(status().isNotFound());
+
+      // Assert
+      assertEquals(
+          1, documentRowCount(id), "the B document row must survive a cross-tenant delete");
+    }
+
+    @Test
+    @DisplayName("delete by id: the owning tenant still removes its document")
+    void given_documentOwnedByCurrentTenant_should_deleteDocumentOnDelete() throws Exception {
+      // Arrange
+      String id = seedBDocument();
+
+      // Act
+      mvc.perform(delete(TENANT_DOCUMENT_API + "/{id}", tenantB, id).with(csrf()))
+          .andExpect(status().isOk());
+
+      // Assert
+      assertEquals(
+          0, documentRowCount(id), "the owning tenant must be able to delete its document");
+    }
   }
 
-  @Test
-  @DisplayName("GET tags by id: a caller scoped to another tenant is refused a B document")
-  void getTagsByIdIsRefusedForACallerScopedToAnotherTenant() throws Exception {
-    String id = seedBDocument();
-    String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-tags-a").getId();
+  @Nested
+  @DisplayName("The scope check runs before the report-output rule on the two PUTs")
+  class ScopeCheckPrecedesReportOutputRule {
 
-    mvc.perform(get("/api/tenants/{t}/documents/{id}/tags", tenantA, id))
-        .andExpect(status().isNotFound());
+    @Test
+    @DisplayName(
+        "PUT tags by id on a report output: an out-of-scope caller gets 404, not the 400 that"
+            + " discloses the id is a report output")
+    void given_reportOutputOwnedByAnotherTenant_should_return404NotBadRequestOnPutTags()
+        throws Exception {
+      // Arrange: document owned by B, report generation owned by the caller's path tenant A. On
+      // path
+      // A the report-output check (existsByDocumentId, filtered by the ambient tenant A) sees the A
+      // generation and would answer 400; the scope check must run first and answer 404, the same as
+      // for any out-of-scope document.
+      String id = seedBDocument();
+      String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-ro-tags-a").getId();
+      seedReportGenerationInTenant(tenantA, id);
+      String tagId = seedTag(tenantA);
+
+      // Act
+      mvc.perform(
+              put(TENANT_DOCUMENT_API + "/{id}/tags", tenantA, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(tagsBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+
+      // Assert
+      assertEquals(0, documentTagCount(id), "the refused tag write must not attach a tag to B");
+    }
+
+    @Test
+    @DisplayName(
+        "PUT by id on a report output: an out-of-scope caller gets 404, not the 400 that discloses"
+            + " the id is a report output")
+    void given_reportOutputOwnedByAnotherTenant_should_return404NotBadRequestOnPut()
+        throws Exception {
+      // Arrange
+      String id = seedBDocument();
+      String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-ro-put-a").getId();
+      seedReportGenerationInTenant(tenantA, id);
+      String tagId = seedTag(tenantA);
+
+      // Act
+      mvc.perform(
+              put(TENANT_DOCUMENT_API + "/{id}", tenantA, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(updateBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+
+      // Assert
+      assertEquals(0, documentTagCount(id), "the refused update must not attach a tag to B");
+    }
+
+    @Test
+    @DisplayName(
+        "PUT tags by id on a report output: the owning tenant still gets 400 (read-only preserved)")
+    void given_reportOutputOwnedByCurrentTenant_should_return400OnPutTags() throws Exception {
+      // Arrange
+      String id = seedBDocument();
+      seedReportGenerationInTenant(tenantB, id);
+      String tagId = seedTag(tenantB);
+
+      // Act
+      mvc.perform(
+              put(TENANT_DOCUMENT_API + "/{id}/tags", tenantB, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(tagsBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      // Assert
+      assertEquals(
+          0, documentTagCount(id), "a report output stays read-only for its owning tenant");
+    }
+
+    @Test
+    @DisplayName(
+        "PUT by id on a report output: the owning tenant still gets 400 (read-only preserved)")
+    void given_reportOutputOwnedByCurrentTenant_should_return400OnPut() throws Exception {
+      // Arrange
+      String id = seedBDocument();
+      seedReportGenerationInTenant(tenantB, id);
+      String tagId = seedTag(tenantB);
+
+      // Act
+      mvc.perform(
+              put(TENANT_DOCUMENT_API + "/{id}", tenantB, id)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(updateBody(tagId))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+
+      // Assert
+      assertEquals(
+          0, documentTagCount(id), "a report output stays read-only for its owning tenant");
+    }
   }
-
-  @Test
-  @DisplayName("GET tags by id: the owning tenant still receives the tags")
-  void getTagsByIdSucceedsForTheOwningTenant() throws Exception {
-    String id = seedBDocument();
-
-    mvc.perform(get("/api/tenants/{t}/documents/{id}/tags", tenantB, id))
-        .andExpect(status().isOk());
-  }
-
-  @Test
-  @DisplayName("GET relations by id: a caller scoped to another tenant is refused a B document")
-  void getRelationsByIdIsRefusedForACallerScopedToAnotherTenant() throws Exception {
-    String id = seedBDocument();
-    String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-rel-a").getId();
-
-    mvc.perform(get("/api/tenants/{t}/documents/{id}/relations", tenantA, id))
-        .andExpect(status().isNotFound());
-  }
-
-  @Test
-  @DisplayName("GET relations by id: the owning tenant still receives the relations")
-  void getRelationsByIdSucceedsForTheOwningTenant() throws Exception {
-    String id = seedBDocument();
-
-    mvc.perform(get("/api/tenants/{t}/documents/{id}/relations", tenantB, id))
-        .andExpect(status().isOk());
-  }
-
-  @Test
-  @DisplayName("download by id: a caller scoped to another tenant is refused a B document's bytes")
-  void downloadByIdIsRefusedForACallerScopedToAnotherTenant() throws Exception {
-    byte[] content = ("owner-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
-    String id = seedBDocumentWithObject(content);
-    String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-dl-a").getId();
-
-    mvc.perform(get("/api/tenants/{t}/documents/{id}/file", tenantA, id))
-        .andExpect(status().isNotFound());
-  }
-
-  @Test
-  @DisplayName("download by id: the owning tenant still receives its bytes")
-  void downloadByIdSucceedsForTheOwningTenant() throws Exception {
-    byte[] content = ("owner-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
-    String id = seedBDocumentWithObject(content);
-
-    assertArrayEquals(
-        content,
-        mvc.perform(get("/api/tenants/{t}/documents/{id}/file", tenantB, id))
-            .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsByteArray(),
-        "the owning tenant must download its own document");
-  }
-
-  // endregion
-
-  // region writes
-
-  @Test
-  @DisplayName(
-      "PUT tags by id: a caller scoped to another tenant is refused and the B document is"
-          + " unchanged")
-  void putTagsByIdIsRefusedForACallerScopedToAnotherTenantAndLeavesDocumentUnchanged()
-      throws Exception {
-    String id = seedBDocument();
-    String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-puttags-a").getId();
-    String tagId = seedTag(tenantA);
-
-    mvc.perform(
-            put("/api/tenants/{t}/documents/{id}/tags", tenantA, id)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(tagsBody(tagId))
-                .with(csrf()))
-        .andExpect(status().isNotFound());
-
-    assertEquals(0, documentTagCount(id), "the refused tag write must not attach a tag to B");
-  }
-
-  @Test
-  @DisplayName("PUT tags by id: the owning tenant still updates the tags")
-  void putTagsByIdSucceedsForTheOwningTenant() throws Exception {
-    String id = seedBDocument();
-    String tagId = seedTag(tenantB);
-
-    mvc.perform(
-            put("/api/tenants/{t}/documents/{id}/tags", tenantB, id)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(tagsBody(tagId))
-                .with(csrf()))
-        .andExpect(status().isOk());
-
-    assertEquals(1, documentTagCount(id), "the owning tenant must be able to set the tags");
-  }
-
-  @Test
-  @DisplayName(
-      "PUT by id: a caller scoped to another tenant is refused and the B document is unchanged")
-  void putByIdIsRefusedForACallerScopedToAnotherTenantAndLeavesDocumentUnchanged()
-      throws Exception {
-    String id = seedBDocument();
-    String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-put-a").getId();
-    String tagId = seedTag(tenantA);
-
-    mvc.perform(
-            put("/api/tenants/{t}/documents/{id}", tenantA, id)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(updateBody(tagId))
-                .with(csrf()))
-        .andExpect(status().isNotFound());
-
-    assertEquals(0, documentTagCount(id), "the refused update must not attach a tag to B");
-  }
-
-  @Test
-  @DisplayName("PUT by id: the owning tenant still updates the document")
-  void putByIdSucceedsForTheOwningTenant() throws Exception {
-    String id = seedBDocument();
-    String tagId = seedTag(tenantB);
-
-    mvc.perform(
-            put("/api/tenants/{t}/documents/{id}", tenantB, id)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(updateBody(tagId))
-                .with(csrf()))
-        .andExpect(status().isOk());
-
-    assertEquals(1, documentTagCount(id), "the owning tenant must be able to update the document");
-  }
-
-  @Test
-  @DisplayName("delete by id: a caller scoped to another tenant leaves the B row intact")
-  void deleteByIdIsRefusedForACallerScopedToAnotherTenant() throws Exception {
-    String id = seedBDocument();
-    String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-del-a").getId();
-
-    mvc.perform(delete("/api/tenants/{t}/documents/{id}", tenantA, id).with(csrf()))
-        .andExpect(status().isNotFound());
-
-    assertEquals(1, documentRowCount(id), "the B document row must survive a cross-tenant delete");
-  }
-
-  @Test
-  @DisplayName("delete by id: the owning tenant still removes its document")
-  void deleteByIdSucceedsForTheOwningTenant() throws Exception {
-    String id = seedBDocument();
-
-    mvc.perform(delete("/api/tenants/{t}/documents/{id}", tenantB, id).with(csrf()))
-        .andExpect(status().isOk());
-
-    assertEquals(0, documentRowCount(id), "the owning tenant must be able to delete its document");
-  }
-
-  // endregion
-
-  // region ordering: the scope check runs before the report-output rule on the two PUTs
-
-  @Test
-  @DisplayName(
-      "PUT tags by id on a report output: an out-of-scope caller gets 404, not the 400 that"
-          + " discloses the id is a report output")
-  void putTagsByIdOnReportOutputIsRefusedWithNotFoundForAnOutOfScopeCaller() throws Exception {
-    // Document owned by B, report generation owned by the caller's path tenant A. On path A the
-    // report-output check (existsByDocumentId, filtered by the ambient tenant A) sees the A
-    // generation and would answer 400; the scope check must run first and answer 404, the same as
-    // for any out-of-scope document.
-    String id = seedBDocument();
-    String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-ro-tags-a").getId();
-    seedReportGenerationInTenant(tenantA, id);
-    String tagId = seedTag(tenantA);
-
-    mvc.perform(
-            put("/api/tenants/{t}/documents/{id}/tags", tenantA, id)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(tagsBody(tagId))
-                .with(csrf()))
-        .andExpect(status().isNotFound());
-
-    assertEquals(0, documentTagCount(id), "the refused tag write must not attach a tag to B");
-  }
-
-  @Test
-  @DisplayName(
-      "PUT by id on a report output: an out-of-scope caller gets 404, not the 400 that discloses"
-          + " the id is a report output")
-  void putByIdOnReportOutputIsRefusedWithNotFoundForAnOutOfScopeCaller() throws Exception {
-    String id = seedBDocument();
-    String tenantA = tenantHelper.createTenantWithCurrentUser("doc-scope-ro-put-a").getId();
-    seedReportGenerationInTenant(tenantA, id);
-    String tagId = seedTag(tenantA);
-
-    mvc.perform(
-            put("/api/tenants/{t}/documents/{id}", tenantA, id)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(updateBody(tagId))
-                .with(csrf()))
-        .andExpect(status().isNotFound());
-
-    assertEquals(0, documentTagCount(id), "the refused update must not attach a tag to B");
-  }
-
-  @Test
-  @DisplayName(
-      "PUT tags by id on a report output: the owning tenant still gets 400 (read-only preserved)")
-  void putTagsByIdOnReportOutputStillRefusedForTheOwningTenant() throws Exception {
-    String id = seedBDocument();
-    seedReportGenerationInTenant(tenantB, id);
-    String tagId = seedTag(tenantB);
-
-    mvc.perform(
-            put("/api/tenants/{t}/documents/{id}/tags", tenantB, id)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(tagsBody(tagId))
-                .with(csrf()))
-        .andExpect(status().isBadRequest());
-
-    assertEquals(0, documentTagCount(id), "a report output stays read-only for its owning tenant");
-  }
-
-  @Test
-  @DisplayName(
-      "PUT by id on a report output: the owning tenant still gets 400 (read-only preserved)")
-  void putByIdOnReportOutputStillRefusedForTheOwningTenant() throws Exception {
-    String id = seedBDocument();
-    seedReportGenerationInTenant(tenantB, id);
-    String tagId = seedTag(tenantB);
-
-    mvc.perform(
-            put("/api/tenants/{t}/documents/{id}", tenantB, id)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(updateBody(tagId))
-                .with(csrf()))
-        .andExpect(status().isBadRequest());
-
-    assertEquals(0, documentTagCount(id), "a report output stays read-only for its owning tenant");
-  }
-
-  // endregion
-
-  // region helpers
 
   /** Seeds a metadata-only document owned by tenant B, without an object in storage. */
   private String seedBDocument() {
@@ -404,10 +461,13 @@ class DocumentByIdScopeTest extends IntegrationTest {
     entityManager.flush();
   }
 
+  /**
+   * Seeds a tag owned by {@code tenantId}. {@link TagFixture} assigns the default tenant, so the
+   * owning tenant is overridden here: these tests need a tag in a specific test tenant, seeded out
+   * of band like the documents they are attached to.
+   */
   private String seedTag(String tenantId) {
-    Tag tag = new Tag();
-    tag.setName("doc-scope-tag-" + UUID.randomUUID());
-    tag.setColor("#123456");
+    Tag tag = TagFixture.getTagWithText("doc-scope-tag-" + UUID.randomUUID());
     tag.setTenant(new Tenant(tenantId));
     entityManager.persist(tag);
     entityManager.flush();
@@ -441,6 +501,4 @@ class DocumentByIdScopeTest extends IntegrationTest {
                 .getSingleResult())
         .longValue();
   }
-
-  // endregion
 }

@@ -59,7 +59,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class DocumentApi extends RestBehavior {
 
   public static final String DOCUMENT_API = "/api/documents";
-  private static final String TENANT_DOCUMENT_API = TENANT_PREFIX + "/documents";
+  static final String TENANT_DOCUMENT_API = TENANT_PREFIX + "/documents";
   private static final String IMAGES_API = "/api/images";
   private static final String TENANT_IMAGES_API = TENANT_PREFIX + "/images";
   private static final String SECURITY_PLATFORM_IMAGES_API = IMAGES_API + "/security_platforms";
