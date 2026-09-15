@@ -230,7 +230,7 @@ export interface AggregatedFindingOutput {
    */
   finding_updated_at: string;
   /**
-   * Finding Value
+   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
    * @minLength 1
    */
   finding_value: string;
@@ -3134,8 +3134,9 @@ export interface CredentialBulkProcessingInput {
 
 export interface CredentialContractField {
   choices?: string[];
+  default_value?: string;
   field_name: string;
-  field_type?: "text" | "password" | "select" | "number" | "checkbox";
+  field_type?: "text" | "password" | "select" | "number" | "checkbox" | "file";
   mandatory_condition_field?: string;
   mandatory_condition_value?: string;
   required?: boolean;
@@ -3150,8 +3151,10 @@ export interface CredentialContractOutput {
     | "AWS_ACCESS_KEY"
     | "AWS_ASSUME_ROLE"
     | "AZURE_SERVICE_PRINCIPAL"
-    | "AZURE_MANAGED_IDENTITY";
-  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   fields?: CredentialContractField[];
 }
 
@@ -3170,7 +3173,9 @@ export interface CredentialFullOutput {
     | "AWS_ACCESS_KEY"
     | "AWS_ASSUME_ROLE"
     | "AZURE_SERVICE_PRINCIPAL"
-    | "AZURE_MANAGED_IDENTITY";
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
   /** AWS access key ID */
   credential_aws_access_key_id?: string;
   /** Secret AWS default region */
@@ -3238,6 +3243,18 @@ export interface CredentialFullOutput {
   credential_created_by: CredentialCreatedByOutput;
   /** Credential description */
   credential_description?: string;
+  /** GCP OAuth client id */
+  credential_gcp_oauth_client_id?: string;
+  /** Whether a GCP OAuth client secret is stored; the secret itself is never returned */
+  credential_gcp_oauth_client_secret_defined?: boolean;
+  /** Whether a GCP OAuth refresh token is stored; the token itself is never returned */
+  credential_gcp_oauth_refresh_token_defined?: boolean;
+  /** Whether a GCP service account key file is stored; the key itself is never returned */
+  credential_gcp_private_key_defined?: boolean;
+  /** GCP project id */
+  credential_gcp_project_id?: string;
+  /** GCP OAuth scope */
+  credential_gcp_scope?: string;
   /** Secret hash algorithm */
   credential_hash_algorithm?: "SHA" | "NTLM";
   /** Credential ID */
@@ -3266,7 +3283,7 @@ export interface CredentialFullOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   /** Secret username */
   credential_username?: string;
 }
@@ -3328,7 +3345,9 @@ export interface CredentialInput {
     | "AWS_ACCESS_KEY"
     | "AWS_ASSUME_ROLE"
     | "AZURE_SERVICE_PRINCIPAL"
-    | "AZURE_MANAGED_IDENTITY";
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
   credential_description?: string;
   credential_hash?: string;
   credential_hash_algorithm?: "SHA" | "NTLM";
@@ -3336,8 +3355,13 @@ export interface CredentialInput {
   credential_name: string;
   credential_password?: string;
   credential_tags?: string[];
-  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   credential_username?: string;
+  gcp_oauth_client_id?: string;
+  gcp_oauth_client_secret?: string;
+  gcp_oauth_refresh_token?: string;
+  gcp_project_id?: string;
+  gcp_scope?: string;
 }
 
 export interface CredentialOutput {
@@ -3348,7 +3372,9 @@ export interface CredentialOutput {
     | "AWS_ACCESS_KEY"
     | "AWS_ASSUME_ROLE"
     | "AZURE_SERVICE_PRINCIPAL"
-    | "AZURE_MANAGED_IDENTITY";
+    | "AZURE_MANAGED_IDENTITY"
+    | "GCP_SERVICE_ACCOUNT"
+    | "GCP_OAUTH2";
   /**
    * Credential creation timestamp
    * @format date-time
@@ -3382,7 +3408,7 @@ export interface CredentialOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type?: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE";
+  credential_type?: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
 }
 
 export interface CustomDashboard {
@@ -5734,57 +5760,6 @@ export interface FilterGroup {
   mode: "and" | "or";
 }
 
-export interface Finding {
-  /** @uniqueItems true */
-  finding_asset_groups?: AssetGroup[];
-  finding_assets?: string[];
-  /** @format date-time */
-  finding_created_at: string;
-  /** @minLength 1 */
-  finding_field: string;
-  /** @minLength 1 */
-  finding_id: string;
-  finding_inject_id?: string;
-  /** @deprecated */
-  finding_labels?: string[];
-  finding_name?: string;
-  finding_scenario?: Scenario;
-  finding_simulation?: Exercise;
-  finding_tags?: string[];
-  finding_teams?: string[];
-  finding_type:
-    | "text"
-    | "action_output"
-    | "number"
-    | "port"
-    | "portscan"
-    | "ipv4"
-    | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "email"
-    | "share"
-    | "file"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
-  /** @format date-time */
-  finding_updated_at: string;
-  finding_users?: string[];
-  /** @minLength 1 */
-  finding_value: string;
-  listened?: boolean;
-}
-
 export interface FindingInput {
   /** @minLength 1 */
   finding_field: string;
@@ -5816,6 +5791,92 @@ export interface FindingInput {
     | "kerberoastable_account"
     | "expectation_signature";
   /** @minLength 1 */
+  finding_value: string;
+}
+
+export interface FindingOutput {
+  /**
+   * Asset groups targeted by the inject that produced the finding
+   * @uniqueItems true
+   */
+  finding_asset_groups?: AssetGroupSimple[];
+  /** Asset ids linked to the finding */
+  finding_assets?: string[];
+  /**
+   * First time the finding was seen
+   * @format date-time
+   */
+  finding_created_at: string;
+  /**
+   * Contract output field the finding was extracted from
+   * @minLength 1
+   */
+  finding_field: string;
+  /**
+   * Finding Id
+   * @minLength 1
+   */
+  finding_id: string;
+  /** Inject that produced the finding */
+  finding_inject_id?: string;
+  /**
+   * Deprecated, kept for backward compatibility
+   * @deprecated
+   */
+  finding_labels?: string[];
+  /** Finding name */
+  finding_name?: string;
+  /** Scenario the finding was produced in */
+  finding_scenario?: ScenarioSimple;
+  /** Simulation the finding was produced in */
+  finding_simulation?: ExerciseSimple;
+  /**
+   * Tag ids linked to the finding
+   * @uniqueItems true
+   */
+  finding_tags?: string[];
+  /** Team ids linked to the finding */
+  finding_teams?: string[];
+  /**
+   * Represents the data type being extracted.
+   * @example "text, number, port, portscan, ipv4, ipv6, credentials, cve"
+   */
+  finding_type:
+    | "text"
+    | "action_output"
+    | "number"
+    | "port"
+    | "portscan"
+    | "ipv4"
+    | "ipv6"
+    | "credentials"
+    | "cve"
+    | "username"
+    | "email"
+    | "share"
+    | "file"
+    | "admin_username"
+    | "group"
+    | "computer"
+    | "password_policy"
+    | "delegation"
+    | "sid"
+    | "vulnerability"
+    | "account_with_password_not_required"
+    | "asreproastable_account"
+    | "kerberoastable_account"
+    | "expectation_signature";
+  /**
+   * Last time the finding was seen
+   * @format date-time
+   */
+  finding_updated_at: string;
+  /** User ids linked to the finding */
+  finding_users?: string[];
+  /**
+   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
+   * @minLength 1
+   */
   finding_value: string;
 }
 
@@ -5883,7 +5944,7 @@ export interface FindingSummaryOutput {
    * @format int64
    */
   finding_users_count?: number;
-  /** Finding value */
+  /** Finding value, masked when the finding type holds secret material */
   finding_value?: string;
 }
 
@@ -6305,6 +6366,8 @@ export interface InjectExpectationOutput {
   inject_expectation_asset_group?: string;
   /** Challenge ID associated with the inject expectation */
   inject_expectation_challenge?: string;
+  /** True when this technical detection/prevention expectation required a security platform collector to be fulfilled but none was connected at initialization, so it was resolved as a definitive failure instead of staying pending. */
+  inject_expectation_collector_missing_at_init?: boolean;
   /**
    * Creation date of the inject expectation
    * @format date-time
@@ -7678,6 +7741,35 @@ export interface MapperConditionOutput {
   condition_value?: string;
 }
 
+export interface MarkingDefinitionInput {
+  /** @pattern ^(#[0-9a-fA-F]{6})?$ */
+  marking_definition_color?: string;
+  /** @minLength 1 */
+  marking_definition_definition: string;
+  /**
+   * @format int32
+   * @min 0
+   */
+  marking_definition_order: number;
+  /** @minLength 1 */
+  marking_definition_type: string;
+}
+
+export interface MarkingDefinitionOutput {
+  marking_definition_color?: string;
+  /** @format date-time */
+  marking_definition_created_at: string;
+  /** @minLength 1 */
+  marking_definition_definition: string;
+  /** @minLength 1 */
+  marking_definition_id: string;
+  /** @format int32 */
+  marking_definition_order: number;
+  marking_definition_protected: boolean;
+  /** @minLength 1 */
+  marking_definition_type: string;
+}
+
 export interface MissingImportedAction {
   name?: string;
   type?: string;
@@ -7885,6 +7977,7 @@ export interface NotificationTriggerInput {
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
     | "CREDENTIAL"
+    | "MARKING_DEFINITION"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -7991,6 +8084,7 @@ export interface NotificationTriggerOutput {
     | "RESOURCE_TYPE"
     | "SECURITY_PLATFORM"
     | "CREDENTIAL"
+    | "MARKING_DEFINITION"
     | "DOCUMENT"
     | "CHANNEL"
     | "PHISHING_LANDING_PAGE"
@@ -8565,6 +8659,25 @@ export interface PageKillChainPhase {
 
 export interface PageLessonsTemplate {
   content?: LessonsTemplate[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject[];
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageMarkingDefinitionOutput {
+  content?: MarkingDefinitionOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -9603,6 +9716,7 @@ export interface PlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
+    | "MARKING"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -9898,6 +10012,7 @@ export interface PublicPlatformSettings {
     | "LEGACY_INGESTION_EXECUTION_TRACE"
     | "OPENAEV_TRIALS_XTMHUB"
     | "CREDENTIAL_ASSET"
+    | "MARKING"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -10133,7 +10248,7 @@ export interface RelatedFindingOutput {
    */
   finding_users?: TargetSimple[];
   /**
-   * Finding Value
+   * Finding value. Masked when the finding type holds secret material: the API never discloses the cleartext value of a sensitive finding.
    * @minLength 1
    */
   finding_value: string;
@@ -10341,6 +10456,9 @@ export interface RoleInput {
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -10418,6 +10536,9 @@ export interface RoleOutput {
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"
@@ -12551,6 +12672,9 @@ export interface User {
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
+    | "ACCESS_MARKING_DEFINITION"
+    | "MANAGE_MARKING_DEFINITION"
+    | "DELETE_MARKING_DEFINITION"
     | "ACCESS_DASHBOARDS"
     | "MANAGE_DASHBOARDS"
     | "DELETE_DASHBOARDS"

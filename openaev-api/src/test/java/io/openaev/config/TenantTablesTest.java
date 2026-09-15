@@ -115,8 +115,8 @@ class TenantTablesTest {
   }
 
   @Test
-  @DisplayName("'*' leaves out every strict table that is deliberately outside v2")
-  void restrictToAllStrictSkipsTablesOutsideV2() {
+  @DisplayName("'*' leaves out every self-isolated strict table")
+  void restrictToAllStrictSkipsSelfIsolatedTables() {
     String graphVersion = tableOf(AttackPathGraphVersion.class);
     String tenants = tableOf(Tenant.class);
     TenantTables model =

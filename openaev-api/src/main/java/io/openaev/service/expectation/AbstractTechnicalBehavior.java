@@ -20,7 +20,9 @@ import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 
 /** Shared behavior for technical expectations (detection/prevention/vulnerability). */
@@ -68,14 +70,15 @@ public abstract class AbstractTechnicalBehavior
 
     Inject inject = executableInject.getInjection().getInject();
     // Detection / prevention expectations can only ever be fulfilled by a security platform
-    // collector: with none able to answer this template's expected platforms, nothing would fill
-    // the expectation, so we create none (neither leaves nor parents). Vulnerability expectations
-    // are fulfilled by the assessment injector itself (e.g. Nuclei), not a collector, so they are
-    // always created regardless (see requiresCollectorToInitialize).
+    // collector. When none is able to answer this template's expected platforms, nothing could ever
+    // fill the expectation, so instead of leaving it pending forever we still create the full tree
+    // but resolve every leaf immediately as a definitive failure (score 0, failure label): nothing
+    // can be detected/prevented when nothing is able to observe it. Vulnerability expectations are
+    // fulfilled by the assessment injector itself (e.g. Nuclei), not a collector, so they never
+    // take
+    // this path (see requiresCollectorToInitialize).
     List<Collector> collectors = resolveCollectors(inject.getTenant().getId(), expectationTemplate);
-    if (requiresCollectorToInitialize() && collectors.isEmpty()) {
-      return;
-    }
+    boolean requiresCollectorToInitialize = computeCollectorMissingAtInit(collectors);
 
     List<TechnicalInjectExpectation> allExpectations = new ArrayList<>();
 
@@ -131,7 +134,9 @@ public abstract class AbstractTechnicalBehavior
                 isAgentExpectation(e) || isAgentlessAssetExpectationNecessary(e.getAsset(), inject))
         .forEach(
             e -> {
-              initializeResults(e, collectors);
+              if (!requiresCollectorToInitialize) {
+                initializeResults(e, collectors);
+              }
               String agentId = e.getAgent() != null ? e.getAgent().getId() : null;
               List<ExpectationSignature> expectationSignatures =
                   computeSignatures(
@@ -142,6 +147,13 @@ public abstract class AbstractTechnicalBehavior
                       injectService.getValueTargetedAssetMap(inject));
               e.setSignatures(convertToInjectExpectationSignatures(expectationSignatures, e));
             });
+    if (requiresCollectorToInitialize) {
+      allExpectations.forEach(
+          e -> {
+            e.setScore(FAILED_SCORE_VALUE);
+            e.setCollectorMissingAtInit(true);
+          });
+    }
     injectExpectationRepository.saveAll(allExpectations);
   }
 
@@ -180,6 +192,10 @@ public abstract class AbstractTechnicalBehavior
     List<Collector> tenantCollectors = collectorService.securityPlatformCollectors(tenantId);
     return filterCollectorsForExpectation(
         tenantCollectors, expectation.getExpectedSecurityPlatforms());
+  }
+
+  private boolean computeCollectorMissingAtInit(List<Collector> resolvedCollectors) {
+    return requiresCollectorToInitialize() && resolvedCollectors.isEmpty();
   }
 
   /**
@@ -255,37 +271,61 @@ public abstract class AbstractTechnicalBehavior
   @Override
   public List<? extends BaseInjectExpectation> recomputeParentScores(
       BaseInjectExpectation expectation) {
-    Inject inject = expectation.getInject();
-    BaseInjectExpectation.EXPECTATION_TYPE type = expectation.getType();
+    if (!(expectation instanceof TechnicalInjectExpectation tech)) {
+      return List.of();
+    }
+    Inject inject = tech.getInject();
+    BaseInjectExpectation.EXPECTATION_TYPE type = tech.getType();
+
+    List<TechnicalInjectExpectation> sameType =
+        inject.getExpectations().stream()
+            .filter(TechnicalInjectExpectation.class::isInstance)
+            .map(TechnicalInjectExpectation.class::cast)
+            .filter(e -> type.equals(e.getType()))
+            .toList();
+
+    Map<String, List<TechnicalInjectExpectation>> agentsByAssetId =
+        sameType.stream()
+            .filter(ExpectationUtils::isAgentExpectation)
+            .filter(e -> e.getAsset() != null)
+            .collect(Collectors.groupingBy(e -> e.getAsset().getId()));
+
+    Map<String, List<TechnicalInjectExpectation>> assetsByAssetGroupId =
+        sameType.stream()
+            .filter(ExpectationUtils::isAssetExpectation)
+            .filter(e -> e.getAssetGroup() != null)
+            .collect(Collectors.groupingBy(e -> e.getAssetGroup().getId()));
 
     List<TechnicalInjectExpectation> updatedParents = new ArrayList<>();
-    updatedParents.addAll(
-        recomputeLevel(
-            getAssetsExpectationsByInjectAndType(inject, type),
-            ExpectationUtils::getAgentsExpectationsForAsset));
-    updatedParents.addAll(
-        recomputeLevel(
-            getAssetGroupsExpectationsByInjectAndType(inject, type),
-            ExpectationUtils::getAssetsExpectationsOfAssetGroup));
+    sameType.stream()
+        .filter(ExpectationUtils::isAssetExpectation)
+        .forEach(
+            asset ->
+                recomputeParent(
+                        asset, agentsByAssetId.getOrDefault(asset.getAsset().getId(), List.of()))
+                    .ifPresent(updatedParents::add));
+    sameType.stream()
+        .filter(ExpectationUtils::isAssetGroupExpectation)
+        .forEach(
+            group ->
+                recomputeParent(
+                        group,
+                        assetsByAssetGroupId.getOrDefault(group.getAssetGroup().getId(), List.of()))
+                    .ifPresent(updatedParents::add));
     return updatedParents;
   }
 
-  private List<TechnicalInjectExpectation> recomputeLevel(
-      List<TechnicalInjectExpectation> parents,
-      Function<TechnicalInjectExpectation, List<TechnicalInjectExpectation>> childrenResolver) {
-    List<TechnicalInjectExpectation> updated = new ArrayList<>();
-    for (TechnicalInjectExpectation parent : parents) {
-      List<TechnicalInjectExpectation> children = childrenResolver.apply(parent);
-      if (!children.isEmpty()) {
-        Double score =
-            computeChildrenScore(parent.isExpectationGroup(), parent.getExpectedScore(), children);
-        // A definitive direct VULNERABLE verdict written on the parent row (e.g. by an assessment
-        // injector such as Nuclei) must survive the children rollup.
-        parent.setScore(reconcileWithDirectVulnerableVerdict(parent, score));
-        updated.add(parent);
-      }
+  private Optional<TechnicalInjectExpectation> recomputeParent(
+      TechnicalInjectExpectation parent, List<TechnicalInjectExpectation> children) {
+    if (children.isEmpty()) {
+      return Optional.empty();
     }
-    return updated;
+    Double score =
+        computeChildrenScore(parent.isExpectationGroup(), parent.getExpectedScore(), children);
+    // A definitive direct VULNERABLE verdict written on the parent row (e.g. by an assessment
+    // injector such as Nuclei) must survive the children rollup.
+    parent.setScore(reconcileWithDirectVulnerableVerdict(parent, score));
+    return Optional.of(parent);
   }
 
   // -- END RECOMPUTE PARENT SCORE

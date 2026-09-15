@@ -22,7 +22,7 @@ import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollecto
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
 import io.openaev.utils.IpAddressUtils;
-import io.openaev.utils.PrimitiveValueMaskingUtils;
+import io.openaev.utils.SensitiveValueMaskingUtils;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -726,7 +726,7 @@ public class WorkflowService {
    */
   private String resolveScopeVariableValueForPersistence(
       ScopeVariable existing, ScopeVariableInput input) {
-    if (PrimitiveValueMaskingUtils.isMaskedRepresentationOfCurrentValue(
+    if (SensitiveValueMaskingUtils.isMaskedRepresentationOfCurrentValue(
         existing.getType(), existing.getValue(), input.getValue())) {
       return existing.getValue();
     }
