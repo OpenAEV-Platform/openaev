@@ -237,6 +237,73 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName(
+      "POST create via the non-prefixed route with one header id stamps that tenant (operator, not"
+          + " the default)")
+  void createViaPlainHeaderRouteStampsHeaderTenant() throws Exception {
+    // The operator fix: on the non-prefixed route a normal user selecting one tenant through
+    // X-Tenant-Ids must get that tenant as the ambient one, so the auto-provisioned scenario (a v1
+    // entity stamped from the ambient tenant) lands in it and the run attribution validates. Before
+    // the interceptor covered this route the ambient stayed default, the scenario landed in the
+    // default tenant, and attributeRunTenant refused the write (400: the default tenant is outside
+    // the {tenantA} request scope).
+    String response =
+        mvc.perform(
+                post(PLAIN)
+                    .with(csrf())
+                    .header("X-Tenant-Ids", tenantA)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"objective\": \"Own the file server\", \"plan_mode\": true}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.autonomous_run_id").exists())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String createdRunId = JsonPath.read(response, "$.autonomous_run_id");
+
+    assertThat(rawTenantId("autonomous_runs", "autonomous_run_id", createdRunId))
+        .isEqualTo(tenantA);
+    assertThat(rawTenantId("autonomous_events", "autonomous_event_run_id", createdRunId))
+        .isEqualTo(tenantA);
+  }
+
+  @Test
+  @DisplayName(
+      "POST event as the verified service identity with a single header id it is NOT a member of"
+          + " still records the event, stamped from the parent run (the header is never adopted)")
+  void recordEventFromServiceIdentityWithNonMemberHeaderStampsParentRunTenant() throws Exception {
+    // The interceptor now covers the non-prefixed autonomous route, but must leave the ambient
+    // tenant to OrchestratorRunTenantInterceptor for the verified service identity. Here the
+    // service
+    // caller sends a single X-Tenant-Ids naming a tenant it is NOT a member of: were the
+    // interceptor
+    // to treat it as a normal header caller it would 403 on the membership check before the run
+    // derivation runs. The service-caller gate skips it, the run's own tenant is set, and the event
+    // is recorded and stamped with the parent run's tenant (tenantA).
+    String foreignTenant = tenantHelper.createTenant("auto-iso-nonmember").getId();
+    String userId = testUserHolder.get().getId();
+    tenantRepository.removeUserFromTenant(userId, foreignTenant);
+    tenantMembershipCacheManager.evict(userId, foreignTenant);
+
+    String response =
+        mvc.perform(
+                asVerifiedServiceIdentity(post(PLAIN + "/{runId}/events", runId))
+                    .with(csrf())
+                    .header("X-Tenant-Ids", foreignTenant)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"type\": \"DECISION\", \"title\": \"non-member header append\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.autonomous_event_id").exists())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String createdEventId = JsonPath.read(response, "$.autonomous_event_id");
+
+    assertThat(rawTenantId("autonomous_events", "autonomous_event_id", createdEventId))
+        .isEqualTo(tenantA);
+  }
+
+  @Test
   @DisplayName("POST event on the orchestrator's route stamps the parent run's tenant")
   void recordEventViaCallbackRouteStampsParentRunTenant() throws Exception {
     // The exact callback write AutonomousEventService#doAppend serves: the tenant must come from

@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -186,6 +187,37 @@ class HeaderTenantContextHttpIsolationTest extends IntegrationTest {
     assertTrue(
         searchContains(null, extDefault, vulnDefault),
         "the following request must read the default tenant");
+  }
+
+  @Test
+  @DisplayName(
+      "a header-scoped response varies by X-Tenant-Ids and stays no-store, so a shared cache cannot"
+          + " serve one tenant's rows to another")
+  void headerScopedResponseVariesByTenantAndStaysNoStore() throws Exception {
+    resetScope();
+    var response =
+        mvc.perform(
+                post(VULNERABILITIES + "/search")
+                    .header(HEADER, tenantB)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(PaginationFixture.simpleTextSearch(extB)))
+                    .with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse();
+
+    assertTrue(
+        response.getHeaders(HttpHeaders.VARY).contains(HEADER),
+        "a response whose scope follows X-Tenant-Ids must Vary by it");
+    // Spring Security leaves its default Cache-Control (no-store) in force globally
+    // (AppSecurityConfig
+    // never calls cacheControl().disable()), so these tenant-scoped responses are not cacheable by
+    // a
+    // shared/CDN cache in the first place: the Vary above is defence in depth, not the only guard.
+    String cacheControl = response.getHeader(HttpHeaders.CACHE_CONTROL);
+    assertTrue(
+        cacheControl != null && cacheControl.contains("no-store"),
+        "API responses must carry a no-store Cache-Control, got: " + cacheControl);
   }
 
   /**
