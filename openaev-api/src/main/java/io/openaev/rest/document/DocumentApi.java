@@ -26,6 +26,7 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChannelService;
 import io.openaev.service.FileService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -198,9 +199,12 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
   public Document document(TxCtx ctx, @PathVariable String documentId) {
-    return documentRepository
-        .findById(documentId)
-        .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    Document document =
+        documentRepository
+            .findById(documentId)
+            .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    assertDocumentInRequestScope(ctx, document);
+    return document;
   }
 
   @GetMapping({DOCUMENT_API + "/{documentId}/tags", TENANT_DOCUMENT_API + "/{documentId}/tags"})
@@ -214,6 +218,7 @@ public class DocumentApi extends RestBehavior {
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    assertDocumentInRequestScope(ctx, document);
     return document.getTags();
   }
 
@@ -225,12 +230,15 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public Document documentTags(
       TxCtx ctx, @PathVariable String documentId, @RequestBody DocumentTagUpdateInput input) {
-    // Report generation outputs are read-only here (owned by the Reporting module).
-    documentService.assertNotReportingGenerationOutput(documentId);
     Document document =
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    assertDocumentInRequestScope(ctx, document);
+    // Report generation outputs are read-only here (owned by the Reporting module). Checked after
+    // the request-scope guard so a caller outside the document's tenant gets the same 404 as for an
+    // ordinary document, not the 400 that discloses the id is a report output.
+    documentService.assertNotReportingGenerationOutput(documentId);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     return documentService.save(document);
   }
@@ -243,12 +251,15 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public Document updateDocumentInformation(
       TxCtx ctx, @PathVariable String documentId, @Valid @RequestBody DocumentUpdateInput input) {
-    // Report generation outputs are read-only here (owned by the Reporting module).
-    documentService.assertNotReportingGenerationOutput(documentId);
     Document document =
         documentRepository
             .findById(documentId)
             .orElseThrow(() -> new ElementNotFoundException("Document not found"));
+    assertDocumentInRequestScope(ctx, document);
+    // Report generation outputs are read-only here (owned by the Reporting module). Checked after
+    // the request-scope guard so a caller outside the document's tenant gets the same 404 as for an
+    // ordinary document, not the 400 that discloses the id is a report output.
+    documentService.assertNotReportingGenerationOutput(documentId);
     document.setUpdateAttributes(input);
     document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
 
@@ -308,12 +319,16 @@ public class DocumentApi extends RestBehavior {
       resourceType = ResourceType.DOCUMENT)
   public ResponseEntity<InputStreamResource> downloadDocument(
       TxCtx ctx, @PathVariable String documentId) {
-    return buildDocumentDownloadResponse(documentId);
+    Document document = documentService.document(documentId);
+    assertDocumentInRequestScope(ctx, document);
+    return buildDocumentDownloadResponse(document);
   }
 
   private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(String documentId) {
-    Document document = documentService.document(documentId);
+    return buildDocumentDownloadResponse(documentService.document(documentId));
+  }
 
+  private ResponseEntity<InputStreamResource> buildDocumentDownloadResponse(Document document) {
     String encodedFilename = DocumentService.encodeFileName(document.getName());
     InputStream in =
         fileService
@@ -447,7 +462,9 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.DOCUMENT)
   public DocumentRelationsOutput getDocumentRelations(TxCtx ctx, @PathVariable String documentId) {
-    return toDocumentRelationsOutput(documentService.document(documentId));
+    Document document = documentService.document(documentId);
+    assertDocumentInRequestScope(ctx, document);
+    return toDocumentRelationsOutput(document);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -457,7 +474,37 @@ public class DocumentApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.DOCUMENT)
   public void deleteDocument(TxCtx ctx, @PathVariable String documentId) {
+    assertDocumentInRequestScope(ctx, documentService.document(documentId));
     documentService.deleteDocument(documentId);
+  }
+
+  /**
+   * Refuses access to a document whose tenant is outside the request scope, with the same 404 as a
+   * missing document. The row is loaded through a primary-key {@code findById}, which is exempt
+   * from the Hibernate tenant filter, and {@code @AccessControl(DOCUMENT, ...)} is a capability
+   * check, not a tenant compare: without this guard a caller scoped to one tenant could reach or
+   * modify another tenant's document by id.
+   *
+   * <p>A request that narrows to an explicit tenant set (a path tenant) is held to it. A request
+   * with no scope at all (no selector and no membership, for example an admin without membership
+   * used by existing tests) falls back to the ambient tenant, the same boundary the Hibernate
+   * {@code tenantFilter} applies to such requests, so unscoped and same-tenant callers keep today's
+   * behaviour. A document with no tenant is a platform asset with no boundary and is always
+   * allowed.
+   */
+  private void assertDocumentInRequestScope(TxCtx ctx, Document document) {
+    Tenant tenant = document.getTenant();
+    if (tenant == null || tenant.getId() == null) {
+      return;
+    }
+    Set<String> scope = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scope.isEmpty()) {
+      String ambient = TenantContext.getCurrentTenant();
+      scope = ambient == null ? Set.of() : Set.of(ambient);
+    }
+    if (!scope.isEmpty() && !scope.contains(tenant.getId())) {
+      throw new ElementNotFoundException("Document not found");
+    }
   }
 
   // -- EXERCISE & SENARIO--
