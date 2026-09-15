@@ -72,13 +72,15 @@ const DeployButton = ({ onDeployBtnClick, style = {}, deploymentCount }: Props) 
         // rocket icon + EE chip otherwise - never greyed-out.
         variant={isEnterpriseEdition ? 'contained' : 'outlined'}
         sx={{
-          height: 26,
-          textTransform: 'none',
+          'height': 26,
+          'textTransform': 'none',
+          // The marker is a flex item of the end slot: centred on the label, not on a line box.
+          '& .MuiButton-endIcon': { alignItems: 'center' },
         }}
         size="small"
         onClick={onDeployClickAction}
         startIcon={isEnterpriseEdition ? null : <RocketLaunchOutlined />}
-        endIcon={isEnterpriseEdition ? null : <span><EEChip /></span>}
+        endIcon={isEnterpriseEdition ? null : <EEChip />}
       >
         {t('Deploy')}
       </Button>
