@@ -929,6 +929,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
         emptyList(),
         List.of(savedEndpoint),
         List.of(savedAssetGroup),
+        emptyList(),
         emptyList());
   }
 
@@ -940,6 +941,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
         emptyList(),
         List.of(savedAgentlessAsset),
         List.of(savedAssetGroup),
+        emptyList(),
         emptyList());
   }
 }
