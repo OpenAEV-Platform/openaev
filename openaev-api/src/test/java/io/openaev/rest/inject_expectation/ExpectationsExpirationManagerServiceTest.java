@@ -238,6 +238,7 @@ public class ExpectationsExpirationManagerServiceTest extends IntegrationTest {
               emptyList(),
               emptyList(),
               List.of(leafAssetGroup),
+              emptyList(),
               emptyList());
       Expectation expectation =
           createExpectation(
