@@ -39,7 +39,6 @@ public interface StepDelayQueueRepository extends JpaRepository<StepDelayQueue, 
       value =
           """
           INSERT INTO steps_delay_queue (
-            steps_delay_queue_id,
             steps_delay_queue_input,
             steps_delay_queue_now,
             steps_delay_queue_goal,
@@ -49,7 +48,6 @@ public interface StepDelayQueueRepository extends JpaRepository<StepDelayQueue, 
             steps_delay_queue_created_at,
             steps_delay_queue_updated_at
           ) VALUES (
-            :id,
             :input,
             :now,
             :goal,
@@ -73,7 +71,6 @@ public interface StepDelayQueueRepository extends JpaRepository<StepDelayQueue, 
           """,
       nativeQuery = true)
   void upsertByWorkflowRunStepTemplateAndInput(
-      @Param("id") String id,
       @Param("input") String input,
       @Param("now") Instant now,
       @Param("goal") Instant goal,

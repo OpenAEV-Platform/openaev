@@ -52,13 +52,7 @@ public class StepDelayQueueService {
         delay,
         goal);
     stepDelayQueueRepository.upsertByWorkflowRunStepTemplateAndInput(
-        UUID.randomUUID().toString(),
-        input,
-        now,
-        goal,
-        delay,
-        stepTemplate.getId(),
-        workflowRun.getId());
+        input, now, goal, delay, stepTemplate.getId(), workflowRun.getId());
   }
 
   /**

@@ -1,6 +1,5 @@
 package io.openaev.service.chaining;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -40,6 +39,6 @@ class StepDelayQueueServiceTest {
     // Assert
     verify(stepDelayQueueRepository)
         .upsertByWorkflowRunStepTemplateAndInput(
-            any(), eq("input"), eq(now), eq(goal), eq(5000L), eq("step-id"), eq("workflow-id"));
+            eq("input"), eq(now), eq(goal), eq(5000L), eq("step-id"), eq("workflow-id"));
   }
 }
