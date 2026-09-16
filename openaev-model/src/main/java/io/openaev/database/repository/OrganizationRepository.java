@@ -38,8 +38,7 @@ public interface OrganizationRepository
               + "LEFT JOIN injects_teams ON injects_teams.team_id = teams.team_id "
               + "LEFT JOIN injects ON (injects.inject_id = injects_teams.inject_id OR injects.inject_all_teams) "
               + "AND injects.tenant_id = org.tenant_id "
-              + "WHERE org.tenant_id = :#{#tenantContext.currentTenant} "
-              + "AND org.tenant_id IN (:tenantIds) "
+              + "WHERE org.tenant_id IN (:tenantIds) "
               + "GROUP BY org.organization_id",
       nativeQuery = true)
   List<RawOrganization> rawAll(@Param("tenantIds") Set<String> tenantIds);
