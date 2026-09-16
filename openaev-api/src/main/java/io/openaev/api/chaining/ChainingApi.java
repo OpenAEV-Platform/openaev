@@ -8,6 +8,7 @@ import static org.springframework.util.StringUtils.hasText;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.chaining.dto.ChainingOutput;
 import io.openaev.api.chaining.dto.EventOutput;
+import io.openaev.api.chaining.dto.PrimitiveTypeDescriptorOutput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.config.TenantWriteScopeResolver;
@@ -54,6 +55,7 @@ public class ChainingApi extends RestBehavior {
   public static final String CHAINING_URI = "/chaining";
   public static final String SIMULATION_URI = "/simulations";
   public static final String SCENARIO_URI = "/scenarios";
+  public static final String PRIMITIVE_TYPES_URI = "/primitive-types";
   public static final String TENANT_CHAINING_URI = TENANT_PREFIX + CHAINING_URI;
 
   private final ExerciseService exerciseService;
@@ -86,6 +88,26 @@ public class ChainingApi extends RestBehavior {
         stepService.findAllStepTemplates().stream().map(StepMapper::toOutput).toList();
 
     return new ChainingOutput(conditions, steps);
+  }
+
+  @Operation(
+      summary = "Get the descriptors of every primitive chaining type",
+      description =
+          "Returns, for each primitive type, the operators it supports and the format rules its"
+              + " values must satisfy. Lets the condition editor and the scope page offer the right"
+              + " operators and validate values without restating any backend rule.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "Primitive type descriptors retrieved")
+  })
+  // Static, tenant-independent, non-sensitive metadata: it describes the shape of a value, never
+  // any tenant data. Gating it behind a resource permission would make the condition editor and
+  // the scope page depend on an unrelated grant (the existing /argument-types/ endpoint requires
+  // SEARCH on THREAT_ARSENAL, which neither page has any reason to hold).
+  @AccessControl(skipRBAC = true)
+  @Transactional(readOnly = true)
+  @GetMapping(PRIMITIVE_TYPES_URI)
+  public List<PrimitiveTypeDescriptorOutput> primitiveTypeDescriptors(TxCtx ctx) {
+    return PrimitiveTypeDescriptorMapper.toOutputs();
   }
 
   // CREATE SIMULATION

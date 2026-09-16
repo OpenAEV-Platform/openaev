@@ -1,6 +1,14 @@
 import { z } from 'zod';
 
 import type { ConditionCreateInput } from '../../../../../utils/api-types';
+import {
+  capabilitiesOf,
+  type DescriptorsByPrimitiveType,
+  EMPTY_DESCRIPTORS,
+  getPrimitiveFormatError,
+  UNEXPECTED_FORMAT_ERROR,
+  validationOf,
+} from '../primitive-types';
 
 export type ConditionKeyType = string;
 
@@ -27,50 +35,88 @@ export const CASE_SENSITIVE_OPERATORS: ComparisonOperator[] = ['EQ', 'NEQ', 'IN'
 // a non-numeric expected value can never match, so it must be rejected at input time.
 export const NUMERIC_OPERATORS: ComparisonOperator[] = ['GT', 'GTE', 'LT', 'LTE'];
 
-// PrimitiveType labels (backend enum) that only ever hold numeric values
-export const NUMERIC_FIELD_TYPES: ConditionKeyType[] = ['number', 'port'];
+// Which operators a field offers, whether its value must be numeric and whether the case toggle is
+// meaningful all come from the backend descriptor (`GET /api/chaining/primitive-types`). Hardcoding
+// them here is what previously let the UI offer `>` on `severity`, an operator the backend
+// evaluates with Double.parseDouble and that could therefore never match.
 
-export const ORDERED_FIELD_TYPES: ConditionKeyType[] = [...NUMERIC_FIELD_TYPES, 'severity'];
+export const isNumericField = (
+  field: ConditionKeyType,
+  descriptorsByType: DescriptorsByPrimitiveType,
+): boolean => capabilitiesOf(field, descriptorsByType).numeric_value === true;
 
-export const isNumericField = (field: ConditionKeyType): boolean => NUMERIC_FIELD_TYPES.includes(field);
+/** Whether the case-sensitivity toggle carries any meaning for this field. */
+export const supportsCaseSensitivity = (
+  field: ConditionKeyType,
+  descriptorsByType: DescriptorsByPrimitiveType,
+): boolean => capabilitiesOf(field, descriptorsByType).case_sensitivity !== false;
 
-export const supportsOrdering = (field: ConditionKeyType): boolean => ORDERED_FIELD_TYPES.includes(field);
+/**
+ * Case sensitivity to store for a field, given the one currently set.
+ *
+ * Forced off on a type whose values carry no case: the toggle is hidden there, so leaving it on
+ * would apply a strictness the user can no longer see nor undo - `D41D8C...` would stop matching
+ * `d41d8c...` on the very type where both denote the same digest.
+ */
+export const resolveCaseSensitive = (
+  field: ConditionKeyType,
+  caseSensitive: boolean,
+  descriptorsByType: DescriptorsByPrimitiveType,
+): boolean => supportsCaseSensitivity(field, descriptorsByType) && caseSensitive;
 
-/** Operators offered for a given field: ordering comparisons are hidden on non-numeric fields. */
-export const getAvailableOperators = (field: ConditionKeyType): ComparisonOperator[] =>
-  COMPARISON_OPERATORS.filter(operator => supportsOrdering(field) || !NUMERIC_OPERATORS.includes(operator));
+/** Operators offered for a given field: comparisons are hidden on non-numeric fields. */
+export const getAvailableOperators = (
+  field: ConditionKeyType,
+  descriptorsByType: DescriptorsByPrimitiveType,
+): ComparisonOperator[] =>
+  COMPARISON_OPERATORS.filter(operator => isNumericField(field, descriptorsByType) || !NUMERIC_OPERATORS.includes(operator));
 
 /** Falls back to the first available operator when the current one is not valid for the field. */
 export const resolveOperator = (
   field: ConditionKeyType,
   operator: ComparisonOperator,
+  descriptorsByType: DescriptorsByPrimitiveType,
 ): ComparisonOperator => {
-  const available = getAvailableOperators(field);
+  const available = getAvailableOperators(field, descriptorsByType);
   return available.includes(operator) ? operator : available[0];
 };
+
+// Operators whose value is not a single operand: the backend splits them on commas and matches
+// each item with `contains` (ConditionUtils#handleInComparison), so a partial value such as `10.0.`
+// or a list such as `8,44` is a legitimate input and no format may be applied to it.
+export const MULTI_VALUE_OPERATORS: ComparisonOperator[] = ['IN', 'NIN'];
 
 /** A value must be numeric when either the inspected field or the operator is numeric. */
 export const requiresNumericValue = (
   field: ConditionKeyType,
   operator: ComparisonOperator,
-): boolean => !UNARY_OPERATORS.includes(operator)
-  && (isNumericField(field) || NUMERIC_OPERATORS.includes(operator));
+  descriptorsByType: DescriptorsByPrimitiveType,
+): boolean => {
+  if (UNARY_OPERATORS.includes(operator)) return false;
+  // A numeric operator is numeric whatever the field: the backend parses both operands as doubles.
+  if (NUMERIC_OPERATORS.includes(operator)) return true;
+  // A numeric field only constrains a single operand, never a comma-separated list.
+  return !MULTI_VALUE_OPERATORS.includes(operator) && isNumericField(field, descriptorsByType);
+};
 
 // -- Expected value validation --
 export const CONDITION_VALUE_ERRORS = {
   required: 'This field is required.',
   number: 'The value should be a number',
+  // Fallback only: the backend ships a stable key per rule, which the UI translates as-is.
+  format: UNEXPECTED_FORMAT_ERROR,
 } as const;
 
 const NUMBER_PATTERN = /^-?\d+(?:\.\d+)?$/;
 
 /**
  * Builds the zod schema validating the "Expected Value" of a single condition.
- * The rules depend on the inspected field and on the selected operator.
+ * The rules depend on the inspected field, on the selected operator and on the backend descriptor.
  */
 export const buildConditionValueSchema = (
   field: ConditionKeyType,
   operator: ComparisonOperator,
+  descriptorsByType: DescriptorsByPrimitiveType = EMPTY_DESCRIPTORS,
 ) => z.string().superRefine((rawValue, ctx) => {
   // Unary operators (IS_NULL / IS_NOT_NULL) take no value
   if (UNARY_OPERATORS.includes(operator)) return;
@@ -84,14 +130,30 @@ export const buildConditionValueSchema = (
     return;
   }
 
-  if (!requiresNumericValue(field, operator)) return;
-
-  if (!NUMBER_PATTERN.test(value)) {
+  // The numeric rule is checked first and on its own: the backend compares these operands with
+  // Double.parseDouble, so a non-numeric value could never match whatever the type's format says.
+  if (requiresNumericValue(field, operator, descriptorsByType) && !NUMBER_PATTERN.test(value)) {
     ctx.addIssue({
       code: 'custom',
       message: CONDITION_VALUE_ERRORS.number,
     });
+    return;
   }
+
+  // The type's own format still applies on top, for the operators it declares. Comparison
+  // operators are absent from `applies_to`, so they stop at the numeric check above.
+  // `applies_to` deliberately excludes IN / NIN: the backend splits those on commas and matches
+  // each item with `contains`, so a partial value such as `10.0.` is a legitimate input.
+  const operatorIsValidated = (validationOf(field, descriptorsByType)?.applies_to ?? []).includes(operator);
+  if (!operatorIsValidated) return;
+
+  const formatError = getPrimitiveFormatError(field, value, descriptorsByType);
+  if (!formatError) return;
+
+  ctx.addIssue({
+    code: 'custom',
+    message: formatError,
+  });
 });
 
 /** Returns the (untranslated) error message for a condition value, or undefined when valid. */
@@ -99,8 +161,9 @@ export const getConditionValueError = (
   field: ConditionKeyType,
   operator: ComparisonOperator,
   value: string,
+  descriptorsByType: DescriptorsByPrimitiveType = EMPTY_DESCRIPTORS,
 ): string | undefined => {
-  const result = buildConditionValueSchema(field, operator).safeParse(value);
+  const result = buildConditionValueSchema(field, operator, descriptorsByType).safeParse(value);
   return result.success ? undefined : result.error.issues[0]?.message;
 };
 
@@ -146,24 +209,33 @@ export interface EventFormData {
 }
 
 // -- Validation helpers --
-export const isConditionValid = (condition: EventCondition): boolean => {
+export const isConditionValid = (
+  condition: EventCondition,
+  descriptorsByType: DescriptorsByPrimitiveType = EMPTY_DESCRIPTORS,
+): boolean => {
   if (!condition.field) return false;
   if (!condition.operator) return false;
-  return getConditionValueError(condition.field, condition.operator, condition.value) === undefined;
+  return getConditionValueError(condition.field, condition.operator, condition.value, descriptorsByType) === undefined;
 };
 
-export const isGroupValid = (group: ConditionGroup): boolean => {
+export const isGroupValid = (
+  group: ConditionGroup,
+  descriptorsByType: DescriptorsByPrimitiveType = EMPTY_DESCRIPTORS,
+): boolean => {
   const hasValidConditions = group.conditions.length > 0
-    && group.conditions.every(isConditionValid);
+    && group.conditions.every(condition => isConditionValid(condition, descriptorsByType));
   const hasValidSubGroups = group.subGroups.length === 0
-    || group.subGroups.every(isGroupValid);
+    || group.subGroups.every(subGroup => isGroupValid(subGroup, descriptorsByType));
   return (hasValidConditions || group.subGroups.length > 0) && hasValidSubGroups;
 };
 
-export const isEventFormValid = (data: EventFormData): boolean => {
+export const isEventFormValid = (
+  data: EventFormData,
+  descriptorsByType: DescriptorsByPrimitiveType = EMPTY_DESCRIPTORS,
+): boolean => {
   if (!data.name.trim()) return false;
   if (data.conditionGroups.length === 0) return false;
-  return data.conditionGroups.every(isGroupValid);
+  return data.conditionGroups.every(group => isGroupValid(group, descriptorsByType));
 };
 
 // -- Conversion helpers --
@@ -228,10 +300,13 @@ export const conditionGroupsToApi = (
 
 export const generateId = (): string => `tmp_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
+// EQ rather than IN: IN is a substring match on a comma-separated list, so no format rule may be
+// applied to it. Starting on EQ makes the format of the selected field validated from the first
+// keystroke instead of only once the user happens to change the operator.
 export const createEmptyCondition = (): EventCondition => ({
   id: generateId(),
   field: 'text',
-  operator: 'IN',
+  operator: 'EQ',
   value: '',
   caseSensitive: true,
 });

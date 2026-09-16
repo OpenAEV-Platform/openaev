@@ -14,6 +14,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.AlreadyExistingException;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -21,7 +22,8 @@ import io.openaev.service.LessonsService;
 import io.openaev.telemetry.metric_collectors.ChainingSafetyPolicyMetricCollector;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.telemetry.metric_collectors.ScopeMetricCollector;
-import io.openaev.utils.IpAddressUtils;
+import io.openaev.validator.IpAddressUtils;
+import io.openaev.validator.primitive.PrimitiveFormatValidator;
 import io.openaev.utils.SensitiveValueMaskingUtils;
 import jakarta.validation.constraints.NotBlank;
 import java.util.*;
@@ -662,6 +664,7 @@ public class WorkflowService {
 
     for (ScopeVariableInput input : variableInputs) {
       if (input.getId() == null) {
+        assertScopeVariableValueFormat(input.getType(), input.getValue());
         existing.add(buildScopeVariable(input, workflow));
         changed = true;
       } else {
@@ -710,10 +713,34 @@ public class WorkflowService {
 
   private void updateScopeVariable(ScopeVariable existing, ScopeVariableInput input) {
     String resolvedValue = resolveScopeVariableValueForPersistence(existing, input);
+    assertScopeVariableValueFormat(input.getType(), resolvedValue);
     existing.setKey(input.getKey());
     existing.setType(input.getType());
     existing.setValue(resolvedValue);
     existing.setDescription(input.getDescription());
+  }
+
+  /**
+   * Rejects a scope variable whose value does not match the format of its declared type.
+   *
+   * <p>A variable carries a single exact value, so the format applies unconditionally - unlike a
+   * condition, where the operator decides (IN / NIN are substring matches, IS_NULL carries no
+   * value). {@link ConditionType#EQ} expresses exactly that contract.
+   *
+   * <p>Must be called on the <em>resolved</em> value, never on the raw payload: a masked value sent
+   * back unchanged by the frontend ({@code 1******1}) would otherwise be rejected even though the
+   * stored value is perfectly valid.
+   *
+   * @throws BadRequestException if the value does not satisfy the type's format
+   */
+  private void assertScopeVariableValueFormat(PrimitiveType type, String value) {
+    if (PrimitiveFormatValidator.isAccepted(type, ConditionType.EQ, value)) {
+      return;
+    }
+    throw new BadRequestException(
+        "The value of a '"
+            + type.label
+            + "' variable does not match the expected format for that type.");
   }
 
   /**
