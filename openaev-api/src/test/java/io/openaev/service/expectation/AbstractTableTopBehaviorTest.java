@@ -76,7 +76,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(team), List.of(), List.of(), List.of());
+              false, false, inject, List.of(team), List.of(), List.of(), List.of(), List.of());
       Article article =
           articleComposer
               .forArticle(ArticleFixture.getDefaultArticle())
@@ -146,7 +146,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
               .get();
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(team), List.of(), List.of(), List.of());
+              false, false, inject, List.of(team), List.of(), List.of(), List.of(), List.of());
 
       ArticleInjectExpectation template = new ArticleInjectExpectation();
       template.setInject(inject);
@@ -192,7 +192,14 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(team1, team2), List.of(), List.of(), List.of());
+              false,
+              false,
+              inject,
+              List.of(team1, team2),
+              List.of(),
+              List.of(),
+              List.of(),
+              List.of());
 
       ArticleInjectExpectation template = new ArticleInjectExpectation();
       template.setInject(inject);
@@ -226,7 +233,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(team), List.of(), List.of(), List.of());
+              false, false, inject, List.of(team), List.of(), List.of(), List.of(), List.of());
       Article article =
           articleComposer
               .forArticle(ArticleFixture.getDefaultArticle())
@@ -292,7 +299,7 @@ class AbstractTableTopBehaviorTest extends IntegrationTest {
 
       ExecutableInject executableInject =
           new ExecutableInject(
-              false, false, inject, List.of(team), List.of(), List.of(), List.of());
+              false, false, inject, List.of(team), List.of(), List.of(), List.of(), List.of());
       Article article =
           articleComposer
               .forArticle(ArticleFixture.getDefaultArticle())

@@ -32,6 +32,7 @@ import io.openaev.database.repository.*;
 import io.openaev.database.specification.InjectSpecification;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.execution.ExecutableInject;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.enums.ExternalServiceDependency;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -46,7 +47,6 @@ import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.LicenseRestrictionException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
@@ -1645,14 +1645,15 @@ public class InjectService {
   /**
    * Creates and stores a fresh authorisation code when the inject carries secret references.
    *
-   * @param inject the inject for which an authorisation may be required
+   * @param executableInject the executable inject to check for secret references
    * @return the raw authorisation code, or {@code null} when the inject has no secret references
    */
-  public String getAuthorisationCodeIfNeeded(Inject inject) {
-    if (inject.getSecretReferences() == null || inject.getSecretReferences().isEmpty()) {
+  public String getAuthorisationCodeIfNeeded(ExecutableInject executableInject) {
+    if (executableInject.getSecretReferenceIds() == null
+        || executableInject.getSecretReferenceIds().isEmpty()) {
       return null;
     }
-
+    Inject inject = executableInject.getInjection().getInject();
     String rawCode = UUID.randomUUID().toString();
     String hashedCode = AUTHORISATION_CODE_ENCODER.encode(rawCode);
 

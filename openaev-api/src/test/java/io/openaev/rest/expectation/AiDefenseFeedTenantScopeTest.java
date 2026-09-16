@@ -134,6 +134,7 @@ class AiDefenseFeedTenantScopeTest extends IntegrationTest {
             emptyList(),
             List.of(agentlessEndpoint),
             emptyList(),
+            emptyList(),
             emptyList());
     Expectation templateDetectionExpectation =
         ExpectationFixture.createExpectation(

@@ -23,6 +23,7 @@ public class ExecutableInject {
   private final String exerciseId;
   private final List<Asset> assets;
   private final List<AssetGroup> assetGroups;
+  private final List<String> secretReferenceIds;
   private final List<ExecutionContext> users;
   private final boolean chainingExecution;
   private final String stepId;
@@ -43,8 +44,19 @@ public class ExecutableInject {
       List<Team> teams,
       List<Asset> assets,
       List<AssetGroup> assetGroups,
+      List<SecretReference> secretReferences,
       List<ExecutionContext> users) {
-    this(runtime, direct, injection, teams, assets, assetGroups, users, false, null);
+    this(
+        runtime,
+        direct,
+        injection,
+        teams,
+        assets,
+        assetGroups,
+        secretReferences,
+        users,
+        false,
+        null);
   }
 
   public ExecutableInject(
@@ -54,9 +66,20 @@ public class ExecutableInject {
       List<Team> teams,
       List<Asset> assets,
       List<AssetGroup> assetGroups,
+      List<SecretReference> secretReferences,
       List<ExecutionContext> users,
       boolean chainingExecution) {
-    this(runtime, direct, injection, teams, assets, assetGroups, users, chainingExecution, null);
+    this(
+        runtime,
+        direct,
+        injection,
+        teams,
+        assets,
+        assetGroups,
+        secretReferences,
+        users,
+        chainingExecution,
+        null);
   }
 
   /**
@@ -72,6 +95,7 @@ public class ExecutableInject {
       List<Team> teams,
       List<Asset> assets,
       List<AssetGroup> assetGroups,
+      List<SecretReference> secretReferences,
       List<ExecutionContext> users,
       boolean chainingExecution,
       String stepId) {
@@ -88,13 +112,18 @@ public class ExecutableInject {
     this.assets.forEach(asset -> Hibernate.initialize(asset.getTags()));
     this.assetGroups = assetGroups;
     this.assetGroups.forEach(assetGroup -> Hibernate.initialize(assetGroup.getTags()));
+    this.secretReferenceIds =
+        secretReferences != null
+            ? secretReferences.stream().map(SecretReference::getId).toList()
+            : List.of();
     this.teamSize = teams.size();
     this.documentSize = injection.getInject().getDocuments().size();
   }
 
   public ExecutableInject(
       boolean runtime, boolean direct, Injection injection, List<ExecutionContext> users) {
-    this(runtime, direct, injection, List.of(), List.of(), List.of(), users, false, null);
+    this(
+        runtime, direct, injection, List.of(), List.of(), List.of(), List.of(), users, false, null);
   }
 
   public void addDirectAttachment(MultipartFile file) {
