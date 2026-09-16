@@ -162,6 +162,11 @@ public enum Capability {
       pair(ResourceType.CREDENTIAL, Action.CREATE),
       pair(ResourceType.CREDENTIAL, Action.DUPLICATE)),
   DELETE_CREDENTIALS(MANAGE_CREDENTIALS, pair(ResourceType.CREDENTIAL, Action.DELETE)),
+  RESOLVE_INJECT_SECRET(
+      null,
+      CapabilityGroup.CREDENTIALS,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.INJECT_SECRET, Action.RESOLVE)),
 
   // Marking definitions
   ACCESS_MARKING_DEFINITION(
@@ -696,6 +701,9 @@ public enum Capability {
   }
 
   public boolean isCredentialCapability() {
-    return this == ACCESS_CREDENTIALS || this == MANAGE_CREDENTIALS || this == DELETE_CREDENTIALS;
+    return this == ACCESS_CREDENTIALS
+        || this == MANAGE_CREDENTIALS
+        || this == DELETE_CREDENTIALS
+        || this == RESOLVE_INJECT_SECRET;
   }
 }

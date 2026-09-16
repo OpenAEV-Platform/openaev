@@ -19,6 +19,9 @@ public enum Action {
   // specific to stix bundle processing
   PROCESS,
 
+  // specific for resolve credential from injectors
+  RESOLVE,
+
   // specific to login/logout
   LOGIN,
   LOGOUT,

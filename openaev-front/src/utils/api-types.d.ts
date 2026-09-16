@@ -6159,6 +6159,7 @@ export interface Inject {
   inject_asset_groups?: string[];
   inject_assets?: string[];
   inject_attack_patterns?: AttackPattern[];
+  inject_authorisation?: InjectAuthorisation;
   inject_city?: string;
   inject_collect_status?: "COLLECTING" | "COMPLETED";
   inject_communications?: string[];
@@ -6197,6 +6198,7 @@ export interface Inject {
   /** @format date-time */
   inject_recurrence_start?: string;
   inject_scenario?: string;
+  inject_secret_references?: string[];
   /** @format date-time */
   inject_sent_at?: string;
   inject_status?: InjectStatus;
@@ -6232,6 +6234,13 @@ export interface InjectAssistantInput {
    * @format int32
    */
   inject_by_ttp_number: number;
+}
+
+export interface InjectAuthorisation {
+  inject_authorisation_id?: string;
+  /** @format date-time */
+  inject_authorisation_issued_at?: string;
+  inject_id?: string;
 }
 
 export interface InjectBulkProcessingInput {
@@ -7998,6 +8007,7 @@ export interface NotificationTriggerInput {
     | "VULNERABILITY"
     | "USER_GROUP"
     | "INJECTOR"
+    | "INJECT_SECRET"
     | "INJECTOR_CONTRACT"
     | "MAPPER"
     | "GROUP_ROLE"
@@ -8105,6 +8115,7 @@ export interface NotificationTriggerOutput {
     | "VULNERABILITY"
     | "USER_GROUP"
     | "INJECTOR"
+    | "INJECT_SECRET"
     | "INJECTOR_CONTRACT"
     | "MAPPER"
     | "GROUP_ROLE"
@@ -10456,6 +10467,7 @@ export interface RoleInput {
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
+    | "RESOLVE_INJECT_SECRET"
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
@@ -10536,6 +10548,7 @@ export interface RoleOutput {
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
+    | "RESOLVE_INJECT_SECRET"
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
@@ -12672,6 +12685,7 @@ export interface User {
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
+    | "RESOLVE_INJECT_SECRET"
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
