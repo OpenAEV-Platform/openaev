@@ -23,6 +23,19 @@ export const getAgentPlatform = (): string => {
   }
 };
 
+export const executeAgentInstall = (installCommand: string): void => {
+  // Windows PowerShell 5.1 prompts for confirmation when iwr parses HTML.
+  const commandToExecute = os.platform() === 'win32'
+    ? installCommand.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing')
+    : installCommand;
+
+  execSync(commandToExecute, {
+    stdio: 'inherit',
+    timeout: 60_000,
+    shell: os.platform() === 'win32' ? 'powershell' : undefined,
+  });
+};
+
 export const installAgent = async (browser: Browser): Promise<InstalledAgent> => {
   const platform = getAgentPlatform();
   const hostname = os.hostname().toLowerCase();
@@ -37,17 +50,7 @@ export const installAgent = async (browser: Browser): Promise<InstalledAgent> =>
     const agentInstallPage = new AgentInstallPage(page);
     await agentInstallPage.waitForLoad();
     const installCommand = await agentInstallPage.getInstallCommand(platform);
-
-    // Windows PowerShell 5.1 prompts for confirmation when iwr parses HTML.
-    const commandToExecute = os.platform() === 'win32'
-      ? installCommand.replace(/\b(iwr|Invoke-WebRequest)\b/, '$1 -UseBasicParsing')
-      : installCommand;
-
-    execSync(commandToExecute, {
-      stdio: 'inherit',
-      timeout: 60_000,
-      shell: os.platform() === 'win32' ? 'powershell' : undefined,
-    });
+    executeAgentInstall(installCommand);
   } finally {
     await context.close();
   }

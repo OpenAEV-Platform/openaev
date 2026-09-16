@@ -1,11 +1,10 @@
 import { expect } from '@playwright/test';
 
 import { test } from '../../fixtures';
-import EndpointListPage from '../../model/assets/EndpointListPage';
 import AtomicTestingFormComponent from '../../model/atomic-testings/AtomicTestingFormComponent';
 import AtomicTestingListPage from '../../model/atomic-testings/AtomicTestingListPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
-import { installAgent } from '../../utils/agent';
+import { installAgent, waitForRegisteredAgent } from '../../utils/agent';
 import { AUTH_FILE } from '../../utils/constants';
 import { tenantUrl } from '../../utils/url';
 
@@ -40,17 +39,10 @@ test.describe.serial('Agent implant registration', () => {
     }
   });
 
+  // Assertion is performed by waitForRegisteredAgent.
+  // eslint-disable-next-line playwright/expect-expect
   test('installed agent registers an endpoint', async ({ page }) => {
-    // Poll the endpoints UI until the agent registers (up to 150 s)
-    await expect(async () => {
-      await page.goto(tenantUrl('/admin/assets'));
-      const endpointList = new EndpointListPage(page);
-      await endpointList.waitForLoad();
-      await expect(endpointList.getEndpointByHostname(hostname)).toBeVisible();
-    }).toPass({
-      intervals: [5_000],
-      timeout: 150_000,
-    });
+    await waitForRegisteredAgent(page, hostname);
   });
 
   test('create and launch atomic test with payload on registered endpoint', async ({ page }) => {
